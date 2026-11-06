@@ -1339,7 +1339,7 @@ export function ChatSurface({
       data-testid="chat-header-layout-presets"
       className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-[#11131C]/90 px-1.5 py-0.5 font-mono text-[11px]"
     >
-      <span className="px-1 text-[10px] uppercase tracking-[0.08em] text-text-muted">Layout:</span>
+      <span className="px-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">Layout:</span>
       <button
         type="button"
         data-testid="chat-header-preset-focus"
@@ -1553,7 +1553,7 @@ export function ChatSurface({
                 type="button"
                 data-testid="urbs-district-filter-pill"
                 onClick={() => useLudusStore.getState().setSelectedDistrictFilter(null)}
-                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/50 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-medium text-amber-100 hover:bg-amber-500/25"
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/50 bg-amber-500/15 px-2 py-0.5 font-mono text-[11px] font-medium text-amber-100 hover:bg-amber-500/25"
                 title="Clear Urbs District Filter"
               >
                 <span>🏛 District Filter: {selectedDistrictFilter}</span>

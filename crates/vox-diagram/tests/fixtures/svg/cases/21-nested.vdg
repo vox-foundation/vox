@@ -1,0 +1,26 @@
+graph {
+    direction: right
+    node src: "Source"
+    container outer: "Outer layer" {
+        node o1: "Outer node"
+        container mid: "Middle layer" {
+            node m1: "Middle node"
+            container inner: "Innermost layer" {
+                node i1: "Deep node"
+            }
+        }
+    }
+    container side: "Sibling group" {
+        node s1: "Side node"
+        node s2: "Other side"
+        s1 -> s2
+    }
+    container hollow: "Nothing here yet" { }
+    container lengthy: "A very long title that keeps going on and on for sixty chars" {
+        node l1: "Long one"
+    }
+    src -> outer.o1
+    outer.mid.inner.i1 -> side.s1: "down"
+    side.s2 -> outer.mid.m1: "up"
+    lengthy.l1 -> src
+}

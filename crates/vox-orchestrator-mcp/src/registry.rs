@@ -86,7 +86,9 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
             );
             rmcp::model::Tool::new_with_raw(
                 std::borrow::Cow::Owned(n.to_string()),
-                Some(std::borrow::Cow::Owned(e.description.to_string())),
+                Some(std::borrow::Cow::Owned(
+                    crate::diagram_tools::advertised_description(n, e.description),
+                )),
                 std::sync::Arc::new(input_schemas::tool_input_schema(n)),
             )
             .with_meta(Meta(meta_map))

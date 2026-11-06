@@ -1,0 +1,15 @@
+graph {
+    node CodeGenQuery: "Code Query: 'Implement async distributed worker queue in Rust'"
+    node LocalRepoCheck: "Local Codebase Scan (Existing crates, Cargo.lock, patterns)"
+    node EcosystemCheck: "Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)"
+    node DocsFetch: "Official Spec & Docs Extractor (docs.rs signatures, API contracts)"
+    node SandboxedCheck: "Sandbox Typecheck & Syntax Validator (vox check / cargo check)"
+    node CodeGenSynthesis: "Grounded Code & Architecture Plan"
+    CodeGenQuery -> LocalRepoCheck
+    CodeGenQuery -> EcosystemCheck
+    CodeGenQuery -> DocsFetch
+    EcosystemCheck -> SandboxedCheck
+    DocsFetch -> SandboxedCheck
+    SandboxedCheck -> CodeGenSynthesis
+    LocalRepoCheck -> CodeGenSynthesis
+}

@@ -24,14 +24,23 @@ Defines the 2026 architecture and end-to-end audit closure for the MENS native R
 
 ## 1. End-to-End MENS Training & Inference Pipeline Audit
 
-```mermaid
-flowchart LR
-    SP["System Prompt SSOT (mens/config/system_prompt.txt + vox-corpus + vox-ml-cli)"] --> GEN["Organic & Synthetic Generators (codegen_vox + preflight + _script_pairs + _web_pairs)"]
-    GEN --> COMP["Compiler Gate (vox_compiler::lexer + parser + HIR + typeck)"]
-    COMP --> MIX["Corpus Mix & QLoRA Training (vox-populi::mens + qlora-rs Metal/CUDA)"]
-    MIX --> INF["Native Candle Inference Plugins (vox-plugin-mens-candle-metal & cuda)"]
-    INF --> CHAT["vox chat SOTA Router (free / auto / efficient / balanced / genius)"]
-    CHAT --> LOOP["Compiler-in-the-Loop .vox Script Self-Repair"]
+```vox-diagram
+graph {
+    direction: right
+    node SP: "System Prompt SSOT (mens/config/system_prompt.txt + vox-corpus + vox-ml-cli)"
+    node GEN: "Organic & Synthetic Generators (codegen_vox + preflight + _script_pairs + _web_pairs)"
+    node COMP: "Compiler Gate (vox_compiler::lexer + parser + HIR + typeck)"
+    node MIX: "Corpus Mix & QLoRA Training (vox-populi::mens + qlora-rs Metal/CUDA)"
+    node INF: "Native Candle Inference Plugins (vox-plugin-mens-candle-metal & cuda)"
+    node CHAT: "vox chat SOTA Router (free / auto / efficient / balanced / genius)"
+    node LOOP: "Compiler-in-the-Loop .vox Script Self-Repair"
+    SP -> GEN
+    GEN -> COMP
+    COMP -> MIX
+    MIX -> INF
+    INF -> CHAT
+    CHAT -> LOOP
+}
 ```
 
 ### 1.1 Critical Defects Identified & Remediated

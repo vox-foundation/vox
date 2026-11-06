@@ -90,21 +90,33 @@ In CLI design, pure vector-similarity auto-aliasing suffers from four well-docum
 
 Instead of a single fuzzy/semantic hammer, the optimal architecture separates **deterministic compile-time/runtime normalization** (Stages 1–3) from **precomputed semantic synonym tables** (Stage 4) and **LLM-assisted CI mining** (Stage 5).
 
-```mermaid
-flowchart TD
-    Argv["Raw Argv (std::env::args)"] --> Stage0["Stage 0: Execution Context Probe (TTY vs CI/LLM Agent)"]
-    Stage0 --> Stage1["Stage 1: Exact Clap Parse + Prefix Unfolding (infer_subcommands / infer_long_args)"]
-    Stage1 -->|"Success"| Dispatch["Execute Handler (< 1 ms)"]
-    Stage1 -->|"Clap Error (InvalidSubcommand / UnknownArgument)"| Stage2["Stage 2: Order-Agnostic Token & Flag Normalizer (Verb↔Noun Swap, Global Flag Hoisting)"]
-    Stage2 -->|"Unique Canonical Path Found"| Gate["Side-Effect & Context Gate"]
-    Stage2 -->|"No Structural Match"| Stage3["Stage 3: Committed Alias & Cross-CLI Rosetta Table (contracts/cli/semantic-aliases.v1.json)"]
-    Stage3 -->|"High-Confidence Alias Hit"| Gate
-    Stage3 -->|"Unmatched"| Stage4["Stage 4: Hybrid Lexical + Precomputed Concept Vector Ranker (< 2 ms In-Memory)"]
-    
-    Gate -->|"Tier A: Exact Reorder / Prefix + Read-Only"| AutoExec["Auto-Execute + Stderr Canonical Hint"]
-    Gate -->|"Tier B: Mutating OR Ambiguous + Interactive TTY"| Prompt["Single-Keystroke Confirmation [Y/n]"]
-    Gate -->|"Tier C: Non-TTY / LLM Agent / Low Confidence"| Diag["Structured Diagnostic + Exact Copy-Paste / JSON Redirect"]
-    Stage4 --> Gate
+```vox-diagram
+graph {
+    direction: down
+    node argv: "Raw Argv (std::env::args)"
+    node stage0: "Stage 0: Execution Context Probe (TTY vs CI/LLM Agent)"
+    node stage1: "Stage 1: Exact Clap Parse + Prefix Unfolding (infer_subcommands / infer_long_args)"
+    node dispatch: "Execute Handler (< 1 ms)"
+    node stage2: "Stage 2: Order-Agnostic Token & Flag Normalizer (Verb↔Noun Swap, Global Flag Hoisting)"
+    node gate: "Side-Effect & Context Gate"
+    node stage3: "Stage 3: Committed Alias & Cross-CLI Rosetta Table (contracts/cli/semantic-aliases.v1.json)"
+    node stage4: "Stage 4: Hybrid Lexical + Precomputed Concept Vector Ranker (< 2 ms In-Memory)"
+    node autoexec: "Auto-Execute + Stderr Canonical Hint"
+    node prompt: "Single-Keystroke Confirmation [Y/n]"
+    node diag: "Structured Diagnostic + Exact Copy-Paste / JSON Redirect"
+    argv -> stage0
+    stage0 -> stage1
+    stage1 -> dispatch: "Success"
+    stage1 -> stage2: "Clap Error (InvalidSubcommand / UnknownArgument)"
+    stage2 -> gate: "Unique Canonical Path Found"
+    stage2 -> stage3: "No Structural Match"
+    stage3 -> gate: "High-Confidence Alias Hit"
+    stage3 -> stage4: "Unmatched"
+    gate -> autoexec: "Tier A: Exact Reorder / Prefix + Read-Only"
+    gate -> prompt: "Tier B: Mutating OR Ambiguous + Interactive TTY"
+    gate -> diag: "Tier C: Non-TTY / LLM Agent / Low Confidence"
+    stage4 -> gate
+}
 ```
 
 ### Idea 1: Native Prefix Unfolding & Global Flag Hoisting (Stage 1 — 0 ms Overhead)
@@ -278,8 +290,8 @@ Extend `OperationRow` (or `CliProjection`) in [`crates/vox-cli/src/commands/ci/o
 
 Instead offorking `clap`, intercept errors from `VoxCliRoot::try_parse_from(args)` in [`crates/vox-cli/src/main.rs`](../../../crates/vox-cli/src/main.rs):
 
-```vox
-// vox:skip — architectural pseudocode illustrating the pre-parse normalizer flow
+```text
+// architectural pseudocode illustrating the pre-parse normalizer flow
 fn parse_with_tolerance(raw_args: list[str]) -> Result[VoxCliRoot, CliDiagnostic] {
     // Fast path: 99% of valid LLM/script calls and exact human calls pay 0 overhead.
     match VoxCliRoot.try_parse_from(raw_args) {

@@ -23,6 +23,7 @@ pub use infer::{
     mcp_infer_completion,
 };
 pub use model_route_policy::budget_guard;
+#[cfg(test)]
 pub(crate) use model_route_policy::build_selection_request;
 pub use model_route_policy::turn_decision_pack;
 pub use model_route_policy::{

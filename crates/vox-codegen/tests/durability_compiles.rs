@@ -104,12 +104,15 @@ fn workflow_emit_uses_canonical_db_resolution() {
     );
 }
 
-/// Task 6.1 review: `emit_fn` keeps `-> i64` for `workflow wf() to int`.
-/// The body must not use `?` — that is only valid in a `Result` function.
-/// Failures use expect/match so the generated signature still matches the
-/// Vox type.
+/// `workflow wf() to int` emits `-> Result<i64, String>`: the declared type is
+/// the `Ok` payload and the outer `Err` is durable-runtime failure only.
+/// Contract set by "feat(vox-codegen): a workflow declared `to R` returns
+/// Result<R, String>" (#610, 885fd254d), which superseded the Sep-2026 Task 6.1
+/// `-> i64` / no-`?` rule this test used to pin; see `workflow_rust_return_type`
+/// and the `custom_error_workflow_needs_no_error_conversion` unit test. The
+/// declared value still comes from the journal's terminal return, wrapped in Ok.
 #[test]
-fn workflow_to_int_wrapper_has_no_try_operator() {
+fn workflow_to_int_wrapper_returns_result_of_declared_type() {
     let src = "workflow wf() to int { return 7 }";
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);
@@ -121,12 +124,16 @@ fn workflow_to_int_wrapper_has_no_try_operator() {
     let rust = emit_fn(func, Some(&hir.inferred_types), &[]);
 
     assert!(
-        rust.contains("async fn wf() -> i64"),
-        "to int wrapper must keep the Vox return type (i64), not Result; got:\n{rust}"
+        rust.contains("async fn wf() -> Result<i64, String>"),
+        "to int wrapper must return Result<i64, String> (declared type as Ok); got:\n{rust}"
     );
     assert!(
-        !rust.contains('?'),
-        "to int wrapper must not use ? (invalid in a non-Result fn); got:\n{rust}"
+        rust.contains("Ok(::vox_workflow_runtime::workflow::extract_terminal_return::<i64>("),
+        "to int wrapper must return the journal's terminal i64 in Ok; got:\n{rust}"
+    );
+    assert!(
+        !rust.contains(".expect(") && !rust.contains("panic!"),
+        "a Result wrapper must surface runtime failure as Err, not panic; got:\n{rust}"
     );
 }
 

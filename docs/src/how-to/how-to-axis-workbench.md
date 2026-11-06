@@ -22,12 +22,19 @@ The Vox Axis Desktop Workbench (`vox-gui`) is a Tauri 2 operator interface uniti
 
 ## Architecture & Workbench Layout
 
-```mermaid
-flowchart LR
-    Omnibar["Omnibar (Cmd/Ctrl+K)<br/>Federated Search & Slash Router"] --> Dock["DockWorkspaceShell<br/>Multi-Panel Split Docking"]
-    Dock --> Loquela["Loquela Chat & Posture Bar<br/>(Alt+1..4 Clutch & Risk Knobs)"]
-    Dock --> Reader["DocReader & Scientia<br/>(Pinned Architecture + RRF Search)"]
-    Dock --> Rail["ChatExecutionRail<br/>(Turn Receipts & CAS Task Ledger)"]
+```vox-diagram
+graph {
+    direction: right
+    node omnibar: "Omnibar (Cmd/Ctrl+K)\nFederated Search & Slash Router"
+    node dock: "DockWorkspaceShell\nMulti-Panel Split Docking"
+    node loquela: "Loquela Chat & Posture Bar\n(Alt+1..4 Clutch & Risk Knobs)"
+    node reader: "DocReader & Scientia\n(Pinned Architecture + RRF Search)"
+    node rail: "ChatExecutionRail\n(Turn Receipts & CAS Task Ledger)"
+    omnibar -> dock
+    dock -> loquela
+    dock -> reader
+    dock -> rail
+}
 ```
 
 ## 1. Launching the Workbench

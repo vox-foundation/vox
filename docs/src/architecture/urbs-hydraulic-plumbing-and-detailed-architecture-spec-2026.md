@@ -39,21 +39,27 @@ Inspection of the `v5.0` production render (`urbs-photorealistic-v50-prod.png`) 
 
 ## 2. Six-Subsystem Architecture (`Phases 289–294`)
 
-```mermaid
-flowchart TD
-    subgraph L0["Layer 0–0.9: Seamless Sea, Detailed Grounds & Recessed Hydraulic Grid"]
-        P289["Phase 289: Seamless Periodic Sea & Pre-Building Ground-Plane Illumination"]
-        P290["Phase 290: Cardo/Decumanus Streets, Opus Sectile Plazas & Substructio Cliff Arcades"]
-        P292["Phase 292: Integrated Aquaeductus, Castellum Divisorium, Fistulae Pipes & Cloaca Maxima Sewers"]
-    end
-    subgraph L1["Layer 1–3: High-Detail Vitruvian Buildings & Wonders"]
-        P291["Phase 291: Rusticated Arcades, Belt Cornices, Atrium Impluvia & Acroteria Roofs"]
-    end
-    subgraph L4["Layer 4–5: Animated Shape+Color Activity Conduits & Feathered Atmospheric Light"]
-        P293["Phase 293: Multi-Channel Color+Shape Animated Activity Conduits"]
-        P294["Phase 294: Semiotic Consistency Audit, Unit Tests & Playwright CV Flywheel"]
-    end
-    P289 --> P290 --> P292 --> P291 --> P293 --> P294
+```vox-diagram
+graph {
+    direction: down
+    container l0: "Layer 0–0.9: Seamless Sea, Detailed Grounds & Recessed Hydraulic Grid" {
+        node p289: "Phase 289: Seamless Periodic Sea & Pre-Building Ground-Plane Illumination"
+        node p290: "Phase 290: Cardo/Decumanus Streets, Opus Sectile Plazas & Substructio Cliff Arcades"
+        node p292: "Phase 292: Integrated Aquaeductus, Castellum Divisorium, Fistulae Pipes & Cloaca Maxima Sewers"
+    }
+    container l1: "Layer 1–3: High-Detail Vitruvian Buildings & Wonders" {
+        node p291: "Phase 291: Rusticated Arcades, Belt Cornices, Atrium Impluvia & Acroteria Roofs"
+    }
+    container l4: "Layer 4–5: Animated Shape+Color Activity Conduits & Feathered Atmospheric Light" {
+        node p293: "Phase 293: Multi-Channel Color+Shape Animated Activity Conduits"
+        node p294: "Phase 294: Semiotic Consistency Audit, Unit Tests & Playwright CV Flywheel"
+    }
+    l0.p289 -> l0.p290
+    l0.p290 -> l0.p292
+    l0.p292 -> l1.p291
+    l1.p291 -> l4.p293
+    l4.p293 -> l4.p294
+}
 ```
 
 ### Phase 289: Smooth Ground-Plane-Recessed Lighting & Seamless Periodic Water (`URBS-SMOOTH-LIGHT-01..04`)

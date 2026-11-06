@@ -1,0 +1,12 @@
+sequence {
+    actor a: "注文"
+    actor b: "サーバー 🚀"
+    actor c: "Café Ünïcode"
+
+    a -> b: "注文を確認します"
+    b -> c: "🚀 launched ✅\nsecond line with é and 👨‍👩‍👧"
+    reply c -> b: "受け取りました、ありがとうございます、すぐに処理を開始して結果をお知らせします、少々お待ちください"
+    c -> c: "naïve résumé"
+    note over b, c: "備考: 長い説明文がここに入りますが、折り返されるはずです。🚀🚀🚀"
+    b -> a
+}

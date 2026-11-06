@@ -1,0 +1,15 @@
+---
+source: crates/vox-diagram/tests/mermaid_catalog.rs
+expression: r.text
+---
+// pipeline overview
+graph {
+    node ingest: "Ingest"
+    node parse: "Parse"
+    node emit: "Emit"
+    node sink: "Warehouse" { shape: cylinder }
+    direction: down
+    ingest -> parse
+    parse -> emit
+    emit -> sink // final hop
+}

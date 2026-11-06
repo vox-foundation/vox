@@ -28,46 +28,47 @@ Inspecting the v4.9 Canvas 2D output against our concept plates reveals four str
 
 ## 2. Six-Subsystem Photorealistic Rendering Architecture (`Phases 277–282`)
 
-```mermaid
-flowchart TD
-  subgraph P277["Phase 277: Procedural Natural Material Atlas (pbrMaterials.ts)"]
-    M1["Pitted Travertine & Ashlar Stone Patterns"]
-    M2["Scalloped Terracotta Imbrex/Tegula Roof Shaders"]
-    M3["Opus Incertum Flagstone & Cobblestone Plaza Patterns"]
-    M4["Stratified Basalt Cliff & Anisotropic Bronze Gradients"]
-  end
-
-  subgraph P278["Phase 278: Depth Shading, Cast Shadows & Specular Bevels"]
-    D1["Projected Isometric Directional Cast Shadows (SE Sun -> NW Shadow)"]
-    D2["Vertical Face Gradients (Crevice AO + Golden Rim Light)"]
-    D3["Specular Chamfer Edge Highlights (Replacing Black Outlines)"]
-  end
-
-  subgraph P279["Phase 279: Bathymetric Sea, Cliff Geology & Waterfall Caustics"]
-    T1["Multi-Stop Coastal Bathymetry & White Surf Foam Ribbons"]
-    T2["3D Craggy Cliff Strata, Erosion Fissures & Moss Bands"]
-    T3["Recessed Cobblestone Plazas & Torchlight Specular Response"]
-  end
-
-  subgraph P280["Phase 280: Atmospheric Lighting, God-Rays & Additive GI (lightingAndFx.ts)"]
-    L1["Inter-Terrace Atmospheric Perspective & Valley Mist"]
-    L2["Diagonal Golden-Hour Crepuscular God-Rays"]
-    L3["Additive Point-Light GI Pools (Braziers, Forges, Aqueducts)"]
-    L4["Cinematic Vignette & Warm Highlight Bloom Pass"]
-  end
-
-  subgraph P281["Phase 281: Live Particle FX Engine"]
-    F1["Rising Forge Embers & Volumetric Smoke Plumes"]
-    F2["Waterfall Mist Spray & Harbor Water Ripples"]
-    F3["Mason Chisel Sparks & Golden Viaduct Token Trails"]
-  end
-
-  subgraph P282["Phase 282: Diegetic Cliff-Apron Plaques & HUD Decluttering"]
-    U1["Chiseled Bronze/Marble Architrave Plaques on Front Cliff Retaining Walls"]
-    U2["Hover/Focus Progressive Disclosure for Secondary File Slabs"]
-  end
-
-  P277 --> P278 --> P279 --> P280 --> P281 --> P282
+```vox-diagram
+graph {
+    direction: down
+    container p277: "Phase 277: Procedural Natural Material Atlas (pbrMaterials.ts)" {
+        node m1: "Pitted Travertine & Ashlar Stone Patterns"
+        node m2: "Scalloped Terracotta Imbrex/Tegula Roof Shaders"
+        node m3: "Opus Incertum Flagstone & Cobblestone Plaza Patterns"
+        node m4: "Stratified Basalt Cliff & Anisotropic Bronze Gradients"
+    }
+    container p278: "Phase 278: Depth Shading, Cast Shadows & Specular Bevels" {
+        node d1: "Projected Isometric Directional Cast Shadows (SE Sun -> NW Shadow)"
+        node d2: "Vertical Face Gradients (Crevice AO + Golden Rim Light)"
+        node d3: "Specular Chamfer Edge Highlights (Replacing Black Outlines)"
+    }
+    container p279: "Phase 279: Bathymetric Sea, Cliff Geology & Waterfall Caustics" {
+        node t1: "Multi-Stop Coastal Bathymetry & White Surf Foam Ribbons"
+        node t2: "3D Craggy Cliff Strata, Erosion Fissures & Moss Bands"
+        node t3: "Recessed Cobblestone Plazas & Torchlight Specular Response"
+    }
+    container p280: "Phase 280: Atmospheric Lighting, God-Rays & Additive GI (lightingAndFx.ts)" {
+        node l1: "Inter-Terrace Atmospheric Perspective & Valley Mist"
+        node l2: "Diagonal Golden-Hour Crepuscular God-Rays"
+        node l3: "Additive Point-Light GI Pools (Braziers, Forges, Aqueducts)"
+        node l4: "Cinematic Vignette & Warm Highlight Bloom Pass"
+    }
+    container p281: "Phase 281: Live Particle FX Engine" {
+        node f1: "Rising Forge Embers & Volumetric Smoke Plumes"
+        node f2: "Waterfall Mist Spray & Harbor Water Ripples"
+        node f3: "Mason Chisel Sparks & Golden Viaduct Token Trails"
+    }
+    container p282: "Phase 282: Diegetic Cliff-Apron Plaques & HUD Decluttering" {
+        node u1: "Chiseled Bronze/Marble Architrave Plaques on Front Cliff Retaining Walls"
+        node u2: "Hover/Focus Progressive Disclosure for Secondary File Slabs"
+    }
+    // Phase order: edges join the first item of each phase (edges cannot end on a container).
+    p277.m1 -> p278.d1
+    p278.d1 -> p279.t1
+    p279.t1 -> p280.l1
+    p280.l1 -> p281.f1
+    p281.f1 -> p282.u1
+}
 ```
 
 ### 2.1 Phase 277: Procedural Natural Surface Material Synthesis (`pbrMaterials.ts`)

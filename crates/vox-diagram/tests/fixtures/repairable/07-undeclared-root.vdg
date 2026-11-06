@@ -1,0 +1,5 @@
+graph {
+    node a: "A"
+    a -> ghost
+    ghost -> a
+}

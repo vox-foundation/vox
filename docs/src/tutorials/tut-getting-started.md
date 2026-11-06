@@ -23,10 +23,15 @@ This quickstart guides developers through Vox in three hands-on stages: first, r
 
 Pick the starting depth that matches what you want to build right now:
 
-```mermaid
-flowchart LR
-    T1["60 Seconds<br/>Zero-Install Playground & vox run"] --> T2["5 Minutes<br/>Single-File Full-Stack App"]
-    T2 --> T3["15 Minutes<br/>Source Build, Workflows & Axis GUI"]
+```vox-diagram
+graph {
+    direction: right
+    node T1: "60 Seconds: Zero-Install Playground & vox run"
+    node T2: "5 Minutes: Single-File Full-Stack App"
+    node T3: "15 Minutes: Source Build, Workflows & Axis GUI"
+    T1 -> T2
+    T2 -> T3
+}
 ```
 
 ---
@@ -115,6 +120,8 @@ routes {
 ```
 
 ### How One `.vox` File Compiles to 4 Targets
+
+![One .vox file fanning out into a database, a server, and a browser UI](../assets/one-file-three-layers.png)
 
 | Declaration | Purpose | What `vox build` Emits |
 |---|---|---|

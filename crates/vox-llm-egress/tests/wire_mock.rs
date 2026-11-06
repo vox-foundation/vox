@@ -59,6 +59,37 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
     );
 }
 
+/// A reasoning model that spends its whole budget thinking returns empty `content`;
+/// the stop cause and the reasoning must survive so callers can tell why.
+#[tokio::test]
+async fn chat_once_keeps_finish_reason_and_reasoning_when_content_is_empty() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{
+                "finish_reason": "length",
+                "message": {"role": "assistant", "content": "", "reasoning": "let me think"}
+            }],
+            "usage": {
+                "prompt_tokens": 5,
+                "completion_tokens": 4096,
+                "completion_tokens_details": {"reasoning_tokens": 4090}
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let out = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    assert_eq!(out.content, "");
+    assert_eq!(out.finish_reason.as_deref(), Some("length"));
+    assert_eq!(out.reasoning_tokens, 4090);
+    assert_eq!(out.reasoning.as_deref(), Some("let me think"));
+}
+
 #[tokio::test]
 async fn chat_once_parses_tool_calls() {
     let server = MockServer::start().await;

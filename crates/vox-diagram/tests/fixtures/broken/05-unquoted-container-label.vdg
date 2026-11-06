@@ -1,0 +1,6 @@
+// expect: diagram/expected-quoted-label
+graph {
+    container c: Backend Services {
+        node x: "X"
+    }
+}

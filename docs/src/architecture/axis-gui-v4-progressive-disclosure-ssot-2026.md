@@ -38,12 +38,19 @@ Live Playwright CV captures (`crates/vox-gui/ui/e2e/review/cv-flywheel.spec.ts`)
 
 To guarantee that every current and future GUI surface, dock panel, child tab, and popover is automatically verified without manual test array maintenance, `crates/vox-gui/ui/e2e/review/cv-flywheel.spec.ts` introspects the live runtime manifests:
 
-```mermaid
-flowchart LR
-  Reg["SURFACE_REGISTRY\n+ surfaceComponents\n+ CHAT_DOCK_COMPONENTS"] --> Crawler["Playwright Dynamic\nSurface Crawler"]
-  Crawler --> SubTabs["Auto-Discover Child\n[role='tab'] & Popovers"]
-  SubTabs --> Detectors["DOM Clipping, Row-Wrap\n& Duplicate Detectors"]
-  Detectors --> Report["cv-flywheel-all-surfaces.json\n+ Concept Art v4.0 Gate"]
+```vox-diagram
+graph {
+    direction: right
+    node reg: "SURFACE_REGISTRY\n+ surfaceComponents\n+ CHAT_DOCK_COMPONENTS"
+    node crawler: "Playwright Dynamic\nSurface Crawler"
+    node subtabs: "Auto-Discover Child\n[role='tab'] & Popovers"
+    node detectors: "DOM Clipping, Row-Wrap\n& Duplicate Detectors"
+    node report: "cv-flywheel-all-surfaces.json\n+ Concept Art v4.0 Gate"
+    reg -> crawler
+    crawler -> subtabs
+    subtabs -> detectors
+    detectors -> report
+}
 ```
 
 - **Zero Hardcoded View Lists**: Union of `SURFACE_REGISTRY`, `surfaceComponents` route keys, and `CHAT_DOCK_COMPONENTS` dock panel keys.

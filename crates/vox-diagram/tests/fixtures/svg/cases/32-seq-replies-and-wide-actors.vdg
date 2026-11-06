@@ -1,0 +1,13 @@
+sequence {
+    actor client: "A very long actor label that has to wrap onto several lines because it is far wider than twenty eight cells"
+    actor server: "Server"
+    actor db: "The persistent relational database cluster of the billing department"
+
+    client -> server: "request"
+    server -> db: "query"
+    reply db -> server
+    reply server -> client: "response"
+    client -> server
+    reply server -> client
+    client -> db: "a direct read that skips the server and has to cross its lane"
+}

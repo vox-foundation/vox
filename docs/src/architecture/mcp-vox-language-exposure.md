@@ -18,15 +18,25 @@ Per-crate generated stdio MCP servers (`emit_mcp_server` in `vox-codegen`) remai
 
 ## Federation flow
 
-```mermaid
-flowchart LR
-  Vox["@tool / @resource in .vox"] --> Loader["WorkspaceMcpLoader"]
-  Loader --> Surface["WorkspaceMcpSurface"]
-  Catalog["operations/catalog"] --> Static["TOOL_REGISTRY"]
-  Surface --> Merge["tools/list + dispatch"]
-  Static --> Merge
-  Skills["installed skills"] --> Merge
-  Surface --> ResRead["resources/read"]
+```vox-diagram
+graph {
+    direction: right
+    node Vox: "@tool / @resource in .vox"
+    node Loader: "WorkspaceMcpLoader"
+    node Surface: "WorkspaceMcpSurface"
+    node Catalog: "operations/catalog"
+    node Static: "TOOL_REGISTRY"
+    node Merge: "tools/list + dispatch"
+    node Skills: "installed skills"
+    node ResRead: "resources/read"
+    Vox -> Loader
+    Loader -> Surface
+    Catalog -> Static
+    Surface -> Merge
+    Static -> Merge
+    Skills -> Merge
+    Surface -> ResRead
+}
 ```
 
 ## Collision rules

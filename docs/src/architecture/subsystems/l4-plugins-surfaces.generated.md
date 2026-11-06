@@ -14,33 +14,35 @@ Dynamically loaded skill/inference plugins and the ratatui-based vox-term TUI.
 
 ## Subsystem Topology
 
-```mermaid
-flowchart TD
-    l4_plugins_surfaces["Layer 4 — Native Plugins & Terminal TUI"]
-    vox_plugin_browser["vox-plugin-browser (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_browser
-    vox_plugin_mens_candle_core["vox-plugin-mens-candle-core (library)"]
-    l4_plugins_surfaces --> vox_plugin_mens_candle_core
-    vox_plugin_mens_candle_cuda["vox-plugin-mens-candle-cuda (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_mens_candle_cuda
-    vox_plugin_mens_candle_metal["vox-plugin-mens-candle-metal (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_mens_candle_metal
-    vox_plugin_nvml_probe["vox-plugin-nvml-probe (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_nvml_probe
-    vox_plugin_populi_mesh["vox-plugin-populi-mesh (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_populi_mesh
-    vox_plugin_publication["vox-plugin-publication (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_publication
-    vox_plugin_runtime_container["vox-plugin-runtime-container (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_runtime_container
-    vox_plugin_runtime_wasm["vox-plugin-runtime-wasm (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_runtime_wasm
-    vox_plugin_speech["vox-plugin-speech (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_speech
-    vox_plugin_webhook["vox-plugin-webhook (plugin)"]
-    l4_plugins_surfaces --> vox_plugin_webhook
-    vox_term["vox-term (binary)"]
-    l4_plugins_surfaces --> vox_term
+```vox-diagram
+graph {
+    direction: down
+    node l4_plugins_surfaces: "Layer 4 — Native Plugins & Terminal TUI"
+    node vox_plugin_browser: "vox-plugin-browser (plugin)"
+    l4_plugins_surfaces -> vox_plugin_browser
+    node vox_plugin_mens_candle_core: "vox-plugin-mens-candle-core (library)"
+    l4_plugins_surfaces -> vox_plugin_mens_candle_core
+    node vox_plugin_mens_candle_cuda: "vox-plugin-mens-candle-cuda (plugin)"
+    l4_plugins_surfaces -> vox_plugin_mens_candle_cuda
+    node vox_plugin_mens_candle_metal: "vox-plugin-mens-candle-metal (plugin)"
+    l4_plugins_surfaces -> vox_plugin_mens_candle_metal
+    node vox_plugin_nvml_probe: "vox-plugin-nvml-probe (plugin)"
+    l4_plugins_surfaces -> vox_plugin_nvml_probe
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh (plugin)"
+    l4_plugins_surfaces -> vox_plugin_populi_mesh
+    node vox_plugin_publication: "vox-plugin-publication (plugin)"
+    l4_plugins_surfaces -> vox_plugin_publication
+    node vox_plugin_runtime_container: "vox-plugin-runtime-container (plugin)"
+    l4_plugins_surfaces -> vox_plugin_runtime_container
+    node vox_plugin_runtime_wasm: "vox-plugin-runtime-wasm (plugin)"
+    l4_plugins_surfaces -> vox_plugin_runtime_wasm
+    node vox_plugin_speech: "vox-plugin-speech (plugin)"
+    l4_plugins_surfaces -> vox_plugin_speech
+    node vox_plugin_webhook: "vox-plugin-webhook (plugin)"
+    l4_plugins_surfaces -> vox_plugin_webhook
+    node vox_term: "vox-term (binary)"
+    l4_plugins_surfaces -> vox_term
+}
 ```
 
 ## Crates in Layer

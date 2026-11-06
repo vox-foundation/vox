@@ -55,29 +55,31 @@ layer = 1
 tier = 1
 rationale = "Standalone Cargo workspace layered-architecture, fan-in, and forbidden-edge guard."
 
-# Tier 2: Plugin SDK and installer crates declared in contracts/distribution/profiles.v1.yaml.
+# Tier 2: Plugin ABI trio (publish in dependency order: types -> api -> sdk)
+# and the installer. Mirrors `publish.crates` in
+# contracts/distribution/profiles.v1.yaml (guarded by voxup distribution_parity).
 [[crates]]
 name = "vox-plugin-types"
-layer = 0
+layer = 1
 tier = 2
-rationale = "Core plugin manifest, capability, and skill descriptor types."
+rationale = "Pure-types leaf for the plugin ABI."
 
 [[crates]]
 name = "vox-plugin-api"
 layer = 1
 tier = 2
 depends_on = ["vox-plugin-types"]
-rationale = "Host/guest boundary traits and RPC envelopes for Vox plugins."
+rationale = "Plugin trait and type surface."
 
 [[crates]]
 name = "vox-plugin-sdk"
-layer = 2
+layer = 1
 tier = 2
-depends_on = ["vox-plugin-types", "vox-plugin-api"]
-rationale = "Ergonomic authoring SDK for third-party Vox plugins and skills."
+depends_on = ["vox-plugin-api"]
+rationale = "Plugin authoring SDK: re-exports the API plus declare_plugin! glue."
 
 [[crates]]
 name = "voxup"
-layer = 2
+layer = 5
 tier = 2
-rationale = "Cross-platform toolchain and distribution tier installer for Vox."
+rationale = "Toolchain installer and updater."

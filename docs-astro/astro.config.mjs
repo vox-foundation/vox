@@ -12,6 +12,8 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
+import { remarkStripTitleH1 } from './src/plugins/remark-strip-title-h1.mjs';
+import { voxDiagram } from './src/plugins/vox-diagram-integration.mjs';
 import { linksValidatorExclude } from './src/utils/links-validator-exclude.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
@@ -23,6 +25,9 @@ const docPages = listDocPages(docsSrc);
 const noindex = noindexRoutes(docPages);
 const internalsExcluded = internalsDocIds(docPages);
 
+// VoxDiagram pre-render output (gitignored; `pnpm diagrams` writes it).
+const manifestFile = new URL('./.vox-diagram/manifest.json', import.meta.url);
+
 export default defineConfig({
   site: 'https://voxlang.org/',
   // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
@@ -30,12 +35,14 @@ export default defineConfig({
   markdown: {
     processor: unified({
       remarkPlugins: [
+        remarkStripTitleH1,
         remarkVoxInclude,
         [remarkDocLinks, { repoUrl: 'https://github.com/vox-foundation/vox' }],
       ],
     }),
   },
   integrations: [
+    voxDiagram({ manifestFile }),
     sitemap({
       filter: (page) => {
         const p = new URL(page).pathname;
@@ -62,6 +69,8 @@ export default defineConfig({
       expressiveCode: {
         shiki: {
           langs: [voxGrammar],
+          // Fences are replaced by the remark plugin; the alias keeps stray ones highlight-safe.
+          langAlias: { 'vox-diagram': 'text' },
         },
       },
       plugins: [
@@ -72,11 +81,15 @@ export default defineConfig({
           projectName: 'Vox',
           description: `Vox (vox-foundation/vox, voxlang.org; unrelated to vox-lang.dev or MrSmith33/vox) is a pre-1.0 (${voxVersion}) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.`,
           exclude: internalsExcluded,
+          // The SVG's <desc> and labels are noise for LLMs; its fence source stays (details > pre).
+          // Backstop only: 89-03 found llms-full.txt unchanged without it; kept so a later change
+          // (here or in starlight-llms-txt) cannot leak the svg text into it.
+          customSelectors: { all: ['svg.vd-diagram'] },
         }),
       ],
       lastUpdated: true,
       pagefind: true,
-      customCss: ['./src/styles/reader-layout.css'],
+      customCss: ['./src/styles/reader-layout.css', './src/styles/vox-diagram.css'],
       components: {
         SiteTitle: './src/components/SiteTitle.astro',
         Sidebar: './src/components/Sidebar.astro',

@@ -114,18 +114,31 @@ Stop and ask for human direction if:
 
 ## Target architecture
 
-```mermaid
-flowchart LR
-  VoxSource[".vox source"] --> Compile["vox compile"]
-  Compile --> NativeBinary["native-binary target"]
-  Compile --> AppTargets["desktop and mobile targets"]
-  NativeBinary --> AxumServer["Axum local server with embedded SPA"]
-  AppTargets --> TauriProject["Generated src-tauri project"]
-  TauriProject --> TauriBuild["cargo tauri build"]
-  TauriBuild --> DesktopBundle["Desktop installers"]
-  TauriBuild --> MobileBundle["Android and iOS artifacts"]
-  AppTargets --> CapabilityProjection["runtime-capabilities projection"]
-  CapabilityProjection --> TauriConfig["tauri.conf.json and permissions"]
+```vox-diagram
+graph {
+    direction: right
+    node VoxSource: ".vox source"
+    node Compile: "vox compile"
+    node NativeBinary: "native-binary target"
+    node AppTargets: "desktop and mobile targets"
+    node AxumServer: "Axum local server with embedded SPA"
+    node TauriProject: "Generated src-tauri project"
+    node TauriBuild: "cargo tauri build"
+    node DesktopBundle: "Desktop installers"
+    node MobileBundle: "Android and iOS artifacts"
+    node CapabilityProjection: "runtime-capabilities projection"
+    node TauriConfig: "tauri.conf.json and permissions"
+    VoxSource -> Compile
+    Compile -> NativeBinary
+    Compile -> AppTargets
+    NativeBinary -> AxumServer
+    AppTargets -> TauriProject
+    TauriProject -> TauriBuild
+    TauriBuild -> DesktopBundle
+    TauriBuild -> MobileBundle
+    AppTargets -> CapabilityProjection
+    CapabilityProjection -> TauriConfig
+}
 ```
 
 Axum remains the correct shell for explicit server and dashboard lanes. Tauri becomes the only generated GUI application shell.

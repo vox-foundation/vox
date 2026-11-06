@@ -162,6 +162,30 @@ impl crate::models::ModelRegistry {
         // ponytail: O(models) per call; only used on the premium-alias path.
         is_superseded(m, &newest_per_family(self.models_iter()))
     }
+
+    /// A live `~vendor/family-latest` OpenRouter alias: OpenRouter resolves it server-side
+    /// to the family's current model, so locally it takes the newest registered member's
+    /// spec, keeps the alias as its id (dispatch sends the live alias), and routes over
+    /// OpenRouter. `None` when no member of the family is registered.
+    pub(crate) fn resolve_live_alias(&self, alias: &str) -> Option<ModelSpec> {
+        let family = family_key(alias.strip_prefix('~')?);
+        let newest = self
+            .models_iter()
+            .filter(|m| family_key(&m.id) == family)
+            .max_by_key(|m| {
+                (
+                    m.capabilities.released_at.unwrap_or(0),
+                    version_tuple(&m.id),
+                    m.id.clone(),
+                )
+            })?;
+        let mut spec = newest.clone();
+        spec.id = alias.to_string();
+        spec.canonical_slug = alias.to_string();
+        spec.provider = "openrouter".into();
+        spec.provider_type = crate::models::ProviderType::OpenRouter;
+        Some(spec)
+    }
 }
 
 #[cfg(test)]
@@ -192,6 +216,22 @@ mod tests {
             pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         }
+    }
+
+    #[test]
+    fn live_alias_resolves_to_newest_family_member_over_openrouter() {
+        let mut reg = crate::models::ModelRegistry::default();
+        reg.register(dated("acme/widget-pro-4.1", None));
+        let mut newest = dated("acme/widget-pro-5.2", None);
+        newest.provider_type = ProviderType::Ollama;
+        newest.max_tokens = 4242;
+        reg.register(newest);
+        reg.register(dated("acme/widget-mini-9", None));
+        let spec = reg.get("~acme/widget-pro-latest").expect("alias resolves");
+        assert_eq!(spec.id, "~acme/widget-pro-latest");
+        assert_eq!(spec.max_tokens, 4242, "takes the newest member's spec");
+        assert_eq!(spec.provider_type, ProviderType::OpenRouter);
+        assert!(reg.get("~acme/gadget-latest").is_none());
     }
 
     #[test]

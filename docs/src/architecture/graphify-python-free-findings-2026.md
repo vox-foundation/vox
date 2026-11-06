@@ -54,11 +54,16 @@ Based on ecosystem research, we can construct the extraction and clustering pipe
 
 ## 4. Python-Free Transition Roadmap
 
-```mermaid
-graph TD
-    A["Phase 1: Rust-Native Leiden Integration (leiden-rs)"] --> B["Phase 2: Syn/Tree-Sitter AST Extractor"]
-    B --> C["Phase 3: Native Cache & Hash Walk"]
-    C --> D["Phase 4: Deprecate Python Scripts & CLI Integration"]
+```vox-diagram
+graph {
+    node A: "Phase 1: Rust-Native Leiden Integration (leiden-rs)"
+    node B: "Phase 2: Syn/Tree-Sitter AST Extractor"
+    node C: "Phase 3: Native Cache & Hash Walk"
+    node D: "Phase 4: Deprecate Python Scripts & CLI Integration"
+    A -> B
+    B -> C
+    C -> D
+}
 ```
 
 ### Phase 1: Rust-Native Leiden Integration

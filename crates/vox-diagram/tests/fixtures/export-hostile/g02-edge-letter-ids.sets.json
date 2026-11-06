@@ -1,0 +1,184 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "id O",
+      "rect",
+      []
+    ],
+    [
+      "id X",
+      "rect",
+      []
+    ],
+    [
+      "id o",
+      "rect",
+      []
+    ],
+    [
+      "id o1",
+      "rect",
+      []
+    ],
+    [
+      "id oa",
+      "rect",
+      []
+    ],
+    [
+      "id ox",
+      "rect",
+      []
+    ],
+    [
+      "id x",
+      "rect",
+      []
+    ],
+    [
+      "id xa",
+      "rect",
+      []
+    ],
+    [
+      "id xo",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "id X",
+        "rect",
+        []
+      ],
+      [
+        "id O",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id o",
+        "rect",
+        []
+      ],
+      [
+        "id x",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id o1",
+        "rect",
+        []
+      ],
+      [
+        "id X",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id oa",
+        "rect",
+        []
+      ],
+      [
+        "id xa",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id ox",
+        "rect",
+        []
+      ],
+      [
+        "id xo",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id x",
+        "rect",
+        []
+      ],
+      [
+        "id o",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id x",
+        "rect",
+        []
+      ],
+      [
+        "id ox",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id xa",
+        "rect",
+        []
+      ],
+      [
+        "id o1",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id xo",
+        "rect",
+        []
+      ],
+      [
+        "id oa",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "id xo",
+        "rect",
+        []
+      ],
+      [
+        "id ox",
+        "rect",
+        []
+      ],
+      "back"
+    ]
+  ],
+  "containers": []
+}

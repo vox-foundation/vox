@@ -176,6 +176,8 @@ pub mod telemetry;
 pub mod test;
 pub mod update;
 
+/// VoxDiagram CLI (`vox diagram`).
+pub mod diagram;
 pub mod grammar;
 
 /// Manual plan bridging via PlanningOrchestrator

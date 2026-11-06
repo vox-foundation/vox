@@ -1,0 +1,16 @@
+---
+source: crates/vox-diagram/tests/mermaid_catalog.rs
+expression: r.text
+---
+graph {
+    node A: "Start"
+    node B: "Valid?" { shape: diamond }
+    node C: "Process" { shape: rounded }
+    node D: "Reject"
+    node E: "Archive" { shape: cylinder }
+    direction: right
+    A -> B
+    B -> C: "yes"
+    B -> D: "no"
+    C -> E
+}

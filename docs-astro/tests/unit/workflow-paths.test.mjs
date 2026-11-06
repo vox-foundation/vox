@@ -112,3 +112,64 @@ test('docs-quality push and pull_request paths cover every mounted repo file', (
     assert.deepEqual(missing, [], `add these to docs-quality.yml on.${trigger}.paths`);
   }
 });
+
+test('docs-quality runs the Mermaid oracle when vox-diagram fixtures change', () => {
+  const lists = workflowPaths('docs-quality.yml');
+  for (const trigger of ['push', 'pull_request']) {
+    assert.ok(
+      covered(lists[trigger] ?? [], 'crates/vox-diagram/tests/fixtures/corpus/00-x.mmd'),
+      `docs-quality.yml on.${trigger}.paths must include crates/vox-diagram/tests/fixtures/**`,
+    );
+  }
+});
+
+test('docs-deploy push paths trigger on vox-diagram sources', () => {
+  const { push } = workflowPaths('docs-deploy.yml');
+  assert.ok(covered(push ?? [], 'crates/vox-diagram/src/svg/mod.rs'), 'add crates/vox-diagram/** to on.push.paths');
+});
+
+test('docs-quality push and pull_request paths trigger on vox-diagram sources', () => {
+  const lists = workflowPaths('docs-quality.yml');
+  for (const trigger of ['push', 'pull_request']) {
+    assert.ok(
+      covered(lists[trigger] ?? [], 'crates/vox-diagram/src/svg/mod.rs'),
+      `docs-quality.yml on.${trigger}.paths must include crates/vox-diagram/**`,
+    );
+  }
+});
+
+/** Steps of a workflow as text blocks (`      - ` starts a step), in file order. */
+function steps(name) {
+  const blocks = [];
+  for (const line of readFileSync(join(REPO_ROOT, '.github/workflows', name), 'utf8').split('\n')) {
+    if (/^ {6}- /.test(line)) blocks.push(line);
+    else if (blocks.length && /^ {7,}\S|^\s*$/.test(line)) blocks[blocks.length - 1] += `\n${line}`;
+  }
+  return blocks;
+}
+
+test('both docs workflows pre-render from the repo root before Build Starlight', () => {
+  for (const name of ['docs-deploy.yml', 'docs-quality.yml']) {
+    const all = steps(name);
+    const render = all.findIndex((s) => /^\s+run:.*--render-diagrams/m.test(s));
+    const build = all.findIndex((s) => /- name: Build Starlight/.test(s));
+    assert.ok(render >= 0, `${name} has a pre-render step`);
+    assert.ok(build >= 0, `${name} has a Build Starlight step`);
+    assert.ok(render < build, `${name} pre-renders before Build Starlight`);
+    assert.ok(!/working-directory:/.test(all[render]), `${name} pre-render runs from the repo root`);
+  }
+});
+
+test('docs-quality installs Chromium before the browser specs', () => {
+  const all = steps('docs-quality.yml');
+  const at = (re) => all.findIndex((s) => re.test(s));
+  const install = at(/^\s+run:.*playwright install chromium --with-deps/m);
+  const reader = at(/^\s+run:.*tests\/reader-layout\.spec\.ts/m);
+  const diagram = at(/^\s+run:.*tests\/vox-diagram\.spec\.ts/m);
+  const upload = at(/- name: Upload reader layout review bundle/);
+  assert.ok(install >= 0, 'docs-quality installs Chromium');
+  assert.ok(reader >= 0 && diagram >= 0 && upload >= 0, 'both browser specs and the bundle upload exist');
+  assert.ok(install < reader, 'Chromium is installed before the reader-layout spec');
+  assert.ok(install < diagram, 'Chromium is installed before the diagram spec');
+  assert.ok(diagram < upload, 'the diagram spec runs before the review bundle upload');
+});

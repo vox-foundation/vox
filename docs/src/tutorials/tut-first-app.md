@@ -14,6 +14,8 @@ Learn how to build a full-stack task list in one `.vox` file: a `table`, a `quer
 
 Start here after the sketch in [Getting Started §2](tut-getting-started.md). The side-by-side compiler output is the [full-stack walkthrough](tut-fullstack-walkthrough.mdx). Install steps live in [Installing Vox](../reference/installation.md).
 
+![Two laptops sharing one task list through a server and database](../assets/collaborative-task-list.png)
+
 ## 1. Project Initialization
 
 Create a new directory and initialize a Vox application:

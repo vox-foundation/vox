@@ -37,6 +37,8 @@ fn palette_includes_live_sessions() {
     palette.with_sessions(&[vox_terminal_core::SessionInfo {
         id: "term-1".into(),
         blocks: 3,
+        security_level: Default::default(),
+        control_mode: Default::default(),
     }]);
     let results = palette.search("term-1");
     assert!(

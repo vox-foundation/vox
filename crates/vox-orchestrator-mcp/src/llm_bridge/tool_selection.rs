@@ -13,10 +13,11 @@
 //! Filters are applied in a fixed order: permission -> lane -> active-skill
 //! allowlist -> cap. See [`select_tools_for_turn`].
 
-use vox_mcp_registry::McpToolRegistryEntry;
+use vox_mcp_registry::{McpToolRegistryEntry, SideEffectClass};
 use vox_skills::SkillRegistry;
 
 use crate::skill_permissions::check_skill_tool_permission;
+use crate::tool_search::{score_entry, turn_terms};
 
 /// Thin re-export of `vox_skills::new_registry_arc` so `vox-cli`'s
 /// `tool-cap-never-exceeds-cap` golden task (`vox harness eval`) can build a
@@ -36,6 +37,13 @@ pub fn new_registry_arc_for_eval() -> std::sync::Arc<SkillRegistry> {
 /// [`check_skill_tool_permission`] never filters out. 40 sits comfortably
 /// inside that range without hugging its upper edge.
 pub const DEFAULT_MAX_TOOLS: usize = 40;
+
+/// Most read-only tools from outside `ctx.lanes` that relevance may pull into one turn.
+pub const MAX_OFF_LANE_RELEVANT: usize = 3;
+
+/// Lowest relevance score at which a tool outside `ctx.lanes` may be offered: one
+/// exact tool-name segment hit (see `tool_search::score_entry`).
+const OFF_LANE_MIN_SCORE: u32 = 8;
 
 /// Wire-string used by [`crate::permission_modes::PermissionMode::from_wire`]
 /// for its read-only/planning mode. `PermissionMode::Plan` is documented there
@@ -94,6 +102,11 @@ pub struct TurnContext {
     /// not a permission bypass. Names not present in the registry, or filtered
     /// out by an earlier step, are simply ignored.
     pub pin_names: Vec<&'static str>,
+    /// The user text for this turn. `None` keeps registry order inside the lanes
+    /// (callers that are not a chat turn). `Some` ranks survivors with
+    /// [`turn_terms`] / [`score_entry`] and may pull in a few read-only tools
+    /// from outside `ctx.lanes`.
+    pub query: Option<String>,
 }
 
 impl Default for TurnContext {
@@ -107,6 +120,7 @@ impl Default for TurnContext {
             max_tools: DEFAULT_MAX_TOOLS,
             exclude_name_prefixes: Vec::new(),
             pin_names: Vec::new(),
+            query: None,
         }
     }
 }
@@ -134,40 +148,84 @@ impl TurnContext {
 ///    they always survive this step regardless of the active skill).
 /// 4. Name-prefix exclusion — drops any tool whose name starts with one of
 ///    `ctx.exclude_name_prefixes` (no-op if empty).
-/// 5. Pin hoist — moves any survivor named in `ctx.pin_names` to the front,
-///    preserving registry order within each group (no-op if empty).
-/// 6. Cap — truncates to the first `ctx.max_tools` survivors.
+/// 5. Pin hoist — moves any in-lane survivor named in `ctx.pin_names` to the
+///    front, preserving registry order (no-op if empty).
+/// 6. Relevance — the remaining in-lane survivors are ordered by
+///    [`score_entry`] over [`turn_terms`] of `ctx.query`, best first. Ties and
+///    a missing query keep registry order. Up to [`MAX_OFF_LANE_RELEVANT`]
+///    read-only tools outside `ctx.lanes` whose name matches a turn term join
+///    that ranking.
+/// 7. Cap — truncates to the first `ctx.max_tools` survivors.
 ///
-/// Both the exclusion filter and the pin hoist run BEFORE the cap: excluded
+/// Filters, the pin hoist, and the ranking all run BEFORE the cap: excluded
 /// tools never consume a cap slot, and pinned tools are always inside it.
-/// Capping first and adjusting after would shrink the effective tool count
-/// below `max_tools` and could bump a genuinely usable tool out for no benefit.
-///
-/// Apart from the pin hoist, step 6 is a plain truncation over registry
-/// (alphabetical) order, not a relevance ranking. `pin_names` exists precisely
-/// because that makes late-alphabet tools unreachable; a future task may want
-/// a real relevance sort instead.
 #[must_use]
 pub fn select_tools_for_turn(
     registry: &'static [McpToolRegistryEntry],
     skill_registry: &SkillRegistry,
     ctx: &TurnContext,
 ) -> Vec<&'static McpToolRegistryEntry> {
-    let (pinned, rest): (Vec<_>, Vec<_>) = registry
+    let candidates: Vec<_> = registry
         .iter()
-        .filter(|entry| !ctx.is_read_only() || entry.http_read_role_eligible)
-        .filter(|entry| ctx.lane_allowed(entry.product_lane))
-        .filter(|entry| {
-            check_skill_tool_permission(skill_registry, ctx.active_skill_id.as_deref(), entry.name)
-                .is_none()
-        })
-        .filter(|entry| {
-            !ctx.exclude_name_prefixes
-                .iter()
-                .any(|prefix| entry.name.starts_with(prefix))
-        })
-        .partition(|entry| ctx.pin_names.contains(&entry.name));
-    pinned.into_iter().chain(rest).take(ctx.max_tools).collect()
+        .filter(|entry| admissible(skill_registry, ctx, entry))
+        .collect();
+    let pinned: Vec<_> = candidates
+        .iter()
+        .copied()
+        .filter(|entry| ctx.pin_names.contains(&entry.name) && ctx.lane_allowed(entry.product_lane))
+        .collect();
+    let terms = ctx.query.as_deref().map(turn_terms).unwrap_or_default();
+    let mut ranked: Vec<(u32, &'static McpToolRegistryEntry)> = Vec::new();
+    let mut off_lane: Vec<(u32, &'static McpToolRegistryEntry)> = Vec::new();
+    for entry in candidates
+        .iter()
+        .copied()
+        .filter(|entry| !ctx.pin_names.contains(&entry.name))
+    {
+        let score = score_entry(&terms, entry);
+        if ctx.lane_allowed(entry.product_lane) {
+            ranked.push((score, entry));
+        } else if score >= OFF_LANE_MIN_SCORE
+            && entry.side_effect_class == SideEffectClass::ReadOnly
+        {
+            off_lane.push((score, entry));
+        }
+    }
+    off_lane.sort_by_key(|(score, _)| std::cmp::Reverse(*score));
+    off_lane.truncate(MAX_OFF_LANE_RELEVANT);
+    ranked.extend(off_lane);
+    // `sort_by_key` is stable, so equal scores stay in registry order.
+    ranked.sort_by_key(|(score, _)| std::cmp::Reverse(*score));
+    pinned
+        .into_iter()
+        .chain(ranked.into_iter().map(|(_, entry)| entry))
+        .take(ctx.max_tools)
+        .collect()
+}
+
+/// Whether a tool name is acceptable on a provider wire (`[A-Za-z0-9_-]{1,128}`).
+/// One bad name fails the entire request, so such tools are never offered.
+fn is_wire_safe_name(name: &str) -> bool {
+    (1..=128).contains(&name.len())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// Every filter except lanes and the cap.
+fn admissible(
+    skill_registry: &SkillRegistry,
+    ctx: &TurnContext,
+    entry: &McpToolRegistryEntry,
+) -> bool {
+    is_wire_safe_name(entry.name)
+        && (!ctx.is_read_only() || entry.http_read_role_eligible)
+        && check_skill_tool_permission(skill_registry, ctx.active_skill_id.as_deref(), entry.name)
+            .is_none()
+        && !ctx
+            .exclude_name_prefixes
+            .iter()
+            .any(|prefix| entry.name.starts_with(prefix))
 }
 
 /// Compact default tool-schema budget when spoke-conditioned BM25 + intent ranking is active (`SOTA-TOOLS-03`).
@@ -376,20 +434,11 @@ pub fn select_tools_for_turn_ranked(
     let mut scored: Vec<(i32, usize, &'static McpToolRegistryEntry)> = registry
         .iter()
         .enumerate()
-        .filter(|(_, entry)| !ctx.is_read_only() || entry.http_read_role_eligible)
+        .filter(|(_, entry)| admissible(skill_registry, ctx, entry))
         .filter(|(_, entry)| {
             ctx.lane_allowed(entry.product_lane)
                 || priority_set.contains(&entry.name)
                 || CORE_DAILY_DRIVER_TOOLS.contains(&entry.name)
-        })
-        .filter(|(_, entry)| {
-            check_skill_tool_permission(skill_registry, ctx.active_skill_id.as_deref(), entry.name)
-                .is_none()
-        })
-        .filter(|(_, entry)| {
-            !ctx.exclude_name_prefixes
-                .iter()
-                .any(|prefix| entry.name.starts_with(prefix))
         })
         .map(|(idx, entry)| {
             let is_pinned = ctx.pin_names.contains(&entry.name);
@@ -454,6 +503,7 @@ mod tests {
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
             pin_names: vec![],
+            query: None,
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         assert!(!selected.is_empty());
@@ -471,6 +521,7 @@ mod tests {
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
             pin_names: vec![],
+            query: None,
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         assert!(!selected.is_empty());
@@ -495,6 +546,7 @@ mod tests {
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
             pin_names: vec![],
+            query: None,
         };
         let ctx_with_skill = TurnContext {
             active_skill_id: Some("narrow-skill".to_string()),
@@ -516,6 +568,7 @@ mod tests {
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
             pin_names: vec![],
+            query: None,
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         let selected_names: HashSet<&str> = selected.iter().map(|t| t.name).collect();
@@ -577,6 +630,7 @@ mod tests {
             max_tools: small_cap,
             exclude_name_prefixes: vec!["vox_chat_"],
             pin_names: vec![],
+            query: None,
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
 
@@ -824,6 +878,120 @@ mod tests {
                 edit_rank < 8,
                 "vox_apply_structured_edit must rank in the primary full-schema tier (< 8) for `{mutation_prompt}`, got rank {edit_rank}"
             );
+        }
+    }
+    fn chat_turn(query: &str) -> TurnContext {
+        TurnContext {
+            exclude_name_prefixes: vec!["vox_chat_"],
+            pin_names: DELEGATION_TOOLS.to_vec(),
+            query: Some(query.to_string()),
+            ..TurnContext::default()
+        }
+    }
+
+    fn offered_names(query: &str) -> Vec<&'static str> {
+        let reg = new_registry_arc();
+        select_tools_for_turn(TOOL_REGISTRY, &reg, &chat_turn(query))
+            .iter()
+            .map(|t| t.name)
+            .collect()
+    }
+
+    /// A question about a file must be offered `vox_repo_query_file` (lane
+    /// `platform`), which alphabetical truncation of the `ai`/`app` lanes never
+    /// reaches.
+    #[test]
+    fn file_questions_are_offered_a_file_reading_tool() {
+        for prompt in [
+            "does the file Cargo.toml exist in the repo root?",
+            "how many lines are in crates/vox-cli/Cargo.toml?",
+            "Use a tool to check whether Cargo.toml exists in the current directory, then report the result.",
+            "Use a tool to read Cargo.toml in the current directory and report how many lines it has.",
+        ] {
+            let names = offered_names(prompt);
+            assert!(
+                names.contains(&"vox_repo_query_file"),
+                "no file-reading tool offered for {prompt:?}: {names:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn file_question_selection_keeps_cap_and_pins() {
+        let names = offered_names("does the file Cargo.toml exist in the repo root?");
+        assert!(names.len() <= DEFAULT_MAX_TOOLS);
+        for pin in DELEGATION_TOOLS {
+            assert!(names.contains(&pin), "pin {pin} lost: {names:?}");
+        }
+        assert!(
+            names.iter().all(|n| !n.starts_with("vox_chat_")),
+            "{names:?}"
+        );
+    }
+
+    #[test]
+    fn relevance_admits_only_a_few_read_only_off_lane_tools() {
+        for prompt in [
+            "does the file Cargo.toml exist in the repo root?",
+            "how many lines are in crates/vox-cli/Cargo.toml?",
+            "read the file and the path and the repo and the history and the status",
+        ] {
+            let names = offered_names(prompt);
+            let off_lane: Vec<&McpToolRegistryEntry> = TOOL_REGISTRY
+                .iter()
+                .filter(|e| names.contains(&e.name))
+                .filter(|e| !["ai", "app"].contains(&e.product_lane))
+                .filter(|e| !DELEGATION_TOOLS.contains(&e.name))
+                .collect();
+            assert!(
+                off_lane.len() <= MAX_OFF_LANE_RELEVANT,
+                "{prompt:?}: {:?}",
+                off_lane.iter().map(|e| e.name).collect::<Vec<_>>()
+            );
+            assert!(
+                off_lane
+                    .iter()
+                    .all(|e| e.side_effect_class == SideEffectClass::ReadOnly),
+                "{prompt:?}: {:?}",
+                off_lane.iter().map(|e| e.name).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn unrelated_turns_keep_the_plain_lane_selection() {
+        let plain = offered_names("");
+        for prompt in ["hello", "thanks!", "good morning, how are you?"] {
+            assert_eq!(offered_names(prompt), plain, "{prompt:?}");
+        }
+    }
+
+    #[test]
+    fn file_tool_ranks_near_the_front_of_the_offered_set() {
+        let names = offered_names("how many lines are in crates/vox-cli/Cargo.toml?");
+        let pos = names
+            .iter()
+            .position(|n| *n == "vox_repo_query_file")
+            .expect("offered");
+        assert!(pos < DELEGATION_TOOLS.len() + 12, "ranked {pos}: {names:?}");
+    }
+
+    #[test]
+    fn path_like_turns_do_not_pull_in_graph_path_tools() {
+        let names = offered_names("how many lines are in crates/vox-cli/Cargo.toml?");
+        assert!(!names.contains(&"vox_search_path"), "{names:?}");
+    }
+
+    #[test]
+    fn offered_tools_always_have_provider_safe_names() {
+        for prompt in [
+            "parse the .vox file and show me its AST to inspect the compiler tree",
+            "does the file Cargo.toml exist in the repo root?",
+            "What is 17 times 23?",
+        ] {
+            for name in offered_names(prompt) {
+                assert!(is_wire_safe_name(name), "{name} offered for {prompt:?}");
+            }
         }
     }
 }

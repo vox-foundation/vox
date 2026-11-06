@@ -1,0 +1,17 @@
+graph {
+    direction: right
+    node Loquela: "Loquela chat"
+    node User: "Operator input"
+    node Daemon: "vox-orchestrator-d"
+    node Mcp: "vox_browser_* tools"
+    node Plugin: "vox-plugin-browser CDP"
+    node FrameStream: "vox://browser-frame"
+    node AgentTab: "Agent live view + controls"
+    Loquela -> Daemon
+    Daemon -> Mcp
+    Mcp -> Plugin
+    User -> AgentTab
+    AgentTab -> Daemon
+    Plugin -> FrameStream
+    FrameStream -> AgentTab
+}

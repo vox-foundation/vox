@@ -107,14 +107,14 @@ export function MessageBubble({
             {editedText != null && (
               <span
                 data-testid={`chat-turn-edited-badge-${message.id}`}
-                className="rounded border border-brass/35 bg-brass/10 px-1 py-0.2 font-mono text-[9px] normal-case text-brass"
+                className="rounded border border-brass/35 bg-brass/10 px-1 py-0.2 font-mono text-[11px] normal-case text-brass"
               >
                 [Edited]
               </span>
             )}
           </span>
           {(message.latencyMs != null || (message.events?.length ?? 0) > 0) && (
-            <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] normal-case tracking-normal text-amber-200">
+            <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] normal-case tracking-normal text-amber-200">
               Thought for {message.latencyMs ? `${(message.latencyMs / 1000).toFixed(1)}s` : '1.8s'}
               {(message.events?.filter((e) => e.kind === 'tool_start').length ?? 0) > 0
                 ? ` · ${message.events?.filter((e) => e.kind === 'tool_start').length} tool calls ▸`
@@ -136,7 +136,7 @@ export function MessageBubble({
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded border border-border-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted"
+              className="rounded border border-border-subtle px-2 py-0.5 font-mono text-[11px] text-text-muted"
             >
               Cancel
             </button>
@@ -148,7 +148,7 @@ export function MessageBubble({
                 setEditing(false);
                 onEditInPlace?.(message, draftText);
               }}
-              className="rounded border border-brass/50 bg-brass/20 px-2 py-0.5 font-mono text-[10px] text-brass"
+              className="rounded border border-brass/50 bg-brass/20 px-2 py-0.5 font-mono text-[11px] text-brass"
             >
               Save edit
             </button>
@@ -196,7 +196,7 @@ export function MessageBubble({
                 setDraftText(displayContent);
                 setEditing(true);
               }}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               ✎ Edit
             </button>
@@ -207,7 +207,7 @@ export function MessageBubble({
               data-testid={`chat-turn-regenerate-btn-${message.id}`}
               title="Truncate transcript from this message and regenerate the assistant turn"
               onClick={() => onRegenerateTurn(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               ↻ Regenerate
             </button>
@@ -218,7 +218,7 @@ export function MessageBubble({
               data-testid={`chat-turn-compact-btn-${message.id}`}
               title="Compact turns up to this message while preserving thought signatures"
               onClick={() => onCompactUpTo(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               ✂ Compact Here
             </button>
@@ -229,7 +229,7 @@ export function MessageBubble({
               data-testid={`chat-turn-fork-btn-${message.id}`}
               title="Branch a new conversation session from this turn without mutating the current thread"
               onClick={() => onForkTurn(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               ⑂ Branch here
             </button>
@@ -240,7 +240,7 @@ export function MessageBubble({
               data-testid={`chat-turn-rewind-btn-${message.id}`}
               title="Rewind conversation and restore Jujutsu (vox-vcs) checkpoint to this turn"
               onClick={() => onRewindTurn(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               ↺ Rewind
             </button>
@@ -544,7 +544,7 @@ export function ChatTranscript({
             {branchBanner && (
               <span
                 data-testid="chat-session-branch-badge"
-                className="rounded border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass"
+                className="rounded border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass"
               >
                 ⑂ {branchBanner}
               </span>
@@ -554,7 +554,7 @@ export function ChatTranscript({
               data-testid="chat-consensus-trigger"
               disabled={consensusBusy}
               onClick={handleRunConsensus}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               ⊕ Consensus (2–4)
             </button>
@@ -562,7 +562,7 @@ export function ChatTranscript({
               type="button"
               data-testid="chat-branch-compare-trigger"
               onClick={handleOpenBranchComparison}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               ⑂ Compare Branches
             </button>
@@ -577,7 +577,7 @@ export function ChatTranscript({
                   handleRunArenaCompare();
                 }
               }}
-              className={`rounded border px-2 py-0.5 font-mono text-[10px] transition ${
+              className={`rounded border px-2 py-0.5 font-mono text-[11px] transition ${
                 arenaModeEnabled
                   ? 'border-brass/50 bg-brass/20 text-brass'
                   : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-brass/40 hover:text-brass'
@@ -593,7 +593,7 @@ export function ChatTranscript({
               type="button"
               data-testid="chat-load-older-chunks"
               onClick={() => setChunksLoaded((c) => c + 1)}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
               Load older turns ({chunkedWindow.totalItems - chunkedWindow.loadedCount} earlier)
             </button>

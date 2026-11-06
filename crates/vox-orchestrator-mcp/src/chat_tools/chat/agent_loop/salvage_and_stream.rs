@@ -233,6 +233,9 @@ pub(super) async fn stream_final_answer(
         cache_read_tokens,
         ttft_ms,
         tpot_ms,
+        finish_reason: None,
+        reasoning_tokens: 0,
+        reasoning: None,
     })
 }
 

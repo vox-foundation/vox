@@ -1,0 +1,21 @@
+flowchart TD
+    top["Top"]
+    subgraph l1 ["Level One"]
+        item["Item A"]
+        subgraph l2 ["Level Two"]
+            subgraph l3 ["Level Three"]
+                subgraph l4 ["Level Four"]
+                    deep["Deep"]
+                end
+            end
+        end
+    end
+    subgraph sib ["Sibling"]
+        n3["Item B"]
+        subgraph hollow ["Hollow"]
+        end
+    end
+    top -->|"enter"| item
+    item --> deep
+    deep --> deep
+    n3 --> top

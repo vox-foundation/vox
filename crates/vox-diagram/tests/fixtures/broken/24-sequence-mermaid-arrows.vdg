@@ -1,0 +1,7 @@
+// expect: diagram/mermaid-syntax, diagram/mermaid-syntax
+sequence {
+    actor a: "A"
+    actor b: "B"
+    a ->> b: "go"
+    b -->> a: "done"
+}

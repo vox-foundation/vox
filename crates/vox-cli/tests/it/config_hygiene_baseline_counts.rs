@@ -36,7 +36,10 @@ fn config_hygiene_baseline_has_pinned_count() {
 // 2026-10-06: 375 -> 240, burn-down only (no key added): Check D now reads the
 // federated registry (CONFIG_KEYS too), integration-test dirs and the
 // vox-cli-ci repo-tree guards are out of scope, and stale keys were pruned.
-const EXPECTED_HYGIENE_COUNT: usize = 240;
+// 2026-10-30: 240 -> 255, re-pinning what main already carries: f5414d9ef pruned one
+// key (240 -> 239) and ceb1b5d1a (v1.5/v1.6 milestone, on main) grandfathered 16 net
+// keys (19 added, 3 removed) without updating this pin. No key is added on this branch.
+const EXPECTED_HYGIENE_COUNT: usize = 255;
 
 #[test]
 fn config_registry_baseline_has_pinned_count() {
@@ -50,4 +53,6 @@ fn config_registry_baseline_has_pinned_count() {
 // 2026-09-22: 347 -> 343, the same four autoscaler knobs.
 // 2026-10-06: 343 -> 219, burn-down only (no name added): the scanner counts only
 // whole quoted `"VOX_*"` literals outside tests/ dirs, and stale names were pruned.
-const EXPECTED_REGISTRY_COUNT: usize = 219;
+// 2026-10-30: 219 -> 197, burn-down only (no name added): f5414d9ef tightened the
+// baseline (22 names registered/pruned) without updating this pin.
+const EXPECTED_REGISTRY_COUNT: usize = 197;

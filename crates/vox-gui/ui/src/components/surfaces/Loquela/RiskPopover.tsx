@@ -59,7 +59,7 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
             <span className="whitespace-nowrap font-medium capitalize text-text-primary">{p.label} risk</span>
             <span
               data-testid={`risk-attention-coupling-${p.id}`}
-              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-brass"
+              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-brass"
             >
               {ATTENTION_COUPLING[p.id]}
             </span>

@@ -125,7 +125,6 @@ const PENDING_14B_14C: &[&str] = &[
     "crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs",
     "crates/vox-gamify/src/ai/client/transport.rs",
     "crates/vox-gamify/src/ai/constants.rs",
-    "crates/vox-gui/src/commands/harness_issues.rs",
     "crates/vox-scientia/src/evidence_assist.rs",
     "crates/vox-secrets/src/spec/registry/llm.rs",
 ];

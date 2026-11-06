@@ -81,23 +81,39 @@ toolchain, default CI and Mens training stay Python-free.
 
 ## 3. Architecture
 
-```mermaid
-flowchart LR
-  subgraph Host["Vox host (vox run / compiled app)"]
-    SRC[".vox"] --> TC["typeck: std sigs + py bindings + effects"]
-    TC --> EV["interpreter"]
-    EV --> PB["plan builder (pure)"]
-    PB -->|"materialize"| BR["vox-python-bridge: spawn, frames, handles, env"]
-  end
-  BR <-->|"stdio: length-prefixed JSON header + Arrow IPC body"| W
-  subgraph Worker["worker (uv venv, optional sandbox via vox-skill-runtime)"]
-    W["vox_bridge runtime"] --> A["array → numpy"]
-    W --> F["frame → polars lazy"]
-    W --> P["plot → matplotlib Agg"]
-    W --> T["tensor → torch.export"]
-    W --> X["Tier 2 bound calls"]
-    W --> H["handle table (id, generation)"]
-  end
+```vox-diagram
+graph {
+    direction: right
+    container host: "Vox host (vox run / compiled app)" {
+        node src: ".vox"
+        node tc: "typeck: std sigs + py bindings + effects"
+        node ev: "interpreter"
+        node pb: "plan builder (pure)"
+        node br: "vox-python-bridge: spawn, frames, handles, env"
+        src -> tc
+        tc -> ev
+        ev -> pb
+        pb -> br: "materialize"
+    }
+    container worker: "worker (uv venv, optional sandbox via vox-skill-runtime)" {
+        node w: "vox_bridge runtime"
+        node a: "array → numpy"
+        node f: "frame → polars lazy"
+        node p: "plot → matplotlib Agg"
+        node t: "tensor → torch.export"
+        node x: "Tier 2 bound calls"
+        node h: "handle table (id, generation)"
+        w -> a
+        w -> f
+        w -> p
+        w -> t
+        w -> x
+        w -> h
+    }
+    // Bidirectional channel, drawn as request and reply.
+    host.br -> worker.w: "stdio: length-prefixed JSON header + Arrow IPC body"
+    worker.w -> host.br: "stdio reply (same framing)"
+}
 ```
 
 | Unit | Layer | Owns | Depends on |

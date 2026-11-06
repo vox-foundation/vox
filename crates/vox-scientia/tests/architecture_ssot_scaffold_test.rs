@@ -64,6 +64,7 @@ fn test_render_architecture_ssot_generates_all_seven_sections() {
             description: "Replace standard vector with bumpalo.".into(),
             verification_gate: "cargo test -p vox-test".into(),
         }],
+        authorship_model: None,
     };
 
     let markdown = render_architecture_ssot(&input).expect("renders markdown");
@@ -164,6 +165,7 @@ fn test_render_architecture_ssot_empty_collections_and_repaired_snippets() {
         }],
         gaps_and_recommendations: vec![],
         roadmap_phases: vec![],
+        authorship_model: Some("example/synth-model".into()),
     };
 
     let md = render_architecture_ssot(&input).expect("renders markdown");
@@ -171,6 +173,8 @@ fn test_render_architecture_ssot_empty_collections_and_repaired_snippets() {
     assert!(md.contains("description: \"Minimal test description. With newline.\""));
     assert!(md.contains("status: \"draft\""));
     assert!(!md.contains("training_eligible: true"));
+    assert!(md.contains("authorship: \"llm-assisted\""));
+    assert!(md.contains("authorship_model: \"example/synth-model\""));
     assert!(md.contains("sort_order: 99"));
     assert!(md.contains("Session #101, Stability $S = 0.95$"));
     assert!(md.contains("**Self-Corrected Repair:**"));

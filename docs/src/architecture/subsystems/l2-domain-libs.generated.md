@@ -14,45 +14,49 @@ Pure domain engines: configuration, capability/MCP registries, code graph reader
 
 ## Subsystem Topology
 
-```mermaid
-flowchart TD
-    l2_domain_libs["Layer 2 — Domain Libraries & Graph Reader"]
-    vox_capability_registry["vox-capability-registry (library)"]
-    l2_domain_libs --> vox_capability_registry
-    vox_cli_contracts["vox-cli-contracts (library)"]
-    l2_domain_libs --> vox_cli_contracts
-    vox_config["vox-config (library)"]
-    l2_domain_libs --> vox_config
-    vox_constrained_gen["vox-constrained-gen (library)"]
-    l2_domain_libs --> vox_constrained_gen
-    vox_doc_inventory["vox-doc-inventory (library)"]
-    l2_domain_libs --> vox_doc_inventory
-    vox_eval["vox-eval (library)"]
-    l2_domain_libs --> vox_eval
-    vox_journal["vox-journal (library)"]
-    l2_domain_libs --> vox_journal
-    vox_llm_egress["vox-llm-egress (library)"]
-    l2_domain_libs --> vox_llm_egress
-    vox_mcp_registry["vox-mcp-registry (library)"]
-    l2_domain_libs --> vox_mcp_registry
-    vox_mesh_policy["vox-mesh-policy (library)"]
-    l2_domain_libs --> vox_mesh_policy
-    vox_populi_types["vox-populi-types (library)"]
-    l2_domain_libs --> vox_populi_types
-    vox_project_scaffold["vox-project-scaffold (library)"]
-    l2_domain_libs --> vox_project_scaffold
-    vox_python_bridge["vox-python-bridge (library)"]
-    l2_domain_libs --> vox_python_bridge
-    vox_quantize["vox-quantize (library)"]
-    l2_domain_libs --> vox_quantize
-    vox_repository["vox-repository (library)"]
-    l2_domain_libs --> vox_repository
-    vox_runtime["vox-runtime (library)"]
-    l2_domain_libs --> vox_runtime
-    vox_similarity["vox-similarity (library)"]
-    l2_domain_libs --> vox_similarity
-    vox_skill_runtime["vox-skill-runtime (library)"]
-    l2_domain_libs --> vox_skill_runtime
+```vox-diagram
+graph {
+    direction: down
+    node l2_domain_libs: "Layer 2 — Domain Libraries & Graph Reader"
+    node vox_capability_registry: "vox-capability-registry (library)"
+    l2_domain_libs -> vox_capability_registry
+    node vox_cli_contracts: "vox-cli-contracts (library)"
+    l2_domain_libs -> vox_cli_contracts
+    node vox_config: "vox-config (library)"
+    l2_domain_libs -> vox_config
+    node vox_constrained_gen: "vox-constrained-gen (library)"
+    l2_domain_libs -> vox_constrained_gen
+    node vox_diagram: "vox-diagram (library)"
+    l2_domain_libs -> vox_diagram
+    node vox_doc_inventory: "vox-doc-inventory (library)"
+    l2_domain_libs -> vox_doc_inventory
+    node vox_eval: "vox-eval (library)"
+    l2_domain_libs -> vox_eval
+    node vox_journal: "vox-journal (library)"
+    l2_domain_libs -> vox_journal
+    node vox_llm_egress: "vox-llm-egress (library)"
+    l2_domain_libs -> vox_llm_egress
+    node vox_mcp_registry: "vox-mcp-registry (library)"
+    l2_domain_libs -> vox_mcp_registry
+    node vox_mesh_policy: "vox-mesh-policy (library)"
+    l2_domain_libs -> vox_mesh_policy
+    node vox_populi_types: "vox-populi-types (library)"
+    l2_domain_libs -> vox_populi_types
+    node vox_project_scaffold: "vox-project-scaffold (library)"
+    l2_domain_libs -> vox_project_scaffold
+    node vox_python_bridge: "vox-python-bridge (library)"
+    l2_domain_libs -> vox_python_bridge
+    node vox_quantize: "vox-quantize (library)"
+    l2_domain_libs -> vox_quantize
+    node vox_repository: "vox-repository (library)"
+    l2_domain_libs -> vox_repository
+    node vox_runtime: "vox-runtime (library)"
+    l2_domain_libs -> vox_runtime
+    node vox_similarity: "vox-similarity (library)"
+    l2_domain_libs -> vox_similarity
+    node vox_skill_runtime: "vox-skill-runtime (library)"
+    l2_domain_libs -> vox_skill_runtime
+}
 ```
 
 ## Crates in Layer
@@ -63,6 +67,7 @@ flowchart TD
 | [`vox-cli-contracts`](../../api/vox-cli-contracts.generated.md) | `library` | — | — |
 | [`vox-config`](../../api/vox-config.generated.md) | `library` | 40 | — |
 | [`vox-constrained-gen`](../../api/vox-constrained-gen.generated.md) | `library` | — | — |
+| [`vox-diagram`](../../api/vox-diagram.generated.md) | `library` | — | 12000 |
 | [`vox-doc-inventory`](../../api/vox-doc-inventory.generated.md) | `library` | — | — |
 | [`vox-eval`](../../api/vox-eval.generated.md) | `library` | — | — |
 | [`vox-journal`](../../api/vox-journal.generated.md) | `library` | — | — |

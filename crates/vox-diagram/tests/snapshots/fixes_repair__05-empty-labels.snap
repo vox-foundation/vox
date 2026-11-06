@@ -1,0 +1,11 @@
+---
+source: crates/vox-diagram/tests/fixes_repair.rs
+expression: r.text
+---
+graph {
+    node a: "a"
+    container c: "c" {
+        node d: "D"
+    }
+    a -> c.d
+}

@@ -84,15 +84,16 @@ impl GroundTruthRegistry {
         // 1. Workspace Crates
         let mut workspace_crates = HashSet::new();
         let crates_dir = repo_root.join("crates");
-        if crates_dir.is_dir() {
-            if let Ok(entries) = fs::read_dir(&crates_dir) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.is_dir() && p.join("Cargo.toml").is_file() {
-                        if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
-                            workspace_crates.insert(name.to_string());
-                        }
-                    }
+        if crates_dir.is_dir()
+            && let Ok(entries) = fs::read_dir(&crates_dir)
+        {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir()
+                    && p.join("Cargo.toml").is_file()
+                    && let Some(name) = p.file_name().and_then(|s| s.to_str())
+                {
+                    workspace_crates.insert(name.to_string());
                 }
             }
         }
@@ -160,16 +161,15 @@ impl GroundTruthRegistry {
         // 2. CLI Commands
         let mut cli_commands = HashSet::new();
         let cmd_reg_path = repo_root.join("contracts/cli/command-registry.yaml");
-        if cmd_reg_path.is_file() {
-            if let Ok(content) = fs::read_to_string(&cmd_reg_path) {
-                if let Ok(parsed) = serde_yaml::from_str::<CommandRegistryFile>(&content) {
-                    for op in parsed.operations {
-                        let full_cmd = op.path.join(" ");
-                        cli_commands.insert(full_cmd);
-                        if let Some(first) = op.path.first() {
-                            cli_commands.insert(first.clone());
-                        }
-                    }
+        if cmd_reg_path.is_file()
+            && let Ok(content) = fs::read_to_string(&cmd_reg_path)
+            && let Ok(parsed) = serde_yaml::from_str::<CommandRegistryFile>(&content)
+        {
+            for op in parsed.operations {
+                let full_cmd = op.path.join(" ");
+                cli_commands.insert(full_cmd);
+                if let Some(first) = op.path.first() {
+                    cli_commands.insert(first.clone());
                 }
             }
         }
@@ -258,13 +258,12 @@ impl GroundTruthRegistry {
         // 3. Environment Variables
         let mut env_vars = HashSet::new();
         let env_vars_path = repo_root.join("contracts/config/env-vars.v1.yaml");
-        if env_vars_path.is_file() {
-            if let Ok(content) = fs::read_to_string(&env_vars_path) {
-                if let Ok(parsed) = serde_yaml::from_str::<EnvVarsFile>(&content) {
-                    for v in parsed.variables {
-                        env_vars.insert(v.name);
-                    }
-                }
+        if env_vars_path.is_file()
+            && let Ok(content) = fs::read_to_string(&env_vars_path)
+            && let Ok(parsed) = serde_yaml::from_str::<EnvVarsFile>(&content)
+        {
+            for v in parsed.variables {
+                env_vars.insert(v.name);
             }
         }
         for v in [
@@ -297,35 +296,33 @@ impl GroundTruthRegistry {
         // 4. Config Keys
         let mut config_keys = HashSet::new();
         let cfg_path = repo_root.join("contracts/config/registry.v1.yaml");
-        if cfg_path.is_file() {
-            if let Ok(content) = fs::read_to_string(&cfg_path) {
-                if let Ok(parsed) = serde_yaml::from_str::<ConfigRegistryFile>(&content) {
-                    for k in parsed.knobs {
-                        if let Some(ev) = k.env_var {
-                            env_vars.insert(ev);
-                        }
-                        config_keys.insert(k.name);
-                    }
+        if cfg_path.is_file()
+            && let Ok(content) = fs::read_to_string(&cfg_path)
+            && let Ok(parsed) = serde_yaml::from_str::<ConfigRegistryFile>(&content)
+        {
+            for k in parsed.knobs {
+                if let Some(ev) = k.env_var {
+                    env_vars.insert(ev);
                 }
+                config_keys.insert(k.name);
             }
         }
 
         // 5. Retired Symbols
         let mut retired_symbols = Vec::new();
         let retired_path = repo_root.join("contracts/documentation/retired-symbols.v1.yaml");
-        if retired_path.is_file() {
-            if let Ok(content) = fs::read_to_string(&retired_path) {
-                if let Ok(parsed) = serde_yaml::from_str::<RetiredSymbolsFile>(&content) {
-                    for s in parsed.symbols {
-                        if let Ok(re) = Regex::new(&s.pattern) {
-                            retired_symbols.push(CompiledRetiredSymbol {
-                                id: s.id,
-                                regex: re,
-                                replacement: s.replacement,
-                                rationale: s.rationale,
-                            });
-                        }
-                    }
+        if retired_path.is_file()
+            && let Ok(content) = fs::read_to_string(&retired_path)
+            && let Ok(parsed) = serde_yaml::from_str::<RetiredSymbolsFile>(&content)
+        {
+            for s in parsed.symbols {
+                if let Ok(re) = Regex::new(&s.pattern) {
+                    retired_symbols.push(CompiledRetiredSymbol {
+                        id: s.id,
+                        regex: re,
+                        replacement: s.replacement,
+                        rationale: s.rationale,
+                    });
                 }
             }
         }
@@ -407,15 +404,15 @@ impl GroundTruthRegistry {
                 // Check if internal module path belongs to a known workspace crate or existing top-level repo tree
                 if !target.contains("nonexistent") {
                     if let Some(rest) = target.strip_prefix("crates/") {
-                        if let Some(crate_seg) = rest.split('/').next() {
-                            if self.workspace_crates.contains(crate_seg) {
-                                return ResolvedMention {
-                                    extracted: mention.clone(),
-                                    status: ResolutionStatus::Resolved,
-                                    replacement: None,
-                                    rationale: None,
-                                };
-                            }
+                        if let Some(crate_seg) = rest.split('/').next()
+                            && self.workspace_crates.contains(crate_seg)
+                        {
+                            return ResolvedMention {
+                                extracted: mention.clone(),
+                                status: ResolutionStatus::Resolved,
+                                replacement: None,
+                                rationale: None,
+                            };
                         }
                     } else if target.starts_with("docs/")
                         || target.starts_with("scripts/")

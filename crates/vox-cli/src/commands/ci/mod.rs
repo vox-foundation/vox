@@ -12,6 +12,7 @@ pub(crate) mod gui_coverage_exemptions;
 pub(crate) mod gui_coverage_gate;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
+mod mermaid_baseline;
 mod operations_catalog;
 mod operations_catalog_exposure;
 mod pipeline_parity;

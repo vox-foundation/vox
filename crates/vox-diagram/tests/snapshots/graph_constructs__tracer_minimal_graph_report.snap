@@ -1,0 +1,67 @@
+---
+source: crates/vox-diagram/tests/graph_constructs.rs
+expression: report
+---
+{
+  "schema_version": 1,
+  "valid": true,
+  "diagnostics": [],
+  "stats": {
+    "nodes": 2,
+    "containers": 0,
+    "edges": 1,
+    "max_depth": 0
+  },
+  "ir": {
+    "kind": "graph",
+    "direction": "down",
+    "nodes": [
+      {
+        "id": "a",
+        "local_id": "a",
+        "label": "A",
+        "shape": "rect",
+        "container": null,
+        "span": {
+          "start": 12,
+          "end": 23,
+          "line": 2,
+          "col": 5,
+          "end_line": 2,
+          "end_col": 16
+        }
+      },
+      {
+        "id": "b",
+        "local_id": "b",
+        "label": "B",
+        "shape": "rect",
+        "container": null,
+        "span": {
+          "start": 28,
+          "end": 39,
+          "line": 3,
+          "col": 5,
+          "end_line": 3,
+          "end_col": 16
+        }
+      }
+    ],
+    "containers": [],
+    "edges": [
+      {
+        "from": "a",
+        "to": "b",
+        "label": null,
+        "span": {
+          "start": 44,
+          "end": 50,
+          "line": 4,
+          "col": 5,
+          "end_line": 4,
+          "end_col": 11
+        }
+      }
+    ]
+  }
+}

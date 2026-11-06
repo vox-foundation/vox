@@ -549,7 +549,7 @@ export function ChatExecutionRail({
             <span
               data-testid="execution-rail-cas-rev"
               title={`Task list version v${ledgerRev} (${pendingDeltasCount} recent edits synced with assistant)`}
-              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-brass"
+              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-brass"
             >
               Synced · v{ledgerRev}
             </span>
@@ -564,7 +564,7 @@ export function ChatExecutionRail({
           role="tablist"
           aria-label="Session inspector sections"
           data-testid="execution-rail-segmented-tabs"
-          className="grid shrink-0 grid-cols-4 gap-0.5 border-b border-border-subtle bg-[#0F111A]/90 px-0.5 pt-0.5 font-mono text-[10px]"
+          className="grid shrink-0 grid-cols-4 gap-0.5 border-b border-border-subtle bg-[#0F111A]/90 px-0.5 pt-0.5 font-mono text-[11px]"
         >
           {(
             [
@@ -605,10 +605,10 @@ export function ChatExecutionRail({
             <div className="flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1.5">
-                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-text-secondary">
+                  <span className="font-display text-[11px] font-semibold uppercase tracking-[0.13em] text-text-secondary">
                     Plan & Execution Steps
                   </span>
-                  <span className="font-mono text-[10px] text-(--color-status-pass)">
+                  <span className="font-mono text-[11px] text-(--color-status-pass)">
                     {completedTaskCount}/{displayTasks.length} done
                   </span>
                 </div>
@@ -660,7 +660,7 @@ export function ChatExecutionRail({
                     strokeDasharray={`${Math.round((completedTaskCount / Math.max(1, displayTasks.length)) * 75.4)} 75.4`}
                   />
                 </svg>
-                <span className="absolute font-mono text-[9px] font-semibold text-text-primary">
+                <span className="absolute font-mono text-[11px] font-semibold text-text-primary">
                   {completedTaskCount}/{displayTasks.length}
                 </span>
               </div>
@@ -691,7 +691,7 @@ export function ChatExecutionRail({
                         data-testid={`execution-rail-task-toggle-${task.id}`}
                         aria-label={`Toggle task ${task.title}`}
                         onClick={() => handleToggleTaskStatus(task)}
-                        className={`mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border font-mono text-[10px] font-bold transition ${
+                        className={`mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border font-mono text-[11px] font-bold transition ${
                           isDone
                             ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300'
                             : isRunning
@@ -728,7 +728,7 @@ export function ChatExecutionRail({
                           </p>
                         )}
                         {task.status && (
-                          <p className="mt-0.5 text-[10px] uppercase tracking-[0.08em] text-text-muted">
+                          <p className="mt-0.5 text-[11px] uppercase tracking-[0.08em] text-text-muted">
                             {task.status}
                           </p>
                         )}
@@ -740,7 +740,7 @@ export function ChatExecutionRail({
                           aria-label={`Cycle priority for ${task.title} (P${taskPriority})`}
                           title={`Priority P${taskPriority} (click to cycle P1..P3)`}
                           onClick={() => handleCycleTaskPriority(task)}
-                          className="whitespace-nowrap rounded border border-border-subtle bg-surface-base/60 px-1 py-0.5 font-mono text-[10px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+                          className="whitespace-nowrap rounded border border-border-subtle bg-surface-base/60 px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
                         >
                           P{taskPriority}
                         </button>
@@ -750,7 +750,7 @@ export function ChatExecutionRail({
                           aria-label={`Flag doubt on ${task.title}`}
                           title="Flag for review"
                           onClick={() => handleDoubtTask(task)}
-                          className="whitespace-nowrap rounded px-1 py-0.5 font-mono text-[10px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-warn)"
+                          className="whitespace-nowrap rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-warn)"
                         >
                           ?
                         </button>
@@ -760,7 +760,7 @@ export function ChatExecutionRail({
                           aria-label={`Force verify on ${task.title}`}
                           title="Verify step"
                           onClick={() => handleVerifyTask(task)}
-                          className="whitespace-nowrap rounded px-1 py-0.5 font-mono text-[10px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-pass)"
+                          className="whitespace-nowrap rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-pass)"
                         >
                           ✓
                         </button>
@@ -937,7 +937,7 @@ export function ChatExecutionRail({
             <div
               data-testid="chat-turn-receipt-badge"
               aria-label="Turn compaction and posture receipt"
-              className="flex flex-wrap items-center justify-between gap-1 rounded border border-border-subtle bg-overlay-subtle/80 px-2 py-1 font-mono text-[10px] text-text-muted"
+              className="flex flex-wrap items-center justify-between gap-1 rounded border border-border-subtle bg-overlay-subtle/80 px-2 py-1 font-mono text-[11px] text-text-muted"
             >
               <span className="truncate text-text-secondary">
                 Goal Anchor: {anchorPreserved ? 'Kept' : 'Recency'} · {effBudgetTokens.toLocaleString()} BPE
@@ -1073,7 +1073,7 @@ export function ChatExecutionRail({
                 type="button"
                 data-testid="chat-checkpoint-capture-btn"
                 onClick={handleCaptureCheckpoint}
-                className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20"
+                className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/20"
               >
                 + Capture
               </button>
@@ -1081,7 +1081,7 @@ export function ChatExecutionRail({
                 type="button"
                 data-testid="execution-rail-session-interop-btn"
                 onClick={() => setSessionInteropOpen((o) => !o)}
-                className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
               >
                 ⇄ CLI Import
               </button>
@@ -1090,7 +1090,7 @@ export function ChatExecutionRail({
           {restoredRefBanner && (
             <div
               data-testid="chat-checkpoint-status-banner"
-              className="rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass"
+              className="rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass"
             >
               {restoredRefBanner}
             </div>
@@ -1101,7 +1101,7 @@ export function ChatExecutionRail({
                 <li
                   key={ckpt.ref_name}
                   data-testid={`chat-checkpoint-row-${ckpt.turn_count}`}
-                  className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary"
+                  className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
                 >
                   <span className="truncate">
                     Turn #{ckpt.turn_count} · {ckpt.commit_oid.slice(0, 8)}
@@ -1110,7 +1110,7 @@ export function ChatExecutionRail({
                     type="button"
                     data-testid={`chat-checkpoint-restore-${ckpt.turn_count}`}
                     onClick={() => handleRestoreCheckpoint(ckpt.turn_count)}
-                    className="shrink-0 rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-[10px] text-brass hover:bg-brass/15"
+                    className="shrink-0 rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-[11px] text-brass hover:bg-brass/15"
                   >
                     Restore
                   </button>
@@ -1137,17 +1137,17 @@ export function ChatExecutionRail({
             </span>
             <span
               data-testid="execution-rail-route-tier"
-              className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[10px] text-brass"
+              className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[11px] text-brass"
             >
               Route: {activeRouteStatus.activeTier}
             </span>
-            <span className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-1.5 py-0.5 font-mono text-[10px] text-(--color-status-pass)">
+            <span className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-1.5 py-0.5 font-mono text-[11px] text-(--color-status-pass)">
               All checks passing
             </span>
           </div>
           <div
             data-testid="execution-rail-hooks-status"
-            className="flex items-center justify-between gap-1 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary"
+            className="flex items-center justify-between gap-1 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
           >
             <span title="Deterministic PreToolUse, PostToolBatch & Stop lifecycle hooks active (.env & SSOT guarded)">
               .vox Hooks: 3 active
@@ -1157,7 +1157,7 @@ export function ChatExecutionRail({
             </span>
           </div>
           <div className="rounded-md border border-border-subtle bg-overlay-subtle/80 px-2.5 py-1.5">
-            <div className="mb-0.5 flex items-center justify-between font-mono text-[10px] text-text-muted">
+            <div className="mb-0.5 flex items-center justify-between font-mono text-[11px] text-text-muted">
               <span>Verification & Response Pace</span>
               <span className="text-(--color-status-pass)">100% pass rate</span>
             </div>

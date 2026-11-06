@@ -124,13 +124,16 @@ pkcs8 = { version = "0.10", default-features = false, features = ["pem", "std"] 
 portable-atomic = { version = "1", features = ["require-cas", "serde"] }
 postcard = { version = "1", features = ["experimental-derive", "use-std"] }
 potential_utf = { version = "0.1", default-features = false, features = ["alloc", "zerovec"] }
+ppv-lite86 = { version = "0.2", default-features = false, features = ["simd", "std"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 pulldown-cmark = { version = "0.13" }
 pulley-interpreter = { version = "49", default-features = false, features = ["disas", "interp", "std"] }
 quick-xml = { version = "0.41", features = ["serialize"] }
 quote = { version = "1" }
+rand-274715c4dabd11b0 = { package = "rand", version = "0.9" }
 rand-93f6ce9d446188ac = { package = "rand", version = "0.10" }
 rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8", features = ["small_rng"] }
+rand_chacha = { version = "0.9", default-features = false, features = ["std"] }
 rand_core = { version = "0.6", default-features = false, features = ["std"] }
 regex = { version = "1" }
 regex-automata = { version = "0.4" }
@@ -315,13 +318,16 @@ pkcs8 = { version = "0.10", default-features = false, features = ["pem", "std"] 
 portable-atomic = { version = "1", features = ["require-cas", "serde"] }
 postcard = { version = "1", features = ["experimental-derive", "use-std"] }
 potential_utf = { version = "0.1", default-features = false, features = ["alloc", "zerovec"] }
+ppv-lite86 = { version = "0.2", default-features = false, features = ["simd", "std"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 pulldown-cmark = { version = "0.13" }
 pulley-interpreter = { version = "49", default-features = false, features = ["disas", "interp", "std"] }
 quick-xml = { version = "0.41", features = ["serialize"] }
 quote = { version = "1" }
+rand-274715c4dabd11b0 = { package = "rand", version = "0.9" }
 rand-93f6ce9d446188ac = { package = "rand", version = "0.10" }
 rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8", features = ["small_rng"] }
+rand_chacha = { version = "0.9", default-features = false, features = ["std"] }
 rand_core = { version = "0.6", default-features = false, features = ["std"] }
 regex = { version = "1" }
 regex-automata = { version = "0.4" }

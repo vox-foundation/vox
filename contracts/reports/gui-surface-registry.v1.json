@@ -26,6 +26,7 @@
     "deploy",
     "dev",
     "diag",
+    "diagram",
     "dispatch",
     "doctor",
     "drift-check",
@@ -94,7 +95,7 @@
     "visus",
     "workflow"
   ],
-  "surface_count": 109,
+  "surface_count": 110,
   "unclassified_backfilled": [],
   "wiring_violations": []
 }

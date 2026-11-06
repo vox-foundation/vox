@@ -1,0 +1,12 @@
+graph {
+    node A: "Start Workflow"
+    node B: "Activity Finished?" { shape: diamond }
+    node C: "Execute Activity"
+    node D: "Write to Journal"
+    node E: "End Workflow"
+    A -> B
+    B -> C: "No"
+    C -> D
+    D -> B
+    B -> E: "Yes"
+}

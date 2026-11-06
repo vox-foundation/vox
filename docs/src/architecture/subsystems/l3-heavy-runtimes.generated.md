@@ -14,49 +14,51 @@ Core execution engines: unified Vox compiler/codegen, VoxDb/Turso, multi-agent o
 
 ## Subsystem Topology
 
-```mermaid
-flowchart TD
-    l3_heavy_runtimes["Layer 3 — Compiler, VoxDb, Orchestrator, Search & Runtimes"]
-    vox_actor_runtime["vox-actor-runtime (library)"]
-    l3_heavy_runtimes --> vox_actor_runtime
-    vox_cli_core["vox-cli-core (library)"]
-    l3_heavy_runtimes --> vox_cli_core
-    vox_code_audit["vox-code-audit (library)"]
-    l3_heavy_runtimes --> vox_code_audit
-    vox_codegen["vox-codegen (library)"]
-    l3_heavy_runtimes --> vox_codegen
-    vox_codegen_ts["vox-codegen-ts (library)"]
-    l3_heavy_runtimes --> vox_codegen_ts
-    vox_compiler["vox-compiler (library)"]
-    l3_heavy_runtimes --> vox_compiler
-    vox_container["vox-container (library)"]
-    l3_heavy_runtimes --> vox_container
-    vox_corpus["vox-corpus (library)"]
-    l3_heavy_runtimes --> vox_corpus
-    vox_db["vox-db (library)"]
-    l3_heavy_runtimes --> vox_db
-    vox_deploy_codegen["vox-deploy-codegen (library)"]
-    l3_heavy_runtimes --> vox_deploy_codegen
-    vox_doc_pipeline["vox-doc-pipeline (library)"]
-    l3_heavy_runtimes --> vox_doc_pipeline
-    vox_drift_check["vox-drift-check (binary)"]
-    l3_heavy_runtimes --> vox_drift_check
-    vox_effort_audit["vox-effort-audit (library)"]
-    l3_heavy_runtimes --> vox_effort_audit
-    vox_effort_route["vox-effort-route (library)"]
-    l3_heavy_runtimes --> vox_effort_route
-    vox_forge["vox-forge (library)"]
-    l3_heavy_runtimes --> vox_forge
-    vox_gamify["vox-gamify (library)"]
-    l3_heavy_runtimes --> vox_gamify
-    vox_git["vox-git (library)"]
-    l3_heavy_runtimes --> vox_git
-    vox_lsp["vox-lsp (library)"]
-    l3_heavy_runtimes --> vox_lsp
-    vox_ml_cli["vox-ml-cli (binary)"]
-    l3_heavy_runtimes --> vox_ml_cli
-    vox_oauth_pkce["vox-oauth-pkce (library)"]
-    l3_heavy_runtimes --> vox_oauth_pkce
+```vox-diagram
+graph {
+    direction: down
+    node l3_heavy_runtimes: "Layer 3 — Compiler, VoxDb, Orchestrator, Search & Runtimes"
+    node vox_actor_runtime: "vox-actor-runtime (library)"
+    l3_heavy_runtimes -> vox_actor_runtime
+    node vox_cli_core: "vox-cli-core (library)"
+    l3_heavy_runtimes -> vox_cli_core
+    node vox_code_audit: "vox-code-audit (library)"
+    l3_heavy_runtimes -> vox_code_audit
+    node vox_codegen: "vox-codegen (library)"
+    l3_heavy_runtimes -> vox_codegen
+    node vox_codegen_ts: "vox-codegen-ts (library)"
+    l3_heavy_runtimes -> vox_codegen_ts
+    node vox_compiler: "vox-compiler (library)"
+    l3_heavy_runtimes -> vox_compiler
+    node vox_container: "vox-container (library)"
+    l3_heavy_runtimes -> vox_container
+    node vox_corpus: "vox-corpus (library)"
+    l3_heavy_runtimes -> vox_corpus
+    node vox_db: "vox-db (library)"
+    l3_heavy_runtimes -> vox_db
+    node vox_deploy_codegen: "vox-deploy-codegen (library)"
+    l3_heavy_runtimes -> vox_deploy_codegen
+    node vox_doc_pipeline: "vox-doc-pipeline (library)"
+    l3_heavy_runtimes -> vox_doc_pipeline
+    node vox_drift_check: "vox-drift-check (binary)"
+    l3_heavy_runtimes -> vox_drift_check
+    node vox_effort_audit: "vox-effort-audit (library)"
+    l3_heavy_runtimes -> vox_effort_audit
+    node vox_effort_route: "vox-effort-route (library)"
+    l3_heavy_runtimes -> vox_effort_route
+    node vox_forge: "vox-forge (library)"
+    l3_heavy_runtimes -> vox_forge
+    node vox_gamify: "vox-gamify (library)"
+    l3_heavy_runtimes -> vox_gamify
+    node vox_git: "vox-git (library)"
+    l3_heavy_runtimes -> vox_git
+    node vox_lsp: "vox-lsp (library)"
+    l3_heavy_runtimes -> vox_lsp
+    node vox_ml_cli: "vox-ml-cli (binary)"
+    l3_heavy_runtimes -> vox_ml_cli
+    node vox_oauth_pkce: "vox-oauth-pkce (library)"
+    l3_heavy_runtimes -> vox_oauth_pkce
+}
 ```
 
 ## Crates in Layer

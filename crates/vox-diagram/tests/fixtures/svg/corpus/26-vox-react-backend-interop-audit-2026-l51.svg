@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942.5 382" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">11 nodes, 12 edges: VoxSource → HIR; HIR → ContractIR; HIR → AppContract; ContractIR → OpenAPI emit; ContractIR → vox-client.ts emit; ContractIR → schemas.ts emit; HIR → Rust Axum emit; HIR → vox-tanstack-query.tsx …; Rust Axum emit → Generated Axum binary; vox-client.ts emit → External React app; …</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M118 152L178 152" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M242 155L249.5 155Q257 155 258.5 162L285 261.5Q287 269 295 269L319.5 269" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M242 153L249.5 153Q257 153 261.5 158.5L282 185Q287 191 295 191L313.5 191" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M420 272L444 272Q452 272 454.5 279L479.5 340Q482 347 490 347L542 347" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M420 269L533 269" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M420 266L444 266Q452 266 454.5 259L479.5 198Q482 191 490 191L534.5 191" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M242 151L249.5 151Q257 151 261.5 145.5L282.5 118.5Q287 113 294.5 113L302 113" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M242 149L249.5 149Q257 149 257.5 142L271 42.5Q272 35 280 35L497 35" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M437 113L509.5 113" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M674 269L716.5 269Q724.5 269 729 275L750 302.5Q754.5 308 762 308L769.5 308" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M664.5 347L716.5 347Q724.5 347 729.5 341L750 316.5Q754.5 311 762 311L769.5 311" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M709.5 35L717 35Q724.5 35 725 42L754 298Q754.5 305 762 305L769.5 305" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="133" width="102" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="67" y="157" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="67" dy="0">VoxSource</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="178" y="133" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="210" y="157" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="210" dy="0">HIR</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="319.5" y="250" width="100.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="369.5" y="274" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="369.5" dy="0">ContractIR</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="313.5" y="172" width="112.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="369.5" y="196" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="369.5" dy="0">AppContract</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="542" y="328" width="122.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="603" y="352" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="603" dy="0">OpenAPI emit</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="533" y="250" width="141" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="603.5" y="274" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="603.5" dy="0">vox-client.ts emit</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="534.5" y="172" width="137.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="603" y="196" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="603" dy="0">schemas.ts emit</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="302" y="94" width="135" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="369.5" y="118" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="369.5" dy="0">Rust Axum emit</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="497" y="16" width="212.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="603" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="603" dy="0">vox-tanstack-query.tsx emit</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="509.5" y="94" width="188" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="603.5" y="118" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="603.5" dy="0">Generated Axum binary</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="769.5" y="289" width="157" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="848" y="313" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="848" dy="0">External React app</tspan></text>
+</g>
+</g>
+</svg>

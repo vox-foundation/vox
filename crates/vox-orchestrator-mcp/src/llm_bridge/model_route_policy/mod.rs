@@ -11,6 +11,7 @@ mod types;
 #[allow(unsafe_code)] // tests use `set_var` / `remove_var` under a global lock (Rust 2024)
 mod tests;
 
+#[cfg(test)]
 pub(crate) use resolve::build_selection_request;
 pub use resolve::{
     build_selection_request_with_decision_pack, mcp_global_llm_context_fill_ratio,

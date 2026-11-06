@@ -16,7 +16,7 @@ use vox_doc_pipeline::claims::self_heal_bot::{
 };
 use vox_doc_pipeline::claims::suppressions::SuppressionsFile;
 use vox_doc_pipeline::pipeline::openwiki::{
-    compute_reverse_dependents, generate_subsystem_hubs, render_crate_dependency_mermaid,
+    compute_reverse_dependents, generate_subsystem_hubs, render_crate_dependency_diagram,
 };
 use vox_doc_pipeline::pipeline::openwiki_symbols::{
     extract_crate_deep_symbols_from_dir, render_deep_crate_api_sections,
@@ -31,7 +31,7 @@ fn repo_root() -> &'static Path {
 }
 
 #[test]
-fn phase_188_deep_crate_symbols_reverse_deps_and_mermaid() {
+fn phase_188_deep_crate_symbols_reverse_deps_and_diagram() {
     let root = repo_root();
     let crate_dir = root.join("crates/vox-doc-pipeline");
     let entry_file = crate_dir.join("src/lib.rs");
@@ -62,9 +62,10 @@ fn phase_188_deep_crate_symbols_reverse_deps_and_mermaid() {
     );
 
     let chart =
-        render_crate_dependency_mermaid("vox-doc-pipeline", &["vox-compiler".to_string()], used_by)
-            .expect("valid mermaid");
-    assert!(chart.contains("flowchart LR"));
+        render_crate_dependency_diagram("vox-doc-pipeline", &["vox-compiler".to_string()], used_by)
+            .expect("valid diagram");
+    assert!(chart.starts_with("graph {"), "{chart}");
+    assert!(vox_diagram::check(&chart).valid, "{chart}");
 
     let rendered = render_deep_crate_api_sections(
         "vox-doc-pipeline",
@@ -73,7 +74,7 @@ fn phase_188_deep_crate_symbols_reverse_deps_and_mermaid() {
         &syms,
     )
     .expect("render sections");
-    assert!(rendered.contains("## Dependency Topology"));
+    assert!(rendered.contains("## Dependency Topology\n\n```vox-diagram\n"));
     assert!(rendered.contains("## Reverse Dependents (Used By)"));
     assert!(rendered.contains("### Deep Public Symbols (Source-Anchored)"));
 }

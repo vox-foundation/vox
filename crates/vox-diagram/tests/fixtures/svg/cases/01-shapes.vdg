@@ -1,0 +1,13 @@
+graph {
+    node s: "Start\nhere" { shape: start }
+    node r: "Rect\nbox"
+    node ro: "Rounded\nbox" { shape: rounded }
+    node d: "Decide?\nyes or no" { shape: diamond }
+    node c: "Store\ndata" { shape: cylinder }
+    node e: "End\ndone" { shape: end }
+    s -> r
+    r -> ro
+    ro -> d
+    d -> c
+    c -> e
+}

@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant p0 as Actor end
+    participant p1 as Actor opt
+    participant p2 as Actor loop
+    participant p3 as Actor alt
+    participant p4 as Actor participant
+    participant p5 as Actor Note
+    participant p6 as Actor a-b
+    participant p7 as ghost
+    participant p8 as phantom
+    p0->>p0: self
+    p2-->>p2: dashed self
+    p1->>p3: forward
+    Note over p4,p5: two actors
+    Note over p6: one actor
+    p3->>p7: to nowhere
+    Note over p8: over nowhere

@@ -1,0 +1,104 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "#35;",
+      "diamond",
+      []
+    ],
+    [
+      "<b>x</b>",
+      "rounded",
+      []
+    ],
+    [
+      "`tick`",
+      "start",
+      []
+    ],
+    [
+      "a\"b",
+      "rect",
+      []
+    ],
+    [
+      "end",
+      "cylinder",
+      []
+    ],
+    [
+      "style: x",
+      "end",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "#35;",
+        "diamond",
+        []
+      ],
+      [
+        "end",
+        "cylinder",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "<b>x</b>",
+        "rounded",
+        []
+      ],
+      [
+        "#35;",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "`tick`",
+        "start",
+        []
+      ],
+      [
+        "style: x",
+        "end",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "a\"b",
+        "rect",
+        []
+      ],
+      [
+        "<b>x</b>",
+        "rounded",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "end",
+        "cylinder",
+        []
+      ],
+      [
+        "`tick`",
+        "start",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

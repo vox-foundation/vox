@@ -1,0 +1,200 @@
+[
+  {
+    "fixture": "00-012-internal-web-ir-strategy-l262.mmd",
+    "source": "docs/src/adr/012-internal-web-ir-strategy.md",
+    "open_line": 262,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "01-ai-first-fixtures-research-2026-l147.mmd",
+    "source": "docs/src/architecture/ai-first-fixtures-research-2026.md",
+    "open_line": 147,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "02-as-any-casts-reduction-strategy-research-2026-l116.mmd",
+    "source": "docs/src/architecture/as-any-casts-reduction-strategy-research-2026.md",
+    "open_line": 116,
+    "header": "graph TD"
+  },
+  {
+    "fixture": "03-axis-harness-river-design-2026-l83.mmd",
+    "source": "docs/src/architecture/axis-harness-river-design-2026.md",
+    "open_line": 83,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "04-deep-research-full-surface-audit-and-roadmap-2026-l46.mmd",
+    "source": "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    "open_line": 46,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "05-deep-research-full-surface-audit-and-roadmap-2026-l217.mmd",
+    "source": "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    "open_line": 217,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "06-deep-research-full-surface-audit-and-roadmap-2026-l238.mmd",
+    "source": "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    "open_line": 238,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "07-deep-research-full-surface-audit-and-roadmap-2026-l340.mmd",
+    "source": "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    "open_line": 340,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "08-deep-research-full-surface-audit-and-roadmap-2026-l368.mmd",
+    "source": "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    "open_line": 368,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "09-deep-research-full-surface-audit-and-roadmap-2026-l407.mmd",
+    "source": "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    "open_line": 407,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "10-deep-research-full-surface-audit-and-roadmap-2026-l485.mmd",
+    "source": "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    "open_line": 485,
+    "header": "gantt"
+  },
+  {
+    "fixture": "11-deep-research-waves-and-competitive-analysis-research-2026-l45.mmd",
+    "source": "docs/src/architecture/deep-research-waves-and-competitive-analysis-research-2026.md",
+    "open_line": 45,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "12-deep-research-waves-and-competitive-analysis-research-2026-l76.mmd",
+    "source": "docs/src/architecture/deep-research-waves-and-competitive-analysis-research-2026.md",
+    "open_line": 76,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "13-deep-research-waves-and-competitive-analysis-research-2026-l110.mmd",
+    "source": "docs/src/architecture/deep-research-waves-and-competitive-analysis-research-2026.md",
+    "open_line": 110,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "14-deep-research-waves-and-competitive-analysis-research-2026-l211.mmd",
+    "source": "docs/src/architecture/deep-research-waves-and-competitive-analysis-research-2026.md",
+    "open_line": 211,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "15-gamification-ludus-review-findings-2026-l128.mmd",
+    "source": "docs/src/architecture/gamification-ludus-review-findings-2026.md",
+    "open_line": 128,
+    "header": "graph TD"
+  },
+  {
+    "fixture": "16-graphify-python-free-findings-2026-l57.mmd",
+    "source": "docs/src/architecture/graphify-python-free-findings-2026.md",
+    "open_line": 57,
+    "header": "graph TD"
+  },
+  {
+    "fixture": "17-mcp-vox-language-exposure-l21.mmd",
+    "source": "docs/src/architecture/mcp-vox-language-exposure.md",
+    "open_line": 21,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "18-scientia-automated-research-historical-extension-research-2026-l50.mmd",
+    "source": "docs/src/architecture/scientia-automated-research-historical-extension-research-2026.md",
+    "open_line": 50,
+    "header": "flowchart TB"
+  },
+  {
+    "fixture": "19-scientia-automated-research-historical-extension-research-2026-l112.mmd",
+    "source": "docs/src/architecture/scientia-automated-research-historical-extension-research-2026.md",
+    "open_line": 112,
+    "header": "sequenceDiagram"
+  },
+  {
+    "fixture": "20-tauri-convergence-migration-plan-2026-l117.mmd",
+    "source": "docs/src/architecture/tauri-convergence-migration-plan-2026.md",
+    "open_line": 117,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "21-unified-workstream-execution-plan-2026-l45.mmd",
+    "source": "docs/src/architecture/unified-workstream-execution-plan-2026.md",
+    "open_line": 45,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "22-vox-compiler-architecture-research-2026-l19.mmd",
+    "source": "docs/src/architecture/vox-compiler-architecture-research-2026.md",
+    "open_line": 19,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "23-vox-gui-browser-support-2026-l33.mmd",
+    "source": "docs/src/architecture/vox-gui-browser-support-2026.md",
+    "open_line": 33,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "24-vox-gui-browser-support-2026-l50.mmd",
+    "source": "docs/src/architecture/vox-gui-browser-support-2026.md",
+    "open_line": 50,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "25-vox-gui-browser-support-2026-l92.mmd",
+    "source": "docs/src/architecture/vox-gui-browser-support-2026.md",
+    "open_line": 92,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "26-vox-react-backend-interop-audit-2026-l51.mmd",
+    "source": "docs/src/architecture/vox-react-backend-interop-audit-2026.md",
+    "open_line": 51,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "27-deploy-contract-l14.mmd",
+    "source": "docs/src/ci/deploy-contract.md",
+    "open_line": 14,
+    "header": "graph TD"
+  },
+  {
+    "fixture": "28-expl-durable-execution-l35.mmd",
+    "source": "docs/src/explanation/expl-durable-execution.md",
+    "open_line": 35,
+    "header": "graph TD"
+  },
+  {
+    "fixture": "29-how-to-rust-crate-imports-l53.mmd",
+    "source": "docs/src/how-to/how-to-rust-crate-imports.md",
+    "open_line": 53,
+    "header": "flowchart LR"
+  },
+  {
+    "fixture": "30-mens-external-tech-options-l280.mmd",
+    "source": "docs/src/reference/mens-external-tech-options.md",
+    "open_line": 280,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "31-mens-measurement-gap-analysis-l284.mmd",
+    "source": "docs/src/reference/mens-measurement-gap-analysis.md",
+    "open_line": 284,
+    "header": "flowchart TD"
+  },
+  {
+    "fixture": "32-populi-l211.mmd",
+    "source": "docs/src/reference/populi.md",
+    "open_line": 211,
+    "header": "stateDiagram-v2"
+  }
+]

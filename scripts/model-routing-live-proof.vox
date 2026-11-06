@@ -75,6 +75,25 @@ fn read_report(path: str) to Option[Json] {
     return Some(parsed.unwrap())
 }
 
+// The raw alias id the openrouter leg proves resolution for: the contract's
+// `premium_research` default, read here so this script never pins a vendor id.
+fn contract_alias_id() to str {
+    let text = fs.read_to_string("contracts/orchestration/model-defaults.v1.yaml")
+    if text.is_err() {
+        return ""
+    }
+    let mut in_role = false
+    for line in text.unwrap().split("\n") {
+        let t = line.trim()
+        if t.starts_with("- role:") {
+            in_role = t is "- role: premium_research"
+        } else if in_role and t.starts_with("model:") {
+            return t.replace("model:", "").replace("\"", "").trim()
+        }
+    }
+    return ""
+}
+
 fn verdict(kind: str, leg: str, detail: str) {
     print("[" + kind + "] " + leg + ": " + detail)
 }
@@ -165,7 +184,7 @@ fn main() {
     total_spent = total_spent + discover_usd
 
     // 2. OpenRouter: every current -latest target, plus a raw alias id to prove alias resolution
-    let alias_id = "~google/gemini-flash-latest"
+    let alias_id = contract_alias_id()
     let or_json = out_dir + "/openrouter.json"
     let or_run = run(bin, ["model", "bench", "--latest", "10", "--model", "openrouter:" + alias_id,
         "--max-usd", str(openrouter_usd), "--report", or_json], [])

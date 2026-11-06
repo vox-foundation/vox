@@ -18,21 +18,31 @@ code_anchors:
 # Self-Maintaining & Evidence-Cited Documentation Engine SSOT (2026)
 
 <!-- kb:summary -->
-Vox's Self-Maintaining Documentation Engine keeps architectural and crate API documentation synchronized with live Rust source code, contracts, and layer boundaries. It combines deterministic AST/source symbol extraction (`#Lstart-Lend` anchors, reverse-dependent `Used By` tables, and lint-verified Mermaid topology diagrams) with a zero-deficit freshness baseline ratchet, an advisory content-addressed LLM claim verifier (`[path:Lstart-Lend]` citation enforcement), and a guarded draft-PR bot (`<= 3` concurrent draft PRs, strict path scope, and auto-pause below 80% precision).
+Vox's Self-Maintaining Documentation Engine keeps architectural and crate API documentation synchronized with live Rust source code, contracts, and layer boundaries. It combines deterministic AST/source symbol extraction (`#Lstart-Lend` anchors, reverse-dependent `Used By` tables, and lint-verified VoxDiagram topology diagrams) with a zero-deficit freshness baseline ratchet, an advisory content-addressed LLM claim verifier (`[path:Lstart-Lend]` citation enforcement), and a guarded draft-PR bot (`<= 3` concurrent draft PRs, strict path scope, and auto-pause below 80% precision).
 <!-- /kb:summary -->
 
 ## Architecture Overview
 
-```mermaid
-flowchart TD
-    L["docs/src/architecture/layers.toml + Cargo.toml"] --> W["vox ci wiki-sync"]
-    L --> C["vox ci crate-api-sync"]
-    W --> H["docs/src/architecture/subsystems/*.generated.md"]
-    C --> A["docs/src/api/*.generated.md"]
-    H --> G["vox ci ssot-drift & vox-doc-pipeline --lint-only"]
-    A --> G
-    G --> V["vox audit docs --verify-llm & --eval-golden-drift"]
-    V --> B["vox run scripts/docs-fix-drafts.vox (Draft PRs <= 3)"]
+```vox-diagram
+graph {
+    direction: down
+    node layers: "docs/src/architecture/layers.toml + Cargo.toml"
+    node wiki: "vox ci wiki-sync"
+    node api_sync: "vox ci crate-api-sync"
+    node hubs: "docs/src/architecture/subsystems/*.generated.md"
+    node api_pages: "docs/src/api/*.generated.md"
+    node lint: "vox ci ssot-drift & vox-doc-pipeline --lint-only"
+    node verify: "vox audit docs --verify-llm & --eval-golden-drift"
+    node drafts: "vox run scripts/docs-fix-drafts.vox (Draft PRs <= 3)"
+    layers -> wiki
+    layers -> api_sync
+    wiki -> hubs
+    api_sync -> api_pages
+    hubs -> lint
+    api_pages -> lint
+    lint -> verify
+    verify -> drafts
+}
 ```
 
 ## Five Pillars of Self-Maintaining & Evidence-Cited Documentation
@@ -41,7 +51,7 @@ flowchart TD
 
 `vox ci crate-api-sync [--write]` (`crates/vox-cli-ci/src/crate_api_docs.rs` + `crates/vox-doc-pipeline/src/pipeline/openwiki_symbols.rs`) walks each workspace crate's `src/lib.rs` (or `src/main.rs`) and its declared `pub mod` submodule files (`src/<mod>.rs`, `src/<mod>/mod.rs`) to emit:
 
-- **`## Dependency Topology`**: Validated `flowchart LR` Mermaid diagram showing direct workspace dependencies and reverse dependents.
+- **`## Dependency Topology`**: Validated `vox-diagram` graph (`direction: right`) showing direct workspace dependencies and reverse dependents.
 - **`## Reverse Dependents (Used By)`**: Cross-linked table of consumer crates computed via `compute_reverse_dependents`.
 - **`### Deep Public Symbols (Source-Anchored)`**: Signatures, doc summaries, and 1-based `#L<start>-L<end>` source links.
 
@@ -50,7 +60,7 @@ flowchart TD
 `vox ci wiki-sync [--write]` (`crates/vox-doc-pipeline/src/pipeline/openwiki.rs`) parses `docs/src/architecture/layers.toml` and synthesizes 7 deterministic pages under `docs/src/architecture/subsystems/`:
 
 - `index.generated.md` — Top-level L0–L5 dependency hierarchy and domain subsystem authority map.
-- `l0-pure-types.generated.md` through `l5-binaries.generated.md` — Per-layer Mermaid topology diagrams and crate budget tables (`Fan-In Cap`, `LoC Baseline`).
+- `l0-pure-types.generated.md` through `l5-binaries.generated.md` — Per-layer VoxDiagram topology diagrams and crate budget tables (`Fan-In Cap`, `LoC Baseline`).
 
 `wiki_sync` runs inside `vox ci ssot-drift` with `VOX_AUTO_HEAL=1` support.
 

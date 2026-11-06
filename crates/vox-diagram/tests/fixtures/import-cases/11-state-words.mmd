@@ -1,0 +1,8 @@
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Scale: busy
+    Idle --> Style: styled
+    Idle --> Class: classy
+    Idle --> State: named
+    Idle --> Done
+    Done --> [*]

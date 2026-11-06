@@ -14,35 +14,37 @@ User-facing product binaries: vox CLI, Vox Axis desktop workbench (vox-gui), and
 
 ## Subsystem Topology
 
-```mermaid
-flowchart TD
-    l5_binaries["Layer 5 — Product Surfaces (CLI, Axis GUI, Daemon)"]
-    vox_audit["vox-audit (binary)"]
-    l5_binaries --> vox_audit
-    vox_cargo_shim["vox-cargo-shim (binary)"]
-    l5_binaries --> vox_cargo_shim
-    vox_cli["vox-cli (binary)"]
-    l5_binaries --> vox_cli
-    vox_cli_ci["vox-cli-ci (library)"]
-    l5_binaries --> vox_cli_ci
-    vox_cli_research["vox-cli-research (library)"]
-    l5_binaries --> vox_cli_research
-    vox_cli_review["vox-cli-review (library)"]
-    l5_binaries --> vox_cli_review
-    vox_cli_share["vox-cli-share (library)"]
-    l5_binaries --> vox_cli_share
-    vox_cli_tests["vox-cli-tests (test-only)"]
-    l5_binaries --> vox_cli_tests
-    vox_gui["vox-gui (binary)"]
-    l5_binaries --> vox_gui
-    vox_integration_tests["vox-integration-tests (test-only)"]
-    l5_binaries --> vox_integration_tests
-    vox_langtool["vox-langtool (binary)"]
-    l5_binaries --> vox_langtool
-    vox_orchestrator_d["vox-orchestrator-d (binary)"]
-    l5_binaries --> vox_orchestrator_d
-    voxup["voxup (binary)"]
-    l5_binaries --> voxup
+```vox-diagram
+graph {
+    direction: down
+    node l5_binaries: "Layer 5 — Product Surfaces (CLI, Axis GUI, Daemon)"
+    node vox_audit: "vox-audit (binary)"
+    l5_binaries -> vox_audit
+    node vox_cargo_shim: "vox-cargo-shim (binary)"
+    l5_binaries -> vox_cargo_shim
+    node vox_cli: "vox-cli (binary)"
+    l5_binaries -> vox_cli
+    node vox_cli_ci: "vox-cli-ci (library)"
+    l5_binaries -> vox_cli_ci
+    node vox_cli_research: "vox-cli-research (library)"
+    l5_binaries -> vox_cli_research
+    node vox_cli_review: "vox-cli-review (library)"
+    l5_binaries -> vox_cli_review
+    node vox_cli_share: "vox-cli-share (library)"
+    l5_binaries -> vox_cli_share
+    node vox_cli_tests: "vox-cli-tests (test-only)"
+    l5_binaries -> vox_cli_tests
+    node vox_gui: "vox-gui (binary)"
+    l5_binaries -> vox_gui
+    node vox_integration_tests: "vox-integration-tests (test-only)"
+    l5_binaries -> vox_integration_tests
+    node vox_langtool: "vox-langtool (binary)"
+    l5_binaries -> vox_langtool
+    node vox_orchestrator_d: "vox-orchestrator-d (binary)"
+    l5_binaries -> vox_orchestrator_d
+    node voxup: "voxup (binary)"
+    l5_binaries -> voxup
+}
 ```
 
 ## Crates in Layer

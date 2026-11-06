@@ -790,6 +790,7 @@ mod tests {
             max_tools: 16,
             exclude_name_prefixes: vec!["vox_chat_"],
             pin_names: vec!["vox_spawn_agent"],
+            query: None,
         };
 
         // 1. Outage / None -> fails open without modifying TurnContext

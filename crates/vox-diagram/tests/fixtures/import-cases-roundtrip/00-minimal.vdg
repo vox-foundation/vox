@@ -1,0 +1,5 @@
+graph {
+    node a: "a"
+    node b: "b"
+    a -> b
+}

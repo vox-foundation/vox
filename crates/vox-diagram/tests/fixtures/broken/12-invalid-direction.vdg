@@ -1,0 +1,5 @@
+// expect: diagram/invalid-direction
+graph {
+    direction: sideways
+    node a: "A"
+}

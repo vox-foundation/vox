@@ -285,10 +285,8 @@ pub fn demote_to_legacy_markdown(markdown: &str, superseded_by: Option<&str>) ->
     if !had_status {
         lines.push("status: \"legacy\"".to_string());
     }
-    if !had_superseded {
-        if let Some(target) = superseded_by {
-            lines.push(format!("superseded_by: \"{target}\""));
-        }
+    if !had_superseded && let Some(target) = superseded_by {
+        lines.push(format!("superseded_by: \"{target}\""));
     }
     format!("---\n{}\n---{}", lines.join("\n"), after_fm)
 }

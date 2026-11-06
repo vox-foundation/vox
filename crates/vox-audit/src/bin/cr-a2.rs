@@ -337,6 +337,8 @@ fn json_parses(body: &str) -> bool {
 ///   - `*.fixtures.json` / `*.fixture.json` — fixture data files
 ///   - `*.example.*` — example payloads
 ///   - `*.test-corpus.*` — corpus samples for a test
+///   - `contracts/eval/*/runs/*` — recorded eval-run outputs (tallies,
+///     transcripts) conforming to that eval's manifest
 ///
 /// The contract these conform to (e.g. an OpenClaw protocol schema, or
 /// `dispatch-events.v1.schema.json` / `finding-candidate.v1.schema.json`
@@ -363,6 +365,9 @@ fn is_data_not_contract(rel_path: &str) -> bool {
         return true;
     }
     if lower.contains(".test-corpus.") {
+        return true;
+    }
+    if lower.starts_with("contracts/eval/") && lower.contains("/runs/") {
         return true;
     }
     // Generated files — annotating them is futile (the next regen
@@ -503,6 +508,16 @@ mod tests {
         ));
         assert!(is_data_not_contract(
             "contracts/scientia/fixtures/findings/RA1234567890abcdef.v1.json"
+        ));
+    }
+
+    #[test]
+    fn data_not_contract_excludes_recorded_eval_runs() {
+        assert!(is_data_not_contract(
+            "contracts/eval/diagram-authoring/runs/2026-10-27/tallies.json"
+        ));
+        assert!(!is_data_not_contract(
+            "contracts/eval/diagram-authoring/manifest.v1.json"
         ));
     }
 

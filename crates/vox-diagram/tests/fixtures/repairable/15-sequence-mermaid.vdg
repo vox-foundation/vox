@@ -1,0 +1,10 @@
+sequenceDiagram
+    %% a Mermaid comment
+    participant U as User
+    participant S as Server (core)
+    participant DB;
+    U->>S: open page
+    S->>DB: "load rows"
+    DB-->>S: rows
+    S-->>U: render
+    Note over U,S: handshake done

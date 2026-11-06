@@ -5,7 +5,7 @@ use std::path::Path;
 
 use super::openwiki::{
     DeepCrateSymbol, LayerCrateEntry, SUBSYSTEM_LAYERS, extract_deep_crate_symbols,
-    render_crate_dependency_mermaid,
+    render_crate_dependency_diagram,
 };
 
 fn escape_table_cell(s: &str) -> String {
@@ -96,8 +96,8 @@ pub fn render_deep_crate_api_sections(
     let mut out = String::new();
 
     if !forward_deps.is_empty() || !used_by.is_empty() {
-        let chart = render_crate_dependency_mermaid(crate_name, forward_deps, used_by)?;
-        out.push_str("## Dependency Topology\n\n```mermaid\n");
+        let chart = render_crate_dependency_diagram(crate_name, forward_deps, used_by)?;
+        out.push_str("## Dependency Topology\n\n```vox-diagram\n");
         out.push_str(&chart);
         out.push_str("```\n\n");
     }
@@ -152,12 +152,14 @@ pub fn render_subsystem_index_markdown(all_entries: &[LayerCrateEntry]) -> Resul
     md.push_str("---\n\n");
     md.push_str("# Subsystem Architecture Atlas (L0–L5)\n\n");
     md.push_str("Machine-generated overview of the 6 architectural layers (`L0`–`L5`) and domain subsystem SSoTs in the Vox workspace.\n\n");
-    md.push_str("## Layer Dependency Hierarchy\n\n```mermaid\nflowchart TD\n");
-    md.push_str("    L5[\"L5 — Product Surfaces (CLI, Axis GUI, Daemon)\"] --> L4[\"L4 — Native Plugins & Terminal TUI\"]\n");
-    md.push_str("    L4 --> L3[\"L3 — Compiler, VoxDb, Orchestrator, Search & Runtimes\"]\n");
-    md.push_str("    L3 --> L2[\"L2 — Domain Libraries & Graph Reader\"]\n");
-    md.push_str("    L2 --> L1[\"L1 — Primitives, Crypto, Secrets & Transport\"]\n");
-    md.push_str("    L1 --> L0[\"L0 — Pure Types & Contracts\"]\n");
+    md.push_str("## Layer Dependency Hierarchy\n\n```vox-diagram\ngraph {\n    direction: down\n");
+    md.push_str("    node L5: \"L5 — Product Surfaces (CLI, Axis GUI, Daemon)\"\n");
+    md.push_str("    node L4: \"L4 — Native Plugins & Terminal TUI\"\n");
+    md.push_str("    node L3: \"L3 — Compiler, VoxDb, Orchestrator, Search & Runtimes\"\n");
+    md.push_str("    node L2: \"L2 — Domain Libraries & Graph Reader\"\n");
+    md.push_str("    node L1: \"L1 — Primitives, Crypto, Secrets & Transport\"\n");
+    md.push_str("    node L0: \"L0 — Pure Types & Contracts\"\n");
+    md.push_str("    L5 -> L4\n    L4 -> L3\n    L3 -> L2\n    L2 -> L1\n    L1 -> L0\n}\n");
     md.push_str("```\n\n## Architectural Layers (`L0`–`L5`)\n\n");
     md.push_str("| Layer | Subsystem Hub | Crate Count | Summary |\n|---|---|---|---|\n");
     for spec in SUBSYSTEM_LAYERS {
@@ -250,6 +252,14 @@ mod tests {
         let md = render_subsystem_index_markdown(&[]).unwrap();
         assert!(md.starts_with("---\n"));
         assert!(md.contains("# Subsystem Architecture Atlas (L0–L5)"));
+        assert!(!md.contains("```mermaid"));
+        let fences = vox_diagram::fence::extract(&md, "vox-diagram");
+        assert_eq!(fences.len(), 1);
+        assert!(
+            vox_diagram::check(&fences[0].body).valid,
+            "{}",
+            fences[0].body
+        );
         for spec in SUBSYSTEM_LAYERS {
             assert!(md.contains(&format!("| `L{}` |", spec.layer)));
         }

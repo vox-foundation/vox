@@ -14,49 +14,51 @@ Foundational primitives including vox-crypto, Clavis secrets, iroh QUIC mesh tra
 
 ## Subsystem Topology
 
-```mermaid
-flowchart TD
-    l1_primitives["Layer 1 — Primitives, Crypto, Secrets & Transport"]
-    vox_bounded_fs["vox-bounded-fs (library)"]
-    l1_primitives --> vox_bounded_fs
-    vox_build_queue["vox-build-queue (library)"]
-    l1_primitives --> vox_build_queue
-    vox_crypto["vox-crypto (library)"]
-    l1_primitives --> vox_crypto
-    vox_foundation["vox-foundation (library)"]
-    l1_primitives --> vox_foundation
-    vox_grammar_export["vox-grammar-export (library)"]
-    l1_primitives --> vox_grammar_export
-    vox_graph_reader["vox-graph-reader (library)"]
-    l1_primitives --> vox_graph_reader
-    vox_hf_layout["vox-hf-layout (library)"]
-    l1_primitives --> vox_hf_layout
-    vox_http_client["vox-http-client (library)"]
-    l1_primitives --> vox_http_client
-    vox_identity["vox-identity (library)"]
-    l1_primitives --> vox_identity
-    vox_jsonschema_util["vox-jsonschema-util (library)"]
-    l1_primitives --> vox_jsonschema_util
-    vox_language_surface["vox-language-surface (library)"]
-    l1_primitives --> vox_language_surface
-    vox_mesh_transport["vox-mesh-transport (library)"]
-    l1_primitives --> vox_mesh_transport
-    vox_openai["vox-openai (library)"]
-    l1_primitives --> vox_openai
-    vox_package_types["vox-package-types (library)"]
-    l1_primitives --> vox_package_types
-    vox_plugin_api["vox-plugin-api (library)"]
-    l1_primitives --> vox_plugin_api
-    vox_plugin_sdk["vox-plugin-sdk (library)"]
-    l1_primitives --> vox_plugin_sdk
-    vox_plugin_types["vox-plugin-types (library)"]
-    l1_primitives --> vox_plugin_types
-    vox_redact["vox-redact (library)"]
-    l1_primitives --> vox_redact
-    vox_research_events["vox-research-events (library)"]
-    l1_primitives --> vox_research_events
-    vox_rule_pack["vox-rule-pack (library)"]
-    l1_primitives --> vox_rule_pack
+```vox-diagram
+graph {
+    direction: down
+    node l1_primitives: "Layer 1 — Primitives, Crypto, Secrets & Transport"
+    node vox_bounded_fs: "vox-bounded-fs (library)"
+    l1_primitives -> vox_bounded_fs
+    node vox_build_queue: "vox-build-queue (library)"
+    l1_primitives -> vox_build_queue
+    node vox_crypto: "vox-crypto (library)"
+    l1_primitives -> vox_crypto
+    node vox_foundation: "vox-foundation (library)"
+    l1_primitives -> vox_foundation
+    node vox_grammar_export: "vox-grammar-export (library)"
+    l1_primitives -> vox_grammar_export
+    node vox_graph_reader: "vox-graph-reader (library)"
+    l1_primitives -> vox_graph_reader
+    node vox_hf_layout: "vox-hf-layout (library)"
+    l1_primitives -> vox_hf_layout
+    node vox_http_client: "vox-http-client (library)"
+    l1_primitives -> vox_http_client
+    node vox_identity: "vox-identity (library)"
+    l1_primitives -> vox_identity
+    node vox_jsonschema_util: "vox-jsonschema-util (library)"
+    l1_primitives -> vox_jsonschema_util
+    node vox_language_surface: "vox-language-surface (library)"
+    l1_primitives -> vox_language_surface
+    node vox_mesh_transport: "vox-mesh-transport (library)"
+    l1_primitives -> vox_mesh_transport
+    node vox_openai: "vox-openai (library)"
+    l1_primitives -> vox_openai
+    node vox_package_types: "vox-package-types (library)"
+    l1_primitives -> vox_package_types
+    node vox_plugin_api: "vox-plugin-api (library)"
+    l1_primitives -> vox_plugin_api
+    node vox_plugin_sdk: "vox-plugin-sdk (library)"
+    l1_primitives -> vox_plugin_sdk
+    node vox_plugin_types: "vox-plugin-types (library)"
+    l1_primitives -> vox_plugin_types
+    node vox_redact: "vox-redact (library)"
+    l1_primitives -> vox_redact
+    node vox_research_events: "vox-research-events (library)"
+    l1_primitives -> vox_research_events
+    node vox_rule_pack: "vox-rule-pack (library)"
+    l1_primitives -> vox_rule_pack
+}
 ```
 
 ## Crates in Layer

@@ -308,6 +308,7 @@ pub fn repo_query_file(
                 Ok(content) => {
                     repositories_queried += 1;
                     let max_bytes = params.max_bytes.max(1);
+                    let (total_bytes, total_lines) = (content.len(), content.lines().count());
                     let mut text = content;
                     let mut truncated = false;
                     if text.len() > max_bytes {
@@ -320,6 +321,8 @@ pub fn repo_query_file(
                         root: root.display().to_string(),
                         path: repo_relative_path(&root, &path),
                         bytes_read: text.len(),
+                        total_bytes,
+                        total_lines,
                         truncated,
                         content: text,
                     });
@@ -469,4 +472,26 @@ pub fn repo_query_history(
         skipped,
         commits,
     })
+}
+
+#[cfg(test)]
+mod query_unit_tests {
+    use super::*;
+
+    #[test]
+    fn file_read_reports_whole_file_totals_when_content_is_truncated() {
+        let dir = tempfile::tempdir().expect("dir");
+        std::fs::create_dir_all(dir.path().join(".git")).expect("git dir");
+        std::fs::write(dir.path().join("big.txt"), "one\ntwo\nthree\n").expect("file");
+        let params = QueryFileParams {
+            path: "big.txt".to_string(),
+            max_bytes: 4,
+            ..QueryFileParams::default()
+        };
+        let response = repo_query_file(dir.path(), &params, None).expect("query");
+        let file = &response.files[0];
+        assert!(file.truncated);
+        assert_eq!(file.bytes_read, 4);
+        assert_eq!((file.total_bytes, file.total_lines), (14, 3));
+    }
 }

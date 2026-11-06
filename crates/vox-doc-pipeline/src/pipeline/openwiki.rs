@@ -7,7 +7,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
-use crate::pipeline::mermaid::validate_and_repair_mermaid;
 use crate::pipeline::openwiki_symbols::render_subsystem_index_markdown;
 
 /// Canonical subsystem layer descriptor (`L0..L5`) from `docs/src/architecture/layers.toml` (`WIKI-01`).
@@ -214,10 +213,8 @@ pub fn extract_deep_crate_symbols(source: &str, rel_path: &str) -> Vec<DeepCrate
                 .or_else(|| after_pub.strip_prefix("const fn "))
             {
                 Some(("fn", rest))
-            } else if let Some(rest) = after_pub.strip_prefix("type ") {
-                Some(("type", rest))
             } else {
-                None
+                after_pub.strip_prefix("type ").map(|rest| ("type", rest))
             };
 
             if let Some((kind, rest)) = classified {
@@ -296,70 +293,72 @@ pub fn compute_reverse_dependents(
         .collect()
 }
 
-fn mermaid_node_id(name: &str) -> String {
+fn diagram_node_id(name: &str) -> String {
     name.chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect()
 }
 
-/// Render a deterministic, Mermaid-lint-validated dependency flowchart for a crate (`WIKI-03`).
-pub fn render_crate_dependency_mermaid(
-    crate_name: &str,
-    forward_deps: &[String],
-    used_by: &[String],
-) -> Result<String, String> {
-    let center_id = mermaid_node_id(crate_name);
-    let mut body = String::from("flowchart LR\n");
-    body.push_str(&format!("    {center_id}[\"{crate_name}\"]\n"));
-
-    for dep in forward_deps.iter().take(12) {
-        let dep_id = mermaid_node_id(dep);
-        body.push_str(&format!("    {dep_id}[\"{dep}\"]\n"));
-        body.push_str(&format!("    {center_id} --> {dep_id}\n"));
-    }
-    for consumer in used_by.iter().take(12) {
-        let cons_id = mermaid_node_id(consumer);
-        body.push_str(&format!("    {cons_id}[\"{consumer}\"]\n"));
-        body.push_str(&format!("    {cons_id} --> {center_id}\n"));
-    }
-
-    let res = validate_and_repair_mermaid(&body);
-    if !res.diagnostics.is_empty() {
+/// Close a VoxDiagram `graph` body and reject it unless `vox_diagram::check` accepts it.
+fn finish_diagram(mut body: String) -> Result<String, String> {
+    body.push_str("}\n");
+    let report = vox_diagram::check(&body);
+    if !report.valid {
         return Err(format!(
-            "Mermaid validation failed: {:?}",
-            res.diagnostics[0]
+            "VoxDiagram validation failed: {:?}",
+            report.diagnostics
         ));
     }
     Ok(body)
 }
 
-/// Render a deterministic, Mermaid-lint-validated subsystem layer flowchart (`WIKI-01`, `WIKI-03`).
-pub fn render_subsystem_layer_mermaid(
+/// Render a deterministic, VoxDiagram-validated dependency graph for a crate (`WIKI-03`).
+pub fn render_crate_dependency_diagram(
+    crate_name: &str,
+    forward_deps: &[String],
+    used_by: &[String],
+) -> Result<String, String> {
+    let center_id = diagram_node_id(crate_name);
+    let mut body = String::from("graph {\n    direction: right\n");
+    body.push_str(&format!("    node {center_id}: \"{crate_name}\"\n"));
+
+    for dep in forward_deps.iter().take(12) {
+        let dep_id = diagram_node_id(dep);
+        body.push_str(&format!("    node {dep_id}: \"{dep}\"\n"));
+        body.push_str(&format!("    {center_id} -> {dep_id}\n"));
+    }
+    for consumer in used_by.iter().take(12) {
+        let cons_id = diagram_node_id(consumer);
+        body.push_str(&format!("    node {cons_id}: \"{consumer}\"\n"));
+        body.push_str(&format!("    {cons_id} -> {center_id}\n"));
+    }
+
+    finish_diagram(body)
+}
+
+/// Render a deterministic, VoxDiagram-validated subsystem layer graph (`WIKI-01`, `WIKI-03`).
+pub fn render_subsystem_layer_diagram(
     spec: &SubsystemLayerSpec,
     crates_in_layer: &[LayerCrateEntry],
 ) -> Result<String, String> {
-    let mut body = String::from("flowchart TD\n");
-    let hub_id = mermaid_node_id(spec.slug);
-    body.push_str(&format!("    {hub_id}[\"{}\"]\n", spec.title));
+    let mut body = String::from("graph {\n    direction: down\n");
+    let hub_id = diagram_node_id(spec.slug);
+    body.push_str(&format!("    node {hub_id}: \"{}\"\n", spec.title));
 
     for entry in crates_in_layer
         .iter()
         .filter(|e| e.name != "workspace-hack")
         .take(20)
     {
-        let cid = mermaid_node_id(&entry.name);
-        body.push_str(&format!("    {cid}[\"{} ({})\"]\n", entry.name, entry.kind));
-        body.push_str(&format!("    {hub_id} --> {cid}\n"));
+        let cid = diagram_node_id(&entry.name);
+        body.push_str(&format!(
+            "    node {cid}: \"{} ({})\"\n",
+            entry.name, entry.kind
+        ));
+        body.push_str(&format!("    {hub_id} -> {cid}\n"));
     }
 
-    let res = validate_and_repair_mermaid(&body);
-    if !res.diagnostics.is_empty() {
-        return Err(format!(
-            "Mermaid validation failed: {:?}",
-            res.diagnostics[0]
-        ));
-    }
-    Ok(body)
+    finish_diagram(body)
 }
 
 /// Synthesize OpenWiki Subsystem Hub Markdown pages under `docs/src/architecture/subsystems/` (`WIKI-01..04`).
@@ -382,7 +381,7 @@ pub fn generate_subsystem_hubs(repo_root: &Path, write: bool) -> Result<Vec<Stri
             .filter(|e| e.layer == spec.layer)
             .cloned()
             .collect();
-        let mermaid = render_subsystem_layer_mermaid(spec, &layer_crates)?;
+        let diagram = render_subsystem_layer_diagram(spec, &layer_crates)?;
 
         let mut md = String::new();
         md.push_str("---\n");
@@ -395,8 +394,8 @@ pub fn generate_subsystem_hubs(repo_root: &Path, write: bool) -> Result<Vec<Stri
         md.push_str("---\n\n");
         md.push_str(&format!("# {}\n\n", spec.title));
         md.push_str(&format!("{}\n\n", spec.summary));
-        md.push_str("## Subsystem Topology\n\n```mermaid\n");
-        md.push_str(&mermaid);
+        md.push_str("## Subsystem Topology\n\n```vox-diagram\n");
+        md.push_str(&diagram);
         md.push_str("```\n\n## Crates in Layer\n\n");
         md.push_str("| Crate | Kind | Fan-In Cap | LoC Baseline |\n|---|---|---|---|\n");
         for c in &layer_crates {
@@ -493,7 +492,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_layers_toml_and_validates_mermaid() {
+    fn parses_layers_toml_and_validates_diagram() {
         let sample = r#"
 [crates]
 vox-ast = { layer = 0, kind = "library", max_dependents = 20, max_loc = 5_000 }
@@ -504,8 +503,9 @@ vox-crypto = { layer = 1, kind = "library" }
         assert_eq!(parsed[0].name, "vox-ast");
         assert_eq!(parsed[0].layer, 0);
 
-        let m = render_subsystem_layer_mermaid(&SUBSYSTEM_LAYERS[0], &parsed[..1]).unwrap();
-        assert!(m.contains("flowchart TD"));
+        let m = render_subsystem_layer_diagram(&SUBSYSTEM_LAYERS[0], &parsed[..1]).unwrap();
+        assert!(m.starts_with("graph {\n    direction: down\n"), "{m}");
+        assert!(vox_diagram::check(&m).valid, "{m}");
         assert!(m.contains("vox-ast (library)"));
     }
 
@@ -527,13 +527,17 @@ vox-crypto = { layer = 1, kind = "library" }
             rev.get("vox-search").unwrap(),
             &vec!["vox-cli".to_string(), "vox-gui".to_string()]
         );
-        let chart = render_crate_dependency_mermaid(
+        let chart = render_crate_dependency_diagram(
             "vox-search",
             &["vox-db".to_string()],
             rev.get("vox-search").unwrap(),
         )
         .unwrap();
-        assert!(chart.contains("flowchart LR"));
+        assert!(
+            chart.starts_with("graph {\n    direction: right\n"),
+            "{chart}"
+        );
+        assert!(vox_diagram::check(&chart).valid, "{chart}");
     }
 
     #[test]

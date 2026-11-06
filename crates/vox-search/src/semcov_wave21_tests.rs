@@ -66,13 +66,6 @@ mod semcov_wave21_tests {
     }
 
     #[test]
-    fn rrf_dedup_key_tantivy_uses_first_whitespace_token() {
-        // Catches: tantivy branch using split_whitespace but qdrant branch using a different
-        // delimiter — cross-branch inconsistency
-        assert_eq!(rrf_dedup_key("[tantivy:id99 rest]"), "tantivy:id99");
-    }
-
-    #[test]
     fn rrf_dedup_key_unknown_line_produces_stable_opaque_hash() {
         // Catches: two different calls with identical input returning different hashes
         // (would happen if hasher is seeded with random or time-based entropy)

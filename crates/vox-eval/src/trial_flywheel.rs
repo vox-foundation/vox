@@ -205,7 +205,7 @@ pub fn evaluate_stopping_rule(
     if wall_time_exceeded {
         return StoppingDecision::StopImmediateFailClosed("wall_time_exceeded");
     }
-    if batch_size == 0 || completed_samples == 0 || completed_samples % batch_size != 0 {
+    if batch_size == 0 || completed_samples == 0 || !completed_samples.is_multiple_of(batch_size) {
         return StoppingDecision::Continue;
     }
     if observed_effect_delta < futility_floor {
@@ -781,13 +781,12 @@ pub fn assemble_triggered_benchmark_report(
     mut raw_estimands: BTreeMap<BenchmarkEstimand, BTreeMap<String, f64>>,
 ) -> TriggeredBenchmarkReport {
     let mut suppressed = Vec::new();
-    if anchor_drift_detected {
-        if raw_estimands
+    if anchor_drift_detected
+        && raw_estimands
             .remove(&BenchmarkEstimand::E5CrossLanguageFreshTier)
             .is_some()
-        {
-            suppressed.push(BenchmarkEstimand::E5CrossLanguageFreshTier);
-        }
+    {
+        suppressed.push(BenchmarkEstimand::E5CrossLanguageFreshTier);
     }
     TriggeredBenchmarkReport {
         syntax_fingerprint: syntax_fingerprint.to_string(),

@@ -1,0 +1,6 @@
+graph TD
+    A[Start Workflow] --> B{Activity Finished?}
+    B -- No --> C[Execute Activity]
+    C --> D[Write to Journal]
+    D --> B
+    B -- Yes --> E[End Workflow]

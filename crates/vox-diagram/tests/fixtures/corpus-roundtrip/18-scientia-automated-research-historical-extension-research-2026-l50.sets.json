@@ -1,0 +1,205 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "1960s-80s: IR and bibliographic DBs",
+      "rect",
+      [
+        "Historical eras"
+      ]
+    ],
+    [
+      "1990s-2000s: Systematic review and citation graphs",
+      "rect",
+      [
+        "Historical eras"
+      ]
+    ],
+    [
+      "2010s: Reproducibility and preregistration",
+      "rect",
+      [
+        "Historical eras"
+      ]
+    ],
+    [
+      "2018-2023: Semantic search and ML screening",
+      "rect",
+      [
+        "Historical eras"
+      ]
+    ],
+    [
+      "2024-2026: LLM agent deep research",
+      "rect",
+      [
+        "Historical eras"
+      ]
+    ],
+    [
+      "Claim and novelty verdict ladder",
+      "rect",
+      [
+        "Vox SCIENTIA layers"
+      ]
+    ],
+    [
+      "Human gate nanopub RO-Crate",
+      "rect",
+      [
+        "Vox SCIENTIA layers"
+      ]
+    ],
+    [
+      "Retrieval: CRAG Tavily Tantivy Graphify",
+      "rect",
+      [
+        "Vox SCIENTIA layers"
+      ]
+    ],
+    [
+      "Scholarly syndication Zenodo",
+      "rect",
+      [
+        "Vox SCIENTIA layers"
+      ]
+    ],
+    [
+      "Signal producers and scout",
+      "rect",
+      [
+        "Vox SCIENTIA layers"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "1960s-80s: IR and bibliographic DBs",
+        "rect",
+        [
+          "Historical eras"
+        ]
+      ],
+      [
+        "Retrieval: CRAG Tavily Tantivy Graphify",
+        "rect",
+        [
+          "Vox SCIENTIA layers"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "1990s-2000s: Systematic review and citation graphs",
+        "rect",
+        [
+          "Historical eras"
+        ]
+      ],
+      [
+        "Claim and novelty verdict ladder",
+        "rect",
+        [
+          "Vox SCIENTIA layers"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "2010s: Reproducibility and preregistration",
+        "rect",
+        [
+          "Historical eras"
+        ]
+      ],
+      [
+        "Human gate nanopub RO-Crate",
+        "rect",
+        [
+          "Vox SCIENTIA layers"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "2018-2023: Semantic search and ML screening",
+        "rect",
+        [
+          "Historical eras"
+        ]
+      ],
+      [
+        "Claim and novelty verdict ladder",
+        "rect",
+        [
+          "Vox SCIENTIA layers"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "2018-2023: Semantic search and ML screening",
+        "rect",
+        [
+          "Historical eras"
+        ]
+      ],
+      [
+        "Retrieval: CRAG Tavily Tantivy Graphify",
+        "rect",
+        [
+          "Vox SCIENTIA layers"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "2024-2026: LLM agent deep research",
+        "rect",
+        [
+          "Historical eras"
+        ]
+      ],
+      [
+        "Retrieval: CRAG Tavily Tantivy Graphify",
+        "rect",
+        [
+          "Vox SCIENTIA layers"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "2024-2026: LLM agent deep research",
+        "rect",
+        [
+          "Historical eras"
+        ]
+      ],
+      [
+        "Signal producers and scout",
+        "rect",
+        [
+          "Vox SCIENTIA layers"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Historical eras"
+    ],
+    [
+      "Vox SCIENTIA layers"
+    ]
+  ]
+}

@@ -1,0 +1,10 @@
+flowchart TD
+    subgraph One ["First scope"]
+        shared["Used first at root"]
+        inside["Inside one"]
+    end
+    subgraph Two ["Second scope"]
+        n2["Other"]
+    end
+    shared --> inside
+    n2 --> shared

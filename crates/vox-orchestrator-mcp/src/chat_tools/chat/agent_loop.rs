@@ -188,14 +188,16 @@ pub(crate) async fn run_agent_turn(
         // previously held the last slot. These three pins displaced
         // `vox_check_file_owner`, `vox_check_mood`, and `vox_check_workspace`
         // (previously slots 38-40, the cut ending at `vox_check_workspace`).
-        // Every further pin costs another tool the same way — the real fix is
-        // relevance ranking before truncation, not a longer pin list.
+        // Pins keep the delegation tools inside the cap. The rest of the set is
+        // ranked against this turn's text, so a late-alphabet tool can still be
+        // offered when the message names it.
         pin_names: vec![
             "vox_spawn_agent",
             "vox_submit_task",
             "vox_task_status",
             "vox_answer_question",
         ],
+        query: Some(extract_raw_utterance_for_tool_ranking(&user_message).to_string()),
     };
     let raw_ranking_utterance = extract_raw_utterance_for_tool_ranking(&user_message);
     // CAT-01/CAT-02 (flag `VOX_TURN_DECISION_PACKS`, default off ⇒ unchanged): compose the

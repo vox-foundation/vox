@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant U as User (web)
+    participant S as Server: core
+    U->>S: request
+    S-->>U: response
+    S->>DB: query
+    DB-->>S: rows
+    S->>Cache:
+    Note over S: single actor note
+    Note over U,DB: spans two
+    Cache->>U: late

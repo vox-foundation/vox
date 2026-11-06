@@ -1,0 +1,13 @@
+flowchart TD
+    A["Push to main"]
+    B["smoke-ci"]
+    D["deploy-coolify"]
+    E["health-check"]
+    F["notify"]
+    G["Fetch logs #amp; artifact"]
+    A --> B
+    B -->|"Success or skipped"| D
+    D -->|"Poll #amp; verify"| E
+    E --> F
+    D -->|"Failure"| G
+    G --> F

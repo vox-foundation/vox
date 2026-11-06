@@ -32,13 +32,19 @@ Understand the current durability boundary in Vox. Durable execution is a workfl
 
 In the interpreted workflow runtime, Vox records workflow progress as activity steps complete. The durable truth today is step-oriented: the runtime tracks which `activity_id` values have already completed for a workflow run and stores the completed step result payload so it can replay that result after a restart.
 
-```mermaid
-graph TD
-    A[Start Workflow] --> B{Activity Finished?}
-    B -- No --> C[Execute Activity]
-    C --> D[Write to Journal]
-    D --> B
-    B -- Yes --> E[End Workflow]
+```vox-diagram
+graph {
+    node A: "Start Workflow"
+    node B: "Activity Finished?" { shape: diamond }
+    node C: "Execute Activity"
+    node D: "Write to Journal"
+    node E: "End Workflow"
+    A -> B
+    B -> C: "No"
+    C -> D
+    D -> B
+    B -> E: "Yes"
+}
 ```
 
 ## 2. Recovery via Replay

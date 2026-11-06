@@ -1,4 +1,7 @@
-use super::{QueryTextParams, repo_query_text, resolve_repo_catalog};
+use super::{
+    QueryFileParams, QueryTextParams, RepoAccessMode, repo_query_file, repo_query_text,
+    resolve_repo_catalog,
+};
 use std::fs;
 use tempfile::tempdir;
 
@@ -68,4 +71,48 @@ repositories:
     assert_eq!(response.repositories_queried, 1);
     assert_eq!(response.hits[0].display_name, "repo-a");
     assert!(response.trace.trace_id.starts_with("xrepo:"));
+}
+
+#[test]
+fn workspace_without_a_manifest_resolves_to_itself() {
+    let workspace = tempdir().expect("workspace");
+    fs::create_dir_all(workspace.path().join(".git")).expect("git dir");
+    let resolved = resolve_repo_catalog(workspace.path()).expect("implicit catalog");
+    assert_eq!(resolved.repositories.len(), 1);
+    assert_eq!(resolved.repositories[0].resolution_status, "resolved_local");
+    assert_eq!(resolved.repositories[0].access_mode, RepoAccessMode::Local);
+}
+
+#[test]
+fn file_query_reads_the_workspace_when_no_manifest_exists() {
+    let workspace = tempdir().expect("workspace");
+    fs::create_dir_all(workspace.path().join(".git")).expect("git dir");
+    fs::write(workspace.path().join("Cargo.toml"), "a\nb\nc\n").expect("file");
+    let params = QueryFileParams {
+        path: "Cargo.toml".to_string(),
+        ..QueryFileParams::default()
+    };
+    let response = repo_query_file(workspace.path(), &params, None).expect("query");
+    assert_eq!(response.files.len(), 1, "{:?}", response.skipped);
+    assert_eq!(response.files[0].content, "a\nb\nc\n");
+    assert_eq!(response.files[0].total_lines, 3);
+    assert_eq!(response.files[0].total_bytes, 6);
+    let escape = QueryFileParams {
+        path: "../outside.txt".to_string(),
+        ..QueryFileParams::default()
+    };
+    let response = repo_query_file(workspace.path(), &escape, None).expect("query");
+    assert!(response.files.is_empty(), "path escape must stay sandboxed");
+}
+
+#[test]
+fn an_unparseable_manifest_is_still_an_error() {
+    let workspace = tempdir().expect("workspace");
+    fs::create_dir_all(workspace.path().join(".vox")).expect("dot vox");
+    fs::write(
+        workspace.path().join(".vox").join("repositories.yaml"),
+        "repositories: [not, a, mapping",
+    )
+    .expect("catalog");
+    assert!(resolve_repo_catalog(workspace.path()).is_err());
 }
