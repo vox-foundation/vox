@@ -431,8 +431,9 @@ impl ModelRegistry {
     /// where initial candidates fail with:
     /// 1. Retired `@table` / `ret` syntax on `VoxLang`,
     /// 2. A `rustc` `E0502` borrow-checker error on `RustWorkspace`,
-    /// 3. A retired `vox_kb_store` tool call on `McpToolChain`,
-    /// and verify that Axis routes the repair loop to the calibrated Mens model, compiles the
+    /// 3. A retired `vox_kb_store` tool call on `McpToolChain`.
+    ///
+    /// Then verify that Axis routes the repair loop to the calibrated Mens model, compiles the
     /// repaired candidates cleanly, and admits 3 DPO contrast records (`rejected_response` populated).
     pub fn execute_self_repairing_multi_spoke_workflow(
         &self,

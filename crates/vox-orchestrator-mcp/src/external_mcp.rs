@@ -246,17 +246,16 @@ impl LazyMcpGroupRegistry {
             return Some(exact);
         }
         let wanted = normalize_mcp_key(trimmed);
-        for g in self.groups.values() {
-            if normalize_mcp_key(&g.alias) == wanted
-                || normalize_mcp_key(&g.name) == wanted
-                || g.name
-                    .strip_prefix("mcp__")
-                    .is_some_and(|short| normalize_mcp_key(short) == wanted)
-            {
-                return Some(g);
-            }
-        }
-        None
+        self.groups
+            .values()
+            .find(|&g| {
+                normalize_mcp_key(&g.alias) == wanted
+                    || normalize_mcp_key(&g.name) == wanted
+                    || g.name
+                        .strip_prefix("mcp__")
+                        .is_some_and(|short| normalize_mcp_key(short) == wanted)
+            })
+            .map(|v| v as _)
     }
 
     /// Tier-2 wrapper (`vox_list_mcp_tools` / `list_mcp_tools`): returns full tool schemas for one server group.

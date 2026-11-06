@@ -328,6 +328,17 @@ fn interrupt(child: &Child) {
     let _ = unsafe { libc::kill(pid as libc::pid_t, libc::SIGINT) };
 }
 
+fn merge_release_ids(mut params: Value, pending: Vec<u64>) -> Value {
+    let queued = pending.into_iter().map(Value::from).collect::<Vec<_>>();
+    match params.get_mut("ids").and_then(Value::as_array_mut) {
+        Some(ids) => ids.extend(queued),
+        None => {
+            params["ids"] = Value::Array(queued);
+        }
+    }
+    params
+}
+
 #[cfg(windows)]
 #[allow(unsafe_code)]
 fn interrupt(child: &Child) {
@@ -355,15 +366,4 @@ mod tests {
         bridge.enqueue_release(4);
         assert!(bridge.stderr_text().is_empty());
     }
-}
-
-fn merge_release_ids(mut params: Value, pending: Vec<u64>) -> Value {
-    let queued = pending.into_iter().map(Value::from).collect::<Vec<_>>();
-    match params.get_mut("ids").and_then(Value::as_array_mut) {
-        Some(ids) => ids.extend(queued),
-        None => {
-            params["ids"] = Value::Array(queued);
-        }
-    }
-    params
 }

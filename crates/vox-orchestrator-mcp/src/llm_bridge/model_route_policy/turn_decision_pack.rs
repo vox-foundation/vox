@@ -510,7 +510,7 @@ mod tests {
         vox_orchestrator::route_policy::set_test_privacy_override(None);
 
         // Training isolation guard: Jev / System One never distilled into MENS SFT.
-        assert!(!ALLOW_JEV_DISTILLATION_INTO_MENS_SFT);
+        const { assert!(!ALLOW_JEV_DISTILLATION_INTO_MENS_SFT) };
         assert!(validate_jev_training_isolation("jev_system_one_trace").is_err());
         assert!(validate_jev_training_isolation("turn_decision_pack.v1").is_err());
         assert!(validate_jev_training_isolation("vox_golden_compiler_corpus").is_ok());

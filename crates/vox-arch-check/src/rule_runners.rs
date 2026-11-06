@@ -164,7 +164,7 @@ pub(crate) fn run_secondary_rules(
 
     prof("rule 8 (staleness/git, with cache)", &mut prof_last);
     // ── Rule 9: Generated-file drift ──
-    report.generated_file_drift_warns = check_generated_file_drift(&workspace_root, &prune_dirs)
+    report.generated_file_drift_warns = check_generated_file_drift(&workspace_root, prune_dirs)
         .unwrap_or_else(|e| {
             eprintln!("warn: generated-file-drift check skipped: {e:#}");
             Vec::new()
@@ -212,7 +212,7 @@ pub(crate) fn run_secondary_rules(
     // ── Rule 11: Forbidden code patterns (P3-T7) ──
     // Single batched walk of the workspace; all 9 patterns evaluated per file.
     if !layers.forbidden_pattern.is_empty() {
-        match scan_forbidden_patterns_all(&workspace_root, &layers.forbidden_pattern, &prune_dirs) {
+        match scan_forbidden_patterns_all(&workspace_root, &layers.forbidden_pattern, prune_dirs) {
             Ok(hits) => {
                 for hit in hits {
                     report.forbidden_pattern_hits.push((
@@ -235,7 +235,7 @@ pub(crate) fn run_secondary_rules(
 
     prof("rule 11 (forbidden patterns, batched)", &mut prof_last);
     // ── Rule 12: WTL / layers.toml / disk three-way parity ──
-    report.wtl_parity_warns = check_wtl_parity(&layers, &workspace_root);
+    report.wtl_parity_warns = check_wtl_parity(layers, &workspace_root);
 
     prof("rule 12 (WTL parity)", &mut prof_last);
     // ── Rule 13: LoC delta regression ──
@@ -260,7 +260,7 @@ pub(crate) fn run_secondary_rules(
                 .unwrap_or(Path::new("."))
                 .to_path_buf();
             let src_dir = manifest_dir.join("src");
-            let current_loc = count_loc(&src_dir, &prune_dirs).unwrap_or(0);
+            let current_loc = count_loc(&src_dir, prune_dirs).unwrap_or(0);
             if current_loc < 2000 {
                 continue;
             }

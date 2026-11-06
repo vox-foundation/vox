@@ -236,10 +236,10 @@ impl BotMetricsLedger {
     }
 
     pub fn load_or_default(path: &Path) -> Self {
-        if let Ok(raw) = fs::read_to_string(path) {
-            if let Ok(parsed) = serde_json::from_str::<Self>(&raw) {
-                return parsed;
-            }
+        if let Ok(raw) = fs::read_to_string(path)
+            && let Ok(parsed) = serde_json::from_str::<Self>(&raw)
+        {
+            return parsed;
         }
         Self::default()
     }

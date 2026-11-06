@@ -493,7 +493,7 @@ mod tests {
             receipt,
             prov("clean"),
         );
-        assert!(verify_organic_benchmark_decontamination(&[clean.clone()]).is_ok());
+        assert!(verify_organic_benchmark_decontamination(std::slice::from_ref(&clean)).is_ok());
         let errs = verify_organic_benchmark_decontamination(&[clean, leaked]).unwrap_err();
         assert!(errs.len() >= 2, "prompt and pair collisions: {errs:?}");
         assert!(

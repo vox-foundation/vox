@@ -147,10 +147,10 @@ fn load_shard_weights(path: &std::path::Path) -> Option<ShardWeightsFile> {
 /// Weight of a crate for sharding: prefers `contracts/ci/shard-weights.v1.json`,
 /// else `.rs` file count (each integration-test file is a separate binary). Missing dir -> 1.
 fn crate_weight(name: &str) -> u64 {
-    if let Some(file) = load_shard_weights(std::path::Path::new(DEFAULT_SHARD_WEIGHTS)) {
-        if let Some(w) = file.crates.get(name) {
-            return (*w).max(1);
-        }
+    if let Some(file) = load_shard_weights(std::path::Path::new(DEFAULT_SHARD_WEIGHTS))
+        && let Some(w) = file.crates.get(name)
+    {
+        return (*w).max(1);
     }
     fn count(dir: &std::path::Path) -> u64 {
         std::fs::read_dir(dir).map_or(0, |rd| {

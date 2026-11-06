@@ -13,10 +13,7 @@ fn main() {
     let mut seen: Vec<String> = Vec::new();
     let mut released: Vec<u64> = Vec::new();
 
-    loop {
-        let Some((header, _body)) = read_frame(&mut input).unwrap_or(None) else {
-            break;
-        };
+    while let Some((header, _body)) = read_frame(&mut input).unwrap_or(None) {
         let req: serde_json::Value = match serde_json::from_slice(&header) {
             Ok(value) => value,
             Err(err) => {

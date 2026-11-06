@@ -130,9 +130,9 @@ fn main() -> ExitCode {
     }
 }
 
-/// CR-META: lint `docs/src/architecture/v1-release-criteria.md` so every
-/// `[CR-*]` definition block declares `verify_cmd`, `artifact_path`, and a
-/// non-empty `if_failing`. Writes
+// CR-META: lint `docs/src/architecture/v1-release-criteria.md` so every
+// `[CR-*]` definition block declares `verify_cmd`, `artifact_path`, and a
+// non-empty `if_failing`.
 
 fn run(warn_only_flag: bool) -> Result<Report> {
     // `--no-deps` skips transitive dependency resolution. arch-check never reads

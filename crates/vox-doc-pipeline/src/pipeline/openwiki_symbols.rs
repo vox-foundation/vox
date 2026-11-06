@@ -21,12 +21,13 @@ pub fn extract_declared_pub_mods(source: &str) -> Vec<String> {
     let mut mods = Vec::new();
     for line in source.lines() {
         let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("pub mod ") {
-            if rest.ends_with(';') && !rest.contains('{') {
-                let name = rest.trim_end_matches(';').trim();
-                if !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-                    mods.push(name.to_string());
-                }
+        if let Some(rest) = trimmed.strip_prefix("pub mod ")
+            && rest.ends_with(';')
+            && !rest.contains('{')
+        {
+            let name = rest.trim_end_matches(';').trim();
+            if !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                mods.push(name.to_string());
             }
         }
     }
@@ -66,17 +67,17 @@ pub fn extract_crate_deep_symbols_from_dir(
         } else {
             None
         };
-        if let Some(mp) = mod_path {
-            if let Ok(mod_src) = fs::read_to_string(&mp) {
-                let mod_rel = mp
-                    .strip_prefix(repo_root)
-                    .unwrap_or(&mp)
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                for mut sym in extract_deep_crate_symbols(&mod_src, &mod_rel) {
-                    sym.name = format!("{mod_name}::{}", sym.name);
-                    all_symbols.push(sym);
-                }
+        if let Some(mp) = mod_path
+            && let Ok(mod_src) = fs::read_to_string(&mp)
+        {
+            let mod_rel = mp
+                .strip_prefix(repo_root)
+                .unwrap_or(&mp)
+                .to_string_lossy()
+                .replace('\\', "/");
+            for mut sym in extract_deep_crate_symbols(&mod_src, &mod_rel) {
+                sym.name = format!("{mod_name}::{}", sym.name);
+                all_symbols.push(sym);
             }
         }
     }

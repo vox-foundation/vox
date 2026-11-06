@@ -44,12 +44,12 @@ impl VoxSessionExportBundleV1 {
 /// Decodes a hex-encoded root blob from Cursor's `store.db` SQLite `blobs` table into UTF-8 JSON (`T3-WEBHOOK-IMPORT-03`).
 pub fn decode_cursor_root_blob_hex(hex_str: &str) -> Result<serde_json::Value, String> {
     let clean = hex_str.trim();
-    if clean.len() % 2 != 0 {
+    if !clean.len().is_multiple_of(2) {
         return Err("hex string must have even length".to_string());
     }
     let mut bytes = Vec::with_capacity(clean.len() / 2);
     let chars: Vec<u8> = clean.bytes().collect();
-    for pair in chars.chunks_exact(2) {
+    for pair in chars.as_chunks::<2>().0 {
         let s = std::str::from_utf8(pair).map_err(|e| e.to_string())?;
         let b = u8::from_str_radix(s, 16).map_err(|e| format!("invalid hex byte '{s}': {e}"))?;
         bytes.push(b);

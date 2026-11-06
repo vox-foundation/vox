@@ -143,7 +143,7 @@ pub fn select_optimal_local_model(is_apple_silicon: bool) -> Result<AutoModelSel
     {
         let free_mb = vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()
             .map_err(|err| err.to_string())?;
-        return select_from_free_mb(free_mb);
+        select_from_free_mb(free_mb)
     }
     #[cfg(not(feature = "runtime"))]
     {

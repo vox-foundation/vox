@@ -517,7 +517,7 @@ pub(crate) async fn run_agent_turn(
             let was_repair_escalated_at_iter_start = repair_escalated;
             let mut iter_all_calls_clean = true;
             let mut iter_failed_calls = 0usize;
-            for (call, (result, receipt)) in calls.iter().zip(dispatched_outcomes.into_iter()) {
+            for (call, (result, receipt)) in calls.iter().zip(dispatched_outcomes) {
                 tool_calls_made += 1;
                 if tool_refusal_detector::is_search_circuit_breaker_tool(&call.name) {
                     search_tool_calls_in_turn += 1;

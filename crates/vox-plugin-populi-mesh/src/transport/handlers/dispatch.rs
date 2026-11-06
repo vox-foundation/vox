@@ -450,11 +450,11 @@ pub(crate) enum Qwen3MeshError {
     NothingFits,
 }
 
-/// Largest measured `qwen3_code` QLoRA size that fits some eligible node's
-/// `accelerator_free_mb`, placed on a node that holds that floor.
-///
-/// One call to `select_qwen3_code_qlora_for_free_mb` (which calls `pick_base`).
-/// Total VRAM, system RAM, and `min_vram_mb` are not inputs.
+// Largest measured `qwen3_code` QLoRA size that fits some eligible node's
+// `accelerator_free_mb`, placed on a node that holds that floor.
+//
+// One call to `select_qwen3_code_qlora_for_free_mb` (which calls `pick_base`).
+// Total VRAM, system RAM, and `min_vram_mb` are not inputs.
 
 fn effective_stale_window_ms(stale_window_ms: Option<u64>) -> u64 {
     match stale_window_ms {

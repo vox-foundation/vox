@@ -336,11 +336,11 @@ pub(super) fn record_harness_issue_if_crossed(
 ) {
     if harness_detection_enabled {
         let is_error = content.starts_with("Error:")
-            || crate::server_state::tool_json_envelope_is_error(&content);
+            || crate::server_state::tool_json_envelope_is_error(content);
         // Redact before entering the scorer's activity buffer (sent to judge LLM and stored in evidence_json).
         let redacted_args = vox_redact::redact_args(&call.arguments).to_string();
         let redacted_content = if is_error {
-            vox_redact::redact_owned(&content)
+            vox_redact::redact_owned(content)
         } else {
             String::new()
         };

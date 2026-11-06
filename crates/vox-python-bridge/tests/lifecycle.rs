@@ -23,16 +23,19 @@ fn python3_absent() -> bool {
 }
 
 fn fake_config(max_fetch_mb: u64, timeout: Duration) -> BridgeConfig {
-    let mut config = BridgeConfig::default();
-    config.worker_cmd = vec![env!("CARGO_BIN_EXE_fake_worker").into()];
-    config.max_fetch_mb = max_fetch_mb;
-    config.timeout = timeout;
-    config
+    BridgeConfig {
+        worker_cmd: vec![env!("CARGO_BIN_EXE_fake_worker").into()],
+        max_fetch_mb,
+        timeout,
+        ..Default::default()
+    }
 }
 
 fn real_config(timeout: Duration, debug_ops: bool) -> BridgeConfig {
-    let mut config = BridgeConfig::default();
-    config.worker_cmd = vec!["python3".into(), "-m".into(), "vox_bridge".into()];
+    let mut config = BridgeConfig {
+        worker_cmd: vec!["python3".into(), "-m".into(), "vox_bridge".into()],
+        ..Default::default()
+    };
     let worker = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("worker");
     config.env.push((
         OsString::from("PYTHONPATH"),

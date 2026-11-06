@@ -136,7 +136,7 @@ pub(super) fn fs_unbounded_read_findings(
         file,
         out: Vec::new(),
     };
-    v.visit_file(&ast);
+    v.visit_file(ast);
     v.out
 }
 

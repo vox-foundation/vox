@@ -182,11 +182,11 @@ impl DetectionRule for GodObjectDetector {
                 continue;
             }
             for pattern in &method_patterns {
-                if let Some(col) = line.find(pattern) {
-                    if !crate::rules::rust_byte_is_non_code(file, line_num, col, rust) {
-                        count += 1;
-                        break;
-                    }
+                if let Some(col) = line.find(pattern)
+                    && !crate::rules::rust_byte_is_non_code(file, line_num, col, rust)
+                {
+                    count += 1;
+                    break;
                 }
             }
         }
