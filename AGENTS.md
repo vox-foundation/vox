@@ -202,7 +202,7 @@ The unified `vox audit` umbrella hosts:
 
 - `vox audit code` — `vox-code-audit` source-policy detectors (see [`docs/src/architecture/t3-vox-toestub-rules-and-enforcement-research-2026.md`](docs/src/architecture/t3-vox-toestub-rules-and-enforcement-research-2026.md) for T3-adapted static detectors, wire/SQL transfer budget gates, and V8/CSS/process hygiene rules)
 - `vox audit arch` — `vox-arch-check`
-- `vox audit retirement` — `vox ci retirement-audit` (planned per CR-L6)
+- `vox audit retirement` — retirement-guard parity vs §Retired Surfaces (CR-L6)
 - `vox audit effort` — AI-judged commit history audit (vox-effort-audit)
 - `vox audit effort-route` — routes audit findings to verified enforcement-artifact proposals (vox-effort-route)
 
@@ -214,7 +214,7 @@ All LLM calls in this workspace MUST go through the model-agnostic facade at `vo
 
 Model selection lives in `vox-orchestrator::models::{registry, select, autonomic}` and is driven by config + policy. A new model — Claude, MENS revision, OpenAI, Mistral, Cohere, or anything future — slots in by registering a `ModelRegistryEntry` with a per-task-class score, NOT by editing call sites. **MENS revisions are first-class candidates** evaluated on the same scoring axes (latency, cost-per-token, quality-score, locality) as any external model.
 
-**Why this is a normative cross-tool rule.** As frontier models ship (now monthly across providers), this boundary turns "adopt the better model" into a one-line config change instead of a workspace-wide sweep. Token-waste audits like `vox audit effort` (planned per [`docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`](docs/superpowers/specs/2026-05-28-effort-audit-core-design.md)) self-improve when registry selection picks up a better-scoring judge — but only if every call site stays on the facade.
+**Why this is a normative cross-tool rule.** As frontier models ship (now monthly across providers), this boundary turns "adopt the better model" into a one-line config change instead of a workspace-wide sweep. Token-waste audits like `vox audit effort` (spec: [`docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`](docs/superpowers/specs/2026-05-28-effort-audit-core-design.md)) self-improve when registry selection picks up a better-scoring judge — but only if every call site stays on the facade.
 
 **Enforcement.**
 - `vox-code-audit` detector `llm_provider_call` (at [`crates/vox-code-audit/src/detectors/llm_provider_call.rs`](crates/vox-code-audit/src/detectors/llm_provider_call.rs)) flags violations as `Error`. Hostnames already covered: Anthropic, OpenAI, Cohere, Mistral, Together, Replicate, HuggingFace, Fireworks, Perplexity, Google (generativelanguage + aiplatform), OpenRouter. Add new provider hostnames to that detector when they're integrated.
