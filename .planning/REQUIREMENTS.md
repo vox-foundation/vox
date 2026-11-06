@@ -1,3 +1,133 @@
+# Requirements: Vox Milestone v5.7 — Vox ↔ Python Bridge
+
+**Defined:** 2026-11-01
+**Core Value (`v5.7`):** `.vox` code can use numpy, polars, matplotlib and PyTorch (plus curated scipy, scikit-learn, pillow, pandas) through an out-of-process bridge, staying syntactically distinct from Python with a small, counted unverified surface; DB/backend interop happens at schema and OpenAPI level.
+**Evidence:** `docs/src/architecture/vox-python-interop-design-2026-11-01.md` (design SSOT, grounded + adversarially reviewed); `docs/src/architecture/cli-semantic-tolerance-research-2026.md` (CLI semantic tolerance & precomputed routing SSOT); `docs/src/architecture/wire-format-v1-ssot.md`; `docs/src/architecture/anti-laziness-hallucination-and-paper-code-sota-2026.md` (PAPER-GUARD).
+
+## v5.7 Requirements
+
+### Effects & determinism (`EFF`)
+
+- [x] **EFF-01**: An unknown name in `@uses(...)` or a `uses` clause is a compile error (no silent drop), and `@uses(mcp(tool))` reaches HIR as `Mcp(tool)`. One shared helper parses both forms.
+- [ ] **EFF-02**: Calling a Tier 1 materializer without `uses python`, or a `py` binding without `uses python_unverified`, fails typecheck; `vox run` without `--caps py` / `py:unverified` refuses at runtime.
+- [x] **EFF-03**: A `workflow` whose inferred capabilities include `python`/`python_unverified` is rejected; the same call inside an `activity` compiles.
+
+### Bridge runtime (`BR`, `GOV`)
+
+- [x] **BR-01**: With `[python]` in `Vox.toml`, `vox py sync` builds a uv-locked env whose `uv.lock` hash is recorded in `vox.lock`, and `vox py doctor` reports uv, Python, packages and sandbox status. Without `[python]`, bridge calls fail with a `py-env:` error and no Python process is spawned.
+- [x] **BR-02**: A one-op golden runs under `vox run` through the real worker; a library `print` inside the worker does not corrupt the framed protocol.
+- [x] **BR-03**: A materialization past `timeout_s`, or a worker crash, restarts the worker without crashing the host; handles from the previous generation return `py: stale handle`.
+- [x] **BR-04**: A fetch above `max_fetch_mb` fails with `py: fetch exceeds cap`; the worker runs under the `vox-skill-runtime` sandbox when available and `vox py doctor` warns when unsandboxed.
+- [x] **GOV-01**: `vox-python-bridge` lands with its `layers.toml` row, `where-things-live.md` row and crate-edges in the same PR; AGENTS.md records the scoped `.py` exemption for `crates/vox-python-bridge/worker/**`; the stale `syntax-k-complexity.md:65` path and phase5-subspec `HirType` line citations are fixed.
+
+### `std.array` (`ARR`, `K`)
+
+- [x] **ARR-01**: Every allowlisted `std.array` op typechecks and runs on numpy; the `py_array_stats` golden runs under `vox run` with asserted output.
+- [x] **ARR-02**: Mixed int/float arithmetic without `.astype` is a type error; `std` requires `correction=` and `sort` requires `nulls=`.
+- [x] **ARR-03**: NaN, ±Inf and i64 extremes round-trip through `to_list` unchanged; a uint64 value above i64::MAX is a runtime error.
+- [x] **ARR-04**: `vox ci python-bridge-parity` fails when any op in `contracts/python/ecosystem-support.yaml` lacks a typeck signature, a worker handler, or a conformance test.
+- [ ] **K-01**: The four `py_*` goldens have `canonical-ladder.v1.yaml` entries and `complexity-budget.v1.json` rows; `LEXER_KEYWORDS` gains 0 entries; per-module signature-manifest (K2) ceilings are enforced.
+
+### `std.frame` (`FRM`)
+
+- [ ] **FRM-01**: A `scan_csv → filter → group_by/agg → sort → collect` pipeline runs on polars with one round-trip per `collect`; the `py_frame_report` golden passes.
+- [ ] **FRM-02**: Arrow columns map per the design's §4.3 table (Decimal, UTC DateTime, Date, Duration, `Option` for nullable columns); a naive timestamp column errors with a `.replace_time_zone("UTC")` fix-it.
+- [ ] **FRM-03**: Paths passed to `scan_*`, `save` and `load_*` outside the `--caps fs` grants are refused host-side before any request reaches the worker.
+
+### Plot & tensor (`PLT`, `TNS`)
+
+- [ ] **PLT-01**: `plot.line|scatter|bar|hist(frame)…save(png)` writes a valid PNG without fetching the frame's data to the host.
+- [ ] **TNS-01**: `tensor.load_exported("*.pt2")` plus `Model.run` executes a `torch.export` program on CPU and returns Arrays; `torch.load` and pickle-bearing archives are refused.
+- [ ] **TNS-02**: With `--caps random:seed=N`, numpy and torch results are identical across two runs; activity journals record Python/numpy/polars/torch versions and the `uv.lock` hash.
+
+### Tier 2 escape hatch (`PYX`)
+
+- [ ] **PYX-01**: `import py sig from "scipy.signal"` resolves only names in a binding sidecar whose lock hash matches the current `uv.lock`; a stale sidecar is a compile error; field or method access on `PyObject` is a type error.
+- [ ] **PYX-02**: `vox py bind` generates sidecars from shipped annotations; curated sidecars and goldens for scipy, scikit-learn, pillow and pandas pass in the opt-in Python CI job.
+- [ ] **PYX-03**: Every Tier 2 call site emits lint `vox/python/unverified-call` and telemetry `python.escape_call` (registered in `contracts/telemetry/events.v1.yaml`); HIR-level `py_tier1_calls` / `py_tier2_calls` appear in syntax-K `support_metrics.llm_surface`.
+- [ ] **PYX-04**: Modules in the `Denied` class (pickle, marshal, shelve, `torch.load`, os/subprocess process APIs, eval/exec-bearing modules) cannot be bound.
+
+### DB & backend interop (`DBI`)
+
+- [x] **DBI-01**: `vox db introspect --emit vox` prints `table` declarations that pass `vox db verify` against the same sqlite, postgres or mysql database.
+- [x] **DBI-02**: With `[db] schema_owner = "external"`, `vox db migrate` refuses to apply changes; `--dry-run` still prints the plan.
+- [x] **DBI-03**: A how-to shows generating a Python client from a `--target server` app's OpenAPI 3.1 output, with a checked example.
+
+### Tolerant CLI ergonomics & precomputed semantic routing (`CLI-TOL`)
+
+- [ ] **CLI-TOL-01**: `VoxCliRoot` enables `infer_subcommands(true)` and `infer_long_args(true)`, and all `GlobalOpts` flags (`--json`, `--quiet`, `--verbose`, `--color`) carry `global = true` so unambiguous prefixes (`vox sec doc`) and trailing/interleaved global flags parse with `0 ms` happy-path overhead.
+- [ ] **CLI-TOL-02**: On `VoxCliRoot::try_parse_from` failure, `argv_normalize` performs `<1.5 ms` deterministic recovery over `CommandCatalog` and `CapabilityIndex`: order-agnostic verb↔noun token permutation (`vox list secrets` → `vox secrets list`), unique leaf elision (`vox command-compliance` → `vox ci command-compliance`), and wrong-subcommand flag redirection (`vox build --release` → `vox compile --release`).
+- [ ] **CLI-TOL-03**: Auto-execution is strictly gated by `side_effect_class` (`read_only` vs `local_mutation` / `remote_mutation`) and caller persona (interactive TTY vs `--json` / `CI` / `VOX_MCP` / non-TTY pipe): `read_only` permutations/synonyms auto-execute on TTY with a `stderr` canonical notice, mutations prompt `[Y/n]` on TTY, and non-TTY/LLM agent calls never prompt or silently guess—returning exit code `2` with structured `aci.error_recovery` canonical rewrites.
+- [ ] **CLI-TOL-04**: `vox ci cli-synonyms --write` compiles compositional `verb_aliases`, `noun_aliases`, and `foreign_idioms` from `contracts/operations/catalog.v1.yaml` into a committed `contracts/cli/semantic-aliases.v1.json` lockfile (using `vox_actor_runtime::llm` `gemini-3.5-flash-lite` structured output for new/changed operations and `gemini-embedding-2` / `local_embed_text` cosine margin $\ge 0.08$ verification), and `vox ci command-compliance` enforces zero alias collisions and an explicit antonym banlist (`add`/`remove`, `start`/`stop`, `lock`/`unlock`, `set`/`get`, `import`/`export`, `enable`/`disable`).
+
+### Release review and complete-model distribution (`REL`) — added 2026-11-03
+
+- [ ] **REL-01**: 0.6B, 1.7B, 4B, and 8B each have a published run on the shared recipe (rank 16, alpha 32, gradient accumulation 8). The published 0.6B adapter is not the `qwen3_dev_cpu` smoke preset. The published 4B run is a full shared-recipe run uploaded before the checklist passed, not a smoke run. A resumed run's recorded token count and step count cover the whole run.
+- [ ] **REL-02**: 0.6B, 1.7B, 4B, and 8B each have a passing collateral check and a release receipt with `overall_passed: true` before that size is called ready. 14B and 32B are not distributed until a run clears the same review.
+- [ ] **REL-03**: Until a size is ready, its Hugging Face card and the size index say the page is the trained add-on and the review is unfinished, and they do not use the word "ungated". When the size is ready, those pages update in the same step as distribution and describe the complete merged model. A reader can download the distributed file from the Files tab or with one `vox mens hub download` command.
+- [ ] **REL-04**: A ready size is stored and distributed as the complete checkpoint written by `vox mens merge-qlora` from the local Qwen base plus the trained adapter. The adapter file is not the distributed model once that checkpoint exists. Original Qwen bases are already local for 0.6B, 1.7B, 4B, 8B, and 14B. 32B is not downloaded. 14B has no trained adapter yet.
+
+## Future Requirements (v5.7 deferred)
+
+- Python→Vox callbacks via pure Vox functions compiled to Plan IR.
+- RustAxum/Tauri compiled targets for bridge features; worker pool; mmap data plane.
+- Typed shapes; complex/f16/sparse dtypes; curated `transformers`; OpenAPI import as a typed Vox client; MENS lane for bridge maintenance.
+
+## Out of Scope (v5.7)
+
+| Feature | Reason |
+|---|---|
+| In-process PyO3 transport | No isolation; GIL in host; not needed at O(materializations) round-trips |
+| Raw Python strings / `py.eval` / dynamic attribute access | Unverifiable surface; makes Vox Python-shaped |
+| User-visible backend switch (numpy↔torch, pandas↔polars) | Multiplies conformance tests and semantic drift (ddof, NaN order, nulls) |
+| SQLAlchemy / Drizzle as callable libraries | Duplicates Vox `db`; ORM-shaped unverified surface; Drizzle needs Node |
+| Authoring torch training in Vox | ADR 003 — native Candle path |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|---|---|---|
+| `EFF-01` | Phase 324 | Complete |
+| `EFF-02` | Phase 324 | Pending |
+| `EFF-03` | Phase 324 | Complete |
+| `BR-01` | Phase 325 | Complete |
+| `BR-02` | Phase 325 | Complete |
+| `BR-03` | Phase 325 | Complete |
+| `BR-04` | Phase 325 | Complete |
+| `GOV-01` | Phase 325 | Complete |
+| `ARR-01` | Phase 326 | Complete |
+| `ARR-02` | Phase 326 | Complete |
+| `ARR-03` | Phase 326 | Complete |
+| `ARR-04` | Phase 326 | Complete |
+| `K-01` | Phase 326 | Pending |
+| `FRM-01` | Phase 327 | Pending |
+| `FRM-02` | Phase 327 | Pending |
+| `FRM-03` | Phase 327 | Pending |
+| `PLT-01` | Phase 328 | Pending |
+| `TNS-01` | Phase 328 | Pending |
+| `TNS-02` | Phase 328 | Pending |
+| `PYX-01` | Phase 329 | Pending |
+| `PYX-02` | Phase 329 | Pending |
+| `PYX-03` | Phase 329 | Pending |
+| `PYX-04` | Phase 329 | Pending |
+| `DBI-01` | Phase 330 | Complete |
+| `DBI-02` | Phase 330 | Complete |
+| `DBI-03` | Phase 330 | Complete |
+| `CLI-TOL-01` | Phase 331 | Pending |
+| `CLI-TOL-02` | Phase 331 | Pending |
+| `CLI-TOL-03` | Phase 331 | Pending |
+| `CLI-TOL-04` | Phase 331 | Pending |
+| `REL-01` | Phase 333 | Pending |
+| `REL-02` | Phase 333 | Pending |
+| `REL-03` | Phase 333 | Pending |
+| `REL-04` | Phase 333 | Pending |
+
+**Coverage:** 34 v5.7 requirements mapped to phases 324–331 and 333 → 0 unmapped.
+
+---
+
+## Prior milestones (archived headers live below)
+
 # Requirements: Vox Milestone v5.6 — Reasoning Where the Lane Needs It
 
 **Defined:** 2026-10-26
@@ -27,21 +157,30 @@
 - [x] **SIZE-01**: The ladder pins all six Qwen3 dense sizes (0.6B, 1.7B, 4B, 8B, 14B, 32B), each with a real Hugging Face commit and a license. A rung whose memory floor has not been measured on hardware says so.
 - [x] **SIZE-02**: One selector reads current free memory (Metal live budget, CUDA free VRAM) and titrates to the largest ladder size whose predicted footprint fits, stepping down if free memory drops before load. The hub and its spokes are picked together: one base size, with each spoke's base and preset following it. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk. Training, local serve, and chat all use this selector, replacing the fixed tiers in `auto_select.rs`.
 - [x] **MESH-01**: Node heartbeats carry current free accelerator memory. Across a mesh, the selector picks the largest size that fits on some node, routes the job there, and titrates down when no node fits. A stale or missing reading is not treated as free memory.
-- [ ] **SIZE-03**: Each size that fits this Mac is QLoRA-trained on Metal with the lane prefix, and its adapter manifest names its pinned base. A size that does not fit is recorded as not trained, with the measured memory.
+- [x] **SIZE-03**: Each size that fits this Mac is QLoRA-trained on Metal with the lane prefix, and its adapter manifest names its pinned base. A size that does not fit is recorded as not trained, with the measured memory.
 
 ### Harness before/after (`HARN`, `BENCH`) — added 2026-10-26
 
-- [ ] **HARN-01**: The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
-- [ ] **BENCH-04**: For every trained size, one report holds before (base) and after (adapter) scores: reasoning accuracy and think-initiation on the three slices, and an intelligence score on a codegen or agent bench, each with n. The milestone is not complete until at least two sizes have real trained scores.
+- [x] **HARN-01**: The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
+- [x] **BENCH-04**: For every trained size, one report holds before (base) and after (adapter) scores: reasoning accuracy and think-initiation on the three slices, and an intelligence score on a codegen or agent bench, each with n. The milestone is not complete until at least two sizes have real trained scores.
 
 ### Calibrated decisions + ChatARC (`DEC`, `CAT`) — added 2026-10-28
 
-- [ ] **DEC-01**: A versioned turn decision pack runs **before** [`build_selection_request`](../crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs) and patches only fields that function does not already derive from clutch/risk: `task`, `complexity`, and `prefer_local` when the caller has not set them. It may set `allow_free_in_performance_mode` **only when clutch is unset** (clutch `Free` already sets that flag; Performance must not be overridden). The pack never emits model ids. `allow_free_in_performance_mode` only lets `:free` specs compete in the scorer under Performance — it does **not** invoke `PreferFree` or the `free_floor` slug list (`OPENROUTER_FREE_FALLBACK_MODELS`).
-- [ ] **DEC-02**: Post-tool decisions extend existing control points, not a new loop: `evaluate_post_tool_batch_hook`, `evaluate_stop_hook`, and `apply_repair_escalation_to_config` (already builds `SelectionIntent::repair_loop` with `prefer_local` + `allow_free_in_performance_mode`). Low `model_still_ok` re-enters that escalation path. `draft_pr` is not a pack directive unless an existing PR tool is already in the ChatARC shortlist.
-- [ ] **DEC-03**: Flag-off identity tests cover `build_selection_request`, `resolve_mens_fast_apply_target`, `consult_oracle_model_advisory`, and `apply_repair_escalation_to_config` — not only lifecycle constructors.
-- [ ] **DEC-04**: Selective-prediction eval (accuracy, ECE, coverage@error) on turn-pack fixtures; optional OpenRouter Jev is gated by `inference_privacy_local_only_from_env`; no MENS chat distill; no unused facade. Pack must not fork SIZE-02 / MESH-01 memory selection.
-- [ ] **CAT-01**: ChatARC **composes** existing discovery — skill roots (`vox skill discover` / `skill_catalog`), MCP tool lists (including deferred catalog hints), and `command_catalog::build_catalog` — into one shortlist index. New skills, MCP tools, and clap commands appear on the next discovery pass without a new closed-world enum. Do not build a third registry.
-- [ ] **CAT-02**: Calibrated Choice over a lexical top-K (K≤10, include `none`) is consumed by skill activation, tool offering, or command hinting. Fail open to today's lexical/deferred behavior. External skill install already gates on `get_skill_reliability`; ChatARC ranking may read that prior but must not replace the install gate.
+- [x] **DEC-01**: A versioned turn decision pack runs **before** [`build_selection_request`](../crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs) and patches only fields that function does not already derive from clutch/risk: `task`, `complexity`, and `prefer_local` when the caller has not set them. It may set `allow_free_in_performance_mode` **only when clutch is unset** (clutch `Free` already sets that flag; Performance must not be overridden). The pack never emits model ids. `allow_free_in_performance_mode` only lets `:free` specs compete in the scorer under Performance — it does **not** invoke `PreferFree` or the `free_floor` slug list (`OPENROUTER_FREE_FALLBACK_MODELS`).
+- [x] **DEC-02**: Post-tool decisions extend existing control points, not a new loop: `evaluate_post_tool_batch_hook`, `evaluate_stop_hook`, and `apply_repair_escalation_to_config` (already builds `SelectionIntent::repair_loop` with `prefer_local` + `allow_free_in_performance_mode`). Low `model_still_ok` re-enters that escalation path. `draft_pr` is not a pack directive unless an existing PR tool is already in the ChatARC shortlist.
+- [x] **DEC-03**: Flag-off identity tests cover `build_selection_request`, `resolve_mens_fast_apply_target`, `consult_oracle_model_advisory`, and `apply_repair_escalation_to_config` — not only lifecycle constructors.
+- [x] **DEC-04**: Selective-prediction eval (accuracy, ECE, coverage@error) on turn-pack fixtures; optional OpenRouter Jev is gated by `inference_privacy_local_only_from_env`; no MENS chat distill; no unused facade. Pack must not fork SIZE-02 / MESH-01 memory selection.
+- [x] **CAT-01**: ChatARC **composes** existing discovery — skill roots (`vox skill discover` / `skill_catalog`), MCP tool lists (including deferred catalog hints), and `command_catalog::build_catalog` — into one shortlist index. New skills, MCP tools, and clap commands appear on the next discovery pass without a new closed-world enum. Do not build a third registry.
+- [x] **CAT-02**: Calibrated Choice over a lexical top-K (K≤10, include `none`) is consumed by skill activation, tool offering, or command hinting. Fail open to today's lexical/deferred behavior. External skill install already gates on `get_skill_reliability`; ChatARC ranking may read that prior but must not replace the install gate.
+
+### Starlight MDX Conversions & Ingest Parity (`MDX-INGEST`, `MDX-CONV`) — added 2026-11-01
+
+- [x] **MDX-INGEST-01**: [`vox-kb-facets::summary`](../crates/vox-kb-facets/src/summary.rs) (`is_summary_marker_line`, `inspect_summary`, `strip_summary_blocks`) accepts both HTML (`<!-- kb:summary -->` / `<!-- /kb:summary -->`) and MDX JSX (`{/* kb:summary */}` / `{/* /kb:summary */}`) markers and ignores top-level ESM `import` / `export` lines between `# H1` and the summary block.
+- [x] **MDX-INGEST-02**: [`vox-search::kb_ids::is_kb_corpus_path`](../crates/vox-search/src/kb_ids.rs), [`doc_title`](../crates/vox-search/src/kb_ids.rs), and [`ingest::ingest_markdown_tree`](../crates/vox-search/src/ingest.rs) index both `.md` and `.mdx` files under `docs/src/`.
+- [x] **MDX-INGEST-03**: [`vox-search::library::chunk`](../crates/vox-search/src/library/chunk.rs) (`first_paragraph`, `chunk_document`) and MENS corpus extraction strip top-level ESM `import`/`export` statements, `{/* ... */}` JSX comments, and Starlight structural JSX tags (`<Tabs>`, `<TabItem>`, `<Steps>`, `<CardGrid>`, `<Card>`, `<LinkCard>`, `<Aside>`, `<Badge>`) while preserving inner prose and fenced code blocks.
+- [x] **MDX-CONV-01**: Refactor [`docs/src/index.mdx`](../docs/src/index.mdx) to replace bespoke inline-styled HTML grids/buttons with Starlight components (`<CardGrid>`, `<Card>`, `<LinkButton>`) while keeping [`SYNCED_BLOCKS`](../crates/vox-doc-pipeline/src/pipeline/lint.rs) and [`VoxPlayground.astro`](../docs-astro/src/components/VoxPlayground.astro) intact.
+- [x] **MDX-CONV-02**: Convert high-value onboarding and tutorial pages under `docs/src/tutorials/` (`tut-getting-started`, full-stack/workflow/agent tutorials) to `.mdx` using `<Steps>`, `<Tabs>` (showing `.vox` alongside generated SQL/Rust/TSX), and `<Aside>`, updating internal link references and `kb-facet-backlog.v1.yaml` paths where applicable without expanding backlog debt.
+- [x] **MDX-CONV-03**: Add a remark/Starlight code-fence or component capability for flagship language reference pages (`docs/src/reference/ref-syntax`, etc.) while keeping prose-heavy architecture SSOTs, ADRs, research docs, and `*.generated.md` files in CommonMark `.md`.
 
 ## Future Requirements
 
@@ -71,19 +210,25 @@
 | `SIZE-01` | Phase 317 | Complete |
 | `SIZE-02` | Phase 318 | Complete |
 | `MESH-01` | Phase 319 | Complete |
-| `SIZE-03` | Phase 320 | Pending |
-| `HARN-01` | Phase 321 | Pending |
-| `BENCH-04` | Phase 321 | Pending |
-| `DEC-01` | Phase 322 | Pending |
-| `DEC-02` | Phase 322 | Pending |
-| `DEC-03` | Phase 322 | Pending |
-| `DEC-04` | Phase 322 | Pending |
-| `CAT-01` | Phase 322 | Pending |
-| `CAT-02` | Phase 322 | Pending |
+| `SIZE-03` | Phase 320 | Complete |
+| `HARN-01` | Phase 321 | Complete |
+| `BENCH-04` | Phase 321 | Complete |
+| `DEC-01` | Phase 322 | Complete |
+| `DEC-02` | Phase 322 | Complete |
+| `DEC-03` | Phase 322 | Complete |
+| `DEC-04` | Phase 322 | Complete |
+| `CAT-01` | Phase 322 | Complete |
+| `CAT-02` | Phase 322 | Complete |
+| `MDX-INGEST-01` | Phase 323 | Complete |
+| `MDX-INGEST-02` | Phase 323 | Complete |
+| `MDX-INGEST-03` | Phase 323 | Complete |
+| `MDX-CONV-01` | Phase 323 | Complete |
+| `MDX-CONV-02` | Phase 323 | Complete |
+| `MDX-CONV-03` | Phase 323 | Complete |
 | `GATE-01` | Phase 315 | Complete |
 | `GATE-02` | Phase 315 | Complete |
 
-**Coverage:** v5.6 requirements mapped to phases 313–322; DEC/CAT added 2026-10-28 → 0 unmapped
+**Coverage:** v5.6 requirements mapped to phases 313–323; DEC/CAT added 2026-10-28, MDX-INGEST/MDX-CONV added 2026-11-01 → 0 unmapped
 
 ---
 

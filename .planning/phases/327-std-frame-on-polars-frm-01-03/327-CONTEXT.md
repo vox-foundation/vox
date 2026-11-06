@@ -38,6 +38,13 @@ The published `.vox` surface stays Vox-shaped: no new keywords, no `HirType` var
 - FRM-02 still requires `Decimal`, UTC `DateTime`, `Date`, `Duration`, and the naive-timestamp error. Meet those without introducing `Option`.
 - Do not edit `.planning/REQUIREMENTS.md` inside a task commit. This context is the spec for the Option override.
 
+### Full Python power without breaking Vox as an LLM target (operator 2026-11-04)
+- Goal: reach every capability of the libraries Python still wins on — numpy, polars (Tier-1 frame engine), pandas where needed, scipy, scikit-learn, matplotlib, pyarrow, and later torch — **without** turning Vox into a Python dialect or widening the lexer/HIR for library APIs.
+- **Tier 1 (this milestone's goldens and training corpus):** closed, Vox-shaped allowlists (`std.array`, `std.frame`, then `std.plot` / `std.tensor`). Agents emit only those spellings. Polars is the frame *engine*; its full Python method surface is **not** mirrored into Vox. New common ops grow the allowlist + parity gate, not keywords or `HirType`.
+- **Tier 2 (phase 329, `import py`):** typed, gated, counted escape for the long tail (scipy.signal, sklearn estimators, pandas I/O, pillow, …). Escape goldens teach the hatch form; they are not general training fuel for inventing Python-in-Vox. Recurring escapes promote into Tier 1 when they fit the module budget (`python.escape_call` telemetry).
+- **Never:** raw Python strings, `eval`, dynamic attribute access, or dumping a library's entire API into `.vox` syntax. That would destroy the LLM-target property this phase is protecting.
+- Phase 327 still ships only FRM-01..03. This decision does not expand the v1 frame vocabulary; it locks the two-tier rule so later phases (328–329) and allowlist growth stay compatible with "all important features, pristine Vox."
+
 ### Claude's Discretion
 - Whether `std.frame` gets a sibling allowlist contract or a schema bump. `contracts/python/ecosystem-support.yaml` is a single `std.array` document today. Do not rewrite it into `std.frame` and do not drop the array ops.
 - Expression and aggregation method names that match the design sketch (`col("region").eq("west")`, `col("amount").sum().alias("revenue")`, `sort("month", nulls=last)`) are the intended shape. Exact Rust type names are open.
@@ -74,7 +81,9 @@ The published `.vox` surface stays Vox-shaped: no new keywords, no `HirType` var
 
 The operator accepted the recommended answers and added one rule: keep Vox scripts pristine, strongly typed, and non-nullable regardless. Null is not a Vox value in these scripts, and the scripts do not mention `Option`.
 
-The design sketch in `docs/src/architecture/vox-python-interop-design-2026-11-01.md` §4.4 is the call shape. `plot.line` in that sketch belongs to phase 328, not this phase.
+On 2026-11-04 the operator required that Vox still reach the full strength of Python's core data/ML stack (numpy, polars, pandas, scipy, scikit-learn, matplotlib, …) without breaking Vox syntax or its role as an LLM target. That is the two-tier rule above (design D2/D5): curated Tier 1 std modules now; Tier 2 `import py` in phase 329 for the long tail; promotion into Tier 1 when usage warrants it. Do not mirror every polars/pandas method into Vox for FRM-01..03.
+
+The design sketch in `docs/src/architecture/vox-python-interop-design-2026-11-01.md` §4.4 / §5 is the call shape. `plot.line` belongs to phase 328; `import py` belongs to phase 329.
 
 </specifics>
 

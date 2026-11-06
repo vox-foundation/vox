@@ -1,12 +1,12 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": "v5.4",
+  "milestone": "v5.7 — Vox ↔ Python Bridge & Tolerant CLI Ergonomics",
   "phases": [],
   "next": {
-    "command": "/gsd-discuss-phase",
-    "label": "Discuss the first phase",
-    "reason": "Project initialized — plan your first phase"
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 327 of 8 · 0% · executing"
   },
-  "updated_at": "2026-10-26T00:49:50.066Z"
+  "updated_at": "2026-11-06T00:36:00.451Z"
 }

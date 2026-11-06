@@ -30,7 +30,23 @@ Vox is a mature, actively-developed cross-platform Rust workspace (138+ crates) 
 
 The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree (`/Users/brbrainerd/dev/vox`), while remaining **100% functional offline/standalone** with zero dependency on `vox-ops` and **100% transparent, disableable, strongly-typed telemetry**.
 
-## Current Milestone: v5.6 Reasoning Where the Lane Needs It
+## Current Milestone: v5.7 Vox ↔ Python Bridge
+
+**Goal:** `.vox` code can use numpy, polars, matplotlib and PyTorch (plus curated scipy, scikit-learn, pillow and pandas) through an out-of-process Python bridge, without Vox becoming Python-shaped, and can share databases and APIs with existing Python/TS backends.
+
+**Target features:**
+- Effect-parser fix plus `python` / `python_unverified` effects, caps, and determinism-by-capability
+- `vox-python-bridge` crate + worker: framed Arrow IPC over stdio, handles, timeouts, `[python]` env via uv, sandbox via `vox-skill-runtime`
+- Tier 1 std modules `std.array` (numpy), `std.frame` (polars), `std.plot` (matplotlib), `std.tensor` (`torch.export`) with lazy plans
+- Tier 2 `import py X from "…"` with lock-hashed binding sidecars, curated scipy/sklearn/pillow/pandas, lint + telemetry + K4
+- DB/backend interop: `vox db introspect --emit vox`, `schema_owner = "external"`, OpenAPI→Python how-to
+- Tolerant CLI ergonomics & precomputed semantic routing (`Phase 331`, `CLI-TOL-01..04`): `infer_subcommands`/`infer_long_args` + global flag hoisting, `<1.5 ms` order-agnostic verb↔noun permutation & leaf elision, `side_effect_class` + TTY/LLM dual-persona safety gate (`aci.error_recovery`), and CI-precomputed `contracts/cli/semantic-aliases.v1.json` lockfile (`vox ci cli-synonyms --write`)
+
+**Design SSOT:** `docs/src/architecture/vox-python-interop-design-2026-11-01.md`; `docs/src/architecture/cli-semantic-tolerance-research-2026.md`
+
+**Out of this milestone:** Python→Vox callbacks, compiled targets (RustAxum/Tauri) for bridge features, worker pool / mmap data plane, OpenAPI-import clients, typed shapes.
+
+## Executed Milestone: v5.6 Reasoning Where the Lane Needs It (`Phases 313–323`, `25/25` — executed and verified; not yet formally closed via `/gsd-complete-milestone`)
 
 **Goal:** Keep real chain-of-thought on the hub and agent spokes, keep codegen spokes in non-thinking mode, and refuse an adapter that gets worse on a fixed before/after.
 
@@ -283,9 +299,11 @@ The compiler, orchestrator, runtime, knowledge base, and public documentation si
 
 ### Active
 
-- [ ] **Lane policy (`v5.6`):** codegen spokes train and serve with `/no_think` plus the empty think block; hub and agent spokes stay in thinking mode
-- [ ] **Before/after set (`v5.6`):** base model versus adapter on the same GSM8K, MATH-500, and Vox items, with accuracy and think-initiation rate
-- [ ] **Serve gate (`v5.6`):** each run writes a persisted report, and serve refuses an adapter that drops reasoning or task score past the line
+- [ ] **Python bridge (`v5.7`):** Tier 1 std modules (array/frame/plot/tensor) over an out-of-process worker; gated Tier 2 `import py`; DB/backend interop via introspect + OpenAPI — see `REQUIREMENTS.md` v5.7
+- [ ] **Complete model distribution (`v5.7`, Phase 333):** After the shared release review passes, `vox mens merge-qlora` stores a complete checkpoint and that file is what gets distributed. Cards update in that same step. Until then the Hub page stays the trained add-on.
+- [x] **Lane policy (`v5.6`):** codegen spokes train and serve with `/no_think` plus the empty think block; hub and agent spokes stay in thinking mode
+- [x] **Before/after set (`v5.6`):** base model versus adapter on the same GSM8K, MATH-500, and Vox items, with accuracy and think-initiation rate
+- [x] **Serve gate (`v5.6`):** each run writes a persisted report, and serve refuses an adapter that drops reasoning or task score past the line
 
 - [x] **Shared-Package CV Flywheel (`@ngi/platform-ssot`) & Chat/Harness Baseline Audit (`CV-FLYWHEEL-01..04`, Phase 98 — `v1.8`):** Sync `platformSsot.generated.ts` (`runUniversalCvFlywheelPass`, `evaluateBeforeAfterCvFlywheel`) into `crates/vox-gui/ui/src/lib/`, build `cvFlywheel.ts` pixel/DOM analyzer (Sobel edge sharpness, RMS luminance contrast, high-frequency noise floor, PSNR, overflow/clipping/emoji checks), and run automated `BEFORE` baseline CV audits across Chat, Loquela, Docking, and Urbs Civilization surfaces.
 - [x] **Chat GUI Knob Unification & End-to-End Strong Datatypes (`CHAT-KNOBS-01..04`, `CHAT-TYPES-01..04`, Phase 99 — `v1.8`):** Unify fragmented composer/drive/governance controls (`DriveConsole.tsx` + `Loquela.tsx` + `ChatSurface.tsx`) into a cohesive single-height VS Code-grade control strip (`Intent`, `Run Tier`, `Governance: Risk + Oversight 1..5 + @kb Scope + Grounding`), wire `kb_scope` and `oversight_level` into `ChatPayload` (`buildChatTurn.ts` / `types/tauri.ts`), and eliminate all `any` / loose `string` states across `Loquela.tsx` and `ChatSurface.tsx`.
@@ -303,7 +321,8 @@ The compiler, orchestrator, runtime, knowledge base, and public documentation si
 - **Crate dependency edges:** CI-gated by `vox ci crate-edges` against `contracts/ci/crate-edges.allow.v1.json`.
 - **LLM provider boundary:** All LLM calls go through `vox_actor_runtime::llm`.
 - **Cryptography & Secrets:** Application crypto exclusively through `vox-crypto`; secrets exclusively through `vox_secrets::resolve_secret(...)`.
-- **VoxScript-first glue:** Automation is `.vox` run via `vox run`, never new `.sh`/`.ps1`/`.py` in the public `vox` repository.
+- **VoxScript-first glue:** Automation is `.vox` run via `vox run`, never new `.sh`/`.ps1`/`.py` in the public `vox` repository. Sole scoped exception (user-approved 2026-11-01): Python bridge runtime code under `crates/vox-python-bridge/worker/**`.
+- **Python is opt-in:** with no `[python]` in `Vox.toml`, every bridge path is disabled; toolchain, default CI and Mens training stay Python-free (ADR 003).
 
 ## Key Decisions
 
@@ -329,6 +348,7 @@ The compiler, orchestrator, runtime, knowledge base, and public documentation si
 | **D32: Dual-Tier 5-Spoke Evaluation — Hermetic CI Contract + Live Safetensors QLoRA Burn-In (`v1.7`)** | Maintain the `<3s` hermetic 25-problem before/mid/after benchmark (`MensBeforeAfterEvaluationV1`) for every CI commit while adding `Phase 97` (`LIVE-QLORA-01..04`) to execute real Candle/QLoRA tensor training (`vox mens train`), materialize `.safetensors` adapter weights + `mens_checkpoint_manifest.json` under `mens/runs/`, and score live token generation across all 25 5-spoke problems. | ✓ Good — 100.0% 5-spoke pass@1 verified (`Phases 93–97`) |
 | **D33: Shared-Package CV Flywheel (`@ngi/platform-ssot`) & VS Code-Grade Chat/Dock/Urbs Harness (`v1.8`)** | Sync `@ngi/platform-ssot` (`runUniversalCvFlywheelPass`, `evaluateBeforeAfterCvFlywheel`) into `vox-gui/ui`, unify `Loquela` + `DriveConsole` composer knobs with strict TypeScript types (`kb_scope`, `oversight_level` wired end-to-end), expose `terminal` and `urbs` dock panels with layout presets in `DockWorkspaceShell`, unfreeze embedded `LudusSandbox` with SVG Roman citizen sprites and live `AQVAE` MCP telemetry, and gate on zero-glitch `BEFORE -> AFTER` CV convergence (`Phases 98–101`). | ✓ Complete (`Phases 98–101`) |
 | **D34: Measure reasoning before changing the model (`v5.6`)** | Hub and agent spokes need real chain-of-thought; codegen spokes do not. Prove retention on a fixed before/after before any base-model swap or new training technique. | — Pending |
+| **D35: Python via out-of-process bridge, two tiers, pinned engines (`v5.7`)** | Agents write only `.vox`; Tier 1 Vox-native std modules (numpy/polars/matplotlib/torch.export) build pure lazy plans; Tier 2 `import py` is effect-gated and counted; no raw Python strings, eval, or dynamic attribute access; DB/backend interop at schema + OpenAPI level, not ORMs. | — Pending |
 
 ## Workstreams (Unified into `unified`)
 
@@ -358,4 +378,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-26 after starting v5.6 milestone (Reasoning Where the Lane Needs It)*
+*Last updated: 2026-11-01 after starting v5.7 milestone (Vox ↔ Python Bridge)*
