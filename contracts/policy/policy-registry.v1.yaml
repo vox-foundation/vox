@@ -976,6 +976,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.check-changed
+  domain: ci-gate
+  title: Ci Check-changed
+  group: CI Gates / check
+  description: CLI operation `vox ci check-changed`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.check-changed
+    detail: vox ci check-changed
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.check-codex-ssot
   domain: ci-gate
   title: Ci Check-codex-ssot
@@ -1037,6 +1053,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.check-summary-drift
     detail: vox ci check-summary-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.ci-changes
+  domain: ci-gate
+  title: Ci Ci-changes
+  group: CI Gates / ci
+  description: CLI operation `vox ci ci-changes`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.ci-changes
+    detail: vox ci ci-changes
   default_enabled: true
   protected: false
   origin: builtin
@@ -1648,6 +1680,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.dom-test-env-ban
+  domain: ci-gate
+  title: Ci Dom-test-env-ban
+  group: CI Gates / dom
+  description: CLI operation `vox ci dom-test-env-ban`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.dom-test-env-ban
+    detail: vox ci dom-test-env-ban
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.eval-matrix
   domain: ci-gate
   title: Ci Eval-matrix
@@ -1693,6 +1741,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.eval-matrix.verify
     detail: vox ci eval-matrix verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.evidence-asset-ban
+  domain: ci-gate
+  title: Ci Evidence-asset-ban
+  group: CI Gates / evidence
+  description: CLI operation `vox ci evidence-asset-ban`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.evidence-asset-ban
+    detail: vox ci evidence-asset-ban
   default_enabled: true
   protected: false
   origin: builtin
@@ -1984,6 +2048,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.hit-every-surface
+  domain: ci-gate
+  title: Ci Hit-every-surface
+  group: CI Gates / hit
+  description: CLI operation `vox ci hit-every-surface`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.hit-every-surface
+    detail: vox ci hit-every-surface
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.ignored-test-age
   domain: ci-gate
   title: Ci Ignored-test-age
@@ -2077,6 +2157,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.kill-stuck-tests
     detail: vox ci kill-stuck-tests
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.knip-gui
+  domain: ci-gate
+  title: Ci Knip-gui
+  group: CI Gates / knip
+  description: CLI operation `vox ci knip-gui`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.knip-gui
+    detail: vox ci knip-gui
   default_enabled: true
   protected: false
   origin: builtin
@@ -2624,6 +2720,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.preview-trust-audit
+  domain: ci-gate
+  title: Ci Preview-trust-audit
+  group: CI Gates / preview
+  description: CLI operation `vox ci preview-trust-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.preview-trust-audit
+    detail: vox ci preview-trust-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.profile-parity
   domain: ci-gate
   title: Ci Profile-parity
@@ -3152,6 +3264,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.suppression-review-gate
+  domain: ci-gate
+  title: Ci Suppression-review-gate
+  group: CI Gates / suppression
+  description: CLI operation `vox ci suppression-review-gate`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.suppression-review-gate
+    detail: vox ci suppression-review-gate
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.sync-ignore-files
   domain: ci-gate
   title: Ci Sync-ignore-files
@@ -3296,6 +3424,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.transfer-budget-report
+  domain: ci-gate
+  title: Ci Transfer-budget-report
+  group: CI Gates / transfer
+  description: CLI operation `vox ci transfer-budget-report`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.transfer-budget-report
+    detail: vox ci transfer-budget-report
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.turso-import-guard
   domain: ci-gate
   title: Ci Turso-import-guard
@@ -3309,6 +3453,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.turso-import-guard
     detail: vox ci turso-import-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.vouched-parse
+  domain: ci-gate
+  title: Ci Vouched-parse
+  group: CI Gates / vouched
+  description: CLI operation `vox ci vouched-parse`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.vouched-parse
+    detail: vox ci vouched-parse
   default_enabled: true
   protected: false
   origin: builtin
@@ -3341,6 +3501,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.watch-run
     detail: vox ci watch-run
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.wiki-sync
+  domain: ci-gate
+  title: Ci Wiki-sync
+  group: CI Gates / wiki
+  description: CLI operation `vox ci wiki-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.wiki-sync
+    detail: vox ci wiki-sync
   default_enabled: true
   protected: false
   origin: builtin

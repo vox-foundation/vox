@@ -228,7 +228,23 @@ jobs:
           save-if: false   # cache-seed.yml on main is the writer (default-branch caches are shared)
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-nextest
+          tool: cargo-nextest,uv
+
+      # vox-compiler's Python-worker tests fail closed without a real worker: they
+      # need numpy+pyarrow under python3, uv (for `vox py sync` on CPython 3.12),
+      # and the target/debug/vox binary. Only shards testing vox-compiler pay for it.
+      - name: Python worker prerequisites (vox-compiler shards)
+        shell: bash
+        env:
+          SHARD_P_ARGS: ${{ needs.linux.outputs[format('shard_{0}_p_args', matrix.shard)] }}
+        run: |
+          if [[ " $SHARD_P_ARGS " != *" vox-compiler "* ]]; then
+            echo "shard does not test vox-compiler; skipping"
+            exit 0
+          fi
+          python3 -m pip install --user --break-system-packages numpy pyarrow
+          uv python install 3.12
+          cargo build -p vox-cli --bin vox --locked
 
       - name: Tests (this shard's crates)
         shell: bash
