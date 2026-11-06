@@ -55,14 +55,14 @@ export function buildRichDataset() {
     conversation_id: i + 1,
   }));
   const hostedCatalog = [
-    'anthropic/claude-sonnet-4-5',
-    'anthropic/claude-opus-4-1',
-    'openai/gpt-5-codex',
-    'google/gemini-2.5-pro',
+    'anthropic/claude-sonnet',
+    'anthropic/claude-opus',
+    'openai/gpt-codex',
+    'google/gemini-pro',
     'deepseek/deepseek-r1-0528',
     'mistralai/codestral-2508',
-    'meta-llama/llama-4-maverick-17b',
-    'qwen/qwen3-coder-480b-a35b',
+    'meta-llama/llama-maverick-17b',
+    'qwen/qwen-coder-480b-a35b',
   ];
   const models = Array.from({ length: 32 }, (_, i) => {
     const id = i % 5 === 0
@@ -220,12 +220,12 @@ export function installTauriMockRich(viewKey: string): void {
           mode: args?.mode ?? 'efficiency',
           task: args?.task ?? 'codegen',
           complexity: args?.complexity ?? 7,
-          chosen: 'anthropic/claude-sonnet-4-5',
+          chosen: 'anthropic/claude-sonnet',
           only_candidate: false,
           total_models: 32,
           candidates: [
             {
-              id: 'anthropic/claude-sonnet-4-5',
+              id: 'anthropic/claude-sonnet',
               provider: 'anthropic',
               tier: 'Frontier',
               is_free: false,
@@ -235,7 +235,7 @@ export function installTauriMockRich(viewKey: string): void {
               parts: { quality: 0.45, efficiency: 0.25, latency: 0.16, other: 0.08, bonuses: 0 },
             },
             {
-              id: 'google/gemini-2.5-pro',
+              id: 'google/gemini-pro',
               provider: 'google',
               tier: 'Frontier',
               is_free: false,
@@ -256,7 +256,7 @@ export function installTauriMockRich(viewKey: string): void {
             },
           ],
           excluded: [
-            { reason: 'flagship_excluded_by_mode', count: 3, examples: ['anthropic/claude-opus-4-1', 'openai/gpt-5-pro'] },
+            { reason: 'flagship_excluded_by_mode', count: 3, examples: ['anthropic/claude-opus', 'openai/gpt-pro'] },
             { reason: 'superseded', count: 2, examples: ['anthropic/claude-3-5-sonnet'] },
           ],
         };
@@ -271,7 +271,7 @@ export function installTauriMockRich(viewKey: string): void {
           unknown_tier_cloud: 0,
           quality_scale: 'derived',
           price_bands: 'derived',
-          efficient_pick: 'anthropic/claude-sonnet-4-5',
+          efficient_pick: 'anthropic/claude-sonnet',
           violations: [],
         };
       case 'get_gamify_settings':

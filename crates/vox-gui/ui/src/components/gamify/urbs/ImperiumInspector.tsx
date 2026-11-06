@@ -420,7 +420,7 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
         <div className="rounded-lg border border-white/10 bg-black/35 px-2.5 py-1.5">
           <div className="mb-1 flex items-center justify-between font-mono text-[9px] text-zinc-300">
             <span>Model: MENS Local</span>
-            <span className="text-amber-300">{modelSlider < 40 ? 'Qwen3 Local' : modelSlider > 70 ? 'Frontier Cloud' : 'Hybrid Auto'}</span>
+            <span className="text-amber-300">{modelSlider < 40 ? 'MENS Local' : modelSlider > 70 ? 'Frontier Cloud' : 'Hybrid Auto'}</span>
             <span>Frontier Cloud</span>
           </div>
           <input

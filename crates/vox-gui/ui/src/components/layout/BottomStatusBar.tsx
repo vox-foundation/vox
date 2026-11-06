@@ -106,7 +106,7 @@ function Segment({
       aria-expanded={expanded}
       className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
     >
-      <span data-card-label className="uppercase tracking-[0.06em] text-text-muted">{label}</span>
+      <span data-card-label className="uppercase tracking-[0.08em] text-text-muted">{label}</span>
       <span
         data-card-value
         title={value}

@@ -34,7 +34,7 @@ export const ConsensusGridView: React.FC<ConsensusGridViewProps> = ({
     >
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-brass">
             Multi-Model Consensus ({legs.length} Models)
           </span>
         </div>
@@ -44,9 +44,9 @@ export const ConsensusGridView: React.FC<ConsensusGridViewProps> = ({
             data-testid="consensus-layout-grid"
             aria-pressed={layout === 'grid'}
             onClick={() => setLayout('grid')}
-            className={`rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-400 ${
+            className={`rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brass ${
               layout === 'grid'
-                ? 'bg-amber-500/20 text-amber-300'
+                ? 'bg-brass/20 text-brass'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -57,9 +57,9 @@ export const ConsensusGridView: React.FC<ConsensusGridViewProps> = ({
             data-testid="consensus-layout-stacked"
             aria-pressed={layout === 'stacked'}
             onClick={() => setLayout('stacked')}
-            className={`rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-400 ${
+            className={`rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brass ${
               layout === 'stacked'
-                ? 'bg-amber-500/20 text-amber-300'
+                ? 'bg-brass/20 text-brass'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -97,7 +97,7 @@ export const ConsensusGridView: React.FC<ConsensusGridViewProps> = ({
                 </span>
               </header>
               {leg.status === 'error' ? (
-                <p className="text-xs text-rose-400">{leg.errorMessage ?? 'Model error'}</p>
+                <p className="text-xs text-(--color-status-fail)">{leg.errorMessage ?? 'Model error'}</p>
               ) : (
                 <div className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-200">
                   {leg.content}
@@ -112,7 +112,7 @@ export const ConsensusGridView: React.FC<ConsensusGridViewProps> = ({
               {leg.qualityScore !== undefined && (
                 <span
                   data-testid={`consensus-quality-${leg.modelId}`}
-                  className="font-mono text-emerald-400"
+                  className="font-mono text-(--color-status-pass)"
                 >
                   QA {leg.qualityScore.toFixed(1)}
                 </span>
@@ -122,7 +122,7 @@ export const ConsensusGridView: React.FC<ConsensusGridViewProps> = ({
                   type="button"
                   data-testid={`consensus-adopt-${leg.modelId}`}
                   onClick={() => onAdoptVariant(leg.modelId)}
-                  className="rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] text-amber-300 hover:bg-amber-500/25"
+                  className="rounded border border-brass/40 bg-brass/15 px-1.5 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/25"
                 >
                   Adopt Variant
                 </button>
@@ -135,7 +135,7 @@ export const ConsensusGridView: React.FC<ConsensusGridViewProps> = ({
       {synthesis && (
         <div
           data-testid="consensus-synthesis-card"
-          className="rounded-lg border border-amber-500/35 bg-amber-950/20 p-3 text-xs leading-relaxed text-zinc-200 whitespace-pre-wrap"
+          className="rounded-lg border border-brass/35 bg-brass/6 p-3 text-xs leading-relaxed text-zinc-200 whitespace-pre-wrap"
         >
           {synthesis}
         </div>

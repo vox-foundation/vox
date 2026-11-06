@@ -88,7 +88,7 @@ export function ContextWindowMeter({
             <span
               data-testid="context-meter-kv-cache"
               title="Prompt cache hit rate"
-              className="rounded border border-border-subtle bg-overlay-subtle px-1 py-0.2 font-mono text-[9px] text-brass"
+              className="rounded border border-border-subtle bg-overlay-subtle px-1 py-0.2 font-mono text-[11px] text-brass"
             >
               {kvCacheHitPct}% cached
             </span>
@@ -139,10 +139,10 @@ export function ContextWindowMeter({
             >
               <title>{`Context Slices — Instructions: ${sysSliceTokens.toLocaleString()} · Pinned Files: ${kbSliceTokens.toLocaleString()} · Code: ${astSliceTokens.toLocaleString()} · History: ${histSliceTokens.toLocaleString()}`}</title>
               <rect x="0" y="2" width="240" height="6" rx="1.5" fill="rgba(255,255,255,0.06)" />
-              <rect x="0" y="2" width={w1} height="6" rx="1.5" fill="#A78BFA" fillOpacity="0.85" />
-              <rect x={x2} y="2" width={w2} height="6" rx="1.5" fill="#E5A93C" fillOpacity="0.9" />
-              <rect x={x3} y="2" width={w3} height="6" rx="1.5" fill="#34D399" fillOpacity="0.85" />
-              <rect x={x4} y="2" width={w4} height="6" rx="1.5" fill="#38BDF8" fillOpacity="0.8" />
+              <rect x="0" y="2" width={w1} height="6" rx="1.5" style={{ fill: 'var(--color-accent-secondary)' }} fillOpacity="0.85" />
+              <rect x={x2} y="2" width={w2} height="6" rx="1.5" style={{ fill: 'rgb(var(--brass))' }} fillOpacity="0.9" />
+              <rect x={x3} y="2" width={w3} height="6" rx="1.5" style={{ fill: 'var(--color-status-pass)' }} fillOpacity="0.85" />
+              <rect x={x4} y="2" width={w4} height="6" rx="1.5" style={{ fill: 'var(--color-status-info)' }} fillOpacity="0.8" />
               <line
                 x1={Math.round((thresholdPct / 100) * 240)}
                 y1="0"
@@ -178,7 +178,7 @@ export function ContextWindowMeter({
                   data-testid={`context-meter-strategy-${s}`}
                   aria-pressed={strategy === s}
                   onClick={() => onStrategyChange(s)}
-                  className={`whitespace-nowrap rounded-xs px-1 py-0.2 font-mono text-[9px] transition ${
+                  className={`whitespace-nowrap rounded-xs px-1 py-0.2 font-mono text-[11px] transition ${
                     strategy === s
                       ? 'bg-brass/20 text-brass'
                       : 'text-text-muted hover:text-text-secondary'
@@ -199,7 +199,7 @@ export function ContextWindowMeter({
               data-testid="context-meter-clear-tools-btn"
               title="Surgically clear stale intermediate tool outputs while keeping user/assistant reasoning and recent tool outputs"
               onClick={onClearToolOutputs}
-              className="whitespace-nowrap rounded border border-brass/30 bg-brass/10 px-1 py-0.2 font-mono text-[9px] text-brass transition hover:bg-brass/20"
+              className="whitespace-nowrap rounded border border-brass/30 bg-brass/10 px-1 py-0.2 font-mono text-[11px] text-brass transition hover:bg-brass/20"
             >
               Clear Tools
               {reclaimedToolTokens && reclaimedToolTokens > 0
@@ -207,7 +207,7 @@ export function ContextWindowMeter({
                 : ''}
             </button>
           )}
-          <span className="font-mono text-[9px] text-text-muted">
+          <span className="font-mono text-[11px] text-text-muted">
             @{thresholdPct}%
           </span>
         </div>

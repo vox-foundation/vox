@@ -150,7 +150,7 @@ export async function chatConsensusRun(
   const models =
     req.models && req.models.length >= 2
       ? req.models.slice(0, 4)
-      : ['anthropic/claude-sonnet-4-5', 'openai/gpt-4o', 'mens-qwen3-8b'];
+      : ['anthropic/claude-sonnet', 'openai/gpt', 'mens/qwen3-8b'];
 
   if (backendAvailable()) {
     try {

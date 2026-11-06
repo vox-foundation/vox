@@ -1337,7 +1337,7 @@ export function ChatSurface({
       role="group"
       aria-label="Quick workspace layout presets"
       data-testid="chat-header-layout-presets"
-      className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-[#11131C]/90 px-1.5 py-0.5 font-mono text-[11px]"
+      className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-overlay-solid/90 px-1.5 py-0.5 font-mono text-[11px]"
     >
       <span className="px-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">Layout:</span>
       <button
@@ -1386,8 +1386,8 @@ export function ChatSurface({
         title="Toggle Split-Dock Tactical Map (⌘M / Alt+M)"
         className={`whitespace-nowrap rounded px-2 py-0.5 transition ${
           isTacticalMapOpen
-            ? 'border border-amber-400/60 bg-amber-500/20 text-amber-100 font-medium shadow-xs'
-            : 'text-text-muted hover:bg-overlay-hover hover:text-amber-200'
+            ? 'border border-brass/60 bg-brass/20 text-brass font-medium shadow-xs'
+            : 'text-text-muted hover:bg-overlay-hover hover:text-brass'
         }`}
       >
         🏛 Tactical Map ⌘M
@@ -1540,11 +1540,11 @@ export function ChatSurface({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           data-testid="chat-top-header-bar"
-          className="mb-1.5 flex shrink-0 items-center justify-between gap-2 rounded-lg border border-border-subtle/80 bg-[#11131C]/85 px-3 py-1.5"
+          className="mb-1.5 flex shrink-0 items-center justify-between gap-2 rounded-lg border border-border-subtle/80 bg-overlay-solid/85 px-3 py-1.5"
         >
           <div className="flex min-w-0 items-center gap-2 font-mono text-xs">
             <span className="text-text-muted">Chat</span>
-            <span className="text-text-muted/60">/</span>
+            <span className="text-text-muted">/</span>
             <span className="truncate font-medium text-text-primary">
               {activeId || 'Active Session'}
             </span>
@@ -1553,7 +1553,7 @@ export function ChatSurface({
                 type="button"
                 data-testid="urbs-district-filter-pill"
                 onClick={() => useLudusStore.getState().setSelectedDistrictFilter(null)}
-                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/50 bg-amber-500/15 px-2 py-0.5 font-mono text-[11px] font-medium text-amber-100 hover:bg-amber-500/25"
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-brass/50 bg-brass/15 px-2 py-0.5 font-mono text-[11px] font-medium text-brass hover:bg-brass/25"
                 title="Clear Urbs District Filter"
               >
                 <span>🏛 District Filter: {selectedDistrictFilter}</span>
@@ -1605,6 +1605,13 @@ export function ChatSurface({
             if (staleFlowPanel) {
               staleFlowPanel.api.close();
               closedPanelIds.current.add('flow');
+            }
+            // To-dos is plan-gated. A persisted layout can restore it (saved while
+            // a plan was live, e.g. before a Discard the debounced save never
+            // caught); mark it auto-opened so the refresh effect closes it when
+            // no live plan is attached, instead of showing an empty panel.
+            if (event.api.getPanel('todos')) {
+              autoOpenedTodosRef.current = true;
             }
             event.api.onDidRemovePanel(panel => {
               closedPanelIds.current.add(panel.id);

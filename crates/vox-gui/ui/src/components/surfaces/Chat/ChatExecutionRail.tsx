@@ -537,7 +537,7 @@ export function ChatExecutionRail({
                   cy="8"
                   r="6"
                   fill="none"
-                  stroke="#E5A93C"
+                  style={{ stroke: 'rgb(var(--brass))' }}
                   strokeWidth="2"
                   strokeDasharray={`${Math.round((completedTaskCount / Math.max(1, displayTasks.length)) * 37.7)} 37.7`}
                   transform="rotate(-90 8 8)"
@@ -564,7 +564,7 @@ export function ChatExecutionRail({
           role="tablist"
           aria-label="Session inspector sections"
           data-testid="execution-rail-segmented-tabs"
-          className="grid shrink-0 grid-cols-4 gap-0.5 border-b border-border-subtle bg-[#0F111A]/90 px-0.5 pt-0.5 font-mono text-[11px]"
+          className="grid shrink-0 grid-cols-4 gap-0.5 border-b border-border-subtle bg-overlay-solid/90 px-0.5 pt-0.5 font-mono text-[11px]"
         >
           {(
             [
@@ -626,11 +626,11 @@ export function ChatExecutionRail({
                     const st = (t.status ?? 'pending').toLowerCase();
                     const fill =
                       st === 'completed' || st === 'done'
-                        ? '#34D399'
+                        ? 'var(--color-status-pass)'
                         : st === 'running' || st === 'verifying'
-                          ? '#E5A93C'
+                          ? 'rgb(var(--brass))'
                           : st === 'doubted'
-                            ? '#F59E0B'
+                            ? 'var(--color-status-warn)'
                             : 'rgba(255,255,255,0.14)';
                     return (
                       <rect
@@ -640,7 +640,7 @@ export function ChatExecutionRail({
                         width={segW}
                         height="6"
                         rx="2"
-                        fill={fill}
+                        style={{ fill }}
                       />
                     );
                   })}
@@ -654,7 +654,7 @@ export function ChatExecutionRail({
                     cy="16"
                     r="12"
                     fill="none"
-                    stroke="#34D399"
+                    style={{ stroke: 'var(--color-status-pass)' }}
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeDasharray={`${Math.round((completedTaskCount / Math.max(1, displayTasks.length)) * 75.4)} 75.4`}
@@ -693,7 +693,7 @@ export function ChatExecutionRail({
                         onClick={() => handleToggleTaskStatus(task)}
                         className={`mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border font-mono text-[11px] font-bold transition ${
                           isDone
-                            ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300'
+                            ? 'border-(--color-status-pass)/60 bg-(--color-status-pass)/20 text-(--color-status-pass)'
                             : isRunning
                               ? 'border-brass/60 bg-brass/15 text-brass'
                               : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary'
@@ -719,7 +719,7 @@ export function ChatExecutionRail({
                         ) : (
                           <p
                             className={`text-xs leading-snug truncate ${
-                              isDone ? 'text-emerald-100/90' : 'text-text-secondary'
+                              isDone ? 'text-(--color-status-pass)/90' : 'text-text-secondary'
                             }`}
                             title={task.title}
                             onDoubleClick={() => handleStartEditTask(task)}
@@ -1169,8 +1169,8 @@ export function ChatExecutionRail({
             >
               <defs>
                 <linearGradient id="railHealthGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#34D399" stopOpacity="0.28" />
-                  <stop offset="100%" stopColor="#34D399" stopOpacity="0.02" />
+                  <stop offset="0%" style={{ stopColor: 'var(--color-status-pass)' }} stopOpacity="0.28" />
+                  <stop offset="100%" style={{ stopColor: 'var(--color-status-pass)' }} stopOpacity="0.02" />
                 </linearGradient>
               </defs>
               <line x1="0" y1="24" x2="240" y2="24" stroke="rgba(255,255,255,0.08)" strokeDasharray="2 2" />
@@ -1181,7 +1181,7 @@ export function ChatExecutionRail({
               <path
                 d="M0,20 C36,18 68,11 104,12 C140,13 176,6 240,5"
                 fill="none"
-                stroke="#34D399"
+                style={{ stroke: 'var(--color-status-pass)' }}
                 strokeWidth="1.5"
                 strokeLinecap="round"
               />

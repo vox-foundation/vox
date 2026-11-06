@@ -1272,6 +1272,11 @@ export function normalizeFeedback(raw: any): { needsYou: FeedbackRow[]; withheld
   return { needsYou: ny, withheld: (raw?.withheld ?? []).map(toRow) };
 }
 
+/** Pending working-tree diff (`get_task_diff`); `path` narrows it to one file. */
+export function getTaskDiff(path: string | null = null): Promise<string> {
+  return safeInvoke<string>('get_task_diff', { path });
+}
+
 export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
   // `invoke_mcp_tool` (crates/vox-gui/src/commands/mcp.rs) is a Tauri command
   // returning `Result<Value, String>` — Tauri's IPC delivers this to JS as an

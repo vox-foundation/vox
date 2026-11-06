@@ -13,7 +13,7 @@ function makeMessages(count: number): ChatMessage[] {
         ? `User prompt #${idx + 1}: How does VoxIdAllocatorV2 derive deterministic IDs?`
         : `Assistant reply #${idx + 1}: First, VoxIdAllocatorV2 encodes each segment.`,
     status: 'done',
-    modelId: idx % 2 === 1 ? 'anthropic/claude-sonnet-4-5' : undefined,
+    modelId: idx % 2 === 1 ? 'anthropic/claude-sonnet' : undefined,
     latencyMs: idx % 2 === 1 ? 210 : undefined,
   }));
 }

@@ -273,7 +273,7 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
 
   return (
     <div className="flex flex-col gap-1 p-2" data-testid="plan-panel">
-      <div className="flex items-center justify-between whitespace-nowrap pb-1 text-[10px] font-mono text-text-muted">
+      <div className="flex items-center justify-between whitespace-nowrap pb-1 text-[11px] font-mono text-text-muted">
         <span className="uppercase tracking-[0.08em]">Steps</span>
         <span data-testid="plan-panel-cas-rev" className="text-brass">
           Synced · v{ledgerRev}
@@ -293,15 +293,15 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
             const x = idx * (segW + gap);
             const fill =
               n.status === 'completed'
-                ? '#34D399'
+                ? 'var(--color-status-pass)'
                 : n.status === 'in_progress'
-                  ? '#E5A93C'
+                  ? 'rgb(var(--brass))'
                   : n.status === 'blocked_on_approval'
-                    ? '#F59E0B'
+                    ? 'var(--color-status-warn)'
                     : n.status === 'failed'
-                      ? '#F43F5E'
+                      ? 'var(--color-status-fail)'
                       : 'rgba(255,255,255,0.14)';
-            return <rect key={n.node_id} x={x} y="0.5" width={segW} height="5" rx="1.5" fill={fill} />;
+            return <rect key={n.node_id} x={x} y="0.5" width={segW} height="5" rx="1.5" style={{ fill }} />;
           })}
         </svg>
       )}

@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { FeedbackCard } from './FeedbackCard';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { feedbackList, feedbackResolve, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
+import { feedbackList, feedbackResolve, getTaskDiff, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
 import { useLabel } from '../../../hooks/useLanguage';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
@@ -23,7 +22,7 @@ const LIVE_TOPOLOGY_NODES = [
   {
     id: 'orch-lead',
     role: 'Orchestrator (Lead)',
-    model: 'claude-sonnet-4-6',
+    model: 'anthropic/claude-sonnet',
     velocity: '84 t/s',
     tool: 'dispatch_subtasks',
     status: 'Executing',
@@ -34,7 +33,7 @@ const LIVE_TOPOLOGY_NODES = [
   {
     id: 'agent-research',
     role: 'Researcher',
-    model: 'gemini-2.5-pro',
+    model: 'google/gemini-pro',
     velocity: '126 t/s',
     tool: 'search_docs',
     status: 'Grounding',
@@ -146,7 +145,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
       return;
     }
     try {
-      const raw = await invoke<string>('get_task_diff', { path: null });
+      const raw = await getTaskDiff();
       const text =
         typeof raw === 'string' && raw.trim().length > 0
           ? raw
@@ -596,7 +595,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                     {
                       runId: 'a091819-1761d53e',
                       task: 'Schema Migration & Shell Gate',
-                      model: 'anthropic/claude-sonnet-4-6',
+                      model: 'anthropic/claude-sonnet',
                       vel: '84 t/s · 14ms',
                       cost: '$0.014',
                       gate: 'Running',
@@ -605,7 +604,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                     {
                       runId: 'a021819-1891a599',
                       task: 'Hybrid RRF Corpus Grounding',
-                      model: 'google/gemini-2.5-pro',
+                      model: 'google/gemini-pro',
                       vel: '126 t/s · 22ms',
                       cost: '$0.008',
                       gate: 'Running',

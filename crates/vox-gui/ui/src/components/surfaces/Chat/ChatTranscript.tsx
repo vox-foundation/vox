@@ -114,7 +114,7 @@ export function MessageBubble({
             )}
           </span>
           {(message.latencyMs != null || (message.events?.length ?? 0) > 0) && (
-            <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] normal-case tracking-normal text-amber-200">
+            <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] normal-case tracking-normal text-brass">
               Thought for {message.latencyMs ? `${(message.latencyMs / 1000).toFixed(1)}s` : '1.8s'}
               {(message.events?.filter((e) => e.kind === 'tool_start').length ?? 0) > 0
                 ? ` · ${message.events?.filter((e) => e.kind === 'tool_start').length} tool calls ▸`
@@ -315,7 +315,7 @@ export function ChatTranscript({
     setConsensusBusy(true);
     void chatConsensusRun({
       prompt: lastUserPrompt,
-      models: ['anthropic/claude-sonnet-4-5', 'openai/gpt-4o', 'mens-qwen3-8b'],
+      models: ['anthropic/claude-sonnet', 'openai/gpt', 'mens/qwen3-8b'],
     })
       .then((res) => {
         setConsensusLegs(res.legs);
@@ -353,7 +353,7 @@ export function ChatTranscript({
       parentMessageId: anchorId,
       role: 'assistant',
       content: `Alternative branch candidate synthesized from LCA (${anchorId ?? 'root'}).`,
-      modelId: 'mens-qwen3-8b',
+      modelId: 'mens/qwen3-8b',
     };
     const tree = buildMessageTree([...baseNodes, altNode]);
     const primaryLeafId = baseNodes[baseNodes.length - 1]?.id ?? altLeafId;

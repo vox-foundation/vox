@@ -834,7 +834,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     },
     'FABER-03': {
       legion: 'LEGIO-03',
-      model: 'MENS Qwen3',
+      model: 'MENS local',
       task: `Indexing ${layout?.districts[0]?.name ?? 'workspace'}`,
       border: 'border-amber-400/70 bg-[#1A140B]/95 text-amber-100',
     },

@@ -42,7 +42,7 @@ export const BranchComparisonModal: React.FC<BranchComparisonModalProps> = ({
       </header>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div data-testid="branch-left-column" className="rounded border border-zinc-800 p-2">
-          <div className="mb-2 text-xs font-medium text-emerald-400">{leftLabel}</div>
+          <div className="mb-2 text-xs font-medium text-(--color-status-pass)">{leftLabel}</div>
           {divergence.leftExclusive.map((m) => (
             <div key={m.id} className="mb-1 text-xs text-zinc-200">
               <span className="font-mono text-zinc-400">[{m.role}]</span> {m.content}

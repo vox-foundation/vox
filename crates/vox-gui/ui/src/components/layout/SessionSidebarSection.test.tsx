@@ -33,9 +33,11 @@ describe('SessionSidebarSection', () => {
     expect(screen.getByText('vox-server')).toBeInTheDocument();
   });
 
-  it('sessions without a repository_id fall under "Other"', () => {
-    render(<SessionSidebarSection {...baseProps} sessions={[session({ repository_id: null })]} />);
-    expect(screen.getByText('Other')).toBeInTheDocument();
+  // The ungrouped bucket is keyed 'Other' but renders without a header (cd6763733).
+  it('sessions without a repository_id are listed with no "Other" header', () => {
+    render(<SessionSidebarSection {...baseProps} sessions={[session({ title: 'Loose', repository_id: null })]} />);
+    expect(screen.getByRole('tab')).toHaveTextContent('Loose');
+    expect(screen.queryByText('Other')).toBeNull();
   });
 
   it('sorts each repo group by updated_at descending before truncating', () => {

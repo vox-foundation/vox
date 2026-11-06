@@ -1364,7 +1364,7 @@ export function Loquela({
                       setText('');
                     }}
                     aria-label="Steer active turn"
-                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-brass/50 bg-brass/15 px-2.5 font-display text-[11px] uppercase tracking-[0.11em] text-brass transition hover:bg-brass/25"
+                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-brass/50 bg-brass/15 px-2.5 font-display text-[11px] uppercase tracking-[0.13em] text-brass transition hover:bg-brass/25"
                   >
                     ⚡ Steer
                   </button>
@@ -1382,7 +1382,7 @@ export function Loquela({
                       setText('');
                     }}
                     aria-label="Queue follow-up turn"
-                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2.5 font-display text-[11px] uppercase tracking-[0.11em] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2.5 font-display text-[11px] uppercase tracking-[0.13em] text-text-secondary transition hover:border-brass/40 hover:text-brass"
                   >
                     + Queue
                   </button>
@@ -1408,8 +1408,8 @@ export function Loquela({
                 aria-label="Run (Enter)"
                 className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3.5 font-display text-[11px] font-semibold uppercase tracking-[0.13em] transition ${
                   canSend
-                    ? 'border-amber-400 bg-amber-400 text-zinc-950 shadow-[0_0_16px_rgba(251,191,36,0.35)] hover:bg-amber-300'
-                    : 'border-amber-500/65 bg-amber-500/22 text-amber-200 cursor-not-allowed'
+                    ? 'border-brass bg-brass text-black hover:bg-brass/90'
+                    : 'border-brass/65 bg-brass/22 text-brass cursor-not-allowed'
                 }`}
               >
                 <Icon.send className="size-3.5" />
@@ -1461,7 +1461,7 @@ export function Loquela({
 
           {/* v4.0 Progressive Disclosure: Unified Execution Posture & Routing Popover */}
           <div className="relative flex items-center" ref={postureRootRef}>
-            <Tooltip content="Execution Posture & Routing (Clutch · Risk · Oversight · @kb · Research — Alt+/ for shortcuts)" side="top">
+            <Tooltip content="Execution Posture & Routing (Mode · Risk · Oversight · @kb · Research — Alt+/ for shortcuts)" side="top">
               <button
                 type="button"
                 data-testid="loquela-posture-trigger"
@@ -1486,7 +1486,7 @@ export function Loquela({
                 <span>
                   {CLUTCH_DETENTS.find((d) => d.id === control.clutch)?.label ?? control.clutch} · {control.risk}
                 </span>
-                <Icon.chevR className="size-2.5 rotate-90 text-brass/80" aria-hidden="true" />
+                <Icon.chevR className="size-2.5 rotate-90 text-brass" aria-hidden="true" />
               </button>
             </Tooltip>
 
@@ -1496,19 +1496,19 @@ export function Loquela({
               aria-label="Execution Posture & Routing"
               className={
                 postureOpen
-                  ? 'absolute bottom-full left-0 z-50 mb-2 w-[min(42rem,94vw)] space-y-2 rounded-xl border border-brass/40 bg-[#0D0F17]/98 p-3.5 text-[11px] shadow-2xl ring-1 ring-white/5 backdrop-blur-xl'
+                  ? 'absolute bottom-full left-0 z-50 mb-2 w-[min(42rem,94vw)] space-y-2 rounded-xl border border-brass/40 bg-overlay-solid/98 p-3.5 text-[11px] shadow-2xl ring-1 ring-white/5 backdrop-blur-xl'
                   : 'sr-only'
               }
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="font-display text-[11px] font-semibold uppercase tracking-[0.1em] text-brass">
+                <span className="font-display text-[11px] font-semibold uppercase tracking-[0.13em] text-brass">
                   Execution Posture & Routing
                 </span>
                 <div className="flex items-center gap-1.5">
                   <span
                     data-testid="loquela-live-posture-badge"
                     title="Active session posture — persists in real time across future chat turns, plans, and background tasks (Alt+1..4/C Mode · Alt+R Risk · Alt+T Tier · Alt+M Track · Alt+O Ovs · Alt+K @kb)"
-                    className="inline-flex h-6 items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-2.5 font-mono text-[10px] text-brass"
+                    className="inline-flex h-6 items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-2.5 font-mono text-[11px] text-brass"
                   >
                     <span className="size-1.5 rounded-full bg-(--color-status-pass)" aria-hidden="true" />
                     <span>
@@ -1525,7 +1525,7 @@ export function Loquela({
                       aria-expanded={keybindHudOpen}
                       aria-label="Session posture keyboard shortcuts"
                       onClick={() => setKeybindHudOpen((o) => !o)}
-                      className="inline-flex h-6 items-center gap-1 rounded-full border border-border-subtle bg-overlay-subtle px-2 font-mono text-[10px] text-text-secondary transition hover:border-brass/50 hover:text-brass"
+                      className="inline-flex h-6 items-center gap-1 rounded-full border border-border-subtle bg-overlay-subtle px-2 font-mono text-[11px] text-text-secondary transition hover:border-brass/50 hover:text-brass"
                     >
                       <span>Keys</span>
                       <span className="text-text-muted">Alt+/</span>
@@ -1537,7 +1537,7 @@ export function Loquela({
                         aria-label="Real-time session posture shortcuts"
                         className="w-72 space-y-1.5 p-1 font-mono text-[11px]"
                       >
-                        <div className="flex items-center justify-between border-b border-border-subtle pb-1 text-[10px] uppercase tracking-[0.08em] text-text-muted">
+                        <div className="flex items-center justify-between border-b border-border-subtle pb-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">
                           <span>Real-Time Session Knobs</span>
                           <span className="text-brass">Persisted</span>
                         </div>
@@ -1552,8 +1552,8 @@ export function Loquela({
                           }}
                           className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
                         >
-                          <span className="text-text-secondary">Clutch (Alt+1..4 / Alt+C)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] text-brass">{control.clutch}</span>
+                          <span className="text-text-secondary">Mode (Alt+1..4 / Alt+C)</span>
+                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{control.clutch}</span>
                         </button>
                         <button
                           type="button"
@@ -1567,7 +1567,7 @@ export function Loquela({
                           className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
                         >
                           <span className="text-text-secondary">Risk Posture (Alt+R)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] text-brass">{control.risk}</span>
+                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{control.risk}</span>
                         </button>
                         <button
                           type="button"
@@ -1582,7 +1582,7 @@ export function Loquela({
                           className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
                         >
                           <span className="text-text-secondary">Runtime Tier (Alt+T)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] text-brass">{isRoutingTierId(effectiveTierId) ? effectiveTierId : 'pinned'}</span>
+                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{isRoutingTierId(effectiveTierId) ? effectiveTierId : 'pinned'}</span>
                         </button>
                         <button
                           type="button"
@@ -1595,7 +1595,7 @@ export function Loquela({
                           className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
                         >
                           <span className="text-text-secondary">Send Track (Alt+M)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] text-brass">{executionMode}</span>
+                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{executionMode}</span>
                         </button>
                         <button
                           type="button"
@@ -1608,7 +1608,7 @@ export function Loquela({
                           className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
                         >
                           <span className="text-text-secondary">Oversight (Alt+O)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] text-brass">{oversightLevel}</span>
+                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{oversightLevel}</span>
                         </button>
                         <button
                           type="button"
@@ -1621,7 +1621,7 @@ export function Loquela({
                           className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
                         >
                           <span className="text-text-secondary">@kb Scope (Alt+K)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] text-brass">@{kbScope}</span>
+                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">@{kbScope}</span>
                         </button>
                       </div>
                     </Popover>
@@ -1630,8 +1630,8 @@ export function Loquela({
               </div>
 
               <div className="grid grid-cols-[6.75rem_1fr] items-center gap-x-3 gap-y-2 pt-0.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-text-muted">
-                  Clutch & Risk
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+                  Mode & Risk
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
                   <DriveConsole
@@ -1650,7 +1650,7 @@ export function Loquela({
                   />
                 </div>
 
-                <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-text-muted">
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
                   Oversight & @kb
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1692,7 +1692,7 @@ export function Loquela({
                   </div>
 
                   <div className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2">
-                    <span className="font-mono text-[10px] text-text-muted">
+                    <span className="font-mono text-[11px] text-text-muted">
                       Lv{OVERSIGHT_CYCLE.indexOf(oversightLevel) + 1}
                     </span>
                     <input
@@ -1714,7 +1714,7 @@ export function Loquela({
                           permissionMode: null,
                         }).catch(() => {});
                       }}
-                      className="h-1.5 w-16 cursor-pointer accent-amber-400"
+                      className="h-1.5 w-16 cursor-pointer accent-brass"
                     />
                   </div>
 
@@ -1745,8 +1745,8 @@ export function Loquela({
                   </div>
                 </div>
 
-                <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-text-muted">
-                  Skill & Grounding
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+                  Skill & Checks
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative">
@@ -1823,16 +1823,16 @@ export function Loquela({
                       setKbScope(nextKb);
                       syncSessionPosture({ kb_scope: nextKb });
                     }}
-                    className={`inline-flex h-7 items-center gap-2 rounded-md border px-2.5 font-mono text-[10px] transition ${
+                    className={`inline-flex h-7 items-center gap-2 rounded-md border px-2.5 font-mono text-[11px] transition ${
                       kbScope === 'verified'
-                        ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200'
-                        : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60'
+                        ? 'border-(--color-status-pass)/50 bg-(--color-status-pass)/15 text-(--color-status-pass)'
+                        : 'border-(--color-status-pass)/35 bg-(--color-status-pass)/10 text-(--color-status-pass) hover:border-(--color-status-pass)/60'
                     }`}
                   >
                     <span>Auto Socrates</span>
                     <span
                       className={`inline-flex h-3.5 w-6 items-center rounded-full p-0.5 transition ${
-                        kbScope === 'verified' ? 'justify-end bg-emerald-500' : 'justify-end bg-emerald-500/80'
+                        kbScope === 'verified' ? 'justify-end bg-(--color-status-pass)' : 'justify-end bg-(--color-status-pass)/80'
                       }`}
                       aria-hidden="true"
                     >

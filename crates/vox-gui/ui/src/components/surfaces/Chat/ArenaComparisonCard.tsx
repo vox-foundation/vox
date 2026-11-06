@@ -156,7 +156,7 @@ export function ArenaComparisonCard({
       </div>
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
         <div className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-overlay-subtle p-2.5 text-[11px]">
-          <div className="flex items-center justify-between font-mono text-[10px] text-text-muted">
+          <div className="flex items-center justify-between font-mono text-[11px] text-text-muted">
             <span className="font-semibold text-brass">
               Arm A · {comparison.arm_a.model_id}
             </span>
@@ -167,7 +167,7 @@ export function ArenaComparisonCard({
           </div>
         </div>
         <div className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-overlay-subtle p-2.5 text-[11px]">
-          <div className="flex items-center justify-between font-mono text-[10px] text-text-muted">
+          <div className="flex items-center justify-between font-mono text-[11px] text-text-muted">
             <span className="font-semibold text-brass">
               Arm B · {comparison.arm_b.model_id}
             </span>
@@ -185,7 +185,7 @@ export function ArenaComparisonCard({
             data-testid="chat-arena-vote-a"
             disabled={busy}
             onClick={() => onVote('a')}
-            className="rounded border border-brass/40 bg-brass/15 px-2.5 py-1 font-mono text-[10px] text-brass transition hover:bg-brass/25"
+            className="rounded border border-brass/40 bg-brass/15 px-2.5 py-1 font-mono text-[11px] text-brass transition hover:bg-brass/25"
           >
             Prefer A ({comparison.arm_a.model_id})
           </button>
@@ -194,7 +194,7 @@ export function ArenaComparisonCard({
             data-testid="chat-arena-vote-b"
             disabled={busy}
             onClick={() => onVote('b')}
-            className="rounded border border-brass/40 bg-brass/15 px-2.5 py-1 font-mono text-[10px] text-brass transition hover:bg-brass/25"
+            className="rounded border border-brass/40 bg-brass/15 px-2.5 py-1 font-mono text-[11px] text-brass transition hover:bg-brass/25"
           >
             Prefer B ({comparison.arm_b.model_id})
           </button>
@@ -203,7 +203,7 @@ export function ArenaComparisonCard({
             data-testid="chat-arena-vote-tie"
             disabled={busy}
             onClick={() => onVote('tie')}
-            className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 font-mono text-[10px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+            className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 font-mono text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
           >
             Tie / Both Good
           </button>
@@ -211,7 +211,7 @@ export function ArenaComparisonCard({
         {voteOutcome && (
           <span
             data-testid="chat-arena-vote-receipt"
-            className="font-mono text-[10px] text-(--color-status-pass)"
+            className="font-mono text-[11px] text-(--color-status-pass)"
           >
             Winner: {voteOutcome.chosen_model_id} · Q(A)=
             {voteOutcome.quality_a.toFixed(2)} Q(B)=

@@ -5,7 +5,7 @@ import { ConsensusGridView } from './ConsensusGridView';
 describe('ConsensusGridView', () => {
   const sampleLegs = [
     {
-      modelId: 'anthropic/claude-sonnet-4-5',
+      modelId: 'anthropic/claude-sonnet',
       status: 'completed' as const,
       content: 'Response from Claude Sonnet',
       responseTimeMs: 410,
@@ -25,7 +25,7 @@ describe('ConsensusGridView', () => {
     const container = screen.getByTestId('consensus-legs-container');
     expect(container.getAttribute('data-layout')).toBe('grid');
     expect(container.getAttribute('data-columns')).toBe('2');
-    expect(screen.getByTestId('consensus-quality-anthropic/claude-sonnet-4-5').textContent).toContain(
+    expect(screen.getByTestId('consensus-quality-anthropic/claude-sonnet').textContent).toContain(
       'QA 91.4',
     );
 

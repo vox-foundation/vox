@@ -119,14 +119,14 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
       className="flex flex-col gap-2.5 rounded-lg border border-border-subtle bg-bg-base/95 p-3 font-mono text-[11px] text-text-secondary"
     >
       <header className="flex items-center justify-between border-b border-border-subtle pb-1.5">
-        <span className="font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-brass">
+        <span className="font-display text-[11px] font-semibold uppercase tracking-[0.13em] text-brass">
           CLI Session Interop (~/.claude · ~/.codex · ~/.cursor)
         </span>
         <button
           type="button"
           data-testid="session-interop-close"
           onClick={onClose}
-          className="rounded border border-border-subtle px-2 py-0.5 text-[10px] text-text-muted hover:text-text-primary"
+          className="rounded border border-border-subtle px-2 py-0.5 text-[11px] text-text-muted hover:text-text-primary"
         >
           Close
         </button>
@@ -140,7 +140,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
             data-testid={`session-interop-harness-${harness}`}
             aria-pressed={sourceHarness === harness}
             onClick={() => setSourceHarness(harness)}
-            className={`rounded border px-2 py-0.5 text-[10px] uppercase ${
+            className={`rounded border px-2 py-0.5 text-[11px] uppercase ${
               sourceHarness === harness
                 ? 'border-brass/50 bg-brass/20 text-brass'
                 : 'border-border-subtle bg-overlay-subtle text-text-muted'
@@ -155,7 +155,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
           aria-label="External session identifier"
           value={externalSessionId}
           onChange={(e) => setExternalSessionId(e.target.value)}
-          className="min-w-0 flex-1 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-[10px] text-text-primary"
+          className="min-w-0 flex-1 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-[11px] text-text-primary"
         />
       </div>
 
@@ -165,7 +165,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
         aria-label="External session JSONL transcript"
         value={rawJsonl}
         onChange={(e) => setRawJsonl(e.target.value)}
-        className="w-full rounded border border-border-subtle bg-overlay-subtle p-1.5 font-mono text-[10px] text-text-primary"
+        className="w-full rounded border border-border-subtle bg-overlay-subtle p-1.5 font-mono text-[11px] text-text-primary"
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -174,7 +174,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
           data-testid="session-interop-discover-btn"
           disabled={busy}
           onClick={handleDiscover}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
         >
           Discover Local Sessions
         </button>
@@ -183,7 +183,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
           data-testid="session-interop-import-btn"
           disabled={busy}
           onClick={handleImport}
-          className="rounded border border-brass/40 bg-brass/15 px-2.5 py-1 text-[10px] text-brass hover:bg-brass/25"
+          className="rounded border border-brass/40 bg-brass/15 px-2.5 py-1 text-[11px] text-brass hover:bg-brass/25"
         >
           Import External Session
         </button>
@@ -192,7 +192,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
           data-testid="session-interop-export-btn"
           disabled={busy}
           onClick={handleExportBundle}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+          className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
         >
           Export Portable JSON Bundle
         </button>
@@ -202,7 +202,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
             data-testid="session-interop-restore-bundle-btn"
             disabled={busy}
             onClick={handleImportBundle}
-            className="rounded border border-brass/40 bg-brass/15 px-2 py-1 text-[10px] text-brass hover:bg-brass/25"
+            className="rounded border border-brass/40 bg-brass/15 px-2 py-1 text-[11px] text-brass hover:bg-brass/25"
           >
             Re-Import Bundle
           </button>
@@ -212,7 +212,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
           data-testid="session-interop-share-mint-btn"
           disabled={busy}
           onClick={handleMintGuestShare}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
         >
           Mint Guest Share Link
         </button>
@@ -222,7 +222,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
             data-testid="session-interop-moderate-approve-btn"
             disabled={busy}
             onClick={handleApproveSubmission}
-            className="rounded border border-(--color-status-pass)/40 bg-(--color-status-pass)/15 px-2 py-1 text-[10px] text-(--color-status-pass)"
+            className="rounded border border-(--color-status-pass)/40 bg-(--color-status-pass)/15 px-2 py-1 text-[11px] text-(--color-status-pass)"
           >
             Approve Guest Prompt
           </button>
@@ -232,7 +232,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
       {discoveredSessions.length > 0 && (
         <div
           data-testid="session-interop-discovered-list"
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[10px] text-text-secondary"
+          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[11px] text-text-secondary"
         >
           Discovered {discoveredSessions.length} session(s):{' '}
           {discoveredSessions.map((s) => s.external_session_id).join(', ')}
@@ -242,7 +242,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
       {shareToken && (
         <div
           data-testid="session-interop-share-token"
-          className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-[10px] text-brass"
+          className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-[11px] text-brass"
         >
           Guest Share Token: {shareToken}
         </div>
@@ -251,7 +251,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
       {moderationStatus && (
         <div
           data-testid="session-interop-moderation-status"
-          className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-2 py-1 text-[10px] text-(--color-status-pass)"
+          className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-2 py-1 text-[11px] text-(--color-status-pass)"
         >
           {moderationStatus}
         </div>
@@ -260,7 +260,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
       {importedResult && (
         <div
           data-testid="session-interop-import-result"
-          className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-2 py-1 text-[10px] text-(--color-status-pass)"
+          className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-2 py-1 text-[11px] text-(--color-status-pass)"
         >
           Imported {importedResult.messages.length} turns from {importedResult.source_harness} (
           {importedResult.external_session_id})
@@ -270,7 +270,7 @@ export const SessionInteropModal: React.FC<SessionInteropModalProps> = ({
       {exportedBundle && (
         <div
           data-testid="session-interop-export-result"
-          className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-[10px] text-brass"
+          className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-[11px] text-brass"
         >
           Exported bundle v{exportedBundle.schema_version} ({exportedBundle.messages.length} turns)
         </div>
