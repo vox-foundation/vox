@@ -172,7 +172,7 @@ fn baseline_sql_partial_indexes_are_strictly_allowlisted() {
         "convergence_op_log_change_id",
     ];
 
-    for caps in index_re.captures_iter(&sql) {
+    for caps in index_re.captures_iter(sql) {
         let idx_name = caps.get(1).expect("idx name").as_str();
         assert!(
             allowlisted.contains(&idx_name),

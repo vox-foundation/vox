@@ -2912,7 +2912,7 @@ fn frame_cell_to_value(cell: vox_python_bridge::FrameCell) -> Result<VoxValue, S
 #[cfg(test)]
 thread_local! {
     static FORCED_REPLY_BODY: std::cell::RefCell<Option<Vec<u8>>> =
-        std::cell::RefCell::new(None);
+        const { std::cell::RefCell::new(None) };
 }
 
 /// Supply the Arrow body [`materialize_to_list`] decodes. The numeric test
@@ -3068,10 +3068,10 @@ fn plan_params(plan: &super::array_plan::ArrayPlan) -> serde_json::Value {
                 }
             } else if step.op == "astype" {
                 op.insert("dtype".into(), serde_json::Value::String("f64".into()));
-            } else if step.op == "sort" {
-                if let Some(nulls) = step.nulls {
-                    op.insert("nulls".into(), serde_json::Value::String(nulls.to_string()));
-                }
+            } else if step.op == "sort"
+                && let Some(nulls) = step.nulls
+            {
+                op.insert("nulls".into(), serde_json::Value::String(nulls.to_string()));
             }
             serde_json::Value::Object(op)
         })

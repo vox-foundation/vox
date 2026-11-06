@@ -201,10 +201,12 @@ fn bridge_config(project: &PythonProject) -> vox_python_bridge::BridgeConfig {
     let python = venv_python(&project.root)
         .map(std::ffi::OsString::from)
         .unwrap_or_else(|| "python3".into());
-    let mut config = vox_python_bridge::BridgeConfig::default();
-    config.worker_cmd = vec![python, "-m".into(), "vox_bridge".into()];
-    config.max_fetch_mb = project.max_fetch_mb;
-    config.timeout = project.timeout;
+    let mut config = vox_python_bridge::BridgeConfig {
+        worker_cmd: vec![python, "-m".into(), "vox_bridge".into()],
+        max_fetch_mb: project.max_fetch_mb,
+        timeout: project.timeout,
+        ..Default::default()
+    };
     config
         .env
         .push(("PYTHONPATH".into(), vox_python_bridge::worker_root().into()));

@@ -2183,10 +2183,10 @@ mod tests {
             .collect()
     }
 
-    fn inferred_of<'a>(
-        hir: &'a crate::hir::HirModule,
+    fn inferred_of(
+        hir: &crate::hir::HirModule,
         span: crate::ast::span::Span,
-    ) -> &'a crate::hir::HirType {
+    ) -> &crate::hir::HirType {
         hir.inferred_types
             .get(&span)
             .unwrap_or_else(|| panic!("no inferred type at {span:?}"))
