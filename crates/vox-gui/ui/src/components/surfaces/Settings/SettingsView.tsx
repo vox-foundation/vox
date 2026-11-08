@@ -470,19 +470,31 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   // stored (or collapsed on first sight). Only seed each slug once.
   useEffect(() => {
     if (groups.length === 0) return;
+    const focusKey = localStorage.getItem('vox_focus_secret_key');
     setCollapsed(prev => {
       const next = { ...prev };
       let changed = false;
       for (const g of groups) {
+        const hasFocusKey = focusKey ? g.items.some(i => i.canonicalEnv === focusKey) : false;
+        if (hasFocusKey && next[g.slug] !== false) {
+          next[g.slug] = false;
+          changed = true;
+        }
         if (seededSlugs.current.has(g.slug)) continue;
         seededSlugs.current.add(g.slug);
         if (!(g.slug in next)) {
-          next[g.slug] = !g.needsAttention;
+          next[g.slug] = hasFocusKey ? false : !g.needsAttention;
           changed = true;
         }
       }
       return changed ? next : prev;
     });
+    if (focusKey) {
+      localStorage.removeItem('vox_focus_secret_key');
+      setTimeout(() => {
+        scrollAndFocusAnchor(`secret-row-${focusKey}`);
+      }, 60);
+    }
   }, [groups, setCollapsed]);
 
   const toggleGroup = (slug: string) =>
@@ -563,7 +575,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   };
 
   const renderSecretRow = (r: SecretStatusDto) => (
-    <div key={r.id} className="rounded-md border border-border-subtle bg-overlay-subtle p-3">
+    <div key={r.id} id={`secret-row-${r.canonicalEnv}`} data-testid={`secret-row-${r.canonicalEnv}`} className="rounded-md border border-border-subtle bg-overlay-subtle p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="leading-tight">
           <div className="flex items-center gap-2">

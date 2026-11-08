@@ -2,21 +2,13 @@ use anyhow::{Context, Result, anyhow};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::LazyLock;
 
-use super::guards::run_sql_surface_guard;
 use crate::commands::ci::cargo_bin;
-use crate::commands::ci::command_compliance;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };
-use crate::commands::ci::exec_policy_contract;
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_cli_ci::canonical_docs;
-use vox_cli_ci::completion_quality;
-use vox_cli_ci::contracts_index;
-use vox_cli_ci::scientia_novelty_ledger_contract;
-use vox_cli_ci::scientia_worthiness_contract;
 
 pub(crate) fn run_manifest(root: &Path) -> Result<()> {
     let status = Command::new(cargo_bin())
@@ -33,6 +25,24 @@ pub(crate) fn run_manifest(root: &Path) -> Result<()> {
 }
 
 pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
+    let retired_arch_index = root.join("docs/src/architecture/architecture-index.md");
+    if retired_arch_index.is_file() {
+        return Err(anyhow!(
+            "retired completeness index recreated: {} — Starlight sidebar.mjs collectPages() \
+             is the browse surface.",
+            retired_arch_index.display()
+        ));
+    }
+
+    let retired_research_index = root.join("docs/src/architecture/research-index.md");
+    if retired_research_index.is_file() {
+        return Err(anyhow!(
+            "retired completeness index recreated: {} — Starlight sidebar.mjs collectPages() \
+             is the browse surface. Snapshot: docs/src/archive/research-index-hand-curated-retired-2026-09.md",
+            retired_research_index.display()
+        ));
+    }
+
     for rel in DOCS_SSOT_FILES {
         let p = root.join(rel);
         if !p.is_file() {
@@ -56,65 +66,7 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         return Err(anyhow!("doc-inventory.json: expected schema_version >= 3"));
     }
 
-    let mut actual_crates = std::collections::HashSet::new();
-    let inv = root.join("docs/src/architecture/orphan-surface-inventory.md");
-    if inv.is_file() {
-        let inv_text = read_utf8_path_capped(&inv)?;
-        if !inv_text.contains("workspace-crates-start") {
-            return Err(anyhow!(
-                "orphan inventory: missing workspace-crates-start marker"
-            ));
-        }
-        if !inv_text.contains("workspace-crates-end") {
-            return Err(anyhow!(
-                "orphan inventory: missing workspace-crates-end marker"
-            ));
-        }
-
-        let listed = parse_workspace_crate_block(&inv_text);
-        let crates_dir = root.join("crates");
-        for entry in
-            fs::read_dir(&crates_dir).with_context(|| format!("read {}", crates_dir.display()))?
-        {
-            let entry = entry?;
-            if !entry.file_type()?.is_dir() {
-                continue;
-            }
-            let toml = entry.path().join("Cargo.toml");
-            if !toml.is_file() {
-                continue;
-            }
-            let name = read_package_name(&toml)?;
-            actual_crates.insert(name.clone());
-            if !listed.contains(&name) {
-                return Err(anyhow!(
-                    "orphan inventory workspace crate list missing: {name} (from {})",
-                    toml.display()
-                ));
-            }
-        }
-
-        for listed_crate in &listed {
-            if !actual_crates.contains(listed_crate) {
-                return Err(anyhow!(
-                    "orphan inventory workspace crate list contains stale entry: {listed_crate} is not found in crates/*/Cargo.toml"
-                ));
-            }
-        }
-    } else {
-        let crates_dir = root.join("crates");
-        for entry in fs::read_dir(&crates_dir)? {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                let toml = entry.path().join("Cargo.toml");
-                if toml.is_file() {
-                    if let Ok(name) = read_package_name(&toml) {
-                        actual_crates.insert(name);
-                    }
-                }
-            }
-        }
-    }
+    let actual_crates = workspace_crate_names(root)?;
 
     let api_dir = root.join("docs/src/api");
     if api_dir.is_dir() {
@@ -152,47 +104,10 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         }
     }
 
-    let arch_idx_path = root.join("docs/src/architecture/architecture-index.md");
-    if arch_idx_path.is_file() {
-        let arch_idx_text = read_utf8_path_capped(&arch_idx_path)?;
-        let arch_dir = root.join("docs/src/architecture");
-        for entry in fs::read_dir(&arch_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_some_and(|e| e == "md") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    if stem == "architecture-index" {
-                        continue;
-                    }
-                    let md = read_utf8_path_capped(&path)?;
-                    if md.contains("\nstatus: current") || md.contains("\nstatus: \"current\"") {
-                        if !arch_idx_text.contains(stem) {
-                            return Err(anyhow!(
-                                "unlinked authority page: {} has 'status: current' but is not mentioned in {}",
-                                path.display(),
-                                arch_idx_path.display()
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    let retired_research_index = root.join("docs/src/architecture/research-index.md");
-    if retired_research_index.is_file() {
-        return Err(anyhow!(
-            "retired completeness index recreated: {} — Starlight sidebar.mjs collectPages() \
-             is the browse surface. Snapshot: docs/src/archive/research-index-hand-curated-retired-2026-09.md",
-            retired_research_index.display()
-        ));
-    }
-
     let mut src_files = Vec::new();
     let src_dir = root.join("docs/src");
     if src_dir.is_dir() {
         collect_text_files_under(&src_dir, &mut src_files)?;
-        let now = chrono::Utc::now().naive_utc();
 
         for p in src_files {
             if p.extension().is_some_and(|e| e == "md") {
@@ -205,30 +120,6 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
                             "File {} has 'status: archived' but is not in /archive/ or /docs/src/archive/",
                             p.display()
                         ));
-                    }
-
-                    if md.contains("\ntraining_eligible: true")
-                        || md.contains("\ntraining_eligible: \"true\"")
-                    {
-                        if let Some(pos) = md.find("\nlast_updated: ") {
-                            let start = pos + 15;
-                            let end = start + 10;
-                            if end <= md.len() {
-                                let date_str = &md[start..end];
-                                if let Ok(dt) =
-                                    chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                                {
-                                    if now.date().signed_duration_since(dt).num_days() > 90 {
-                                        let rel = p.strip_prefix(root).unwrap_or(&p);
-                                        println!(
-                                            "::warning file={},line=1::Stale training_eligible page: last_updated {} is over 90 days ago.",
-                                            rel.display(),
-                                            date_str
-                                        );
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -468,31 +359,28 @@ fn collect_text_files_under(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-static CRATE_LINE_RE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"^[a-z0-9_-]+$").expect("CRATE_LINE_RE"));
-
-fn parse_workspace_crate_block(md: &str) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut out = HashSet::new();
-    let mut in_block = false;
-    for line in md.lines() {
-        let t = line.trim_end();
-        if t.contains("workspace-crates-start") {
-            in_block = true;
-            continue;
-        }
-        if t.contains("workspace-crates-end") {
-            in_block = false;
-            continue;
-        }
-        if in_block {
-            let s = t.trim();
-            if CRATE_LINE_RE.is_match(s) {
-                out.insert(s.to_string());
+fn workspace_crate_names(root: &Path) -> Result<std::collections::HashSet<String>> {
+    let crates_dir = root.join("crates");
+    if !crates_dir.is_dir() {
+        return Err(anyhow!(
+            "crates directory not found at {}",
+            crates_dir.display()
+        ));
+    }
+    let mut actual_crates = std::collections::HashSet::new();
+    for entry in
+        fs::read_dir(&crates_dir).with_context(|| format!("read {}", crates_dir.display()))?
+    {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            let toml = entry.path().join("Cargo.toml");
+            if toml.is_file() {
+                let name = read_package_name(&toml)?;
+                actual_crates.insert(name);
             }
         }
     }
-    out
+    Ok(actual_crates)
 }
 
 fn read_package_name(toml_path: &Path) -> Result<String> {
@@ -566,219 +454,10 @@ fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
     Ok(())
 }
 
+// Dispatches stages defined in `super::ssot_drift::ssot_drift_stages()` (including `affected_cmd::check_graph`).
 pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
-    // ponytail: local macro for per-sub-step timing; ssot-drift is the slowest gate (~35s)
-    macro_rules! ds {
-        ($label:literal, $expr:expr) => {{
-            let _t = std::time::Instant::now();
-            let _r = $expr;
-            eprintln!("ssot-drift  {:>6}ms  {}", _t.elapsed().as_millis(), $label);
-            _r
-        }};
-    }
-    ds!("check_docs_ssot", check_docs_ssot(root))?;
-    ds!("check_codex_ssot", check_codex_ssot(root))?;
-    // Full-workspace scan; transitional allowlist in docs/agents/sql-connection-api-allowlist.txt
-    ds!("run_sql_surface_guard", run_sql_surface_guard(root, true))?;
-    ds!(
-        "run_query_all_guard",
-        super::guards::run_query_all_guard(root, true)
-    )?;
-    ds!(
-        "run_turso_import_guard",
-        super::guards::run_turso_import_guard(root, true)
-    )?;
-    ds!(
-        "policy_allowlist_parity",
-        crate::commands::ci::policy_allowlist_parity::run(root)
-    )?;
-    ds!(
-        "db_schema_coverage",
-        vox_cli_ci::db_schema_coverage::run(root)
-    )?;
-    ds!(
-        "nomenclature_guard",
-        vox_cli_ci::nomenclature_guard::run(root, false)
-    )?;
-    ds!(
-        "operations_catalog::verify",
-        crate::commands::ci::operations_catalog::verify(root)
-    )?;
-    ds!(
-        "mcp_vox_surface_parity",
-        vox_cli_ci::mcp_vox_surface_parity::run()
-    )?;
-    ds!("command_compliance", command_compliance::run(root))?;
-    ds!(
-        "gui_version_sync",
-        match vox_cli_ci::gui_version_sync::run(root, false) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] gui_version_sync drift; writing...");
-                vox_cli_ci::gui_version_sync::run(root, true)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "gui_catalog_parity",
-        crate::commands::ci::gui_catalog_parity::run(root)
-    )?;
-    ds!(
-        "gui_surface_coverage",
-        match crate::commands::ci::gui_surface_coverage::run(root, false) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] gui_surface_coverage drift; writing...");
-                crate::commands::ci::gui_surface_coverage::run(root, true)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "gui_surface_registry",
-        match crate::commands::ci::gui_surface_registry::run(root, false, None) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] gui_surface_registry drift; writing...");
-                crate::commands::ci::gui_surface_registry::run(root, true, None)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "capability_sync",
-        match crate::commands::ci::capability_sync::run(root, false) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] capability_sync drift; writing...");
-                crate::commands::ci::capability_sync::run(root, true)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "capability_index",
-        match crate::commands::ci::capability_index::run(root, false) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] capability_index drift; writing...");
-                crate::commands::ci::capability_index::run(root, true)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "plugin_surface",
-        match vox_cli_ci::plugin_surface::run(root, false) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] plugin_surface drift; writing...");
-                vox_cli_ci::plugin_surface::run(root, true)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "plugin_catalog_sync",
-        match vox_cli_ci::plugin_catalog_sync::run(root, false) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] plugin_catalog_sync drift; writing...");
-                vox_cli_ci::plugin_catalog_sync::run(root, true)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
-    // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
-    // leaving the generated docs stale (the exact drift PR #218 left on main).
-    ds!(
-        "generate_plugin_catalog_docs",
-        match vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] generate_plugin_catalog_docs drift; writing...");
-                vox_cli_ci::generate_plugin_catalog_docs::run(None, None, false)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "crate_api_docs",
-        match vox_cli_ci::crate_api_docs::run(root, false) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] crate_api_docs drift; writing...");
-                vox_cli_ci::crate_api_docs::run(root, true)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
-    ds!(
-        "wiki_sync",
-        match vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(root, false) {
-            Ok(_) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] wiki_sync drift; writing...");
-                vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(root, true)
-                    .map(|_| ())
-                    .map_err(|e| anyhow!(e))
-            }
-            Err(e) => Err(anyhow!(e)),
-        }
-    )?;
-    ds!(
-        "plugin_skill_parity",
-        vox_cli_ci::plugin_skill_parity::run(false)
-    )?;
-    ds!("contracts_index", contracts_index::run(root))?;
-    ds!(
-        "docs_reality_audit",
-        vox_cli_ci::docs_reality_audit::run_verify(root)
-    )?;
-    ds!("exec_policy_contract", exec_policy_contract::run(root))?;
-    ds!(
-        "completion_quality",
-        completion_quality::run_audit_verify_ssot(root)
-    )?;
-    ds!(
-        "scientia_worthiness_contract",
-        scientia_worthiness_contract::run(root)
-    )?;
-    ds!(
-        "scientia_novelty_ledger_contract",
-        scientia_novelty_ledger_contract::run(root)
-    )?;
-    ds!("run_data_ssot_guards", super::run_data_ssot_guards(root))?;
-    ds!(
-        "affected_cmd::check_graph",
-        vox_cli_ci::affected_cmd::check_graph(
-            root.join("contracts/ci/crate-graph.v1.json").as_path()
-        )
-        .map_err(|e| anyhow::anyhow!(e))
-    )?;
-    ds!(
-        "node_pnpm_ssot_guard",
-        vox_cli_ci::node_pnpm_ssot_guard::run(root)
-    )?;
-    ds!(
-        "workflow_policy_guard",
-        vox_cli_ci::workflow_policy_guard::run(root)
-    )?;
-    ds!("cache_key_lint", vox_cli_ci::cache_key_lint::run(root))?;
-    ds!(
-        "kb_facets_ts",
-        match vox_cli_ci::kb_facets_ts::run(root, true) {
-            Ok(()) => Ok(()),
-            Err(_) if auto_heal => {
-                eprintln!("    [auto-heal] kb_facets_ts drift; writing...");
-                vox_cli_ci::kb_facets_ts::run(root, false)
-            }
-            Err(e) => Err(e),
-        }
-    )?;
+    super::ssot_drift::run_stages(root, auto_heal, &super::ssot_drift::ssot_drift_stages())?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }
@@ -971,48 +650,83 @@ mod stale_ref_guard_tests {
         );
     }
 
-    /// R7a: `run_ssot_drift` must dispatch `cache_key_lint` as a stage, or a
-    /// drift in it never blocks `vox ci pre-push`/CI. A source-text check on
-    /// this file rather than executing `run_ssot_drift` (which shells out to
-    /// `cargo metadata` and other stages) — mutation-checked by deleting the
-    /// dispatch line and confirming this test fails.
-    ///
-    /// The needle is built from two halves at runtime (not a single string
-    /// literal) so this assertion can never match itself via `include_str!`.
     #[test]
-    fn run_ssot_drift_dispatches_cache_key_lint() {
-        let src = include_str!("docs.rs");
-        let needle = format!("{}{}", "ds!(\"cache_key", "_lint\"");
+    fn test_workspace_crate_names_fails_on_unreadable_package_name() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let crate_a = tmp.path().join("crates/a");
+        let crate_b = tmp.path().join("crates/b");
+        fs::create_dir_all(&crate_a).unwrap();
+        fs::create_dir_all(&crate_b).unwrap();
+        fs::write(
+            crate_a.join("Cargo.toml"),
+            "[package]\nname = \"a\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+        fs::write(
+            crate_b.join("Cargo.toml"),
+            "[package]\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+
+        let res = workspace_crate_names(tmp.path());
+        assert!(res.is_err(), "expected unreadable crate name to error");
+        let err = res.err().unwrap().to_string();
         assert!(
-            src.contains(&needle),
-            "run_ssot_drift must call ds!(\"cache_key_lint\", ...)"
+            err.contains("crates/b/Cargo.toml") || err.contains("could not read package.name"),
+            "err: {err}"
         );
     }
 
-    /// KB Phase 4 (D-02): `run_ssot_drift` must dispatch the kb-facets TS check, or a facet
-    /// schema change without a regenerated GUI type never blocks PR CI. Split needle as above;
-    /// whitespace stripped because the auto-heal `match` form is wrapped across lines.
     #[test]
-    fn run_ssot_drift_dispatches_kb_facets_ts() {
-        let src: String = include_str!("docs.rs").split_whitespace().collect();
-        let needle = format!("{}{}", "ds!(\"kb_facets", "_ts\"");
-        assert!(
-            src.contains(&needle),
-            "run_ssot_drift must call ds!(\"kb_facets_ts\", ...)"
+    fn test_workspace_crate_names_succeeds_on_valid_crates() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let crate_a = tmp.path().join("crates/a");
+        let crate_b = tmp.path().join("crates/b");
+        fs::create_dir_all(&crate_a).unwrap();
+        fs::create_dir_all(&crate_b).unwrap();
+        fs::write(
+            crate_a.join("Cargo.toml"),
+            "[package]\nname = \"a\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+        fs::write(
+            crate_b.join("Cargo.toml"),
+            "[package]\nname = \"b\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+
+        let crates = workspace_crate_names(tmp.path()).unwrap();
+        assert_eq!(
+            crates,
+            ["a".to_string(), "b".to_string()].into_iter().collect()
         );
     }
 
-    /// DISC-02: `run_ssot_drift` must dispatch `capability_index` as a stage, or a stale
-    /// capability index never blocks `vox ci pre-push`/CI. Source-text check (same rationale
-    /// as `run_ssot_drift_dispatches_cache_key_lint`); needle split so it cannot match itself.
-    /// Whitespace is stripped first because rustfmt wraps this long call across lines.
     #[test]
-    fn run_ssot_drift_dispatches_capability_index() {
-        let src: String = include_str!("docs.rs").split_whitespace().collect();
-        let needle = format!("{}{}", "ds!(\"capability", "_index\",");
+    fn retired_architecture_index_recreated_fails() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let doc_inv = tmp.path().join("docs/agents/doc-inventory.json");
+        fs::create_dir_all(doc_inv.parent().unwrap()).unwrap();
+        fs::write(&doc_inv, "{\"schema_version\": 3}").unwrap();
+
+        let crates_dir = tmp.path().join("crates");
+        fs::create_dir_all(&crates_dir).unwrap();
+
+        let arch_idx = tmp
+            .path()
+            .join("docs/src/architecture/architecture-index.md");
+        fs::create_dir_all(arch_idx.parent().unwrap()).unwrap();
+        fs::write(&arch_idx, "# Architecture Index\n").unwrap();
+
+        let res = check_docs_ssot(tmp.path());
         assert!(
-            src.contains(&needle),
-            "run_ssot_drift must call ds!(\"capability_index\", ...)"
+            res.is_err(),
+            "expected recreated architecture-index.md to fail"
+        );
+        let err = res.err().unwrap().to_string();
+        assert!(
+            err.contains("retired completeness index recreated")
+                && err.contains("architecture-index.md")
         );
     }
 }

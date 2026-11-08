@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::NaiveDate;
 use owo_colors::OwoColorize;
 use regex::Regex;
@@ -64,34 +64,6 @@ fn looks_like_file_path_with_extension(path: &str) -> bool {
     base.contains('.') && !base.ends_with('.') && Path::new(base).extension().is_some()
 }
 
-fn allowlist_skips(
-    allowlist: &[LinkAllowEntry],
-    source_rel: &str,
-    target_full: &str,
-    today: NaiveDate,
-) -> bool {
-    for e in allowlist {
-        let src = e.source.replace('\\', "/");
-        let tgt = e.target.replace('\\', "/");
-        if src != source_rel || tgt != target_full {
-            continue;
-        }
-        if let Ok(exp) = NaiveDate::parse_from_str(&e.expires, "%Y-%m-%d")
-            && exp < today
-        {
-            println!(
-                "{} allowlist entry expired (still skipping): {} -> {} (expired {})",
-                "WARN".yellow(),
-                source_rel.cyan(),
-                target_full.yellow(),
-                e.expires
-            );
-        }
-        return true;
-    }
-    false
-}
-
 pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
     let docs_src = repo_root.join("docs").join("src");
     let docs_dir = repo_root.join("docs");
@@ -106,6 +78,7 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
     let mut total_links = 0;
     let mut broken_links = Vec::new();
     let mut nesting_errors = Vec::new();
+    let mut used_allowlist = std::collections::HashSet::new();
 
     // Match [text](target) where target is not external or anchor-only
     let link_re = Regex::new(r"\[[^\]]+\]\(([^)]+)\)").unwrap();
@@ -124,21 +97,14 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
         } else if abs_t.is_dir() {
             collect_markdown_files(&abs_t, &mut markdown_files);
         } else {
-            println!(
-                "{} Target not found or invalid: {:?}",
-                "SKIP".yellow(),
-                abs_t
-            );
-            return Ok(());
+            return Err(anyhow!("check-links target not found: {}", abs_t.display()));
         }
     } else {
         if !docs_src.exists() {
-            println!(
-                "{} Docs source not found at {:?}",
-                "SKIP".yellow(),
-                docs_src
-            );
-            return Ok(());
+            return Err(anyhow!(
+                "check-links docs source not found: {}",
+                docs_src.display()
+            ));
         }
         collect_markdown_files(&docs_src, &mut markdown_files);
         collect_root_guides(repo_root, &mut markdown_files);
@@ -202,12 +168,9 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
 
                 let normalized_path = strip_source_line_suffix(target_path_str.trim());
                 let source_rel = repo_rel_normalized(repo_root, &path);
-                if allowlist_skips(&allowlist, &source_rel, target_full, today) {
-                    continue;
-                }
 
                 // Resolve path (strip trailing `/` so directory targets resolve on all platforms)
-                let target_path = if normalized_path.starts_with("/") {
+                let target_path = if normalized_path.starts_with('/') {
                     repo_root.join(
                         normalized_path
                             .trim_start_matches('/')
@@ -217,22 +180,55 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
                     parent_dir.join(normalized_path.trim_end_matches('/'))
                 };
 
-                // Normalize and check existence
-                if !target_path.exists() {
-                    broken_links.push((
-                        path.to_path_buf(),
-                        target_full.to_string(),
-                        target_path,
-                        "missing_file",
-                    ));
+                let broken_reason = if !target_path.exists() {
+                    Some("missing_file")
                 } else if let Some(anchor_text) = anchor
                     && !check_anchor(&target_path, anchor_text)
                 {
+                    Some("missing_anchor")
+                } else {
+                    None
+                };
+
+                let matching_entry = allowlist.iter().enumerate().find(|(_, e)| {
+                    let src = e.source.replace('\\', "/");
+                    let tgt = e.target.replace('\\', "/");
+                    src == source_rel && tgt == target_full
+                });
+
+                if let Some(reason) = broken_reason {
+                    if let Some((idx, entry)) = matching_entry {
+                        used_allowlist.insert(idx);
+                        let is_expired = if let Ok(exp) =
+                            NaiveDate::parse_from_str(&entry.expires, "%Y-%m-%d")
+                        {
+                            exp < today
+                        } else {
+                            true
+                        };
+                        if is_expired {
+                            broken_links.push((
+                                path.to_path_buf(),
+                                target_full.to_string(),
+                                target_path,
+                                "allowlist_expired",
+                            ));
+                        }
+                    } else {
+                        broken_links.push((
+                            path.to_path_buf(),
+                            target_full.to_string(),
+                            target_path,
+                            reason,
+                        ));
+                    }
+                } else if let Some((idx, _entry)) = matching_entry {
+                    used_allowlist.insert(idx);
                     broken_links.push((
                         path.to_path_buf(),
                         target_full.to_string(),
                         target_path,
-                        "missing_anchor",
+                        "allowlist_unneeded",
                     ));
                 }
             }
@@ -240,6 +236,21 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
     }
 
     println!("{} Checked {} internal links.", "DONE".green(), total_links);
+
+    if target.is_none() {
+        for (idx, entry) in allowlist.iter().enumerate() {
+            if !used_allowlist.contains(&idx) {
+                let entry_src = repo_root.join(&entry.source);
+                let entry_target_path = repo_root.join(&entry.target);
+                broken_links.push((
+                    entry_src,
+                    entry.target.clone(),
+                    entry_target_path,
+                    "allowlist_unused",
+                ));
+            }
+        }
+    }
 
     let mut failed = false;
 
@@ -429,9 +440,118 @@ mod tests {
     }
 
     #[test]
-    fn test_run_nonexistent_target_skips() {
+    fn test_run_nonexistent_target_fails() {
         let temp = tempfile::tempdir().unwrap();
         let missing = temp.path().join("does_not_exist");
-        assert!(run(temp.path(), Some(&missing)).is_ok());
+        assert!(run(temp.path(), Some(&missing)).is_err());
+    }
+
+    #[test]
+    fn test_run_missing_docs_src_fails() {
+        let temp = tempfile::tempdir().unwrap();
+        assert!(run(temp.path(), None).is_err());
+    }
+
+    #[test]
+    fn allowlist_expired_fails() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("docs").join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        let doc = src.join("page.md");
+        std::fs::write(&doc, "See [broken](missing.md).\n").unwrap();
+        let policy_dir = temp.path().join("contracts/documentation");
+        std::fs::create_dir_all(&policy_dir).unwrap();
+        std::fs::write(
+            policy_dir.join("link-allowlist.v1.yaml"),
+            r#"schema_version: 1
+allowlist:
+  - source: "docs/src/page.md"
+    target: "missing.md"
+    reason: "testing expired"
+    expires: "2000-01-01"
+"#,
+        )
+        .unwrap();
+        assert!(run(temp.path(), Some(&doc)).is_err());
+    }
+
+    #[test]
+    fn allowlist_unneeded_fails() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("docs").join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        let doc = src.join("page.md");
+        let target = src.join("target.md");
+        std::fs::write(&target, "# Target\n").unwrap();
+        std::fs::write(&doc, "See [target](target.md).\n").unwrap();
+        let policy_dir = temp.path().join("contracts/documentation");
+        std::fs::create_dir_all(&policy_dir).unwrap();
+        std::fs::write(
+            policy_dir.join("link-allowlist.v1.yaml"),
+            r#"schema_version: 1
+allowlist:
+  - source: "docs/src/page.md"
+    target: "target.md"
+    reason: "testing unneeded"
+    expires: "2099-01-01"
+"#,
+        )
+        .unwrap();
+        assert!(run(temp.path(), Some(&doc)).is_err());
+    }
+
+    #[test]
+    fn allowlist_unused_fails_in_repo_mode() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("docs").join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        let doc = src.join("page.md");
+        std::fs::write(&doc, "# Page\n").unwrap();
+        let policy_dir = temp.path().join("contracts/documentation");
+        std::fs::create_dir_all(&policy_dir).unwrap();
+        std::fs::write(
+            policy_dir.join("link-allowlist.v1.yaml"),
+            r#"schema_version: 1
+allowlist:
+  - source: "docs/src/page.md"
+    target: "unreferenced.md"
+    reason: "testing unused"
+    expires: "2099-01-01"
+"#,
+        )
+        .unwrap();
+        // In repo mode (target: None), unused allowlist entries must fail.
+        assert!(run(temp.path(), None).is_err());
+        // With explicit target, unused allowlist entries are not checked.
+        assert!(run(temp.path(), Some(&doc)).is_ok());
+    }
+
+    #[test]
+    fn allowlist_unexpired_suppresses_broken_link() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("docs").join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        let doc = src.join("page.md");
+        std::fs::write(&doc, "See [broken](missing.md).\n").unwrap();
+        let policy_dir = temp.path().join("contracts/documentation");
+        std::fs::create_dir_all(&policy_dir).unwrap();
+        std::fs::write(
+            policy_dir.join("link-allowlist.v1.yaml"),
+            r#"schema_version: 1
+allowlist:
+  - source: "docs/src/page.md"
+    target: "missing.md"
+    reason: "testing unexpired"
+    expires: "2099-01-01"
+"#,
+        )
+        .unwrap();
+        assert!(run(temp.path(), Some(&doc)).is_ok());
+    }
+
+    #[test]
+    fn real_tree() {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        assert!(run(&repo_root, None).is_ok());
     }
 }

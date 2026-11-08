@@ -239,7 +239,7 @@ After adding the secret entries:
 
 Before enabling Tavily in CI:
 - [ ] `vox secrets doctor` reports `TAVILY_API_KEY: resolved`
-- [ ] `vox search "test query" --tavily` returns results from Tavily backend
+- [ ] Tavily integration test (`cargo test -p vox-search --test tavily_dispatcher_test`) returns results from Tavily backend
 - [ ] `SearchExecution::tavily_lines` is non-empty in output
 - [ ] Credit counter increments per call
 - [ ] Budget cap stops further calls at limit

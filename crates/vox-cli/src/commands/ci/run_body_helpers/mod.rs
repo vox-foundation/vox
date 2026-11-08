@@ -11,6 +11,7 @@ mod guards;
 mod hash;
 mod matrix;
 mod orchestration_audit;
+pub(crate) mod ssot_drift;
 mod syntax_k;
 mod timings;
 

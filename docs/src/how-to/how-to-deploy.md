@@ -10,7 +10,7 @@ keywords: ["deploy Vox app", "Vox production deployment", "Docker Vox", "self-ho
 ---
 # How-To: Deploy to Production
 
-Learn how to package and deploy your Vox application using declarative environments, the `vox deploy` command, and Fly.io for zero-configuration deployments.
+Learn how to package and deploy your Vox application using declarative environments, the `vox deploy` command, and Fly.io for zero-configuration deployments. For complete command syntax and target configurations, see the [`vox deploy` CLI reference](../reference/cli-vox-deploy.md).
 
 ## The Golden Path: Zero to Production
 
@@ -130,11 +130,11 @@ vox deploy --target container
 
 ## 3. Manual Packaging
 
-If you prefer building yourself, Vox generates an OCI-compatible Dockerfile:
+If you prefer building yourself, Vox can build an OCI container image:
 
 ```bash
-vox package --kind docker
-docker build -t my-vox-app .
+vox container build --tag my-vox-app
+docker run -p 8080:8080 my-vox-app
 ```
 
 ## 4. Persistent Storage
@@ -152,6 +152,6 @@ Since Vox uses SQLite for the data layer and durability journal, ensure you moun
 
 **Related Reference**:
 - [Fullstack Artifacts](../reference/ref-syntax.md) — Rust-first containers vs Express `server.ts`.
-- [CLI Reference](../reference/cli.md) — All `vox package` and `vox deploy` options.
+- [CLI Reference](../reference/cli.md) — All `vox container` and `vox deploy` options.
 - [Runtime Explanation](../explanation/expl-actors-workflows.md) — Understanding the runtime environment.
 

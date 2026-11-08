@@ -11,7 +11,7 @@ keywords: ["Vox syntax reference", "Vox language keywords", "Vox grammar specifi
 
 # Reference: Language Syntax
 
-This page provides the canonical structural layout for Vox language syntax aligned with the workspace compiler version ([Versioning Policy (SSOT)](../../../AGENTS.md#versioning-policy-ssot); currently **0.5.x**). All code samples are grounded in the confirmed `examples/golden/` files where noted. For an interactive side-by-side view of how `.vox` declarations compile to SQL, Rust Axum, and React TSX, see the [Interactive Full-Stack Walkthrough](../tutorials/tut-fullstack-walkthrough.mdx).
+This page provides the canonical structural layout for Vox language syntax aligned with the workspace compiler version ([Versioning Policy (SSOT)](../../../AGENTS.md#versioning-policy-ssot); currently **0.5.x**). All code samples are grounded in the confirmed `examples/golden/` files where noted. For documentation comment conventions, see [Reference: documentation comments](ref-doc-comments.md), and for LLM prompting rules see the [Vox Language System Prompt](vox-system-prompt.md). For an interactive side-by-side view of how `.vox` declarations compile to SQL, Rust Axum, and React TSX, see the [Interactive Full-Stack Walkthrough](../tutorials/tut-fullstack-walkthrough.mdx).
 
 ## Primitive Types
 

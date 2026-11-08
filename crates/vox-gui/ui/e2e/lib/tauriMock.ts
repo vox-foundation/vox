@@ -1507,6 +1507,39 @@ export function installTauriMock(viewKey: string): void {
               ],
             },
           };
+        case 'mens_ladder_status':
+          return {
+            rungs: [
+              { size: '0.6B', hf_id: 'Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca', local_sha: '@c1899de', repo_master_sha: '@c1899de', sync_status: 'synced', floor_mb: 1800, floor_measured: true, cells: {} },
+              { size: '1.7B', hf_id: 'Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e', local_sha: '@70d244c', repo_master_sha: '@70d244c', sync_status: 'synced', floor_mb: 3600, floor_measured: false, cells: {} },
+              { size: '4B', hf_id: 'Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c', local_sha: '@e08a11b2', repo_master_sha: '@1cfa9a72', sync_status: 'stale', floor_mb: 7400, floor_measured: false, cells: {} },
+              { size: '8B', hf_id: 'Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218', local_sha: '@b968826d', repo_master_sha: '@b968826d', sync_status: 'synced', floor_mb: 12000, floor_measured: true, cells: {} },
+              { size: '14B', hf_id: 'Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18', local_sha: 'not pulled', repo_master_sha: '@40c06982', sync_status: 'missing', floor_mb: 20000, floor_measured: true, cells: {} },
+              { size: '32B', hf_id: 'Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137', local_sha: 'not pulled', repo_master_sha: '@9216db57', sync_status: 'missing', floor_mb: 60000, floor_measured: true, cells: {} },
+            ],
+            custom_spokes: [],
+            crucible_config: null,
+          };
+        case 'mens_save_custom_spoke':
+          return [args?.spoke];
+        case 'mens_save_crucible_config':
+          return args?.config ?? null;
+        case 'mens_live_telemetry':
+          return {
+            gpu_pct: 94.0,
+            vram_used_gb: 13.8,
+            vram_max_gb: 16.0,
+            cpu_pct: 42.0,
+            ram_used_gb: 22.4,
+            ram_max_gb: 64.0,
+            loss: 0.142,
+            step: 600,
+            gpu_series: [86.0, 91.0, 95.0, 92.0, 96.0, 94.0],
+            vram_series: [11.8, 12.6, 13.4, 13.7, 13.9, 13.8],
+            cpu_series: [34.0, 39.0, 44.0, 41.0, 43.0, 42.0],
+            ram_series: [20.8, 21.4, 21.9, 22.1, 22.3, 22.4],
+            loss_series: [1.68, 1.12, 0.74, 0.42, 0.24, 0.142],
+          };
         default: {
           const ev = shared.eventPluginResponse(cmd, args);
           if (ev !== undefined) return ev;

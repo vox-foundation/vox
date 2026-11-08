@@ -81,4 +81,7 @@ Documentation-derived JSONL rows may carry extra metadata fields beyond the core
 ## Related
 
 - `docs/src/reference/mens-training.md` — tooling overview.
+- [Review Anti-Pattern Catalog Contract](review-antipattern-catalog-contract.md) — schema for `review_antipattern_memory` rows.
+- [Review Fix Pairs Contract](review-fix-pairs-contract.md) — dataset contract for `review_fix_pairs` rows exported from VoxDB.
+- [Review Regression Challenges Contract](review-regression-challenges-contract.md) — schema for `review_regression_challenges` rows.
 - `docs/src/operations/voxdb-cutover-runbook.md` — DB + telemetry sidecar rollout.

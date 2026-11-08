@@ -22,4 +22,6 @@ schema_type: "TechArticle"
 
 ## See also
 
+- [Standard Library Reference](ref-stdlib.md) — standard library status and compiler builtins
+- [Standard Library Surfaces](std-surfaces.md) — script-mode `std.*` surfaces and shell ergonomics
 - [CLI](./cli.md) — `vox check`, `vox fmt`, script execution tiers ([`AGENTS.md`](../../../AGENTS.md))

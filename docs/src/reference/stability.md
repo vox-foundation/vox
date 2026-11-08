@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # Stability Matrix
 
-See also: [v1.0 release criteria](../architecture/v1-release-criteria.md) for what counts as done — this page grades where each surface stands *today*; that page defines the machine-verifiable gates for calling the whole platform v1.0.
+See also: [v1.0 release criteria](../architecture/v1-release-criteria.md) for what counts as done, and [What's Shipped (v0.4)](shipped-v0.4.md) for historical tier snapshots — this page grades where each surface stands *today*; that page defines the machine-verifiable gates for calling the whole platform v1.0.
 
 Vox is marching toward a production-hardened v1.0 release. Surfaces are graded by their architectural stability and proximity to the v1 criteria.
 

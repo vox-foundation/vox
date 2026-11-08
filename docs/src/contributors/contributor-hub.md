@@ -26,6 +26,8 @@ If you are evaluating Vox as a language or product, start with the [project READ
 - [CI runner contract](../ci/runner-contract.md) - canonical `vox ci` guidance, runner labels, and line-ending policy.
 - [Doc inventory verifier](../reference/doc-inventory.md) - machine-readable doc inventory workflow and drift expectations.
 - [Architectural governance (TOESTUB)](../../agents/governance.md) - repository governance, organization rules, and quality policy.
+- [Agent Quick Reference](../reference/agent-quick-reference.md) — condensed reference for essential agent tasks, constraints, and CI rules.
+- [Repository Root Files](../reference/repo-root-files.md) — canonical list of configuration files permitted at repository root.
 - [`docs/agents/`](../../agents/) — full agent-facing support docs (orchestrator behavior, handoff protocol, editor contracts, time awareness).
 
 ## I want to…

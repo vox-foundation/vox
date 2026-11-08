@@ -35,6 +35,7 @@ pub mod helpers;
 pub mod job_timings;
 pub mod mcp_vox_surface_parity;
 pub mod mens_scorecard;
+pub mod overlay_parity;
 pub mod retired_symbol_check;
 pub mod scaling_audit;
 pub mod scientia_novelty_ledger_contract;

@@ -49,6 +49,7 @@ By constraining the LLM's output to a strictly-typed, compiler-verified grammar:
 
 **Next Steps**:
 - [Language Reference](../reference/ref-syntax.md)
+- [AI Agent Orchestration](expl-ai-orchestration.md)
 - [How-To: Build AI Agents](../how-to/how-to-ai-agents.md)
 - [Installation](../reference/installation.md)
 

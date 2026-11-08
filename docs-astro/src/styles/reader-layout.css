@@ -70,6 +70,7 @@ header.header {
   padding: 0;
   margin: 0;
   border: 0;
+  z-index: 50;
 }
 
 .vox-edge-toggle {
@@ -85,7 +86,7 @@ header.header {
   color: var(--sl-color-gray-2);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
   cursor: pointer;
-  z-index: 35;
+  z-index: 50;
   pointer-events: auto;
   transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
@@ -179,12 +180,14 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   }
 }
 
-/* The outline chevron sits on the left edge of the docked outline. */
+/* The outline chevron sits on the left edge of the docked outline and floats on top. */
 #vox-toc-edge {
-  position: absolute;
+  position: fixed;
   top: 50%;
-  left: 0;
-  transform: translate(-50%, -50%);
+  left: auto;
+  right: calc(18.5rem - 0.875rem);
+  transform: translateY(-50%);
+  z-index: 50;
 }
 
 @media (max-width: 71.99rem) {
@@ -238,6 +241,8 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
     min-width: 18.5rem;
     flex: 0 0 18.5rem;
     margin-inline-start: auto;
+    position: relative;
+    z-index: 45;
   }
 
   .main-pane {
@@ -254,6 +259,7 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
     border: none !important;
     overflow: visible !important;
     pointer-events: none !important;
+    z-index: 45 !important;
   }
 
   html[data-toc-state="hidden"] .right-sidebar-panel {
@@ -267,6 +273,7 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
     right: 0.35rem;
     transform: translateY(-50%);
     pointer-events: auto !important;
+    z-index: 50 !important;
   }
 
   html[data-toc-state="hidden"] .main-frame {

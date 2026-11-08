@@ -148,7 +148,7 @@ Full list and severity rules: [crates/vox-codegen/src/web_ir/validate.rs](../../
 
 ## Troubleshooting
 
-- **No tools appear in the client.** Check that `vox mcp-server` runs successfully from a terminal in the same `cwd` you configured. The stdio server speaks JSON-RPC over stdin/stdout — no port; make sure no shell wrappers are trimming output.
+- **No tools appear in the client.** Check that `vox mcp` runs successfully from a terminal in the same `cwd` you configured. The stdio server speaks JSON-RPC over stdin/stdout — no port; make sure no shell wrappers are trimming output.
 - **Diagnostics arrive but `fixes` is always empty.** The fixes are populated by `vox_lsp::typeck_diagnostic_to_lsp` ([crates/vox-lsp/src/lib.rs](../../../crates/vox-lsp/src/lib.rs)) only for diagnostics that have `FixSuggestion`s attached at the typeck layer. Many a11y / route / web_ir diagnostics already have fixes; some HIR-invariant diagnostics do not. If your particular bug class has no autofix, that's a gap worth filing.
 - **The assistant keeps proposing source that fails the same diagnostic.** Two common causes: (a) the assistant isn't reading the `code` field — make sure your prompt asks it to "use the diagnostic code, not the message text"; (b) the assistant doesn't have the `fixes` array — check that your client surfaces the full tool response.
 

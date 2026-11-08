@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # Vox full-stack build artifacts — single source of truth
 
-This document names **every major output** of `vox build` / `vox run` / `vox bundle` and the **canonical runtime** for the default product path. It complements [vox-web-stack.md](vox-web-stack.md) and [ADR 010 — TanStack web spine](../adr/010-tanstack-web-spine.md).
+This document names **every major output** of `vox build` / `vox run` / `vox bundle` and the **canonical runtime** for the default product path. It complements [vox-web-stack.md](vox-web-stack.md) and [ADR 010 — TanStack web spine](../adr/010-tanstack-web-spine.md). For compiler intermediate representation formats and JSON exports, see the [Vox IR Specification](vox-ir-specification.md).
 
 ## Canonical path (default)
 

@@ -3,8 +3,9 @@
 // Run: vox run scripts/ssot-regen.vox
 // One list for both callers: PR CI's ssot-autoregen job and a developer whose push the
 // fast tier stopped on generated-file drift (hooks no longer regenerate files).
-// SOURCE OF TRUTH for the generators: run_ssot_drift() in
-// crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs. Keep in sync.
+// SOURCE OF TRUTH for the generators: checked against `ssot_drift_stages()` by the `ssot_regen_parity`
+// stage in crates/vox-cli/src/commands/ci/run_body_helpers/ssot_drift.rs; adding a stage `regen` argv
+// without a line here (or the reverse) fails `vox ci ssot-drift`.
 
 fn regen(args: list[str], label: str) to bool {
     let result_opt = process.run("vox", args)
@@ -34,6 +35,8 @@ fn main() {
     let i = regen(["--quiet", "ci", "gui-surface-coverage", "--write"], "ci gui-surface-coverage --write")
     let j = regen(["--quiet", "ci", "gui-surface-registry", "--write"], "ci gui-surface-registry --write")
     let cap_idx = regen(["--quiet", "ci", "capability-index", "--write"], "ci capability-index --write")
+    let crate_api = regen(["--quiet", "ci", "crate-api-sync", "--write"], "ci crate-api-sync --write")
+    let wiki = regen(["--quiet", "ci", "wiki-sync", "--write"], "ci wiki-sync --write")
     let k = regen(["--quiet", "ci", "affected-crates", "--regen", "--out", "contracts/ci/crate-graph.v1.json"], "ci affected-crates --regen")
     // After the crate graph: the build map's derived fields come from it (keeps committed compile_s).
     let l = regen(["--quiet", "ci", "crate-build-map-parity", "--write"], "ci crate-build-map-parity --write")
@@ -41,7 +44,7 @@ fn main() {
     // nightly's snapshot gate. (Not safety-inventory: that baseline is a review signal.)
     let m = regen(["--quiet", "ci", "test-inventory", "--output", "contracts/reports/test-inventory.v1.json"], "ci test-inventory --output")
     let n = regen(["--quiet", "ci", "config-gui-codegen", "--kb-facets"], "ci config-gui-codegen --kb-facets")
-    if not (a and b and c and d and e and f and g and h and i and j and cap_idx and k and l and m and n) {
+    if not (a and b and c and d and e and f and g and h and i and j and cap_idx and crate_api and wiki and k and l and m and n) {
         print("Some regenerators failed; `vox ci ssot-drift` will name what is still stale.")
         process.exit(1)
     }

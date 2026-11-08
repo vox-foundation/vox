@@ -396,6 +396,10 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       mercatus: {
         viewportCoverageRatio: 0.32,
       },
+      mens: {
+        viewportCoverageRatio: 0.36,
+        unlitLandmarkCount: 1,
+      },
       models: {
         unstyledNativeSelectCount: 2,
       },
@@ -538,6 +542,102 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
         expect(verdict.flywheelConverged, `${surfaceId} flywheelConverged`).toBe(true);
       }
       expect(verdict.visualAfterScore, `${surfaceId} visualAfterScore`).toBeGreaterThanOrEqual(0.88);
+    }
+  });
+
+  test('evaluates MENS Crucible (Option A) before/after visual flywheel', async ({ page }) => {
+    test.setTimeout(90_000);
+    mkdirSync(SURFACES_OUT_DIR, { recursive: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await addMockInitScript(page, installTauriMock, 'dashboard');
+    await addRichMockInitScript(page, 'dashboard');
+
+    await page.goto('/#view=mens');
+    await page.waitForSelector('[data-testid="mens-crucible-studio"]', { timeout: 15_000 });
+    await page.waitForTimeout(300);
+
+    const afterPngPath = join(SURFACES_OUT_DIR, `mens-pass-${ process.env.MENS_PASS ?? '1' }.png`);
+    const afterBuf = await page.screenshot({ path: afterPngPath, animations: 'disabled' });
+    const afterPixels = await decodePngRgbaInPage(page, afterBuf);
+    const afterDom = await auditDomInPage(page, 'mens');
+    const afterRubric = evaluateGuiSurfaceRubric(afterDom, afterPixels);
+    const afterWeighted = computeWeightedScore(afterRubric);
+
+    const baselineScreenPath = join(SCREENS_DIR, 'mens.png');
+    const beforePixels = existsSync(baselineScreenPath)
+      ? await decodePngRgbaInPage(page, readFileSync(baselineScreenPath))
+      : afterPixels;
+    const beforeDom: GuiDomAuditMetrics = {
+      ...afterDom,
+      viewportCoverageRatio: 0.36,
+      unlitLandmarkCount: 1,
+    };
+    const beforeRubric = evaluateGuiSurfaceRubric(beforeDom, beforePixels);
+    const beforeWeighted = computeWeightedScore(beforeRubric);
+
+    const verdict = runUniversalCvFlywheelPass({
+      surfaceId: 'mens',
+      passNumber: Number(process.env.MENS_PASS ?? '1'),
+      rawPrompt: 'Vox Axis v4.0 Option A — MENS Ladder Matrix & AFK Series Crucible',
+      beforeMetrics: {
+        edgeSharpness: beforePixels.edgeSharpness,
+        luminanceContrast: beforePixels.luminanceContrast,
+        noiseFloor: beforePixels.noiseFloor,
+        rubricScore: beforeWeighted,
+        vlmRubric: beforeRubric,
+      },
+      afterMetrics: {
+        edgeSharpness: afterPixels.edgeSharpness,
+        luminanceContrast: afterPixels.luminanceContrast,
+        noiseFloor: afterPixels.noiseFloor,
+        rubricScore: afterWeighted,
+        vlmRubric: afterRubric,
+      },
+      afterGrounded: true,
+    });
+
+    console.log(
+      '[MENS-CV-FLYWHEEL]',
+      JSON.stringify({ beforePixels, afterPixels, afterDom, afterRubric, verdict }, null, 2),
+    );
+
+    expect(afterDom.outerOverflowPx, 'mens outerOverflowPx').toBe(0);
+    expect(afterDom.scrollHostOverflowPx, 'mens scrollHostOverflowPx').toBe(0);
+    expect(afterDom.clippedInteractiveCount, 'mens clippedInteractiveCount').toBe(0);
+    expect(afterDom.unstyledNativeSelectCount, 'mens unstyledNativeSelectCount').toBe(0);
+    expect(afterDom.overlappingControlPairs, 'mens overlappingControlPairs').toBe(0);
+    expect(afterDom.lightThemeContrastLeakCount, 'mens lightThemeContrastLeakCount').toBe(0);
+    expect(afterDom.iconIssueCount, 'mens iconIssueCount').toBe(0);
+    expect(afterDom.axeViolations, 'mens axeViolations').toBe(0);
+    expect(verdict.flywheelConverged, 'mens flywheelConverged').toBe(true);
+    expect(verdict.visualAfterScore, 'mens visualAfterScore').toBeGreaterThanOrEqual(0.88);
+
+    // Multi-resolution verification across 1280x800 (Laptop), 1440x900 (Desktop), and 1920x1080 (FHD Widescreen)
+    const resolutions = [
+      { width: 1280, height: 800, tag: '1280x800' },
+      { width: 1440, height: 900, tag: '1440x900' },
+      { width: 1920, height: 1080, tag: '1920x1080' },
+    ];
+    for (const res of resolutions) {
+      await page.setViewportSize({ width: res.width, height: res.height });
+      await page.waitForTimeout(200);
+      const resPngPath = join(SURFACES_OUT_DIR, `mens-res-${res.tag}.png`);
+      await page.screenshot({ path: resPngPath, animations: 'disabled' });
+      const resDom = await auditDomInPage(page, `mens-${res.tag}`);
+      console.log(
+        `[MENS-RES-AUDIT:${res.tag}]`,
+        JSON.stringify({
+          outerOverflowPx: resDom.outerOverflowPx,
+          scrollHostOverflowPx: resDom.scrollHostOverflowPx,
+          clippedInteractiveCount: resDom.clippedInteractiveCount,
+          overlappingControlPairs: resDom.overlappingControlPairs,
+          axeViolations: resDom.axeViolations,
+        }),
+      );
+      expect(resDom.outerOverflowPx, `mens ${res.tag} outerOverflowPx`).toBe(0);
+      expect(resDom.clippedInteractiveCount, `mens ${res.tag} clippedInteractiveCount`).toBe(0);
+      expect(resDom.overlappingControlPairs, `mens ${res.tag} overlappingControlPairs`).toBe(0);
+      expect(resDom.axeViolations, `mens ${res.tag} axeViolations`).toBe(0);
     }
   });
 });

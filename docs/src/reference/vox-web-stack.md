@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 # Vox full-stack web UI — single source of truth
 
 > [!NOTE]
-> **Path C (implemented):** reactive UI uses `component Name(...) { state ... view: ... }`. The `@island` decorator was retired 2026-05-03 — see [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Suppress legacy-hook warnings in fixtures with **`VOX_SUPPRESS_LEGACY_HOOK_LINTS=1`** ([`env-vars.md`](env-vars.md)).
+> **Path C (implemented):** reactive UI uses `component Name(...) { state ... view: ... }`. The `@island` decorator was retired 2026-05-03 — see [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). For component declaration syntax and inner JSX rules, see the [Web Model Reference](ref-web-model.md). Suppress legacy-hook warnings in fixtures with **`VOX_SUPPRESS_LEGACY_HOOK_LINTS=1`** ([`env-vars.md`](env-vars.md)).
 
 ## Language boundary
 

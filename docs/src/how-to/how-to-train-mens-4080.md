@@ -9,7 +9,7 @@ schema_type: "HowTo"
 
 # How To: Train Mens on RTX 4080 Super
 
-**Canonical contracts, backends, and regression commands:** [Mens native training SSOT](../reference/mens-training.md). This page is a **step-by-step runbook** for RTX 4080 Super; do not duplicate SSOT tables here.
+**Canonical contracts, backends, and regression commands:** [Mens native training SSOT](../reference/mens-training.md). For Apple Silicon hardware, see the [macOS Metal Training Runbook](how-to-train-mens-macos-metal.md). This page is a **step-by-step runbook** for RTX 4080 Super; do not duplicate SSOT tables here.
 
 This runbook covers **two** native paths:
 

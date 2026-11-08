@@ -174,6 +174,7 @@ Plans:
 **Out of scope (rejected after verification — see SSOT):** reality-audit-driven banners (inventory has no status field; banners already ledger-driven, owned by `docs-freshness` Phase 32), `stability-matrix.v1.json` + Content Layer collections (invented contract; generated-`.md` pattern is canonical), `remark-vox-attributes` tokens / `::include{}` directives / `// !hide` / `examples/golden/anti/` titles (zero call sites), `starlight-markdown-blocks` custom asides.
 
 Plans:
+
 - [x] 342-01-PLAN.md — Fix both remark-doc-links failures at source (t3 page links; hub generator links only existing API pages, test-first) and freeze the pre-upgrade test baseline (wave 1)
 - [x] 342-02-PLAN.md — Package-legitimacy gate, then astro 7 / Starlight 0.42 upgrade (unified() processor, alias via import.meta.resolve, llms-txt 0.12 patch), dependabot unpin, agent-safe Playwright (wave 2)
 - [x] 342-03-PLAN.md — starlight-github-alerts renders every alert as an aside; un-nest the two list-nested alerts for GitHub parity (wave 3)
@@ -190,37 +191,61 @@ Plans:
 - **DOCS-DRIFT-01 (prevent, regen-list parity):** derive `scripts/ssot-regen.vox`'s regenerator list from `run_ssot_drift`'s stage table (or add a parity check that fails on mismatch). Removes the "keep in sync" hand list.
 - **DOCS-DRIFT-02 (detect, overlay parity):** a `vox ci` check that extracts normative claims (forbidden/required frontmatter keys, retired symbols, banned commands) from `AGENTS.md` and fails when `.cursor/rules/*.mdc`, `GEMINI.md`, `CLAUDE.md` or `.github/copilot-instructions.md` contradict them. First fix: the `last_updated` contradiction in `documentation-policy.mdc`.
 - **DOCS-DRIFT-03 (detect, prose vs code):** scan docs and agent files for `vox <cmd> [--flag]` mentions and "planned per …" claims. Fail when a mentioned command or flag is absent from `contracts/cli/command-registry.yaml`, or when a "planned" surface already exists there. First fixes: AGENTS.md `vox audit retirement` / `vox audit effort`.
-- **DOCS-DRIFT-04 (detect, dead guards and orphans):** make guards that silently no-op when their input file is missing fail loudly (`check_docs_ssot` orphan inventory). Add an orphan-page report: a `docs/src` page no other page or nav entry links to, with a shrink-only baseline.
+- **DOCS-DRIFT-04 (detect, dead guards and orphans):** make guards that silently no-op when their input file is missing fail loudly (`check_docs_ssot` orphan inventory). Add an orphan-page report: a `docs/src` page no other page or nav entry links to, with zero reader-facing orphans (no baseline).
 - **DOCS-DRIFT-05 (auto-correct, scheduled loops):** a scheduled job runs `vox audit docs --update-ledger` and the external link checker. It opens one draft PR with ledger refreshes and proposed `.lycheeignore` / link fixes, instead of a nightly-failure issue (#578). Decide whether to revive or retire the dormant docs-reality-audit program and the self-heal bot's draft-PR stage.
 - **DOCS-DRIFT-06 (meta-gate):** a test asserts that every gate listed in docs-system-ssot §4 is wired where the table says (pre-push tier / `docs-quality.yml` / nightly). It also asserts §6 lists only gaps with no matching gate. The map can then never silently disagree with the machinery.
 
 Plans:
 **Wave 1**
+
 - [ ] 343-01-PLAN.md — ssot-drift stage table + `ssot_regen_parity` (ssot-regen.vox and lefthook retry list checked against it); decision on the lefthook retry list (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 343-02-PLAN.md — overlay parity: AGENTS.md claims YAML checked against CLAUDE/GEMINI/copilot/.cursor overlays; `last_updated` and other contradictions fixed; decision on the build-environment cargo path (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 343-03-PLAN.md — CLI-claims stage (clap tree + registry): agent files gated, reader-facing pages measured; decision fix-vs-baseline for reader-facing defects (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 343-04-PLAN.md — fix every reader-facing CLI-claim defect and enforce the reader-facing scope (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 343-05-PLAN.md — dead guards removed or made fatal (`check_docs_ssot`, `check-links`, retired-symbol overlays); decision on expired link-allowlist entries (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 343-06-PLAN.md — corrected inbound-link graph + `docs_orphan_pages` stage; decision on orphan linking vs shrink-only baseline (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 343-07-PLAN.md — idempotent ledger refresh + `Docs Drift Refresh` draft-PR workflow; decisions on `.lycheeignore` scope and reality-audit/self-heal (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 343-08-PLAN.md — lychee triage script into the bot PR, reality-audit/self-heal decision applied, docs describe what runs (wave 8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 343-09-PLAN.md — `docs_system_parity` meta-gate: §4 wiring proven against the machinery, §6 lists only open gaps (wave 9)
+
+### Phase 345: Kiln Synthetic Topic Trees & Vox Axis MENS Studio (`MENS-STUDIO-01..04`)
+
+**Directory:** `.planning/phases/345-kiln-inspired-synthetic-topic-trees-vox-axis-mens-all-hubs-a/`
+**Goal:** Port Kiln AI's high-leverage synthetic dataset mechanisms natively into Rust (`SpokeTopicTreeV1` recursive topic-tree expansion, Teacher→Student CoT distillation, and automatic Oracle-Fail→Teacher-Repair→DPO pair synthesis in `vox-corpus` without Python `kiln_ai` dependencies) and upgrade Vox Axis's `MensTrainingView` into the Option A "Ladder × Spokes Crucible Matrix" MENS Training Studio with real Rust Tauri backend commands (`mens_ladder_status`, `mens_save_custom_spoke`, `mens_save_crucible_config`, `mens_live_telemetry`, `explain_routing`), Clavis `HF_TOKEN` auto-sync (`1 auto 2 confirm`), live Orchestrator→Spoke routing visualization in Chat and MENS, and multi-resolution CV Before/After Flywheel verification (`1280×800`, `1440×900`, `1920×1080`).
+**Requirements**: MENS-STUDIO-01, MENS-STUDIO-02, MENS-STUDIO-03, MENS-STUDIO-04
+**Depends on:** Independent of Phases 342–344
+**SSOT:** `docs/src/architecture/kiln-synthetic-data-and-mens-axis-gui-research-2026.md`
+**UI-SPEC:** `.planning/phases/345-kiln-inspired-synthetic-topic-trees-vox-axis-mens-all-hubs-a/345-UI-SPEC.md`
+**Plans:** 2 plans
+
+Plans:
+
+- [x] `345-01`: Option A MENS Crucible Studio UI, Clavis `HF_TOKEN` Settings deep-link, Chat Orchestrator→Spoke badge, and 8-pass multi-resolution Playwright CV Flywheel (`visualAfterScore: 0.9352`, `axeViolations: 0`, `overlappingControlPairs: 0`) (completed 2026-11-08)
+- [x] `345-02`: Full-stack Rust Tauri backend plumbing (`mens_ladder_status` reading `mens/config/gpu-specs.yaml` & `mens/runs/size_train/*.json`, `mens_save_custom_spoke`, `mens_save_crucible_config`, `mens_live_telemetry` JSONL time-series spline hydration, `explain_routing` daemon integration, and CLI flag parity for `train`/`eval-local`/`eval-gate`/`serve`/`hub`) (completed 2026-11-08)
 
 ---
 

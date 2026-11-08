@@ -374,8 +374,8 @@ pub const SPECS_LLM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Set HF_TOKEN if Hugging Face routes are needed.",
-        scope_description: "Hugging Face Hub token for private model access.",
+        remediation: "Set HF_TOKEN in Clavis (Settings -> Keys & Secrets) to upload MENS adapters, auto-sync gated trains, or access private Hugging Face Hub models.",
+        scope_description: "Hugging Face Hub token for MENS model/adapter upload, remote master sync, and private model access.",
     },
     SecretSpec {
         id: SecretId::OllamaUrl,

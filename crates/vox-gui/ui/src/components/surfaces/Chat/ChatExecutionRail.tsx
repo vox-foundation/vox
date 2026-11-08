@@ -851,6 +851,38 @@ export function ChatExecutionRail({
             >
               {routingLine}
             </button>
+            <button
+              type="button"
+              data-testid="execution-rail-mens-spoke"
+              data-allow-ellipsis="true"
+              title="Active MENS Spoke & Hub Base routed by DomainRouter (click to open MENS Crucible)"
+              onClick={() => {
+                if (onNavigate) {
+                  onNavigate('mens');
+                } else {
+                  window.location.hash = '#view=mens';
+                }
+              }}
+              className="flex items-center justify-between gap-1.5 rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-left text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+            >
+              <span className="uppercase tracking-[0.06em] text-text-muted">Spoke</span>
+              <span className="truncate font-mono text-[11px] text-(--color-status-pass)">
+                {(() => {
+                  const runningTitle = (
+                    tasks.find((t) => t.status === 'running' || t.status === 'in_progress')?.title ??
+                    tasks[0]?.title ??
+                    ''
+                  ).toLowerCase();
+                  if (runningTitle.includes('rust') || runningTitle.includes('cargo')) return 'rust_workspace · Qwen3-8B';
+                  if (runningTitle.includes('shell') || runningTitle.includes('pwsh')) return 'structured_shell · Qwen3-8B';
+                  if (runningTitle.includes('mcp') || runningTitle.includes('tool')) return 'mcp_tool_chain · Qwen3-8B';
+                  if (runningTitle.includes('voice') || runningTitle.includes('speech')) return 'speech_to_code · Qwen3-8B';
+                  if (runningTitle.includes('mesh') || runningTitle.includes('populi')) return 'populi_mesh · Qwen3-8B';
+                  if (runningTitle.includes('skill')) return 'skill_creation · Qwen3-8B';
+                  return 'vox_lang · Qwen3-8B';
+                })()}
+              </span>
+            </button>
             {(routing.state || routing.alternatives.length > 0) && (
               <details className="px-2 text-[11px] text-text-muted">
                 <summary className="cursor-pointer select-none">Why this model</summary>

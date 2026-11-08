@@ -24,7 +24,7 @@ vox mens train --device cuda
 - **`vox_tensor::data::VoxTokenizer`:** a deterministic **lab / legacy-Burn** harness: printable ASCII byte ids plus a minimal compound tier for ChatML delimiters and markdown code fences. It does **not** track the Vox lexer keyword set and must not be treated as a language mirror.
 - **Dogfood tiny transformers** (`VOCAB_SIZE` in manifests): use this lab vocab size only for in-repo scratch models — not for Qwen-class fine-tunes.
 
-Generated defaults snapshot: [Mens train defaults (generated)](mens-train-defaults.generated.md).
+Generated defaults snapshot: [Mens train defaults (generated)](mens-train-defaults.generated.md). For corpus filtering, pair ratings, and AST diversity analysis, see the [MENS Quality Scoring System](mens-quality-scoring.md).
 
 > **Code SSOT:** `vox mens train` dispatches through `vox_populi::mens::tensor::run_mens_training` ([`lora_train.rs`](../../../crates/vox-populi/src/mens/tensor/lora_train.rs)). **`PopuliTrainBackend::BurnLora` is rejected at runtime** with an explicit error; the **supported** native trainer is **`CandleQlora`** (`--backend qlora`, `--tokenizer hf` for HF-shaped models). **`vox mens serve` (local, `cloud=local`)** delegates to **`vox-schola serve`** for QLoRA run directories — not the Burn `execution-api` binary. Treat **Burn `merge-weights` + `execution-api` serve** as a separate, legacy in-tree lane. See [Mens local serving SSOT (Schola + orchestrator)](mens-serving-ssot.md).
 
