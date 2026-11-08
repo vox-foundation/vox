@@ -69,11 +69,11 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
         onClick={() => setIsOpen((o) => !o)}
         aria-expanded={isOpen}
         aria-label="Research & Engine Status"
-        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[10.5px] text-[#2B2013] hover:bg-[#DFD2BC] hover:text-[#1C140C] transition"
       >
-        <span className="uppercase tracking-[0.08em] text-text-muted max-[639px]:sr-only">Research</span>
-        <span className="font-mono tabular-nums text-text-secondary">
-          {activeLane === 'deep' ? '🔬 Deep' : activeLane === 'fast' ? '⚡ Fast' : 'unknown'}
+        <span className="font-display font-bold uppercase tracking-[0.08em] text-[#6B4C12] text-[9.5px] max-[639px]:sr-only">Research</span>
+        <span className="font-mono tabular-nums font-medium text-[#1C140C]">
+          {activeLane === 'deep' ? 'Deep' : activeLane === 'fast' ? 'Fast' : 'unknown'}
           {tavilyQuota && tavilyRemaining !== null ? (
             <span className="max-[639px]:hidden">{` · ${tavilyRemaining}/${tavilyQuota.units_limit}`}</span>
           ) : null}

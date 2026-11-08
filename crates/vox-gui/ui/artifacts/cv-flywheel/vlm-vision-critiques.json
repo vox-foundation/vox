@@ -1,0 +1,87 @@
+{
+  "urbs-civilization": {
+    "beforeCaption": "VLM Vision Critique (Before): The Urbs Civilization simulator canvas is 90% obliterated by a double opaque dark-slate fill (#090d16 and #0a0f18 at 82% alpha) that hides the classical Roman diorama artwork. District plates look like flat dark-blue digital polygons with neon cyan (#38bdf8) viaduct strokes.",
+    "afterCaption": "VLM Vision Critique (After): Full high-resolution Roman Empire diorama city-builder! The carved aqueducts, Colosseum, Pantheon, warm sunlit travertine terraces, and marble columns of urbs-diorama-bg.jpg shine through clearly with golden-hour sunlight vignettes, translucent travertine district plinths, and burnished Roman gold (#D4AF37) hydraulic conduits.",
+    "directives": [
+      "Pass: High-resolution Roman diorama background composited directly onto the simulator canvas (+283.8% texture contrast delta).",
+      "Pass: Neon cyan (#38bdf8) viaducts replaced with burnished Roman gold (#D4AF37) and warm travertine district plinths."
+    ]
+  },
+  "models": {
+    "beforeCaption": "VLM Vision Critique (Before): Cold digital dark-slate tables (#0b0e14), generic rounded pill buttons, raw cyan/indigo badges, and zero classical Romanesque architectural framing or semicircular brass dial gauges.",
+    "afterCaption": "VLM Vision Critique (After): Authentic Plate 2 Romanesque Compute Registry featuring a carved marble bas-relief frieze header ('COMPUTE · CURSUS HONORUM'), crimson wax-seal badge ('CURSUS HONORUM'), semicircular brass dial gauges for Model Count, Free Tier, and Context Window, and warm travertine leaderboard cards.",
+    "directives": [
+      "Pass: Converged with v61_concept_compute_and_market_1794141010387.jpg (VLM overall score 0.9222)."
+    ]
+  },
+  "populi": {
+    "beforeCaption": "VLM Vision Critique (Before): Flat dark-slate command cards with raw backticks in headings (`vox populi`) and zero Romanesque header banner or brass gauges.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 Romanesque 'COMPUTE · MESH & POPULI NODES' surface with carved marble bas-relief frieze banner, 'FEDERATED LEGION' crimson wax seal, semicircular brass gauges for Operations, Interactive Forms, and Read-Only probes, and warm travertine tablets with stripped backticks.",
+    "directives": [
+      "Pass: Zero raw markdown backticks and full Plate 2 travertine & brass framing."
+    ]
+  },
+  "mercatus": {
+    "beforeCaption": "VLM Vision Critique (Before): Generic dark digital exchange view with flat gray cards, unframed top title, and cold cyan/slate borders.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 'MARKET · MERCATUS EXCHANGE' ledger with carved marble bas-relief frieze header, 'AES RUDE · MERCATUS' crimson wax seal, semicircular brass gauges (Liquidity, Active Bids, Settlement), and warm travertine order tablets.",
+    "directives": [
+      "Pass: Converged with v61_concept_compute_and_market_1794141010387.jpg right-half Mercatus Exchange plate."
+    ]
+  },
+  "repository": {
+    "beforeCaption": "VLM Vision Critique (Before): Cold slate 3-column git panel without a Romanesque frieze banner or semicircular brass gauges.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 'WORKSPACE · REPOSITORY & VCS' surface crowned by a carved marble bas-relief frieze header, 'PORTA GIT · TABULARIUM' crimson wax seal, semicircular brass gauges for Modified, Staged, and Untracked files, and warm travertine diff/commit tablets.",
+    "directives": [
+      "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg left-half Repository plate."
+    ]
+  },
+  "console": {
+    "beforeCaption": "VLM Vision Critique (Before): Raw dark terminal box with cold slate chrome and no classical Romanesque header framing.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 'WORKSPACE · ROSTRA TERMINAL & LOGS' surface featuring a carved marble bas-relief frieze header, 'ACTA DIURNA' crimson wax seal, semicircular brass gauges (Buffer Lines, Errors, Status), and an obsidian-and-brass terminal frame with crisp JetBrains Mono output.",
+    "directives": [
+      "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg bottom-left Console plate."
+    ]
+  },
+  "catalog": {
+    "beforeCaption": "VLM Vision Critique (Before): Unhydrated grey loading skeleton bars (`animate-pulse`) and cold digital slate command cards without a classical header.",
+    "afterCaption": "VLM Vision Critique (After): Fully hydrated Plate 2 'COMMANDS · CLI REGISTRY & EDICTS' catalog with carved marble bas-relief frieze header, 'EDICTUM · CLI' crimson wax seal, semicircular brass gauges (Commands, Categories, Async), and warm travertine command tablets.",
+    "directives": [
+      "Pass: Zero loading skeletons and full convergence with v61_concept_workspace_and_commands_1794141011579.jpg right-half Commands plate."
+    ]
+  },
+  "skills": {
+    "beforeCaption": "VLM Vision Critique (Before): Flat dark-slate skill cards with cold blue accents and no Romanesque frieze banner.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 'COMMANDS · COLLEGIA ARTIFEX & SKILLS' registry with carved marble bas-relief frieze header, 'ARS MECHANICA' crimson wax seal, semicircular brass gauges (Installed, Active, Plugins), and bronze medallion skill cards.",
+    "directives": [
+      "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg bottom-right Skills & Plugins plate."
+    ]
+  },
+  "memory": {
+    "beforeCaption": "VLM Vision Critique (Before): Cold slate 3-pane RAG viewer with sky-blue search highlights and no classical Romanesque header or gauges.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 'KNOWLEDGE · TABULARIUM CODEX & RAG' archive with carved marble bas-relief frieze header, 'MEMORIA · RAG' crimson wax seal, semicircular brass gauges (Documents, Chunks, Hits), and warm parchment-tinted codex viewer.",
+    "directives": [
+      "Pass: Converged with v61_concept_knowledge_explorer_urbs_refined_1794141055158.jpg top-left Knowledge Memory plate."
+    ]
+  },
+  "scientia": {
+    "beforeCaption": "VLM Vision Critique (Before): Cold digital research cards; in Pass 2 VLM inspection also caught a duplicate stacked <RomanSurfaceHeader> between ScientiaSurface and ScientiaDashboard.",
+    "afterCaption": "VLM Vision Critique (After): Single unified Plate 2 'KNOWLEDGE · SCIENTIA' carved marble bas-relief frieze header with 'EPISTEMIC LEDGER' crimson wax seal, semicircular brass gauges (Candidates, Verifiable, Stalls), and warm travertine epistemic discovery tablets.",
+    "directives": [
+      "Pass: Duplicate <RomanSurfaceHeader> eliminated in Pass 3; single frieze banner with live brass gauges."
+    ]
+  },
+  "explorer": {
+    "beforeCaption": "VLM Vision Critique (Before): Cold dark-slate treegrid with sky-blue (#38bdf8) 'generic_form' capability badges leaking through --color-status-info.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 'EXPLORER · CAPABILITY REGISTRY & MCP' surface with carved marble bas-relief frieze header, 'INDEX · CAPABILITIES' crimson wax seal, semicircular brass gauges (Total, Wired, Coverage), and burnished brass capability badges.",
+    "directives": [
+      "Pass: Overrode --color-status-info to burnished Roman gold (#d4af37) and styled treegrid header with warm travertine & brass."
+    ]
+  },
+  "settings": {
+    "beforeCaption": "VLM Vision Critique (Before): Generic dark digital settings form with cold slate inputs and no classical header banner.",
+    "afterCaption": "VLM Vision Critique (After): Plate 2 'SETTINGS · LEX & CLAVIS VAULT' surface with carved marble bas-relief frieze header, 'LEX & CLAVIS' crimson wax seal, semicircular brass gauges (Keys Configured, Profiles, Posture), and travertine configuration tablets.",
+    "directives": [
+      "Pass: Full Plate 2 Romanesque styling across Clavis secret vault and governance settings."
+    ]
+  }
+}

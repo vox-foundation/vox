@@ -14,6 +14,8 @@ import {
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 import { BrowserToolbar, type ControlMode } from './BrowserToolbar';
 import { mapClickToViewport } from './clickMap';
 import type { LaunchMode } from './launchMode';
@@ -745,12 +747,44 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const candidatePlaywrightUrl =
     activePreviewUrl ?? (isLoopbackPreviewUrl(previewUrl.trim()) ? previewUrl.trim() : null);
 
+  const browserGauges = [
+    {
+      label: 'Pages',
+      valueText: `${pages.length} Open`,
+      ratio: Math.min(1, pages.length / 5),
+      tone: 'gold' as const,
+      purpose: 'Active Chrome CDP browser tabs and pages',
+    },
+    {
+      label: 'Snapshot',
+      valueText: `${Object.keys(snapshotRefs).length} Refs`,
+      ratio: Math.min(1, Object.keys(snapshotRefs).length / 20),
+      tone: 'gold' as const,
+      purpose: 'Captured [eN] accessibility element reference nodes',
+    },
+    {
+      label: 'Control',
+      valueText: controlMode.toUpperCase(),
+      ratio: controlMode === 'you' ? 0.35 : 0.85,
+      tone: controlMode === 'you' ? ('gold' as const) : ('emerald' as const),
+      purpose: 'Browser interaction mode (Human vs Autonomous Agent)',
+    },
+  ];
+
   return (
-    <section className="space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <section className="space-y-4 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4">
+      <RomanSurfaceHeader
+        domainTag="WORKSPACE · BROWSER"
+        title="CDP Browser & Preview Deck"
+        subtitle="Preview Vox web apps and mirror agent-driven CDP browser sessions."
+        waxSealBadge="CDP ACTIVE"
+        icon={<Icon.globe className="size-5 text-[#F3E5AB]" />}
+        gauges={browserGauges}
+      />
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4AF37]/20 pb-2">
         <div>
-          <h2 className="font-display text-lg tracking-[0.14em] uppercase text-text-primary">{useLabel('browser')}</h2>
-          <p className="text-[12px] text-text-muted mt-1">
+          <h2 className="font-display text-sm tracking-[0.14em] uppercase text-text-primary">{useLabel('browser')}</h2>
+          <p className="text-[11px] text-text-muted mt-0.5">
             Preview Vox web apps and mirror agent-driven CDP browser sessions.
           </p>
         </div>
@@ -866,7 +900,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   <p className="text-xs text-text-muted mt-1">
                     {activePreviewUrl
                       ? 'Preview frame blocked by page framing policy (X-Frame-Options/CSP). Switch to Agent Live View for CDP streaming.'
-                      : 'No loopback iframe preview is active. Start a Vox web app preview above, run Playwright E2E validation, or launch the Songhand AI Agent Browser (`vox_browser_act` / `extract` / `[eN]` accessibility refs).'}
+                      : 'No loopback iframe preview is active. Start a Vox web app preview above, run Playwright E2E validation, or launch the Songhand AI Agent Browser (vox_browser_act / extract / [eN] accessibility refs).'}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -925,10 +959,10 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
                 <div className="rounded-lg border border-border-subtle bg-black/25 p-3.5 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-cyan">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-[#D4AF37]">
                       Chat &amp; Dock Integration
                     </span>
-                    <span className="rounded bg-cyan/15 px-1.5 py-0.5 font-mono text-[10px] text-cyan">
+                    <span className="rounded bg-[#D4AF37]/15 px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">
                       Loquela Linked
                     </span>
                   </div>

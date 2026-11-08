@@ -215,20 +215,20 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
               stroke="#292018"
               strokeWidth="1.6"
             />
-            <rect x="14" y="16" width="28" height="22" rx="4" fill="#2c241d" stroke="#85683a" strokeWidth="1.2" />
-            <text x="28" y="31" textAnchor="middle" fill="#f5ebd6" fontSize="10" fontWeight="bold" fontFamily="monospace">
+            <rect x="14" y="16" width="28" height="22" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
+            <text x="28" y="31" textAnchor="middle" fill="#1C140C" fontSize="10" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
               {fanIn}
             </text>
-            <rect x="98" y="3" width="38" height="20" rx="4" fill="#2c241d" stroke="#b48a3e" strokeWidth="1.2" />
-            <text x="117" y="16.5" textAnchor="middle" fill="#fde68a" fontSize="9.5" fontWeight="bold" fontFamily="monospace">
+            <rect x="98" y="3" width="38" height="20" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
+            <text x="117" y="16.5" textAnchor="middle" fill="#92400E" fontSize="9.5" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
               {blast.impactedDependents.length}
             </text>
-            <rect x="98" y="31" width="38" height="20" rx="4" fill="#2c241d" stroke="#b48a3e" strokeWidth="1.2" />
-            <text x="117" y="44.5" textAnchor="middle" fill="#67e8f9" fontSize="9.5" fontWeight="bold" fontFamily="monospace">
+            <rect x="98" y="31" width="38" height="20" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
+            <text x="117" y="44.5" textAnchor="middle" fill="#5C4428" fontSize="9.5" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
               {d.buildings.length}
             </text>
-            <rect x="194" y="16" width="32" height="22" rx="4" fill="#2c241d" stroke="#85683a" strokeWidth="1.2" />
-            <text x="210" y="31" textAnchor="middle" fill="#86efac" fontSize="10" fontWeight="bold" fontFamily="monospace">
+            <rect x="194" y="16" width="32" height="22" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
+            <text x="210" y="31" textAnchor="middle" fill="#3F4D1E" fontSize="10" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
               {fanOut}
             </text>
           </svg>

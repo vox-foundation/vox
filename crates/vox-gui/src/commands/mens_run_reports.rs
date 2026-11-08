@@ -765,8 +765,22 @@ pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
         };
 
         let mut cells = default_cells_for_size(size, &custom_spokes);
-        let size_dir = runs_root.join(size);
+        let qwen_dir = runs_root.join(format!("qwen3-{}", size.to_ascii_lowercase()));
+        let size_dir = if qwen_dir.is_dir() {
+            qwen_dir
+        } else {
+            runs_root.join(size)
+        };
         if size_dir.is_dir() {
+            let direct_receipt = size_dir.join("gate_receipt.json");
+            if let Some(val) = read_json(&direct_receipt) {
+                let receipt = parse_gate_receipt(&val);
+                if receipt.overall_passed && receipt.substantive_gate_count > 0 {
+                    cells.insert("vox-lang".to_string(), "TRAINED · GATED".to_string());
+                } else if !receipt.overall_passed {
+                    cells.insert("vox-lang".to_string(), "GATE FAILED".to_string());
+                }
+            }
             for spoke_key in cells.keys().cloned().collect::<Vec<_>>() {
                 let receipt_path = size_dir.join(&spoke_key).join("gate_receipt.json");
                 if let Some(val) = read_json(&receipt_path) {
@@ -951,6 +965,54 @@ pub async fn mens_save_crucible_config(
 pub async fn mens_live_telemetry(run_dir: Option<String>) -> Result<MensLiveTelemetryDto, String> {
     let root = resolve_runs_root(run_dir.as_deref());
     Ok(read_live_telemetry(&root))
+}
+
+#[tauri::command]
+pub async fn mens_corpus_studio_snapshot(
+    config_path: Option<String>,
+) -> Result<vox_orchestrator_mcp::gui_ops::mens_corpus::MensCorpusStudioSnapshotDto, String> {
+    let ws = workspace_root_dir().unwrap_or_else(|| PathBuf::from("."));
+    vox_orchestrator_mcp::gui_ops::mens_corpus::corpus_studio_snapshot(&ws, config_path.as_deref())
+}
+
+#[tauri::command]
+pub async fn mens_corpus_read_jsonl(
+    path: String,
+    offset: Option<usize>,
+    limit: Option<usize>,
+    search: Option<String>,
+    family_filter: Option<String>,
+) -> Result<vox_orchestrator_mcp::gui_ops::mens_corpus::MensJsonlPageDto, String> {
+    let ws = workspace_root_dir().unwrap_or_else(|| PathBuf::from("."));
+    vox_orchestrator_mcp::gui_ops::mens_corpus::read_jsonl_records(
+        &ws,
+        &path,
+        offset.unwrap_or(0),
+        limit.unwrap_or(25),
+        search.as_deref(),
+        family_filter.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub async fn mens_corpus_save_jsonl_row(
+    request: vox_orchestrator_mcp::gui_ops::mens_corpus::MensSaveJsonlRowRequestDto,
+) -> Result<vox_orchestrator_mcp::gui_ops::mens_corpus::MensSaveJsonlRowResponseDto, String> {
+    let ws = workspace_root_dir().unwrap_or_else(|| PathBuf::from("."));
+    vox_orchestrator_mcp::gui_ops::mens_corpus::save_jsonl_row(&ws, request)
+}
+
+#[tauri::command]
+pub async fn mens_corpus_rebuild_mix(
+    config_path: Option<String>,
+    force_resynth: Option<bool>,
+) -> Result<vox_orchestrator_mcp::gui_ops::mens_corpus::MensCorpusStudioSnapshotDto, String> {
+    let ws = workspace_root_dir().unwrap_or_else(|| PathBuf::from("."));
+    vox_orchestrator_mcp::gui_ops::mens_corpus::rebuild_mix(
+        &ws,
+        config_path.as_deref(),
+        force_resynth.unwrap_or(true),
+    )
 }
 
 #[cfg(test)]
@@ -1146,5 +1208,90 @@ mod tests {
         assert!((telemetry.gpu_pct - 96.0).abs() < 1e-6);
         assert_eq!(telemetry.loss_series, vec![0.95, 0.312]);
         assert_eq!(telemetry.gpu_series, vec![88.0, 96.0]);
+    }
+
+    #[test]
+    fn corpus_studio_snapshot_reads_mix_config_and_auto_materializes_reasoning_traces() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg_dir = dir.path().join("mens").join("config");
+        let src_dir = dir.path().join("mens").join("data").join("mix_sources");
+        std::fs::create_dir_all(&cfg_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).unwrap();
+
+        std::fs::write(
+            src_dir.join("golden_examples.jsonl"),
+            r#"{"prompt":"Write a Vox add function.","response":"<think>\nUse fn add(a: int, b: int) toint\n</think>\n```vox\nfn add(a: int, b: int) to int { ret a + b }\n```","category":"vox_codegen"}"#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            cfg_dir.join("mix.yaml"),
+            r#"sources:
+  - path: mens/data/mix_sources/golden_examples.jsonl
+    weight: 2.0
+    optional: false
+  - path: mens/data/mix_sources/vox_reasoning_traces.jsonl
+    weight: 4.0
+    optional: true
+output: target/dogfood/train_mixed.jsonl
+"#,
+        )
+        .unwrap();
+
+        let snap = vox_orchestrator_mcp::gui_ops::mens_corpus::corpus_studio_snapshot(
+            dir.path(),
+            Some("mens/config/mix.yaml"),
+        )
+        .expect("snapshot succeeds");
+
+        assert_eq!(snap.active_config_path, "mens/config/mix.yaml");
+        assert_eq!(snap.sources.len(), 2);
+        // vox_reasoning_traces.jsonl should have been auto-materialized with 120 rows!
+        let reasoning_src = snap
+            .sources
+            .iter()
+            .find(|s| s.path.ends_with("vox_reasoning_traces.jsonl"))
+            .expect("reasoning source exists");
+        assert!(reasoning_src.exists);
+        assert_eq!(reasoning_src.record_count, 120);
+        assert!(reasoning_src.auto_synthesizable);
+
+        // Read JSONL records with AST validation
+        let page = vox_orchestrator_mcp::gui_ops::mens_corpus::read_jsonl_records(
+            dir.path(),
+            "mens/data/mix_sources/golden_examples.jsonl",
+            0,
+            10,
+            None,
+            None,
+        )
+        .expect("read jsonl");
+        assert_eq!(page.total_matching, 1);
+        assert!(page.records[0].has_think);
+        assert!(page.records[0].ast_valid);
+
+        // Edit row and trigger auto-sync mix rebuild
+        let save_res = vox_orchestrator_mcp::gui_ops::mens_corpus::save_jsonl_row(
+            dir.path(),
+            vox_orchestrator_mcp::gui_ops::mens_corpus::MensSaveJsonlRowRequestDto {
+                config_path: Some("mens/config/mix.yaml".to_string()),
+                source_path: "mens/data/mix_sources/golden_examples.jsonl".to_string(),
+                line_number: Some(1),
+                prompt: "Write a Vox multiply function.".to_string(),
+                think_block: Some("Multiply two int parameters a and b.".to_string()),
+                answer_block: "```vox\nfn mul(a: int, b: int) to int {\n    ret a * b\n}\n```"
+                    .to_string(),
+                category: Some("vox_codegen".to_string()),
+                task_family: Some("vox_codegen".to_string()),
+                weight_override: Some(3.0),
+                auto_sync: true,
+            },
+        )
+        .expect("save row and auto-sync");
+
+        assert!(save_res.ast_valid);
+        assert!(save_res.mix_rebuilt);
+        assert!(save_res.snapshot.output_records > 100);
+        assert!(save_res.snapshot.mix_fresh);
     }
 }

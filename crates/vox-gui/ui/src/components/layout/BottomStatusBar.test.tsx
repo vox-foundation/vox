@@ -391,7 +391,7 @@ describe('BottomStatusBar cards (chat-surfaces plan 3a)', () => {
     const cardLabels = Array.from(document.querySelectorAll('[data-card-label]')).map((el) => el.textContent);
     fireEvent.click(screen.getByRole('button', { name: /configure status bar/i }));
     const menuLabels = screen.getAllByRole('checkbox').map((cb) => cb.closest('label')?.textContent?.trim());
-    expect(cardLabels).toEqual(['Engine', 'Spend', 'Mesh', 'Routing', 'Needs you']);
+    expect(cardLabels).toEqual(['Repo', 'Engine', 'Spend', 'Mesh', 'Routing', 'Needs you']);
     expect(menuLabels).toEqual(cardLabels);
   });
 

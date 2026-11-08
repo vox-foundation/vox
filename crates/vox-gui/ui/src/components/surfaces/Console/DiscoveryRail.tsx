@@ -140,12 +140,20 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
     <aside
       aria-label="discovery"
       aria-live="polite"
-      className="w-[280px] shrink-0"
+      className="w-[268px] shrink-0"
       data-testid="discovery-rail"
     >
-      <Glass className="flex h-full flex-col gap-2 p-3 text-xs">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('con-discovery')}</h2>
+      <Glass
+        style={{
+          backgroundImage:
+            'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+        className="flex h-full flex-col gap-2.5 border-2 border-[#C59B27] p-3 text-xs text-[#1C140C] shadow-[0_6px_18px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+      >
+        <div className="flex items-center justify-between gap-2 border-b border-[#9E7B2F]/45 pb-1.5">
+          <h2 className="font-display text-[10.5px] font-bold uppercase tracking-[0.16em] text-[#1C140C]">{useLabel('con-discovery')}</h2>
           <button
             type="button"
             data-testid="discovery-rail-hide-button"
@@ -153,7 +161,7 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
             aria-expanded={true}
             title="Collapse discovery rail"
             onClick={() => setCollapsed(true)}
-            className="rounded-md border border-border-subtle px-1.5 py-0.5 text-text-muted transition hover:border-brass/40 hover:bg-overlay-hover hover:text-brass"
+            className="rounded-md border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 text-[#F3E5AB] transition hover:border-[#D4AF37] hover:text-white"
           >
             <span className="font-mono text-xs" aria-hidden="true">
               «
@@ -162,16 +170,34 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
         </div>
 
         {!help ? (
-          <p className="text-text-muted">Start typing a vox command to see help and tips.</p>
+          <div className="space-y-2.5">
+            <p className="font-serif text-[11.5px] font-medium text-[#3B2E1E]">
+              Start typing a <code className="rounded bg-[#251C0E] px-1 py-0.5 text-[10px] text-[#F3E5AB]">vox</code> command to see live help and idioms.
+            </p>
+            <div className="space-y-1.5 pt-1">
+              <div className="font-display text-[9px] font-bold uppercase tracking-widest text-[#6B4C12]">
+                Quick Idioms
+              </div>
+              {Object.values(LOCAL_ACTION_HELP).slice(0, 4).map((item) => (
+                <div
+                  key={item.action_id}
+                  className="rounded-lg border border-[#9E7B2F]/65 bg-[#241B11] p-2 text-[#F6F0E4]"
+                >
+                  <div className="font-mono text-[10.5px] font-semibold text-[#F3E5AB]">{item.example}</div>
+                  <div className="mt-0.5 text-[10px] text-[#D8C7A8] line-clamp-2">{item.about}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           <>
-            <h3 className="text-[13px] font-medium text-text-secondary">{help.example}</h3>
-            <p className="text-text-muted">{help.about}</p>
+            <h3 className="font-mono text-[13px] font-bold text-[#1C140C]">{help.example}</h3>
+            <p className="text-[#3B2E1E] font-medium">{help.about}</p>
             {help.args.length > 0 && (
-              <ul className="list-disc pl-4 text-text-muted">
+              <ul className="list-disc pl-4 text-[#3B2E1E]">
                 {help.args.map((a) => (
                   <li key={a.name}>
-                    <code className="text-text-secondary">{a.name}</code>
+                    <code className="font-semibold text-[#1C140C]">{a.name}</code>
                     {a.required ? ' (required)' : ''} — {a.help}
                   </li>
                 ))}
@@ -181,7 +207,7 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
               type="button"
               onClick={handleUse}
               aria-label={`Use suggested action ${help.example}`}
-              className="mt-2 self-start rounded-lg border border-border-subtle px-2.5 py-1.5 text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="mt-2 self-start rounded-lg border border-[#8C6825] bg-[#251C0E] px-2.5 py-1.5 text-[11px] font-semibold text-[#F3E5AB] transition hover:border-[#D4AF37] hover:text-white"
             >
               Use
             </button>

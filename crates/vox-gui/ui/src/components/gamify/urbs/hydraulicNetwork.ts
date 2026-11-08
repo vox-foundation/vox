@@ -124,7 +124,7 @@ export function drawBronzeValveJunction(
         ? '#f59e0b'
         : kind === 'verified_ci'
           ? '#10b981'
-          : '#38bdf8';
+          : '#d4af37';
 
   ctx.save();
   ctx.fillStyle = '#29180d';
@@ -242,7 +242,7 @@ export function drawConduitTrack(
         ? '#451a03'
         : kind === 'verified_ci'
           ? '#064e3b'
-          : '#163040';
+          : '#3a2e1b';
   const railColor =
     kind === 'error_fault'
       ? 'rgba(239, 68, 68, 0.80)'
@@ -250,7 +250,7 @@ export function drawConduitTrack(
         ? 'rgba(245, 158, 11, 0.84)'
         : kind === 'verified_ci'
           ? 'rgba(16, 185, 129, 0.80)'
-          : 'rgba(56, 189, 248, 0.78)';
+          : 'rgba(212, 175, 55, 0.82)';
   const coreColor =
     kind === 'error_fault'
       ? 'rgba(254, 202, 202, 0.65)'
@@ -258,7 +258,7 @@ export function drawConduitTrack(
         ? 'rgba(254, 240, 138, 0.70)'
         : kind === 'verified_ci'
           ? 'rgba(167, 243, 208, 0.65)'
-          : 'rgba(224, 242, 254, 0.68)';
+          : 'rgba(254, 243, 199, 0.72)';
 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -965,6 +965,7 @@ export function drawScreenSpaceHydraulicOverlay(
   worldPxFn: WorldPxFn,
   elevFn: ElevFn,
   focusDistrictName: string | null,
+  hideLegendPill = false,
 ): void {
   const { layout } = s;
   ctx.save();
@@ -1013,6 +1014,11 @@ export function drawScreenSpaceHydraulicOverlay(
   const faultCount = activeConduits.filter((c) => c.kind === 'error_fault').length;
   const ciCount = activeConduits.filter((c) => c.kind === 'verified_ci').length;
 
+  if (hideLegendPill) {
+    ctx.restore();
+    return;
+  }
+
   // Compact Chiseled Roman Hydraulic & Sewer Semiotic Legend Pill (top-left of map canvas below lens bar)
   const lx = 14;
   const ly = 82;
@@ -1040,7 +1046,7 @@ export function drawScreenSpaceHydraulicOverlay(
     { sym: '◉', label: `VICTORIA CI (${ciCount})`, color: '#34d399', xOffset: 314 },
   ];
 
-  ctx.font = '600 8px JetBrains Mono, monospace';
+  ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   for (const item of items) {

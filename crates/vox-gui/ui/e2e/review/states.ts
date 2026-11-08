@@ -132,6 +132,21 @@ SURFACE_STATES['research'] = [
   },
 ];
 
+SURFACE_STATES['mens'] = [
+  DEFAULT,
+  {
+    name: 'corpus-studio-inspector',
+    setup: async (p) => {
+      const studio = p.getByTestId('mens-corpus-studio-panel');
+      if (await studio.isVisible()) {
+        await studio.scrollIntoViewIfNeeded();
+        const row2 = p.getByTestId('mens-jsonl-row-2');
+        if (await row2.isVisible()) await row2.click();
+      }
+    },
+  },
+];
+
 for (const k of VARIANT_SURFACES) {
   if (!SURFACE_STATES[k].some((s) => s.name === 'empty')) SURFACE_STATES[k].push(...VARIANT);
 }

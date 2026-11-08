@@ -2,6 +2,7 @@ import React from 'react';
 import type { RouteExplanation, RoutingHealth } from '../../../types/tauri';
 import { modeLabel, modeObjective } from '../../../lib/turnEvents';
 import { exclusionLabel, priceLabel, qualityLabel } from '../../../lib/routingLabels';
+import { RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 
 interface Props {
   explanation: RouteExplanation | null;
@@ -10,10 +11,10 @@ interface Props {
 }
 
 const SEGMENTS: Array<{ key: 'quality' | 'efficiency' | 'latency' | 'other'; color: string }> = [
-  { key: 'quality', color: 'var(--color-accent-default)' },
-  { key: 'efficiency', color: 'var(--color-accent-secondary)' },
-  { key: 'latency', color: 'var(--color-status-info)' },
-  { key: 'other', color: 'var(--color-neutral-400)' },
+  { key: 'quality', color: '#D4AF37' },
+  { key: 'efficiency', color: '#B45309' },
+  { key: 'latency', color: '#92400E' },
+  { key: 'other', color: '#78350F' },
 ];
 
 export function RoutingExplainer({ explanation, health, loading = false }: Props) {
@@ -21,8 +22,12 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
   // shift); `aria-busy` follows `loading`. -->
   if (!explanation) {
     return (
-      <div data-testid="routing-explainer-loading" className="min-h-36 rounded-lg bg-overlay-subtle" aria-busy={loading}>
-        {!loading && <p className="p-4 text-xs text-text-muted">Routing explanation unavailable</p>}
+      <div
+        data-testid="routing-explainer-loading"
+        className="min-h-36 rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4 flex items-center justify-center shadow-inner"
+        aria-busy={loading}
+      >
+        {!loading && <p className="text-xs text-[#A69B89]">Routing explanation unavailable</p>}
       </div>
     );
   }
@@ -31,86 +36,121 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
   const fallback = health && (health.quality_scale === 'fallback' || health.price_bands === 'fallback');
   const healthState = problems.length > 0 ? 'warn' : 'ok';
   return (
-    <section data-testid="routing-explainer" aria-labelledby="routing-explainer-title" aria-busy={loading}
-      className="flex min-h-36 min-w-0 flex-col gap-3">
-      <header>
-        <h2 id="routing-explainer-title" className="text-sm text-text-primary">
-          Why {explanation.chosen ?? 'no model'}
-        </h2>
-        <p className="text-xs text-text-muted">How task dispatch would choose now</p>
-        <p className="text-xs text-text-muted">
+    <section
+      data-testid="routing-explainer"
+      aria-labelledby="routing-explainer-title"
+      aria-busy={loading}
+      className="flex min-h-36 min-w-0 flex-col gap-3 rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+    >
+      <header className="space-y-1">
+        <div className="flex items-center justify-between">
+          <h2 id="routing-explainer-title" className="text-sm font-display tracking-wide text-[#1E150C] font-bold">
+            Why {explanation.chosen ?? 'no model'}
+          </h2>
+          <RomanWaxSealBadge label="CALIBRATED" tone="gold" />
+        </div>
+        <p className="text-xs text-[#4A3620] font-medium">How task dispatch would choose now</p>
+        <p className="text-xs text-[#5C441E]">
           {modeLabel(explanation.mode)}: {modeObjective(explanation.mode)}
         </p>
         {explanation.only_candidate && (
-          <p role="note" className="text-xs" style={{ color: 'var(--color-status-warn)' }}>
+          <p role="note" className="text-xs text-[#FCA5A5] bg-[#7F1D1D]/20 border border-[#FCA5A5]/30 rounded px-2.5 py-1">
             Only this model fits; every model this mode prefers is unavailable.
           </p>
         )}
       </header>
-      <div className="overflow-x-auto">
-      <table className="w-full min-w-[30rem] table-fixed text-xs tabular-nums">
-        <caption className="sr-only">Candidates ranked by routing score</caption>
-        <thead>
-          <tr className="text-left text-text-muted">
-            <th scope="col" className="w-8">#</th>
-            <th scope="col" className="w-48 sm:w-60">Model</th>
-            <th scope="col" className="hidden w-20 sm:table-cell">Tier</th>
-            <th scope="col" className="w-28 sm:w-44">Quality</th>
-            <th scope="col" className="w-20">Price</th>
-            <th scope="col" className="w-24 sm:w-40">Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {explanation.candidates.map((c, i) => {
-            const chosen = c.id === explanation.chosen;
-            return (
-              <tr key={c.id} data-chosen={chosen ? 'true' : undefined}>
-                <td>{i + 1}</td>
-                <td className="truncate font-mono" title={c.id}>
-                  {c.id} {chosen && <span className="ml-1 text-text-primary">Chosen</span>}
-                </td>
-                <td className="hidden sm:table-cell">{c.tier}</td>
-                <td className="truncate whitespace-nowrap" title={qualityLabel(c.quality)}>
-                  {(c.quality.value * 100).toFixed(0)} · <span className="text-text-muted">{qualityLabel(c.quality)}</span>
-                </td>
-                <td title={c.price_out_per_m == null && !c.is_free ? 'price not published' : undefined}>
-                  {priceLabel(c.price_out_per_m, c.is_free)}
-                </td>
-                <td>
-                  <span className="mr-2">{c.score.toFixed(2)}</span>
-                  <span aria-hidden="true" className="hidden h-1.5 w-24 overflow-hidden rounded align-middle sm:inline-flex">
-                    {SEGMENTS.map(s => (
-                      <span key={s.key} style={{ width: `${Math.max(0, c.parts[s.key]) * 100}%`, background: s.color }} />
-                    ))}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto rounded-lg border border-[#D4AF37]/25 bg-[#16110B]/60">
+        <table className="w-full min-w-[30rem] table-fixed text-xs tabular-nums">
+          <caption className="sr-only">Candidates ranked by routing score</caption>
+          <thead>
+            <tr className="text-left text-[#A69B89] uppercase tracking-wider border-b border-[#D4AF37]/25 bg-[#2A2011]/60">
+              <th scope="col" className="w-8 py-2 px-2.5">#</th>
+              <th scope="col" className="w-48 sm:w-60 py-2 px-2">Model</th>
+              <th scope="col" className="hidden w-20 sm:table-cell py-2 px-2">Tier</th>
+              <th scope="col" className="w-28 sm:w-44 py-2 px-2">Quality</th>
+              <th scope="col" className="w-20 py-2 px-2">Price</th>
+              <th scope="col" className="w-24 sm:w-40 py-2 px-2">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {explanation.candidates.map((c, i) => {
+              const chosen = c.id === explanation.chosen;
+              return (
+                <tr
+                  key={c.id}
+                  data-chosen={chosen ? 'true' : undefined}
+                  className={`border-b border-[#D4AF37]/15 transition-colors ${
+                    chosen ? 'bg-[#D4AF37]/10' : 'hover:bg-[#D4AF37]/5'
+                  }`}
+                >
+                  <td className="py-2 px-2.5 text-[#A69B89]">{i + 1}</td>
+                  <td className="truncate font-mono py-2 px-2 text-[#F3E5AB]" title={c.id}>
+                    {c.id} {chosen && (
+                      <span className="ml-1 inline-flex items-center gap-1">
+                        <RomanWaxSealBadge label="Chosen" tone="gold" className="text-[8px] py-0 px-1.5" />
+                      </span>
+                    )}
+                  </td>
+                  <td className="hidden sm:table-cell py-2 px-2 text-[#C5BCAC]">{c.tier}</td>
+                  <td className="truncate whitespace-nowrap py-2 px-2 text-[#D6CEBF]" title={qualityLabel(c.quality)}>
+                    {(c.quality.value * 100).toFixed(0)} · <span className="text-[#8C806B]">{qualityLabel(c.quality)}</span>
+                  </td>
+                  <td className="py-2 px-2 text-[#D6CEBF]" title={c.price_out_per_m == null && !c.is_free ? 'price not published' : undefined}>
+                    {priceLabel(c.price_out_per_m, c.is_free)}
+                  </td>
+                  <td className="py-2 px-2 text-[#F3E5AB]">
+                    <span className="mr-2 font-mono">{c.score.toFixed(2)}</span>
+                    <span aria-hidden="true" className="hidden h-2 w-24 overflow-hidden rounded-full border border-[#D4AF37]/30 bg-[#16110B] align-middle sm:inline-flex">
+                      {SEGMENTS.map(s => (
+                        <span
+                          key={s.key}
+                          style={{ width: `${Math.max(0, c.parts[s.key]) * 100}%` }}
+                          className={`h-full ${
+                            s.key === 'quality'
+                              ? 'bg-gradient-to-r from-[#B45309] via-[#D4AF37] to-[#F3E5AB]'
+                              : s.key === 'efficiency'
+                                ? 'bg-[#D4AF37]'
+                                : s.key === 'latency'
+                                  ? 'bg-[#92400E]'
+                                  : 'bg-[#78350F]'
+                          }`}
+                        />
+                      ))}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      <details data-testid="routing-excluded" className="text-xs">
-        <summary className="cursor-pointer text-text-secondary">Not considered ({excludedTotal})</summary>
-        <ul className="mt-1 flex flex-col gap-1">
+      <details data-testid="routing-excluded" className="text-xs rounded-lg border border-[#D4AF37]/25 bg-[#16110B]/80 p-2.5">
+        <summary className="cursor-pointer font-display text-[10px] uppercase tracking-wider text-[#D4AF37] hover:text-[#F3E5AB]">
+          Not considered ({excludedTotal})
+        </summary>
+        <ul className="mt-2 flex flex-col gap-1 pl-2">
           {explanation.excluded.map(g => (
-            <li key={g.reason}>
+            <li key={g.reason} className="text-[#C5BCAC]">
               {exclusionLabel(g.reason)} ({g.count})
-              <span className="ml-1 font-mono text-text-muted">{g.examples.join(', ')}</span>
+              <span className="ml-1 font-mono text-[#8C806B]">{g.examples.join(', ')}</span>
             </li>
           ))}
         </ul>
       </details>
-      <p data-testid="routing-scope-note" className="text-xs text-text-muted">
+      <p data-testid="routing-scope-note" className="text-xs text-[#8C806B]">
         Doesn’t reflect today’s exploration budget or provider usage limits. Telemetry as of the last scoreboard
         refresh.
       </p>
       {health && (
-        <footer data-testid="routing-health" data-state={healthState} className="text-xs text-text-muted"
-          style={healthState === 'warn' ? { color: 'var(--color-status-warn)' } : undefined}>
+        <footer
+          data-testid="routing-health"
+          data-state={healthState}
+          className="text-xs text-[#8C806B] pt-2 border-t border-[#D4AF37]/20"
+          style={healthState === 'warn' ? { color: 'var(--color-status-warn)' } : undefined}
+        >
           {health.benchmarked} of {health.cloud_models} cloud models benchmarked, {health.inherited} inherited
           {fallback ? ' · using built-in fallback scales' : ' · scales from the live catalog'}
-          {problems.map(v => <div key={v.invariant}>{v.detail}</div>)}
+          {problems.map(v => <div key={v.invariant} className="text-[#FCA5A5] mt-0.5">{v.detail}</div>)}
         </footer>
       )}
     </section>

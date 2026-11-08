@@ -12,6 +12,10 @@ export interface GlassProps extends React.HTMLAttributes<HTMLDivElement> {
   inset?: boolean;
   interactive?: boolean;
   as?: React.ElementType;
+  glow?: boolean;
+  accent?: string;
+  padding?: string;
+  ariaLabel?: string;
 }
 
 export function Glass({ 
@@ -20,6 +24,10 @@ export function Glass({
   inset = true, 
   interactive = false,
   as: Comp = 'div',
+  glow = false,
+  accent,
+  padding,
+  ariaLabel,
   children, 
   ...rest 
 }: GlassProps) {
@@ -29,17 +37,20 @@ export function Glass({
   return (
     <Comp
       {...buttonProps}
+      {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}
       {...rest}
       className={cn(
-        "relative border border-border-subtle bg-overlay-solid backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
+        !isButton && "vox-marble-tablet",
+        "relative border-2 border-[#C59B27]/80 bg-overlay-solid bg-linear-to-b from-[#FAF6EE]/96 via-[#F5EFE2]/96 to-[#EFE5D2]/96 text-[#1C140C] backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.92)_inset,0_10px_24px_-12px_rgba(28,20,12,0.28)]",
         isButton && "text-left bg-transparent border-0 p-0 outline-hidden w-full",
-        SIZE_PADDING[size],
-        interactive && "hover:border-border-subtle hover:bg-bg-elevated cursor-pointer transition-[background-color,border-color,transform] duration-150 active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-brass/40",
+        padding ? padding : SIZE_PADDING[size],
+        interactive && "hover:border-[#B8860B] hover:from-[#FFFDF9]/98 hover:to-[#F3EAD8]/98 hover:bg-bg-elevated cursor-pointer transition-[background-color,border-color,transform] duration-150 active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-brass/40",
+        glow && "shadow-[0_0_24px_rgba(197,155,39,0.28)]",
         className
       )}
     >
       {inset && (
-        <div className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-overlay-subtle" />
+        <div className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-[#D4AF37]/10" />
       )}
       {children}
     </Comp>

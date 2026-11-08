@@ -3,6 +3,7 @@ import { useVoxQuery } from '../../../hooks/useVoxQuery';
 import { voxTransport } from '../../../transport';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 
 export function HarnessHealthView() {
   const { data: runs, isLoading } = useVoxQuery(
@@ -81,11 +82,23 @@ export function HarnessHealthView() {
   if (!runs || runs.length === 0) {
     return (
       <div className="space-y-4 p-4">
+        <RomanSurfaceHeader
+          domainTag="DIAGNOSTICS · HARNESS HEALTH"
+          title="Harness Evaluation & Regression Oracles"
+          subtitle="5-SPOKE BENCHMARK · REGRESSION DETECTION · PASS/FAIL TELEMETRY"
+          waxSealBadge="EVAL GATE"
+          icon={<Icon.bolt className="size-4 text-[#F3E5AB]" />}
+          gauges={[
+            { label: 'Runs', valueText: '0', ratio: 0.2, tone: 'gold' },
+            { label: 'Regressions', valueText: '0', ratio: 1, tone: 'emerald' },
+            { label: 'Spokes', valueText: '5', ratio: 1, tone: 'gold' },
+          ]}
+        />
         <EmptyState
           icon={<Icon.bolt className="size-8" />}
           title="No harness eval runs yet"
           headingLevel={2}
-          description="Run `vox harness eval --live` locally, or wait for the nightly scheduled workflow, to see chat harness quality and model-selection trends here."
+          description="Run vox harness eval --live locally, or wait for the nightly scheduled workflow, to see chat harness quality and model-selection trends here."
         />
         {emptyDeck}
       </div>
@@ -96,6 +109,18 @@ export function HarnessHealthView() {
 
   return (
     <section className="space-y-4 p-4" aria-labelledby="harness-health-title">
+      <RomanSurfaceHeader
+        domainTag="DIAGNOSTICS · HARNESS HEALTH"
+        title="Harness Evaluation & Regression Oracles"
+        subtitle="5-SPOKE BENCHMARK · REGRESSION DETECTION · PASS/FAIL TELEMETRY"
+        waxSealBadge={totalFail === 0 ? 'ALL PASSING' : 'REGRESSIONS'}
+        icon={<Icon.bolt className="size-4 text-[#F3E5AB]" />}
+        gauges={[
+          { label: 'Runs', valueText: `${runs.length}`, ratio: Math.min(1, runs.length / 20), tone: 'gold' },
+          { label: 'Failures', valueText: `${totalFail}`, ratio: totalFail === 0 ? 1 : 0.4, tone: totalFail === 0 ? 'emerald' : 'crimson' },
+          { label: 'Spokes', valueText: '5', ratio: 1, tone: 'gold' },
+        ]}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="harness-health-title" className="font-display text-lg text-text-primary tracking-wider uppercase">

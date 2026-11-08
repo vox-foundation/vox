@@ -1,34 +1,39 @@
 ---
 gsd_state_version: "1.0"
-milestone: v5.7
-milestone_name: Vox ↔ Python Bridge & Tolerant CLI Ergonomics
-current_phase: 343
-current_phase_name: Docs System SSOT and Automated Drift Control
-status: executing
-stopped_at: Phase 327 plans 01–04 done. Plan 05 blocked on human approval of polars==2.1.0. CONTEXT records two-tier full-Python-power rule.
-last_updated: "2026-11-06T13:36:30.680Z"
-last_activity: 2026-11-04
-last_activity_desc: 327-04 SUMMARY committed; waiting on polars pin approval + Tier1/Tier2 LLM-target constraint
-state_head: dac078de59f4535501117d8661c9c46e358b22ad
+milestone: v6.4
+milestone_name: Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography
+current_phase: 377
+current_phase_name: Multi-Resolution (1280×800, 1440×900, 1920×1080) Built-in Gemini Vision CV Flywheel & Inline Before/After Verification
+status: completed
+stopped_at: Milestone v6.4 (Phases 373–377) completed and verified across all 32 SURFACE_REGISTRY surfaces and 3 viewport resolutions.
+last_updated: "2026-11-08T18:04:00.000Z"
+last_activity: 2026-11-08
+last_activity_desc: Milestone v6.4 (Phases 373–377) shipped and verified via Playwright + @ngi/platform-ssot CV Flywheel and built-in Gemini vision across all 32 surfaces.
+state_head: 98ea5d2cf3758fb3b8d105d3f67247d86399ce29
 progress:
-  total_phases: 11
-  completed_phases: 1
-  total_plans: 35
-  completed_plans: 9
-  percent: 0
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 5
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 343 (Docs System SSOT and Automated Drift Control) — READY TO EXECUTE
-Plan: 327-05 (approve polars==2.1.0, then golden)
-Status: CR-02/CR-03 stay open. Do not commit STATE/ROADMAP/REQUIREMENTS or mid.rs into 327 task commits. Polars stays uninstalled until resume signal `approved`. Operator locked two-tier rule: Tier 1 curated Vox allowlists (LLM corpus); Tier 2 `import py` (phase 329) for scipy/sklearn/pandas long tail — never mirror full library APIs into Vox syntax.
-Last activity: 2026-11-04 — 327-04 complete (`087f292cb`); CONTEXT updated for full-Python-power without breaking LLM-target Vox.
+Phase: 373–377 (Milestone v6.4: Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography) — COMPLETE
+Plan: 373-01 .. 377-01
+Status: Milestone v6.4 (`Phases 373–377`) complete (5/5 phases verified).
+Last activity: 2026-11-08 — Completed Milestone v6.4 (`Phases 373–377`): unified all 32 surfaces into the full-body Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic with subtle Vitruvian watermark background and Roman frieze footer, replaced procedural polygon building models in the Urbs simulator with generated painted Roman monument artwork wired to live agent/orchestrator files & folders and animated golden aqueduct streams, enlarged the `ORCHESTRATOR` circular bubble (`r=66`) and DAG node (`width=136`) for zero cutoff, made `OPEN FORM` / `EXPLAIN CAPABILITY` / `OPEN DOCS` strictly single-line and `= GENERIC FORM` compact, and purged all Courier/Arial/Menlo monospace font fallbacks.
 
 ## Milestone History (Recent)
 
+- ✅ **v6.4 (`Phases 373–377`, `5/5` — complete 2026-11-08):** Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography ([Roadmap](ROADMAP.md))
+
+- ✅ **v5.9 (`Phases 352–355`, `16/16` — complete 2026-11-08):** Full-Prompt Goal Audit & Universal Plate 2 Romanesque Convergence ([Roadmap](ROADMAP.md))
+- ✅ **v5.8 (`Phases 346–351`, `24/24` — complete 2026-11-08):** Romanesque Axis Overhaul, Zero-Occlusion Progressive Disclosure, Interactive Status Bar & 32-Surface Multi-Resolution CV Flywheel ([Requirements](REQUIREMENTS.md))
+- 🔄 **v5.7 (`Phases 324–333, 342–345` — in progress):** Vox ↔ Python Bridge, Tolerant CLI Ergonomics & MENS Crucible Studio (`Phase 345` complete 2026-11-08)
 - ✔ **v5.6 (`Phases 313–323`, `25/25` — executed and verified 2026-11-01; not yet formally closed via `/gsd-complete-milestone`; phase dirs not archived because 7 uncommitted changes exist in them)**: Reasoning Where the Lane Needs It
 - ✅ **v5.5 (`Phases 307–312`, `24/24` requirements — Complete 2026-10-25):** T3 CI/TOESTUB Deep Enforcement ([Requirements](REQUIREMENTS.md))
 - ✅ **v5.4 (`Phases 301–306`, `24/24` requirements — Complete 2026-10-25):** T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening ([Requirements](REQUIREMENTS.md))

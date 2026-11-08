@@ -17,6 +17,10 @@ sources:
     weight: 6.0                   # Validated mixed (GOLDEN / Wave 0–4 combined)
     optional: false
 
+  - path: mens/data/mix_sources/vox_reasoning_traces.jsonl
+    weight: 2.0                   # Compiler-verified <think> reasoning traces (literal debug + state tables)
+    optional: true
+
   - path: mens/data/mix_sources/rust_source.jsonl
     weight: 2.0                   # Human-mined Rust workspace code (GOLDEN / Wave 0)
     max_lines: 12000              # Hard cap: deterministic ~12k lines per run

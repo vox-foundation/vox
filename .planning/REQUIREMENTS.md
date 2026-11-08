@@ -1,3 +1,90 @@
+# Requirements: Vox Milestone v6.4 (`Phases 373–377`) — Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography
+
+**Defined:** 2026-11-08
+**Core Value (`v6.4`):** Unify all 32 Vox Axis GUI surfaces into the full-body Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic (`#FAF6EE` / `#F5EFE2` / `#EFE6D5`, `#C59B27` borders, `#1C140C` espresso ink) with non-distracting Vitruvian architectural watermark background and sculpted Roman frieze footer; replace procedural 2D polygon building models in the Urbs simulator with generated painted Roman monument artwork wired to live agent/orchestrator files & folders and animated golden aqueduct streams; fix `ORCHESTRATOR` circular bubble cutoff (`r=66`) and DAG node cutoff (`width=136`); make `OPEN FORM`, `EXPLAIN CAPABILITY`, `OPEN DOCS` strictly single-line and `= GENERIC FORM` compact; and purge all Courier/Arial/Menlo monospace font fallbacks across all 32 surfaces and 3 resolutions (`1280×800`, `1440×900`, `1920×1080`).
+
+## v6.4 Requirements (`Phases 373–377`, `20/20` Complete)
+
+- [x] **ROMA-V64-FLOW-EXP-01..04** (Phase 373): Enlarge `ORCHESTRATOR` circular hub medallion (`r=66` in `AgentFlow.tsx`) and widen `ORCHESTRATOR` DAG node (`width=136` in `NeedsYouSurface.tsx`) for zero text cutoff; make `OPEN FORM`, `EXPLAIN CAPABILITY`, `OPEN DOCS` single-line (`ExplorerTree.tsx`, `Button.tsx`) and `= GENERIC FORM` compact (`CapabilityBadge.tsx`).
+- [x] **ROMA-V64-URBS-MONUMENTS-01..04** (Phase 374): Remove procedural 2D polygon building drawing from `worldRenderer.ts`; wire `LudusSandbox.tsx` to `urbs-white-gold-citadel-bg.jpg`, generated monument portraits (`monument-*.jpg`), live file/folder badges, and animated SVG golden aqueduct streams.
+- [x] **ROMA-V64-WHITE-GOLD-01..04** (Phase 375): Convert `Backdrop.tsx`, `Glass.tsx`, and `index.css` across all 32 surfaces to the Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic with subtle Vitruvian architectural watermark (`carrara-page-watermark-bg.jpg`) and bottom Roman frieze (`roman-architectural-frieze-footer.jpg`).
+- [x] **ROMA-V64-TYPO-01..04** (Phase 376): Remap `--font-mono`, `--font-family-mono`, `.font-mono`, `pre`, `code`, and all SVG/Canvas font declarations to `'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif` (`tabular-nums`) and `'Cinzel', 'Palatino', Georgia, serif`.
+- [x] **ROMA-V64-VERIFY-01..04** (Phase 377): Verify all 32 `SURFACE_REGISTRY` surfaces across `1280×800`, `1440×900`, and `1920×1080` via Playwright + `@ngi/platform-ssot` CV Flywheel (`0` `axeViolations`, `0` `clippedInteractiveCount`, `0` `overlappingControlPairs`, `0` `digitalColorLeakCount`), built-in Gemini vision inspection, and zero-warning production bundle build.
+
+| Requirement | Phase | Status |
+|---|---|---|
+| `ROMA-V64-FLOW-EXP-01..04` | Phase 373 | Complete |
+| `ROMA-V64-URBS-MONUMENTS-01..04` | Phase 374 | Complete |
+| `ROMA-V64-WHITE-GOLD-01..04` | Phase 375 | Complete |
+| `ROMA-V64-TYPO-01..04` | Phase 376 | Complete |
+| `ROMA-V64-VERIFY-01..04` | Phase 377 | Complete |
+
+---
+
+# Requirements: Vox Milestone v5.8 (`Phases 346–351`) — Romanesque Axis Overhaul, Zero-Occlusion Progressive Disclosure, Interactive Status Bar & 32-Surface Multi-Resolution CV Flywheel
+
+**Defined:** 2026-11-08
+**Core Value (`v5.8`):** Eliminate every text overrun, control occlusion, and sci-fi "argon AI" aesthetic inconsistency across all 32 Vox Axis GUI surfaces at `1280×800`, `1440×900`, and `1920×1080`; unify the entire desktop GUI under authentic Imperial Roman Travertine, Porphyry, Burnished Brass, and Verdigris theming with bespoke engraved SVG semiotics (replacing emojis); apply progressive disclosure and button clustering to eliminate UI busyness; make every bottom status bar tile clickable (with both rich interactive dropdown popovers and direct surface navigation, plus a new live `Repo / Local Version` tile and full `Configure ▾` persistence); and verify all 32 surfaces across multiple before/after Playwright CV Flywheel passes against approved Romanesque concept art.
+
+## v5.8 Requirements (`Phases 346–351`, `24` Requirements)
+
+### Phase 346: Top-Left Sidebar/Breadcrumb Collision Fix, Romanesque Design Tokens & Engraved SVG Semiotics (`ROMA-CHROME`)
+
+- [ ] **ROMA-CHROME-01**: Fix the top-left header collision between `Sidebar.tsx` (`fixed left-3 top-3 z-50` when `sidebarMode === 'hidden'`) and `BreadcrumbBar.tsx` (`AGENTS › DASHBOARD`) by docking the `[ 🏛 SIDEBAR › ]` restore pill cleanly inside the left slot of `BreadcrumbBar` (or offsetting `BreadcrumbBar` when the sidebar is collapsed) so zero overlap occurs at `1280×800`, `1440×900`, or `1920×1080`.
+- [ ] **ROMA-CHROME-02**: Add bespoke engraved Roman SVG icon components to `crates/vox-gui/ui/src/components/ui/Icons.tsx` (`RomanColumnIcon`, `LaurelWreathIcon`, `GladiusShieldIcon`, `DenariusCoinIcon`, `HourglassViaIcon`, `BrazierTorchIcon`, `AstrolabeRadarIcon`, `AqueductArchIcon`, `WaxSealIcon`, `ScrollTabulaIcon`, `RomanGitBranchIcon`) and replace inline emojis (`⏳`, `🔔`, `🔥`, `🔍`, `🏛`, `⚔`, `⛵`, `🪙`, `🔬`, `⚡`, `⚙`, `✎`) across `LudusSandbox.tsx`, `HudPanels.tsx`, `ViaTemporisScrubber.tsx`, `GamifyView.tsx`, `LudusHud.tsx`, `LeaderboardArenaPanel.tsx`, `HarnessRiverPanel.tsx`, and `BottomStatusBar.tsx`.
+- [ ] **ROMA-CHROME-03**: Standardize Romanesque button, pill, and card border tokens across `vox-gui/ui` (warm obsidian-travertine `#0C0B09` / `#14120E`, burnished Roman brass `#D4AF37` / `#E5A93C`, terracotta `#C2410C`, porphyry `#991B1B`, aqueduct verdigris `#10B981`, carved stone border `#2A261F`, Cinzel display headers) so primary actions, secondary stone pills, and segmented clusters share one cohesive Romanesque visual language.
+- [ ] **ROMA-CHROME-04**: Add unit and Playwright assertions verifying zero overlap between `sidebar-restore-btn` and `breadcrumb-bar` when `sidebarMode === 'hidden'` across `1280×800`, `1440×900`, and `1920×1080`.
+
+### Phase 347: Dashboard Embedded Minimap Isolation, Progressive-Disclosure Frieze Drawers & 7-Regio `Forma Urbis Romae` Astrolabe Radar (`ROMA-DASH-URBS`)
+
+- [ ] **ROMA-DASH-URBS-01**: Wrap `Dashboard.tsx`'s embedded `WORKSPACE SIMULATION MINI-MAP` `<LudusSandbox />` in `<EmbeddedSurfaceProvider value={true}>` and increase its embedded viewport height to `260px` so the embedded city strip renders a clean single-row top landmark frieze (`AMPHITHEATRVM · PRAETORIVM · AQVAE MCP · CASTRVM CI · PORTVS · PORTA GIT`), unobstructed isometric Roman architecture, and a compact bottom telemetry strip (`AERARIVM · ENERGY · SPEED · FIT`) with zero stacked HUD pileups.
+- [ ] **ROMA-DASH-URBS-02**: Refactor `LudusSandbox.tsx`'s floating overlays (`ViaTemporisScrubber`, `urbs-priority-dock`, `urbs-minimap-radar`, `urbs-lens-bar`) into progressive-disclosure Roman frieze drawer toggles (`[ Via Temporis ]`, `[ Priority (N) ]`, `[ Forma Urbis ]`, `[ Lens ▾ ]`) so overlays never collide with each other or with `HudPanels` at `1280×800`, `1440×900`, or `1920×1080` in either embedded or full-screen mode.
+- [ ] **ROMA-DASH-URBS-03**: Replace the 148-district yellow wireframe smear in `urbs-minimap-radar` (`LudusSandbox.tsx`) with an engraved marble & brass **`FORMA VRBIS ROMAE` 7-Regio Astrolabe Radar** that aggregates workspace crates into the 7 canonical Roman Regiones / Architectural Layers (`L0 Foundation`, `L1 Core`, `L2 Engine`, `L3 Runtime`, `L4 Services`, `L5 Surface`, `Acropolis`) with clean sector boundaries, Roman numerals (`I–VII`), active brazier hotspots, and an interactive camera frustum box.
+- [ ] **ROMA-DASH-URBS-04**: Eliminate the oversized clipped canvas status banner text (`> AQUA Supply (535) ◆ IGNIS ... Fix...`) bleeding behind the bottom HUD in `worldRenderer.ts` / `LudusSandbox.tsx`, routing supply/hazard telemetry into the clean docked Roman telemetry plaque.
+
+### Phase 348: Romanesque Reskin of Gaming Surfaces (`GamifyView` / `LudusHud` / `LeaderboardArenaPanel`) & `AQVAEDUCTUS` Harness River (`HarnessRiverPanel`) (`ROMA-LUDUS-RIVER`)
+
+- [ ] **ROMA-LUDUS-RIVER-01**: Reskin `GamifyView.tsx`, `LudusHud.tsx`, and `LeaderboardArenaPanel.tsx` from sci-fi neon/emerald/violet gradients into the **Imperial Roman Collegium & Ludus Arena**: carved travertine tablets, burnished brass borders, laurel wreath rank emblems, crimson wax-seal `BLAKE3 + Ed25519` verification badges, and consolidated progressive-disclosure sub-tabs (`VRBS ROMA`, `COLLEGIUM & LUDUS`, `CURSUS HONORUM`).
+- [ ] **ROMA-LUDUS-RIVER-02**: Reskin `HarnessRiverPanel.tsx` (`WaveformTierStrip.tsx`, `riverCanvasRenderer.ts`, `AgentTrajectoryBraid.tsx`, `VerificationFunnelFooter.tsx`) from sci-fi argon/cyan laser waveforms into **`AQVAEDUCTUS · CASTELLVM DIVISORIVM`**: a 3-tier Roman hydraulic sluice cascade (`Tier I Fast Local MENS`, `Tier II Balanced Hybrid`, `Tier III Deep Architecture`), laminar `Aquae Flumen` molten gold/amber/verdigris alluvial task streams flowing through a bronze `Porta Interceptor` astrolabe gate into the `Tabularium` basin, and stepped travertine settling basins (`GENERATED → COMPILED → TESTED → GATED`).
+- [ ] **ROMA-LUDUS-RIVER-03**: Ensure all controls in `GamifyView.tsx` and `HarnessRiverPanel.tsx` (lens selectors, tier filters, interceptor scrubbers, quest/companion actions, time-window toggles) are wired to real state/Tauri RPCs with zero placeholder buttons.
+- [ ] **ROMA-LUDUS-RIVER-04**: Verify `vox-Ludus-view` and `vox-harness-river` under Playwright CV Flywheel at `1280×800`, `1440×900`, and `1920×1080` with zero overlapping controls or clipped text.
+
+### Phase 349: Interactive Status Bar Popover Dropdowns, `Repo / Local Version` (`vox@branch · sha · v0.6.0`) Tile & `Configure ▾` Persistence (`ROMA-STATUSBAR`)
+
+- [ ] **ROMA-STATUSBAR-01**: Add the `repo_version` (`Repo / Local Version`) tile to `HUD_TILE_KINDS` in `useHudTiles.ts` and `BottomStatusBar.tsx`, polling `get_vcs_status` and `get_app_version` to display `REPO vox@<branch> · <short_sha> · v<version>` (plus dirty/ahead indicators) in the bottom status bar.
+- [ ] **ROMA-STATUSBAR-02**: Equip **every** status bar tile (`repo_version`, `active_agents` / `Engine`, `budget_burn` / `Spend`, `mesh_peers` / `Mesh`, `routing_decision` / `Routing`, `attention_debt` / `Needs You`, and `Research`) in `BottomStatusBar.tsx` with a rich interactive Romanesque popover dropdown containing live metrics, quick-action controls, and a direct `[Open <Surface> ↗]` button that navigates to the target surface (`vox-git-view`, `vox-operations-hub`, `vox-cost-analytics`, `vox-mesh-topology`, `vox-model-router`, `vox-Toast-center`, `vox-scientia-worth`).
+- [ ] **ROMA-STATUSBAR-03**: Upgrade `Configure ▾` (`hud-configure-popover`) in `BottomStatusBar.tsx` so operators can toggle visibility, reorder tiles (`↑` / `↓`), and reset defaults for all status bar tiles (including `Repo / Local Version`), persisted in `localStorage` (`vox.hud.tiles.v2`).
+- [ ] **ROMA-STATUSBAR-04**: Add unit and E2E tests verifying that clicking each status bar tile opens its interactive dropdown, clicking its `[Open <Surface> ↗]` action navigates to the target surface, and `Configure ▾` persists tile visibility and order.
+
+### Phase 350: Progressive Disclosure, Control Clustering & Multi-Resolution (`1280×800`, `1440×900`, `1920×1080`) Overflow/Occlusion Elimination Across All 32 Surfaces (`ROMA-DISCLOSURE`)
+
+- [ ] **ROMA-DISCLOSURE-01**: Audit all 32 registered surfaces in `surfaceRegistry.ts` at `1280×800`, `1440×900`, and `1920×1080` for horizontal overflow, button wrapping collisions, and text truncation (`Dashboard`, `Chat`, `MENS Training`, `Gamify/Urbs`, `Harness River`, `Operations Hub`, `Tasks`, `Mesh`, `Sub-Agents`, `Model Router`, `Cost Analytics`, `Scientia`, `Repository`, `Settings`, etc.).
+- [ ] **ROMA-DISCLOSURE-02**: Apply progressive disclosure (`[Details ▾]`, collapsible secondary drawers, segmented pill groups) to high-density surface headers and toolbars so primary actions remain immediately accessible while secondary filters/knobs expand cleanly on demand without crowding the viewport.
+- [ ] **ROMA-DISCLOSURE-03**: Fix responsive grid breakpoints, `min-w-0` flex children, and typography scaling across all 32 surfaces so no card title, KPI metric, badge, or button text overruns or occludes adjacent elements at `1280×800`, `1440×900`, or `1920×1080`.
+- [ ] **ROMA-DISCLOSURE-04**: Verify that every interactive button, dropdown, and toggle across the refactored surfaces is wired to real state/backend handlers with zero dead/placeholder controls.
+
+### Phase 351: Multi-Pass 32-Surface × 3-Resolution Before/After Playwright CV Flywheel & Live Vox Axis Verification (`ROMA-CV-FLYWHEEL`)
+
+- [ ] **ROMA-CV-FLYWHEEL-01**: Run multi-pass Playwright CV Flywheel audits (`e2e/review/cv-flywheel.spec.ts`) across all 32 registered surfaces at `1280×800`, `1440×900`, and `1920×1080`, capturing before/after screenshots and mechanical telemetry (`overlappingControlPairs`, `clippedTextCount`, `horizontalOverflowPx`, `crowdingIndex`, `axeViolations`, `visualAfterScore`).
+- [ ] **ROMA-CV-FLYWHEEL-02**: Iterate visual and layout refinements against the 3 approved Romanesque Concept Art plates until all 32 surfaces pass with `overlappingControlPairs === 0`, `clippedTextCount === 0`, `horizontalOverflowPx === 0`, and `axeViolations === 0`.
+- [ ] **ROMA-CV-FLYWHEEL-03**: Rebuild `crates/vox-gui/ui/dist` (`pnpm --dir crates/vox-gui/ui build`) and relaunch the native `vox-gui` (Vox Axis) desktop binary so the live app reflects every v5.8 improvement.
+- [ ] **ROMA-CV-FLYWHEEL-04**: Publish the before/after visual comparison walkthrough artifact and commit Milestone `v5.8` cleanly.
+
+## Traceability (`v5.8`)
+
+| Requirement | Phase | Status |
+|---|---|---|
+| `ROMA-CHROME-01..04` | Phase 346 | Pending |
+| `ROMA-DASH-URBS-01..04` | Phase 347 | Pending |
+| `ROMA-LUDUS-RIVER-01..04` | Phase 348 | Pending |
+| `ROMA-STATUSBAR-01..04` | Phase 349 | Pending |
+| `ROMA-DISCLOSURE-01..04` | Phase 350 | Pending |
+| `ROMA-CV-FLYWHEEL-01..04` | Phase 351 | Pending |
+
+**Coverage:** 24 `v5.8` requirements mapped to Phases 346–351 → 0 unmapped.
+
+---
+
 # Requirements: Vox Milestone v5.7 — Vox ↔ Python Bridge
 
 **Defined:** 2026-11-01

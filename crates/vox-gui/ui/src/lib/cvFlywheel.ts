@@ -115,6 +115,9 @@ export interface GuiDomAuditMetrics {
   composerToolbarRowCount?: number;
   composerToolbarHeightPx?: number;
   duplicateControlGroupCount?: number;
+  skeletonCount?: number;
+  rawBacktickCount?: number;
+  digitalColorLeakCount?: number;
   discoveredSubTabLabels?: readonly string[];
   discoveredPopoverTriggers?: readonly string[];
 }
@@ -322,15 +325,25 @@ export function evaluateGuiSurfaceRubric(
     ).toFixed(4),
   );
 
-  // 5. styleConsistency: VS Code theme cohesion, unified control chrome, zero light-theme contrast leaks, low noise floor
+  // 5. styleConsistency: Plate 2 Romanesque theme cohesion, unified control chrome, zero light-theme/digital-slate leaks, zero skeletons
   const noisePenalty = Math.max(0, (pixelSignals.noiseFloor - 8) * 0.01);
   const contrastLeakPenalty = Math.min(0.3, (dom.lightThemeContrastLeakCount ?? 0) * 0.05);
+  const digitalLeakPenalty = Math.min(0.25, (dom.digitalColorLeakCount ?? 0) * 0.04);
+  const skeletonPenalty = Math.min(0.25, (dom.skeletonCount ?? 0) * 0.06);
+  const backtickPenalty = Math.min(0.15, (dom.rawBacktickCount ?? 0) * 0.04);
   const styleConsistency = Number(
     Math.max(
       0.2,
       Math.min(
         0.98,
-        0.95 - selectPenalty - emojiPenalty * 0.5 - noisePenalty - contrastLeakPenalty,
+        0.95 -
+          selectPenalty -
+          emojiPenalty * 0.5 -
+          noisePenalty -
+          contrastLeakPenalty -
+          digitalLeakPenalty -
+          skeletonPenalty -
+          backtickPenalty,
       ),
     ).toFixed(4),
   );

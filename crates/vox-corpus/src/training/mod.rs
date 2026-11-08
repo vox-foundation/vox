@@ -70,11 +70,15 @@ pub fn generate_system_prompt() -> String {
     builtin_system_prompt()
 }
 
-/// Wraps [`generate_system_prompt`] with explicit fine-tuning guidance for ChatML-style datasets.
+/// Wraps [`builtin_system_prompt`] with explicit fine-tuning guidance for ChatML-style datasets.
+///
+/// Uses [`builtin_system_prompt`] (~350 tokens) rather than [`generate_system_prompt`]
+/// (~2,200 tokens from `mens/config/system_prompt.txt`) so the per-row prompt does not
+/// consume 95% of `seq_len` or collapse `supervised_ratio` below the 10% gate floor.
 pub fn generate_training_system_prompt() -> String {
     format!(
         "{}\n\n{}",
-        generate_system_prompt(),
+        builtin_system_prompt(),
         "## Fine-tuning mode\n\
          You are being trained to emit **valid Vox** that passes parse and typecheck.\n\
          Prefer complete programs, explicit types on `fn` signatures, and `Result[T]` for fallible work.\n\
@@ -152,4 +156,20 @@ fn builtin_system_prompt_uses_current_vox_syntax() {
     );
     // Prepended to every training row; keep it well under a 1024-token window.
     assert!(b.len() < 2600, "builtin prompt grew to {} chars", b.len());
+}
+
+#[cfg(test)]
+#[test]
+fn training_system_prompt_uses_concise_builtin_for_supervised_ratio() {
+    let t = generate_training_system_prompt();
+    let b = builtin_system_prompt();
+    assert!(
+        t.starts_with(&b),
+        "training system prompt must wrap concise builtin_system_prompt(), not the 8.6KB reference file"
+    );
+    assert!(
+        t.len() < 2200,
+        "training system prompt grew to {} chars (bloats prompt tokens and collapses supervised_ratio < 10%)",
+        t.len()
+    );
 }

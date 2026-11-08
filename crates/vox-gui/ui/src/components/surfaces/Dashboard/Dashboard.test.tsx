@@ -405,7 +405,7 @@ describe('Dashboard', () => {
       </LanguageProvider>
     );
 
-    const expandBtn = screen.getByText('Immersive View');
+    const expandBtn = screen.getByText('Full-Screen Map');
     expect(expandBtn).toBeDefined();
   });
 });

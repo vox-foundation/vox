@@ -161,15 +161,15 @@ export function ExplorerTree({
     docsPath ? (
       <Button
         variant="outline"
-        size="sm"
+        size="xs"
         tabIndex={-1}
         data-action="docs"
         aria-label={`Open docs for ${capName}`}
-        icon={!narrow ? <Icon.book className="size-3.5" aria-hidden="true" /> : undefined}
-        className="text-text-secondary"
+        icon={!narrow ? <Icon.book className="size-3" aria-hidden="true" /> : undefined}
+        className="whitespace-nowrap shrink-0 text-text-secondary"
         onClick={() => onOpenDoc?.(docKey(docsPath))}
       >
-        {narrow ? <Icon.book className="size-3.5" aria-hidden="true" /> : 'Open docs'}
+        {narrow ? <Icon.book className="size-3" aria-hidden="true" /> : 'Open docs'}
       </Button>
     ) : null;
 
@@ -178,12 +178,12 @@ export function ExplorerTree({
     return (
       <Button
         variant="outline"
-        size="sm"
+        size="xs"
         tabIndex={-1}
         data-action="explain"
         aria-label={`Explain capability ${capName}`}
         aria-disabled={disabled ? 'true' : undefined}
-        className={cn('text-text-secondary', disabled && 'opacity-50 cursor-not-allowed')}
+        className={cn('whitespace-nowrap shrink-0 text-text-secondary', disabled && 'opacity-50 cursor-not-allowed')}
         onClick={disabled ? undefined : () => onExplain?.(targetId!)}
       >
         Explain capability
@@ -196,13 +196,13 @@ export function ExplorerTree({
       const g = row.group;
       const capName = `vox ${g.name}`;
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap">
           {g.viewKey ? (
-            <Button variant="outline" size="sm" tabIndex={-1} data-action="primary" className="text-text-primary" onClick={() => onNavigate?.(g.viewKey!)}>
+            <Button variant="outline" size="xs" tabIndex={-1} data-action="primary" className="whitespace-nowrap shrink-0 text-text-primary" onClick={() => onNavigate?.(g.viewKey!)}>
               Open surface
             </Button>
           ) : (
-            <Button variant="outline" size="sm" tabIndex={-1} data-action="primary" className="text-text-primary" onClick={() => onOpenForm?.([g.name])}>
+            <Button variant="outline" size="xs" tabIndex={-1} data-action="primary" className="whitespace-nowrap shrink-0 text-text-primary" onClick={() => onOpenForm?.([g.name])}>
               Open form
             </Button>
           )}
@@ -217,16 +217,16 @@ export function ExplorerTree({
       const reason = decision.kind === 'explain' ? capitalizeFirst(decision.reason) : null;
       const reasonId = reason ? `reason-${v.id.replace(/[^a-zA-Z0-9_-]/g, '-')}` : undefined;
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap">
           {reasonId && <span id={reasonId} className="sr-only">{reason}</span>}
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             tabIndex={-1}
             data-action="primary"
             aria-disabled={reason ? 'true' : undefined}
             aria-describedby={reasonId}
-            className={cn('text-text-primary', reason && 'opacity-50 cursor-not-allowed text-text-muted')}
+            className={cn('whitespace-nowrap shrink-0 text-text-primary', reason && 'opacity-50 cursor-not-allowed text-text-muted')}
             onClick={reason ? undefined : () => onOpenForm?.(v.path)}
           >
             Open form
@@ -239,7 +239,7 @@ export function ExplorerTree({
     if (row.kind === 'mcp_tool' && row.mcpTool) {
       const t = row.mcpTool;
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap">
           {renderExplainBtn(t.id, t.mcp)}
           {renderDocsBtn(t.docs, t.mcp)}
         </div>
@@ -249,7 +249,7 @@ export function ExplorerTree({
   };
 
   return (
-    <Glass inset={false} className="min-h-0 flex-1 overflow-hidden rounded-xl">
+    <Glass inset={false} className="vox-marble-tablet min-h-0 flex-1 overflow-hidden rounded-xl">
       <div
         id={treeId}
         ref={containerRef}
@@ -262,7 +262,7 @@ export function ExplorerTree({
         <div
           role="row"
           aria-rowindex={1}
-          className="sticky top-0 z-10 grid grid-cols-[1fr_176px_304px] items-center border-b border-border-subtle bg-bg-surface px-4 py-2 text-[11px] font-medium uppercase tracking-[0.08em] text-text-muted"
+          className="sticky top-0 z-10 grid grid-cols-[1fr_132px_348px] items-center border-b-2 border-[#B88E28] bg-[#EDE3D0] px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-[#1C140C]"
         >
           <div role="columnheader">Capability</div>
           <div role="columnheader">Status</div>
@@ -379,11 +379,11 @@ export function ExplorerTree({
                   }
                 }}
                 className={cn(
-                  'border-b border-border-subtle transition-colors hover:bg-overlay-hover',
-                  row.kind === 'exemption_strip' ? 'p-2' : 'grid grid-cols-[1fr_176px_304px] items-center pr-4',
-                  row.kind === 'domain' && 'min-h-[40px] bg-overlay-subtle/40',
-                  (row.kind === 'group' || row.kind === 'mcp_group') && 'min-h-[48px]',
-                  (row.kind === 'verb' || row.kind === 'mcp_tool') && 'min-h-[36px]',
+                  'border-b border-[#C59B27]/35 transition-colors hover:bg-[#E5D8C1]/65',
+                  row.kind === 'exemption_strip' ? 'p-2' : 'grid grid-cols-[1fr_132px_348px] items-center pr-3',
+                  row.kind === 'domain' && 'min-h-[38px] bg-[#E8DEC9]/75',
+                  (row.kind === 'group' || row.kind === 'mcp_group') && 'min-h-[44px]',
+                  (row.kind === 'verb' || row.kind === 'mcp_tool') && 'min-h-[34px]',
                 )}
               >
                 {row.kind === 'exemption_strip' && row.exemption ? (

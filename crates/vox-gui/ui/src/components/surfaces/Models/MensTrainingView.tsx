@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { CommandCardsView, SurfaceCard } from '../CommandCardsView';
+import { MensCorpusStudioPanel } from './MensCorpusStudioPanel';
 import { MensServePanel } from './MensServePanel';
 import { Glass } from '../../ui/Glass';
 import { Segment } from '../../ui/Segment';
@@ -1695,18 +1696,28 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
           </div>
         </div>
 
-        {/* Right Cluster: Ladder Batch Lifecycle & Sync Visibility Cluster */}
-        <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
-          <div className="inline-flex items-center rounded-lg border border-brass/45 bg-black/35 p-0.5 gap-1">
+        {/* Right Cluster: Romanesque Progressive-Disclosure [ Training Actions ▾ ] Capsule */}
+        <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <div
+            data-testid="mens-training-actions-cluster"
+            className="inline-flex items-center rounded-lg border border-brass/50 bg-linear-to-r from-[#1E1912]/90 to-[#120F0B]/90 p-0.5 gap-1 shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+          >
+            <div className="flex items-center gap-1 pl-1.5 pr-1 py-0.5 text-[#F3E5AB]">
+              <span className="size-1.5 rounded-full bg-brass" aria-hidden="true" />
+              <span className="font-display text-[9px] font-semibold uppercase tracking-[0.12em] text-brass">
+                Training Actions
+              </span>
+            </div>
+
             <Tooltip content="Pull latest gated SHA pins & remote master adapters (vox mens hub download)">
               <button
                 type="button"
                 data-testid="mens-update-all-master-btn"
                 onClick={handleUpdateAllFromMaster}
-                className="inline-flex items-center gap-1 rounded-md border border-brass/50 bg-brass/16 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider text-brass transition hover:bg-brass/28"
+                className="inline-flex items-center gap-1 rounded-md border border-brass/35 bg-brass/12 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider text-brass transition hover:bg-brass/25"
               >
                 <RefreshCw className="size-2.5" />
-                <span>UPDATE ALL FROM REPO MASTER</span>
+                <span>Update Master</span>
               </button>
             </Tooltip>
 
@@ -1715,10 +1726,10 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                 type="button"
                 data-testid="mens-afk-train-series-btn"
                 onClick={handleStartAfkSeries}
-                className="inline-flex items-center gap-1 rounded-md border border-brass/65 bg-brass/24 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider text-text-primary transition hover:bg-brass/35"
+                className="inline-flex items-center gap-1 rounded-md border border-brass/60 bg-brass/22 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider text-[#F3E5AB] transition hover:bg-brass/35"
               >
                 <Moon className="size-2.5 text-brass" />
-                <span>AFK TRAIN ALL MISSING IN SERIES (4 JOBS)</span>
+                <span>Train Missing (AFK)</span>
               </button>
             </Tooltip>
 
@@ -2700,9 +2711,9 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
             <text
               x="1020"
               y="30"
-              fill="#79c8ba"
+              fill="#B8860B"
               fontSize="11"
-              fontFamily="monospace"
+              fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif"
             >
               Ceiling Trace
             </text>
@@ -2795,7 +2806,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                   y="23"
                   fill="#fafafa"
                   fontSize="10"
-                  fontFamily="monospace"
+                  fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif"
                 >
                   Step {Math.round((hoverStepIdx / 100) * timeWindowCurves.maxSteps)} · Loss{' '}
                   {(0.85 * Math.exp(-hoverStepIdx / 55)).toFixed(3)}
@@ -2805,6 +2816,11 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
           </svg>
         </div>
       </Glass>
+
+      {/* =====================================================================
+          3B. ROMANESQUE MENS CORPUS & PIPELINE STUDIO (AUTO-SYNC JSONL FLYWHEEL)
+         ===================================================================== */}
+      <MensCorpusStudioPanel pushToast={pushToast} />
 
       {/* =====================================================================
           4. COMPACT DOCKED FOOTER: 5-SPOKE / 8-SPOKE SCORECARDS & CLI PROBES

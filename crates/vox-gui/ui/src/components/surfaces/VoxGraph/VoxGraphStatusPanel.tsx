@@ -5,6 +5,8 @@ import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useVoxGraphStatus, VOX_GRAPH_STATUS_QUERY_KEY } from '../../../hooks/useVoxGraphStatus';
 import { useLabel } from '../../../hooks/useLanguage';
 import { CodeAtlasCanvas } from './CodeAtlasCanvas';
+import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 
 /**
  * Render an RFC3339 `built_at` timestamp as a coarse relative time
@@ -251,75 +253,109 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
 
   if (!data) return <div className="p-4 text-zinc-400">No code graph data available</div>;
 
+  const freshCount = data.corpora.filter(c => c.is_fresh).length;
+  const totalCount = data.corpora.length;
+  const isAllFresh = totalCount > 0 && freshCount === totalCount;
+
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="ds-section-head">{corpusHealthLabel}</h2>
-        <div className="flex items-center gap-4">
-          {typeof data.ttl_days === 'number' && (
-            <TtlEditor
-              // Prefill what Save WRITES (the contract), not the env-resolved
-              // effective value: prefilling the effective TTL meant one Save
-              // rewrote the tracked contract to a number the user never chose.
-              ttlDays={data.ttl_days_contract ?? data.ttl_days}
-              effectiveTtlDays={data.ttl_days}
-              envForced={data.ttl_days_env_forced === true}
-            />
-          )}
-          <span className="font-mono text-[11px] text-text-muted">
-            Default: {data.default_corpus_id}
-          </span>
-        </div>
-      </div>
+      <RomanSurfaceHeader
+        domainTag="KNOWLEDGE · SEARCH INDEX"
+        title="Code Graph & Corpus Index Topology"
+        subtitle="Audit code graph freshness, Tantivy/FTS corpora, and topological dependency health."
+        waxSealBadge={isAllFresh ? "INDEX FRESH" : "INDEX STALE"}
+        icon={<Icon.flow className="size-5 text-[#F3E5AB]" />}
+        gauges={[
+          {
+            label: 'FRESH',
+            valueText: `${freshCount}/${totalCount}`,
+            ratio: totalCount > 0 ? freshCount / totalCount : 0,
+            tone: isAllFresh ? 'emerald' : 'gold',
+            purpose: 'Fresh index corpora proportion',
+          },
+          {
+            label: 'CORPORA',
+            valueText: `${totalCount}`,
+            ratio: Math.min(1, totalCount / 5),
+            tone: 'gold',
+            purpose: 'Total registered graph corpora',
+          },
+          {
+            label: 'TTL DAYS',
+            valueText: `${data.ttl_days ?? 14}d`,
+            ratio: Math.min(1, (data.ttl_days ?? 14) / 30),
+            tone: 'emerald',
+            purpose: 'Corpus staleness time-to-live threshold',
+          },
+        ]}
+        actions={
+          <div className="flex items-center gap-4">
+            <span className="sr-only">{corpusHealthLabel}</span>
+            {typeof data.ttl_days === 'number' && (
+              <TtlEditor
+                // Prefill what Save WRITES (the contract), not the env-resolved
+                // effective value: prefilling the effective TTL meant one Save
+                // rewrote the tracked contract to a number the user never chose.
+                ttlDays={data.ttl_days_contract ?? data.ttl_days}
+                effectiveTtlDays={data.ttl_days}
+                envForced={data.ttl_days_env_forced === true}
+              />
+            )}
+            <span className="font-mono text-[11px] text-[#D4AF37]">
+              Default: {data.default_corpus_id}
+            </span>
+          </div>
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2">
         {data.corpora.map((c) => (
           <div
             key={c.corpus_id}
-            className={`group rounded-lg border p-4 transition-colors duration-200 ${
+            className={`group rounded-xl border p-4 transition-colors duration-200 ${
               c.is_fresh
-                ? 'border-(--color-status-pass)/10 bg-(--color-status-pass)/2 hover:border-(--color-status-pass)/20'
-                : 'border-(--color-status-warn)/10 bg-(--color-status-warn)/2 hover:border-(--color-status-warn)/20'
+                ? 'border-[#D4AF37]/35 bg-[#16120C] hover:border-[#D4AF37]/60'
+                : 'border-amber-500/35 bg-[#1F170F] hover:border-amber-500/60'
             }`}
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-medium text-zinc-200">{c.title}</h3>
-                <p className="font-mono text-[11px] text-text-muted">{c.corpus_id}</p>
+                <h3 className="font-medium text-[#F3E5AB]">{c.title}</h3>
+                <p className="font-mono text-[11px] text-[#D6CEBF]">{c.corpus_id}</p>
               </div>
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                   c.is_fresh
-                    ? 'bg-(--color-status-pass)/10 text-(--color-status-pass)'
-                    : 'bg-(--color-status-warn)/10 text-(--color-status-warn)'
+                    ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                    : 'border border-amber-500/30 bg-amber-500/10 text-amber-300'
                 }`}
               >
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
-                    c.is_fresh ? 'bg-(--color-status-pass)' : 'bg-(--color-status-warn)'
+                    c.is_fresh ? 'bg-emerald-400' : 'bg-amber-400'
                   }`}
                 />
                 {c.is_fresh ? 'Fresh' : 'Stale'}
               </span>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/5 pt-3 font-mono text-[11px] text-zinc-400">
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#D4AF37]/20 pt-3 font-mono text-[11px] text-[#D6CEBF]">
               <div>
-                <span className="text-text-muted block text-[11px] uppercase">Nodes</span>
-                <span className="font-semibold text-zinc-300">
+                <span className="text-[#D4AF37] block text-[11px] uppercase">Nodes</span>
+                <span className="font-semibold text-[#F3E5AB]">
                   {c.node_count?.toLocaleString() ?? '—'}
                 </span>
               </div>
               <div>
-                <span className="text-text-muted block text-[11px] uppercase">Edges</span>
-                <span className="font-semibold text-zinc-300">
+                <span className="text-[#D4AF37] block text-[11px] uppercase">Edges</span>
+                <span className="font-semibold text-[#F3E5AB]">
                   {c.edge_count?.toLocaleString() ?? '—'}
                 </span>
               </div>
               <div>
-                <span className="text-text-muted block text-[11px] uppercase">Built</span>
+                <span className="text-[#D4AF37] block text-[11px] uppercase">Built</span>
                 <span
-                  className="font-semibold text-zinc-300"
+                  className="font-semibold text-[#F3E5AB]"
                   title={c.built_at ?? undefined}
                 >
                   {relativeBuiltAt(c.built_at)}
@@ -328,14 +364,14 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
             </div>
 
             {!c.is_fresh && (
-              <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
-                <div className="text-[11px] text-zinc-400">
-                  <span className="text-text-muted text-[11px] block uppercase">Stale Reasons</span>
+              <div className="mt-3 space-y-2 border-t border-[#D4AF37]/20 pt-3">
+                <div className="text-[11px] text-[#D6CEBF]">
+                  <span className="text-[#D4AF37] text-[11px] block uppercase">Stale Reasons</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {c.stale_reasons.map((r) => (
                       <span
                         key={r}
-                        className="rounded-sm bg-(--color-status-warn)/10 px-1.5 py-0.5 text-[11px] font-mono text-(--color-status-warn)"
+                        className="rounded-sm bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[11px] font-mono text-amber-300"
                       >
                         {r}
                       </span>
@@ -345,9 +381,9 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
 
                 <RebuildButton corpusId={c.corpus_id} />
 
-                <div className="relative mt-2 rounded-sm bg-zinc-950/40 p-2 border border-white/5">
-                  <span className="text-[11px] text-text-muted block uppercase mb-1">Rebuild Command</span>
-                  <code className="block select-all font-mono text-[11px] text-zinc-300 break-all leading-normal">
+                <div className="relative mt-2 rounded-lg bg-[#16120C] p-2.5 border border-[#D4AF37]/25">
+                  <span className="text-[11px] text-[#D4AF37] block uppercase mb-1">Rebuild Command</span>
+                  <code className="block select-all font-mono text-[11px] text-[#F3E5AB] break-all leading-normal">
                     vox graph rebuild --corpus {c.corpus_id}
                   </code>
                 </div>

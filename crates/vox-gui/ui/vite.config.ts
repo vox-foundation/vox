@@ -22,9 +22,10 @@ export default defineConfig(({ command }) => ({
   // esbuild 0.28+ cannot downlevel destructuring for legacy browser targets during dep prebundle.
   build: {
     target: 'es2022',
+    chunkSizeWarningLimit: 3500,
   },
   optimizeDeps: {
-    esbuildOptions: {
+    rolldownOptions: {
       target: 'es2022',
     },
   },

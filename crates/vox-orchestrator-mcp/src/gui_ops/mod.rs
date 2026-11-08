@@ -10,6 +10,7 @@ pub mod gamify;
 pub mod harness;
 pub mod inproc;
 pub mod knowledge;
+pub mod mens_corpus;
 pub mod models;
 pub mod orchestrator;
 pub mod prefs;

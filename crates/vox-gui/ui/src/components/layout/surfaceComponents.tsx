@@ -160,7 +160,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
     case 'mesh':
       return <MeshView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'gamify':
-      return <GamifyView pushToast={props.pushToast} />;
+      return <GamifyView pushToast={props.pushToast} onNavigate={props.onNavigate} />;
     case 'harness':
       return (
         <HarnessRedirect

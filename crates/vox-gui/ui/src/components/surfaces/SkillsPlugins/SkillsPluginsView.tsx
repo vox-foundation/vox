@@ -3,6 +3,7 @@ import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { mapDiscoveredSkills, type DiscoveredSkill } from './discovery';
 import { SkillDetailPanel, type SkillDetail } from './SkillDetailPanel';
 import type { Toast } from '../../../types/tauri';
@@ -48,7 +49,7 @@ async function callTool<T = any>(tool: string, args: Record<string, any> = {}): 
   return invoke<{ tool: string; is_error: boolean; result: T }>('invoke_mcp_tool', { tool, args });
 }
 
-// MCP envelopes wrap payloads as `{ success, data }`. Pull `.data`, tolerating
+// MCP envelopes wrap payloads as { success, data }. Pull .data, tolerating
 // the bare-value shape too.
 function unwrap(result: any): any {
   if (result && typeof result === 'object' && 'data' in result) return result.data;
@@ -257,14 +258,55 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
     </button>
   );
 
+  const skillsGauges = [
+    {
+      label: 'Installed',
+      valueText: `${skills.length} Active`,
+      ratio: Math.min(1, skills.length / 10),
+      tone: 'gold' as const,
+      purpose: 'Installed agentskills.io and custom skill packages',
+    },
+    {
+      label: 'Plugins',
+      valueText: `${plugins.length} Active`,
+      ratio: Math.min(1, plugins.length / 5),
+      tone: 'emerald' as const,
+      purpose: 'Active compiled and script plugin extensions',
+    },
+    {
+      label: 'Discovered',
+      valueText: `${discovered.length} Roots`,
+      ratio: Math.min(1, discovered.length / 15),
+      tone: 'gold' as const,
+      purpose: 'Discovered skills in workspace and user directories',
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-12 gap-5">
-      <Glass className={`${detail ? 'col-span-8' : 'col-span-12'} p-4 overflow-auto`}>
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
+    <div className="flex flex-col gap-4">
+      <RomanSurfaceHeader
+        domainTag="COMMANDS · SKILLS & PLUGINS"
+        title="Plugin & Agent Capability Registry"
+        subtitle="Browse, install, and manage agentskills.io skills and plugin manifests."
+        waxSealBadge="REGISTRY LIVE"
+        icon={<Icon.puzzle className="size-5 text-[#F3E5AB]" />}
+        gauges={skillsGauges}
+      />
+      <div className="grid grid-cols-12 gap-5">
+        <Glass className={`${detail ? 'col-span-8' : 'col-span-12'} p-4 overflow-auto`}>
+        <div
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="vox-marble-tablet mb-3 flex items-center gap-2 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+        >
+          <span className="flex size-7 items-center justify-center rounded-lg border border-[#A67C1E] bg-[#EFE6D2] text-[#785312]">
             <Icon.catalog className="size-4" aria-hidden="true" />
           </span>
-          <div className="font-display text-sm tracking-widest uppercase text-text-secondary">Skills &amp; Plugins</div>
+          <div className="font-display text-sm font-bold tracking-widest uppercase text-[#1C140C]">Skills &amp; Plugins</div>
           <div className="ml-4 flex items-center gap-1" role="tablist" aria-label="Skills and plugins views">
             <TabButton id="installed" label="Installed" />
             <TabButton id="marketplace" label="Marketplace" />
@@ -280,7 +322,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
                   ? refreshMarketplace()
                   : refreshDiscovered()
             }
-            className="ml-auto flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+            className="ml-auto flex items-center gap-1.5 rounded-md border border-[#A67C1E] bg-[#EFE6D2] px-2 py-1 font-mono text-[10px] font-semibold text-[#2B1F0F] hover:bg-white"
           >
             <Icon.refresh className="size-3" aria-hidden="true" /> refresh
           </button>
@@ -345,6 +387,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
           <SkillDetailPanel detail={detail} />
         </Glass>
       )}
+      </div>
     </div>
   );
 }

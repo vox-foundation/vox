@@ -1,5 +1,19 @@
 # Milestones
 
+## v6.4 Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography (Shipped: 2026-11-08)
+
+**Phases completed:** 5 phases (`Phases 373–377`), 5 plans, 20/20 requirements verified (`100%`) — `/gsd-code-review --fix` applied
+**Archive:** [`milestones/v6.4-ROADMAP.md`](milestones/v6.4-ROADMAP.md) | [`milestones/v6.4-REQUIREMENTS.md`](milestones/v6.4-REQUIREMENTS.md)
+
+**Key accomplishments:**
+- **Circular `ORCHESTRATOR` Bubble Cutoff Fix & Single-Line `Explorer` Controls (`Phase 373`):** Enlarged the `ORCHESTRATOR` circular hub medallion (`r=66` in `AgentFlow.tsx`) and widened the `ORCHESTRATOR` DAG node (`width=136` in `NeedsYouSurface.tsx`) for zero text cutoff; made `OPEN FORM`, `EXPLAIN CAPABILITY`, `OPEN DOCS` strictly single-line (`ExplorerTree.tsx`, `Button.tsx`) and slimmed `= GENERIC FORM` (`CapabilityBadge.tsx`) into a compact single-line Roman pill.
+- **Non-Procedural Painted Roman Monument Simulator & Live File/Folder Aqueduct Streams (`Phase 374`):** Removed procedural 2D polygon building drawing from `worldRenderer.ts`; wired `LudusSandbox.tsx` to `urbs-white-gold-citadel-bg.jpg`, generated painted monument portraits (`monument-pantheon-orchestrator.jpg`, `monument-temple-compiler.jpg`, `monument-library-knowledge.jpg`, `monument-colosseum-harness.jpg`), real-time active file/folder badges (`src/parser.rs`, `gamify/LudusSandbox.tsx`, `src/turso.rs`, `src/qlora.rs`, `models/select.rs`, `src/mesh.rs`), and animated SVG golden aqueduct streams.
+- **Full-Body Sunlit White/Cream Carrara Marble & Burnished Gold Theme + Architectural Watermark & Frieze Footer (`Phase 375`):** Converted `Backdrop.tsx`, `Glass.tsx`, and `index.css` across all 32 surfaces to the Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic (`#FAF6EE` / `#F5EFE2` / `#EFE6D5`, `#C59B27` borders, `#1C140C` espresso ink) with subtle Vitruvian architectural watermark (`carrara-page-watermark-bg.jpg`) and bottom Roman frieze (`roman-architectural-frieze-footer.jpg`).
+- **Universal Roman Typography Enforcement & Zero Monospace/Courier/Arial Purge (`Phase 376`):** Remapped `--font-mono`, `--font-family-mono`, `.font-mono`, `pre`, `code`, and all SVG/Canvas font declarations to `'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif` (`tabular-nums`) and `'Cinzel', 'Palatino', Georgia, serif`.
+- **Multi-Resolution Built-In Gemini Vision + Playwright CV Flywheel Verification (`Phase 377`):** Verified all 32 `SURFACE_REGISTRY` surfaces across `1280×800`, `1440×900`, and `1920×1080` via Playwright + `@ngi/platform-ssot` CV Flywheel (`0` `axeViolations`, `0` `clippedInteractiveCount`, `0` `overlappingControlPairs`, `0` `digitalColorLeakCount`), built-in Gemini vision inspection, and zero-warning production bundle build.
+
+---
+
 ## v5.5 T3 CI/TOESTUB Deep Enforcement — Trust Gates, Live Budgets, Host/Test Detectors & Fingerprint Hashing (Shipped: 2026-10-25)
 
 **Phases planned:** 6 phases (`Phases 307–312`), 24 requirements

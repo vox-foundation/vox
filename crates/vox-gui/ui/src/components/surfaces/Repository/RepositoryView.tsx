@@ -5,6 +5,8 @@ import { IsolationPanel } from './IsolationPanel';
 import { conflictRows, type IsolationStatus, type IsolationStrategy } from './isolationHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useLabel } from '../../../hooks/useLanguage';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 import type { Toast } from '../../../types/tauri';
 
 interface RepositoryViewProps {
@@ -48,7 +50,7 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
   }, []);
 
   // Fetch once on mount. Mutations refetch inline (the daemon also publishes a
-  // `vcs.isolation.changed` topic for future push-driven refresh).
+  // vcs.isolation.changed topic for future push-driven refresh).
   useEffect(() => {
     void refetchIsolation();
   }, [refetchIsolation]);
@@ -122,19 +124,60 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
 
   const conflictCount = conflictRows(isolation).length;
   const agentCount = Object.keys(isolation?.per_agent ?? {}).length;
+  const GitIcon = (Icon as Record<string, any>).git ?? Icon.branch;
+
+  const repoGauges = [
+    {
+      label: 'Roots',
+      valueText: '1 Poly',
+      ratio: 0.33,
+      tone: 'gold' as const,
+      purpose: 'Active polyrepo workspace roots ledger',
+    },
+    {
+      label: 'Modified',
+      valueText: conflictCount > 0 ? `${conflictCount} Conf` : 'Clean',
+      ratio: conflictCount > 0 ? 0.75 : 0.15,
+      tone: conflictCount > 0 ? ('crimson' as const) : ('emerald' as const),
+      purpose: 'Working tree modifications and active conflict rows',
+    },
+    {
+      label: 'Isolation',
+      valueText: (isolation?.strategy_default ?? 'shared_branch').replace('_', ' '),
+      ratio: 0.65,
+      tone: 'gold' as const,
+      purpose: 'VCS agent isolation strategy default',
+    },
+  ];
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('repo-harness')}</h2>
+    <section className="space-y-4 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4">
+      <RomanSurfaceHeader
+        domainTag="WORKSPACE · REPOSITORY"
+        title="Repository Polyrepo & JJ VCS Ledger"
+        subtitle="Inspect working-tree status, active branches, polyrepo roots, and compiler diagnostics."
+        waxSealBadge="VCS ACTIVE"
+        icon={<GitIcon className="size-5 text-[#F3E5AB]" />}
+        gauges={repoGauges}
+      />
+      <div
+        style={{
+          backgroundImage:
+            'linear-gradient(90deg, rgba(248,243,233,0.95) 0%, rgba(235,224,205,0.93) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-[#C59B27] px-3 py-2 text-[#1C140C] shadow-[0_3px_10px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]"
+      >
+        <h2 className="font-display text-xs font-bold text-[#1C140C] tracking-wider uppercase">{useLabel('repo-harness')}</h2>
         <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
-          <span className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-text-secondary">
-            DEFAULT: <strong className="text-brass uppercase">{isolation?.strategy_default ?? 'shared_branch'}</strong>
+          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-2 py-0.5 text-[#D8C7A8]">
+            DEFAULT: <strong className="text-[#F3E5AB] uppercase">{isolation?.strategy_default ?? 'shared_branch'}</strong>
           </span>
-          <span className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-text-secondary">
-            AGENTLANES: <strong className="text-text-primary">{agentCount}</strong>
+          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-2 py-0.5 text-[#D8C7A8]">
+            AGENTLANES: <strong className="text-[#F3E5AB]">{agentCount}</strong>
           </span>
-          <span className={`rounded border px-2 py-0.5 ${conflictCount > 0 ? 'border-amber-400/35 bg-amber-400/10 text-amber-300' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'}`}>
+          <span className={`rounded border px-2 py-0.5 ${conflictCount > 0 ? 'border-amber-400/50 bg-[#3B2308] text-amber-200' : 'border-[#8C6825] bg-[#364116] text-[#DCE7B6]'}`}>
             CONFLICTS: <strong>{conflictCount}</strong>
           </span>
         </div>
@@ -142,46 +185,66 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
       <div className="grid gap-2.5 sm:grid-cols-2">
         <button
           type="button"
-          className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3.5 py-2.5 text-left text-sm font-medium text-text-primary transition hover:border-brass/40 hover:bg-brass/5"
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+            backgroundSize: 'cover',
+          }}
+          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
           disabled={busy}
           onClick={() => runAction('Workspace status', ['status'])}
         >
           <span>Workspace status</span>
-          <span className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-brass">vox status</span>
+          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">vox status</span>
         </button>
         <button
           type="button"
-          className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3.5 py-2.5 text-left text-sm font-medium text-text-primary transition hover:border-brass/40 hover:bg-brass/5"
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+            backgroundSize: 'cover',
+          }}
+          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
           disabled={busy}
           onClick={() => runAction('Repository health', ['check', 'workspace'])}
         >
           <span>Repo health check</span>
-          <span className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-brass">vox check workspace</span>
+          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">vox check workspace</span>
         </button>
         <button
           type="button"
-          className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3.5 py-2.5 text-left text-sm font-medium text-text-primary transition hover:border-brass/40 hover:bg-brass/5"
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+            backgroundSize: 'cover',
+          }}
+          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
           disabled={busy}
           onClick={() => runAction('Vox check', ['check'])}
         >
-          <span className="font-mono text-brass">`vox check`</span>
-          <span className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">typecheck + lint</span>
+          <span className="font-mono text-[#1C140C]">Run Vox Check</span>
+          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">typecheck + lint</span>
         </button>
         <button
           type="button"
-          className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3.5 py-2.5 text-left text-sm font-medium text-text-primary transition hover:border-brass/40 hover:bg-brass/5"
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+            backgroundSize: 'cover',
+          }}
+          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
           disabled={busy}
           onClick={() => runAction('List changed files', ['diff'])}
         >
-          <span className="font-mono text-brass">`vox diff`</span>
-          <span className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">working tree</span>
+          <span className="font-mono text-[#1C140C]">Inspect Git Diff</span>
+          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">working tree</span>
         </button>
       </div>
       <pre
         aria-label="Command output"
         aria-live="polite"
         aria-busy={busy}
-        className="max-h-[420px] overflow-auto rounded-lg border border-border-subtle bg-bg-base/80 p-3 font-mono text-xs text-text-secondary"
+        className="max-h-[420px] overflow-auto rounded-lg border-2 border-[#C59B27] bg-[#18120B] p-3 font-mono text-xs text-[#F5EFE2] shadow-inner"
       >
         {output}
       </pre>

@@ -234,28 +234,36 @@ export function TerminalTab({
         style={{
           height: '100%',
           width: '100%',
-          backgroundColor: '#0c0c0c',
-          color: '#cccccc',
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          padding: '12px',
+          background: 'linear-gradient(180deg, #1E170F 0%, #15100A 100%)',
+          color: '#F5EFE2',
+          fontFamily: "'JetBrains Mono', 'SF Mono', monospace",
+          fontSize: '12.5px',
+          padding: '14px',
           boxSizing: 'border-box',
           overflowY: 'auto',
-          lineHeight: '1.4',
+          lineHeight: '1.5',
+          border: '2px solid #C59B27',
+          borderRadius: '10px',
+          boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.65), 0 4px 14px rgba(0,0,0,0.4)',
         }}
       >
-        <div>Vox Terminal Session ({activeSessionRef.current ?? sessionId ?? 's-1'})</div>
-        <div>WebGL Block Renderer · OSC-633 SessionHost Active</div>
-        <br />
+        <div className="mb-2 flex items-center justify-between border-b border-[#D4AF37]/30 pb-1.5 text-[11px] text-[#D4AF37]">
+          <span>VOX TERMINAL SESSION ({activeSessionRef.current ?? sessionId ?? 's-1'})</span>
+          <span className="rounded border border-[#9E7B2F] bg-[#2B2012] px-2 py-0.5 text-[9.5px] text-[#F3E5AB]">
+            WebGL Block Renderer · OSC-633 SessionHost Active
+          </span>
+        </div>
         {mockReplay ? (
           <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
             {mockReplay}
           </pre>
         ) : (
-          <>
-            <div>~/workspace/vox $ vox run</div>
-            <div>✅ Ready.</div>
-          </>
+          <div className="space-y-1.5">
+            <div className="text-[#F3E5AB]">~/workspace/vox $ vox status --json</div>
+            <div className="text-[#D8C7A8]">  branch: main · commit: 98ea5d2 · working_tree: clean · clavis: verified</div>
+            <div className="text-[#F3E5AB] pt-1">~/workspace/vox $ vox run</div>
+            <div className="text-[#DCE7B6] font-semibold">[OK] Ready — SessionHost attached to local orchestrator daemon.</div>
+          </div>
         )}
       </div>
     );

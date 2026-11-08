@@ -20,12 +20,17 @@ export function Tooltip({
   delayDuration = 150,
   className = '',
 }: TooltipProps) {
+  const [open, setOpen] = React.useState(false);
   if (!content) return <>{children}</>;
 
   return (
     <RadixTooltip.Provider delayDuration={delayDuration}>
-      <RadixTooltip.Root>
-        <RadixTooltip.Trigger asChild>
+      <RadixTooltip.Root open={open} onOpenChange={setOpen}>
+        <RadixTooltip.Trigger
+          asChild
+          onPointerDown={() => setOpen(false)}
+          onClick={() => setOpen(false)}
+        >
           {children}
         </RadixTooltip.Trigger>
         <RadixTooltip.Portal>
@@ -33,10 +38,11 @@ export function Tooltip({
             side={side}
             align={align}
             sideOffset={sideOffset}
-            className={`z-[99999] max-w-xs rounded-md border border-white/10 bg-zinc-950/95 px-2.5 py-1 text-xs text-text-primary shadow-2xl backdrop-blur-md animate-in fade-in-0 zoom-in-95 pointer-events-none select-none ${className}`}
+            onPointerDown={() => setOpen(false)}
+            className={`z-[99999] max-w-xs rounded-md border border-[#D4AF37]/50 bg-linear-to-b from-[#1B1610]/98 via-[#14100C]/98 to-[#0E0B08]/98 px-2.5 py-1 text-xs text-[#F5F0E6] shadow-[0_14px_34px_rgba(0,0,0,0.88),0_0_0_1px_rgba(212,175,55,0.22)_inset] backdrop-blur-md animate-in fade-in-0 zoom-in-95 pointer-events-none select-none ${className}`}
           >
             {content}
-            <RadixTooltip.Arrow className="fill-zinc-950" />
+            <RadixTooltip.Arrow className="fill-[#14100C]" />
           </RadixTooltip.Content>
         </RadixTooltip.Portal>
       </RadixTooltip.Root>

@@ -6,6 +6,9 @@ sources:
   - path: target/dogfood/vox_corpus_extract.jsonl
     weight: 6.0
     optional: true
+  - path: mens/data/mix_sources/vox_reasoning_traces.jsonl
+    weight: 2.0
+    optional: true
   - path: target/dogfood/organic_vox.jsonl
     weight: 3.0
     optional: true

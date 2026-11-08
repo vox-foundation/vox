@@ -28,6 +28,10 @@ import {
   auditOverflowInPage,
 } from './audits';
 import {
+  evaluateVlmSurfaceCritique,
+  type VlmSurfaceCritique,
+} from './vlmVisionFlywheel';
+import {
   PLATFORM_SSOT_SHA256,
   PLATFORM_SSOT_VERSION,
   computeRgbaFrameCvMetrics,
@@ -62,6 +66,7 @@ interface SurfaceSnapshotRecord {
   domAudit: GuiDomAuditMetrics;
   vlmRubric: VisionRubricScores;
   weightedRubricScore: number;
+  vlmCritique?: VlmSurfaceCritique;
 }
 
 async function decodePngRgbaInPage(
@@ -142,6 +147,9 @@ async function auditDomInPage(page: Page, surfaceId: string): Promise<GuiDomAudi
     composerToolbarRowCount: domQuality.composerToolbarRowCount,
     composerToolbarHeightPx: domQuality.composerToolbarHeightPx,
     duplicateControlGroupCount: domQuality.duplicateControlGroupCount,
+    skeletonCount: domQuality.skeletonCount,
+    rawBacktickCount: domQuality.rawBacktickCount,
+    digitalColorLeakCount: domQuality.digitalColorLeakCount,
     discoveredSubTabLabels: domQuality.discoveredSubTabLabels,
     discoveredPopoverTriggers: domQuality.discoveredPopoverTriggers,
     axeViolations,
@@ -240,11 +248,11 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     };
     await page.keyboard.press('Escape');
 
-    // 4. Surface: urbs-civilization (navigate to Gamify / Urbs Sandbox or Harness Urbs view)
+    // 4. Surface: urbs-civilization (navigate to Gamify / Workspace Map or Urbs Sandbox view)
     await page.goto('/#view=gamify');
     await page.waitForSelector('nav', { timeout: 15_000 });
     await page.waitForTimeout(400);
-    const urbsTab = page.getByRole('button', { name: /Urbs Sandbox/i });
+    const urbsTab = page.getByTestId('ludus-subtab-urbs');
     if (await urbsTab.isVisible()) {
       await urbsTab.click();
       await page.waitForTimeout(500);
@@ -446,6 +454,14 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       const afterBuf = await page.screenshot({ path: afterPngPath, animations: 'disabled' });
       const afterPixels = await decodePngRgbaInPage(page, afterBuf);
       const afterDom = await auditDomInPage(page, surfaceId);
+      const afterVlmCritique = await evaluateVlmSurfaceCritique(
+        page,
+        surfaceId,
+        'after',
+        afterBuf,
+        afterDom,
+        OUT_DIR,
+      );
       const afterRubric = evaluateGuiSurfaceRubric(afterDom, afterPixels);
       const afterWeighted = computeWeightedScore(afterRubric);
 
@@ -457,6 +473,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
         domAudit: afterDom,
         vlmRubric: afterRubric,
         weightedRubricScore: afterWeighted,
+        vlmCritique: afterVlmCritique,
       };
 
       // Baseline comparison: use historical e2e/screens/${surfaceId}.png if present
@@ -531,6 +548,21 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       expect(dom.iconIssueCount, `${surfaceId} iconIssueCount`).toBe(0);
       expect(dom.axeViolations, `${surfaceId} axeViolations`).toBe(0);
       expect(dom.duplicateControlGroupCount ?? 0, `${surfaceId} duplicateControlGroupCount`).toBe(0);
+      expect(dom.skeletonCount ?? 0, `${surfaceId} skeletonCount`).toBe(0);
+      expect(dom.rawBacktickCount ?? 0, `${surfaceId} rawBacktickCount`).toBe(0);
+      expect(dom.digitalColorLeakCount ?? 0, `${surfaceId} digitalColorLeakCount`).toBe(0);
+      expect(
+        afterRecords[surfaceId]!.vlmCritique?.vlmOverallScore ?? 0,
+        `${surfaceId} vlmOverallScore`,
+      ).toBeGreaterThanOrEqual(0.8);
+      expect(
+        afterRecords[surfaceId]!.vlmCritique?.visionSignals.flutedPillarCount ?? 0,
+        `${surfaceId} flutedPillarCount`,
+      ).toBeGreaterThanOrEqual(2);
+      expect(
+        afterRecords[surfaceId]!.vlmCritique?.visionSignals.romanFontCoverageRatio ?? 0,
+        `${surfaceId} romanFontCoverageRatio`,
+      ).toBeGreaterThanOrEqual(0.85);
       if (surfaceId === 'chat') {
         expect(dom.composerToolbarRowCount ?? 1, `${surfaceId} composerToolbarRowCount`).toBe(1);
         expect(
@@ -638,6 +670,152 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       expect(resDom.clippedInteractiveCount, `mens ${res.tag} clippedInteractiveCount`).toBe(0);
       expect(resDom.overlappingControlPairs, `mens ${res.tag} overlappingControlPairs`).toBe(0);
       expect(resDom.axeViolations, `mens ${res.tag} axeViolations`).toBe(0);
+    }
+  });
+
+  test('evaluates Milestone v5.8 Plate 2 Romanesque overhaul across 1280x800, 1440x900, and 1920x1080 with interactive tooltips & status bar dropdowns', async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    mkdirSync(SURFACES_OUT_DIR, { recursive: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await addMockInitScript(page, installTauriMock, 'dashboard');
+    await addRichMockInitScript(page, 'dashboard');
+
+    const resolutions = [
+      { width: 1280, height: 800, tag: '1280x800' },
+      { width: 1440, height: 900, tag: '1440x900' },
+      { width: 1920, height: 1080, tag: '1920x1080' },
+    ];
+
+    // 1. Multi-resolution Dashboard + Embedded Workspace Architecture Map
+    await page.goto('/#view=dashboard');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+    await page.waitForTimeout(450);
+
+    for (const res of resolutions) {
+      await page.setViewportSize({ width: res.width, height: res.height });
+      await page.waitForTimeout(250);
+      const pngPath = join(SURFACES_OUT_DIR, `v58-dashboard-${res.tag}.png`);
+      await page.screenshot({ path: pngPath, animations: 'disabled' });
+      const dom = await auditDomInPage(page, `dashboard-${res.tag}`);
+      expect(dom.outerOverflowPx, `dashboard ${res.tag} outerOverflowPx`).toBe(0);
+      expect(dom.clippedInteractiveCount, `dashboard ${res.tag} clippedInteractiveCount`).toBe(0);
+      expect(dom.overlappingControlPairs, `dashboard ${res.tag} overlappingControlPairs`).toBe(0);
+    }
+
+    // 2. Verify hidden-sidebar mode has ZERO top-left collision between [ Sidebar › ] and AGENTS › DASHBOARD
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.getByTestId('sidebar-hide-button').click();
+    await page.waitForSelector('[data-testid="sidebar-restore-button"]', { timeout: 10_000 });
+    await page.waitForTimeout(350);
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v58-dashboard-sidebar-hidden-1440x900.png'),
+      animations: 'disabled',
+    });
+    const hiddenDom = await auditDomInPage(page, 'dashboard-sidebar-hidden');
+    expect(hiddenDom.overlappingControlPairs, 'hidden sidebar overlappingControlPairs').toBe(0);
+    await page.getByTestId('sidebar-restore-button').click();
+    await page.waitForTimeout(250);
+
+    // 3. Capture RomanTooltip progressive disclosure on Dashboard KPI & BottomStatusBar Repo Version popover
+    const repoTile = page.getByTestId('bottom-status-bar-repo');
+    if (await repoTile.isVisible()) {
+      await repoTile.click();
+      await page.waitForTimeout(200);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, 'v58-statusbar-repo-popover-1440x900.png'),
+        animations: 'disabled',
+      });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(120);
+    }
+
+    // 4. Full-Screen Workspace Map (`#view=gamify`) + Semiotic Layer Navigator + Developer Action Dock + 7-Region Astrolabe Radar
+    await page.goto('/#view=gamify');
+    await page.waitForSelector('[data-testid="urbs-minimap-radar"]', { timeout: 15_000 });
+    await expect(page.getByTestId('urbs-developer-action-dock')).toBeVisible();
+    const checkBtn = page.getByTestId('urbs-action-check-crate');
+    if (await checkBtn.isVisible()) {
+      await checkBtn.click();
+      await expect(page.getByTestId('urbs-dev-action-receipt')).toBeVisible();
+    }
+    await page.mouse.move(720, 450);
+    await page.waitForTimeout(450);
+    for (const res of resolutions) {
+      await page.setViewportSize({ width: res.width, height: res.height });
+      await page.waitForTimeout(220);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, `v58-urbs-map-${res.tag}.png`),
+        animations: 'disabled',
+      });
+      const dom = await auditDomInPage(page, `urbs-map-${res.tag}`);
+      expect(dom.outerOverflowPx, `urbs-map ${res.tag} outerOverflowPx`).toBe(0);
+    }
+
+    // Hover a Monument Plaque at 1440x900 to capture RomanTooltip progressive disclosure in action
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const mensPlaque = page.getByTestId('urbs-monument-mens');
+    if (await mensPlaque.isVisible()) {
+      await mensPlaque.hover();
+      await page.waitForTimeout(200);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, 'v58-urbs-tooltip-1440x900.png'),
+        animations: 'disabled',
+      });
+    }
+
+    // 5. Arena & Quests (`ludus-subtab-collegium`) and Engineering Leaderboard (`ludus-subtab-arena`)
+    const collegiumTab = page.getByTestId('ludus-subtab-collegium');
+    if (await collegiumTab.isVisible()) {
+      await collegiumTab.click();
+      await page.mouse.move(10, 10);
+      await page.waitForTimeout(300);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, 'v58-ludus-arena-quests-1440x900.png'),
+        animations: 'disabled',
+      });
+    }
+    const leaderboardTab = page.getByTestId('ludus-subtab-arena');
+    if (await leaderboardTab.isVisible()) {
+      await leaderboardTab.click();
+      await page.mouse.move(10, 10);
+      await page.waitForTimeout(300);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, 'v58-ludus-leaderboard-1440x900.png'),
+        animations: 'disabled',
+      });
+    }
+
+    // 6. Execution Pipeline Cascade (`gamify-sim-mode-river` inside `#view=gamify`)
+    const urbsSubtab = page.getByTestId('ludus-subtab-urbs');
+    if (await urbsSubtab.isVisible()) {
+      await urbsSubtab.click();
+      await page.waitForTimeout(200);
+    }
+    const riverBtn = page.getByTestId('gamify-sim-mode-river');
+    if (await riverBtn.isVisible()) {
+      await riverBtn.click();
+      await page.mouse.move(10, 10);
+      await page.waitForTimeout(300);
+    }
+    await page.waitForSelector('[data-testid="axis-harness-river"]', { timeout: 15_000 });
+    await expect(page.getByTestId('aqueduct-developer-control-bar')).toBeVisible();
+    const claimBtn = page.getByTestId('aqueduct-action-claim-yield');
+    if (await claimBtn.isVisible()) {
+      await claimBtn.click();
+      await expect(page.getByTestId('aqueduct-dev-receipt')).toBeVisible();
+    }
+    await page.waitForTimeout(400);
+    for (const res of resolutions) {
+      await page.setViewportSize({ width: res.width, height: res.height });
+      await page.waitForTimeout(220);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, `v58-harness-river-${res.tag}.png`),
+        animations: 'disabled',
+      });
+      const dom = await auditDomInPage(page, `harness-river-${res.tag}`);
+      expect(dom.outerOverflowPx, `harness-river ${res.tag} outerOverflowPx`).toBe(0);
     }
   });
 });

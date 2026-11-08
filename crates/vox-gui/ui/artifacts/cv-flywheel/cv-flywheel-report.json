@@ -2,7 +2,7 @@
   "ssotVersion": "2026.10.19-v3.5",
   "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
   "stage": "after",
-  "evaluatedAt": "2026-10-26T00:32:04.827Z",
+  "evaluatedAt": "2026-11-08T17:54:21.105Z",
   "beforeSurfaces": {
     "chat-default": {
       "surfaceId": "chat-default",
@@ -143,9 +143,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/chat-default-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 25.1,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.1041
+        "luminanceContrast": 42.3,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8621
       },
       "domAudit": {
         "surfaceId": "chat-default",
@@ -160,10 +160,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 1,
         "composerToolbarHeightPx": 28,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Focus",
           "Split Code",
@@ -186,13 +189,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8287,
+        "technicalQuality": 0.8578,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9262
+      "weightedRubricScore": 0.9335
     },
     "loquela-knobs": {
       "surfaceId": "loquela-knobs",
@@ -200,9 +203,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/loquela-knobs-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 26.1,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.1041
+        "luminanceContrast": 43.6,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8635
       },
       "domAudit": {
         "surfaceId": "loquela-knobs",
@@ -217,10 +220,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 1,
-        "composerToolbarHeightPx": 28,
+        "composerToolbarHeightPx": 29,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Focus",
           "Split Code",
@@ -243,13 +249,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8309,
+        "technicalQuality": 0.8607,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9267
+      "weightedRubricScore": 0.9342
     },
     "chat-dock-multi": {
       "surfaceId": "chat-dock-multi",
@@ -257,9 +263,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/chat-dock-multi-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 25.2,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.1003
+        "luminanceContrast": 42.3,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8671
       },
       "domAudit": {
         "surfaceId": "chat-dock-multi",
@@ -274,10 +280,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 1,
         "composerToolbarHeightPx": 28,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Focus",
           "Split Code",
@@ -300,13 +309,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8289,
+        "technicalQuality": 0.8596,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9262
+      "weightedRubricScore": 0.9339
     },
     "urbs-civilization": {
       "surfaceId": "urbs-civilization",
@@ -314,9 +323,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/urbs-civilization-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 55.5,
-        "noiseFloor": 4.4,
-        "meanLuminance": 0.1869
+        "luminanceContrast": 100,
+        "noiseFloor": 5,
+        "meanLuminance": 0.6466
       },
       "domAudit": {
         "surfaceId": "urbs-civilization",
@@ -331,29 +340,28 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Settings",
-          "Gamify",
-          "Stewardship & Lumens",
-          "5-Spoke Model Arena",
-          "Collegium Guilds",
-          "Proof Chain"
+          "Gamify"
         ],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8921,
+        "technicalQuality": 0.9795,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.942
+      "weightedRubricScore": 0.9639
     }
   },
   "verdicts": {
@@ -361,12 +369,12 @@
       "surfaceId": "chat-default",
       "passNumber": 1,
       "visualBeforeScore": 0.8502,
-      "visualAfterScore": 0.9262,
-      "visualDelta": 0.076,
+      "visualAfterScore": 0.9335,
+      "visualDelta": 0.0833,
       "edgeSharpnessDeltaPct": 12.8,
-      "contrastDeltaPct": 73.1,
-      "noiseReductionPct": 20.8,
-      "estimatedPsnrDb": 39.85,
+      "contrastDeltaPct": 191.7,
+      "noiseReductionPct": 11.3,
+      "estimatedPsnrDb": 39.17,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -377,12 +385,12 @@
       "surfaceId": "loquela-knobs",
       "passNumber": 1,
       "visualBeforeScore": 0.828,
-      "visualAfterScore": 0.9267,
-      "visualDelta": 0.0987,
+      "visualAfterScore": 0.9342,
+      "visualDelta": 0.1062,
       "edgeSharpnessDeltaPct": 6,
-      "contrastDeltaPct": 74,
-      "noiseReductionPct": 22.2,
-      "estimatedPsnrDb": 39.97,
+      "contrastDeltaPct": 190.7,
+      "noiseReductionPct": 13,
+      "estimatedPsnrDb": 39.32,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -393,12 +401,12 @@
       "surfaceId": "chat-dock-multi",
       "passNumber": 1,
       "visualBeforeScore": 0.7985,
-      "visualAfterScore": 0.9262,
-      "visualDelta": 0.1277,
+      "visualAfterScore": 0.9339,
+      "visualDelta": 0.1354,
       "edgeSharpnessDeltaPct": 4.1,
-      "contrastDeltaPct": 61.5,
-      "noiseReductionPct": 23.6,
-      "estimatedPsnrDb": 40.08,
+      "contrastDeltaPct": 171.2,
+      "noiseReductionPct": 16.4,
+      "estimatedPsnrDb": 39.58,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -409,12 +417,12 @@
       "surfaceId": "urbs-civilization",
       "passNumber": 1,
       "visualBeforeScore": 0.8228,
-      "visualAfterScore": 0.942,
-      "visualDelta": 0.1192,
+      "visualAfterScore": 0.9639,
+      "visualDelta": 0.1411,
       "edgeSharpnessDeltaPct": 24.5,
-      "contrastDeltaPct": 220.8,
-      "noiseReductionPct": 13.7,
-      "estimatedPsnrDb": 39.46,
+      "contrastDeltaPct": 478,
+      "noiseReductionPct": 2,
+      "estimatedPsnrDb": 38.76,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [

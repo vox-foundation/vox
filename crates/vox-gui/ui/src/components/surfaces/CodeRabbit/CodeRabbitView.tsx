@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { codeRabbitPlan, codeRabbitReport, codeRabbitRunAsync, codeRabbitTokenPresent } from '../../../transport';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 import type { Toast } from '../../../types/tauri';
 
 interface CodeRabbitViewProps {
@@ -120,8 +122,40 @@ export function CodeRabbitView({ pushToast }: CodeRabbitViewProps): React.ReactE
   const rows = toSliceRows(manifest, report);
   const totalFiles = rows.reduce((a, r) => a + r.files, 0);
 
+  const coderabbitGauges = [
+    {
+      label: 'Slices',
+      valueText: `${rows.length} PRs`,
+      ratio: Math.min(1, rows.length / 10),
+      tone: 'gold' as const,
+      purpose: 'Planned CodeRabbit review slice pull requests',
+    },
+    {
+      label: 'Files',
+      valueText: `${totalFiles} Files`,
+      ratio: Math.min(1, totalFiles / 150),
+      tone: 'gold' as const,
+      purpose: 'Total source files selected for review sweep',
+    },
+    {
+      label: 'Token',
+      valueText: tokenOk == null ? '…' : tokenOk ? 'Present' : 'Absent',
+      ratio: tokenOk ? 1.0 : 0.0,
+      tone: tokenOk ? ('emerald' as const) : ('crimson' as const),
+      purpose: 'CodeRabbit authentication token status',
+    },
+  ];
+
   return (
-    <div className="max-w-4xl rounded-xl border border-border-subtle bg-bg-surface/60 p-5">
+    <div className="max-w-4xl space-y-4 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-5">
+      <RomanSurfaceHeader
+        domainTag="WORKSPACE · CODERABBIT"
+        title="CodeRabbit Code Review Sweep"
+        subtitle="Batch repository slices into 150-file review PRs paced to respect CodeRabbit Pro hourly quotas."
+        waxSealBadge="SWEEP READY"
+        icon={<Icon.shield className="size-5 text-[#F3E5AB]" />}
+        gauges={coderabbitGauges}
+      />
       <div className="mb-4 flex items-center gap-2.5">
         <h2 className="m-0 font-display text-lg font-semibold tracking-wider text-text-primary uppercase">CodeRabbit review</h2>
         <span className="rounded-full border border-brass/30 bg-brass/10 px-2.5 py-0.5 font-mono text-[11px] text-brass">
@@ -238,12 +272,12 @@ export function CodeRabbitView({ pushToast }: CodeRabbitViewProps): React.ReactE
               <span className="font-mono text-[9px] text-brass">r,c,g weights</span>
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-              Prioritizes files by recency (<code className="text-cyan">r</code>), cyclomatic churn (<code className="text-cyan">c</code>), and crate-graph centrality (<code className="text-cyan">g</code>).
+              Prioritizes files by recency (<code className="text-[#D4AF37]">r</code>), cyclomatic churn (<code className="text-[#D4AF37]">c</code>), and crate-graph centrality (<code className="text-[#D4AF37]">g</code>).
             </p>
           </div>
           <div className="rounded-lg border border-border-subtle bg-bg-base/80 p-3">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Rate-Limit Guard</span>
+              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Rate-Limit Guard</span>
               <span className="font-mono text-[9px] text-emerald-300">5 PRs / hr</span>
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">

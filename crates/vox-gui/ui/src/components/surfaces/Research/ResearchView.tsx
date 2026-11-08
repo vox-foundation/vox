@@ -29,6 +29,8 @@ import { MultiWaveProgressTimeline } from './MultiWaveProgressTimeline';
 import { ShoppingDecisionCard, type ShoppingDecisionPayload } from './ShoppingDecisionCard';
 import { CodeGenVerificationCard, type CodeGenVerificationPayload } from './CodeGenVerificationCard';
 import { promoteCandidate } from '../../../api/scientia';
+import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -446,39 +448,71 @@ export function ResearchView({
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('research')}</h2>
-        <div role="tablist" aria-label="Research Lane" className="flex items-center rounded-lg border border-border-subtle bg-black/40 p-0.5 text-xs">
-          <button
-            type="button"
-            role="tab"
-            data-testid="lane-switch-fast"
-            aria-selected={lane === 'fast'}
-            onClick={() => setLane('fast')}
-            className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-              lane === 'fast'
-                ? 'bg-brass/20 text-brass shadow-xs'
-                : 'text-text-muted hover:text-text-secondary'
-            }`}
-          >
-            ⚡ Fast
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-testid="lane-switch-deep"
-            aria-selected={lane === 'deep'}
-            onClick={() => setLane('deep')}
-            className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-              lane === 'deep'
-                ? 'bg-brass/20 text-brass shadow-xs'
-                : 'text-text-muted hover:text-text-secondary'
-            }`}
-          >
-            🔬 Deep Research
-          </button>
-        </div>
-      </div>
+      <RomanSurfaceHeader
+        domainTag="KNOWLEDGE · RESEARCH"
+        title="Research Syntheses & Epistemic Investigation"
+        subtitle="Autonomous web research, epistemic DAG synthesis, and cross-source verification."
+        waxSealBadge="EPISTEMIC SYNC"
+        icon={<Icon.search className="size-5 text-[#F3E5AB]" />}
+        gauges={[
+          {
+            label: 'SESSIONS',
+            valueText: `${history.length}`,
+            ratio: Math.min(1, history.length / 20),
+            tone: 'gold',
+            purpose: 'Total completed research investigation sessions',
+          },
+          {
+            label: 'PROVIDERS',
+            valueText: `${engineStatus?.providers.filter(p => p.has_key || p.is_keyless).length ?? 4}`,
+            ratio: Math.min(1, (engineStatus?.providers.filter(p => p.has_key || p.is_keyless).length ?? 4) / 6),
+            tone: 'emerald',
+            purpose: 'Active research providers and quota status',
+          },
+          {
+            label: 'LANE',
+            valueText: lane === 'deep' ? 'DEEP' : 'FAST',
+            ratio: lane === 'deep' ? 1 : 0.5,
+            tone: 'gold',
+            purpose: 'Active research synthesis execution lane',
+          },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="sr-only">{useLabel('research')}</span>
+            <div role="tablist" aria-label="Research Lane" className="flex items-center rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-0.5 text-xs">
+              <button
+                type="button"
+                role="tab"
+                data-testid="lane-switch-fast"
+                aria-selected={lane === 'fast'}
+                onClick={() => setLane('fast')}
+                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                  lane === 'fast'
+                    ? 'bg-[#78350F]/50 text-[#F3E5AB] shadow-xs'
+                    : 'text-[#D6CEBF] hover:text-[#F3E5AB]'
+                }`}
+              >
+                ⚡ Fast
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-testid="lane-switch-deep"
+                aria-selected={lane === 'deep'}
+                onClick={() => setLane('deep')}
+                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                  lane === 'deep'
+                    ? 'bg-[#78350F]/50 text-[#F3E5AB] shadow-xs'
+                    : 'text-[#D6CEBF] hover:text-[#F3E5AB]'
+                }`}
+              >
+                🔬 Deep Research
+              </button>
+            </div>
+          </div>
+        }
+      />
 
       {engineStatus && (
         <div data-testid="provider-badge-strip" className="flex flex-wrap items-center gap-1.5 text-xs">

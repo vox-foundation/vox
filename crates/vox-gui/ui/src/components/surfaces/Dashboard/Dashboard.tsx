@@ -31,9 +31,11 @@ import { useAgentApprovals } from '../../../hooks/useAgentApprovals';
 import { surfaceKeyOf } from '../../../lib/dashboardLayout';
 import { resolveWidget } from '../../dashboard/dashboardWidgetRegistry';
 import { SurfaceMiniRender } from '../../dashboard/SurfaceMiniRender';
+import { EmbeddedSurfaceProvider } from '../../dashboard/EmbeddedSurfaceContext';
 import { WidgetErrorBoundary } from '../../dashboard/WidgetErrorBoundary';
 import { childRenderer, type SurfaceProps } from '../../layout/surfaceComponents';
 import type { Toast } from '../../../types/tauri';
+import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
 
 /** Consistent empty-state hint for a panel with no data yet. */
 function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
@@ -86,6 +88,7 @@ export function Dashboard({
   const [customizeMode, setCustomizeMode] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sandboxCollapsed, setSandboxCollapsed] = useState(false);
+  const [activeBottomTab, setActiveBottomTab] = useState<'agents' | 'budget' | 'resources'>('agents');
   const [layout, setLayout] = useLocalStorage(
     SHELL_PREFERENCE_KEYS.dashboardLayout,
     loadDashboardLayout(defaultDashboardLayout()),
@@ -210,138 +213,163 @@ export function Dashboard({
   }
 
   function renderWidget(widget: DashboardWidget) {
+    const isAgentsTab = activeBottomTab === 'agents' || customizeMode;
+    const isResourcesTab = activeBottomTab === 'resources' || customizeMode;
+
     switch (widget.kind) {
       case 'stream':
         return (
-          <Glass className="h-full p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">The Stream</h2>
-                  <span className="rounded-full border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">{stream.length} events</span>
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <Glass className="h-full p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">The Stream</h2>
+                    <span className="rounded-full border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">{stream.length} events</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-text-muted">Mission-control feed · live agent telemetry</p>
                 </div>
-                <p className="mt-0.5 text-[11px] text-text-muted">Mission-control feed · live agent telemetry</p>
+                <div className="flex gap-1 rounded-lg border border-border-subtle bg-overlay-subtle p-1">
+                  {filters.map(f => (
+                    <button
+                      key={f}
+                      type="button"
+                      aria-pressed={filterKind === f}
+                      onClick={() => setFilterKind(f)}
+                      className={`rounded-md px-2.5 py-1 text-[10px] font-display uppercase tracking-wider transition ${
+                        filterKind === f ? "bg-overlay-subtle text-text-primary" : "text-text-muted hover:text-text-secondary"
+                      }`}
+                    >
+                      {f === "in-progress" ? "in-prog" : f}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-1 rounded-lg border border-border-subtle bg-overlay-subtle p-1">
-                {filters.map(f => (
-                  <button
-                    key={f}
-                    type="button"
-                    aria-pressed={filterKind === f}
-                    onClick={() => setFilterKind(f)}
-                    className={`rounded-md px-2.5 py-1 text-[10px] font-display uppercase tracking-wider transition ${
-                      filterKind === f ? "bg-overlay-subtle text-text-primary" : "text-text-muted hover:text-text-secondary"
-                    }`}
-                  >
-                    {f === "in-progress" ? "in-prog" : f}
-                  </button>
-                ))}
+              <div className="mt-4 flex flex-col gap-2.5">
+                {stream.length === 0 ? (
+                  <EmptyHint
+                    icon={<Icon.flow className="size-5" />}
+                    title={filterKind === 'all' ? 'No events yet' : `No ${filterKind} events`}
+                    hint="Live agent telemetry streams here once tasks run. Open Chat to submit a task."
+                  />
+                ) : (
+                  stream.map(s => <StreamCard key={s.id} item={s} onDoubt={onDoubt} onOverrule={onOverrule} />)
+                )}
               </div>
-            </div>
-            <div className="mt-4 flex flex-col gap-2.5">
-              {stream.length === 0 ? (
-                <EmptyHint
-                  icon={<Icon.flow className="size-5" />}
-                  title={filterKind === 'all' ? 'No events yet' : `No ${filterKind} events`}
-                  hint="Live agent telemetry streams here once tasks run. Open Chat to submit a task."
-                />
-              ) : (
-                stream.map(s => <StreamCard key={s.id} item={s} onDoubt={onDoubt} onOverrule={onOverrule} />)
-              )}
-            </div>
-          </Glass>
+            </Glass>
+          </div>
         );
       case 'alerts':
         return (
-          <Glass className="h-full p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon.alert className="size-4 text-amber-300" />
-                <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">System · Telemetry & Alerts</h2>
-              </div>
-              <span className="font-mono text-[10px] text-text-muted">{data.alerts.length} open</span>
-            </div>
-            <div className="mt-3 flex flex-col gap-2">
-              {data.alerts.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border-subtle py-4 text-center text-[11px] text-text-muted">
-                  All clear — no open alerts.
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <Glass className="h-full p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon.alert className="size-4 text-amber-300" />
+                  <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">System · Telemetry & Alerts</h2>
                 </div>
-              ) : (
-                data.alerts.map(n => <LudusBanner key={n.id} note={n} onAck={onAckLudus} />)
-              )}
-            </div>
-          </Glass>
+                <span className="font-mono text-[10px] text-text-muted">{data.alerts.length} open</span>
+              </div>
+              <div className="mt-3 flex flex-col gap-2">
+                {data.alerts.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border-subtle py-4 text-center text-[11px] text-text-muted">
+                    All clear — no open alerts.
+                  </div>
+                ) : (
+                  data.alerts.map(n => <LudusBanner key={n.id} note={n} onAck={onAckLudus} />)
+                )}
+              </div>
+            </Glass>
+          </div>
         );
       case 'agents':
         return (
-          <Glass className="h-full p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Active Agents</h2>
-              <span className="font-mono text-[10px] text-text-muted">{data.agents.length} shards</span>
-            </div>
-            <div className="mt-3 flex flex-col gap-2">
-              {data.agents.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border-subtle py-4 text-center text-[11px] text-text-muted">
-                  No active agents — open Chat to submit a task.
-                </div>
-              ) : (
-                data.agents.map((a) => {
-                  const ap = approvals.approvalFor(a.codename);
-                  return (
-                    <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} onOpenInConsole={onOpenInConsole}
-                      pendingApprovalId={ap?.approval_id ?? null}
-                      onApprove={(id) => approvals.resolve(id, 'approved')}
-                      onReject={(id) => approvals.resolve(id, 'rejected')} />
-                  );
-                })
-              )}
-            </div>
-          </Glass>
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <Glass className="h-full p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Active Agents</h2>
+                <span className="font-mono text-[10px] text-text-muted">{data.agents.length} shards</span>
+              </div>
+              <div className="mt-3 flex flex-col gap-2">
+                {data.agents.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border-subtle py-4 text-center text-[11px] text-text-muted">
+                    No active agents — open Chat to submit a task.
+                  </div>
+                ) : (
+                  data.agents.map((a) => {
+                    const ap = approvals.approvalFor(a.codename);
+                    return (
+                      <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} onOpenInConsole={onOpenInConsole}
+                        pendingApprovalId={ap?.approval_id ?? null}
+                        onApprove={(id) => approvals.resolve(id, 'approved')}
+                        onReject={(id) => approvals.resolve(id, 'rejected')} />
+                    );
+                  })
+                )}
+              </div>
+            </Glass>
+          </div>
         );
       case 'budget_burn':
         return (
-          <AreaChartWidget
-            title="Budget Burn"
-            series={budgetSeries}
-          />
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <AreaChartWidget
+              title="Budget Burn"
+              series={budgetSeries}
+            />
+          </div>
         );
       case 'queue_depth':
         return (
-          <BarChartWidget
-            title="Queue Depth"
-            series={queueSeries}
-          />
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <BarChartWidget
+              title="Queue Depth"
+              series={queueSeries}
+            />
+          </div>
         );
       case 'line_chart':
         return (
-          <LineChartWidget
-            title={chartTitle(widget, 'Metric')}
-            series={budgetSeries}
-          />
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <LineChartWidget
+              title={chartTitle(widget, 'Metric')}
+              series={budgetSeries}
+            />
+          </div>
         );
       case 'bar_chart':
         return (
-          <BarChartWidget
-            title={chartTitle(widget, 'Metric')}
-            series={queueSeries}
-          />
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <BarChartWidget
+              title={chartTitle(widget, 'Metric')}
+              series={queueSeries}
+            />
+          </div>
         );
       case 'area_chart':
         return (
-          <AreaChartWidget
-            title={chartTitle(widget, 'Metric')}
-            series={budgetSeries}
-          />
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <AreaChartWidget
+              title={chartTitle(widget, 'Metric')}
+              series={budgetSeries}
+            />
+          </div>
         );
       case 'resources':
-        return <ResourcesWidget data={data} />;
+        return (
+          <div className={isResourcesTab ? 'h-full' : 'sr-only'}>
+            <ResourcesWidget data={data} />
+          </div>
+        );
       case 'surface_widget': {
         const key = surfaceKeyOf(widget);
         if (!key) return null;
         return (
-          <WidgetErrorBoundary label={surfaceLabel(key)}>
-            {renderSurfaceWidget(key)}
-          </WidgetErrorBoundary>
+          <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
+            <WidgetErrorBoundary label={surfaceLabel(key)}>
+              {renderSurfaceWidget(key)}
+            </WidgetErrorBoundary>
+          </div>
         );
       }
       default:
@@ -369,11 +397,19 @@ export function Dashboard({
   return (
     <div className="relative">
       {onOpenChat && (
-        <div className="mx-5 mb-2 mt-1 flex items-center justify-between gap-3 rounded-xl border border-brass/25 bg-[#0D0F17]/90 px-3.5 py-1.5">
+        <div
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="vox-marble-tablet mx-5 mb-2 mt-1 flex items-center justify-between gap-3 rounded-xl border-2 border-[#C59B27]/85 px-3.5 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+        >
           <div className="flex items-center gap-2 min-w-0">
-            <span className="size-1.5 rounded-full bg-brass shrink-0" aria-hidden="true" />
-            <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-brass shrink-0">Mission Control</p>
-            <span className="text-[11px] text-text-muted truncate">Dispatch new work or adjust posture in the Loquela composer.</span>
+            <span className="size-2 rounded-full bg-[#8C6825] shrink-0" aria-hidden="true" />
+            <p className="font-display text-[11px] font-bold uppercase tracking-wider text-[#1C140C] shrink-0">Mission Control</p>
+            <span className="text-[11px] font-medium text-[#4A381D] truncate">Dispatch new work or adjust posture in the Loquela composer.</span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {customizeMode && (
@@ -382,14 +418,14 @@ export function Dashboard({
                   type="button"
                   aria-expanded={pickerOpen}
                   onClick={() => setPickerOpen((v) => !v)}
-                  className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+                  className="rounded-md border border-[#A67C1E] bg-[#EFE6D2] px-2.5 py-1 text-[11px] font-semibold text-[#2B1F0F] hover:bg-white"
                 >
                   Add widget
                 </button>
                 <button
                   type="button"
                   onClick={handleResetLayout}
-                  className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+                  className="rounded-md border border-[#A67C1E] bg-[#EFE6D2] px-2.5 py-1 text-[11px] font-semibold text-[#2B1F0F] hover:bg-white"
                 >
                   Reset to default
                 </button>
@@ -408,7 +444,7 @@ export function Dashboard({
                   return next;
                 });
               }}
-              className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+              className="rounded-md border border-[#A67C1E] bg-[#EFE6D2] px-2.5 py-1 text-[11px] font-semibold text-[#2B1F0F] hover:bg-white"
             >
               {customizeMode ? 'Done customizing' : 'Customize dashboard'}
             </button>
@@ -416,7 +452,7 @@ export function Dashboard({
               type="button"
               data-testid="open-chat-cta"
               onClick={onOpenChat}
-              className="shrink-0 rounded-lg border border-brass/40 bg-brass/15 px-3 py-1 font-display text-[11px] font-semibold tracking-wide text-brass transition hover:bg-brass/25"
+              className="shrink-0 rounded-lg border border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] px-3 py-1 font-display text-[11px] font-semibold tracking-wide text-[#F3E5AB] transition hover:border-[#D4AF37]"
             >
               Open Chat
             </button>
@@ -467,38 +503,208 @@ export function Dashboard({
         data-testid="dashboard-kpi-strip"
         className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-2.5 px-5"
       >
-        <Kpi label="Active Agents" value={data.agents.length} accent="cyan" sparkData={[2, 3, 2, 4, 3, 5, Math.max(2, data.agents.length)]} />
-        <Kpi label="Queue Depth" value={data.kpis.queueDepth.value} accent="amber" sparkData={data.kpis.queueDepth.spark?.length ? data.kpis.queueDepth.spark : [1, 2, 1, 3, 2, 1, Math.max(1, Number(data.kpis.queueDepth.value) || 2)]} />
-        <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" sparkData={data.kpis.budgetBurn.spark?.length ? data.kpis.budgetBurn.spark : [1.2, 2.4, 3.8, 5.1, 7.6, 9.8, 12.4]} />
-        <Kpi label="Mesh Peers" value={data.peers.filter((p) => p.online).length} accent="emerald" sparkData={[3, 3, 4, 4, 4, 5, Math.max(3, data.peers.filter((p) => p.online).length)]} />
-      </div>
-      {attention_budget && (
-        <div className="mb-2.5 px-5">
-          <AttentionBudgetMeter budget={attention_budget} />
-        </div>
-      )}
-
-      {/* Workspace Simulation Mini-Map */}
-      <div className="mx-5 mb-2.5 border border-border-subtle bg-[#09090b]/80 rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between bg-bg-base/60 px-3.5 py-1.5 text-xs border-b border-border-subtle">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-emerald-400" aria-hidden="true" />
-            <span className="font-semibold text-text-primary uppercase tracking-wide">Workspace Simulation Mini-Map</span>
+        <RomanTooltip
+          title="Active Agents"
+          purpose="Shows how many autonomous or sub-agent workers are actively executing turns right now."
+          actionHint="Click to open Agent Operations Flow"
+          statusBadge={`${data.agents.length} active`}
+          placement="bottom"
+          className="block"
+        >
+          <div onClick={() => onNavigate?.('vox-operations-hub')} className="cursor-pointer transition-transform hover:-translate-y-0.5">
+            <Kpi label="Active Agents" value={data.agents.length} accent="cyan" sparkData={[2, 3, 2, 4, 3, 5, Math.max(2, data.agents.length)]} />
           </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => onNavigate?.('harness')} className="text-emerald-400 hover:underline">Harness River</button>
-            <button type="button" onClick={() => onNavigate?.('gamify')} className="text-cyan hover:underline">Immersive View</button>
-            <button type="button" onClick={() => setSandboxCollapsed(!sandboxCollapsed)} className="text-text-muted hover:text-text-secondary">
-              {sandboxCollapsed ? 'Expand' : 'Collapse'}
-            </button>
+        </RomanTooltip>
+        <RomanTooltip
+          title="Queue Depth"
+          purpose="Shows the number of pending tasks waiting in the orchestrator hopper queue."
+          actionHint="Click to open Task Queue & Hopper Ledger"
+          statusBadge={`${data.kpis.queueDepth.value} queued`}
+          placement="bottom"
+          className="block"
+        >
+          <div onClick={() => onNavigate?.('vox-task-list')} className="cursor-pointer transition-transform hover:-translate-y-0.5">
+            <Kpi label="Queue Depth" value={data.kpis.queueDepth.value} accent="amber" sparkData={data.kpis.queueDepth.spark?.length ? data.kpis.queueDepth.spark : [1, 2, 1, 3, 2, 1, Math.max(1, Number(data.kpis.queueDepth.value) || 2)]} />
+          </div>
+        </RomanTooltip>
+        <RomanTooltip
+          title="Budget Spent"
+          purpose="Tracks cumulative token spend across cloud providers and local MENS inference for this session."
+          actionHint="Click to open Cost & Token Analytics"
+          statusBadge={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : String(data.kpis.budgetBurn.value)}
+          placement="bottom"
+          className="block"
+        >
+          <div onClick={() => onNavigate?.('vox-cost-analytics')} className="cursor-pointer transition-transform hover:-translate-y-0.5">
+            <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" sparkData={data.kpis.budgetBurn.spark?.length ? data.kpis.budgetBurn.spark : [1.2, 2.4, 3.8, 5.1, 7.6, 9.8, 12.4]} />
+          </div>
+        </RomanTooltip>
+        <RomanTooltip
+          title="Mesh Peers"
+          purpose="Displays connected Populi QUIC compute mesh nodes available for distributed agent and model jobs."
+          actionHint="Click to open Compute Mesh Topology"
+          statusBadge={`${data.peers.filter((p) => p.online).length} online`}
+          placement="bottom"
+          className="block"
+        >
+          <div onClick={() => onNavigate?.('vox-mesh-topology')} className="cursor-pointer transition-transform hover:-translate-y-0.5">
+            <Kpi label="Mesh Peers" value={data.peers.filter((p) => p.online).length} accent="emerald" sparkData={[3, 3, 4, 4, 4, 5, Math.max(3, data.peers.filter((p) => p.online).length)]} />
+          </div>
+        </RomanTooltip>
+      </div>
+
+      {/* Workspace Architecture & Simulation Map (Plate 2 Romanesque Edition - immediately below KPI strip) */}
+      <div className="mx-5 mb-2.5 rounded-xl border-2 border-[#C59B27] bg-[#0E0C08]/95 shadow-[0_10px_28px_rgba(0,0,0,0.65)] overflow-hidden">
+        <div
+          data-roman-frieze="true"
+          style={{
+            backgroundImage:
+              'linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(246,240,229,0.88) 0%, rgba(238,229,212,0.74) 48%, rgba(246,240,229,0.88) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+            backgroundSize: '240% 100%, 100% 100%, cover',
+            backgroundPosition: 'center',
+          }}
+          className="vox-animate-marble-sheen flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 text-xs border-b-2 border-[#C59B27]"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <RomanMedallion active size="sm">
+              <Icon.romanColumn className="size-3.5 text-[#FFF8E7]" aria-hidden="true" />
+            </RomanMedallion>
+            <span className="font-display text-[11px] font-bold text-[#1C140C] uppercase tracking-[0.14em] truncate">
+              Workspace Architecture Map
+            </span>
+            <span className="hidden sm:inline-block rounded border border-[#785312] bg-linear-to-b from-[#F2D67B] via-[#D4AF37] to-[#9A741C] px-2 py-0.5 font-display text-[9px] font-bold text-[#1A1205]">
+              Click any building or subsystem to navigate
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <RomanTooltip
+              title="Execution Pipeline Cascade"
+              purpose="Inspect the 3-tier model cascade and laminar task verification stream from code generation to gated merge."
+              actionHint="Click to open Pipeline Cascade (Harness River)"
+              placement="bottom"
+            >
+              <button
+                type="button"
+                onClick={() => onNavigate?.('vox-harness-river')}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#5B6B24] bg-[#2C360E]/90 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-[#DCE7B6] transition hover:border-[#8FA339] hover:bg-[#3A4714]"
+              >
+                <Icon.aqueductArch className="size-3" aria-hidden="true" />
+                <span>Pipeline Cascade</span>
+              </button>
+            </RomanTooltip>
+            <RomanTooltip
+              title="Full-Screen Workspace Map & Arena"
+              purpose="Open the full-screen interactive architectural map with 7-region Astrolabe Radar, Git Commit Timeline, and Engineering Quests."
+              actionHint="Click to open Full-Screen Workspace Map"
+              placement="bottom"
+            >
+              <button
+                type="button"
+                onClick={() => onNavigate?.('vox-Ludus-view')}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/60 bg-linear-to-b from-[#3A2C14] to-[#1E160A] px-2.5 py-1 font-display text-[10px] font-semibold uppercase tracking-wider text-[#F3E5AB] transition hover:border-[#F3E5AB]"
+              >
+                <Icon.astrolabeRadar className="size-3 text-[#D4AF37]" aria-hidden="true" />
+                <span>Full-Screen Map</span>
+              </button>
+            </RomanTooltip>
+            <RomanTooltip
+              title={sandboxCollapsed ? 'Expand Workspace Map' : 'Collapse Workspace Map'}
+              purpose="Toggle the embedded interactive Workspace Map strip on the Dashboard."
+              actionHint={sandboxCollapsed ? 'Click to expand map strip' : 'Click to collapse map strip'}
+              placement="bottom"
+            >
+              <button
+                type="button"
+                onClick={() => setSandboxCollapsed(!sandboxCollapsed)}
+                className="rounded-md border border-[#D4AF37]/30 bg-[#18130D] px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-[#C8B99E] hover:border-[#D4AF37] hover:text-[#F3E5AB]"
+              >
+                {sandboxCollapsed ? 'Expand' : 'Collapse'}
+              </button>
+            </RomanTooltip>
           </div>
         </div>
         {!sandboxCollapsed && (
-          <div className="h-[212px] relative">
-            <LudusSandbox energy={80} maxEnergy={100} />
+          <div className="h-[268px] relative">
+            <EmbeddedSurfaceProvider value={true}>
+              <LudusSandbox energy={80} maxEnergy={100} onNavigate={onNavigate} />
+            </EmbeddedSurfaceProvider>
           </div>
         )}
       </div>
+
+      {/* Progressive-Disclosure Tabbed Bottom Drawer (Concept Art Option B: Active Agents & Alerts | Attention Budget | System Resources) */}
+      <div className="mx-5 mb-2.5">
+        <div
+          role="tablist"
+          aria-label="Dashboard secondary panels"
+          className="flex items-center gap-1.5 border-b border-[#D4AF37]/25 pb-2"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeBottomTab === 'agents'}
+            onClick={() => setActiveBottomTab('agents')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-display text-[11px] font-semibold uppercase tracking-wider transition ${
+              activeBottomTab === 'agents'
+                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-[#F3E5AB] shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+                : 'border border-transparent text-text-muted hover:border-border-subtle hover:bg-overlay-subtle hover:text-text-secondary'
+            }`}
+          >
+            <span className="size-1.5 rounded-full bg-[#7B8C32]" aria-hidden="true" />
+            <span>Active Agents &amp; Alerts</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeBottomTab === 'budget'}
+            onClick={() => setActiveBottomTab('budget')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-display text-[11px] font-semibold uppercase tracking-wider transition ${
+              activeBottomTab === 'budget'
+                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-[#F3E5AB] shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+                : 'border border-transparent text-text-muted hover:border-border-subtle hover:bg-overlay-subtle hover:text-text-secondary'
+            }`}
+          >
+            <span className="size-1.5 rounded-full bg-[#D4AF37]" aria-hidden="true" />
+            <span>Attention Budget</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeBottomTab === 'resources'}
+            onClick={() => setActiveBottomTab('resources')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-display text-[11px] font-semibold uppercase tracking-wider transition ${
+              activeBottomTab === 'resources'
+                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-[#F3E5AB] shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+                : 'border border-transparent text-text-muted hover:border-border-subtle hover:bg-overlay-subtle hover:text-text-secondary'
+            }`}
+          >
+            <span className="size-1.5 rounded-full bg-[#C59B27]" aria-hidden="true" />
+            <span>System Resources</span>
+          </button>
+        </div>
+      </div>
+
+      <div className={activeBottomTab === 'budget' && !customizeMode ? 'mx-5 mb-2.5 block' : 'sr-only'}>
+        {attention_budget ? (
+          <AttentionBudgetMeter budget={attention_budget} />
+        ) : (
+          <div className="rounded-xl border border-dashed border-[#D4AF37]/30 bg-[#0E0C08]/80 p-6 text-center">
+            <p className="font-display text-xs text-[#C8B99E]">No active attention budget constraint for current session.</p>
+          </div>
+        )}
+      </div>
+
+      {!layout.widgets.some((w) => w.kind === 'resources') && (
+        <div
+          className={
+            activeBottomTab === 'resources' && !customizeMode
+              ? 'mx-5 mb-2.5 block'
+              : 'sr-only'
+          }
+        >
+          <ResourcesWidget data={data} />
+        </div>
+      )}
 
       <WidgetPickerDrawer
         layout={layout}

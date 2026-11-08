@@ -1,48 +1,110 @@
 import React from 'react';
 import { LudusProfile, xpBarPct } from '../../../lib/ludus';
+import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
+import { Icon } from '../../ui/Icons';
 
 export function LudusHud({ profile }: { profile: LudusProfile }) {
+  const xpPct = Math.round(Math.max(0, Math.min(1, profile.xp_progress)) * 100);
+
   return (
-    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
-      <div className="flex items-baseline justify-between">
-        <div className="font-display text-sm tracking-wider text-brass uppercase">{profile.full_title}</div>
-        <div className="font-mono text-[11px] text-text-muted">Lv {profile.level} · prestige {profile.prestige_level}</div>
+    <div
+      data-testid="ludus-hud"
+      className="rounded-xl border border-[#D4AF37]/45 bg-gradient-to-b from-[#1E1810] via-[#16120C] to-[#0E0B07] p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(244,211,138,0.2)] text-[#E6DCB8] space-y-2.5"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <RomanMedallion active size="sm">
+            <Icon.laurelWreath className="size-3.5 text-[#F3E5AB]" />
+          </RomanMedallion>
+          <div className="truncate font-serif text-sm font-bold tracking-wider text-[#F3E5AB] uppercase">
+            {profile.full_title}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 font-mono text-[11px] text-[#C8B896]">
+          <span className="rounded border border-[#D4AF37]/30 bg-[#241A0B] px-2 py-0.5 font-semibold text-[#F3E5AB]">
+            Level {profile.level}
+          </span>
+          <span className="text-[#8C7A5E]">·</span>
+          <span>Prestige {profile.prestige_level}</span>
+        </div>
       </div>
-      <div
-        className="mt-2 h-1.5 overflow-hidden rounded-full bg-overlay-subtle"
-        role="progressbar"
-        aria-label="XP progress"
-        aria-valuenow={Math.round(Math.max(0, Math.min(1, profile.xp_progress)) * 100)}
-        aria-valuemin={0}
-        aria-valuemax={100}
+
+      <RomanTooltip
+        title="Engineering Experience (XP)"
+        purpose="Accumulated by passing compiler gates, writing verified code, and completing engineering quests."
+        statusBadge={`${profile.xp} / ${profile.xp + profile.xp_to_next_level} XP`}
+        actionHint="Earn XP by compiling code and clearing harness gates"
+        className="block w-full"
       >
-        <div className="h-full rounded-full bg-brass/70 transition-[width]" style={{ width: xpBarPct(profile.xp_progress) }} />
-      </div>
-      <div className="mt-1 flex justify-between font-mono text-[10px] text-text-muted">
-        <span>{profile.xp} XP</span>
-        <span>{profile.xp_to_next_level} to next</span>
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
-        <Stat
-          label="Crystals"
-          value={String(profile.crystals)}
-          icon={
-            <svg viewBox="0 0 12 12" className="size-3 text-cyan" fill="currentColor" aria-hidden="true">
-              <path d="M6 1L10.5 4.5L6 11L1.5 4.5L6 1Z" />
-            </svg>
-          }
-        />
-        <Stat label="Lumens" value={`${profile.lumens}`} />
-        <Stat label="Energy" value={`${profile.energy}/${profile.max_energy}`} />
-        <Stat
-          label="Streak"
-          value={String(profile.current_streak)}
-          icon={
-            <svg viewBox="0 0 12 12" className="size-3 text-amber-400" fill="currentColor" aria-hidden="true">
-              <path d="M6.5 1C6.5 1 9.5 3.8 9.5 6.8C9.5 9.1 7.8 11 5.8 11C3.8 11 2.5 9.3 2.5 7.2C2.5 5.6 3.6 4.2 3.6 4.2C3.6 4.2 3.9 5.5 4.8 5.5C4.5 3.6 6.5 1 6.5 1Z" />
-            </svg>
-          }
-        />
+        <div className="space-y-1 cursor-default">
+          <div
+            className="h-2 overflow-hidden rounded-full bg-[#241E15] border border-[#382F20]/70"
+            role="progressbar"
+            aria-label="XP progress"
+            aria-valuenow={xpPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#B4881A] via-[#D4AF37] to-[#F3E5AB] transition-[width] duration-300 shadow-[0_0_8px_rgba(212,175,55,0.4)]"
+              style={{ width: xpBarPct(profile.xp_progress) }}
+            />
+          </div>
+          <div className="flex justify-between font-mono text-[10px] text-[#A89878]">
+            <span>{profile.xp.toLocaleString()} XP</span>
+            <span>{profile.xp_to_next_level.toLocaleString()} to next level</span>
+          </div>
+        </div>
+      </RomanTooltip>
+
+      <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4 pt-1">
+        <RomanTooltip
+          title="Civilization Crystals"
+          purpose="Rare engineering currency awarded for zero-cascade efficiency and optimization thrift."
+          statusBadge={`${profile.crystals} ◆`}
+        >
+          <Stat
+            label="Crystals"
+            value={String(profile.crystals)}
+            icon={<Icon.denariusCoin className="size-3.5 text-[#F3E5AB]" />}
+          />
+        </RomanTooltip>
+
+        <RomanTooltip
+          title="Reputation Lumens"
+          purpose="Permanent verified reputation score earned across crate guilds and compiler contributions."
+          statusBadge={`${profile.lumens} ☼`}
+        >
+          <Stat
+            label="Lumens"
+            value={`${profile.lumens}`}
+            icon={<Icon.brazierTorch className="size-3.5 text-[#F59E0B]" />}
+          />
+        </RomanTooltip>
+
+        <RomanTooltip
+          title="Focus Energy"
+          purpose="Daily stamina allocated for autonomous agent dispatches and sandbox simulations."
+          statusBadge={`${profile.energy}/${profile.max_energy}`}
+        >
+          <Stat
+            label="Energy"
+            value={`${profile.energy}/${profile.max_energy}`}
+            icon={<Icon.astrolabeRadar className="size-3.5 text-[#D4AF37]" />}
+          />
+        </RomanTooltip>
+
+        <RomanTooltip
+          title="Daily Streak"
+          purpose="Consecutive daily engineering sessions with green builds and verified commits."
+          statusBadge={`${profile.current_streak} days`}
+        >
+          <Stat
+            label="Streak"
+            value={String(profile.current_streak)}
+            icon={<Icon.waxSeal className="size-3.5 text-[#EF4444]" />}
+          />
+        </RomanTooltip>
       </div>
     </div>
   );
@@ -50,9 +112,9 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
 
 function Stat({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-lg bg-overlay-subtle px-2 py-1.5 ring-1 ring-white/5">
-      <div className="text-[9px] uppercase tracking-wide text-text-muted">{label}</div>
-      <div className="inline-flex items-center gap-1 font-mono text-text-secondary">
+    <div className="flex flex-col justify-between rounded-lg border border-[#382F20] bg-gradient-to-b from-[#18130C] to-[#0E0B07] px-2.5 py-1.5 shadow-xs transition hover:border-[#D4AF37]/40">
+      <div className="text-[9px] font-serif uppercase tracking-wider text-[#9E9079]">{label}</div>
+      <div className="mt-0.5 inline-flex items-center gap-1.5 font-mono text-sm font-semibold text-[#F3E5AB]">
         <span>{value}</span>
         {icon}
       </div>

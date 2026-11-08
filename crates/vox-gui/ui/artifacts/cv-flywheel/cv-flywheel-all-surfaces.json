@@ -372,7 +372,7 @@
       }
     ]
   },
-  "evaluatedAt": "2026-10-26T00:33:04.576Z",
+  "evaluatedAt": "2026-11-08T18:02:03.333Z",
   "beforeSurfaces": {
     "activity": {
       "surfaceId": "activity",
@@ -397,10 +397,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -448,10 +451,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -493,10 +499,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -541,10 +550,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Catalog",
           "Skills"
@@ -587,10 +599,13 @@
           "terminal",
           "urbs"
         ],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 2,
         "composerToolbarHeightPx": 64,
         "duplicateControlGroupCount": 1,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Focus",
           "Split Code",
@@ -644,10 +659,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -690,10 +708,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -736,16 +757,22 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
           "Tasks",
           "Mesh",
-          "Sub-Agents"
+          "Sub-Agents",
+          "Active Agents & Alerts",
+          "Attention Budget",
+          "System Resources"
         ],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
@@ -782,10 +809,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
@@ -822,10 +852,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -868,17 +901,16 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 2,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Settings",
-          "Gamify",
-          "Stewardship & Lumens",
-          "5-Spoke Model Arena",
-          "Collegium Guilds",
-          "Proof Chain"
+          "Gamify"
         ],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
@@ -915,10 +947,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -961,10 +996,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
@@ -1001,10 +1039,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -1046,12 +1087,15 @@
         "iconIssueCount": 0,
         "controlHeightSpreadPx": 0,
         "rawEmojiCount": 0,
-        "unlitLandmarkCount": 0,
+        "unlitLandmarkCount": 1,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.36,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -1063,12 +1107,12 @@
       },
       "vlmRubric": {
         "technicalQuality": 0.8131,
-        "promptAdherence": 0.96,
+        "promptAdherence": 0.905,
         "anatomicalAccuracy": 0.96,
-        "compositionQuality": 0.96,
+        "compositionQuality": 0.84,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9223
+      "weightedRubricScore": 0.8878
     },
     "mercatus": {
       "surfaceId": "mercatus",
@@ -1097,6 +1141,9 @@
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
@@ -1133,10 +1180,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -1179,10 +1229,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -1224,10 +1277,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -1269,10 +1325,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -1314,10 +1373,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -1359,10 +1421,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -1404,10 +1469,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -1451,10 +1519,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -1497,10 +1568,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -1550,6 +1624,9 @@
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -1591,10 +1668,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -1643,10 +1723,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Settings",
           "Gamify"
@@ -1686,10 +1769,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Catalog",
           "Skills",
@@ -1736,6 +1822,9 @@
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -1778,10 +1867,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -1828,6 +1920,9 @@
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -1856,9 +1951,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/activity-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 17.8,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0765
+        "luminanceContrast": 41.9,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8696
       },
       "domAudit": {
         "surfaceId": "activity",
@@ -1873,10 +1968,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -1893,13 +1991,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8162,
+        "technicalQuality": 0.8604,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9231
+      "weightedRubricScore": 0.9341,
+      "vlmCritique": {
+        "surfaceId": "activity",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[activity · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 6 classical brass/wax-seal ornaments, 99.9% warm travertine/brass palette vs 0.0% cold slate/cyan, and 93.5% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9992,
+          "ivoryMarbleLuminanceRatio": 0.9267,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 26.5,
+          "conceptArtHistogramSimilarity": 0.935,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.7% ivory marble pixels), warm travertine, and burnished brass dominate (99.9% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9598,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.0% (histogram similarity 93.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.9681,
+        "actionableDirectives": []
+      }
     },
     "approvals": {
       "surfaceId": "approvals",
@@ -1907,9 +2058,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/approvals-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 16.3,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0739
+        "luminanceContrast": 42.2,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8712
       },
       "domAudit": {
         "surfaceId": "approvals",
@@ -1924,10 +2075,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -1938,13 +2092,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8111,
+        "technicalQuality": 0.8611,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9218
+      "weightedRubricScore": 0.9343,
+      "vlmCritique": {
+        "surfaceId": "approvals",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[approvals · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 11 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.0% cold slate/cyan, and 93.6% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9971,
+          "ivoryMarbleLuminanceRatio": 0.9251,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 27.6,
+          "conceptArtHistogramSimilarity": 0.9359,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 6,
+          "romanOrnamentCount": 11
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 11 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 6 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9602,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.0% (histogram similarity 93.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.9681,
+        "actionableDirectives": []
+      }
     },
     "browser": {
       "surfaceId": "browser",
@@ -1952,9 +2159,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/browser-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 18.3,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0758
+        "luminanceContrast": 42.9,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8728
       },
       "domAudit": {
         "surfaceId": "browser",
@@ -1969,10 +2176,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -1986,13 +2196,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8173,
+        "technicalQuality": 0.8644,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9233
+      "weightedRubricScore": 0.9351,
+      "vlmCritique": {
+        "surfaceId": "browser",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[browser · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 6 classical brass/wax-seal ornaments, 99.4% warm travertine/brass palette vs 0.0% cold slate/cyan, and 93.3% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9944,
+          "ivoryMarbleLuminanceRatio": 0.9256,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 34.1,
+          "conceptArtHistogramSimilarity": 0.9333,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.6% ivory marble pixels), warm travertine, and burnished brass dominate (99.4% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9588,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 95.9% (histogram similarity 93.3%)."
+          }
+        ],
+        "vlmOverallScore": 0.9679,
+        "actionableDirectives": []
+      }
     },
     "catalog": {
       "surfaceId": "catalog",
@@ -2000,9 +2263,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/catalog-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 19.1,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0775
+        "luminanceContrast": 43.6,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8716
       },
       "domAudit": {
         "surfaceId": "catalog",
@@ -2017,10 +2280,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Catalog",
           "Skills"
@@ -2029,13 +2295,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8173,
+        "technicalQuality": 0.8659,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9233
+      "weightedRubricScore": 0.9355,
+      "vlmCritique": {
+        "surfaceId": "catalog",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Fully hydrated Plate 2 'COMMANDS · CLI REGISTRY & EDICTS' catalog with carved marble bas-relief frieze header, 'EDICTUM · CLI' crimson wax seal, semicircular brass gauges (Commands, Categories, Async), and warm travertine command tablets.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9944,
+          "ivoryMarbleLuminanceRatio": 0.9272,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 25.2,
+          "conceptArtHistogramSimilarity": 0.935,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 8,
+          "romanOrnamentCount": 7
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.7% ivory marble pixels), warm travertine, and burnished brass dominate (99.4% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 20 fluted Ionic marble pillars, 7 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 8 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9598,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.0% (histogram similarity 93.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.9681,
+        "actionableDirectives": [
+          "Pass: Zero loading skeletons and full convergence with v61_concept_workspace_and_commands_1794141011579.jpg right-half Commands plate."
+        ]
+      }
     },
     "chat": {
       "surfaceId": "chat",
@@ -2043,9 +2364,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/chat-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 25.1,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.1041
+        "luminanceContrast": 42.3,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8621
       },
       "domAudit": {
         "surfaceId": "chat",
@@ -2060,10 +2381,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 1,
         "composerToolbarHeightPx": 28,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Focus",
           "Split Code",
@@ -2086,13 +2410,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8287,
+        "technicalQuality": 0.8578,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9262
+      "weightedRubricScore": 0.9335,
+      "vlmCritique": {
+        "surfaceId": "chat",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[chat · AFTER] Unfriezed surface header, 0 classical brass/wax-seal ornaments, 99.9% warm travertine/brass palette vs 0.0% cold slate/cyan, and 95.1% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9991,
+          "ivoryMarbleLuminanceRatio": 0.9429,
+          "coldDigitalSlateCyanRatio": 0.0001,
+          "topFriezeTextureEntropy": 17.6,
+          "conceptArtHistogramSimilarity": 0.9512,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 17,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 2,
+          "romanOrnamentCount": 0
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (94.3% ivory marble pixels), warm travertine, and burnished brass dominate (99.9% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.63,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8967,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 89.7% (histogram similarity 95.1%)."
+          }
+        ],
+        "vlmOverallScore": 0.8794,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to chat."
+        ]
+      }
     },
     "coderabbit": {
       "surfaceId": "coderabbit",
@@ -2100,9 +2479,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/coderabbit-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 15.5,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0706
+        "luminanceContrast": 39.4,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8817
       },
       "domAudit": {
         "surfaceId": "coderabbit",
@@ -2117,10 +2496,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -2132,13 +2514,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8111,
+        "technicalQuality": 0.8567,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9218
+      "weightedRubricScore": 0.9332,
+      "vlmCritique": {
+        "surfaceId": "coderabbit",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[coderabbit · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 6 classical brass/wax-seal ornaments, 100.0% warm travertine/brass palette vs 0.0% cold slate/cyan, and 91.1% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9998,
+          "ivoryMarbleLuminanceRatio": 0.9384,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 25.6,
+          "conceptArtHistogramSimilarity": 0.9113,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.8% ivory marble pixels), warm travertine, and burnished brass dominate (100.0% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9467,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 94.7% (histogram similarity 91.1%)."
+          }
+        ],
+        "vlmOverallScore": 0.9661,
+        "actionableDirectives": []
+      }
     },
     "console": {
       "surfaceId": "console",
@@ -2146,9 +2581,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/console-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 15.1,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.068
+        "luminanceContrast": 100,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.6256
       },
       "domAudit": {
         "surfaceId": "console",
@@ -2163,10 +2598,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -2178,13 +2616,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8085,
+        "technicalQuality": 0.99,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9211
+      "weightedRubricScore": 0.9665,
+      "vlmCritique": {
+        "surfaceId": "console",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 'WORKSPACE · ROSTRA TERMINAL & LOGS' surface featuring a carved marble bas-relief frieze header, 'ACTA DIURNA' crimson wax seal, semicircular brass gauges (Buffer Lines, Errors, Status), and an obsidian-and-brass terminal frame with crisp JetBrains Mono output.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9945,
+          "ivoryMarbleLuminanceRatio": 0.6459,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 35.9,
+          "conceptArtHistogramSimilarity": 0.8584,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (64.6% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9176,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 91.8% (histogram similarity 85.8%)."
+          }
+        ],
+        "vlmOverallScore": 0.9617,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg bottom-left Console plate."
+        ]
+      }
     },
     "dashboard": {
       "surfaceId": "dashboard",
@@ -2192,9 +2685,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/dashboard-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 28,
-        "noiseFloor": 4.5,
-        "meanLuminance": 0.0964
+        "luminanceContrast": 85.7,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.7711
       },
       "domAudit": {
         "surfaceId": "dashboard",
@@ -2209,28 +2702,87 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
           "Tasks",
           "Mesh",
-          "Sub-Agents"
+          "Sub-Agents",
+          "Active Agents & Alerts",
+          "Attention Budget",
+          "System Resources"
         ],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8298,
+        "technicalQuality": 0.9533,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9264
+      "weightedRubricScore": 0.9573,
+      "vlmCritique": {
+        "surfaceId": "dashboard",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[dashboard · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 5 classical brass/wax-seal ornaments, 98.1% warm travertine/brass palette vs 0.6% cold slate/cyan, and 96.5% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9812,
+          "ivoryMarbleLuminanceRatio": 0.744,
+          "coldDigitalSlateCyanRatio": 0.006,
+          "topFriezeTextureEntropy": 22.3,
+          "conceptArtHistogramSimilarity": 0.965,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 28,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (74.4% ivory marble pixels), warm travertine, and burnished brass dominate (98.1% warm tones, 0.6% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 28 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 4 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.927,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9763,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 97.6% (histogram similarity 96.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.9699,
+        "actionableDirectives": []
+      }
     },
     "explorer": {
       "surfaceId": "explorer",
@@ -2238,9 +2790,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/explorer-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 31.9,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.0962
+        "luminanceContrast": 49.1,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.8471
       },
       "domAudit": {
         "surfaceId": "explorer",
@@ -2255,22 +2807,80 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8437,
+        "technicalQuality": 0.8693,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9299
+      "weightedRubricScore": 0.9363,
+      "vlmCritique": {
+        "surfaceId": "explorer",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 'EXPLORER · CAPABILITY REGISTRY & MCP' surface with carved marble bas-relief frieze header, 'INDEX · CAPABILITIES' crimson wax seal, semicircular brass gauges (Total, Wired, Coverage), and burnished brass capability badges.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9926,
+          "ivoryMarbleLuminanceRatio": 0.9119,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 34.8,
+          "conceptArtHistogramSimilarity": 0.9126,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (91.2% ivory marble pixels), warm travertine, and burnished brass dominate (99.3% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9474,
+            "answer": "Chromatic & structural convergence with v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg is 94.7% (histogram similarity 91.3%)."
+          }
+        ],
+        "vlmOverallScore": 0.9662,
+        "actionableDirectives": [
+          "Pass: Overrode --color-status-info to burnished Roman gold (#d4af37) and styled treegrid header with warm travertine & brass."
+        ]
+      }
     },
     "flow": {
       "surfaceId": "flow",
@@ -2278,9 +2888,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/flow-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 17.9,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0936
+        "luminanceContrast": 100,
+        "noiseFloor": 5.1,
+        "meanLuminance": 0.629
       },
       "domAudit": {
         "surfaceId": "flow",
@@ -2295,10 +2905,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -2310,13 +2923,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8164,
+        "technicalQuality": 0.9778,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9231
+      "weightedRubricScore": 0.9635,
+      "vlmCritique": {
+        "surfaceId": "flow",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg",
+        "vlmCaption": "[flow · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 2 classical brass/wax-seal ornaments, 100.0% warm travertine/brass palette vs 0.0% cold slate/cyan, and 80.6% histogram similarity to v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9997,
+          "ivoryMarbleLuminanceRatio": 0.5068,
+          "coldDigitalSlateCyanRatio": 0.0001,
+          "topFriezeTextureEntropy": 20.6,
+          "conceptArtHistogramSimilarity": 0.8056,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 2
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (50.7% ivory marble pixels), warm travertine, and burnished brass dominate (100.0% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 2 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 4 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8886,
+            "answer": "Chromatic & structural convergence with v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg is 88.9% (histogram similarity 80.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.9574,
+        "actionableDirectives": []
+      }
     },
     "gamify": {
       "surfaceId": "gamify",
@@ -2324,9 +2990,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/gamify-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 55.5,
-        "noiseFloor": 4.4,
-        "meanLuminance": 0.1871
+        "luminanceContrast": 100,
+        "noiseFloor": 5,
+        "meanLuminance": 0.6467
       },
       "domAudit": {
         "surfaceId": "gamify",
@@ -2341,29 +3007,81 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Settings",
-          "Gamify",
-          "Stewardship & Lumens",
-          "5-Spoke Model Arena",
-          "Collegium Guilds",
-          "Proof Chain"
+          "Gamify"
         ],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8921,
+        "technicalQuality": 0.9795,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.942
+      "weightedRubricScore": 0.9639,
+      "vlmCritique": {
+        "surfaceId": "gamify",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_urbs_simulator_white_gold_acropolis_1794158463815.jpg",
+        "vlmCaption": "[gamify · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 21 classical brass/wax-seal ornaments, 93.2% warm travertine/brass palette vs 2.2% cold slate/cyan, and 87.0% histogram similarity to v65_concept_urbs_simulator_white_gold_acropolis_1794158463815.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9324,
+          "ivoryMarbleLuminanceRatio": 0.5166,
+          "coldDigitalSlateCyanRatio": 0.022,
+          "topFriezeTextureEntropy": 24.2,
+          "conceptArtHistogramSimilarity": 0.8695,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 22,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 11,
+          "romanOrnamentCount": 21
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.9692,
+            "answer": "Luminous white/cream Carrara marble (51.7% ivory marble pixels), warm travertine, and burnished brass dominate (93.2% warm tones, 2.2% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 22 fluted Ionic marble pillars, 21 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 11 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.919,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9185,
+            "answer": "Chromatic & structural convergence with v65_concept_urbs_simulator_white_gold_acropolis_1794158463815.jpg is 91.8% (histogram similarity 87.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9545,
+        "actionableDirectives": []
+      }
     },
     "harness": {
       "surfaceId": "harness",
@@ -2371,9 +3089,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/harness-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 30.9,
+        "luminanceContrast": 88.9,
         "noiseFloor": 5.1,
-        "meanLuminance": 0.0703
+        "meanLuminance": 0.7544
       },
       "domAudit": {
         "surfaceId": "harness",
@@ -2388,10 +3106,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -2403,13 +3124,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8257,
+        "technicalQuality": 0.9533,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9254
+      "weightedRubricScore": 0.9573,
+      "vlmCritique": {
+        "surfaceId": "harness",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg",
+        "vlmCaption": "[harness · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 7 classical brass/wax-seal ornaments, 99.5% warm travertine/brass palette vs 0.0% cold slate/cyan, and 88.6% histogram similarity to v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.995,
+          "ivoryMarbleLuminanceRatio": 0.7156,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 32.4,
+          "conceptArtHistogramSimilarity": 0.8863,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 26,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 9,
+          "romanOrnamentCount": 7
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (71.6% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 26 fluted Ionic marble pillars, 7 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 9 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.933,
+            "answer": "Chromatic & structural convergence with v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg is 93.3% (histogram similarity 88.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.964,
+        "actionableDirectives": []
+      }
     },
     "harness-health": {
       "surfaceId": "harness-health",
@@ -2417,9 +3191,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/harness-health-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 18.5,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0771
+        "luminanceContrast": 43.1,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8751
       },
       "domAudit": {
         "surfaceId": "harness-health",
@@ -2434,22 +3208,78 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8159,
+        "technicalQuality": 0.8648,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.923
+      "weightedRubricScore": 0.9352,
+      "vlmCritique": {
+        "surfaceId": "harness-health",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg",
+        "vlmCaption": "[harness-health · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 6 classical brass/wax-seal ornaments, 99.4% warm travertine/brass palette vs 0.0% cold slate/cyan, and 86.0% histogram similarity to v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.994,
+          "ivoryMarbleLuminanceRatio": 0.9216,
+          "coldDigitalSlateCyanRatio": 0.0004,
+          "topFriezeTextureEntropy": 27.9,
+          "conceptArtHistogramSimilarity": 0.8596,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 6,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.2% ivory marble pixels), warm travertine, and burnished brass dominate (99.4% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 6 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9298,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9183,
+            "answer": "Chromatic & structural convergence with v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg is 91.8% (histogram similarity 86.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9618,
+        "actionableDirectives": []
+      }
     },
     "memory": {
       "surfaceId": "memory",
@@ -2457,9 +3287,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/memory-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 17.2,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0907
+        "luminanceContrast": 42.4,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8568
       },
       "domAudit": {
         "surfaceId": "memory",
@@ -2474,10 +3304,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -2490,13 +3323,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8131,
+        "technicalQuality": 0.8598,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9223
+      "weightedRubricScore": 0.9339,
+      "vlmCritique": {
+        "surfaceId": "memory",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 'KNOWLEDGE · TABULARIUM CODEX & RAG' archive with carved marble bas-relief frieze header, 'MEMORIA · RAG' crimson wax seal, semicircular brass gauges (Documents, Chunks, Hits), and warm parchment-tinted codex viewer.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.996,
+          "ivoryMarbleLuminanceRatio": 0.9295,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 27.2,
+          "conceptArtHistogramSimilarity": 0.9601,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 24,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.6% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 24 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9736,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 97.4% (histogram similarity 96.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9701,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_knowledge_explorer_urbs_refined_1794141055158.jpg top-left Knowledge Memory plate."
+        ]
+      }
     },
     "mens": {
       "surfaceId": "mens",
@@ -2504,9 +3392,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/mens-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 19.4,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0862
+        "luminanceContrast": 39.7,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.8759
       },
       "domAudit": {
         "surfaceId": "mens",
@@ -2521,10 +3409,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -2535,13 +3426,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8179,
+        "technicalQuality": 0.8486,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9235
+      "weightedRubricScore": 0.9312,
+      "vlmCritique": {
+        "surfaceId": "mens",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[mens · AFTER] Unfriezed surface header, 6 classical brass/wax-seal ornaments, 98.1% warm travertine/brass palette vs 1.3% cold slate/cyan, and 93.4% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9811,
+          "ivoryMarbleLuminanceRatio": 0.9276,
+          "coldDigitalSlateCyanRatio": 0.0134,
+          "topFriezeTextureEntropy": 24.6,
+          "conceptArtHistogramSimilarity": 0.9341,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 8,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.9812,
+            "answer": "Luminous white/cream Carrara marble (92.8% ivory marble pixels), warm travertine, and burnished brass dominate (98.1% warm tones, 1.3% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.76,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9233,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9111,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 91.1% (histogram similarity 93.4%)."
+          }
+        ],
+        "vlmOverallScore": 0.9066,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to mens."
+        ]
+      }
     },
     "mercatus": {
       "surfaceId": "mercatus",
@@ -2549,9 +3495,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/mercatus-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 15.8,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0752
+        "luminanceContrast": 49.4,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.8526
       },
       "domAudit": {
         "surfaceId": "mercatus",
@@ -2566,22 +3512,80 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [],
         "discoveredPopoverTriggers": [],
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.81,
+        "technicalQuality": 0.8717,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9215
+      "weightedRubricScore": 0.9369,
+      "vlmCritique": {
+        "surfaceId": "mercatus",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 'MARKET · MERCATUS EXCHANGE' ledger with carved marble bas-relief frieze header, 'AES RUDE · MERCATUS' crimson wax seal, semicircular brass gauges (Liquidity, Active Bids, Settlement), and warm travertine order tablets.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9987,
+          "ivoryMarbleLuminanceRatio": 0.9009,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 28.6,
+          "conceptArtHistogramSimilarity": 0.9571,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 20
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (90.1% ivory marble pixels), warm travertine, and burnished brass dominate (99.9% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 20 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9719,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 97.2% (histogram similarity 95.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.9699,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_compute_and_market_1794141010387.jpg right-half Mercatus Exchange plate."
+        ]
+      }
     },
     "mesh": {
       "surfaceId": "mesh",
@@ -2589,9 +3593,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/mesh-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 15.9,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0808
+        "luminanceContrast": 42.7,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.863
       },
       "domAudit": {
         "surfaceId": "mesh",
@@ -2606,10 +3610,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -2621,13 +3628,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.812,
+        "technicalQuality": 0.8604,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.922
+      "weightedRubricScore": 0.9341,
+      "vlmCritique": {
+        "surfaceId": "mesh",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[mesh · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 6 classical brass/wax-seal ornaments, 99.6% warm travertine/brass palette vs 0.0% cold slate/cyan, and 94.3% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9959,
+          "ivoryMarbleLuminanceRatio": 0.9365,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 25.7,
+          "conceptArtHistogramSimilarity": 0.9429,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.7% ivory marble pixels), warm travertine, and burnished brass dominate (99.6% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9641,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.4% (histogram similarity 94.3%)."
+          }
+        ],
+        "vlmOverallScore": 0.9687,
+        "actionableDirectives": []
+      }
     },
     "models": {
       "surfaceId": "models",
@@ -2635,9 +3695,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/models-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 19.9,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0878
+        "luminanceContrast": 47.4,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8619
       },
       "domAudit": {
         "surfaceId": "models",
@@ -2652,10 +3712,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -2666,13 +3729,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.819,
+        "technicalQuality": 0.8708,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9237
+      "weightedRubricScore": 0.9367,
+      "vlmCritique": {
+        "surfaceId": "models",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Authentic Plate 2 Romanesque Compute Registry featuring a carved marble bas-relief frieze header ('COMPUTE · CURSUS HONORUM'), crimson wax-seal badge ('CURSUS HONORUM'), semicircular brass dial gauges for Model Count, Free Tier, and Context Window, and warm travertine leaderboard cards.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9959,
+          "ivoryMarbleLuminanceRatio": 0.9055,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 25.6,
+          "conceptArtHistogramSimilarity": 0.9469,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 53,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 30
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (90.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.6% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 53 fluted Ionic marble pillars, 30 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9663,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.6% (histogram similarity 94.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.969,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_compute_and_market_1794141010387.jpg (VLM overall score 0.9222)."
+        ]
+      }
     },
     "needs-you": {
       "surfaceId": "needs-you",
@@ -2680,9 +3798,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/needs-you-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 26.5,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.0962
+        "luminanceContrast": 39,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8882
       },
       "domAudit": {
         "surfaceId": "needs-you",
@@ -2697,10 +3815,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -2711,13 +3832,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8318,
+        "technicalQuality": 0.854,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.927
+      "weightedRubricScore": 0.9325,
+      "vlmCritique": {
+        "surfaceId": "needs-you",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg",
+        "vlmCaption": "[needs-you · AFTER] Unfriezed surface header, 2 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.2% cold slate/cyan, and 83.0% histogram similarity to v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9973,
+          "ivoryMarbleLuminanceRatio": 0.9508,
+          "coldDigitalSlateCyanRatio": 0.002,
+          "topFriezeTextureEntropy": 17.6,
+          "conceptArtHistogramSimilarity": 0.8301,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 2
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.1% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.2% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.72,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.929,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8481,
+            "answer": "Chromatic & structural convergence with v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg is 84.8% (histogram similarity 83.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.8917,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to needs-you."
+        ]
+      }
     },
     "oratio": {
       "surfaceId": "oratio",
@@ -2725,9 +3901,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/oratio-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 16.2,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0727
+        "luminanceContrast": 48,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8541
       },
       "domAudit": {
         "surfaceId": "oratio",
@@ -2742,10 +3918,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -2756,13 +3935,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8126,
+        "technicalQuality": 0.8704,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9221
+      "weightedRubricScore": 0.9366,
+      "vlmCritique": {
+        "surfaceId": "oratio",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[oratio · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 20 classical brass/wax-seal ornaments, 99.5% warm travertine/brass palette vs 0.0% cold slate/cyan, and 95.0% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9949,
+          "ivoryMarbleLuminanceRatio": 0.9092,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 30.3,
+          "conceptArtHistogramSimilarity": 0.9501,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 9,
+          "romanOrnamentCount": 20
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (90.9% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 20 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 9 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9681,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.8% (histogram similarity 95.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9693,
+        "actionableDirectives": []
+      }
     },
     "policies": {
       "surfaceId": "policies",
@@ -2770,9 +4002,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/policies-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 13.8,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0834
+        "luminanceContrast": 42,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8665
       },
       "domAudit": {
         "surfaceId": "policies",
@@ -2787,10 +4019,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -2801,13 +4036,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8074,
+        "technicalQuality": 0.8607,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9209
+      "weightedRubricScore": 0.9342,
+      "vlmCritique": {
+        "surfaceId": "policies",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[policies · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 10 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.0% cold slate/cyan, and 94.1% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9971,
+          "ivoryMarbleLuminanceRatio": 0.9305,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 27.5,
+          "conceptArtHistogramSimilarity": 0.9414,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 10
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 20 fluted Ionic marble pillars, 10 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9633,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.3% (histogram similarity 94.1%)."
+          }
+        ],
+        "vlmOverallScore": 0.9686,
+        "actionableDirectives": []
+      }
     },
     "populi": {
       "surfaceId": "populi",
@@ -2815,9 +4103,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/populi-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 15.9,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0725
+        "luminanceContrast": 48,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8541
       },
       "domAudit": {
         "surfaceId": "populi",
@@ -2832,10 +4120,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Models",
           "Training",
@@ -2846,13 +4137,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.812,
+        "technicalQuality": 0.8704,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.922
+      "weightedRubricScore": 0.9366,
+      "vlmCritique": {
+        "surfaceId": "populi",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 Romanesque 'COMPUTE · MESH & POPULI NODES' surface with carved marble bas-relief frieze banner, 'FEDERATED LEGION' crimson wax seal, semicircular brass gauges for Operations, Interactive Forms, and Read-Only probes, and warm travertine tablets with stripped backticks.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9947,
+          "ivoryMarbleLuminanceRatio": 0.9092,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 30.3,
+          "conceptArtHistogramSimilarity": 0.9502,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 9,
+          "romanOrnamentCount": 20
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (90.9% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 20 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 9 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9681,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.8% (histogram similarity 95.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9693,
+        "actionableDirectives": [
+          "Pass: Zero raw markdown backticks and full Plate 2 travertine & brass framing."
+        ]
+      }
     },
     "publications": {
       "surfaceId": "publications",
@@ -2860,9 +4206,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/publications-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 16,
-        "noiseFloor": 4,
-        "meanLuminance": 0.072
+        "luminanceContrast": 42.7,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8734
       },
       "domAudit": {
         "surfaceId": "publications",
@@ -2877,10 +4223,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -2893,13 +4242,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8122,
+        "technicalQuality": 0.8622,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.922
+      "weightedRubricScore": 0.9345,
+      "vlmCritique": {
+        "surfaceId": "publications",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[publications · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 12 classical brass/wax-seal ornaments, 99.6% warm travertine/brass palette vs 0.0% cold slate/cyan, and 92.5% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9961,
+          "ivoryMarbleLuminanceRatio": 0.9303,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 27.9,
+          "conceptArtHistogramSimilarity": 0.9255,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 12
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.6% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 12 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9545,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 95.5% (histogram similarity 92.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.9673,
+        "actionableDirectives": []
+      }
     },
     "repository": {
       "surfaceId": "repository",
@@ -2907,9 +4309,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/repository-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 16,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0779
+        "luminanceContrast": 43.2,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8602
       },
       "domAudit": {
         "surfaceId": "repository",
@@ -2924,10 +4326,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Console",
           "Repository",
@@ -2939,13 +4344,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8105,
+        "technicalQuality": 0.865,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9216
+      "weightedRubricScore": 0.9353,
+      "vlmCritique": {
+        "surfaceId": "repository",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 'WORKSPACE · REPOSITORY & VCS' surface crowned by a carved marble bas-relief frieze header, 'PORTA GIT · TABULARIUM' crimson wax seal, semicircular brass gauges for Modified, Staged, and Untracked files, and warm travertine diff/commit tablets.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 1,
+          "ivoryMarbleLuminanceRatio": 0.9254,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 28.7,
+          "conceptArtHistogramSimilarity": 0.9426,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.5% ivory marble pixels), warm travertine, and burnished brass dominate (100.0% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9639,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.4% (histogram similarity 94.3%)."
+          }
+        ],
+        "vlmOverallScore": 0.9687,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg left-half Repository plate."
+        ]
+      }
     },
     "research": {
       "surfaceId": "research",
@@ -2953,9 +4413,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/research-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 14.1,
-        "noiseFloor": 4,
-        "meanLuminance": 0.073
+        "luminanceContrast": 42.6,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8696
       },
       "domAudit": {
         "surfaceId": "research",
@@ -2970,10 +4430,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -2988,13 +4451,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.808,
+        "technicalQuality": 0.8602,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.921
+      "weightedRubricScore": 0.934,
+      "vlmCritique": {
+        "surfaceId": "research",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[research · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 6 classical brass/wax-seal ornaments, 99.5% warm travertine/brass palette vs 0.0% cold slate/cyan, and 93.6% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9954,
+          "ivoryMarbleLuminanceRatio": 0.9248,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 27.9,
+          "conceptArtHistogramSimilarity": 0.936,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9603,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.0% (histogram similarity 93.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.9681,
+        "actionableDirectives": []
+      }
     },
     "runs": {
       "surfaceId": "runs",
@@ -3002,9 +4518,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/runs-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 15.6,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0698
+        "luminanceContrast": 33.6,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8916
       },
       "domAudit": {
         "surfaceId": "runs",
@@ -3019,10 +4535,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Approvals",
           "Needs You",
@@ -3033,13 +4552,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8096,
+        "technicalQuality": 0.8422,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9214
+      "weightedRubricScore": 0.9295,
+      "vlmCritique": {
+        "surfaceId": "runs",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg",
+        "vlmCaption": "[runs · AFTER] Unfriezed surface header, 0 classical brass/wax-seal ornaments, 100.0% warm travertine/brass palette vs 0.0% cold slate/cyan, and 80.7% histogram similarity to v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9995,
+          "ivoryMarbleLuminanceRatio": 0.9605,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 15.6,
+          "conceptArtHistogramSimilarity": 0.8065,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 16,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 2,
+          "romanOrnamentCount": 0
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.0% ivory marble pixels), warm travertine, and burnished brass dominate (100.0% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.63,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8171,
+            "answer": "Chromatic & structural convergence with v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg is 81.7% (histogram similarity 80.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.8675,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to runs."
+        ]
+      }
     },
     "scientia": {
       "surfaceId": "scientia",
@@ -3047,9 +4621,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/scientia-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 18.4,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.0853
+        "luminanceContrast": 45,
+        "noiseFloor": 5.2,
+        "meanLuminance": 0.8626
       },
       "domAudit": {
         "surfaceId": "scientia",
@@ -3064,10 +4638,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -3085,13 +4662,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.814,
+        "technicalQuality": 0.855,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9225
+      "weightedRubricScore": 0.9327,
+      "vlmCritique": {
+        "surfaceId": "scientia",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Single unified Plate 2 'KNOWLEDGE · SCIENTIA' carved marble bas-relief frieze header with 'EPISTEMIC LEDGER' crimson wax seal, semicircular brass gauges (Candidates, Verifiable, Stalls), and warm travertine epistemic discovery tablets.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9973,
+          "ivoryMarbleLuminanceRatio": 0.9269,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 21.6,
+          "conceptArtHistogramSimilarity": 0.9501,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 16
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.7% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 16 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9681,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.8% (histogram similarity 95.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9693,
+        "actionableDirectives": [
+          "Pass: Duplicate <RomanSurfaceHeader> eliminated in Pass 3; single frieze banner with live brass gauges."
+        ]
+      }
     },
     "settings": {
       "surfaceId": "settings",
@@ -3099,9 +4731,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/settings-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 19.9,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.0968
+        "luminanceContrast": 42.1,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8489
       },
       "domAudit": {
         "surfaceId": "settings",
@@ -3116,10 +4748,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Settings",
           "Gamify"
@@ -3128,13 +4763,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.819,
+        "technicalQuality": 0.8574,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9237
+      "weightedRubricScore": 0.9334,
+      "vlmCritique": {
+        "surfaceId": "settings",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 'SETTINGS · LEX & CLAVIS VAULT' surface with carved marble bas-relief frieze header, 'LEX & CLAVIS' crimson wax seal, semicircular brass gauges (Keys Configured, Profiles, Posture), and travertine configuration tablets.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9948,
+          "ivoryMarbleLuminanceRatio": 0.9267,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 31.8,
+          "conceptArtHistogramSimilarity": 0.9718,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.7% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 20 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.98,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 98.0% (histogram similarity 97.2%)."
+          }
+        ],
+        "vlmOverallScore": 0.9711,
+        "actionableDirectives": [
+          "Pass: Full Plate 2 Romanesque styling across Clavis secret vault and governance settings."
+        ]
+      }
     },
     "skills": {
       "surfaceId": "skills",
@@ -3142,9 +4832,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/skills-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 18.5,
-        "noiseFloor": 4.1,
-        "meanLuminance": 0.1028
+        "luminanceContrast": 39.6,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8527
       },
       "domAudit": {
         "surfaceId": "skills",
@@ -3159,10 +4849,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Catalog",
           "Skills",
@@ -3174,13 +4867,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8159,
+        "technicalQuality": 0.8571,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.923
+      "weightedRubricScore": 0.9333,
+      "vlmCritique": {
+        "surfaceId": "skills",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "VLM Vision Critique (After): Plate 2 'COMMANDS · COLLEGIA ARTIFEX & SKILLS' registry with carved marble bas-relief frieze header, 'ARS MECHANICA' crimson wax seal, semicircular brass gauges (Installed, Active, Plugins), and bronze medallion skill cards.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.996,
+          "ivoryMarbleLuminanceRatio": 0.934,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 23.8,
+          "conceptArtHistogramSimilarity": 0.9568,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.4% ivory marble pixels), warm travertine, and burnished brass dominate (99.6% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 20 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9717,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 97.2% (histogram similarity 95.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.9699,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg bottom-right Skills & Plugins plate."
+        ]
+      }
     },
     "sub-agents": {
       "surfaceId": "sub-agents",
@@ -3188,9 +4936,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/sub-agents-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 15.9,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0816
+        "luminanceContrast": 42.7,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.874
       },
       "domAudit": {
         "surfaceId": "sub-agents",
@@ -3205,10 +4953,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -3220,13 +4971,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.812,
+        "technicalQuality": 0.8622,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.922
+      "weightedRubricScore": 0.9345,
+      "vlmCritique": {
+        "surfaceId": "sub-agents",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[sub-agents · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 10 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.0% cold slate/cyan, and 92.6% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9971,
+          "ivoryMarbleLuminanceRatio": 0.928,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 29.5,
+          "conceptArtHistogramSimilarity": 0.9263,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 10
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.8% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 10 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.955,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 95.5% (histogram similarity 92.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.9673,
+        "actionableDirectives": []
+      }
     },
     "tasks": {
       "surfaceId": "tasks",
@@ -3234,9 +5038,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/tasks-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 26.8,
-        "noiseFloor": 4.2,
-        "meanLuminance": 0.0839
+        "luminanceContrast": 37.4,
+        "noiseFloor": 4.3,
+        "meanLuminance": 0.898
       },
       "domAudit": {
         "surfaceId": "tasks",
@@ -3251,10 +5055,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Dashboard",
           "Flow",
@@ -3266,13 +5073,68 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8325,
+        "technicalQuality": 0.854,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9271
+      "weightedRubricScore": 0.9325,
+      "vlmCritique": {
+        "surfaceId": "tasks",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg",
+        "vlmCaption": "[tasks · AFTER] Unfriezed surface header, 0 classical brass/wax-seal ornaments, 99.8% warm travertine/brass palette vs 0.1% cold slate/cyan, and 78.2% histogram similarity to v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9975,
+          "ivoryMarbleLuminanceRatio": 0.9556,
+          "coldDigitalSlateCyanRatio": 0.0008,
+          "topFriezeTextureEntropy": 17.1,
+          "conceptArtHistogramSimilarity": 0.7821,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 14,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 2,
+          "romanOrnamentCount": 0
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.6% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.63,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9296,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8037,
+            "answer": "Chromatic & structural convergence with v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg is 80.4% (histogram similarity 78.2%)."
+          }
+        ],
+        "vlmOverallScore": 0.8654,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to tasks."
+        ]
+      }
     },
     "vox-search": {
       "surfaceId": "vox-search",
@@ -3280,9 +5142,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/vox-search-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 21,
-        "noiseFloor": 4,
-        "meanLuminance": 0.0771
+        "luminanceContrast": 42.9,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8677
       },
       "domAudit": {
         "surfaceId": "vox-search",
@@ -3297,10 +5159,13 @@
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.826,
+        "viewportCoverageRatio": 0.845,
         "composerToolbarRowCount": 0,
         "composerToolbarHeightPx": 0,
         "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
         "discoveredSubTabLabels": [
           "Memory",
           "Findings",
@@ -3313,13 +5178,66 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8232,
+        "technicalQuality": 0.8591,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9248
+      "weightedRubricScore": 0.9338,
+      "vlmCritique": {
+        "surfaceId": "vox-search",
+        "stage": "after",
+        "referenceConceptArtPlate": "/Users/brbrainerd/.gemini/antigravity/brain/5ab35f90-0a2d-404f-b4dc-4ff5baf96c5a/v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg",
+        "vlmCaption": "[vox-search · AFTER] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 6 classical brass/wax-seal ornaments, 99.5% warm travertine/brass palette vs 0.0% cold slate/cyan, and 94.4% histogram similarity to v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9947,
+          "ivoryMarbleLuminanceRatio": 0.9227,
+          "coldDigitalSlateCyanRatio": 0,
+          "topFriezeTextureEntropy": 29,
+          "conceptArtHistogramSimilarity": 0.9437,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 18,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (92.3% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 18 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.93,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9645,
+            "answer": "Chromatic & structural convergence with v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg is 96.5% (histogram similarity 94.4%)."
+          }
+        ],
+        "vlmOverallScore": 0.9688,
+        "actionableDirectives": []
+      }
     }
   },
   "verdicts": {
@@ -3327,12 +5245,12 @@
       "surfaceId": "activity",
       "passNumber": 1,
       "visualBeforeScore": 0.923,
-      "visualAfterScore": 0.9231,
-      "visualDelta": 0.0001,
+      "visualAfterScore": 0.9341,
+      "visualDelta": 0.0111,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.15,
+      "contrastDeltaPct": 136.7,
+      "noiseReductionPct": -12.5,
+      "estimatedPsnrDb": 38.28,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3343,12 +5261,12 @@
       "surfaceId": "approvals",
       "passNumber": 1,
       "visualBeforeScore": 0.9217,
-      "visualAfterScore": 0.9218,
-      "visualDelta": 0.0001,
+      "visualAfterScore": 0.9343,
+      "visualDelta": 0.0126,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 160.5,
+      "noiseReductionPct": -9.8,
+      "estimatedPsnrDb": 38.28,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3359,12 +5277,12 @@
       "surfaceId": "browser",
       "passNumber": 1,
       "visualBeforeScore": 0.9233,
-      "visualAfterScore": 0.9233,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9351,
+      "visualDelta": 0.0118,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.5,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.16,
+      "contrastDeltaPct": 135.7,
+      "noiseReductionPct": -10,
+      "estimatedPsnrDb": 38.29,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3375,12 +5293,12 @@
       "surfaceId": "catalog",
       "passNumber": 1,
       "visualBeforeScore": 0.9233,
-      "visualAfterScore": 0.9233,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9355,
+      "visualDelta": 0.0122,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.16,
+      "contrastDeltaPct": 128.3,
+      "noiseReductionPct": -7.3,
+      "estimatedPsnrDb": 38.29,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3391,12 +5309,12 @@
       "surfaceId": "chat",
       "passNumber": 1,
       "visualBeforeScore": 0.7055,
-      "visualAfterScore": 0.9262,
-      "visualDelta": 0.2207,
+      "visualAfterScore": 0.9335,
+      "visualDelta": 0.228,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 1.2,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.19,
+      "contrastDeltaPct": 70.6,
+      "noiseReductionPct": -11.9,
+      "estimatedPsnrDb": 38.27,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3407,12 +5325,12 @@
       "surfaceId": "coderabbit",
       "passNumber": 1,
       "visualBeforeScore": 0.8967,
-      "visualAfterScore": 0.9218,
-      "visualDelta": 0.0251,
+      "visualAfterScore": 0.9332,
+      "visualDelta": 0.0365,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 155.8,
+      "noiseReductionPct": -10,
+      "estimatedPsnrDb": 38.27,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3423,12 +5341,12 @@
       "surfaceId": "console",
       "passNumber": 1,
       "visualBeforeScore": 0.9207,
-      "visualAfterScore": 0.9211,
-      "visualDelta": 0.0004,
+      "visualAfterScore": 0.9665,
+      "visualDelta": 0.0458,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 5.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.13,
+      "contrastDeltaPct": 599.3,
+      "noiseReductionPct": -7.3,
+      "estimatedPsnrDb": 38.63,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3439,12 +5357,12 @@
       "surfaceId": "dashboard",
       "passNumber": 1,
       "visualBeforeScore": 0.9095,
-      "visualAfterScore": 0.9264,
-      "visualDelta": 0.0169,
+      "visualAfterScore": 0.9573,
+      "visualDelta": 0.0478,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 6.5,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.19,
+      "contrastDeltaPct": 225.9,
+      "noiseReductionPct": -4.4,
+      "estimatedPsnrDb": 38.53,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3455,12 +5373,12 @@
       "surfaceId": "explorer",
       "passNumber": 1,
       "visualBeforeScore": 0.9298,
-      "visualAfterScore": 0.9299,
-      "visualDelta": 0.0001,
+      "visualAfterScore": 0.9363,
+      "visualDelta": 0.0065,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.23,
+      "contrastDeltaPct": 54.9,
+      "noiseReductionPct": -16.7,
+      "estimatedPsnrDb": 38.3,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3471,12 +5389,12 @@
       "surfaceId": "flow",
       "passNumber": 1,
       "visualBeforeScore": 0.9194,
-      "visualAfterScore": 0.9231,
-      "visualDelta": 0.0037,
+      "visualAfterScore": 0.9635,
+      "visualDelta": 0.0441,
       "edgeSharpnessDeltaPct": 4.2,
-      "contrastDeltaPct": 7.8,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.15,
+      "contrastDeltaPct": 502.4,
+      "noiseReductionPct": -27.5,
+      "estimatedPsnrDb": 38.6,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3487,12 +5405,12 @@
       "surfaceId": "gamify",
       "passNumber": 1,
       "visualBeforeScore": 0.909,
-      "visualAfterScore": 0.942,
-      "visualDelta": 0.033,
+      "visualAfterScore": 0.9639,
+      "visualDelta": 0.0549,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.2,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.36,
+      "contrastDeltaPct": 80.5,
+      "noiseReductionPct": -13.6,
+      "estimatedPsnrDb": 38.6,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3503,12 +5421,12 @@
       "surfaceId": "harness",
       "passNumber": 1,
       "visualBeforeScore": 0.9254,
-      "visualAfterScore": 0.9254,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9573,
+      "visualDelta": 0.0319,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 2.7,
+      "contrastDeltaPct": 195.3,
       "noiseReductionPct": -2,
-      "estimatedPsnrDb": 38.18,
+      "estimatedPsnrDb": 38.53,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3519,12 +5437,12 @@
       "surfaceId": "harness-health",
       "passNumber": 1,
       "visualBeforeScore": 0.923,
-      "visualAfterScore": 0.923,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9352,
+      "visualDelta": 0.0122,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.15,
+      "contrastDeltaPct": 133,
+      "noiseReductionPct": -7.3,
+      "estimatedPsnrDb": 38.29,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3535,12 +5453,12 @@
       "surfaceId": "memory",
       "passNumber": 1,
       "visualBeforeScore": 0.9223,
-      "visualAfterScore": 0.9223,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9339,
+      "visualDelta": 0.0116,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.15,
+      "contrastDeltaPct": 146.5,
+      "noiseReductionPct": -12.2,
+      "estimatedPsnrDb": 38.27,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3550,13 +5468,13 @@
     "mens": {
       "surfaceId": "mens",
       "passNumber": 1,
-      "visualBeforeScore": 0.9223,
-      "visualAfterScore": 0.9235,
-      "visualDelta": 0.0012,
+      "visualBeforeScore": 0.8878,
+      "visualAfterScore": 0.9312,
+      "visualDelta": 0.0434,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 12.8,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.16,
+      "contrastDeltaPct": 130.8,
+      "noiseReductionPct": -19.5,
+      "estimatedPsnrDb": 38.24,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3567,12 +5485,12 @@
       "surfaceId": "mercatus",
       "passNumber": 1,
       "visualBeforeScore": 0.9034,
-      "visualAfterScore": 0.9215,
-      "visualDelta": 0.0181,
+      "visualAfterScore": 0.9369,
+      "visualDelta": 0.0335,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 214.6,
+      "noiseReductionPct": -17.1,
+      "estimatedPsnrDb": 38.31,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3583,12 +5501,12 @@
       "surfaceId": "mesh",
       "passNumber": 1,
       "visualBeforeScore": 0.9219,
-      "visualAfterScore": 0.922,
-      "visualDelta": 0.0001,
+      "visualAfterScore": 0.9341,
+      "visualDelta": 0.0122,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 170.3,
+      "noiseReductionPct": -15,
+      "estimatedPsnrDb": 38.28,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3599,12 +5517,12 @@
       "surfaceId": "models",
       "passNumber": 1,
       "visualBeforeScore": 0.878,
-      "visualAfterScore": 0.9237,
-      "visualDelta": 0.0457,
+      "visualAfterScore": 0.9367,
+      "visualDelta": 0.0587,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 7.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.16,
+      "contrastDeltaPct": 156.2,
+      "noiseReductionPct": -12.2,
+      "estimatedPsnrDb": 38.3,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3615,12 +5533,12 @@
       "surfaceId": "needs-you",
       "passNumber": 1,
       "visualBeforeScore": 0.9266,
-      "visualAfterScore": 0.927,
-      "visualDelta": 0.0004,
+      "visualAfterScore": 0.9325,
+      "visualDelta": 0.0059,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 2.7,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.2,
+      "contrastDeltaPct": 51.2,
+      "noiseReductionPct": -7.1,
+      "estimatedPsnrDb": 38.26,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3631,12 +5549,12 @@
       "surfaceId": "oratio",
       "passNumber": 1,
       "visualBeforeScore": 0.9221,
-      "visualAfterScore": 0.9221,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9366,
+      "visualDelta": 0.0145,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 198.1,
+      "noiseReductionPct": -17.5,
+      "estimatedPsnrDb": 38.3,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3647,12 +5565,12 @@
       "surfaceId": "policies",
       "passNumber": 1,
       "visualBeforeScore": 0.9208,
-      "visualAfterScore": 0.9209,
-      "visualDelta": 0.0001,
+      "visualAfterScore": 0.9342,
+      "visualDelta": 0.0134,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.7,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.13,
+      "contrastDeltaPct": 206.6,
+      "noiseReductionPct": -12.5,
+      "estimatedPsnrDb": 38.28,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3663,12 +5581,12 @@
       "surfaceId": "populi",
       "passNumber": 1,
       "visualBeforeScore": 0.9219,
-      "visualAfterScore": 0.922,
-      "visualDelta": 0.0001,
+      "visualAfterScore": 0.9366,
+      "visualDelta": 0.0147,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0.6,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 203.8,
+      "noiseReductionPct": -17.5,
+      "estimatedPsnrDb": 38.3,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3679,12 +5597,12 @@
       "surfaceId": "publications",
       "passNumber": 1,
       "visualBeforeScore": 0.7821,
-      "visualAfterScore": 0.922,
-      "visualDelta": 0.1399,
+      "visualAfterScore": 0.9345,
+      "visualDelta": 0.1524,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 166.9,
+      "noiseReductionPct": -12.5,
+      "estimatedPsnrDb": 38.28,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3695,12 +5613,12 @@
       "surfaceId": "repository",
       "passNumber": 1,
       "visualBeforeScore": 0.9216,
-      "visualAfterScore": 0.9216,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9353,
+      "visualDelta": 0.0137,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 170,
+      "noiseReductionPct": -7.3,
+      "estimatedPsnrDb": 38.29,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3711,12 +5629,12 @@
       "surfaceId": "research",
       "passNumber": 1,
       "visualBeforeScore": 0.921,
-      "visualAfterScore": 0.921,
-      "visualDelta": 0,
+      "visualAfterScore": 0.934,
+      "visualDelta": 0.013,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.13,
+      "contrastDeltaPct": 202.1,
+      "noiseReductionPct": -15,
+      "estimatedPsnrDb": 38.27,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3727,12 +5645,12 @@
       "surfaceId": "runs",
       "passNumber": 1,
       "visualBeforeScore": 0.9034,
-      "visualAfterScore": 0.9214,
-      "visualDelta": 0.018,
+      "visualAfterScore": 0.9295,
+      "visualDelta": 0.0261,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 115.4,
+      "noiseReductionPct": -9.8,
+      "estimatedPsnrDb": 38.22,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3743,12 +5661,12 @@
       "surfaceId": "scientia",
       "passNumber": 1,
       "visualBeforeScore": 0.9225,
-      "visualAfterScore": 0.9225,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9327,
+      "visualDelta": 0.0102,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.15,
+      "contrastDeltaPct": 144.6,
+      "noiseReductionPct": -23.8,
+      "estimatedPsnrDb": 38.26,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3759,12 +5677,12 @@
       "surfaceId": "settings",
       "passNumber": 1,
       "visualBeforeScore": 0.9012,
-      "visualAfterScore": 0.9237,
-      "visualDelta": 0.0225,
+      "visualAfterScore": 0.9334,
+      "visualDelta": 0.0322,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.16,
+      "contrastDeltaPct": 111.6,
+      "noiseReductionPct": -14.6,
+      "estimatedPsnrDb": 38.27,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3775,12 +5693,12 @@
       "surfaceId": "skills",
       "passNumber": 1,
       "visualBeforeScore": 0.923,
-      "visualAfterScore": 0.923,
-      "visualDelta": 0,
+      "visualAfterScore": 0.9333,
+      "visualDelta": 0.0103,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.15,
+      "contrastDeltaPct": 114.1,
+      "noiseReductionPct": -7.3,
+      "estimatedPsnrDb": 38.27,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3791,12 +5709,12 @@
       "surfaceId": "sub-agents",
       "passNumber": 1,
       "visualBeforeScore": 0.904,
-      "visualAfterScore": 0.922,
-      "visualDelta": 0.018,
+      "visualAfterScore": 0.9345,
+      "visualDelta": 0.0305,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.14,
+      "contrastDeltaPct": 168.6,
+      "noiseReductionPct": -12.5,
+      "estimatedPsnrDb": 38.28,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3807,12 +5725,12 @@
       "surfaceId": "tasks",
       "passNumber": 1,
       "visualBeforeScore": 0.9054,
-      "visualAfterScore": 0.9271,
-      "visualDelta": 0.0217,
+      "visualAfterScore": 0.9325,
+      "visualDelta": 0.0271,
       "edgeSharpnessDeltaPct": 24.2,
-      "contrastDeltaPct": 123.3,
-      "noiseReductionPct": -5,
-      "estimatedPsnrDb": 38.2,
+      "contrastDeltaPct": 211.7,
+      "noiseReductionPct": -7.5,
+      "estimatedPsnrDb": 38.26,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -3823,12 +5741,12 @@
       "surfaceId": "vox-search",
       "passNumber": 1,
       "visualBeforeScore": 0.9068,
-      "visualAfterScore": 0.9248,
-      "visualDelta": 0.018,
+      "visualAfterScore": 0.9338,
+      "visualDelta": 0.027,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 0,
-      "noiseReductionPct": 0,
-      "estimatedPsnrDb": 38.17,
+      "contrastDeltaPct": 104.3,
+      "noiseReductionPct": -17.5,
+      "estimatedPsnrDb": 38.27,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [

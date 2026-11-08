@@ -37,13 +37,13 @@ const BADGE_CONFIGS: Record<CapabilityStatus, BadgeConfig> = {
 };
 
 const BASE_RECIPE =
-  'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium uppercase tracking-[0.08em] ring-1 bg-overlay-subtle shrink-0';
+  'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[9.5px] font-display font-bold uppercase tracking-[0.05em] ring-1 bg-overlay-subtle shrink-0 leading-tight';
 
 export function CapabilityBadge({ status, className, ...rest }: CapabilityBadgeProps) {
   const config = BADGE_CONFIGS[status];
   return (
     <span className={cn(BASE_RECIPE, config.className, className)} {...rest}>
-      <span className="font-mono" aria-hidden="true">
+      <span className="font-display font-bold" aria-hidden="true">
         {config.glyph}
       </span>
       <span>{config.label}</span>

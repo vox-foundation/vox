@@ -3,6 +3,7 @@ import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { buildGroupTree, needsAttention, overallWorst, statusForRow } from './policyTree';
@@ -105,7 +106,38 @@ export function PoliciesView({
     setCollapsedGroups(prev => ({ ...prev, [g]: !prev[g] }));
 
   return (
-    <div className="flex gap-4 h-full min-h-0">
+    <div className="flex flex-col gap-3 h-full min-h-0 p-4">
+      <RomanSurfaceHeader
+        domainTag="REVIEW · POLICIES"
+        title="Governance Policy Ledger & Architectural Rules"
+        subtitle="Audit compliance rules, structural invariants, and automated gate enforcement across branches."
+        waxSealBadge={worst === 'fail' ? 'POLICY VIOLATIONS' : worst === 'warn' ? 'POLICY WARNINGS' : 'POLICY COMPLIANT'}
+        icon={<Icon.gavel className="size-5 text-[#F3E5AB]" />}
+        gauges={[
+          {
+            label: 'POLICIES',
+            valueText: `${rows.length}`,
+            ratio: 1,
+            tone: 'gold',
+            purpose: 'Total registered governance policy rules',
+          },
+          {
+            label: 'ATTENTION',
+            valueText: `${attention.length}`,
+            ratio: Math.min(1, attention.length / 5),
+            tone: attention.length > 0 ? 'crimson' : 'emerald',
+            purpose: 'Policies failing or needing immediate attention',
+          },
+          {
+            label: 'STATUS',
+            valueText: worst.toUpperCase(),
+            ratio: 1,
+            tone: worst === 'pass' ? 'emerald' : worst === 'warn' ? 'gold' : 'crimson',
+            purpose: 'Overall governance policy evaluation status',
+          },
+        ]}
+      />
+      <div className="flex gap-4 flex-1 min-h-0">
       {/* ── SECONDARY: group rail (collapsible, mirrors Sidebar rail widths) ── */}
       <nav aria-label="Policy tree" className="shrink-0 transition-[width] duration-200" style={{ width: railCollapsed ? 56 : 300 }}>
         <Glass className="flex h-full flex-col p-3 gap-3 overflow-hidden">
@@ -310,47 +342,48 @@ export function PoliciesView({
               </section>
 
               <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">CLI Invocation</div>
-                  <div className="mt-1 font-mono text-[11px] text-cyan">vox audit code</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-text-secondary">--rule {detail.id}</div>
+                <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">CLI Invocation</div>
+                  <div className="mt-1 font-mono text-[11px] text-[#F3E5AB]">vox audit code</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">--rule {detail.id}</div>
                 </div>
-                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Severity Tier</div>
-                  <div className="mt-1 font-mono text-[11px] uppercase text-brass">{detail.severity ?? 'info'}</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-text-secondary">
+                <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">Severity Tier</div>
+                  <div className="mt-1 font-mono text-[11px] uppercase text-[#F3E5AB]">{detail.severity ?? 'info'}</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">
                     {detail.blocking ? 'Blocks CI merge' : 'Advisory warning'}
                   </div>
                 </div>
-                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Detector Ref</div>
+                <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">Detector Ref</div>
                   <div className="mt-1 truncate font-mono text-[11px] text-emerald-300">{detail.sourceRef}</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-text-secondary">{detail.sourceKind}</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">{detail.sourceKind}</div>
                 </div>
               </section>
 
               <section
                 data-testid="policy-enforcement-deck"
-                className="mt-auto grid grid-cols-1 gap-3 border-t border-border-subtle pt-4 sm:grid-cols-2"
+                className="mt-auto grid grid-cols-1 gap-3 border-t border-[#D4AF37]/25 pt-4 sm:grid-cols-2"
               >
-                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
+                <div className="rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-display text-[10px] tracking-widest text-brass uppercase">Enforcement Gate</span>
-                    <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
-                      {detail.blocking ? 'Blocking' : 'Advisory'}
-                    </span>
+                    <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Enforcement Gate</span>
+                    <RomanWaxSealBadge
+                      label={detail.blocking ? 'Blocking' : 'Advisory'}
+                      tone={detail.blocking ? 'crimson' : 'gold'}
+                    />
                   </div>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-                    Evaluated by <code className="text-cyan">vox audit code</code> and <code className="text-cyan">vox ci pre-push</code> across selected worktree branches.
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+                    Evaluated by <code className="text-[#F3E5AB]">vox audit code</code> and <code className="text-[#F3E5AB]">vox ci pre-push</code> across selected worktree branches.
                   </p>
                 </div>
-                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
+                <div className="rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Rule Provenance</span>
-                    <span className="font-mono text-[9px] text-emerald-300">{detail.origin}</span>
+                    <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Rule Provenance</span>
+                    <RomanWaxSealBadge label={detail.origin} tone="emerald" />
                   </div>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-                     emits structured JSONL findings with <code className="text-brass">schema_version</code> and rule discriminators for effort routing.
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+                    Emits structured JSONL findings with <code className="text-[#F3E5AB]">schema_version</code> and rule discriminators for effort routing.
                   </p>
                 </div>
               </section>
@@ -358,6 +391,7 @@ export function PoliciesView({
           )}
         </Glass>
       </section>
+      </div>
     </div>
   );
 }

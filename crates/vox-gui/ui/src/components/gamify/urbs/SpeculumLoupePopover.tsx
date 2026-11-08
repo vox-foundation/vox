@@ -106,13 +106,13 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             data-testid="urbs-loupe-churn-badge"
             style={{
               fontSize: 10,
-              fontFamily: 'var(--font-mono, JetBrains Mono, monospace)',
+              fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
               fontWeight: 700,
               padding: '1px 6px',
               borderRadius: 4,
-              background: 'rgba(16, 185, 129, 0.14)',
-              border: '1px solid rgba(16, 185, 129, 0.42)',
-              color: '#6EE7B7',
+              background: 'rgba(212, 175, 55, 0.18)',
+              border: '1px solid rgba(212, 175, 55, 0.52)',
+              color: '#F3E5AB',
             }}
           >
             +{diffData.added_lines} / -{diffData.deleted_lines}
@@ -158,7 +158,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
         data-testid="urbs-loupe-file-path"
         style={{
           fontSize: 11,
-          fontFamily: 'var(--font-mono, JetBrains Mono, monospace)',
+          fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
           color: '#F3E5AB',
           marginBottom: 6,
           wordBreak: 'break-all',
@@ -184,7 +184,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
               key={`${d.file}:${d.line}:${idx}`}
               style={{
                 fontSize: 10.5,
-                fontFamily: 'var(--font-mono, JetBrains Mono, monospace)',
+                fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
                 color: '#FECACA',
                 lineHeight: 1.35,
               }}
@@ -208,7 +208,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
           padding: '6px 8px',
           maxHeight: 132,
           overflowY: 'auto',
-          fontFamily: 'var(--font-mono, JetBrains Mono, monospace)',
+          fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
           fontSize: 10.5,
           lineHeight: 1.4,
           marginBottom: 8,

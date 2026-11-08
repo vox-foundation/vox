@@ -26,10 +26,12 @@ pub mod rust_bench;
 pub mod structured_eval;
 pub mod tool_selection_synth;
 pub mod trace_ingest;
+pub mod vox_reasoning_synth;
 
 pub use benchmark::produce_benchmark;
 pub use log_ingest::ingest_training_logs;
 pub use mix::{
     ASR_REFINE_INSTRUCTION, MixConfigSchema, MixRunOptions, MixRunReport, MixSourceReportRow,
-    normalize_training_jsonl_line, run_mix, run_mix_with_options,
+    calculate_config_fingerprint, calculate_file_fingerprint, normalize_training_jsonl_line,
+    run_mix, run_mix_with_options,
 };

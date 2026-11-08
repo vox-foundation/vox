@@ -146,25 +146,46 @@ pub fn thinking_mode_prompt(question: &str) -> String {
     format!("<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n")
 }
 
-/// Text after the last `</think>`. A completion that opens `<think>` and never
-/// closes it (truncated reasoning) has no final answer, so the region is empty.
-/// A completion that does not open a think tag is returned trimmed.
+/// Identity of [`answer_region`] + [`grade_final_answer`] as recorded in reports.
+/// Item checkpoints store generations only, so their key does not include it; a
+/// report re-grades its generations with this grader. v1 = before `88ff9cebf`
+/// (answer region only), v2 = trace markers as fallback, answer region first.
+pub const GRADER_ID: &str = "grade_final_answer v2";
+
+/// Text used to grade a final answer.
+///
+/// - After the last `</think>` when the think block was closed (normal path).
+/// - The open think body when `<think>` was opened but never closed (truncated
+///   or unfinished reasoning). Models often already write `\boxed{…}`,
+///   `#### N`, or a concluding number inside the trace; treating the body as
+///   empty made every unclosed completion an automatic fail even when the
+///   answer was present.
+/// - The full trimmed completion when no think tag is opened.
 #[must_use]
 pub fn answer_region(completion: &str) -> &str {
     if let Some(i) = completion.rfind("</think>") {
         return completion[i + "</think>".len()..].trim();
     }
-    if completion.trim_start().starts_with("<think>") {
-        return "";
+    let trimmed = completion.trim_start();
+    if let Some(rest) = trimmed.strip_prefix("<think>") {
+        return rest.trim();
     }
     completion.trim()
 }
 
 /// Grade a completion against a gold final answer.
 ///
-/// Numeric gold (GSM8K, after commas are stripped) matches the last number in
-/// the answer region. Other gold matches a `\boxed{...}` body or the last
-/// non-empty line, after whitespace and `$` are removed.
+/// Prefer explicit answer markers over a bare trailing number:
+/// 1. `\boxed{...}` body (handles "…\\boxed{8}…5:00 PM" without picking `00`)
+/// 2. GSM8K-style `#### <answer>` line
+/// 3. Cued phrases (`final answer`, `answer is`, …) before bare last-number
+/// 4. Numeric gold → last number in the answer region
+/// 5. Last non-empty line (normalized)
+///
+/// Markers are tried on the answer region first, then on the full completion so a
+/// closed think that only boxes the answer inside the trace still grades.
+///
+/// Bump [`GRADER_ID`] whenever this function's verdicts can change.
 #[must_use]
 pub fn grade_final_answer(completion: &str, gold: &str) -> bool {
     let region = answer_region(completion);
@@ -172,15 +193,182 @@ pub fn grade_final_answer(completion: &str, gold: &str) -> bool {
     if gold_norm.is_empty() {
         return false;
     }
-    if let Some(gold_n) = parse_number(&gold_norm) {
-        return last_number(region).is_some_and(|n| numbers_equal(gold_n, n));
+    if region.is_empty() && completion.trim().is_empty() {
+        return false;
     }
-    if let Some(boxed) = extract_boxed(region)
-        && normalize_answer(&boxed) == gold_norm
-    {
+    for hay in [region, completion] {
+        if hay.is_empty() {
+            continue;
+        }
+        let markers = [
+            extract_boxed(hay),
+            extract_hash_answer(hay),
+            extract_cued_answer(hay),
+        ];
+        if markers
+            .iter()
+            .flatten()
+            .any(|m| answers_equal(m, &gold_norm))
+        {
+            return true;
+        }
+        // An explicit marker in the answer region is the committed answer; the
+        // trace is searched only when the region carries no marker at all.
+        if markers.iter().any(Option::is_some) {
+            break;
+        }
+    }
+    let grade_hay = if region.is_empty() {
+        completion
+    } else {
+        region
+    };
+    if let Some(gold_n) = parse_number(&gold_norm) {
+        return last_number(grade_hay).is_some_and(|n| numbers_equal(gold_n, n));
+    }
+    last_nonempty_line(grade_hay).is_some_and(|line| normalize_answer(line) == gold_norm)
+}
+
+/// True when a candidate answer string matches normalized gold (numeric or text).
+fn answers_equal(candidate: &str, gold_norm: &str) -> bool {
+    let cand_norm = normalize_answer(candidate);
+    if cand_norm == gold_norm {
         return true;
     }
-    last_nonempty_line(region).is_some_and(|line| normalize_answer(line) == gold_norm)
+    match (parse_number(&cand_norm), parse_number(gold_norm)) {
+        (Some(a), Some(b)) => numbers_equal(a, b),
+        _ => false,
+    }
+}
+
+/// Body after the last GSM8K `####` marker, if any.
+fn extract_hash_answer(s: &str) -> Option<String> {
+    let key = "####";
+    let i = s.rfind(key)?;
+    let rest = s[i + key.len()..].trim();
+    let line = rest.lines().next()?.trim();
+    if line.is_empty() {
+        None
+    } else {
+        Some(line.to_string())
+    }
+}
+
+/// Answer text after the last valid explicit cue (`final answer`, `the answer is`, …).
+///
+/// Truncated think traces often restate intermediate quantities or trail off with an
+/// incomplete cue (`So the answer is `) after the real conclusion; scanning cues from
+/// right to left and rejecting prose stopwords recovers the committed answer without
+/// treating every trailing number or heading article (`The`) as the answer.
+fn extract_cued_answer(s: &str) -> Option<String> {
+    const CUES: &[&str] = &[
+        "final answer",
+        "the answer is",
+        "answer is",
+        "so the answer",
+        "therefore the answer",
+    ];
+    let lower = s.to_ascii_lowercase();
+    let mut ends: Vec<usize> = Vec::new();
+    for cue in CUES {
+        for (i, _) in lower.match_indices(cue) {
+            ends.push(i + cue.len());
+        }
+    }
+    ends.sort_unstable();
+    ends.dedup();
+    for start in ends.into_iter().rev() {
+        let rest = s[start..].trim_start_matches(|c: char| {
+            c.is_whitespace() || matches!(c, ':' | '-' | '=' | '*' | '#')
+        });
+        let Some(line) = rest.lines().next().map(str::trim).filter(|l| !l.is_empty()) else {
+            continue;
+        };
+        if let Some(tok) = extract_cued_token_from_line(line) {
+            return Some(tok);
+        }
+    }
+    None
+}
+
+fn clean_cued_token(raw: &str) -> &str {
+    raw.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '.')
+        .trim_end_matches('.')
+}
+
+fn is_cued_stopword(lower_tok: &str) -> bool {
+    matches!(
+        lower_tok,
+        "the"
+            | "a"
+            | "an"
+            | "that"
+            | "this"
+            | "not"
+            | "to"
+            | "in"
+            | "of"
+            | "for"
+            | "as"
+            | "by"
+            | "on"
+            | "at"
+            | "from"
+            | "with"
+            | "if"
+            | "we"
+            | "it"
+            | "which"
+            | "what"
+            | "when"
+            | "where"
+            | "so"
+            | "therefore"
+            | "return"
+            | "returned"
+            | "value"
+            | "result"
+            | "total"
+            | "integer"
+            | "number"
+            | "count"
+            | "sum"
+            | "output"
+    )
+}
+
+fn extract_cued_token_from_line(line: &str) -> Option<String> {
+    let mut words = line.split_whitespace().peekable();
+    while let Some(&w) = words.peek() {
+        let cleaned = clean_cued_token(w).to_ascii_lowercase();
+        if matches!(
+            cleaned.as_str(),
+            "is" | "be" | "would" | "should" | "equals"
+        ) {
+            words.next();
+        } else {
+            break;
+        }
+    }
+    if let Some(first_raw) = words.next() {
+        let tok = clean_cued_token(first_raw);
+        if !tok.is_empty() && !is_cued_stopword(&tok.to_ascii_lowercase()) {
+            return Some(tok.to_string());
+        }
+    }
+    let lower_line = line.to_ascii_lowercase();
+    for sep in [" is ", ": ", " = "] {
+        if let Some(idx) = lower_line.rfind(sep) {
+            let after = line[idx + sep.len()..].trim();
+            if let Some(raw) = after.split_whitespace().next() {
+                let tok = clean_cued_token(raw);
+                if !tok.is_empty() && !is_cued_stopword(&tok.to_ascii_lowercase()) {
+                    return Some(tok.to_string());
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Accuracy and think-initiation rate over `(completion, gold)` pairs.
@@ -465,11 +653,22 @@ mod tests {
     }
 
     #[test]
-    fn unterminated_think_grades_as_no_answer() {
-        assert_eq!(answer_region("<think>\n... so 42"), "");
-        assert_eq!(answer_region("  \n<think>\nstill going 42"), "");
-        assert!(!grade_final_answer("<think>\n... so 42", "42"));
-        assert!(!grade_final_answer("<think>\nplan\nanswer", "answer"));
+    fn unterminated_think_grades_from_body_when_answer_present() {
+        // Unclosed think: region is the body, not empty.
+        assert_eq!(answer_region("<think>\n... so 42"), "... so 42");
+        assert_eq!(
+            answer_region("  \n<think>\nstill going 42"),
+            "still going 42"
+        );
+        assert!(grade_final_answer("<think>\n... so 42", "42"));
+        assert!(grade_final_answer("<think>\nplan\n\\boxed{42}", "42"));
+        assert!(grade_final_answer("<think>\ncalc\n#### 18\n", "18"));
+        // Still fail when the body has no recoverable answer for the gold.
+        assert!(!grade_final_answer("<think>\nplan only, no digits", "42"));
+        assert!(!grade_final_answer(
+            "<think>\nplan\nnot the gold string",
+            "answer"
+        ));
     }
 
     #[test]
@@ -479,6 +678,113 @@ mod tests {
         assert_eq!(answer_region("  just 42  "), "just 42");
         assert!(grade_final_answer("<think>\nplan\n</think>\n\n42", "42"));
         assert!(grade_final_answer("so 42", "42"));
+    }
+
+    #[test]
+    fn boxed_inside_closed_think_still_grades_when_post_has_no_answer() {
+        // Later trace numbers defeat a last-number fallback; only the
+        // full-completion marker pass recovers the boxed gold.
+        assert!(grade_final_answer(
+            "<think>\n\\boxed{42}\nchecked in 3 steps\n</think>",
+            "42"
+        ));
+        // Post-think region empty: still recover \\boxed from the trace.
+        assert!(grade_final_answer(
+            "<think>\nwork\n\\boxed{42}\n</think>",
+            "42"
+        ));
+        assert!(!grade_final_answer(
+            "<think>\nwork\n\\boxed{7}\n</think>",
+            "42"
+        ));
+    }
+
+    #[test]
+    fn cued_final_answer_recovers_gold_buried_before_later_numbers() {
+        // Bare last-number alone would pick 99; the cued line has gold 20.
+        let completion =
+            "<think>\n3 chickens * 20 = 60 cups. Final answer: 20\nthen 99 more thoughts";
+        assert!(grade_final_answer(completion, "20"));
+        assert!(grade_final_answer(
+            "<think>\nso the answer is 18 dollars and then 3 more thoughts 99",
+            "18"
+        ));
+        // Wrong cue must not invent a match when gold is absent.
+        assert!(!grade_final_answer(
+            "<think>\nFinal answer: 7\nand later 99",
+            "42"
+        ));
+    }
+
+    #[test]
+    fn cued_final_answer_ignores_stopwords_and_recovers_earlier_cue_on_truncation() {
+        // 1. Trailing truncated cue ("So the answer is ") must not shadow an earlier valid cue ("So the answer is 945").
+        assert_eq!(
+            extract_cued_answer(
+                "<think>\nSo the answer is 945.\nLet me double check step 3. So the answer is "
+            ),
+            Some("945".to_string())
+        );
+        assert!(grade_final_answer(
+            "<think>\nSo the answer is 945.\nLet me double check step 3. So the answer is ",
+            "945"
+        ));
+        // 2. Trailing prose cue ("the answer is the return value") must not shadow an earlier valid cue ("So the answer is 310").
+        assert_eq!(
+            extract_cued_answer(
+                "<think>\nSo the answer is 310.\nWait, the question asks what the answer is in terms of the return value of main, which has 2 args."
+            ),
+            Some("310".to_string())
+        );
+        assert!(grade_final_answer(
+            "<think>\nSo the answer is 310.\nWait, the question asks what the answer is in terms of the return value of main, which has 2 args.",
+            "310"
+        ));
+        // 3. Heading cue followed by "The integer returned is 42" extracts "42", not stopword "The".
+        assert_eq!(
+            extract_cued_answer("### Final Answer\nThe integer returned is 42."),
+            Some("42".to_string())
+        );
+        // 4. Post-think prose cue without a value must not block fallback to a boxed answer inside <think>.
+        assert!(grade_final_answer(
+            "<think>\n\\boxed{42}\n</think>\n\n### Final Answer\nThe value returned by main.",
+            "42"
+        ));
+    }
+
+    #[test]
+    fn trace_markers_never_override_an_explicit_post_think_answer() {
+        // The post-think answer (25) is what the model committed to; a gold
+        // value marked only inside the trace must not rescue it.
+        assert!(!grade_final_answer(
+            "<think>\nFinal answer: 20\n</think>\n\nThe answer is 25",
+            "20"
+        ));
+        assert!(!grade_final_answer(
+            "<think>\n\\boxed{20}\n</think>\n\n\\boxed{25}",
+            "20"
+        ));
+        // Mixed marker kinds: a boxed 20 in the trace vs a cued 25 after it.
+        assert!(!grade_final_answer(
+            "<think>\n\\boxed{20}\n</think>\n\nThe answer is 25",
+            "20"
+        ));
+        assert!(grade_final_answer(
+            "<think>\nFinal answer: 20\n</think>\n\nThe answer is 25",
+            "25"
+        ));
+    }
+
+    #[test]
+    fn boxed_wins_over_trailing_time_like_numbers() {
+        // Last-number alone would pick `00` from `5:00`; boxed must win for gold 8.
+        let completion =
+            "<think>\n8cm\n</think>\nThe candle is \\boxed{8} cm shorter after 1:00 PM to 5:00 PM.";
+        assert!(grade_final_answer(completion, "8"));
+        // Wrong golds must not match the boxed answer.
+        assert!(!grade_final_answer(completion, "5"));
+        assert!(!grade_final_answer(completion, "1"));
+        assert!(!grade_final_answer(completion, "16"));
     }
 
     #[test]
