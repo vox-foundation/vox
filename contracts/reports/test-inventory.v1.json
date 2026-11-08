@@ -2,12 +2,12 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 133,
-    "rust_files_scanned": 4579,
-    "cargo_unit_test_functions": 13488,
+    "rust_files_scanned": 4585,
+    "cargo_unit_test_functions": 13556,
     "cargo_integration_test_functions": 3787,
     "cargo_bench_functions": 0,
-    "cargo_ignored_test_functions": 98,
-    "cargo_test_functions_total": 17275,
+    "cargo_ignored_test_functions": 99,
+    "cargo_test_functions_total": 17343,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -85,7 +85,7 @@
       "integration_rs_files": 3
     },
     "vox-cli": {
-      "unit_tests": 1272,
+      "unit_tests": 1305,
       "integration_tests": 335,
       "bench_tests": 0,
       "ignored_tests": 9,
@@ -93,7 +93,7 @@
       "integration_rs_files": 106
     },
     "vox-cli-ci": {
-      "unit_tests": 489,
+      "unit_tests": 512,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -221,10 +221,10 @@
       "integration_rs_files": 0
     },
     "vox-corpus": {
-      "unit_tests": 293,
+      "unit_tests": 299,
       "integration_tests": 12,
       "bench_tests": 0,
-      "ignored_tests": 1,
+      "ignored_tests": 2,
       "has_integration_dir": true,
       "integration_rs_files": 1
     },
@@ -277,7 +277,7 @@
       "integration_rs_files": 0
     },
     "vox-doc-pipeline": {
-      "unit_tests": 135,
+      "unit_tests": 136,
       "integration_tests": 11,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -365,7 +365,7 @@
       "integration_rs_files": 25
     },
     "vox-gui": {
-      "unit_tests": 373,
+      "unit_tests": 375,
       "integration_tests": 15,
       "bench_tests": 0,
       "ignored_tests": 1,
@@ -749,7 +749,7 @@
       "integration_rs_files": 0
     },
     "vox-populi": {
-      "unit_tests": 436,
+      "unit_tests": 439,
       "integration_tests": 99,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -1081,7 +1081,7 @@
     "benches": 4,
     "integration_tests": 892,
     "other": 27,
-    "unit_src": 3656
+    "unit_src": 3662
   },
   "zero_test_crates": [
     "vox-cli-contracts",
@@ -1270,9 +1270,9 @@
   },
   "test_file_patterns": {
     "sleep_sites": 255,
-    "env_var_reads": 887,
+    "env_var_reads": 889,
     "env_var_mutations": 1135,
-    "command_new": 642,
+    "command_new": 644,
     "serial_test": 113,
     "proptest_colon_colon": 29,
     "quickcheck_colon_colon": 2,
