@@ -39,4 +39,6 @@ test('reader-layout.css exists and contains expected rules', () => {
   assert.match(css, /html\[data-sidebar-state="hidden"\]/, 'Must define hidden left sidebar state');
   assert.match(css, /min-width:\s*16rem;/, 'Must keep the outline column at least 16rem');
   assert.match(css, /overflow-wrap:\s*break-word;/, 'Must break outline links on word boundaries');
+  assert.match(css, /top:\s*var\(--sl-nav-height\)\s*!important;/, 'Must start right-sidebar below header navbar so header controls remain clickable');
+  assert.match(css, /:root\[data-theme='light'\]\s+\.vox-tier-card--cyan/, 'Must define light-theme contrast surface for onboarding cards');
 });

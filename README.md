@@ -10,9 +10,7 @@
   - Bug-level detail and handoffs live in docs/src/architecture/suite-status-audit-2026-09-21.md.
 -->
 <div align="center">
-  <img src="docs/src/assets/vox_hero_banner.jpeg" alt="Vox — The human voice acting as the great nerve of intelligence" width="100%" />
-
-  <h1>Vox</h1>
+  <img src="docs/src/assets/vox_hero_banner.webp" alt="Vox — The human voice acting as the great nerve of intelligence" width="100%" />
 
   <p>
     <strong>An experimental programming language and development suite</strong><br />
@@ -41,6 +39,9 @@
 > [!WARNING]
 > **Last reviewed: 2026-11-02.** Vox is an active pre-1.0 research project (`0.6.0` workspace), not production software. Core paths — the parser and type checker (`vox check`), the sandboxed script interpreter (`vox run`), the SQLite/Turso data layer (`vox-db`, schema baseline 97), the curated knowledge-base index (`vox kb`), and the repository's CI and architecture guards — work and are tested on `main`. Full-stack codegen (`vox build`), durable workflow replay, the Tauri operator GUI (`vox-gui`), deep research (`vox research`), and local QLoRA training (`vox mens`) are prototypes. Limits are in the [Status](#status) tables. Public Qwen3 adapters are on Hugging Face ([ML lane](#ml-lane-mens)). There is no stable release tag. Build from source. Draft nightly tags are not the supported install.
 
+<div align="center">
+  <img src="docs/src/assets/nathaniel_hawthorne_bust.webp" alt="Bust of Nathaniel Hawthorne" width="160" />
+</div>
 <p align="center">
   <em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em><br />
   <sub>— Nathaniel Hawthorne, <em>The House of the Seven Gables</em> (1851)</sub>

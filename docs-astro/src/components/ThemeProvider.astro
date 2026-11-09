@@ -1,0 +1,85 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+---
+
+<meta name="color-scheme" content="dark light" />
+
+{/* Intentionally inlined to avoid FOUC and keep 'auto' synchronized with OS dark/light mode. */}
+<script is:inline>
+  window.StarlightThemeProvider = (() => {
+    function getStoredTheme() {
+      try {
+        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('starlight-theme') : null;
+        return raw === 'light' || raw === 'dark' ? raw : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function getSystemTheme() {
+      if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+      }
+      return 'dark';
+    }
+
+    function applyDocumentTheme(pref) {
+      const resolved = pref === 'light' || pref === 'dark' ? pref : getSystemTheme();
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.style.colorScheme = resolved;
+      return resolved;
+    }
+
+    const initialStored = getStoredTheme();
+    applyDocumentTheme(initialStored || 'auto');
+
+    function syncAutoTheme() {
+      if (!getStoredTheme()) {
+        applyDocumentTheme('auto');
+      }
+    }
+
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+      const lightMq = window.matchMedia('(prefers-color-scheme: light)');
+      if (typeof darkMq.addEventListener === 'function') {
+        darkMq.addEventListener('change', syncAutoTheme);
+        lightMq.addEventListener('change', syncAutoTheme);
+      }
+      window.addEventListener('pageshow', syncAutoTheme);
+      document.addEventListener('astro:after-swap', () => {
+        applyDocumentTheme(getStoredTheme() || 'auto');
+      });
+    }
+
+    return {
+      updatePickers(theme) {
+        const activePref =
+          theme === 'light' || theme === 'dark' || theme === 'auto'
+            ? theme
+            : getStoredTheme() || 'auto';
+        applyDocumentTheme(activePref);
+        document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+          const select = picker.querySelector('select');
+          if (select) select.value = activePref;
+          /** @type {HTMLTemplateElement | null} */
+          const tmpl = document.querySelector('#theme-icons');
+          const newIcon = tmpl && tmpl.content.querySelector('.' + activePref);
+          if (newIcon) {
+            const oldIcon = picker.querySelector('svg.label-icon');
+            if (oldIcon) {
+              oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
+            }
+          }
+        });
+      },
+    };
+  })();
+</script>
+
+<template id="theme-icons">
+  <Icon name="sun" class="light" />
+  <Icon name="moon" class="dark" />
+  <Icon name="laptop" class="auto" />
+</template>

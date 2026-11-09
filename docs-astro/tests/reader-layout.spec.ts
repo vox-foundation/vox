@@ -149,4 +149,36 @@ test.describe('SITE-01..05 Reader Layout Matrix', () => {
       }
     }
   }
+
+  test('desktop header theme selector and GitHub link are clickable and auto tracks system color scheme', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.desktop);
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    // Default auto should resolve to dark when OS prefers-color-scheme is dark
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    // Emulate system switching to light while in auto mode
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+    // Switch back to dark via OS media query
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    // Verify theme select and GitHub link in top-right header are not occluded by right-sidebar
+    const themeSelect = page.locator('header.header starlight-theme-select select');
+    const githubLink = page.locator('header.header .social-icons a[href*="github.com"]');
+    await expect(themeSelect).toBeVisible();
+    await expect(githubLink).toBeVisible();
+
+    await themeSelect.selectOption('light');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+    await themeSelect.selectOption('dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    await themeSelect.selectOption('auto');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
 });
