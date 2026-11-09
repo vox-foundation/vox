@@ -10,7 +10,7 @@ schema_type: "HowTo"
 
 # How-To: Testing Integration
 
-Testing in Vox focuses on unit tests and bounded integration tests using the `@test` decorator. Note that the legacy `@mock` and `@fixture` features have been removed or placed into aspirational scope for v0.3.
+Testing in Vox focuses on unit tests and bounded integration tests using the `@test` decorator (see [How-To: Unit Testing](how-to-unit-test.md) for basic unit test structure). Note that the legacy `@mock` and `@fixture` features have been removed or placed into aspirational scope for v0.3.
 
 ## Structuring a Test
 

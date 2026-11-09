@@ -6,7 +6,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use walkdir::WalkDir;
 
@@ -54,13 +54,37 @@ pub struct PruneReport {
     pub pages: Vec<PagePruneRecord>,
 }
 
+fn normalize_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::CurDir => {}
+            _ => out.push(comp),
+        }
+    }
+    out
+}
+
 /// Build inbound link graph: target_rel_path -> set of source_rel_paths.
 pub fn build_inbound_link_graph(
     repo_root: &Path,
     docs_dir: &Path,
+    extra_sources: &[PathBuf],
 ) -> HashMap<String, HashSet<String>> {
+    let repo_root_norm = normalize_path(repo_root);
+    let docs_dir_norm = normalize_path(docs_dir);
+    let repo_root = &repo_root_norm;
+    let docs_dir = &docs_dir_norm;
+
     let mut graph: HashMap<String, HashSet<String>> = HashMap::new();
     let link_re = Regex::new(r"\[[^\]]*\]\(([^)]+)\)").unwrap();
+    let inline_code_re = Regex::new(r"`[^`]*`").unwrap();
+
+    let mut source_paths = Vec::new();
 
     for entry in WalkDir::new(docs_dir)
         .follow_links(false)
@@ -71,70 +95,105 @@ pub fn build_inbound_link_graph(
         if !path.is_file() {
             continue;
         }
+        if path.components().any(|c| c.as_os_str() == "archive") {
+            continue;
+        }
         let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
         if ext != "md" && ext != "mdx" {
             continue;
         }
+        source_paths.push(path.to_path_buf());
+    }
 
-        let source_rel = path
+    for extra in extra_sources {
+        if extra.is_file() {
+            source_paths.push(extra.clone());
+        }
+    }
+
+    for path in &source_paths {
+        let normalized_source = normalize_path(path);
+        let source_rel = normalized_source
             .strip_prefix(repo_root)
-            .unwrap_or(path)
+            .unwrap_or(&normalized_source)
             .to_string_lossy()
-            .to_string();
-        // Ensure entry exists
-        graph.entry(source_rel.clone()).or_default();
+            .replace('\\', "/");
+
+        // Ensure docs_dir pages exist as keys in graph
+        if path.starts_with(docs_dir) {
+            graph.entry(source_rel.clone()).or_default();
+        }
 
         if let Ok(content) = fs::read_to_string(path) {
             let parent_dir = path.parent().unwrap_or(docs_dir);
-            for cap in link_re.captures_iter(&content) {
-                let target = &cap[1];
-                if target.starts_with("http://")
-                    || target.starts_with("https://")
-                    || target.starts_with('#')
-                    || target.starts_with("mailto:")
-                {
+            let mut in_fence = false;
+            for line in content.lines() {
+                let trimmed_start = line.trim_start();
+                if trimmed_start.starts_with("```") {
+                    in_fence = !in_fence;
                     continue;
                 }
-
-                let clean_target = target
-                    .split('#')
-                    .next()
-                    .unwrap_or(target)
-                    .split('?')
-                    .next()
-                    .unwrap_or(target);
-                if clean_target.is_empty() {
+                if in_fence {
                     continue;
                 }
+                let line_sanitized = inline_code_re.replace_all(line, "code");
+                for cap in link_re.captures_iter(&line_sanitized) {
+                    let target = &cap[1];
+                    if target.starts_with("http://")
+                        || target.starts_with("https://")
+                        || target.starts_with('#')
+                        || target.starts_with("mailto:")
+                        || target.starts_with("file:")
+                        || target.starts_with("javascript:")
+                    {
+                        continue;
+                    }
 
-                let resolved_target = if clean_target.starts_with('/') {
-                    docs_dir.join(clean_target.trim_start_matches('/'))
-                } else {
-                    parent_dir.join(clean_target)
-                };
+                    let clean_target = target
+                        .split('#')
+                        .next()
+                        .unwrap_or(target)
+                        .split('?')
+                        .next()
+                        .unwrap_or(target);
+                    if clean_target.is_empty() {
+                        continue;
+                    }
 
-                let canonical = if resolved_target.is_file() {
-                    Some(resolved_target)
-                } else if resolved_target.with_extension("md").is_file() {
-                    Some(resolved_target.with_extension("md"))
-                } else if resolved_target.with_extension("mdx").is_file() {
-                    Some(resolved_target.with_extension("mdx"))
-                } else if resolved_target.join("index.md").is_file() {
-                    Some(resolved_target.join("index.md"))
-                } else {
-                    None
-                };
+                    let resolved_target = if clean_target.starts_with('/') {
+                        docs_dir.join(clean_target.trim_start_matches('/').trim_end_matches('/'))
+                    } else {
+                        parent_dir.join(clean_target.trim_end_matches('/'))
+                    };
 
-                if let Some(c) = canonical {
-                    let target_rel = c
-                        .strip_prefix(repo_root)
-                        .unwrap_or(&c)
-                        .to_string_lossy()
-                        .to_string();
-                    graph
-                        .entry(target_rel)
-                        .or_default()
-                        .insert(source_rel.clone());
+                    let canonical = if resolved_target.is_file() {
+                        Some(resolved_target)
+                    } else if resolved_target.with_extension("md").is_file() {
+                        Some(resolved_target.with_extension("md"))
+                    } else if resolved_target.with_extension("mdx").is_file() {
+                        Some(resolved_target.with_extension("mdx"))
+                    } else if resolved_target.join("index.md").is_file() {
+                        Some(resolved_target.join("index.md"))
+                    } else if resolved_target.join("index.mdx").is_file() {
+                        Some(resolved_target.join("index.mdx"))
+                    } else {
+                        None
+                    };
+
+                    if let Some(c) = canonical {
+                        let normalized_c = normalize_path(&c);
+                        let target_rel = normalized_c
+                            .strip_prefix(repo_root)
+                            .unwrap_or(&normalized_c)
+                            .to_string_lossy()
+                            .replace('\\', "/");
+                        if target_rel != source_rel {
+                            graph
+                                .entry(target_rel)
+                                .or_default()
+                                .insert(source_rel.clone());
+                        }
+                    }
                 }
             }
         }
@@ -307,7 +366,18 @@ pub fn generate_prune_report(
     resolved_mentions: &[ResolvedMention],
 ) -> Result<PruneReport> {
     let docs_dir = repo_root.join("docs/src");
-    let link_graph = build_inbound_link_graph(repo_root, &docs_dir);
+    let root_guides = [
+        "AGENTS.md",
+        "README.md",
+        "CONTRIBUTING.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+    ]
+    .iter()
+    .map(|p| repo_root.join(p))
+    .filter(|p| p.is_file())
+    .collect::<Vec<_>>();
+    let link_graph = build_inbound_link_graph(repo_root, &docs_dir, &root_guides);
     let git_dates = get_substantive_git_dates(repo_root);
 
     let now_ts = std::time::SystemTime::now()
@@ -470,5 +540,70 @@ mod tests {
         let a = tokenize("Architecture Overview and Design");
         let b = tokenize("Architecture Design and Structure");
         assert!(jaccard_similarity(&a, &b) >= 0.5);
+    }
+
+    #[test]
+    fn test_build_inbound_link_graph_rules() {
+        let unique_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let tmp = std::env::temp_dir().join(format!("vox_prune_test_{unique_id}"));
+        let repo_root = &tmp;
+        let docs_dir = repo_root.join("docs/src");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let a = docs_dir.join("a.md");
+        let b = docs_dir.join("b.md");
+        fs::create_dir_all(docs_dir.join("reference")).unwrap();
+        let cli = docs_dir.join("reference/cli.md");
+        fs::write(&cli, "# CLI\n").unwrap();
+
+        fs::write(
+            &a,
+            "See [b](b.md).\n```\n[b](b.md)\n```\n`[b](b.md)`\n[a](a.md)\n[c](/reference/cli/)\n",
+        )
+        .unwrap();
+
+        fs::create_dir_all(docs_dir.join("how-to")).unwrap();
+        let h = docs_dir.join("how-to/guide.md");
+        fs::write(&h, "See [cli](../reference/cli).\n").unwrap();
+
+        fs::write(&b, "# B\n").unwrap();
+
+        let archive_dir = docs_dir.join("archive");
+        fs::create_dir_all(&archive_dir).unwrap();
+        let x = archive_dir.join("x.md");
+        fs::write(&x, "See [b](../b.md).\n").unwrap();
+
+        let readme = repo_root.join("README.md");
+        fs::write(&readme, "See [b](docs/src/b.md).\n").unwrap();
+
+        let graph = build_inbound_link_graph(repo_root, &docs_dir, &[readme]);
+
+        // b has inbound {docs/src/a.md, README.md} - NOT x.md
+        let b_inbound = graph.get("docs/src/b.md").expect("b in graph");
+        assert!(
+            b_inbound.contains("docs/src/a.md"),
+            "b_inbound: {b_inbound:?}"
+        );
+        assert!(b_inbound.contains("README.md"), "b_inbound: {b_inbound:?}");
+        assert_eq!(b_inbound.len(), 2, "b_inbound: {b_inbound:?}");
+
+        // archive/x.md is not in graph
+        assert!(!graph.contains_key("docs/src/archive/x.md"));
+
+        // a.md self link dropped
+        let a_inbound = graph.get("docs/src/a.md").expect("a in graph");
+        assert!(!a_inbound.contains("docs/src/a.md"));
+
+        // /reference/cli/ and ../reference/cli both resolve to docs/src/reference/cli.md
+        let cli_inbound = graph
+            .get("docs/src/reference/cli.md")
+            .expect("cli in graph");
+        assert!(cli_inbound.contains("docs/src/a.md"));
+        assert!(cli_inbound.contains("docs/src/how-to/guide.md"));
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

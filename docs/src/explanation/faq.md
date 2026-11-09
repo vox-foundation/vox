@@ -13,7 +13,7 @@ keywords: ["Vox FAQ", "Vox language questions", "AI native language runtime", "n
 
 This page answers product and architecture questions.
 
-For operational fixes, environment issues, or command failures, use the [Troubleshooting FAQ](../how-to/troubleshooting-faq.md).
+For operational fixes, environment issues, or command failures, use the [Troubleshooting FAQ](../how-to/troubleshooting-faq.md). For terminology and key concepts, consult the [Glossary](glossary.md).
 
 ## Language Basics
 

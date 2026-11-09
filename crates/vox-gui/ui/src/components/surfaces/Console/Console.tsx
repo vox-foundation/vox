@@ -24,6 +24,8 @@ import {
 } from '../../../lib/terminalBridge';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { Button } from '../../ui/Button';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 import {
   orchestratorStatusErrorMessage,
   useOrchestratorStatus,
@@ -277,8 +279,40 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
       .catch((e) => pushToast({ tone: 'warn', title: 'Send failed', body: sanitizeErrorForToast(e), cause: 'backend-error' }));
   };
 
+  const consoleGauges = [
+    {
+      label: 'Sessions',
+      valueText: `${sessions.length} Active`,
+      ratio: Math.min(1, sessions.length / 5),
+      tone: 'gold' as const,
+      purpose: 'Active terminal sessions attached to daemon',
+    },
+    {
+      label: 'Blocks',
+      valueText: `${blocks.length} Items`,
+      ratio: Math.min(1, blocks.length / 40),
+      tone: 'gold' as const,
+      purpose: 'Captured terminal block stream history',
+    },
+    {
+      label: 'Control',
+      valueText: controlMode === 'autopilot' ? 'Autopilot' : controlMode === 'co_pilot' ? 'Co-Pilot' : 'Manual',
+      ratio: controlMode === 'autopilot' ? 1.0 : controlMode === 'co_pilot' ? 0.6 : 0.25,
+      tone: controlMode === 'autopilot' ? ('emerald' as const) : ('gold' as const),
+      purpose: 'Terminal control bridge automation tier',
+    },
+  ];
+
   return (
-    <div className="flex h-full min-h-0 flex-col" data-testid="console-root">
+    <div className="flex h-full min-h-0 flex-col gap-2 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-3" data-testid="console-root">
+      <RomanSurfaceHeader
+        domainTag="WORKSPACE · CONSOLE"
+        title="Warp Console & Terminal Bridge"
+        subtitle="Interactive Warp-style block stream, multi-agent terminal tabs, and capability execution."
+        waxSealBadge="CONSOLE READY"
+        icon={<Icon.terminal className="size-5 text-[#F3E5AB]" />}
+        gauges={consoleGauges}
+      />
       <div className="flex shrink-0 items-center justify-between">
         <div className="min-w-0 flex-1">
           <AgentStrip agents={agents} onOpen={openAgentTab} />
@@ -307,7 +341,13 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
       <div
         data-testid="term-session-bar"
         aria-label="terminal sessions"
-        className="flex shrink-0 items-center gap-1.5 border-b border-white/10 px-2.5 py-1 text-[11px]"
+        style={{
+          backgroundImage:
+            'linear-gradient(90deg, rgba(248,243,233,0.95) 0%, rgba(235,224,205,0.93) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border-2 border-[#C59B27] px-2.5 py-1 text-[11px] text-[#1C140C] shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]"
       >
         {sessions.map((s) => (
           <Button
@@ -315,7 +355,9 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
             data-testid={`term-session-tab-${s.id}`}
             onClick={() => setActiveSessionId(s.id)}
             className={`h-6 px-2 py-0.5 text-[11px] ${
-              activeSessionId === s.id ? 'border border-brass/50 font-semibold' : ''
+              activeSessionId === s.id
+                ? 'border border-[#8C6825] bg-[#251C0E] text-[#F3E5AB] font-semibold'
+                : 'border border-[#9E7B2F]/60 bg-[#FAF6EE] text-[#1C140C]'
             }`}
           >
             {`${s.id} (${s.blocks})`}
@@ -324,7 +366,7 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
         <Button
           data-testid="term-new-session"
           onClick={() => void handleNewSession()}
-          className="h-6 px-2 py-0.5 text-[11px]"
+          className="h-6 border border-[#8C6825] bg-[#251C0E] px-2 py-0.5 text-[11px] text-[#F3E5AB]"
         >
           + new session
         </Button>
@@ -334,7 +376,7 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
             aria-label="Terminal security level"
             value={securityLevel}
             onChange={(e) => setSecurityLevel(e.target.value as TermSecurityLevelId)}
-            className="h-6 rounded border border-white/15 bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-200 outline-none"
+            className="h-6 rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 text-[10px] text-[#F3E5AB] outline-none"
           >
             <option value="l1_read_only">L1 Read-Only</option>
             <option value="l2_safe_exec">L2 Safe Exec</option>
@@ -348,10 +390,10 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
             onClick={cycleControlMode}
             className={`h-6 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition ${
               controlMode === 'autopilot'
-                ? 'border-amber-400/50 bg-amber-500/20 text-amber-300'
+                ? 'border-[#8C6825] bg-[#364116] text-[#F3E5AB]'
                 : controlMode === 'co_pilot'
-                  ? 'border-cyan/50 bg-cyan/15 text-cyan'
-                  : 'border-white/15 bg-white/5 text-zinc-300'
+                  ? 'border-[#8C6825] bg-[#251C0E] text-[#F3E5AB]'
+                  : 'border-[#8C6825] bg-[#251C0E] text-[#F3E5AB]'
             }`}
           >
             {controlMode === 'autopilot'

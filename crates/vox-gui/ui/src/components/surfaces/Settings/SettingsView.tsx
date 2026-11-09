@@ -27,6 +27,8 @@ import { useBackendStatus } from '../../../hooks/useBackendStatus';
 import { SurfaceUnavailable } from '../../layout/SurfaceUnavailable';
 import { ServerConnectionSection } from './ServerConnectionSection';
 import { sectionLockedRemotely } from './settingsBackends';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { decode } from '@msgpack/msgpack';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
@@ -257,7 +259,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
             return (
               <div key={p.id} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle p-3">
                 <div className="flex items-center gap-3">
-                  <span className={`size-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-text-muted'}`} />
+                  <span className={`size-2 rounded-full ${online ? 'bg-[#7B8C32]' : 'bg-text-muted'}`} />
                   <div className="leading-tight">
                     <div className="font-mono text-[12px] text-text-primary break-all">{p.id}</div>
                     <div className="font-mono text-[10px] text-text-muted">{(p.host_triple ?? '—')} · {(p.gpu_summary ?? '—')}</div>
@@ -265,7 +267,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-                    isTrusted ? 'bg-emerald-400/15 text-emerald-300' : 'bg-bg-elevated/40 text-text-muted'
+                    isTrusted ? 'bg-[#5B6B24]/25 text-[#DCE7B6]' : 'bg-bg-elevated/40 text-text-muted'
                   }`}>{isTrusted ? 'trusted' : (p.trust_tier ?? 'untrusted')}</span>
                   <button
                     type="button"
@@ -470,19 +472,31 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   // stored (or collapsed on first sight). Only seed each slug once.
   useEffect(() => {
     if (groups.length === 0) return;
+    const focusKey = localStorage.getItem('vox_focus_secret_key');
     setCollapsed(prev => {
       const next = { ...prev };
       let changed = false;
       for (const g of groups) {
+        const hasFocusKey = focusKey ? g.items.some(i => i.canonicalEnv === focusKey) : false;
+        if (hasFocusKey && next[g.slug] !== false) {
+          next[g.slug] = false;
+          changed = true;
+        }
         if (seededSlugs.current.has(g.slug)) continue;
         seededSlugs.current.add(g.slug);
         if (!(g.slug in next)) {
-          next[g.slug] = !g.needsAttention;
+          next[g.slug] = hasFocusKey ? false : !g.needsAttention;
           changed = true;
         }
       }
       return changed ? next : prev;
     });
+    if (focusKey) {
+      localStorage.removeItem('vox_focus_secret_key');
+      setTimeout(() => {
+        scrollAndFocusAnchor(`secret-row-${focusKey}`);
+      }, 60);
+    }
   }, [groups, setCollapsed]);
 
   const toggleGroup = (slug: string) =>
@@ -563,7 +577,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   };
 
   const renderSecretRow = (r: SecretStatusDto) => (
-    <div key={r.id} className="rounded-md border border-border-subtle bg-overlay-subtle p-3">
+    <div key={r.id} id={`secret-row-${r.canonicalEnv}`} data-testid={`secret-row-${r.canonicalEnv}`} className="rounded-md border border-border-subtle bg-overlay-subtle p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="leading-tight">
           <div className="flex items-center gap-2">
@@ -1227,7 +1241,6 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         let orchPatch: Partial<SettingsState> = {};
         if (statusRaw) {
           try {
-            const { decode } = await import('@msgpack/msgpack');
             const status = decode(statusRaw) as OrchestratorStatus;
             if (typeof status.budget_cap === 'number') orchPatch.capUsd = status.budget_cap;
             if (typeof status.agent_count === 'number') orchPatch.concurrency = status.agent_count;
@@ -1355,17 +1368,37 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       <div role="status" aria-live="polite" className="sr-only">
         {prefAnnounce}
       </div>
-      <h2 className="col-span-12 font-display text-lg tracking-[0.14em] uppercase text-text-primary">
-        {useLabel('settings')}
-      </h2>
+      <div className="col-span-12">
+        <RomanSurfaceHeader
+          domainTag="SYSTEM · SETTINGS"
+          title={useLabel('settings')}
+          headingLevel={2}
+          subtitle="LEX & STATUTA · CLAVIS SECRETS · ORCHESTRATOR POSTURE & ROUTING WEIGHTS"
+          waxSealBadge="CLAVIS SEALED"
+          icon={<Icon.shield className="size-4 text-[#F3E5AB]" />}
+          gauges={[
+            { label: 'Concurrency', valueText: `${vals.concurrency}`, ratio: Math.min(1, vals.concurrency / 16), tone: 'gold' },
+            { label: 'Budget Cap', valueText: `$${vals.capUsd}`, ratio: Math.min(1, vals.capUsd / 50), tone: 'emerald' },
+            { label: 'Doubt Floor', valueText: `${Math.round(vals.doubtThresh * 100)}%`, ratio: vals.doubtThresh, tone: 'gold' },
+          ]}
+        />
+      </div>
       {/* Nav */}
-      <Glass className="col-span-12 md:col-span-3 p-3">
+      <Glass
+        style={{
+          backgroundImage:
+            "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+        className="vox-marble-tablet col-span-12 md:col-span-3 p-3 border-2 border-[#C59B27]/85 shadow-[0_8px_22px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.92)]"
+      >
         <input
           value={filter}
           onChange={e => setFilter(e.target.value)}
           placeholder="Search settings…"
           aria-label="Search settings"
-          className="mb-2 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[12px] text-text-secondary placeholder:text-text-muted outline-hidden focus:border-brass/30"
+          className="mb-2 w-full rounded-lg border border-[#A67C1E] bg-[#FDFBF7] px-2.5 py-1.5 text-[12px] font-medium text-[#1C140C] placeholder:text-[#7A6136] outline-hidden focus:border-[#8C6825]"
         />
         {filter.trim() ? (
           <nav className="flex flex-col gap-1">
@@ -1374,14 +1407,14 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 key={entry.id}
                 type="button"
                 onClick={() => { setSection(entry.section); setFilter(''); }}
-                className="flex flex-col rounded-lg px-3 py-2 text-left text-text-secondary hover:bg-overlay-subtle hover:text-text-primary focus:outline-hidden focus-visible:ring-1 focus-visible:ring-brass/40"
+                className="flex flex-col rounded-lg px-3 py-2 text-left text-[#2B1F0F] hover:bg-white/70 hover:text-[#1C140C] focus:outline-hidden focus-visible:ring-1 focus-visible:ring-[#8C6825]"
               >
-                <span className="text-[12px]">{entry.label}</span>
-                <span className="text-[10px] text-text-muted">{entry.hint}</span>
+                <span className="text-[12px] font-semibold">{entry.label}</span>
+                <span className="text-[10px] text-[#5C441E]">{entry.hint}</span>
               </button>
             ))}
             {searchSettings(filter).length === 0 && (
-              <p className="px-3 py-2 text-[11px] text-text-muted">No settings match.</p>
+              <p className="px-3 py-2 text-[11px] text-[#5C441E]">No settings match.</p>
             )}
           </nav>
         ) : (
@@ -1394,12 +1427,14 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 key={s.id}
                 type="button"
                 onClick={() => setSection(s.id)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition ${
-                  on ? 'bg-overlay-subtle text-text-primary' : 'text-text-muted hover:bg-overlay-subtle hover:text-text-secondary'
+                className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition ${
+                  on
+                    ? 'border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB] shadow-sm'
+                    : 'border-transparent text-[#3B2E1E] hover:border-[#A67C1E]/50 hover:bg-white/60 hover:text-[#1C140C]'
                 }`}
               >
-                <IcoCmp className={`size-4 ${on ? 'text-brass' : 'text-text-muted'}`} />
-                <span className="font-display text-[12px] tracking-[0.12em] uppercase">{s.label}</span>
+                <IcoCmp className={`size-4 ${on ? 'text-[#F3E5AB]' : 'text-[#6B5125]'}`} />
+                <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase">{s.label}</span>
               </button>
             );
           })}
@@ -1408,7 +1443,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       </Glass>
 
       {/* Content */}
-      <Glass className="col-span-12 md:col-span-9 p-5">
+      <Glass className="col-span-12 md:col-span-9 p-5 border-[#d4af37]/30 bg-[#14100b]/92">
         {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
         {sectionLocked && section === 'runtime' && <LlmSpendMeter />}
         {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
@@ -1625,7 +1660,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                     Bounded Empirical Bayes priors (±15% max weight delta) from ~/.vox/cache/community-intelligence.v1.json. Set VOX_COMMUNITY_INTELLIGENCE=off to disable independently of telemetry upload.
                   </div>
                 </div>
-                <span className="shrink-0 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300">
+                <span className="shrink-0 rounded border border-[#7B8C32]/50 bg-[#4D5D1E]/20 px-2 py-0.5 font-mono text-[10px] text-[#DCE7B6]">
                   Ed25519 Verified · Offline Ready
                 </span>
               </div>
@@ -1702,8 +1737,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
               {[
                 { id: 'arcane',  name: 'Arcane',  swatch: 'from-brass via-amber-600 to-zinc-900' },
-                { id: 'void',    name: 'Void',    swatch: 'from-violet-500 via-zinc-800 to-zinc-950' },
-                { id: 'glacier', name: 'Glacier', swatch: 'from-cyan-400 via-slate-700 to-zinc-950' },
+                { id: 'void',    name: 'Void',    swatch: 'from-[#8C6825] via-[#2B2012] to-[#120D08]' },
+                { id: 'glacier', name: 'Glacier', swatch: 'from-[#E8DEC8] via-[#A69272] to-[#261E14]' },
               ].map(t => (
                 <button
                   key={t.id}

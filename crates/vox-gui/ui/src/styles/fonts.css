@@ -1,9 +1,32 @@
-/* Self-hosted, Latin-subset. No runtime network fetch (Tauri CSP font-src 'self'). */
-@font-face { font-family: 'Cinzel'; font-weight: 600; font-display: swap;
-  src: url('/fonts/Cinzel-SemiBold.woff2') format('woff2'); }
+/* Self-hosted, Latin-subset. No runtime network fetch (Tauri CSP font-src 'self').
+   Cinzel provides authentic Roman Trajan inscription capitals across all weights (100-900);
+   Palatino / Book Antiqua / EB Garamond provide readable classical Roman book serif body text. */
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/Cinzel-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: local('Palatino'), local('Palatino Linotype'), local('Book Antiqua'), local('Georgia'), url('/fonts/EBGaramond-Italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/EBGaramond-Italic.woff2') format('woff2');
+}
 @font-face { font-family: 'Inter'; font-weight: 400; font-display: swap;
   src: url('/fonts/Inter-Regular.woff2') format('woff2'); }
 @font-face { font-family: 'Inter'; font-weight: 500; font-display: swap;
   src: url('/fonts/Inter-Medium.woff2') format('woff2'); }
-@font-face { font-family: 'EB Garamond'; font-style: italic; font-weight: 400; font-display: swap;
-  src: url('/fonts/EBGaramond-Italic.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 600; font-display: swap;
+  src: url('/fonts/Inter-Medium.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 700; font-display: swap;
+  src: url('/fonts/Inter-Medium.woff2') format('woff2'); }

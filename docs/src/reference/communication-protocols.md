@@ -76,4 +76,5 @@ Protocol families marked `evaluate` in the catalog should only be merged or remo
 - [Populi work-type placement policy matrix](populi-work-type-placement-matrix.md) — local / LAN / overlay boundaries
 - [ADR 017: Populi lease-based remote execution](../adr/017-populi-lease-remote-execution.md), [ADR 018: Populi GPU truth layering](../adr/018-populi-gpu-truth-layering.md)
 - [MCP HTTP gateway contract](mcp-http-gateway-contract.md)
+- [Vox Webhook Integration](webhook_integration.md)
 

@@ -19,7 +19,7 @@ Before editing data-persistence code, consult [data-storage-ssot-2026.md](mdc:do
 ## When you change a contract
 
 - Bump `x-vox-version` and rename the file if the change is breaking.
-- Regenerate with `vox schema generate`.
+- Regenerate schemas from the updated contract.
 - Run `vox ci data-storage-guard`.
 
 ## When you add a persistent surface

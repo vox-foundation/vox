@@ -1,5 +1,7 @@
 import React from 'react';
 import type { AgentTrajectoryRow } from './riverTypes';
+import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
+import { Icon } from '../../ui/Icons';
 
 export interface AgentTrajectoryBraidProps {
   trajectories: AgentTrajectoryRow[];
@@ -28,37 +30,68 @@ function buildSmoothBraidPath(slices: number[], width: number, height: number): 
   return d;
 }
 
-const STROKE_PALETTE = ['#e4e4e7', '#22d3ee', '#34d399', '#fbbf24', '#a1a1aa'];
+export const LANE_COLORS = ['#D4AF37', '#8FA339', '#F59E0B', '#E07A5F', '#C89D54', '#B89B4C'];
+const STROKE_PALETTE = LANE_COLORS;
 
 export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps) {
   const svgW = 520;
-  const svgH = 88;
+  const svgH = 72;
 
   return (
     <div
       data-testid="harness-agent-braid"
-      className="rounded-lg border border-white/10 bg-[#09090b] p-2.5 font-mono text-[10px]"
+      className="rounded-lg border border-[#D4AF37]/30 bg-linear-to-b from-[#17130D]/95 to-[#100D09]/95 shadow-[0_1px_0_rgba(243,229,171,0.1)_inset] p-2 font-mono text-[10px]"
     >
-      <div className="mb-1.5 flex items-center justify-between text-[9px] uppercase tracking-wider text-text-muted">
-        <span>AGENT ROLE TRAJECTORY FLOW — LAST 8 SLICES</span>
-        <span>INTERCEPT · FAN-OUT · VERIFY · SANDBOX</span>
-      </div>
+      <RomanTooltip
+        title="Parallel Agent Execution Braid"
+        purpose="Visualizes real-time and historical execution paths across roles (Intercept, Fan-out, Verify, Sandbox) for each active agent."
+        actionHint="Inspect role transitions across active and completed tool trajectories"
+      >
+        <div className="mb-1.5 flex items-center justify-between border-b border-[#D4AF37]/20 pb-1 text-[9px] uppercase tracking-wider text-[#C8B99E]">
+          <div className="flex items-center gap-2">
+            <RomanMedallion active size="sm" {...({ icon: 'romanArch', tone: 'gold' } as any)}>
+              <span className="inline-block size-3.5 rounded-t-full border-2 border-current border-b-0" aria-hidden="true" />
+            </RomanMedallion>
+            <div>
+              <div className="font-display text-[11px] font-semibold tracking-wider text-[#F3E5AB] normal-case">
+                Parallel Agent Execution Braid
+              </div>
+              <span className="text-[8.5px] tracking-widest text-[#A89F91]">
+                AGENT ROLE TRAJECTORY FLOW — LAST 8 SLICES
+              </span>
+            </div>
+          </div>
+          <span className="hidden sm:inline font-mono text-[9px] text-[#A89F91]">
+            INTERCEPT · FAN-OUT · VERIFY · SANDBOX
+          </span>
+        </div>
+      </RomanTooltip>
 
       <div className="flex items-center gap-3">
         <div className="w-44 shrink-0 space-y-1">
           {trajectories.slice(0, 5).map((row, idx) => (
-            <div key={row.agentId} className="flex items-center justify-between gap-1 truncate">
-              <span className="truncate text-zinc-200" style={{ color: STROKE_PALETTE[idx % STROKE_PALETTE.length] }}>
-                {row.label}
-              </span>
-              <span className="rounded bg-white/5 px-1 text-[8px] text-text-muted">{row.activeLane}</span>
-            </div>
+            <RomanTooltip
+              key={row.agentId}
+              title={`Agent: ${row.label}`}
+              purpose={`Current role: ${row.activeLane}. The braided spline maps its last 8 tool execution slices across verification stages.`}
+              actionHint={`Active role lane: ${row.activeLane}`}
+              className="w-full block"
+            >
+              <div className="flex items-center justify-between gap-1 truncate rounded px-1 py-0.5 hover:bg-[#D4AF37]/10 transition-colors">
+                <span className="truncate" style={{ color: LANE_COLORS[idx % LANE_COLORS.length] }}>
+                  {row.label}
+                </span>
+                <span className="rounded border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-1 text-[8px] text-[#F3E5AB]">
+                  {row.activeLane}
+                </span>
+              </div>
+            </RomanTooltip>
           ))}
         </div>
 
         <svg
           viewBox={`0 0 ${svgW} ${svgH}`}
-          className="h-20 flex-1 overflow-visible rounded bg-black/50 border border-white/5"
+          className="h-14 xl:h-18 flex-1 overflow-visible rounded border border-[#D4AF37]/20 bg-[#0B0906]/90 shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)]"
           role="img"
           aria-label="Agent role trajectory braid"
         >
@@ -67,7 +100,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
               key={row.agentId}
               d={buildSmoothBraidPath(row.slices, svgW, svgH)}
               fill="none"
-              stroke={STROKE_PALETTE[idx % STROKE_PALETTE.length]}
+              stroke={LANE_COLORS[idx % LANE_COLORS.length]}
               strokeWidth={idx === 0 ? 2 : 1.3}
               strokeOpacity={0.85}
             />

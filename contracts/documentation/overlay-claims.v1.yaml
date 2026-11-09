@@ -1,0 +1,50 @@
+# contracts/documentation/overlay-claims.v1.yaml
+# Used by `vox ci ssot-drift` stage `overlay_parity` to prevent tool overlays
+# from contradicting normative AGENTS.md policy.
+# Rule: Fix the overlay, never loosen a pattern without a false-positive fixture.
+
+schema_version: 1
+overlays:
+  - CLAUDE.md
+  - GEMINI.md
+  - .github/copilot-instructions.md
+  - docs/src/AGENTS.md
+  - .cursor/rules/*.mdc
+claims:
+  - id: no-hand-last-updated
+    anchor: "Do **not** hand-add `last_updated`"
+    forbid:
+      - '(?i)(?:must\s+include|must\s+have|must\s+set|include|required).*last_updated'
+    allow_if: '(?i)(?:do\s+not|never|not|derives\s+it)'
+    rationale: "Git history derives last_updated; hand-authored last_updated causes a doc lint failure."
+
+  - id: inline-vox-not-include
+    anchor: "do NOT use mdBook `{{#include}}` directives for new code"
+    forbid:
+      - '\{\{#include\}\}'
+    allow_if: '(?i)(?:do\s+not|never|not|no\s+new)'
+    rationale: "Do not use mdBook include directives; write inline compiling vox blocks."
+
+  - id: frontmatter-minimum-keys
+    anchor: "Minimum required keys"
+    forbid:
+      - '(?i)training_eligible.*(?:is\s+|are\s+)?required'
+      - '(?i)required.*training_eligible'
+      - '(?i)last_updated.*(?:is\s+|are\s+)?optional'
+      - '(?i)optional.*last_updated'
+    allow_if: '(?i)(?:do\s+not|never|not)'
+    rationale: "AGENTS.md defines minimum keys (title, description, category, topic, domain, authorship); last_updated is derived from git and training_eligible is not a required key."
+
+  - id: no-cargo-fmt-all
+    anchor: "Never run `cargo fmt --all` on this workspace"
+    forbid:
+      - 'cargo\s+fmt\s+--all'
+    allow_if: '(?i)(?:never|do\s+not|not|don''t)'
+    rationale: "Never run cargo fmt --all on this workspace; format dirty .rs files only with vox run scripts/fmt.vox or rustfmt."
+
+  - id: no-explicit-cargo-path
+    anchor: "never call the real cargo binary by an explicit resolved path"
+    forbid:
+      - '(?i)[.a-z0-9_\\/]*\.cargo[\\/]bin[\\/]cargo(?:\.exe)?'
+    allow_if: '(?i)(?:never|do\s+not|not|don''t|avoid|bypass)'
+    rationale: "Never call cargo by an explicit resolved path; route invocations through the build broker shim on PATH."

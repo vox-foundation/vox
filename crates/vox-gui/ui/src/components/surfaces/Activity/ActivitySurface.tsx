@@ -108,11 +108,11 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
       case 'BudgetAlert':
       case 'AttentionBudgetAlert':
       case 'ConflictDetected':
-        return 'border-amber-500/30 bg-amber-500/5 text-amber-300';
+        return 'border-amber-500/40 bg-amber-950/25 text-amber-200';
       case 'CostIncurred':
-        return 'border-sky-500/30 bg-sky-500/5 text-sky-300';
+        return 'border-[#D4AF37]/45 bg-[#1B150E]/90 text-[#F3E5AB]';
       default:
-        return 'border-zinc-700/50 bg-zinc-800/10 text-zinc-300';
+        return 'border-[#D4AF37]/30 bg-[#16120C]/90 text-[#D8CEB8]';
     }
   };
 
@@ -305,18 +305,18 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
   const uniqueKinds = Array.from(new Set(rows.map((r) => r.kind))).sort();
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4 text-zinc-300">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold tracking-wider text-zinc-100 flex items-center gap-2">
-          <Icon.bolt className="text-emerald-400 size-5" />
+    <div className="flex flex-col h-full gap-4 p-4 text-[#F3E5AB] rounded-xl border border-[#D4AF37]/35 bg-linear-to-b from-[#1B150E] to-[#110D08]">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-[#F3E5AB] flex items-center gap-2">
+          <Icon.bolt className="text-[#D4AF37] size-4" />
           Agent Activity Timeline
         </h2>
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-[#C8B99E]">
           Durable log of high-signal events emitted across agent orchestrations.
         </p>
       </div>
 
-      <Glass className="flex items-center gap-3 p-3 flex-wrap">
+      <Glass className="flex items-center gap-3 p-3 flex-wrap border-[#D4AF37]/35 bg-[#16120C]/90">
         <div className="flex flex-col gap-1 min-w-[120px]">
           <label className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
             Agent

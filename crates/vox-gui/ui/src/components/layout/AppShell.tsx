@@ -169,14 +169,16 @@ export function AppShell({
         <main className="flex-1 flex flex-col min-w-0 relative" data-testid="active-surface" data-view={activeView}>
           {/* The page's one h1 (axe page-has-heading-one): surfaces carry section headings only, so a surface docked inside another cannot add a second. */}
           <h1 className="sr-only">{surfaceLabel}</h1>
-          <div className="px-4 pt-3 pb-0">
+          <div className={`${sidebarMode === 'hidden' ? 'pl-32 pr-4' : 'px-4'} pt-2.5 pb-0 transition-[padding] duration-200`}>
             <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
           </div>
 
-          <div className={`flex-1 min-h-0 flex flex-col overflow-hidden p-5 max-[639px]:px-2 ${mainPaddingBottom}`}>
-            <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
-              <SurfaceScrollHost>{children}</SurfaceScrollHost>
-            </SurfaceErrorBoundary>
+          <div className={`flex-1 min-h-0 flex flex-row items-stretch overflow-hidden px-3 py-2 max-[639px]:px-1.5 gap-2 ${mainPaddingBottom}`}>
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+              <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
+                <SurfaceScrollHost>{children}</SurfaceScrollHost>
+              </SurfaceErrorBoundary>
+            </div>
           </div>
 
           {chatDocked && chatDock != null && (

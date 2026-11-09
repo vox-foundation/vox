@@ -581,7 +581,7 @@ fn stamp_mix_weight(line: &str, weight: f64) -> Result<String, String> {
 }
 
 /// Calculate a fingerprint for a source file based on path, mtime, and size.
-fn calculate_file_fingerprint(p: &Path) -> String {
+pub fn calculate_file_fingerprint(p: &Path) -> String {
     let Ok(meta) = std::fs::metadata(p) else {
         return "missing".into();
     };
@@ -599,7 +599,7 @@ fn calculate_file_fingerprint(p: &Path) -> String {
 }
 
 /// Calculate a composite fingerprint for the mix configuration variables.
-fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
+pub fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
     let mut s = String::new();
     s.push_str(&cfg.output);
     for lane in &cfg.include_lanes {
@@ -659,6 +659,15 @@ pub fn run_mix_with_options(
 
     let config_fp = calculate_config_fingerprint(&cfg);
 
+    // Ensure deterministic synthetic reasoning traces exist before checking source fingerprints.
+    for src in &cfg.sources {
+        let p = cwd.join(&src.path);
+        if src.path.ends_with("vox_reasoning_traces.jsonl") && !p.is_file() && src.weight > 0.0 {
+            let rows = crate::corpus::vox_reasoning_synth::generate_vox_reasoning_traces(cfg.seed);
+            let _ = crate::corpus::vox_reasoning_synth::write_vox_reasoning_traces_jsonl(&rows, &p);
+        }
+    }
+
     // Incremental skip check
     if write_report {
         let report_name = out_path
@@ -709,6 +718,10 @@ pub fn run_mix_with_options(
 
     for src in &cfg.sources {
         let p = cwd.join(&src.path);
+        if src.path.ends_with("vox_reasoning_traces.jsonl") && !p.is_file() && src.weight > 0.0 {
+            let rows = crate::corpus::vox_reasoning_synth::generate_vox_reasoning_traces(cfg.seed);
+            let _ = crate::corpus::vox_reasoning_synth::write_vox_reasoning_traces_jsonl(&rows, &p);
+        }
         let src_fp = calculate_file_fingerprint(&p);
 
         if !p.is_file() || src.weight <= 0.0 {

@@ -95,6 +95,20 @@ pub fn refresh_train_contract_override_from_mix(
     let path_base_for_mix = workspace_root
         .map(Path::to_path_buf)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    if let Ok(cfg) = MixConfigSchema::load(&mix_yaml) {
+        for src in &cfg.sources {
+            if src.path == "mens/data/mix_sources/vox_reasoning_traces.jsonl" {
+                let p = path_base_for_mix.join(&src.path);
+                if !p.exists() {
+                    let rows =
+                        crate::corpus::vox_reasoning_synth::generate_vox_reasoning_traces(42);
+                    let _ = crate::corpus::vox_reasoning_synth::write_vox_reasoning_traces_jsonl(
+                        &rows, &p,
+                    );
+                }
+            }
+        }
+    }
     if let Err(e) = corpus::run_mix_with_options(
         &mix_yaml,
         Some(path_base_for_mix.as_path()),
@@ -460,6 +474,35 @@ mod tests {
         assert_eq!(
             resolved.path, second,
             "trainer reads the mix output when the mix ran"
+        );
+    }
+
+    #[test]
+    fn mix_auto_materializes_vox_reasoning_traces_source() {
+        let tmp = temp_workspace();
+        let ws = tmp.path();
+        let data = ws.join("target/dogfood");
+        std::fs::write(
+            ws.join(MIX_CONFIG_REL),
+            "output: target/dogfood/train_mixed.jsonl\nsources:\n  - path: target/dogfood/train.jsonl\n    weight: 6.0\n  - path: mens/data/mix_sources/vox_reasoning_traces.jsonl\n    weight: 2.0\n    optional: true\n",
+        )
+        .expect("write mix.yaml");
+
+        let out = refresh_train_contract_override_from_mix(Some(ws), &data, false, None)
+            .expect("refresh")
+            .expect("mix output");
+        assert!(
+            ws.join("mens/data/mix_sources/vox_reasoning_traces.jsonl")
+                .is_file(),
+            "vox_reasoning_traces.jsonl must be auto-materialized before mix"
+        );
+        let mixed = std::fs::read_to_string(&out).expect("read mixed");
+        let total_lines = mixed.lines().count();
+        let think_lines = mixed.lines().filter(|l| l.contains("<think>\\n")).count();
+        assert_eq!(total_lines, 122, "2 base rows + 120 reasoning trace rows");
+        assert_eq!(
+            think_lines, 120,
+            "all 120 reasoning trace rows must retain <think>"
         );
     }
 

@@ -1,5 +1,11 @@
 import type { RiverSnapshot, RiverStrand } from './riverTypes';
 
+export const TIER_CFG = {
+  fast: { color: '#E5C158', rgb: '229, 193, 88' }, // warm burnished gold
+  standard: { color: '#D97706', rgb: '217, 119, 6' }, // imperial amber-bronze
+  deep: { color: '#8FA339', rgb: '143, 163, 57' }, // olive-laurel bronze
+} as const;
+
 export interface AlluvialControlPoints {
   x0: number;
   y0: number;
@@ -51,14 +57,14 @@ export function computeAlluvialControlPoints(
 function strandStrokeColor(status: RiverStrand['status'], alpha: number): string {
   switch (status) {
     case 'verified':
-      return `rgba(52, 211, 153, ${alpha.toFixed(2)})`; // emerald
+      return `rgba(${TIER_CFG.deep.rgb}, ${alpha.toFixed(2)})`; // verdigris emerald
     case 'streaming':
-      return `rgba(34, 211, 238, ${alpha.toFixed(2)})`; // cyan
+      return `rgba(${TIER_CFG.fast.rgb}, ${alpha.toFixed(2)})`; // warm burnished gold
     case 'doubted':
-      return `rgba(251, 191, 36, ${alpha.toFixed(2)})`; // amber
+      return `rgba(${TIER_CFG.standard.rgb}, ${alpha.toFixed(2)})`; // imperial amber-bronze
     case 'cached':
     default:
-      return `rgba(228, 228, 231, ${alpha.toFixed(2)})`; // monochrome zinc/white
+      return `rgba(243, 229, 171, ${alpha.toFixed(2)})`; // warm ivory stone
   }
 }
 
@@ -72,29 +78,83 @@ export function renderRiverFrame(
   if (width <= 0 || height <= 0) return;
 
   ctx.save();
-  ctx.fillStyle = '#070709';
+  if (typeof ctx.clearRect === 'function') {
+    ctx.clearRect(0, 0, width, height);
+  }
+  // Translucent warm travertine glaze so the high-res aqueduct-sluice-cascade-bg.jpg shines underneath
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+  bgGrad.addColorStop(0, 'rgba(20, 16, 11, 0.38)');
+  bgGrad.addColorStop(0.5, 'rgba(14, 11, 7, 0.30)');
+  bgGrad.addColorStop(1, 'rgba(23, 18, 12, 0.42)');
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // 1. Subtle horizontal telemetry grid lines
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-  ctx.lineWidth = 1;
-  const gridRows = 6;
-  for (let r = 1; r < gridRows; r++) {
-    const gy = Math.round((height / gridRows) * r);
+  // 1. 3-Tier Stepped Marble Aqueduct Channels (Cursus I: Fast MENS, Cursus II: Hybrid, Cursus III: Deep)
+  const channelLabels = [
+    { yFrac: 0.28, label: 'CURSUS I · FAST LOCAL MENS', color: 'rgba(229, 193, 88, 0.22)', border: 'rgba(212, 175, 55, 0.42)' },
+    { yFrac: 0.52, label: 'CURSUS II · BALANCED HYBRID', color: 'rgba(217, 119, 6, 0.20)', border: 'rgba(245, 158, 11, 0.42)' },
+    { yFrac: 0.76, label: 'CURSUS III · DEEP FRONTIER', color: 'rgba(143, 163, 57, 0.20)', border: 'rgba(184, 155, 76, 0.45)' },
+  ];
+  for (let c = 0; c < channelLabels.length; c++) {
+    const ch = channelLabels[c]!;
+    const cy = Math.round(height * ch.yFrac);
+    const bandH = Math.max(22, Math.round(height * 0.14));
+    ctx.fillStyle = ch.color;
+    ctx.fillRect(12, cy - bandH / 2, width - 24, bandH);
+    ctx.strokeStyle = ch.border;
+    ctx.lineWidth = 1.1;
+    ctx.strokeRect(12, cy - bandH / 2, width - 24, bandH);
+
+    // Animated laminar hydraulic wave crest inside each aqueduct channel
+    ctx.strokeStyle = c === 2 ? 'rgba(220, 231, 182, 0.48)' : 'rgba(253, 230, 138, 0.48)';
+    ctx.lineWidth = 1.4;
+    const waveOffset = Math.sin(phaseSec * 2.2 + c * 1.3) * 4;
     ctx.beginPath();
-    ctx.moveTo(0, gy);
-    ctx.bezierCurveTo(width * 0.33, gy, width * 0.66, gy, width, gy);
+    ctx.moveTo(16, cy + waveOffset);
+    ctx.bezierCurveTo(
+      width * 0.33,
+      cy - waveOffset * 1.4,
+      width * 0.66,
+      cy + waveOffset * 1.4,
+      width - 16,
+      cy - waveOffset,
+    );
     ctx.stroke();
+
+    ctx.font = '600 8.5px Cinzel, Palatino, Georgia, serif';
+    ctx.fillStyle = 'rgba(245, 239, 228, 0.88)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ch.label, 20, cy - bandH / 2 + 8);
   }
 
-  // 2. Render Alluvial Bézier Strands + Flowing Particles
+  // 1b. Aquae Caput — 8-Spoke Source Arches along top parapet
+  const spokeNames = ['LANG', 'COMPILER', 'RUNTIME', 'ORCH', 'DB', 'GUI', 'CLI', 'TEST'];
+  const archZoneW = Math.max(240, width - 48);
+  const archStep = archZoneW / spokeNames.length;
+  for (let s = 0; s < spokeNames.length; s++) {
+    const ax = Math.round(24 + archStep * (s + 0.5));
+    const ay = 38;
+    ctx.fillStyle = 'rgba(28, 21, 14, 0.86)';
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.68)';
+    ctx.lineWidth = 1;
+    ctx.fillRect(ax - 22, ay - 8, 44, 15);
+    ctx.strokeRect(ax - 22, ay - 8, 44, 15);
+    ctx.font = '600 7.5px Cinzel, Palatino, Georgia, serif';
+    ctx.fillStyle = '#F3E5AB';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(spokeNames[s]!, ax, ay - 0.5);
+  }
+
+  // 2. Render Alluvial Bézier Strands + Flowing Multi-Shape Hydraulic Token Particles
   for (let i = 0; i < snapshot.strands.length; i++) {
     const strand = snapshot.strands[i];
     const pts = computeAlluvialControlPoints(strand, width, height);
-    const alpha = 0.16 + strand.intensity * 0.42;
+    const alpha = 0.28 + strand.intensity * 0.52;
 
     ctx.strokeStyle = strandStrokeColor(strand.status, alpha);
-    ctx.lineWidth = strand.status === 'streaming' ? 1.6 : 1.0;
+    ctx.lineWidth = strand.status === 'streaming' ? 2.1 : 1.3;
 
     // Upper half: top slot -> Singularity chokepoint
     ctx.beginPath();
@@ -104,61 +164,123 @@ export function renderRiverFrame(
     ctx.bezierCurveTo(pts.sx, pts.sy + (pts.y1 - pts.sy) * 0.18, pts.cx2, pts.cy2, pts.x1, pts.y1);
     ctx.stroke();
 
-    // Animated particle pulse traveling along the strand
-    const t = (phaseSec * (0.35 + (i % 5) * 0.08) + i * 0.13) % 1;
+    // Animated particle pulse traveling along the strand (shape + color semiotic encoding)
+    const t = (phaseSec * (0.38 + (i % 5) * 0.09) + i * 0.13) % 1;
     const py = pts.y0 + t * (pts.y1 - pts.y0);
     const blend = Math.sin(t * Math.PI); // peaks at 1.0 in center chokepoint
     const LinearX = pts.x0 + t * (pts.x1 - pts.x0);
     const px = LinearX * (1 - blend * 0.82) + pts.sx * (blend * 0.82);
 
-    ctx.fillStyle = strandStrokeColor(strand.status, 0.9);
-    ctx.beginPath();
-    ctx.arc(px, py, strand.status === 'streaming' ? 2.2 : 1.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = strandStrokeColor(strand.status, 0.96);
+    if (strand.status === 'streaming') {
+      // Gold Token Ingot block
+      ctx.fillRect(px - 3, py - 2, 6, 4);
+    } else {
+      ctx.beginPath();
+      ctx.arc(px, py, strand.status === 'verified' ? 2.6 : 1.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
-  // 3. Central Singularity (BLAKE3 Interceptor / Causal Chokepoint Glow)
-  const cx = width / 2;
-  const cy = height / 2;
-  const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.min(90, width * 0.22));
-  grad.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
-  grad.addColorStop(0.25, 'rgba(34, 211, 238, 0.38)');
-  grad.addColorStop(1, 'rgba(7, 7, 9, 0)');
-  ctx.fillStyle = grad;
+  // 3. Central Convergence Gate — Burnished Bronze Keystone & Astrolabe Seal
+  const singX = width / 2;
+  const singY = height / 2;
+  const outerR = Math.min(90, width * 0.22);
+  const sealGrad = ctx.createRadialGradient(singX, singY, 2, singX, singY, outerR);
+  sealGrad.addColorStop(0, '#F3E5AB'); // warm molten gold core
+  sealGrad.addColorStop(0.35, 'rgba(212, 175, 55, 0.42)'); // outer burnished brass ring
+  sealGrad.addColorStop(1, 'rgba(23, 18, 12, 0)');
+  ctx.fillStyle = sealGrad;
   ctx.beginPath();
-  ctx.arc(cx, cy, Math.min(90, width * 0.22), 0, Math.PI * 2);
+  ctx.arc(singX, singY, outerR, 0, Math.PI * 2);
   ctx.fill();
 
-  // 4. Sweeping Horizontal Laser Scanner Bar + Inverted Callout Pill
-  const sweepNorm = 0.5 + 0.36 * Math.sin(phaseSec * 0.95);
-  const laserY = Math.round(height * sweepNorm);
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
-  ctx.lineWidth = 1.2;
+  // Engraved Roman compass spokes & keystone astrolabe ring
+  ctx.save();
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.42)';
+  ctx.lineWidth = 1;
+  const ringR = Math.min(32, outerR * 0.5);
   ctx.beginPath();
-  ctx.moveTo(0, laserY);
-  ctx.bezierCurveTo(width * 0.3, laserY, width * 0.7, laserY, width, laserY);
+  ctx.arc(singX, singY, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(singX, singY, ringR * 0.4, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Inverted monochrome callout pill on the laser line
-  const isCompact = width < 400;
-  ctx.font = isCompact
-    ? '600 9px ui-monospace, SFMono-Regular, Menlo, monospace'
-    : '600 10px ui-monospace, SFMono-Regular, Menlo, monospace';
-  const banner = snapshot.activePhaseBanner;
-  const charW = isCompact ? 5.5 : 6.4;
-  const pillW = Math.min(width - (isCompact ? 10 : 16), Math.max(180, banner.length * charW + 18));
-  const pillH = isCompact ? 18 : 20;
-  const pillX = Math.max(isCompact ? 5 : 8, (width - pillW) / 2);
-  const pillY = Math.max(6, Math.min(height - pillH - 6, laserY - pillH / 2));
+  // 8 engraved Roman compass spokes
+  for (let s = 0; s < 8; s++) {
+    const angle = (s * Math.PI) / 4 + phaseSec * 0.05;
+    const xFrom = singX + Math.cos(angle) * (ringR * 0.4);
+    const yFrom = singY + Math.sin(angle) * (ringR * 0.4);
+    const xTo = singX + Math.cos(angle) * ringR;
+    const yTo = singY + Math.sin(angle) * ringR;
+    ctx.beginPath();
+    ctx.moveTo(xFrom, yFrom);
+    if (typeof ctx.lineTo === 'function') {
+      ctx.lineTo(xTo, yTo);
+    } else {
+      ctx.bezierCurveTo(xFrom, yFrom, xTo, yTo, xTo, yTo);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 
-  ctx.fillStyle = 'rgba(15, 18, 28, 0.92)';
+  // 4. Carved Travertine & Burnished Brass Aqueduct Sluice Gate
+  const sweepNorm = 0.5 + 0.36 * Math.sin(phaseSec * 0.75);
+  const gateX = Math.round(width * sweepNorm);
+  const pillarW = 12;
+
+  // #1B160F stone pillar
+  ctx.fillStyle = '#1B160F';
+  ctx.fillRect(gateX - pillarW / 2, 0, pillarW, height);
+
+  // #D4AF37 brass border
+  ctx.strokeStyle = '#D4AF37';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(gateX - pillarW / 2, 0);
+  if (typeof ctx.lineTo === 'function') {
+    ctx.lineTo(gateX - pillarW / 2, height);
+    ctx.moveTo(gateX + pillarW / 2, 0);
+    ctx.lineTo(gateX + pillarW / 2, height);
+  } else {
+    ctx.bezierCurveTo(gateX - pillarW / 2, 0, gateX - pillarW / 2, height, gateX - pillarW / 2, height);
+    ctx.moveTo(gateX + pillarW / 2, 0);
+    ctx.bezierCurveTo(gateX + pillarW / 2, 0, gateX + pillarW / 2, height, gateX + pillarW / 2, height);
+  }
+  ctx.stroke();
+
+  // Warm golden verification pulse
+  const pulseGrad = ctx.createLinearGradient(gateX - pillarW * 1.5, 0, gateX + pillarW * 1.5, 0);
+  pulseGrad.addColorStop(0, 'rgba(212, 175, 55, 0)');
+  pulseGrad.addColorStop(0.5, 'rgba(243, 229, 171, 0.45)');
+  pulseGrad.addColorStop(1, 'rgba(212, 175, 55, 0)');
+  ctx.fillStyle = pulseGrad;
+  ctx.fillRect(gateX - pillarW * 1.5, 0, pillarW * 3, height);
+
+  // 5. Top callout pill: Carved travertine & brass tablet
+  const isCompact = width < 480;
+  ctx.font = isCompact
+    ? "600 9px 'Cinzel', 'Palatino', Georgia, serif"
+    : "600 10px 'Cinzel', 'Palatino', Georgia, serif";
+  const gateTitle = 'AQUEDUCT VERIFICATION GATE — LIVE TASK STREAM';
+  const banner = snapshot.activePhaseBanner
+    ? `${gateTitle} · ${snapshot.activePhaseBanner}`
+    : gateTitle;
+  const charW = isCompact ? 5.6 : 6.6;
+  const pillW = Math.min(width - (isCompact ? 10 : 16), Math.max(280, banner.length * charW + 24));
+  const pillH = isCompact ? 20 : 22;
+  const pillX = Math.max(isCompact ? 5 : 8, (width - pillW) / 2);
+  const pillY = 8;
+
+  // Tablet fill: #18130D, border: rgba(212, 175, 55, 0.55), text: #F5F0E6
+  ctx.fillStyle = '#18130D';
   ctx.fillRect(pillX, pillY, pillW, pillH);
-  ctx.strokeStyle = '#E5A93C';
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
   ctx.lineWidth = 1;
   ctx.strokeRect(pillX, pillY, pillW, pillH);
 
-  ctx.fillStyle = '#F4F4F5';
+  ctx.fillStyle = '#F5F0E6';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(banner, pillX + pillW / 2, pillY + pillH / 2);

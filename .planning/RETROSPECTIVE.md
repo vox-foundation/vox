@@ -1,5 +1,23 @@
 # Project Retrospective
 
+## Milestone: v6.4 — Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography
+
+**Shipped:** 2026-11-08
+**Phases:** 5 (`Phases 373–377`) | **Plans:** 5
+
+### What Was Built
+- **Phase 373:** Enlarged `ORCHESTRATOR` circular hub medallion (`r=66` in `AgentFlow.tsx`) and widened `ORCHESTRATOR` DAG node (`width=136` in `NeedsYouSurface.tsx`), made `OPEN FORM`, `EXPLAIN CAPABILITY`, `OPEN DOCS` single-line (`ExplorerTree.tsx`, `Button.tsx`), and slimmed `= GENERIC FORM` (`CapabilityBadge.tsx`).
+- **Phase 374:** Replaced procedural 2D polygon building drawing in `worldRenderer.ts` with painted Roman Acropolis & Monument artwork (`urbs-white-gold-citadel-bg.jpg` + `monument-*.jpg` portraits in `LudusSandbox.tsx`), live active file/folder badges, and animated SVG golden aqueduct streams.
+- **Phase 375:** Converted `Backdrop.tsx`, `Glass.tsx`, and `index.css` across all 32 surfaces to the Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic with subtle Vitruvian architectural watermark and sculpted bottom Roman frieze.
+- **Phase 376:** Remapped `--font-mono`, `--font-family-mono`, `.font-mono`, `pre`, `code`, and all SVG/Canvas font declarations to `'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif` (`tabular-nums`) and `'Cinzel', 'Palatino', Georgia, serif`.
+- **Phase 377:** Verified all 32 surfaces across `1280×800`, `1440×900`, and `1920×1080` via Playwright + `@ngi/platform-ssot` CV Flywheel (`0` `axeViolations`, `0` `clippedInteractiveCount`, `0` `overlappingControlPairs`), built-in Gemini vision inspection, and `/gsd-code-review --fix`.
+
+### What Worked
+- **Root-Token + `<Glass>` Unification:** Updating `:root` color tokens in `index.css` together with `<Glass>` (`Glass.tsx`) and `Backdrop.tsx` transformed all 32 surfaces simultaneously instead of patching components one by one.
+- **Replacing Procedural Canvas Polygons with Painted Diorama + Monument Portraits:** Removing `paintFullBleedRomanLandscape` and `drawIsoFileBuilding` allowed the high-resolution painted Roman Acropolis and monument portraits to shine through while keeping live file/folder badges and golden aqueduct streams interactive.
+
+---
+
 ## Milestone: v4.7 — Universal Repo-Agnostic Codebase Civilization Simulator & Attention-Weighted Developer Control Surface
 
 **Shipped:** 2026-10-25

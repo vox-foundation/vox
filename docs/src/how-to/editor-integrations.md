@@ -16,7 +16,7 @@ Vox ships three editor-facing artifacts in-tree:
 | **VS Code extension** | [`apps/editor/vox-vscode`](../../../apps/editor/vox-vscode) | Reference integration for VS Code / Cursor / forks that load VSIX-shaped extensions. |
 | **Tree-sitter grammar** | [`tree-sitter-vox`](../../../tree-sitter-vox) | Syntax highlighting / incremental parsing for editors that consume Tree-sitter queries. |
 
-Capability inventory (research): [`vox-lsp-capabilities-ssot-2026.md`](../architecture/vox-lsp-capabilities-ssot-2026.md).
+Capability inventory (research): [`vox-lsp-capabilities-ssot-2026.md`](../architecture/vox-lsp-capabilities-ssot-2026.md). For an industry comparison of AI agent harnesses, see the [AI IDE Feature Matrix](../reference/ai-ide-feature-matrix.md).
 
 ## VS Code / Cursor / forks
 

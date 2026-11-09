@@ -31,6 +31,7 @@ StyleDictionary.registerFormat({
 });
 
 const dark = new StyleDictionary({
+  log: { warnings: 'disabled' },
   source: ['tokens/primitive.json', 'tokens/semantic.json'],
   platforms: {
     css: { transformGroup: 'css', buildPath: 'src/styles/', files: [
@@ -43,6 +44,7 @@ const dark = new StyleDictionary({
 });
 
 const contrast = new StyleDictionary({
+  log: { warnings: 'disabled' },
   source: ['tokens/primitive.json', 'tokens/semantic.json', 'tokens/semantic.contrast.json'],
   platforms: {
     css: { transformGroup: 'css', buildPath: 'src/styles/', files: [
@@ -52,6 +54,7 @@ const contrast = new StyleDictionary({
 });
 
 const travertine = new StyleDictionary({
+  log: { warnings: 'disabled' },
   source: ['tokens/primitive.json', 'tokens/semantic.travertine.json'],
   platforms: {
     css: { transformGroup: 'css', buildPath: 'src/styles/', files: [

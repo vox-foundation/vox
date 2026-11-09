@@ -13,6 +13,7 @@ import React, { createContext, useContext } from 'react';
  * behaves exactly as before.
  */
 export const EmbeddedSurfaceContext = createContext<boolean>(false);
+export const EmbeddedSurfaceProvider = EmbeddedSurfaceContext.Provider;
 
 /** True when the calling surface is inside a SurfaceMiniRender thumbnail. */
 export function useIsEmbeddedSurface(): boolean {

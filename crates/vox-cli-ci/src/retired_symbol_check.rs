@@ -456,11 +456,11 @@ pub fn run(root: &Path) -> Result<()> {
     let docs_dir = root.join("docs");
     let mut dirs_to_visit = vec![docs_dir];
     while let Some(dir) = dirs_to_visit.pop() {
-        let entries = match fs::read_dir(&dir) {
-            Ok(entries) => entries,
-            Err(_) => continue,
-        };
-        for entry in entries.flatten() {
+        let entries = fs::read_dir(&dir)
+            .with_context(|| format!("Failed to read directory {}", dir.display()))?;
+        for entry in entries {
+            let entry =
+                entry.with_context(|| format!("Failed to read entry in {}", dir.display()))?;
             let path = entry.path();
             if path.is_dir() {
                 dirs_to_visit.push(path);
@@ -517,44 +517,60 @@ pub fn run(root: &Path) -> Result<()> {
         }
     }
 
-    for extra in ["AGENTS.md", "GEMINI.md", "CLAUDE.md"] {
+    for extra in [
+        "AGENTS.md",
+        "GEMINI.md",
+        "CLAUDE.md",
+        ".github/copilot-instructions.md",
+    ] {
         let path = root.join(extra);
-        if path.is_file() {
-            let body = fs::read_to_string(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?;
-            failures.extend(scan_source_lines(
-                &path,
-                root,
-                &body,
-                &regexes,
-                ScanCfg {
-                    is_md: true,
-                    skip_md_table_rows: true,
-                    is_rust: false,
-                },
-            ));
+        if !path.is_file() {
+            return Err(anyhow!("missing mandatory guide: {}", path.display()));
         }
+        let body = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        failures.extend(scan_source_lines(
+            &path,
+            root,
+            &body,
+            &regexes,
+            ScanCfg {
+                is_md: true,
+                skip_md_table_rows: true,
+                is_rust: false,
+            },
+        ));
     }
 
     let cursor_rules = root.join(".cursor/rules");
-    if cursor_rules.is_dir() {
-        let mut mdc_files = Vec::new();
-        collect_cursor_rule_files(&cursor_rules, &mut mdc_files);
-        for path in mdc_files {
-            let body = fs::read_to_string(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?;
-            failures.extend(scan_source_lines(
-                &path,
-                root,
-                &body,
-                &regexes,
-                ScanCfg {
-                    is_md: true,
-                    skip_md_table_rows: true,
-                    is_rust: false,
-                },
-            ));
-        }
+    if !cursor_rules.is_dir() {
+        return Err(anyhow!(
+            "missing mandatory .cursor/rules directory at {}",
+            cursor_rules.display()
+        ));
+    }
+    let mut mdc_files = Vec::new();
+    collect_cursor_rule_files(&cursor_rules, &mut mdc_files);
+    if mdc_files.is_empty() {
+        return Err(anyhow!(
+            "no .cursor/rules/*.mdc files found in {}",
+            cursor_rules.display()
+        ));
+    }
+    for path in mdc_files {
+        let body = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        failures.extend(scan_source_lines(
+            &path,
+            root,
+            &body,
+            &regexes,
+            ScanCfg {
+                is_md: true,
+                skip_md_table_rows: true,
+                is_rust: false,
+            },
+        ));
     }
 
     let scan_crates = std::env::var("VOX_CI_RETIRED_SYMBOL_SCAN_CRATES")
@@ -683,5 +699,90 @@ mod tests {
         assert!(!is_historical_or_audit_doc(std::path::Path::new(
             "docs/src/reference/cli.md"
         )));
+    }
+
+    fn make_minimal_repo(tmp: &std::path::Path) {
+        use std::fs;
+        let policy_dir = tmp.join("contracts/documentation");
+        fs::create_dir_all(&policy_dir).unwrap();
+        fs::write(
+            policy_dir.join("retired-symbols.v1.yaml"),
+            r#"x-vox-version: 1
+symbols:
+  - id: vox-ludus
+    pattern: "\\bvox-ludus\\b"
+    replacement: "vox-gamify"
+    rationale: "retired"
+"#,
+        )
+        .unwrap();
+        fs::create_dir_all(tmp.join("docs")).unwrap();
+        for guide in ["AGENTS.md", "GEMINI.md", "CLAUDE.md"] {
+            fs::write(tmp.join(guide), "# Guide\n").unwrap();
+        }
+        let copilot_dir = tmp.join(".github");
+        fs::create_dir_all(&copilot_dir).unwrap();
+        fs::write(copilot_dir.join("copilot-instructions.md"), "# Copilot\n").unwrap();
+        let rules_dir = tmp.join(".cursor/rules");
+        fs::create_dir_all(&rules_dir).unwrap();
+        fs::write(rules_dir.join("rule.mdc"), "# Rule\n").unwrap();
+    }
+
+    #[test]
+    fn missing_claude_md_fails() {
+        let tmp = tempfile::tempdir().unwrap();
+        make_minimal_repo(tmp.path());
+        std::fs::remove_file(tmp.path().join("CLAUDE.md")).unwrap();
+        let err = super::run(tmp.path()).unwrap_err().to_string();
+        assert!(err.contains("CLAUDE.md"), "err: {err}");
+    }
+
+    #[test]
+    fn missing_copilot_instructions_fails() {
+        let tmp = tempfile::tempdir().unwrap();
+        make_minimal_repo(tmp.path());
+        std::fs::remove_file(tmp.path().join(".github/copilot-instructions.md")).unwrap();
+        let err = super::run(tmp.path()).unwrap_err().to_string();
+        assert!(err.contains("copilot-instructions.md"), "err: {err}");
+    }
+
+    #[test]
+    fn cursor_rules_with_no_mdc_fails() {
+        let tmp = tempfile::tempdir().unwrap();
+        make_minimal_repo(tmp.path());
+        std::fs::remove_file(tmp.path().join(".cursor/rules/rule.mdc")).unwrap();
+        let err = super::run(tmp.path()).unwrap_err().to_string();
+        assert!(err.contains(".cursor/rules/*.mdc"), "err: {err}");
+    }
+
+    #[test]
+    fn copilot_instructions_scanned_for_retired_symbols() {
+        let tmp = tempfile::tempdir().unwrap();
+        make_minimal_repo(tmp.path());
+        let copilot = tmp.path().join(".github/copilot-instructions.md");
+        std::fs::write(&copilot, "Use vox-ludus for games.\n").unwrap();
+        let err = super::run(tmp.path()).unwrap_err().to_string();
+        assert!(err.contains("retired symbol violations"), "err: {err}");
+
+        // Same symbol in markdown table row or with retired heading or retired word should not fail
+        std::fs::write(
+            &copilot,
+            "### Retired Surfaces\n- Use vox-gamify, NOT vox-ludus.\n",
+        )
+        .unwrap();
+        assert!(super::run(tmp.path()).is_ok());
+
+        std::fs::write(&copilot, "| `vox-ludus` | `vox-gamify` |\n").unwrap();
+        assert!(super::run(tmp.path()).is_ok());
+    }
+
+    #[test]
+    fn real_tree() {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let res = super::run(&repo_root);
+        assert!(
+            res.is_ok(),
+            "real tree retired_symbol_check failed: {res:?}"
+        );
     }
 }

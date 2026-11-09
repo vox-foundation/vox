@@ -12,11 +12,11 @@ const VARIANT_CLASS = {
 };
 
 const SIZE_CLASS = {
-  xs: 'px-2 py-0.5 text-[10px] h-6 rounded-sm',
-  sm: 'px-2.5 py-1 text-[11px] h-7 rounded-md',
-  md: 'px-3.5 py-1.5 text-[13px] h-9 rounded-lg',
-  lg: 'px-4.5 py-2 text-[15px] h-11 rounded-xl',
-  icon: 'size-8 p-0 flex items-center justify-center rounded-lg',
+  xs: 'px-2 py-0.5 text-[10px] h-6 rounded-sm whitespace-nowrap shrink-0',
+  sm: 'px-2.5 py-0.5 text-[10.5px] h-7 rounded-md whitespace-nowrap shrink-0',
+  md: 'px-3.5 py-1.5 text-[12.5px] h-9 rounded-lg whitespace-nowrap shrink-0',
+  lg: 'px-4.5 py-2 text-[14.5px] h-11 rounded-xl whitespace-nowrap shrink-0',
+  icon: 'size-8 p-0 flex items-center justify-center rounded-lg shrink-0',
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

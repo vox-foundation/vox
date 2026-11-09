@@ -55,6 +55,7 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Matrix/Matrix.tsx',
       'components/surfaces/Memory/MemoryView.tsx',
       'components/surfaces/Mesh/MeshView.tsx',
+      'components/surfaces/Models/MensCorpusStudioPanel.tsx',
       'components/surfaces/Models/MensServePanel.tsx',
       'components/surfaces/Models/MensTrainingView.tsx',
       'components/surfaces/Models/ModelsView.tsx',

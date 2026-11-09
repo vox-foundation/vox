@@ -6,7 +6,7 @@ schema_type: "TechArticle"
 ---
 # Vox Feature Builds & Capabilities
 
-Vox uses Cargo features to manage build times, binary size, and hardware dependencies (e.g., CUDA, Metal). This document outlines the canonical build profiles and how the system dynamically handles capability discovery.
+Vox uses Cargo features to manage build times, binary size, and hardware dependencies (e.g., CUDA, Metal). This document outlines the canonical build profiles and how the system dynamically handles capability discovery. For named cargo build profiles and lean profile exclusion rules, see [Build profiles](build-profiles.md).
 
 ## Capability Discovery & Drift Guard
 

@@ -8,6 +8,7 @@ import { useLabel } from '../../../hooks/useLanguage';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Sparkline } from '../../ui/Sparkline';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
 import { attachItemsFromHits, AttachItem } from '../../../lib/loquelaContext';
 import { MEMORY_RECALL_DEBOUNCE_MS } from '../../../config/constants';
@@ -98,24 +99,24 @@ function HitCard({
 
   return (
     <div
-      className={`group flex items-start gap-3 rounded-md border border-border-subtle bg-overlay-subtle p-3 hover:border-white/15 transition ${isOpenable ? 'cursor-pointer' : ''}`}
+      className={`group flex items-start gap-3 rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3 hover:border-[#D4AF37]/60 transition ${isOpenable ? 'cursor-pointer' : ''}`}
       onClick={isOpenable ? onOpen : undefined}
     >
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-overlay-subtle text-text-muted">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-[#2A2011] text-[#D4AF37]">
         {kindIcon[hit.kind] ?? <Icon.file className="size-3.5" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-text-secondary truncate">{src}</span>
+          <span className="font-mono text-[11px] text-[#F3E5AB] truncate">{src}</span>
           {/* Show score instead of line number (no line field in UnifiedHit). */}
-          <span className="font-mono text-[9px] text-text-muted">
+          <span className="font-mono text-[9px] text-[#D4AF37]/80">
             {(hit.score * 100).toFixed(1)}%
           </span>
         </div>
-        <div className="mt-1 text-[12px] leading-relaxed text-text-secondary line-clamp-2">
+        <div className="mt-1 text-[12px] leading-relaxed text-[#D6CEBF] line-clamp-2">
           {segments.map((seg, i) =>
             seg.mark ? (
-              <mark key={i} className="bg-brass/20 text-brass rounded-sm px-0.5">{seg.text}</mark>
+              <mark key={i} className="bg-[#D4AF37]/25 text-[#F3E5AB] rounded-sm px-0.5">{seg.text}</mark>
             ) : (
               <span key={i}>{seg.text}</span>
             )
@@ -123,9 +124,9 @@ function HitCard({
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">
-        <div className="h-1 w-16 overflow-hidden rounded-full bg-overlay-subtle">
+        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[#2A2011]">
           <div
-            className="h-full bg-linear-to-r from-violet-400 to-emerald-400"
+            className="h-full bg-linear-to-r from-[#B45309] via-[#D4AF37] to-[#F3E5AB]"
             style={{ width: `${hit.score * 100}%` }}
           />
         </div>
@@ -134,7 +135,7 @@ function HitCard({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onOpen(); }}
-              className="rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
+              className="rounded-sm border border-[#D4AF37]/30 bg-[#2A2011]/80 px-1.5 py-0.5 font-mono text-[9px] text-[#D6CEBF] hover:bg-[#78350F]/40 hover:text-[#F3E5AB]"
             >
               <Icon.link aria-hidden="true" className="size-2.5 inline mr-0.5" />open
             </button>
@@ -142,7 +143,7 @@ function HitCard({
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onPin(); }}
-            className="rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
+            className="rounded-sm border border-[#D4AF37]/30 bg-[#2A2011]/80 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB] hover:bg-[#78350F]/40"
           >
             <Icon.pin aria-hidden="true" className="size-2.5 inline mr-0.5" />pin
           </button>
@@ -441,17 +442,41 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
 
   return (
     <div className="grid grid-cols-12 gap-5">
-      {/* Header + Search */}
-      <Glass className="col-span-12 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">
-              Mnemosyne · Memory
-            </h2>
-            <p className="mt-0.5 text-[11px] text-text-muted">
-              Vector + symbolic recall · {scope.length} corpora active · {(totalEntries ?? 0).toLocaleString()} indexed entries
-            </p>
-          </div>
+      {/* Roman Surface Header Frieze */}
+      <RomanSurfaceHeader
+        className="col-span-12"
+        domainTag="KNOWLEDGE · MEMORY"
+        title="Codex Vector Shards & Context Ledger"
+        subtitle="Inspect persistent vector index shards, embedding density, and context retrieval telemetry."
+        waxSealBadge="CODEX SYNCED"
+        icon={<Icon.memory className="size-5 text-[#F3E5AB]" />}
+        gauges={[
+          {
+            label: 'SHARDS',
+            valueText: `${(memStatus?.shards ?? []).length}`,
+            ratio: Math.min(1, ((memStatus?.shards ?? []).length || 1) / 16),
+            tone: 'gold',
+            purpose: 'Active HNSW vector partitions in local database',
+          },
+          {
+            label: 'ENTRIES',
+            valueText:
+              (totalEntries ?? 0) > 1000
+                ? `${((totalEntries ?? 0) / 1000).toFixed(1)}k`
+                : `${totalEntries ?? 0}`,
+            ratio: Math.min(1, (totalEntries ?? 0) / 10000),
+            tone: 'emerald',
+            purpose: 'Total indexed vector and symbolic memory entries',
+          },
+          {
+            label: 'CORPORA',
+            valueText: `${scope.length}/3`,
+            ratio: scope.length / 3,
+            tone: 'gold',
+            purpose: 'Active recall search corpora',
+          },
+        ]}
+        actions={
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -460,8 +485,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               title={recallOn ? 'Auto-recall on — queries recall as you type' : 'Auto-recall off — press Enter or Recall'}
               className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[10px] transition ${
                 recallOn
-                  ? 'border-violet-400/40 bg-violet-400/10 text-violet-300'
-                  : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-secondary'
+                  ? 'border-[#D4AF37]/60 bg-[#78350F]/40 text-[#FEF3C7]'
+                  : 'border-[#D4AF37]/25 bg-[#16120C]/80 text-[#D6CEBF] hover:text-[#F3E5AB]'
               }`}
             >
               <Icon.eye aria-hidden="true" className="size-3" /> Auto-recall
@@ -473,25 +498,47 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                   .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex', cause: 'backend-ok' }))
                   .catch((err) => pushToast({ tone: 'error', title: 'Reindex failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
               }
-              className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5 font-mono text-[10px] text-text-muted hover:text-text-secondary"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/25 bg-[#16120C]/80 px-2 py-1.5 font-mono text-[10px] text-[#D6CEBF] hover:text-[#F3E5AB]"
             >
               <Icon.refresh aria-hidden="true" className="size-3" /> Reindex
             </button>
           </div>
+        }
+      />
+
+      {/* Navigation Tabs + Search Query Container */}
+      <Glass className="col-span-12 p-5 border-[#D4AF37]/25 bg-[#16120C]/90">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4AF37]/20 pb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-[#F3E5AB]">
+              Mnemosyne
+            </h2>
+            <span className="text-[11px] text-[#D6CEBF]">
+              · {scope.length} corpora active · {(totalEntries ?? 0).toLocaleString()} indexed entries
+            </span>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="mt-4 flex items-center gap-1 border-b border-border-subtle pb-2">
+        <div
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="vox-marble-tablet mt-3 flex items-center gap-1.5 rounded-xl border-2 border-[#C59B27]/85 p-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+        >
           {(['search', 'browse', 'ingest', 'health'] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               data-testid={`tab-${tab}`}
               onClick={() => setActiveTab(tab)}
-              className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition ${
+              className={`rounded-md px-3 py-1 font-display text-xs font-bold uppercase tracking-wider transition ${
                 activeTab === tab
-                  ? 'bg-overlay-hover text-text-primary font-semibold shadow-xs'
-                  : 'text-text-muted hover:text-text-secondary'
+                  ? 'border border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB] shadow-xs'
+                  : 'text-[#4A381D] hover:bg-white/60 hover:text-[#1C140C]'
               }`}
             >
               {tab === 'search' ? 'Search & Recall' : tab === 'browse' ? 'Browse Nodes' : tab === 'ingest' ? 'Ingest Content' : 'KB Health'}
@@ -502,31 +549,39 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         {activeTab === 'search' && (
           <>
             {/* Search bar */}
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-border-subtle bg-overlay-subtle px-3 py-2">
-              <Icon.search aria-hidden="true" className="size-3.5 text-text-muted" />
+            <div
+              style={{
+                backgroundImage:
+                  "linear-gradient(180deg, rgba(250, 246, 238, 0.96) 0%, rgba(239, 231, 214, 0.95) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+              className="vox-marble-tablet mt-4 flex items-center gap-2 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+            >
+              <Icon.search aria-hidden="true" className="size-3.5 text-[#6B5125]" />
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && recall()}
                 aria-label="Recall query"
                 placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
-                className="flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted outline-hidden"
+                className="flex-1 bg-transparent text-[13px] font-medium text-[#1C140C] placeholder:text-[#7A6136] outline-hidden"
               />
-              <span className="font-mono text-[10px] text-text-muted">top</span>
+              <span className="font-mono text-[10px] font-semibold text-[#5C441E]">top</span>
               <input
                 type="number" min={1} max={50} value={topK}
                 onChange={e => setTopK(parseInt(e.target.value) || 8)}
                 aria-label="Number of top hits"
-                className="w-12 rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-center font-mono text-[11px] text-text-secondary outline-hidden"
+                className="w-12 rounded-sm border border-[#A67C1E] bg-[#FDFBF7] px-1.5 py-0.5 text-center font-mono text-[11px] font-bold text-[#1C140C] outline-hidden"
               />
               <button
                 type="button"
                 onClick={() => recall()}
                 disabled={!query.trim() || recalling}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] uppercase tracking-widest transition ${
+                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] font-bold uppercase tracking-widest transition ${
                   query.trim()
-                    ? 'border-brass/40 bg-brass/15 text-brass hover:bg-brass/25'
-                    : 'border-border-subtle bg-overlay-subtle text-text-muted cursor-not-allowed'
+                    ? 'border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                    : 'border-[#A67C1E]/60 bg-[#E6DBC4] text-[#6B5125] cursor-not-allowed'
                 }`}
               >
                 {recalling ? '…' : 'Recall'}
@@ -618,7 +673,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             <button
               type="button"
               onClick={() => pinHits(hits)}
-              className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-mono text-[10px] text-cyan-300 hover:bg-cyan-400/15"
+              className="inline-flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-[#78350F]/20 px-2 py-1 font-mono text-[10px] text-[#F3E5AB] hover:bg-[#78350F]/40"
             >
               <Icon.pin aria-hidden="true" className="size-3" /> Pin all to context
             </button>

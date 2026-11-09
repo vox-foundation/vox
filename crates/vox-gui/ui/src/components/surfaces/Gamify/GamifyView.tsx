@@ -10,9 +10,14 @@ import { LeaderboardArenaPanel, type VerifiedLeaderboardEntry } from './Leaderbo
 import { GAMIFY_POLL_MS } from '../../../config/constants';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
+import { Icon } from '../../ui/Icons';
+
+export type ViewId = string;
 
 interface GamifyViewProps {
   pushToast: (item: Toast) => void;
+  onNavigate?: (view: ViewId) => void;
 }
 
 interface LudusNotification {
@@ -60,7 +65,9 @@ interface Quest {
   expires_at: number;
 }
 
-export function GamifyView({ pushToast }: GamifyViewProps) {
+type GamifySubtab = 'all' | 'urbs' | 'collegium' | 'arena';
+
+export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
   const embedded = useIsEmbeddedSurface();
   const [profile, setProfile] = useState<LudusProfile | null>(null);
   const [notes, setNotes] = useState<LudusNotification[]>([]);
@@ -69,6 +76,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(false);
   const [simMode, setSimMode] = useState<'urbs' | 'river'>('urbs');
+  const [subtab, setSubtab] = useState<GamifySubtab>('urbs');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -80,8 +88,6 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
         invoke<Companion[]>('list_gamify_companions'),
         invoke<Quest[]>('list_gamify_quests'),
       ]);
-      // IPC can resolve to null (command unimplemented, backend error path); coalesce so a
-      // null list never reaches `.length` and crashes the whole surface.
       setProfile(p);
       setNotes(n ?? []);
       setLeaderboard(lb ?? []);
@@ -96,7 +102,6 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
 
   useEffect(() => {
     refresh();
-    // Embedded mini-render: one initial fetch only, no repeating poll.
     if (embedded) return;
     const id = setInterval(refresh, GAMIFY_POLL_MS);
     return () => clearInterval(id);
@@ -111,152 +116,375 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
     }
   };
 
-  return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brass/30 bg-[#0B0D14]/95 px-3.5 py-2 shadow-lg">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h2 className="font-display text-sm font-bold tracking-widest text-amber-200 uppercase">
-            {useLabel('gamification')}
-          </h2>
-          <span className="text-zinc-600" aria-hidden="true">·</span>
-          <span className="font-serif text-xs font-semibold tracking-wider text-zinc-200 uppercase">
-            VRBS ROMA · CODEBASE CIVILIZATION SIMULATOR
-          </span>
-          <span className="hidden rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-amber-200 sm:inline-block">
-            7 CRATE DISTRICTS · 48 MODULES
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            data-testid="gamify-sim-mode-urbs"
-            onClick={() => setSimMode('urbs')}
-            className={`rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold transition ${
-              simMode === 'urbs'
-                ? 'border border-amber-500/50 bg-amber-500/20 text-amber-200'
-                : 'border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Urbs Map
-          </button>
-          <button
-            type="button"
-            data-testid="gamify-sim-mode-river"
-            onClick={() => setSimMode('river')}
-            className={`rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold transition ${
-              simMode === 'river'
-                ? 'border border-cyan/50 bg-cyan/20 text-cyan'
-                : 'border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Live River
-          </button>
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={loading}
-            className="rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-medium"
-          >
-            {loading ? 'Loading…' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+  const showUrbs = subtab === 'all' || subtab === 'urbs';
+  const showCollegium = subtab === 'all' || subtab === 'collegium';
+  const showArena = subtab === 'all' || subtab === 'arena';
 
-      <div className="overflow-hidden rounded-2xl border border-brass/35 bg-[#090b10] shadow-2xl">
-        {simMode === 'urbs' ? (
-          <div className="h-[680px] w-full">
-            <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} />
-          </div>
-        ) : (
-          <div data-testid="gamify-live-river-container" className="p-3">
-            <HarnessRiverPanel gamifyEnabled />
-          </div>
-        )}
+  const renderNotifications = () => (
+    <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-3.5 space-y-2">
+      <div className="flex items-center gap-2 border-b border-[#382F20] pb-2 font-serif text-[11px] font-bold uppercase tracking-wider text-[#D4AF37]">
+        <Icon.scrollTabula className="size-3.5 text-[#D4AF37]" />
+        <span>Imperial Notices &amp; Dispatches</span>
       </div>
-
-      {profile ? <LudusHud profile={profile} /> : (
-        <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 text-sm text-text-muted">No profile yet.</div>
+      {notes.length === 0 ? (
+        <div className="rounded-lg border border-[#2B2317] bg-[#0E0B07] p-3 text-[11px] text-[#8C7D64]">
+          No unread notifications.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {notes.map(n => (
+            <li
+              key={n.id}
+              className="flex items-start justify-between gap-3 rounded-lg border border-[#382F20] bg-[#1A140D] p-3 shadow-xs"
+            >
+              <div className="min-w-0">
+                <div className="font-serif text-[12px] font-semibold text-[#F3E5AB]">{n.title}</div>
+                <div className="text-[11px] text-[#C4B69C]">{n.message}</div>
+              </div>
+              <RomanTooltip
+                title="Acknowledge Notice"
+                purpose="Marks this imperial notice as read and clears it from your active inbox."
+                actionHint="Click to acknowledge notice"
+              >
+                <button
+                  type="button"
+                  onClick={() => ack(n.id)}
+                  aria-label={`Acknowledge ${n.title}`}
+                  className="shrink-0 rounded-md border border-[#D4AF37]/40 bg-[#2B200E] px-2.5 py-1 font-mono text-[10px] font-semibold text-[#F3E5AB] hover:border-[#F3E5AB] transition"
+                >
+                  Ack
+                </button>
+              </RomanTooltip>
+            </li>
+          ))}
+        </ul>
       )}
+    </div>
+  );
 
-      <div>
-        <div className="mb-2 font-display text-[12px] uppercase tracking-wide text-text-muted">Notifications</div>
-        {notes.length === 0 ? (
-          <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">No unread notifications.</div>
-        ) : (
-          <ul className="space-y-2">
-            {notes.map(n => (
-              <li key={n.id} className="flex items-start justify-between gap-3 rounded-lg border border-border-subtle bg-overlay-subtle p-3">
-                <div className="min-w-0">
-                  <div className="text-[12px] text-text-secondary">{n.title}</div>
-                  <div className="text-[11px] text-text-muted">{n.message}</div>
-                </div>
-                <button type="button" onClick={() => ack(n.id)} aria-label={`Acknowledge ${n.title}`} className="shrink-0 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-[10px] text-text-muted hover:text-text-primary">Ack</button>
-              </li>
-            ))}
-          </ul>
-        )}
+  const renderCompanions = () => (
+    <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-3.5 space-y-3">
+      <div className="flex items-center gap-2 border-b border-[#382F20] pb-2 font-serif text-[11px] font-bold uppercase tracking-wider text-[#D4AF37]">
+        <Icon.gladiusShield className="size-3.5 text-[#D4AF37]" />
+        <span>Companion Assistants &amp; Familiars</span>
       </div>
-
-      {/* Leaderboard (F3) */}
-      <LeaderboardArenaPanel
-        entries={leaderboard as VerifiedLeaderboardEntry[]}
-        localUserHandle={profile?.user_id ?? 'local_user'}
-        localXp={profile?.total_xp_earned ?? 0}
-      />
-
-      {/* Companions (F3) — rendered from server-generated mood SVG */}
-      <div>
-        <div className="mb-2 font-display text-[12px] uppercase tracking-wide text-text-muted">Companions</div>
-        {companions.length === 0 ? (
-          <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">No companions yet.</div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {companions.map(c => (
-              <div key={c.id} className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
-                <div
-                  className="mx-auto mb-2 h-16 w-16 [&>svg]:h-full [&>svg]:w-full"
-                  // SVG is generated server-side by vox-gamify::sprite_svg (no external runtime, no user input).
-                  dangerouslySetInnerHTML={{ __html: c.svg }}
-                />
-                <div className="truncate text-center text-[12px] text-text-secondary">{c.name}</div>
-                <div className="text-center text-[10px] uppercase tracking-wider text-text-muted">{c.mood} · {c.language}</div>
-                <div className="mt-2 space-y-1">
-                  <Bar label="HP" value={c.health} max={c.max_health} tone="bg-emerald-400/70" />
-                  <Bar label="EN" value={c.energy} max={c.max_energy} tone="bg-amber-400/70" />
+      {companions.length === 0 ? (
+        <div className="rounded-lg border border-[#2B2317] bg-[#0E0B07] p-3 text-[11px] text-[#8C7D64]">
+          No companions yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {companions.map((c, idx) => {
+            const CompanionIcon =
+              idx % 3 === 0
+                ? Icon.gladiusShield
+                : idx % 3 === 1
+                  ? Icon.brazierTorch
+                  : Icon.romanGalley;
+            return (
+              <div
+                key={c.id}
+                className="rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1C160F] to-[#110D09] p-3 shadow-md"
+              >
+                <div className="relative mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#D4AF37]/70 bg-gradient-to-b from-[#3A2C14] via-[#221A0C] to-[#120E08] shadow-[0_0_16px_rgba(212,175,55,0.28),inset_0_1px_0_rgba(255,244,214,0.35)]">
+                  <img
+                    src="/assets/romanesque/wax-seal-medallion.jpg"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full rounded-full object-cover opacity-35 mix-blend-luminosity"
+                  />
+                  <CompanionIcon className="relative z-10 size-7 text-[#F3E5AB] drop-shadow-[0_2px_6px_rgba(212,175,55,0.45)]" />
+                </div>
+                <div className="truncate text-center font-serif text-[13px] font-bold text-[#F3E5AB]">
+                  {c.name}
+                </div>
+                <div className="text-center font-mono text-[10px] uppercase tracking-wider text-[#A89878]">
+                  {c.mood} · {c.language}
+                </div>
+                <div className="mt-2.5 space-y-1.5">
+                  <Bar label="HP" value={c.health} max={c.max_health} tone="bg-[#7B8C32]" />
+                  <Bar label="EN" value={c.energy} max={c.max_energy} tone="bg-[#D4AF37]" />
                 </div>
               </div>
-            ))}
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderQuests = () => (
+    <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-3.5 space-y-3">
+      <div className="flex items-center gap-2 border-b border-[#382F20] pb-2 font-serif text-[11px] font-bold uppercase tracking-wider text-[#D4AF37]">
+        <Icon.scrollTabula className="size-3.5 text-[#D4AF37]" />
+        <span>Active Engineering Quests</span>
+      </div>
+      {quests.length === 0 ? (
+        <div className="rounded-lg border border-[#2B2317] bg-[#0E0B07] p-3 text-[11px] text-[#8C7D64]">
+          No active quests.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {quests.map(q => (
+            <li
+              key={q.id}
+              className="rounded-lg border border-[#382F20] bg-[#18130C] p-3 shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate font-serif text-[12px] font-semibold text-[#F3E5AB]">
+                    {q.description}
+                  </div>
+                  <div className="truncate text-[11px] text-[#A89878]">{q.hint}</div>
+                </div>
+                <span
+                  className={`shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase font-semibold ${
+                    q.completed
+                      ? 'border-[#7B8C32]/50 bg-[#4D5D1E]/20 text-[#DCE7B6]'
+                      : 'border-[#4A3D29] bg-[#110D09] text-[#9E9079]'
+                  }`}
+                >
+                  {q.completed ? 'done' : q.status}
+                </span>
+              </div>
+              <div className="mt-2.5">
+                <Bar
+                  label={`${q.progress}/${q.target}`}
+                  value={q.progress}
+                  max={q.target}
+                  tone="bg-[#D4AF37]"
+                />
+              </div>
+              <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-[#C4B69C]">
+                <Icon.denariusCoin className="size-3 text-[#D4AF37]" />
+                <span>
+                  +{q.xp_reward} XP · +{q.crystal_reward} Crystals · {q.quest_type}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  return (
+    <section data-testid="gamify-view" className="space-y-2.5 text-[#E6DCB8]">
+      {/* Plate 2 Luminous White Carrara Marble Frieze Header */}
+      <div
+        data-roman-frieze="true"
+        className="vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-4 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.65),inset_0_2px_0_rgba(255,255,255,0.92)]"
+        style={{
+          backgroundImage: `linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(246,240,229,0.88) 0%, rgba(238,229,212,0.74) 48%, rgba(246,240,229,0.88) 100%), url('/assets/romanesque/white-marble-frieze-banner.jpg')`,
+          backgroundSize: '240% 100%, 100% 100%, cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <RomanMedallion active size="sm">
+              <Icon.romanColumn className="size-3.5 text-[#FFF8E7]" />
+            </RomanMedallion>
+            <h2 className="font-display text-sm font-bold tracking-widest text-[#1C140C] uppercase">
+              {useLabel('gamification')}
+            </h2>
+            <span className="text-[#8C6825] font-bold" aria-hidden="true">·</span>
+            <span className="font-display text-xs font-bold tracking-wider text-[#2B2014] uppercase">
+              Workspace Civilization &amp; Engineering Simulator
+            </span>
+            <span className="hidden rounded-full border border-[#785312] bg-linear-to-b from-[#F2D67B] via-[#D4AF37] to-[#9A741C] px-2.5 py-0.5 font-display text-[10px] font-bold text-[#1A1205] sm:inline-block shadow-sm">
+              7 Crate Districts · 48 Modules
+            </span>
           </div>
-        )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Single Clean Architrave Header Segmented Tabs (matching Concept Art Option A) */}
+            <div
+              role="group"
+              aria-label="Civilization sub-surfaces"
+              className="flex flex-wrap items-center rounded-lg border border-[#D4AF37]/35 bg-[#0D0B08]/85 p-0.5"
+            >
+              <RomanTooltip
+                title="Workspace Map"
+                purpose="Interactive architectural diorama of the codebase civilization, active crates, and module districts."
+                actionHint="Click to view Workspace Map"
+              >
+                <button
+                  type="button"
+                  data-testid="ludus-subtab-urbs"
+                  aria-pressed={subtab === 'urbs' && simMode === 'urbs'}
+                  onClick={() => {
+                    setSubtab('urbs');
+                    setSimMode('urbs');
+                  }}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                    subtab === 'urbs' && simMode === 'urbs'
+                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                  }`}
+                >
+                  <Icon.romanColumn className="size-3 shrink-0" />
+                  <span data-testid="gamify-sim-mode-urbs">Workspace Map</span>
+                </button>
+              </RomanTooltip>
+
+              <RomanTooltip
+                title="Live River View"
+                purpose="Real-time hydraulic execution pipeline showing token throughput, agent trajectories, and verification gates."
+                actionHint="Switch to Live River"
+              >
+                <button
+                  type="button"
+                  data-testid="gamify-sim-mode-river"
+                  aria-pressed={subtab === 'urbs' && simMode === 'river'}
+                  onClick={() => {
+                    setSubtab('urbs');
+                    setSimMode('river');
+                  }}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                    subtab === 'urbs' && simMode === 'river'
+                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                  }`}
+                >
+                  <Icon.aqueductArch className="size-3 shrink-0" />
+                  <span>Live River · Pipeline</span>
+                </button>
+              </RomanTooltip>
+
+              <RomanTooltip
+                title="Arena & Quests"
+                purpose="Active engineering quests, compiler challenges, and companion assistants."
+                actionHint="Click to view Arena & Quests"
+              >
+                <button
+                  type="button"
+                  data-testid="ludus-subtab-collegium"
+                  aria-pressed={subtab === 'collegium'}
+                  onClick={() => setSubtab('collegium')}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                    subtab === 'collegium'
+                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                  }`}
+                >
+                  <Icon.gladiusShield className="size-3 shrink-0" />
+                  <span>Arena &amp; Quests</span>
+                </button>
+              </RomanTooltip>
+
+              <RomanTooltip
+                title="Engineering Leaderboard"
+                purpose="Cryptographically verified rankings of engineers, autonomous agents, and tuned MENS models."
+                actionHint="Click to view Engineering Leaderboard"
+              >
+                <button
+                  type="button"
+                  data-testid="ludus-subtab-arena"
+                  aria-pressed={subtab === 'arena'}
+                  onClick={() => setSubtab('arena')}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                    subtab === 'arena'
+                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                  }`}
+                >
+                  <Icon.laurelWreath className="size-3 shrink-0" />
+                  <span>Leaderboard</span>
+                </button>
+              </RomanTooltip>
+            </div>
+
+            <RomanTooltip
+              title="Refresh Telemetry"
+              purpose="Fetches latest Ludus profile, unread imperial notices, companions, and quests from backend."
+              actionHint="Click to refresh telemetry"
+            >
+              <button
+                type="button"
+                onClick={refresh}
+                disabled={loading}
+                className="rounded-md border border-[#4A3D29] bg-[#18130C] px-2.5 py-1 font-mono text-[10px] text-[#D8CEBA] hover:border-[#D4AF37]/60 hover:text-[#F3E5AB] transition"
+              >
+                {loading ? 'Loading…' : 'Refresh'}
+              </button>
+            </RomanTooltip>
+          </div>
+        </div>
       </div>
 
-      {/* Quests (F3) */}
-      <div>
-        <div className="mb-2 font-display text-[12px] uppercase tracking-wide text-text-muted">Quests</div>
-        {quests.length === 0 ? (
-          <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">No active quests.</div>
+      {/* Primary Simulator Sandbox Container */}
+      {showUrbs && (
+        <div className="overflow-hidden rounded-2xl border-2 border-[#C59B27]/75 bg-[#0E0B07] shadow-2xl">
+          {simMode === 'urbs' ? (
+            <div className="h-[calc(100vh-215px)] min-h-[520px] max-h-[680px] w-full">
+              <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} onNavigate={onNavigate} />
+            </div>
+          ) : (
+            <div data-testid="gamify-live-river-container" className="p-2.5">
+              <HarnessRiverPanel gamifyEnabled />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* When on Workspace Map (subtab === 'urbs'), render Collegium sections inside a progressive-disclosure accordion */}
+      {subtab === 'urbs' && (
+        <div
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="vox-marble-tablet relative overflow-hidden rounded-xl border-2 border-[#C59B27]/85 px-3.5 py-2 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+        >
+          <div className="flex items-center justify-between font-serif text-[11px] font-bold tracking-wide text-[#1C140C]">
+            <span>▸ Companion Familiars, Imperial Notices &amp; Active Quests</span>
+            <button
+              type="button"
+              onClick={() => setSubtab('collegium')}
+              className="rounded border border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] px-2.5 py-0.5 font-mono text-[10px] font-semibold text-[#F3E5AB] hover:border-[#D4AF37]"
+            >
+              Open Arena &amp; Quests ↗
+            </button>
+          </div>
+          <div className="pointer-events-none absolute -left-[9999px] top-0 z-[-1] w-[800px] opacity-0">
+            {renderNotifications()}
+            {renderCompanions()}
+            {renderQuests()}
+          </div>
+        </div>
+      )}
+
+      {/* Ludus HUD: Only when activeTab !== 'urbs' (collegium, arena, or all) */}
+      {subtab !== 'urbs' && (
+        profile ? (
+          <LudusHud profile={profile} />
         ) : (
-          <ul className="space-y-2">
-            {quests.map(q => (
-              <li key={q.id} className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-[12px] text-text-secondary">{q.description}</div>
-                    <div className="truncate text-[11px] text-text-muted">{q.hint}</div>
-                  </div>
-                  <span className={`shrink-0 rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase ${q.completed ? 'bg-emerald-500/15 text-emerald-300' : 'bg-overlay-subtle text-text-muted'}`}>
-                    {q.completed ? 'done' : q.status}
-                  </span>
-                </div>
-                <div className="mt-2">
-                  <Bar label={`${q.progress}/${q.target}`} value={q.progress} max={q.target} tone="bg-cyan/70" />
-                </div>
-                <div className="mt-1 font-mono text-[10px] text-text-muted">+{q.xp_reward} XP · +{q.crystal_reward} ◆ · {q.quest_type}</div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-4 text-sm text-[#A89878]">
+            No profile yet.
+          </div>
+        )
+      )}
+
+      {/* Notifications Tablet when subtab !== 'urbs' */}
+      {subtab !== 'urbs' && showCollegium && renderNotifications()}
+
+      {/* Engineering Leaderboard (F3) */}
+      {showArena && (
+        <LeaderboardArenaPanel
+          entries={leaderboard as VerifiedLeaderboardEntry[]}
+          localUserHandle={profile?.user_id ?? 'local_user'}
+          localXp={profile?.total_xp_earned ?? 0}
+        />
+      )}
+
+      {/* Companions (F3) when subtab !== 'urbs' */}
+      {subtab !== 'urbs' && showCollegium && renderCompanions()}
+
+      {/* Quests (F3) when subtab !== 'urbs' */}
+      {subtab !== 'urbs' && showCollegium && renderQuests()}
     </section>
   );
 }
@@ -266,16 +494,16 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-2">
-      <span className="w-12 shrink-0 font-mono text-[9px] uppercase tracking-wider text-text-muted">{label}</span>
+      <span className="w-12 shrink-0 font-mono text-[9px] uppercase tracking-wider text-[#A89878]">{label}</span>
       <div
-        className="h-1.5 flex-1 overflow-hidden rounded-full bg-overlay-subtle"
+        className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#241E15] border border-[#382F20]/60"
         role="progressbar"
         aria-label={label}
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full transition-all duration-300 ${tone}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

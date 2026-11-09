@@ -130,10 +130,10 @@ pub fn verify_program(
     })
 }
 
-struct Exec {
-    success: bool,
-    assertion_failed: bool,
-    detail: String,
+pub(crate) struct Exec {
+    pub(crate) success: bool,
+    pub(crate) assertion_failed: bool,
+    pub(crate) detail: String,
 }
 
 /// The interpreter's marker for a failed `assert(..)` (`vox-compiler/src/eval/builtins.rs`).
@@ -143,30 +143,22 @@ fn has_assertion_marker(stderr: &str) -> bool {
     stderr.contains(ASSERTION_MARKER)
 }
 
-/// Spawn with stdout/stderr redirected to files (never pipes), killing the
+/// Spawn a command with stdout/stderr redirected to files (never pipes), killing the
 /// child if it outlives `timeout`.
-fn exec(
-    vox_bin: &Path,
-    args: &[&str],
+pub(crate) fn exec_cmd(
+    mut cmd: Command,
     workdir: &Path,
     tag: &str,
     timeout: Duration,
 ) -> Result<Exec> {
     let out_path = workdir.join(format!("{tag}.out"));
     let err_path = workdir.join(format!("{tag}.err"));
-    let mut child = Command::new(vox_bin)
-        .args(args)
+    let mut child = cmd
         .stdout(Stdio::from(std::fs::File::create(&out_path)?))
         .stderr(Stdio::from(std::fs::File::create(&err_path)?))
         .stdin(Stdio::null())
         .spawn()
-        .with_context(|| {
-            format!(
-                "spawning {} — build it first: cargo build -p vox-cli --release (add `-j 2` if \
-                 rustc dies with an allocation failure)",
-                vox_bin.display()
-            )
-        })?;
+        .with_context(|| format!("spawning {tag} in {}", workdir.display()))?;
 
     let started = Instant::now();
     loop {
@@ -195,6 +187,26 @@ fn exec(
         success: status.success(),
         assertion_failed: has_assertion_marker(&stderr),
         detail,
+    })
+}
+
+/// Spawn with stdout/stderr redirected to files (never pipes), killing the
+/// child if it outlives `timeout`.
+fn exec(
+    vox_bin: &Path,
+    args: &[&str],
+    workdir: &Path,
+    tag: &str,
+    timeout: Duration,
+) -> Result<Exec> {
+    let mut cmd = Command::new(vox_bin);
+    cmd.args(args);
+    exec_cmd(cmd, workdir, tag, timeout).with_context(|| {
+        format!(
+            "spawning {} — build it first: cargo build -p vox-cli --release (add `-j 2` if \
+             rustc dies with an allocation failure)",
+            vox_bin.display()
+        )
     })
 }
 

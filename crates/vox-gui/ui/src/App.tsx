@@ -118,6 +118,7 @@ import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
 import type { LudusProfile } from './lib/ludus';
 import { useChatSessions, type ChatSession } from './lib/useChatSessions';
+import { listHarnessIssues } from './components/surfaces/Scientia/harnessIssuesApi';
 import {
   isModelSelectable,
   normalizeModelCard,
@@ -580,9 +581,6 @@ export default function App() {
     let cancelled = false;
     const poll = async () => {
       try {
-        const { listHarnessIssues } = await import(
-          './components/surfaces/Scientia/harnessIssuesApi'
-        );
         const pending = await listHarnessIssues('pending', 'chat_session');
         if (cancelled) return;
         const sessionIds = new Set(

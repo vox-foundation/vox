@@ -241,10 +241,10 @@ function drawIsoBox(
   z1: number,
   style: IsoBoxStyle = {},
 ) {
-  const topFill = style.topFill ?? '#9e9182';
-  const swFill = style.swFill ?? '#4a433b';
-  const seFill = style.seFill ?? '#d4c5b2';
-  const stroke = style.cyanOutline ? '#22d3ee' : (style.stroke ?? 'rgba(28, 22, 18, 0.08)');
+  const topFill = style.topFill ?? '#e8dfd1';
+  const swFill = style.swFill ?? '#8c7f70';
+  const seFill = style.seFill ?? '#f5efe4';
+  const stroke = style.cyanOutline ? '#fbbf24' : (style.stroke ?? 'rgba(28, 22, 18, 0.08)');
   const lw = style.cyanOutline ? 1.2 : (style.lineWidth ?? 1.1);
   const pbr = ensurePbrMaterialAtlas(ctx);
 
@@ -2337,19 +2337,19 @@ function drawIsoViaductBridge(
       0.85,
     );
 
-    // Cyan glowing arch reflection beneath each span
-    ctx.fillStyle = isViolation ? 'rgba(239, 68, 68, 0.55)' : 'rgba(34, 211, 238, 0.42)';
+    // Warm golden/emerald arch reflection beneath each span (Plate 2 Romanesque)
+    ctx.fillStyle = isViolation ? 'rgba(239, 68, 68, 0.55)' : 'rgba(212, 175, 55, 0.42)';
     ctx.beginPath();
     ctx.arc(xm, ym + 11, 6, Math.PI, 0);
     ctx.fill();
   }
 
-  // Outer glowing cyan/crimson canal aura along the viaduct deck
+  // Outer glowing burnished gold/crimson canal aura along the viaduct deck
   strokeLine(
     ctx,
     [fromPt.px, fromPt.py],
     [toPt.px, toPt.py],
-    isViolation ? 'rgba(239, 68, 68, 0.45)' : 'rgba(6, 182, 212, 0.45)',
+    isViolation ? 'rgba(239, 68, 68, 0.45)' : 'rgba(212, 175, 55, 0.45)',
     8,
   );
   // Stone parapet curbing
@@ -2360,19 +2360,19 @@ function drawIsoViaductBridge(
     '#443d36',
     4.8,
   );
-  // Luminous cyan water stream in the specus channel
+  // Luminous golden-emerald aqueduct water stream in the specus channel
   strokeLine(
     ctx,
     [fromPt.px, fromPt.py],
     [toPt.px, toPt.py],
-    isViolation ? '#f87171' : '#22d3ee',
+    isViolation ? '#f87171' : '#d4af37',
     2.6,
   );
   strokeLine(
     ctx,
     [fromPt.px, fromPt.py],
     [toPt.px, toPt.py],
-    isViolation ? '#fecaca' : '#e0f2fe',
+    isViolation ? '#fecaca' : '#fef3c7',
     1.1,
   );
 }
@@ -2476,7 +2476,7 @@ function drawTacticalErrorDispatchOverlay(
   ctx.closePath();
   ctx.fill();
 
-  ctx.font = 'bold 9.5px Inter, system-ui, sans-serif';
+  ctx.font = 'bold 9.5px Cinzel, Palatino, Georgia, serif';
   const labelW = Math.max(118, ctx.measureText(calloutLabel).width + 18);
 
   ctx.fillStyle = 'rgba(20, 16, 13, 0.94)';
@@ -2679,39 +2679,29 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
   const h = b.maxY;
   const pbr = ensurePbrMaterialAtlas(ctx);
 
-  // 1. Deep Twilight Mediterranean Bathymetric Sea Base (`URBS-TERRAIN-01`)
+  // 1. Translucent Plate 2 Golden-Hour Atmospheric Glaze (`ROMA-SIM-DIORAMA-02`)
+  //    Preserves the underlying high-resolution `urbs-diorama-bg.jpg` Roman city artwork
+  //    instead of obliterating it with an opaque dark-blue rectangle!
   if (typeof ctx.createRadialGradient === 'function') {
     const seaCx = w * 0.52;
     const seaCy = h * 0.50;
     const seaGrad = ctx.createRadialGradient(seaCx, seaCy, Math.min(w, h) * 0.08, seaCx, seaCy, Math.max(w, h) * 0.68);
-    seaGrad.addColorStop(0, '#246090');
-    seaGrad.addColorStop(0.40, '#0c2844');
-    seaGrad.addColorStop(0.78, '#040e18');
-    seaGrad.addColorStop(1, '#010204');
+    seaGrad.addColorStop(0, 'rgba(42, 31, 18, 0.08)');
+    seaGrad.addColorStop(0.50, 'rgba(24, 18, 11, 0.14)');
+    seaGrad.addColorStop(1, 'rgba(10, 8, 5, 0.28)');
     ctx.fillStyle = seaGrad;
-  } else {
-    ctx.fillStyle = '#071422';
-  }
-  ctx.fillRect(0, 0, w, h);
-
-  if (pbr.seaWater) {
-    ctx.save();
-    // Near-invisible sea swell — LF bathymetry carries the read (`URBS-CV-MAX-02`)
-    ctx.globalAlpha = 0.03;
-    ctx.fillStyle = pbr.seaWater;
     ctx.fillRect(0, 0, w, h);
-    ctx.restore();
   }
 
-  // Phase 295 (`URBS-EDGE-PBR-03`): Full-Canvas Diagonal Twilight Ocean Swell & Bathymetric Light Ribbons
+  // Phase 295 (`URBS-EDGE-PBR-03`): Full-Canvas Diagonal Golden-Hour Sun Swell Ribbons
   if (typeof ctx.createLinearGradient === 'function') {
     ctx.save();
     const swellGrad = ctx.createLinearGradient(0, h * 0.12, w, h * 0.88);
-    swellGrad.addColorStop(0, 'rgba(14, 116, 144, 0.0)');
-    swellGrad.addColorStop(0.28, 'rgba(56, 189, 248, 0.06)');
-    swellGrad.addColorStop(0.52, 'rgba(251, 191, 36, 0.05)');
-    swellGrad.addColorStop(0.76, 'rgba(14, 116, 144, 0.07)');
-    swellGrad.addColorStop(1, 'rgba(8, 27, 44, 0.0)');
+    swellGrad.addColorStop(0, 'rgba(212, 175, 55, 0.0)');
+    swellGrad.addColorStop(0.28, 'rgba(212, 175, 55, 0.05)');
+    swellGrad.addColorStop(0.52, 'rgba(251, 191, 36, 0.06)');
+    swellGrad.addColorStop(0.76, 'rgba(180, 83, 9, 0.05)');
+    swellGrad.addColorStop(1, 'rgba(18, 13, 8, 0.0)');
     ctx.fillStyle = swellGrad;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
@@ -2738,8 +2728,7 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
     const tBot: [number, number] = [pBot.px, pBot.py - elev];
     const tLeft: [number, number] = [pLeft.px, pLeft.py - elev];
 
-    // Phase 295 (`URBS-EDGE-PBR-01`): Feathered Elliptical Radial Bathymetric Reef & Cliff Shadow
-    // Replaces the old hard 4-vertex polygon diamonds that created sharp geometric cutouts in the sea!
+    // Phase 295 (`URBS-EDGE-PBR-01`): Feathered Elliptical Radial Travertine Base Shadow & Torch Halo
     const reefCx = (tLeft[0] + tRight[0]) * 0.5;
     const reefCy = (tTop[1] + tBot[1]) * 0.5 + cliffH * 0.62;
     const reefRx = Math.max(48, (tRight[0] - tLeft[0]) * 0.66);
@@ -2750,46 +2739,34 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
       ctx.translate(reefCx, reefCy);
       ctx.scale(1, reefRy / reefRx);
       const reefGrad = ctx.createRadialGradient(0, 0, reefRx * 0.18, 0, 0, reefRx * 1.18);
-      reefGrad.addColorStop(0, 'rgba(3, 7, 14, 0.82)');
-      reefGrad.addColorStop(0.54, 'rgba(8, 51, 68, 0.38)');
-      reefGrad.addColorStop(0.82, 'rgba(56, 189, 248, 0.14)');
-      reefGrad.addColorStop(1, 'rgba(14, 116, 144, 0.0)');
+      reefGrad.addColorStop(0, 'rgba(12, 9, 6, 0.52)');
+      reefGrad.addColorStop(0.54, 'rgba(42, 31, 18, 0.26)');
+      reefGrad.addColorStop(0.82, 'rgba(212, 175, 55, 0.10)');
+      reefGrad.addColorStop(1, 'rgba(18, 13, 8, 0.0)');
       ctx.fillStyle = reefGrad;
       ctx.beginPath();
       ctx.arc(0, 0, reefRx * 1.18, 0, Math.PI * 2);
       ctx.fill();
-      // Soft organic coastal foam crescents (`URBS-EDGE-PBR-01`)
-      const foam = ctx.createRadialGradient(0, reefRx * 0.18, 2, 0, reefRx * 0.18, reefRx * 0.55);
-      foam.addColorStop(0, 'rgba(224, 242, 254, 0.22)');
-      foam.addColorStop(0.55, 'rgba(6, 182, 212, 0.10)');
-      foam.addColorStop(1, 'rgba(5, 16, 27, 0)');
-      ctx.fillStyle = foam;
-      ctx.beginPath();
-      ctx.ellipse(0, reefRx * 0.12, reefRx * 0.62, reefRx * 0.22, 0, 0, Math.PI * 2);
-      ctx.fill();
       ctx.restore();
     }
 
-    // Lower Faceted Rock Cliff Strata (SW shadowed & SE sunlit cliff walls) (`URBS-TERRAIN-03`)
+    // Lower Faceted Rock Cliff Strata (SW shadowed & SE sunlit cliff walls — translucent over citadel art) (`URBS-TERRAIN-03`)
     const swCliffPts: [number, number][] = [
       tLeft,
       tBot,
       [tBot[0], tBot[1] + cliffH],
       [tLeft[0], tLeft[1] + cliffH],
     ];
+    ctx.save();
+    ctx.globalAlpha = 0.34;
     fillPoly(
       ctx,
       swCliffPts,
-      createVerticalWallGradient(ctx, tLeft[1], tBot[1] + cliffH, '#2e2924', false),
-      'rgba(12, 10, 9, 0.52)',
+      createVerticalWallGradient(ctx, tLeft[1], tBot[1] + cliffH, '#786b5d', false),
+      'rgba(28, 22, 16, 0.45)',
       0.75,
     );
-    if (pbr.cliffShade) {
-      ctx.save();
-      ctx.globalAlpha = 0.38;
-      fillPoly(ctx, swCliffPts, pbr.cliffShade, '', 0);
-      ctx.restore();
-    }
+    ctx.restore();
 
     const seCliffPts: [number, number][] = [
       tBot,
@@ -2797,19 +2774,16 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
       [tRight[0], tRight[1] + cliffH],
       [tBot[0], tBot[1] + cliffH],
     ];
+    ctx.save();
+    ctx.globalAlpha = 0.36;
     fillPoly(
       ctx,
       seCliffPts,
-      createVerticalWallGradient(ctx, tRight[1], tBot[1] + cliffH, '#574e45', true),
-      'rgba(12, 10, 9, 0.52)',
+      createVerticalWallGradient(ctx, tRight[1], tBot[1] + cliffH, '#b8a896', true),
+      'rgba(28, 22, 16, 0.45)',
       0.75,
     );
-    if (pbr.cliffLit) {
-      ctx.save();
-      ctx.globalAlpha = 0.38;
-      fillPoly(ctx, seCliffPts, pbr.cliffLit, '', 0);
-      ctx.restore();
-    }
+    ctx.restore();
 
     // Craggy 3D Rock Boulders along the cliff base (Concept Art A)
     drawIsoRockOutcrop(ctx, (tLeft[0] + tBot[0]) / 2, (tLeft[1] + tBot[1]) / 2 + cliffH - 4, 24, 16);
@@ -2823,19 +2797,16 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
       [tBot[0], tBot[1] + retainH],
       [tLeft[0], tLeft[1] + retainH],
     ];
+    ctx.save();
+    ctx.globalAlpha = 0.42;
     fillPoly(
       ctx,
       swRetainPts,
-      createVerticalWallGradient(ctx, tLeft[1], tBot[1] + retainH, '#544b42', false),
-      'rgba(18, 15, 12, 0.50)',
+      createVerticalWallGradient(ctx, tLeft[1], tBot[1] + retainH, '#9c8e7e', false),
+      'rgba(28, 22, 16, 0.45)',
       0.75,
     );
-    if (pbr.travertineShade) {
-      ctx.save();
-      ctx.globalAlpha = 0.28;
-      fillPoly(ctx, swRetainPts, pbr.travertineShade, '', 0);
-      ctx.restore();
-    }
+    ctx.restore();
 
     const seRetainPts: [number, number][] = [
       tBot,
@@ -2843,52 +2814,46 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
       [tRight[0], tRight[1] + retainH],
       [tBot[0], tBot[1] + retainH],
     ];
+    ctx.save();
+    ctx.globalAlpha = 0.45;
     fillPoly(
       ctx,
       seRetainPts,
-      createVerticalWallGradient(ctx, tRight[1], tBot[1] + retainH, '#8a7d70', true),
-      'rgba(18, 15, 12, 0.50)',
+      createVerticalWallGradient(ctx, tRight[1], tBot[1] + retainH, '#dcd0c0', true),
+      'rgba(28, 22, 16, 0.45)',
       0.75,
     );
-    if (pbr.travertineLit) {
-      ctx.save();
-      ctx.globalAlpha = 0.30;
-      fillPoly(ctx, seRetainPts, pbr.travertineLit, '', 0);
-      ctx.restore();
-    }
+    ctx.restore();
 
     // Phase 290 (`URBS-GROUNDS-03`): Vaulted `Substructio` Blind Arcades & Buttress Pilasters on Cliff Walls
     drawSubstructioCliffArcades(ctx, tLeft, tBot, retainH, false);
     drawSubstructioCliffArcades(ctx, tBot, tRight, retainH, true);
 
     // Phase 296 (`URBS-TERRACE-CRAFT-04`): 3D Overhanging Travertine Cliff Cornice (`Geison`) + Under-Ledge Drip Shadow
-    strokeLine(ctx, [tLeft[0], tLeft[1] + 2.2], [tBot[0], tBot[1] + 2.2], 'rgba(8, 6, 5, 0.62)', 2.4);
-    strokeLine(ctx, [tBot[0], tBot[1] + 2.2], [tRight[0], tRight[1] + 2.2], 'rgba(8, 6, 5, 0.56)', 2.4);
+    strokeLine(ctx, [tLeft[0], tLeft[1] + 2.2], [tBot[0], tBot[1] + 2.2], 'rgba(8, 6, 5, 0.42)', 2.0);
+    strokeLine(ctx, [tBot[0], tBot[1] + 2.2], [tRight[0], tRight[1] + 2.2], 'rgba(8, 6, 5, 0.38)', 2.0);
 
-    // Lens-Responsive Paved Cobblestone Terrace Surface (`URBS-TERRAIN-03`)
+    // Lens-Responsive Sunlit Carrara & Travertine Terrace Surface (`URBS-TERRAIN-03`)
     const layerIdx = d.layer ?? 1;
-    let terraceFill = '#5c5349';
-    let borderStroke = d.landmark ? 'rgba(245, 158, 11, 0.72)' : 'rgba(184, 172, 160, 0.56)';
+    let terraceFill = '#d8cbb8';
+    let borderStroke = d.landmark ? 'rgba(245, 158, 11, 0.85)' : 'rgba(212, 175, 55, 0.72)';
     if (lens === 'architecture') {
-      terraceFill = ['#243447', '#4a4239', '#57472f', '#443352'][layerIdx] ?? '#4a4239';
-      borderStroke = ['#38bdf8', '#d6d3d1', '#fbbf24', '#c084fc'][layerIdx] ?? '#fbbf24';
+      terraceFill = ['#c9b99f', '#ddd0be', '#e8dcc8', '#f2e8d9'][layerIdx] ?? '#ddd0be';
+      borderStroke = ['#d4af37', '#e6dcb8', '#fbbf24', '#f59e0b'][layerIdx] ?? '#fbbf24';
     } else if (lens === 'cost') {
       const loc = d.totalLines ?? 1000;
-      terraceFill = loc > 25000 ? '#57251f' : loc > 10000 ? '#52391e' : '#263f30';
+      terraceFill = loc > 25000 ? '#7a342b' : loc > 10000 ? '#78552b' : '#2d5940';
       borderStroke = loc > 25000 ? '#f87171' : loc > 10000 ? '#fbbf24' : '#34d399';
     } else if (lens === 'health') {
-      terraceFill = '#2b3d30';
+      terraceFill = '#2f523a';
       borderStroke = '#34d399';
     }
 
+    ctx.save();
+    ctx.globalAlpha = 0.32;
     const terraceGrad = createVerticalWallGradient(ctx, tTop[1], tBot[1], terraceFill, true);
-    fillPoly(ctx, [tTop, tRight, tBot, tLeft], terraceGrad, borderStroke, d.landmark ? 1.25 : 0.85);
-    if (pbr.plazaCobble) {
-      ctx.save();
-      ctx.globalAlpha = 0.34;
-      fillPoly(ctx, [tTop, tRight, tBot, tLeft], pbr.plazaCobble, '', 0);
-      ctx.restore();
-    }
+    fillPoly(ctx, [tTop, tRight, tBot, tLeft], terraceGrad, borderStroke, d.landmark ? 1.5 : 1.1);
+    ctx.restore();
     // Moulded 3D travertine coping ledge along the front-right & front-left terrace rim (`Geison`)
     strokeLine(ctx, tBot, tRight, 'rgba(254, 243, 199, 0.64)', 1.65);
     strokeLine(ctx, tLeft, tBot, 'rgba(231, 222, 209, 0.42)', 1.35);
@@ -2904,7 +2869,7 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
     }
   }
 
-  // 3. Orthogonal Isometric Aqueduct Canals, Multi-Arch Viaducts & Coastal Waterfalls (Concept Art A)
+  // 3. Orthogonal Isometric Aqueduct Canals, Multi-Arch Viaducts & Golden-Emerald Cascades (Plate 2)
   for (const d of sortedDistricts) {
     if ((d.totalLines ?? 2000) < 1200 && !d.landmark) continue;
     const elev = districtElevationPx(d);
@@ -2918,24 +2883,24 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
     if ((d.layer ?? 1) >= 2) {
       drawIsoViaductBridge(ctx, pB, pC, false);
     } else {
-      strokeLine(ctx, [pA.px, pA.py], [pB.px, pB.py], 'rgba(6, 182, 212, 0.42)', 7);
+      strokeLine(ctx, [pA.px, pA.py], [pB.px, pB.py], 'rgba(212, 175, 55, 0.42)', 7);
       strokeLine(ctx, [pA.px, pA.py], [pB.px, pB.py], '#292524', 4.8);
-      strokeLine(ctx, [pA.px, pA.py], [pB.px, pB.py], '#22d3ee', 2.8);
-      strokeLine(ctx, [pA.px, pA.py], [pB.px, pB.py], '#e0f2fe', 1.2);
+      strokeLine(ctx, [pA.px, pA.py], [pB.px, pB.py], '#d4af37', 2.8);
+      strokeLine(ctx, [pA.px, pA.py], [pB.px, pB.py], '#fef3c7', 1.2);
     }
 
-    // Cascading cyan waterfall over the coastal cliff edge into the sea
+    // Cascading golden-emerald waterfall over the cliff edge
     if ((d.layer ?? 1) === 0 || d.x0 === 0) {
       const wfTop: [number, number] = [pA.px, pA.py];
       const wfBot: [number, number] = [pA.px - 4, pA.py + 36];
-      strokeLine(ctx, wfTop, wfBot, 'rgba(34, 211, 238, 0.52)', 8);
-      strokeLine(ctx, wfTop, wfBot, '#22d3ee', 4.0);
-      strokeLine(ctx, wfTop, wfBot, '#e0f2fe', 1.6);
-      ctx.fillStyle = '#a5f3fc';
+      strokeLine(ctx, wfTop, wfBot, 'rgba(212, 175, 55, 0.52)', 8);
+      strokeLine(ctx, wfTop, wfBot, '#d4af37', 4.0);
+      strokeLine(ctx, wfTop, wfBot, '#fef3c7', 1.6);
+      ctx.fillStyle = '#fde68a';
       ctx.beginPath();
       ctx.ellipse(wfBot[0], wfBot[1], 13, 5.5, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(224, 242, 254, 0.55)';
+      ctx.strokeStyle = 'rgba(254, 243, 199, 0.55)';
       ctx.lineWidth = 1.1;
       ctx.beginPath();
       ctx.ellipse(wfBot[0], wfBot[1], 19, 8, 0, 0, Math.PI * 2);
@@ -2977,7 +2942,7 @@ function drawAqueductComplex(ctx: CanvasRenderingContext2D, px: number, py: numb
       0.7,
     );
 
-    ctx.fillStyle = isLit ? 'rgba(34, 211, 238, 0.45)' : 'rgba(28, 25, 23, 0.72)';
+    ctx.fillStyle = isLit ? 'rgba(212, 175, 55, 0.45)' : 'rgba(28, 25, 23, 0.72)';
     ctx.beginPath();
     ctx.arc(ax + dx * 0.5, ay + dy * 0.5 - 16, 6, Math.PI, 0);
     ctx.fill();
@@ -2988,8 +2953,8 @@ function drawAqueductComplex(ctx: CanvasRenderingContext2D, px: number, py: numb
   strokeLine(ctx, crestStart, crestEnd, '#63594f', 6);
   strokeLine(ctx, crestStart, crestEnd, 'rgba(254, 243, 199, 0.35)', 1.4);
   if (isLit) {
-    strokeLine(ctx, crestStart, crestEnd, '#22d3ee', 3.2);
-    strokeLine(ctx, crestStart, crestEnd, '#e0f2fe', 1.2);
+    strokeLine(ctx, crestStart, crestEnd, '#d4af37', 3.2);
+    strokeLine(ctx, crestStart, crestEnd, '#fef3c7', 1.2);
   }
 }
 
@@ -3135,7 +3100,7 @@ function drawWorksiteFileDiffSlab(
   const headerText = `${statusTag} ${basename}`;
   const subText = agentRole ? `⚙ ${agentRole} · ${diffLabel}` : diffLabel;
 
-  ctx.font = 'bold 8.5px JetBrains Mono, monospace';
+  ctx.font = "bold 8.5px 'Palatino', 'Palatino Linotype', Georgia, serif";
   const w1 = ctx.measureText(headerText).width;
   const w2 = ctx.measureText(subText).width;
   const pw = Math.max(84, Math.max(w1, w2) + 16);
@@ -3143,13 +3108,11 @@ function drawWorksiteFileDiffSlab(
   const rx = x - pw / 2;
   const ry = y - ph / 2;
 
-  ctx.fillStyle = 'rgba(15, 13, 11, 0.92)';
+  ctx.fillStyle = 'rgba(250, 245, 232, 0.94)';
   ctx.strokeStyle = hasError
-    ? 'rgba(248, 113, 113, 0.92)'
-    : agentRole
-      ? 'rgba(34, 211, 238, 0.9)'
-      : 'rgba(251, 191, 36, 0.85)';
-  ctx.lineWidth = 1.1;
+    ? 'rgba(185, 28, 28, 0.92)'
+    : 'rgba(197, 155, 39, 0.92)';
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
   ctx.roundRect(rx, ry, pw, ph, 4);
   ctx.fill();
@@ -3157,14 +3120,23 @@ function drawWorksiteFileDiffSlab(
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = hasError ? '#fca5a5' : '#fde68a';
+  ctx.fillStyle = hasError ? '#991b1b' : '#1C140C';
   ctx.fillText(headerText, rx + 6, ry + 8.5);
 
-  ctx.font = '600 8px JetBrains Mono, monospace';
-  ctx.fillStyle = agentRole ? '#67e8f9' : '#86efac';
+  ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
+  ctx.fillStyle = '#5C4428';
   ctx.fillText(subText, rx + 6, ry + 18.5);
   ctx.restore();
 }
+
+const SEMIOTIC_ARCHETYPE_BY_LAYER: Record<number, { glyph: string; title: string; pillBg: string; pillBorder: string }> = {
+  0: { glyph: '🏛', title: 'VAULT', pillBg: '#EFE7D6', pillBorder: '#B38728' },
+  1: { glyph: '🏛', title: 'ACROPOLIS', pillBg: '#F5EFE4', pillBorder: '#D4AF37' },
+  2: { glyph: '🏺', title: 'ROTUNDA', pillBg: '#EFE7D6', pillBorder: '#C59B27' },
+  3: { glyph: '⚖', title: 'PRAETORIVM', pillBg: '#F3E5AB', pillBorder: '#D4AF37' },
+  4: { glyph: '🔥', title: 'THERMAE', pillBg: '#EFE7D6', pillBorder: '#D97706' },
+  5: { glyph: '🏟', title: 'COLOSSEVM', pillBg: '#F5EFE4', pillBorder: '#B38728' },
+};
 
 function drawDistrictMicroHudBadge(
   ctx: CanvasRenderingContext2D,
@@ -3180,66 +3152,70 @@ function drawDistrictMicroHudBadge(
   ctx.save();
   const title = d.name;
   const locK = ((d.totalLines ?? 1200) / 1000).toFixed(1);
-  const layerLabel = `L${d.layer ?? 1}`;
+  const layerNum = Math.min(5, Math.max(0, d.layer ?? 1));
+  const layerLabel = `L${layerNum}`;
+  const archetype = SEMIOTIC_ARCHETYPE_BY_LAYER[layerNum] ?? SEMIOTIC_ARCHETYPE_BY_LAYER[1];
   const healthPct = Math.max(60, 100 - errCount * 15 - warnCount * 4);
   const addedSum = d.buildings.reduce((s, b) => s + (b.diffAdded ?? 0), 0);
   const deletedSum = d.buildings.reduce((s, b) => s + (b.diffDeleted ?? 0), 0);
   const churnLabel = addedSum > 0 || deletedSum > 0 ? `+${addedSum}/-${deletedSum}` : 'clean';
   const costRate = ((d.buildings.length * 0.005) + (isActive ? 0.02 : 0)).toFixed(2);
 
-  let line1 = `${title} (${locK}k LoC · ${layerLabel})`;
+  let line1 = `${archetype.glyph} ${title} · ${layerLabel} ${archetype.title} (${locK}k LoC)`;
   if (blastMeta?.role === 'impacted') {
-    line1 = `⚡ ${title} · BLAST RADIUS`;
+    line1 = `⚡ ${title} · ${layerLabel} BLAST RADIUS`;
   } else if (blastMeta?.role === 'provider') {
-    line1 = `⬆ ${title} · PROVIDER`;
+    line1 = `⬆ ${title} · ${layerLabel} UPSTREAM`;
   }
 
   let line2 =
     errCount > 0
-      ? `🔥 ${errCount} ERR · ✓ ${healthPct}%   ${churnLabel}`
-      : `✓ ${healthPct}% check   ${churnLabel}   $${costRate}/min`;
+      ? `▲ ${errCount} ERR · ✓ ${healthPct}% · ${churnLabel}`
+      : isActive
+        ? `◆ LLM STREAMING · ✓ ${healthPct}% · ${churnLabel} · $${costRate}/m`
+        : `✓ ${healthPct}% check · ${churnLabel} · $${costRate}/m`;
   if (blastMeta?.role === 'origin' && (blastMeta.downstreamCount ?? 0) > 0) {
     line2 =
       errCount > 0
-        ? `🔥 ${errCount} ERR · Blast Radius: ${blastMeta.downstreamCount} downstream · ${churnLabel}`
+        ? `▲ ${errCount} ERR · Blast Radius: ${blastMeta.downstreamCount} downstream · ${churnLabel}`
         : `Blast Radius: ${blastMeta.downstreamCount} downstream · ${churnLabel}`;
   } else if (lens === 'architecture') {
-    line2 = `${layerLabel} TERRACE · Fan-in ${d.fanIn ?? 0} · Out ${d.deps?.length ?? 0}`;
+    line2 = `${layerLabel} ${archetype.title} · Fan-in ${d.fanIn ?? 0} · Out ${d.deps?.length ?? 0}`;
   } else if (lens === 'cost') {
     line2 = `BURN $${costRate}/min · ${isActive ? 'Frontier Cloud' : 'MENS Local'}`;
   }
 
-  ctx.font = 'bold 9px Cinzel, Georgia, serif';
+  ctx.font = 'bold 9px Cinzel, Palatino, Georgia, serif';
   const w1 = ctx.measureText(line1).width;
-  ctx.font = '600 8px JetBrains Mono, monospace';
+  ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
   const w2 = ctx.measureText(line2).width;
 
-  const pw = Math.max(w1, w2) + 20;
-  const ph = 28;
+  const pw = Math.max(w1, w2) + 22;
+  const ph = 30;
   const rx = x - pw / 2;
   const ry = y - ph / 2;
 
-  // Chiseled Roman Bronze & Travertine Cliff-Apron Architrave Plaque (`URBS-DIEGETIC-01`)
-  ctx.fillStyle = 'rgba(14, 12, 10, 0.78)';
+  // Chiseled White/Cream Carrara Marble & Burnished Gold Semiotic Architrave Plaque (`URBS-SEMIOTIC-V64`)
+  ctx.fillStyle = 'rgba(250, 245, 232, 0.95)';
   ctx.strokeStyle =
     errCount > 0
-      ? 'rgba(239, 68, 68, 0.92)'
+      ? 'rgba(185, 28, 28, 0.95)'
       : blastMeta?.role === 'impacted'
-        ? 'rgba(245, 158, 11, 0.92)'
-        : blastMeta?.role === 'provider'
-          ? 'rgba(45, 212, 191, 0.90)'
-          : isActive
-            ? 'rgba(34, 211, 238, 0.85)'
-            : createBronzeGradient(ctx, rx, ry, rx + pw, ry + ph);
-  ctx.lineWidth = 1.25;
+        ? 'rgba(180, 83, 9, 0.95)'
+        : 'rgba(197, 155, 39, 0.95)';
+  ctx.lineWidth = 1.35;
   ctx.beginPath();
   ctx.roundRect(rx, ry, pw, ph, 4);
   ctx.fill();
   ctx.stroke();
 
+  // Top Carrara marble frieze strip inside plaque header
+  ctx.fillStyle = 'rgba(212, 175, 55, 0.14)';
+  ctx.fillRect(rx + 2, ry + 2, pw - 4, 12);
+
   // Top sunlit bronze architrave bevel + 4 corner rivets
-  strokeLine(ctx, [rx + 3, ry + 1], [rx + pw - 3, ry + 1], 'rgba(254, 243, 199, 0.38)', 0.8);
-  ctx.fillStyle = '#d97706';
+  strokeLine(ctx, [rx + 3, ry + 1.2], [rx + pw - 3, ry + 1.2], 'rgba(197, 155, 39, 0.65)', 0.9);
+  ctx.fillStyle = '#B8860B';
   for (const [cxR, cyR] of [
     [rx + 3.5, ry + 3.5],
     [rx + pw - 3.5, ry + 3.5],
@@ -3247,28 +3223,24 @@ function drawDistrictMicroHudBadge(
     [rx + pw - 3.5, ry + ph - 3.5],
   ] as const) {
     ctx.beginPath();
-    ctx.arc(cxR, cyR, 1.1, 0, Math.PI * 2);
+    ctx.arc(cxR, cyR, 1.2, 0, Math.PI * 2);
     ctx.fill();
   }
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 9px Cinzel, Georgia, serif';
-  ctx.fillStyle = '#f5ebd6';
+  ctx.font = 'bold 9px Cinzel, Palatino, Georgia, serif';
+  ctx.fillStyle = '#1C140C';
   ctx.fillText(line1, x, ry + 9.5);
 
-  ctx.font = '600 8px JetBrains Mono, monospace';
+  ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
   ctx.fillStyle =
     errCount > 0
-      ? '#fca5a5'
+      ? '#991b1b'
       : blastMeta?.role === 'impacted'
-        ? '#fcd34d'
-        : blastMeta?.role === 'provider'
-          ? '#5eead4'
-          : isActive
-            ? '#67e8f9'
-            : '#86efac';
-  ctx.fillText(line2, x, ry + 20);
+        ? '#92400e'
+        : '#5C4428';
+  ctx.fillText(line2, x, ry + 21);
   ctx.restore();
 }
 
@@ -3449,21 +3421,16 @@ export class WorldRenderer {
     ctx.restore();
   }
 
-  private paint(ctx: CanvasRenderingContext2D, s: WorldState, band: 0 | 1) {
+  private paint(ctx: CanvasRenderingContext2D, s: WorldState, _band: 0 | 1) {
     const { layout } = s;
-    const lens: UrbsLens = s.lens ?? 'agents';
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    // Layer 0: Sculpted Mediterranean Peninsula, Cliff Terraces & Multi-Arch Viaducts
-    paintFullBleedRomanLandscape(ctx, layout, lens);
-
-    // Layer 0.5: Inter-Terrace Atmospheric Depth Mist (`URBS-LIGHT-01`)
-    drawElevationAtmosphericMist(ctx, layout, worldPx, districtElevationPx);
-
-    // Layer 0.7: Pre-Building Ground-Plane Bounce Illumination (`URBS-SMOOTH-LIGHT-01`)
+    // Phase 374 (`URBS-MONUMENT-ART-01`): No procedural 2D polygon building models (`drawIsoFileBuilding`,
+    // `drawDistrictCurtainWall`, `paintDistrictWonder`, `paintFullBleedRomanLandscape`) are painted over the
+    // high-resolution generated White/Gold Roman Acropolis diorama artwork (`urbs-white-gold-citadel-bg.jpg`).
+    // Instead, the canvas renders golden hydraulic aqueduct conduits, subtle astrolabe district rings,
+    // worksite light pools, and quarantine perimeters that layer cleanly over the painted monuments.
     drawAdditiveLightPools(ctx, layout, s.buildings, s.agentTasks, worldPx, districtElevationPx);
-
-    // Layer 0.85: Integrated Roman Hydraulic Supply (`Aquaeductus`, `Castellum Divisorium`, `Fistulae`) & `Cloaca Maxima` Sewer Trenches beneath 3D buildings (`URBS-PLUMBING-3D-03`)
     drawRomanHydraulicInfrastructure(ctx, layout, s.buildings, s.agentTasks, worldPx, districtElevationPx);
 
     const sortedDistricts = [...layout.districts].sort(
@@ -3471,107 +3438,44 @@ export class WorldRenderer {
     );
     const active = new Set(Object.values(s.agentTasks).map((t) => t.filePath));
 
-    // Layer 1..3: Per-District True Isometric Architecture (Back Curtain Wall → Real File Insulae & Central Vitruvian Mechanism → Front Curtain Wall)
     for (const d of sortedDistricts) {
       const elev = districtElevationPx(d);
       const cx = (d.x0 + d.x1) / 2;
       const cy = (d.y0 + d.y1) / 2;
-      const isSmallLeaf = (d.totalLines ?? 2000) < 1200 || d.buildings.length <= 3;
+      const rawCenter = worldPx(layout, cx, cy);
+      const hasActiveTask = d.buildings.some((b) => active.has(b.path) || b.isTouched);
+      const hasError = d.buildings.some((b) => (s.buildings[b.path]?.errors ?? 0) > 0);
+      const isSelected = s.selectedDistrict === d.name;
 
-      // 1a. Back Fortified Curtain Walls
-      drawDistrictCurtainWall(ctx, layout, d, elev, 'back');
+      // Subtle engraved golden astrolabe ring on the marble terrace beneath each painted monument
+      ctx.save();
+      ctx.strokeStyle = hasError
+        ? 'rgba(185, 28, 28, 0.75)'
+        : isSelected || hasActiveTask
+          ? 'rgba(212, 175, 55, 0.72)'
+          : 'rgba(197, 155, 39, 0.28)';
+      ctx.lineWidth = isSelected || hasActiveTask ? 2.0 : 1.1;
+      ctx.beginPath();
+      ctx.ellipse(rawCenter.px, rawCenter.py - elev + 6, 48, 24, 0, 0, Math.PI * 2);
+      ctx.stroke();
 
-      // 1b. Build a lookup of explicit file plots — every rendered building corresponds to a real scanned file
-      const plotByCoord = new Map<string, (typeof d.buildings)[number]>();
-      for (const b of d.buildings) {
-        plotByCoord.set(`${b.x},${b.y}`, b);
+      if (isSelected || hasActiveTask) {
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.ellipse(rawCenter.px, rawCenter.py - elev + 6, 58, 29, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
+      ctx.restore();
 
-      const cells: { x: number; y: number }[] = [];
-      for (let y = d.y0 + 1; y < d.y1 - 1; y++) {
-        for (let x = d.x0 + 1; x < d.x1 - 1; x++) {
-          cells.push({ x, y });
-        }
-      }
-      cells.sort((a, b) => a.x + a.y - (b.x + b.y));
-
-      let wonderDrawn = false;
-      const wonderDepth = cx + cy;
-
-      for (let idx = 0; idx < cells.length; idx++) {
-        const cell = cells[idx]!;
-        const cellDepth = cell.x + cell.y;
-        if (!wonderDrawn && cellDepth >= wonderDepth) {
-          const rawCenter = worldPx(layout, cx, cy);
-          this.paintDistrictWonder(ctx, d, rawCenter.px, rawCenter.py - elev, s);
-          wonderDrawn = true;
-        }
-
-        if (isSmallLeaf && !d.landmark) continue;
-
-        const explicitPlot = plotByCoord.get(`${cell.x},${cell.y}`);
-        const distFromCenter = Math.hypot(cell.x - cx, cell.y - cy);
-        if (!explicitPlot) {
-          // Only draw ornamental Mediterranean cypress trees along the outer terrace perimeter — zero fake filler buildings
-          const onOuterRing =
-            cell.x === d.x0 + 1 || cell.x === d.x1 - 2 || cell.y === d.y0 + 1 || cell.y === d.y1 - 2;
-          if (onOuterRing && distFromCenter >= 2.6 && (cell.x * 7 + cell.y * 13) % 7 === 0) {
-            const rawTree = worldPx(layout, cell.x, cell.y);
-            drawIsoCypressTree(ctx, rawTree.px, rawTree.py - elev, 0.92);
-          }
-          continue;
-        }
-
-        const diag = s.buildings[explicitPlot.path];
-        const isActiveFile = Boolean(active.has(explicitPlot.path) || explicitPlot.isTouched);
-        const hasError = Boolean(diag && diag.errors > 0);
-        if (band === 0 && distFromCenter < 2.2 && !isActiveFile && !hasError) continue;
-
-        const tier: Tier = explicitPlot.tier;
-        const raw = worldPx(layout, cell.x, cell.y);
-        const px = raw.px;
-        const py = raw.py - elev;
-        const bScale = isActiveFile || hasError ? 1.24 : 1.12;
-
-        ctx.save();
-        ctx.translate(px, py);
-        ctx.scale(bScale, bScale);
-        ctx.translate(-px, -py);
-        drawIsoFileBuilding(ctx, px, py, tier, {
-          activeCyan: isActiveFile,
-          hasError,
-          hasWarning: Boolean(diag && diag.warnings > 0),
-          seed: cell.x * 11 + cell.y * 17,
-        });
-
-        if (isActiveFile || Boolean(diag && (diag.warnings > 0 || diag.errors > 0))) {
-          drawIsoTimberScaffolding(
-            ctx,
-            px,
-            py,
-            explicitPlot.diffAdded ?? (isActiveFile ? 12 : 0),
-            explicitPlot.diffDeleted ?? (isActiveFile ? 2 : 0),
-          );
-        }
-        ctx.restore();
-      }
-
-      if (!wonderDrawn) {
-        const rawCenter = worldPx(layout, cx, cy);
-        this.paintDistrictWonder(ctx, d, rawCenter.px, rawCenter.py - elev, s);
-      }
-
-      // 1d. Front Fortified Curtain Walls, Corner Bastions & Gatehouse
-      drawDistrictCurtainWall(ctx, layout, d, elev, 'front');
-
-      // 1e. Wrought-Iron Perimeter Portcullis & Bronze Padlocks when district is quarantined (`URBS-QUARANTINE-03`)
+      // Wrought-Iron Perimeter Portcullis & Bronze Padlocks when district is quarantined (`URBS-QUARANTINE-03`)
       if (s.quarantinedDistricts?.includes(d.name)) {
         const c00 = worldPx(layout, d.x0, d.y0);
         const c10 = worldPx(layout, d.x1, d.y0);
         const c11 = worldPx(layout, d.x1, d.y1);
         const c01 = worldPx(layout, d.x0, d.y1);
         ctx.save();
-        ctx.strokeStyle = 'rgba(245, 158, 11, 0.92)';
+        ctx.strokeStyle = 'rgba(217, 119, 6, 0.92)';
         ctx.lineWidth = 2.4;
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
@@ -3586,13 +3490,7 @@ export class WorldRenderer {
       }
     }
 
-    // Layer 4: Peripheral Harness Landmarks (AQVAE, CASTRVM, PORTVS, PORTA)
-    this.paintLandmarks(ctx, s);
-
-    // Layer 5: 2D-Feathered Elliptical Sun-Shafts (`URBS-SMOOTH-LIGHT-02`) & Cinematic Vignette (`URBS-LIGHT-03`)
     drawVolumetricGodRays(ctx, layout, worldPx, districtElevationPx);
-    const bounds = worldBounds(layout);
-    drawCinematicPostProcess(ctx, bounds.maxX, bounds.maxY);
   }
 
   /** Renders District Micro-HUD Badges, Foreground Worksite Diff Slabs, Blast-Radius Illumination,
@@ -3637,8 +3535,8 @@ export class WorldRenderer {
     const providerSet = new Set(blastReport?.providers ?? []);
     const impactedSet = new Set(blastReport?.impactedDependents ?? []);
 
-    // 0. Phase 294 (`URBS-SEMIOTICS-CV-01..02`): Isometric-Routed Hydraulic Blast-Radius Conduits, Bronze Valve Junctions & Shape+Color Legend
-    drawScreenSpaceHydraulicOverlay(ctx, s, toScreen, worldPx, districtElevationPx, focusDistrictName);
+    // 0. Phase 294 (`URBS-SEMIOTICS-CV-01..02`): Isometric-Routed Hydraulic Blast-Radius Conduits & Bronze Valve Junctions (legend rendered in React HUD)
+    drawScreenSpaceHydraulicOverlay(ctx, s, toScreen, worldPx, districtElevationPx, focusDistrictName, true);
 
     // 1. District Micro-HUD Badges, Foreground File Diff Slabs & Tactical Dispatch Vectors (with screen-space de-collision)
     const placedBoxes: { x: number; y: number; w: number; h: number }[] = [];

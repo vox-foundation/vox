@@ -7,6 +7,7 @@ import { DataTable } from '../../ui/DataTable';
 import { Button } from '../../ui/Button';
 import { Segment } from '../../ui/Segment';
 import { Icon } from '../../ui/Icons';
+import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import { APPROVALS_POLL_MS } from '../../../config/constants';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { useLabel } from '../../../hooks/useLanguage';
@@ -279,28 +280,46 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-auto">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
-            <Icon.shield className="size-4" aria-hidden="true" />
-          </span>
-          <h2 className="text-lg font-bold tracking-wide text-text-secondary">{useLabel('appr-pending')}</h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <div role="group" aria-label="Permission mode" className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-[0.15em] text-text-muted">Mode</span>
-            <Segment
-              value={permissionMode}
-              onChange={(id) => setMode(id as PermissionMode)}
-              options={PERMISSION_MODE_OPTIONS}
-              size="xs"
-            />
+      <RomanSurfaceHeader
+        domainTag="REVIEW · APPROVALS"
+        title="Pre-Execution Approval Ledger & Security Gate"
+        subtitle="Inspect parked tool executions, permission policies, and capability gates."
+        waxSealBadge={approvals.length > 0 ? "GATE PENDING" : "GATE SECURED"}
+        icon={<Icon.shield className="size-5 text-[#F3E5AB]" />}
+        gauges={[
+          {
+            label: 'PENDING',
+            valueText: `${approvals.length}`,
+            ratio: Math.min(1, approvals.length / 10),
+            tone: approvals.length > 0 ? 'crimson' : 'emerald',
+            purpose: 'Parked actions requiring explicit human approval',
+          },
+          {
+            label: 'MODE',
+            valueText: permissionMode.toUpperCase().slice(0, 6),
+            ratio: 1,
+            tone: 'gold',
+            purpose: 'Active permission gate security posture',
+          },
+        ]}
+        actions={
+          <div className="flex items-center gap-3">
+            <span className="sr-only">{useLabel('appr-pending')}</span>
+            <div role="group" aria-label="Permission mode" className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-[#D4AF37]">Mode</span>
+              <Segment
+                value={permissionMode}
+                onChange={(id) => setMode(id as PermissionMode)}
+                options={PERMISSION_MODE_OPTIONS}
+                size="xs"
+              />
+            </div>
+            <Button variant="ghost" size="xs" onClick={refresh} aria-label="Refresh approvals">
+              <Icon.refresh className="size-4 text-[#D6CEBF]" />
+            </Button>
           </div>
-          <Button variant="ghost" size="xs" onClick={refresh} aria-label="Refresh approvals">
-            <Icon.refresh className="size-4 text-text-muted" />
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       <div aria-live="polite">
         <DataTable
@@ -323,80 +342,74 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         data-testid="approvals-security-deck"
         className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
       >
-        <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+        <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
           <div className="flex items-center justify-between">
-            <span className="font-display text-[10px] tracking-widest text-brass uppercase">Active Gate Mode</span>
-            <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass uppercase">
-              {permissionMode.replace(/_/g, ' ')}
-            </span>
+            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Active Gate Mode</span>
+            <RomanWaxSealBadge label={permissionMode.replace(/_/g, ' ')} tone="gold" />
           </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
             {PERMISSION_MODE_OPTIONS.find((m) => m.id === permissionMode)?.hint}
           </p>
         </div>
 
-        <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+        <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
           <div className="flex items-center justify-between">
-            <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Authenticated Wire</span>
-            <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
-              DispatchRequest
-            </span>
+            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Authenticated Wire</span>
+            <RomanWaxSealBadge label="DispatchRequest" tone="emerald" />
           </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
             Permission mode rides on the top-level authenticated IPC envelope rather than untrusted tool JSON arguments.
           </p>
         </div>
 
-        <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+        <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
           <div className="flex items-center justify-between">
-            <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Allowlist Guard</span>
-            <span className="font-mono text-[10px] text-emerald-300">
-              {approvals.length} queued
-            </span>
+            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Allowlist Guard</span>
+            <RomanWaxSealBadge label={`${approvals.length} queued`} tone={approvals.length > 0 ? 'crimson' : 'emerald'} />
           </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-            Adding a tool to the repository allowlist (<code className="text-brass">Always allow</code>) requires explicit HITL confirmation.
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+            Adding a tool to the repository allowlist (Always allow) requires explicit HITL confirmation.
           </p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+      <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
         <div className="mb-2.5 flex items-center justify-between">
-          <span className="font-display text-[10px] tracking-widest text-text-secondary uppercase">
+          <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">
             Tool Capability Risk Classification Matrix
           </span>
-          <span className="rounded border border-border-subtle bg-bg-base/70 px-2 py-0.5 font-mono text-[10px] text-text-secondary">
+          <span className="rounded border border-[#D4AF37]/25 bg-[#1F170F] px-2 py-0.5 font-mono text-[10px] text-[#D6CEBF]">
             contracts/terminal/exec-policy.v1.yaml
           </span>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-4 text-[11px]">
-          <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-emerald-300">read_only</span>
               <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[9px] text-emerald-300">AUTO</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_search_query, vox_skill_list</div>
+            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_search_query, vox_skill_list</div>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-cyan">writes_files</span>
-              <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">ACCEPT EDITS</span>
+              <span className="font-mono text-[10px] text-[#F3E5AB]">writes_files</span>
+              <span className="rounded border border-[#D4AF37]/40 bg-[#78350F]/20 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">ACCEPT EDITS</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_patch, vox_plan_resume</div>
+            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_patch, vox_plan_resume</div>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-amber-300">shell_exec</span>
               <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[9px] text-amber-300">ASK GATE</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_run_shell, vox_mesh_dispatch</div>
+            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_run_shell, vox_mesh_dispatch</div>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-rose-300">policy_mutation</span>
               <span className="rounded border border-rose-400/30 bg-rose-400/10 px-1.5 py-0.5 font-mono text-[9px] text-rose-300">ALWAYS HITL</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_add_approval_allowlist_entry</div>
+            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_add_approval_allowlist_entry</div>
           </div>
         </div>
       </div>

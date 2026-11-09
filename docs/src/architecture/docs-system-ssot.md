@@ -79,12 +79,14 @@ Never hand-edit a `*.generated.md`. Fix the generator or its input contract.
 | `.well-known/llms.txt` generated block | `vox ci capability-index` | capability contracts |
 | `.cursorignore`, `.aiignore`, `.aiexclude` | `vox ci sync-ignore-files` | `.voxignore` |
 
-**Regeneration loop.** `vox ci ssot-drift` (`run_ssot_drift` in
-`crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs`) runs every verifier. Locally it
-rewrites a drifted artifact (auto-heal is on when `CI` is unset or `VOX_AUTO_HEAL` is set); in CI it
-only fails. On same-repo pull requests the `ssot-autoregen` job in `.github/workflows/ci.yml`
-runs `scripts/ssot-regen.vox`, commits `chore(ssot): auto-regenerate …`, and the gate
-re-verifies. Do not open "regenerate after merge" commits by hand.
+**Regeneration loop.** `vox ci ssot-drift` (`run_stages` in
+`crates/vox-cli/src/commands/ci/run_body_helpers/ssot_drift.rs`, called from `docs.rs`) runs
+every verifier. Locally it rewrites a drifted artifact (auto-heal is on when `CI` is unset or
+`VOX_AUTO_HEAL` is set); in CI it only fails. On same-repo pull requests the `ssot-autoregen`
+job in `.github/workflows/ci.yml` runs `scripts/ssot-regen.vox`, commits `chore(ssot):
+auto-regenerate …`, and the gate re-verifies. The `ssot_regen_parity` stage verifies that
+`scripts/ssot-regen.vox` matches the stage table. Do not open "regenerate after merge"
+commits by hand.
 
 ## 4. Gates: what catches which drift
 
@@ -95,21 +97,25 @@ Legend: **fix** rewrites the drift automatically; **report** fails or warns and 
 | `vox-doc-pipeline --lint-only` | Missing/invalid frontmatter, category vocabulary, forbidden `last_updated`, KB facets and `kb:summary`, README↔index drift, Mermaid structure | pre-push fast (changed docs), `--complete` (all), PR `docs-quality.yml` | report |
 | Doctests (`vox-doc-pipeline`, `vox ci doctest-md --strict`) | ` ```vox ` fences that do not compile (`// vox:skip` opts out) | pre-push, PR | report |
 | KB facet backlog ratchet | Backlog growth in `kb-facet-backlog.v1.yaml` | pre-push fast | report (shrink-only) |
-| `vox ci ssot-drift` | Any generated artifact out of date (≈35 stages) | pre-push fast, PR CI | fix locally / report in CI |
+| `vox ci ssot-drift` | Any generated artifact out of date (≈40 stages, `ssot_drift_stages()`); reports every failing stage in one run; `ssot_regen_parity` fails when `scripts/ssot-regen.vox` or the lefthook retry diverge from the table | pre-push fast, PR CI | fix locally / report in CI |
 | `ssot-autoregen` job | Same drift on a PR | PR CI (same-repo) | **fix** (bot commit) |
-| `vox ci check-links` | Broken internal Markdown links (allowlist with expiry) | pre-push fast, PR | report |
+| `vox ci check-links` | Broken internal Markdown links; a missing docs/src or target is an error; expired, unneeded or unused allowlist entries fail | pre-push fast, PR | report |
 | `starlight-links-validator` | Broken internal links and hashes in the built site | every `pnpm build` | report (fatal) |
 | Lychee on `dist` / nightly `link_checker.yml` | Broken links, including external | PR (offline), nightly (external) | report (nightly opens an issue) |
 | `vox audit docs --check-drift` | New freshness deficits on reader-facing `status: current` pages | PR and push `docs-quality.yml` | report |
-| Retired-symbol check | Prose using symbols in `contracts/documentation/retired-symbols.v1.yaml` | pre-push fast | report |
+| Retired-symbol check | Prose using symbols in `contracts/documentation/retired-symbols.v1.yaml`; AGENTS.md, CLAUDE.md, GEMINI.md, copilot-instructions.md and .cursor/rules are mandatory inputs | pre-push fast | report |
 | `canonical-map-verify` | A second canonical doc for a registered domain | pre-push fast, PR | report |
 | `sync-ignore-files --verify` | Derived ignore files drifted from `.voxignore` | PR, pre-push fallback | report (pre-push fallback regenerates) |
 | Build-output Playwright specs (`docs-astro/tests/build-output/`) | Alerts, archive exclusion, dates, honesty, links, `llms.txt`, repo mounts | PR `docs-quality.yml` | report |
 | `frontmatter_governance_parity.rs` | Governance page and lint rules disagree | `cargo test -p vox-doc-pipeline` | report |
+| Overlay parity (`overlay_parity` ssot-drift stage) | An overlay line contradicting a claim in `contracts/documentation/overlay-claims.v1.yaml`; a claim whose AGENTS.md anchor vanished; a missing overlay file | pre-push fast, PR CI | report |
+| CLI-claims check (`docs_cli_claims` ssot-drift stage) | A prescriptive `vox` command or flag in agent files or reader-facing `status: current` pages that the clap tree (union the registry for feature-gated groups) does not define; a shipped command described as planned | pre-push fast, PR CI | report |
+| Orphan-page check (`docs_orphan_pages` ssot-drift stage) | A docs page that no other docs page or root guide links to (index, generated, archive pages exempt; reader-facing gated at zero, whole-tree reported) | pre-push fast, PR CI | report |
 
 The pre-push hook (`lefthook.yml` → `vox ci pre-push`) retries once after regenerating fmt,
-line endings, ignore files, GUI/capability/plugin syncs, and crate API docs. Git hooks never
-build and never run generators that need a fresh `vox`.
+line endings, ignore files, GUI/capability/plugin syncs, and crate API docs (checked against
+`ssot_drift_stages()` by `ssot_regen_parity`). Git hooks never build and never run generators
+that need a fresh `vox`.
 
 ## 5. Agent-facing surfaces
 
@@ -130,20 +136,6 @@ The instruction layering model is in
 These are verified as of 2026-11-06 and are the scope of roadmap Phase 343
 (*Docs System SSOT and Automated Drift Control*).
 
-- **Overlay contradictions.** No check compares `AGENTS.md` against the tool overlays.
-  Example: `.cursor/rules/documentation-policy.mdc` asks for `last_updated`, which the lint
-  rejects.
-- **Stale "planned" claims.** `AGENTS.md` calls `vox audit retirement` and `vox audit effort`
-  planned. Both already exist in `crates/vox-cli/src/commands/audit.rs`. Nothing compares
-  "planned per …" prose with the code.
-- **Silently dead check.** `check_docs_ssot` enforces the orphan-crate inventory only if
-  `docs/src/architecture/orphan-surface-inventory.md` exists. It does not, so the guard is a no-op.
-- **Orphan pages.** Nothing flags pages that no other page links to; the sidebar lists everything
-  by frontmatter.
-- **Prose vs CLI surface.** Prose mentioning `vox …` commands or flags is checked only against
-  the retired-symbol regex list, not against `contracts/cli/command-registry.yaml`.
-- **Hand-kept sync lists.** `scripts/ssot-regen.vox` must mirror `run_ssot_drift` ("keep in
-  sync"), and nothing checks that it does.
 - **Manual loops.** Freshness ledger refresh/attest, `.lycheeignore` triage for the nightly link
   checker, README status-table review, and governance review cadences are all manual. The
   docs-reality-audit program is dormant, and the self-heal workflow only runs its unit tests.
@@ -151,8 +143,8 @@ These are verified as of 2026-11-06 and are the scope of roadmap Phase 343
 ## 7. Changing the system
 
 - **New generated page:** add the generator as a `vox ci` subcommand, register it as a stage in
-  `run_ssot_drift` and in `scripts/ssot-regen.vox`, name the output `*.generated.md`, and add it
-  to `.gitattributes` `linguist-generated`.
+  `ssot_drift_stages()` (`ssot_drift.rs`) and in `scripts/ssot-regen.vox`, name the output
+  `*.generated.md`, and add it to `.gitattributes` `linguist-generated`.
 - **New gate:** wire it into the pre-push tier and `docs-quality.yml`, add a row to §4, and add
   a detector-coverage row in [`detector-coverage-ledger.md`](../contributors/detector-coverage-ledger.md).
 - **New docs-about-docs page:** don't. Extend this page (mechanism) or governance (policy).

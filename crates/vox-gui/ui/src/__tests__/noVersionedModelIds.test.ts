@@ -25,7 +25,7 @@ const RECORDED_TRACE_TESTS = new Set([
  * Local model names may be literal (AGENTS.md: local MENS revisions are exempt): Ollama, MENS runs,
  * mesh- and locally-served models, and the MENS fine-tuning bases (Qwen3-8B; the Qwen 3.5 27B eval base).
  */
-const LOCAL_PREFIXES = ['ollama/', 'mens/', 'local/', 'mesh/', 'qwen/qwen3-8b', 'qwen/qwen3.5-27b-base'];
+const LOCAL_PREFIXES = ['ollama/', 'mens/', 'local/', 'mesh/', 'qwen/qwen3', 'qwen3', 'vox/mens-qwen3'];
 const TOKEN_CHAR = /[A-Za-z0-9_./:@\\-]/;
 
 /**

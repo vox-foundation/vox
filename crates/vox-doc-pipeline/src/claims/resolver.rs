@@ -154,6 +154,8 @@ impl GroundTruthRegistry {
             "vox-ci-guards",
             "vox-py",
             "vox-tensor",
+            "vox-mens-index",
+            "vox-mens-playground",
         ] {
             workspace_crates.insert(alias.to_string());
         }
@@ -289,6 +291,8 @@ impl GroundTruthRegistry {
             "VOX_RESEARCH_TRIAL_SIGNER_ALLOWLIST",
             "VOX_RESEARCH_PREFER_FREE_TIER",
             "VOX_MCP_ORCHESTRATOR_RPC_WRITES",
+            "VOX_MENS_HF_NAMESPACE",
+            "VOX_GUI_PORT",
         ] {
             env_vars.insert(v.to_string());
         }

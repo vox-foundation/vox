@@ -35,7 +35,7 @@ import {
   ViaTemporisScrubber,
   toRomanNumeral,
   type ViaTemporisMilestoneItem,
-} from './urbs/ViaTemporisScrubber';
+} from './ViaTemporisScrubber';
 import {
   fetchFileDiffAndDiagnostics,
   listDistrictQuarantines,
@@ -49,6 +49,8 @@ import {
   type FileDiffAndDiagnosticsDto,
 } from '../../transport/t3Wave3Rpc';
 import { useIsEmbeddedSurface } from '../dashboard/EmbeddedSurfaceContext';
+import { Icon } from '../ui/Icons';
+import { RomanTooltip, RomanMedallion } from '../ui/RomanTooltip';
 
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 4;
@@ -77,14 +79,120 @@ function RomanCitizenSvg() {
   );
 }
 
+export interface MonumentCallout {
+  id: string;
+  label: string;
+  crateHint: string;
+  surface: string;
+  targetView: string;
+  purpose: string;
+  left: string;
+  top: string;
+  monumentArt: string;
+  defaultFilePath: string;
+}
+
+export const MONUMENT_CALLOUTS: MonumentCallout[] = [
+  {
+    id: 'monument-compiler',
+    label: 'Compiler & Typecheck',
+    crateHint: 'vox-compiler',
+    surface: 'explorer',
+    targetView: 'explorer',
+    purpose: 'Vox parser, HIR typechecker, effect gate, and Rust/TSX code generator.',
+    left: '17%',
+    top: '25%',
+    monumentArt: '/assets/romanesque/monument-temple-compiler.jpg',
+    defaultFilePath: 'crates/vox-compiler/src/typeck/mod.rs',
+  },
+  {
+    id: 'monument-orchestrator',
+    label: 'Agent Orchestrator',
+    crateHint: 'vox-orchestrator',
+    surface: 'flow',
+    targetView: 'flow',
+    purpose: 'Multi-agent turn coordinator, spoke router, worktree leases, and tool verification.',
+    left: '21%',
+    top: '56%',
+    monumentArt: '/assets/romanesque/monument-pantheon-orchestrator.jpg',
+    defaultFilePath: 'crates/vox-orchestrator/src/router.rs',
+  },
+  {
+    id: 'monument-gui',
+    label: 'GUI & Surfaces',
+    crateHint: 'vox-gui',
+    surface: 'dashboard',
+    targetView: 'dashboard',
+    purpose: 'Vox Axis Tauri 2 desktop workbench and all 32 interactive operator surfaces.',
+    left: '48%',
+    top: '23%',
+    monumentArt: '/assets/romanesque/monument-colosseum-harness.jpg',
+    defaultFilePath: 'crates/vox-gui/ui/src/App.tsx',
+  },
+  {
+    id: 'monument-db',
+    label: 'Database & Knowledge',
+    crateHint: 'vox-db',
+    surface: 'memory',
+    targetView: 'memory',
+    purpose: 'Turso/SQLite state store, Tantivy hybrid search index, and Scientia knowledge graph.',
+    left: '42%',
+    top: '45%',
+    monumentArt: '/assets/romanesque/monument-library-knowledge.jpg',
+    defaultFilePath: 'crates/vox-db/src/turso.rs',
+  },
+  {
+    id: 'monument-mens',
+    label: 'MENS Local Models',
+    crateHint: 'vox-mens',
+    surface: 'mens',
+    targetView: 'mens',
+    purpose: 'Native QLoRA fine-tuning ladder (0.6B–32B), 8-spoke adapters, and Hugging Face sync.',
+    left: '67%',
+    top: '41%',
+    monumentArt: '/assets/romanesque/monument-pantheon-orchestrator.jpg',
+    defaultFilePath: 'crates/vox-mens/src/qlora.rs',
+  },
+  {
+    id: 'monument-crypto',
+    label: 'Security & Secrets',
+    crateHint: 'vox-crypto',
+    surface: 'settings',
+    targetView: 'settings',
+    purpose: 'Clavis vault governance, BLAKE3 and Ed25519 cryptographic envelopes, and policy gates.',
+    left: '71%',
+    top: '26%',
+    monumentArt: '/assets/romanesque/monument-temple-compiler.jpg',
+    defaultFilePath: 'crates/vox-crypto/src/envelope.rs',
+  },
+  {
+    id: 'monument-mesh',
+    label: 'Compute Mesh & Queue',
+    crateHint: 'vox-populi',
+    surface: 'mesh',
+    targetView: 'mesh',
+    purpose: 'Distributed iroh QUIC peer mesh, live VRAM selector, and task dispatch queue.',
+    left: '61%',
+    top: '55%',
+    monumentArt: '/assets/romanesque/monument-colosseum-harness.jpg',
+    defaultFilePath: 'crates/vox-populi/src/mesh.rs',
+  },
+];
+
 interface Props {
   /** Optional: energy for the HUD (GamifyView passes profile data down). */
   energy?: number;
   maxEnergy?: number;
+  /** Optional navigation handler to jump directly to any Vox Axis surface. */
+  onNavigate?: (viewKey: string) => void;
 }
 
-export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => {
+export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNavigate }) => {
   const embedded = useIsEmbeddedSurface();
+  const [showTimelineDrawer, setShowTimelineDrawer] = useState(false);
+  const [showPriorityDrawer, setShowPriorityDrawer] = useState(false);
+  const [showRadarDrawer, setShowRadarDrawer] = useState(true);
+  const [showLensMenu, setShowLensMenu] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef(new WorldRenderer());
@@ -126,6 +234,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     data: FileDiffAndDiagnosticsDto;
   } | null>(null);
   const [selectedTurn, setSelectedTurn] = useState<number>(3);
+  const [activeLayerFilter, setActiveLayerFilter] = useState<number | null>(null);
+  const [devActionReceipt, setDevActionReceipt] = useState<string | null>(null);
+  const [pinnedCrates, setPinnedCrates] = useState<Set<string>>(() => new Set(['vox-compiler']));
+  const [claimedYieldXp, setClaimedYieldXp] = useState<number>(250);
 
   const storeBuildings = useStore(useLudusStore, (s) => s.buildings);
   const storeAgentTasks = useStore(useLudusStore, (s) => s.agentTasks);
@@ -414,6 +526,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
   }, [presetId, focusMode, liveWorkspaceScan, activePreset, activeGates, agentTasks, buildings, selection]);
 
   // ── Blit: offscreen buffer → screen with camera transform ───────────────
+  const dioramaImgRef = useRef<HTMLImageElement | null>(null);
   const blit = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !layout) return;
@@ -449,17 +562,34 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cw = canvas.width / dpr;
     const ch = canvas.height / dpr;
-    ctx.fillStyle = '#0a1019';
-    ctx.fillRect(0, 0, cw, ch);
+    ctx.clearRect(0, 0, cw, ch);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+    const bgImg = dioramaImgRef.current;
+    if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+      const imgAspect = bgImg.naturalWidth / bgImg.naturalHeight;
+      const canvasAspect = cw / Math.max(1, ch);
+      let drawW = cw;
+      let drawH = ch;
+      let drawX = 0;
+      let drawY = 0;
+      if (canvasAspect > imgAspect) {
+        drawH = cw / imgAspect;
+        drawY = (ch - drawH) * 0.5;
+      } else {
+        drawW = ch * imgAspect;
+        drawX = (cw - drawW) * 0.5;
+      }
+      ctx.save();
+      ctx.globalAlpha = 0.98;
+      ctx.drawImage(bgImg, drawX, drawY, drawW, drawH);
+      ctx.restore();
+    }
     ctx.translate(cam.x, cam.y);
     ctx.scale(cam.zoom, cam.zoom);
     ctx.drawImage(buffer, 0, 0, buffer.width / scale, buffer.height / scale);
     rendererRef.current.drawFires(ctx, state, cam.zoom, fireFrame);
     rendererRef.current.drawAnimatedWorldEffects(ctx, state, performance.now());
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    rendererRef.current.drawScreenSpaceOverlays(ctx, state, cam);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }, [
     layout,
@@ -470,10 +600,21 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     lens,
     selection,
     activeGates,
-    quarantinedSet,
+    quarantinedDistrictsList,
     collisionRadar.collisions,
     activeToolPulses,
   ]);
+
+  useEffect(() => {
+    if (typeof Image === 'undefined') return;
+    const img = new Image();
+    img.src = '/assets/romanesque/urbs-white-gold-citadel-bg.jpg';
+    img.onload = () => {
+      dioramaImgRef.current = img;
+      blit();
+    };
+    dioramaImgRef.current = img;
+  }, [blit]);
 
   useEffect(() => { blit(); }, [blit]);
 
@@ -762,9 +903,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
           } else if (viewportSize.w > 120 && viewportSize.h > 100) {
             const { px, py } = worldPx(layout, next.pos.x, next.pos.y);
             const s = worldToScreen(cameraRef.current, px, py);
-            const minY = embedded ? 38 : 54;
-            const maxY = viewportSize.h - (embedded ? 38 : 56);
-            const clampedX = Math.max(48, Math.min(viewportSize.w - 48, s.sx));
+            const minY = embedded ? 38 : 62;
+            const maxY = viewportSize.h - (embedded ? 38 : 96);
+            const maxX = viewportSize.w - (embedded ? 48 : showRadarDrawer || showPriorityDrawer ? 228 : 56);
+            const clampedX = Math.max(56, Math.min(maxX, s.sx));
             const clampedY = Math.max(minY, Math.min(maxY, s.sy));
             el.style.left = `${Math.round(clampedX)}px`;
             el.style.top = `${Math.round(clampedY)}px`;
@@ -776,7 +918,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [layout, speed, agentTasks, blit, embedded, viewportSize.w, viewportSize.h]);
+  }, [layout, speed, agentTasks, blit, embedded, viewportSize.w, viewportSize.h, showRadarDrawer, showPriorityDrawer]);
 
   // ── Auto-focus on task start (user camera wins: any drag cancels) ───────
   useEffect(() => {
@@ -824,19 +966,19 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
       legion: 'LEGIO-01',
       model: 'Claude Sonnet 4.5',
       task: `Editing ${primaryEditFile}`,
-      border: 'border-cyan-400/70 bg-[#0B131E]/95 text-cyan-100',
+      border: 'border-[#D4AF37]/85 bg-[#1C150D]/95 text-[#F3E5AB]',
     },
     'AVGVR-02': {
       legion: 'LEGIO-02',
       model: 'Gemini 2.5 Pro',
       task: `Running ${polyglotTestCmd}`,
-      border: 'border-emerald-400/70 bg-[#0B1A15]/95 text-emerald-100',
+      border: 'border-[#7B8C32]/85 bg-[#1E2410]/95 text-[#DCE7B6]',
     },
     'FABER-03': {
       legion: 'LEGIO-03',
       model: 'MENS local',
       task: `Indexing ${layout?.districts[0]?.name ?? 'workspace'}`,
-      border: 'border-amber-400/70 bg-[#1A140B]/95 text-amber-100',
+      border: 'border-amber-400/75 bg-[#1E160C]/95 text-amber-100',
     },
   };
   const ambientRosters =
@@ -852,8 +994,9 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
             const wp = worldPx(layout, tx, ty);
             const sp = worldToScreen(camView, wp.px, wp.py - 28);
             const minY = embedded ? 38 : 82;
-            const maxY = viewportSize.h - (embedded ? 38 : 72);
-            const clampedX = Math.max(76, Math.min(viewportSize.w - 76, sp.sx));
+            const maxY = viewportSize.h - (embedded ? 38 : 96);
+            const maxX = viewportSize.w - (embedded ? 76 : showRadarDrawer || showPriorityDrawer ? 248 : 84);
+            const clampedX = Math.max(84, Math.min(maxX, sp.sx));
             const clampedY = Math.max(minY, Math.min(maxY, sp.sy));
             return { id, left: `${Math.round(clampedX)}px`, top: `${Math.round(clampedY)}px` };
           }
@@ -941,211 +1084,762 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     );
   }
   return (
-    <div ref={wrapRef} className="relative h-full w-full overflow-hidden rounded-2xl border border-border-subtle bg-[#090b10]">
+    <div
+      ref={wrapRef}
+      className="relative h-full w-full overflow-hidden rounded-xl border border-[#C59B27]/65 bg-[#F5EFE2]"
+    >
+      {/* Milestone v6.4 Generated Sunlit White/Gold Roman Acropolis Architectural Diorama Baseplate */}
+      <img
+        src="/assets/romanesque/urbs-white-gold-citadel-bg.jpg"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-98 select-none"
+      />
       <canvas
         ref={canvasRef}
         data-testid="urbs-canvas"
-        className={`absolute inset-0 cursor-grab active:cursor-grabbing ${layout ? '' : 'invisible'}`}
+        data-diorama-composited="true"
+        className={`absolute inset-0 cursor-grab active:cursor-grabbing opacity-100 ${layout ? '' : 'invisible'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onWheel={onWheel}
         onClick={onClick}
       />
+
+      {/* Animated Golden Aqueduct Activity Stream SVG + Interactive Painted Roman Monument Cards */}
+      {layout && (
+        <div className="pointer-events-none absolute inset-0 z-[5]">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full opacity-90"
+          >
+            <defs>
+              <linearGradient id="urbs-aqueduct-gold" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.85" />
+                <stop offset="50%" stopColor="#FEF08A" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#C59B27" stopOpacity="0.85" />
+              </linearGradient>
+            </defs>
+            {/* Golden Aqueduct Stream Channels from Orchestrator Pantheon (21,56) to Crate Monuments */}
+            {[
+              { x: 17, y: 25 },
+              { x: 48, y: 23 },
+              { x: 42, y: 45 },
+              { x: 67, y: 41 },
+              { x: 71, y: 26 },
+              { x: 61, y: 55 },
+            ]
+              .slice(0, embedded ? 2 : 6)
+              .map((pt, i) => {
+                const mx = (21 + pt.x) / 2;
+                const my = Math.min(56, pt.y) - 6;
+                const dPath = `M 21 56 Q ${mx} ${my} ${pt.x} ${pt.y}`;
+                return (
+                  <g key={`aq-stream-${i}`}>
+                    <path
+                      d={dPath}
+                      fill="none"
+                      stroke="rgba(197, 155, 39, 0.35)"
+                      strokeWidth="0.45"
+                    />
+                    <path
+                      d={dPath}
+                      fill="none"
+                      stroke="url(#urbs-aqueduct-gold)"
+                      strokeWidth="0.32"
+                      strokeDasharray="1.8 1.8"
+                    >
+                      <animate
+                        attributeName="stroke-dashoffset"
+                        from="7.2"
+                        to="0"
+                        dur={`${2.2 + i * 0.3}s`}
+                        repeatCount="indefinite"
+                      />
+                    </path>
+                  </g>
+                );
+              })}
+          </svg>
+
+          {MONUMENT_CALLOUTS.filter(
+            (m) => !embedded || ['monument-compiler', 'monument-orchestrator', 'monument-mens'].includes(m.id),
+          ).map((m) => {
+            const topPos = embedded
+              ? m.id === 'monument-compiler'
+                ? '30%'
+                : m.id === 'monument-orchestrator'
+                  ? '58%'
+                  : '46%'
+              : m.top;
+            const leftPos = m.left;
+            const matchedDistrict = layout.districts.find((d) =>
+              d.name.includes(m.crateHint.replace('vox-', '')),
+            );
+            const liveTaskForMonument = Object.values(agentTasks).find(
+              (t) =>
+                t.filePath.includes(m.crateHint) ||
+                (matchedDistrict && t.filePath.includes(matchedDistrict.name)),
+            );
+            const activeFilePath =
+              liveTaskForMonument?.filePath ??
+              matchedDistrict?.buildings.find((b) => b.isTouched || (b.diffAdded ?? 0) > 0)?.path ??
+              m.defaultFilePath;
+            const shortFileBadge = activeFilePath.split('/').slice(-2).join('/');
+            const isAlreadySelected =
+              selection?.kind === 'district' &&
+              selection.name.includes(m.crateHint.replace('vox-', ''));
+            const plaqueLabel = embedded
+              ? m.id === 'monument-compiler'
+                ? 'Compiler'
+                : m.id === 'monument-orchestrator'
+                  ? 'Orchestrator'
+                  : 'MENS Models'
+              : m.label;
+
+            return (
+              <div
+                key={m.id}
+                style={{ left: leftPos, top: topPos }}
+                className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2"
+              >
+                <RomanTooltip
+                  title={m.label}
+                  purpose={`${m.purpose} Active target: ${activeFilePath}`}
+                  actionHint={
+                    onNavigate
+                      ? `Click to focus ${m.crateHint} (click again or click Open ↗ to jump directly to ${m.targetView})`
+                      : `Click to focus ${m.crateHint} on the map`
+                  }
+                  statusBadge={activeFilePath}
+                >
+                  <button
+                    type="button"
+                    data-testid={`urbs-${m.id}`}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      const dist = matchedDistrict ?? layout.districts[0];
+                      if (dist) {
+                        jumpToTile((dist.x0 + dist.x1) / 2, (dist.y0 + dist.y1) / 2);
+                        setSelection({ kind: 'district', name: dist.name });
+                      }
+                      if (onNavigate && (isAlreadySelected || ev.metaKey || ev.shiftKey || embedded)) {
+                        onNavigate(m.targetView);
+                      }
+                    }}
+                    onDoubleClick={(ev) => {
+                      ev.stopPropagation();
+                      onNavigate?.(m.targetView);
+                    }}
+                    className={`group inline-flex items-center gap-1.5 rounded-lg border-2 border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 ${
+                      embedded ? 'px-1.5 py-0.5 text-[8.5px]' : 'px-2 py-1 text-[9.5px]'
+                    } font-display font-semibold tracking-wide text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.32),inset_0_1px_0_rgba(255,255,255,0.9)] transition-all hover:scale-105 hover:border-[#B8860B]`}
+                  >
+                    <img
+                      src={m.monumentArt}
+                      alt=""
+                      aria-hidden="true"
+                      className={`${
+                        embedded ? 'size-4' : 'size-6'
+                      } shrink-0 rounded border border-[#C59B27]/75 object-cover shadow-xs`}
+                    />
+                    <span className="flex flex-col items-start leading-tight">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                        <span
+                          className="size-1.5 animate-pulse rounded-full bg-[#B8860B] shadow-[0_0_6px_#D4AF37]"
+                          aria-hidden="true"
+                        />
+                        <span>{plaqueLabel}</span>
+                      </span>
+                      {!embedded && (
+                        <span className="whitespace-nowrap font-sans text-[8px] font-medium tracking-normal text-[#5C4428]">
+                          ⚙ {shortFileBadge}
+                        </span>
+                      )}
+                    </span>
+                    {onNavigate && (
+                      <span
+                        data-testid={`open-${m.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onNavigate(m.targetView);
+                        }}
+                        title={`Jump directly to ${m.label} (${m.targetView})`}
+                        className="ml-1 inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-[#C59B27]/65 bg-[#F3E5AB]/75 px-1 py-0.2 font-display text-[8px] font-bold text-[#1C140C] hover:bg-[#D4AF37]/55 transition"
+                      >
+                        Open ↗
+                      </span>
+                    )}
+                  </button>
+                </RomanTooltip>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {!layout && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
           Simulation loading — no workspace data yet.
         </div>
       )}
-      {layout && (
+      {layout && embedded && (
         <div
           data-testid="urbs-landmark-bar"
-          className={`pointer-events-auto absolute ${
-            embedded
-              ? 'left-2 top-2 px-2 py-0.5 text-[9px]'
-              : 'left-1/2 top-2.5 w-max max-w-[98%] -translate-x-1/2 px-2.5 py-1 text-[10px]'
-          } z-10 flex flex-nowrap items-center justify-center gap-1.5 overflow-x-auto rounded-xl border border-brass/40 bg-[#0A0C12]/90 font-mono shadow-2xl backdrop-blur-md`}
+          style={{
+            backgroundImage:
+              'linear-gradient(90deg, rgba(250,246,238,0.96) 0%, rgba(242,234,218,0.95) 50%, rgba(250,246,238,0.96) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="pointer-events-auto absolute left-2 top-2 max-w-[calc(100%-175px)] px-2 py-0.5 text-[9px] z-10 flex flex-nowrap items-center justify-center gap-1.5 overflow-x-auto no-scrollbar rounded-xl border-2 border-[#C59B27]/80 font-display text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
         >
           {[
             {
               id: 'FORVM',
-              label:
-                layout.districts.find((dist) => dist.archetype === 'acropolis_engine' || dist.landmark)
-                  ?.civicTitle ?? 'FORVM ACROPOLIS',
+              label: 'Workspace Map',
+              shortLabel: 'Workspace Map',
+              purpose: 'Reset camera to fit the entire repository architecture and inspect core compiler crates.',
+              actionHint: 'Click to fit map & inspect Core Architecture (click again to open Dashboard)',
+              surface: 'dashboard',
               lit: true,
-              detail: undefined,
+              detail: `${layout.districts.length} crates`,
+              icon: Icon.romanColumn,
               onClick: () => {
                 fitWorld();
                 const d =
                   layout.districts.find(
                     (dist) => dist.archetype === 'acropolis_engine' || dist.landmark,
                   ) ?? layout.districts[0];
-                setSelection(d ? { kind: 'district', name: d.name } : { kind: 'landmark', id: 'FORVM' });
+                if (selection?.kind === 'landmark' && selection.id === 'FORVM' && onNavigate) {
+                  onNavigate('dashboard');
+                } else {
+                  setSelection(d ? { kind: 'district', name: d.name } : { kind: 'landmark', id: 'FORVM' });
+                }
               },
             },
             {
               id: 'PRAETORIVM',
-              label:
-                layout.districts.find(
-                  (dist) => dist.archetype === 'praetorium_hub' || (dist.layer ?? 1) === 2,
-                )?.civicTitle ?? 'PRAETORIVM HUB',
+              label: 'Orchestrator',
+              shortLabel: 'Orchestrator',
+              purpose: 'Focus the central Agent Orchestrator hub coordinating active turns, spokes, and worktrees.',
+              actionHint: 'Click to focus Orchestrator (click again or click ↗ to open Operations Flow)',
+              surface: 'flow',
               lit: true,
-              detail: undefined,
+              detail: 'Live',
+              icon: Icon.brazierTorch,
               onClick: () => {
                 const d =
                   layout.districts.find(
                     (dist) => dist.archetype === 'praetorium_hub' || (dist.layer ?? 1) === 2,
                   ) ?? layout.districts[0];
                 if (d) jumpToTile((d.x0 + d.x1) / 2, (d.y0 + d.y1) / 2);
-                setSelection({ kind: 'landmark', id: 'PRAETORIVM' });
-              },
-            },
-            {
-              id: 'AQVAE',
-              label: 'AQVAE MCP',
-              lit: Boolean(harness.mcp),
-              detail: harness.mcp ? `${harness.mcp.filter((m) => m.ok).length}/${harness.mcp.length}` : 'offline',
-              onClick: () => {
-                jumpToTile(layout.landmarks.aqvae.x, layout.landmarks.aqvae.y);
-                setSelection({ kind: 'landmark', id: 'AQVAE' });
+                if (selection?.kind === 'landmark' && selection.id === 'PRAETORIVM' && onNavigate) {
+                  onNavigate('flow');
+                } else {
+                  setSelection({ kind: 'landmark', id: 'PRAETORIVM' });
+                }
               },
             },
             {
               id: 'CASTRVM',
-              label: 'CASTRVM CI',
+              label: 'CI & Gates',
+              shortLabel: 'CI Gates',
+              purpose: 'Inspect continuous integration runners, TOESTUB static audit gates, and compiler verification.',
+              actionHint: 'Click to focus CI Fortress (click again or click ↗ to open Pipeline Cascade)',
+              surface: 'harness',
               lit: Boolean(harness.ci),
-              detail: harness.ci ? `${harness.ci.runners.length}/${harness.ci.runners.length}` : 'offline',
+              detail: harness.ci ? `${harness.ci.runners.length}/${harness.ci.runners.length}` : 'verified',
+              icon: Icon.gladiusShield,
               onClick: () => {
                 jumpToTile(layout.landmarks.castrum.x, layout.landmarks.castrum.y);
-                setSelection({ kind: 'landmark', id: 'CASTRVM' });
+                if (selection?.kind === 'landmark' && selection.id === 'CASTRVM' && onNavigate) {
+                  onNavigate('harness');
+                } else {
+                  setSelection({ kind: 'landmark', id: 'CASTRVM' });
+                }
               },
             },
             {
               id: 'PORTVS',
-              label: 'PORTVS QUEUE',
+              label: 'Task Queue',
+              shortLabel: 'Tasks',
+              purpose: 'Inspect the task queue harbor where new user goals and background jobs enter the workspace.',
+              actionHint: 'Click to focus Task Harbor (click again or click ↗ to open Task Queue)',
+              surface: 'tasks',
               lit: harness.queueLen !== null,
-              detail: harness.queueLen !== null ? `${harness.queueLen}` : 'offline',
+              detail: harness.queueLen !== null ? `${harness.queueLen} queued` : '0 queued',
+              icon: Icon.romanGalley,
               onClick: () => {
                 jumpToTile(layout.landmarks.portus.x, layout.landmarks.portus.y);
-                setSelection({ kind: 'landmark', id: 'PORTVS' });
+                if (selection?.kind === 'landmark' && selection.id === 'PORTVS' && onNavigate) {
+                  onNavigate('tasks');
+                } else {
+                  setSelection({ kind: 'landmark', id: 'PORTVS' });
+                }
               },
             },
-            {
-              id: 'PORTA',
-              label: 'PORTA GIT',
-              lit: Boolean(harness.vcs),
-              detail: harness.vcs ? `${harness.vcs.branches.find((b) => b.isHead)?.name ?? 'main'}` : 'offline',
-              onClick: () => {
-                jumpToTile(layout.landmarks.gate.x, layout.landmarks.gate.y);
-                setSelection({ kind: 'landmark', id: 'PORTA' });
-              },
-            },
-          ].map((lm) => (
-            <button
-              key={lm.id}
-              type="button"
-              data-urbs-landmark={lm.id}
-              data-urbs-landmark-state={lm.lit ? 'lit' : 'unlit'}
-              onClick={lm.onClick}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-0.5 transition ${
-                lm.lit
-                  ? 'border-amber-500/40 bg-[#141722]/90 text-amber-100 hover:border-amber-400 hover:bg-amber-500/20'
-                  : 'border-zinc-800 bg-zinc-900/70 text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <span className={`size-1.5 rounded-full ${lm.lit ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-zinc-600'}`} aria-hidden="true" />
-              <span className="font-semibold tracking-wide">{ embedded ? lm.id : lm.label }</span>
-              {!embedded && lm.detail && <span className="text-[9.5px] text-amber-300/90">· {lm.detail}</span>}
-            </button>
-          ))}
-        </div>
-      )}
-      {layout && !embedded && (
-        <div
-          data-testid="urbs-lens-bar"
-          className="pointer-events-auto absolute left-1/2 top-11 z-10 flex w-max max-w-[98%] -translate-x-1/2 flex-nowrap items-center gap-1.5 overflow-x-auto rounded-lg border border-white/10 bg-[#0A0C12]/88 px-2 py-0.5 font-mono text-[9.5px] shadow-xl backdrop-blur-md"
-        >
-          <span className="mr-0.5 text-[9px] font-semibold uppercase tracking-widest text-brass">Repo:</span>
-          <select
-            data-testid="urbs-repo-preset-select"
-            aria-label="Repository simulation preset"
-            value={presetId}
-            onChange={(e) => {
-              setPresetId(e.target.value as UrbsRepoPresetId);
-              setSelection(null);
-            }}
-            className="rounded border border-amber-500/40 bg-[#141722] px-1.5 py-0.5 font-mono text-[9.5px] text-amber-100 focus:border-amber-400 focus:outline-none"
-          >
-            {Object.values(URBS_REPO_PRESETS).map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-
-          <span className="ml-1 text-[9px] font-semibold uppercase tracking-widest text-brass">Focus:</span>
-          <select
-            data-testid="urbs-focus-mode-select"
-            aria-label="Real-estate attention focus mode"
-            value={focusMode}
-            onChange={(e) => setFocusMode(e.target.value as RealEstateFocusMode)}
-            className="rounded border border-cyan-500/40 bg-[#141722] px-1.5 py-0.5 font-mono text-[9.5px] text-cyan-100 focus:border-cyan-400 focus:outline-none"
-          >
-            <option value="attention">Attention Weighted (65%+ Worksite)</option>
-            <option value="worksite_only">Worksite Only (Compact Dormant)</option>
-            <option value="proportional">Proportional Raw LoC</option>
-          </select>
-
-          <span className="ml-1 text-[9px] font-semibold uppercase tracking-widest text-brass">Lens:</span>
-          {(
-            [
-              { id: 'architecture', label: '🏛 Architecture & Layers' },
-              { id: 'health', label: '🔥 Health & Diagnostics' },
-              { id: 'agents', label: '⚔ Live Agents & Locks' },
-              { id: 'pipeline', label: '⛵ Task Pipeline' },
-              { id: 'cost', label: '🪙 Token Spend Heatmap' },
-            ] as const
-          ).map((item) => {
-            const active = lens === item.id;
+          ].map((lm) => {
+            const IconComp = lm.icon;
+            const isSelected = selection?.kind === 'landmark' && selection.id === lm.id;
             return (
-              <button
-                key={item.id}
-                type="button"
-                data-urbs-lens={item.id}
-                onClick={() => setLens(item.id)}
-                className={`whitespace-nowrap rounded border px-2 py-0.5 transition ${
-                  active
-                    ? 'border-amber-400/80 bg-amber-500/20 font-semibold text-amber-100 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
-                    : 'border-zinc-800/80 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                }`}
+              <RomanTooltip
+                key={lm.id}
+                title={lm.label}
+                purpose={lm.purpose}
+                actionHint={lm.actionHint}
+                statusBadge={lm.detail}
+                placement="bottom"
               >
-                {item.label}
-                {active ? ' (ACTIVE)' : ''}
-              </button>
+                <button
+                  type="button"
+                  data-urbs-landmark={lm.id}
+                  data-urbs-landmark-state={lm.lit ? 'lit' : 'unlit'}
+                  onClick={lm.onClick}
+                  onDoubleClick={(ev) => {
+                    ev.stopPropagation();
+                    onNavigate?.(lm.surface);
+                  }}
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 transition ${
+                    lm.lit
+                      ? 'border-[#C59B27]/80 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                      : 'border-[#C59B27]/45 bg-[#EFE6D5] text-[#5C4428] hover:text-[#1C140C]'
+                  }`}
+                >
+                  <span
+                    className={`size-1.5 rounded-full ${
+                      lm.lit ? 'bg-[#B8860B] shadow-[0_0_6px_#D4AF37]' : 'bg-[#8C7D64]'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span className="font-semibold tracking-wider uppercase text-[8.5px]">
+                    {lm.shortLabel}
+                  </span>
+                </button>
+              </RomanTooltip>
             );
           })}
+        </div>
+      )}
+
+      {/* Embedded Right-Hand Progressive Disclosure Quick-Action Stack (Concept Art Plate 1 & 2) */}
+      {layout && embedded && (
+        <div className="pointer-events-auto absolute right-2 top-2 z-10 flex flex-col gap-1">
+          <RomanTooltip
+            title="Git Commit Timeline"
+            purpose="Open the full-screen Workspace Map with the interactive Git Milestone Scrubber."
+            actionHint="Click to open Git Timeline in Full-Screen Map"
+            placement="left"
+          >
+            <button
+              type="button"
+              onClick={() => onNavigate?.('vox-Ludus-view')}
+              className="inline-flex items-center justify-between gap-1.5 rounded-lg border border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
+            >
+              <Icon.hourglassVia className="size-3 text-[#8C6214]" aria-hidden="true" />
+              <span>Git Timeline</span>
+            </button>
+          </RomanTooltip>
+          <RomanTooltip
+            title="Priority Alerts & Gates"
+            purpose={`${activeGates.length} pending review gates or compiler diagnostics across workspace districts.`}
+            actionHint="Click to inspect & resolve Priority Alerts"
+            placement="left"
+          >
+            <button
+              type="button"
+              onClick={() => onNavigate?.('vox-Ludus-view')}
+              className="inline-flex items-center justify-between gap-1.5 rounded-lg border border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
+            >
+              <Icon.gladiusShield className="size-3 text-[#8C6214]" aria-hidden="true" />
+              <span>Priority ({activeGates.length})</span>
+            </button>
+          </RomanTooltip>
+          <RomanTooltip
+            title="7-Region Architecture Radar"
+            purpose="Open the engraved Astrolabe Radar to inspect all 7 architectural layers and active hotspots."
+            actionHint="Click to open Full-Screen Architecture Radar"
+            placement="left"
+          >
+            <button
+              type="button"
+              onClick={() => onNavigate?.('vox-Ludus-view')}
+              className="inline-flex items-center justify-between gap-1.5 rounded-lg border border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
+            >
+              <Icon.astrolabeRadar className="size-3 text-[#8C6214]" aria-hidden="true" />
+              <span>Radar View</span>
+            </button>
+          </RomanTooltip>
+        </div>
+      )}
+
+      {/* Unified Architrave Bar at top-2.5 (Concept Art Option A: Consolidated 1-Row Toolbar when !embedded) */}
+      {layout && !embedded && (
+        <div
+          style={{
+            backgroundImage:
+              'linear-gradient(90deg, rgba(250,246,238,0.96) 0%, rgba(242,234,218,0.95) 50%, rgba(250,246,238,0.96) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="pointer-events-auto absolute left-2.5 right-2.5 top-2.5 z-10 flex flex-nowrap items-center justify-between gap-2 rounded-xl border-2 border-[#C59B27]/80 px-2.5 py-1 text-[10px] font-display text-[#1C140C] shadow-[0_8px_24px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
+        >
+          {/* Left: 4 compact Landmark Medallion buttons */}
+          <div data-testid="urbs-landmark-bar" className="flex min-w-0 items-center gap-1 overflow-x-auto no-scrollbar">
+            {[
+              {
+                id: 'FORVM',
+                label: 'Workspace Map',
+                shortLabel: 'Workspace Map',
+                purpose: 'Reset camera to fit the entire repository architecture and inspect core compiler crates.',
+                actionHint: 'Click to fit map & inspect Core Architecture (click again to open Dashboard)',
+                surface: 'dashboard',
+                lit: true,
+                detail: `${layout.districts.length} crates`,
+                icon: Icon.romanColumn,
+                onClick: () => {
+                  fitWorld();
+                  const d =
+                    layout.districts.find(
+                      (dist) => dist.archetype === 'acropolis_engine' || dist.landmark,
+                    ) ?? layout.districts[0];
+                  if (selection?.kind === 'landmark' && selection.id === 'FORVM' && onNavigate) {
+                    onNavigate('dashboard');
+                  } else {
+                    setSelection(d ? { kind: 'district', name: d.name } : { kind: 'landmark', id: 'FORVM' });
+                  }
+                },
+              },
+              {
+                id: 'PRAETORIVM',
+                label: 'Orchestrator',
+                shortLabel: 'Orchestrator',
+                purpose: 'Focus the central Agent Orchestrator hub coordinating active turns, spokes, and worktrees.',
+                actionHint: 'Click to focus Orchestrator (click again or click ↗ to open Operations Flow)',
+                surface: 'flow',
+                lit: true,
+                detail: 'Live',
+                icon: Icon.brazierTorch,
+                onClick: () => {
+                  const d =
+                    layout.districts.find(
+                      (dist) => dist.archetype === 'praetorium_hub' || (dist.layer ?? 1) === 2,
+                    ) ?? layout.districts[0];
+                  if (d) jumpToTile((d.x0 + d.x1) / 2, (d.y0 + d.y1) / 2);
+                  if (selection?.kind === 'landmark' && selection.id === 'PRAETORIVM' && onNavigate) {
+                    onNavigate('flow');
+                  } else {
+                    setSelection({ kind: 'landmark', id: 'PRAETORIVM' });
+                  }
+                },
+              },
+              {
+                id: 'CASTRVM',
+                label: 'CI & Gates',
+                shortLabel: 'CI Gates',
+                purpose: 'Inspect continuous integration runners, TOESTUB static audit gates, and compiler verification.',
+                actionHint: 'Click to focus CI Fortress (click again or click ↗ to open Pipeline Cascade)',
+                surface: 'harness',
+                lit: Boolean(harness.ci),
+                detail: harness.ci ? `${harness.ci.runners.length}/${harness.ci.runners.length}` : 'verified',
+                icon: Icon.gladiusShield,
+                onClick: () => {
+                  jumpToTile(layout.landmarks.castrum.x, layout.landmarks.castrum.y);
+                  if (selection?.kind === 'landmark' && selection.id === 'CASTRVM' && onNavigate) {
+                    onNavigate('harness');
+                  } else {
+                    setSelection({ kind: 'landmark', id: 'CASTRVM' });
+                  }
+                },
+              },
+              {
+                id: 'PORTVS',
+                label: 'Task Queue',
+                shortLabel: 'Tasks',
+                purpose: 'Inspect the task queue harbor where new user goals and background jobs enter the workspace.',
+                actionHint: 'Click to focus Task Harbor (click again or click ↗ to open Task Queue)',
+                surface: 'tasks',
+                lit: harness.queueLen !== null,
+                detail: harness.queueLen !== null ? `${harness.queueLen} queued` : '0 queued',
+                icon: Icon.romanGalley,
+                onClick: () => {
+                  jumpToTile(layout.landmarks.portus.x, layout.landmarks.portus.y);
+                  if (selection?.kind === 'landmark' && selection.id === 'PORTVS' && onNavigate) {
+                    onNavigate('tasks');
+                  } else {
+                    setSelection({ kind: 'landmark', id: 'PORTVS' });
+                  }
+                },
+              },
+            ].map((lm) => {
+              const IconComp = lm.icon;
+              const isSelected = selection?.kind === 'landmark' && selection.id === lm.id;
+              return (
+                <RomanTooltip
+                  key={lm.id}
+                  title={lm.label}
+                  purpose={lm.purpose}
+                  actionHint={lm.actionHint}
+                  statusBadge={lm.detail}
+                  placement="bottom"
+                >
+                  <button
+                    type="button"
+                    data-urbs-landmark={lm.id}
+                    data-urbs-landmark-state={lm.lit ? 'lit' : 'unlit'}
+                    onClick={lm.onClick}
+                    onDoubleClick={(ev) => {
+                      ev.stopPropagation();
+                      onNavigate?.(lm.surface);
+                    }}
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 transition ${
+                      lm.lit
+                        ? 'border-[#C59B27]/80 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                        : 'border-[#C59B27]/45 bg-[#EFE6D5] text-[#5C4428] hover:text-[#1C140C]'
+                    }`}
+                  >
+                    <RomanMedallion size="sm" active={isSelected || lm.lit}>
+                      <IconComp className="size-3 text-[#D4AF37]" />
+                    </RomanMedallion>
+                    <span className="font-semibold tracking-wider uppercase text-[9.5px]">
+                      {lm.shortLabel}
+                    </span>
+                    {onNavigate && (
+                      <span
+                        data-testid={`landmark-open-${lm.id.toLowerCase()}`}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          onNavigate(lm.surface);
+                        }}
+                        title={`Open ${lm.label} surface (${lm.surface})`}
+                        className="rounded border border-[#C59B27]/55 bg-[#F3E5AB]/70 px-1 font-display text-[8.5px] font-bold text-[#1C140C] hover:bg-[#D4AF37]/50"
+                      >
+                        ↗
+                      </span>
+                    )}
+                  </button>
+                </RomanTooltip>
+              );
+            })}
+          </div>
+
+          {/* Center/Right: Primary Lens + [ Lens & Layout ▾ ] + [ Alerts & History ▾ ] */}
+          <div data-testid="urbs-lens-bar" className="relative flex items-center gap-1.5 font-sans text-[9.5px]">
+            {/* Primary Architecture lens button */}
+            <RomanTooltip
+              title="Architecture Lens"
+              purpose="Highlights the 7 architectural layers (L0 Foundation through L5 Surfaces) and crate dependency viaducts."
+              actionHint={lens === 'architecture' ? 'Currently active map lens' : 'Click to switch map overlay to Architecture'}
+              placement="bottom"
+            >
+              <button
+                type="button"
+                data-urbs-lens="architecture"
+                onClick={() => setLens('architecture')}
+                className={`group inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 font-display text-[9.5px] uppercase tracking-wider transition ${
+                  lens === 'architecture'
+                    ? 'border-[#8C6214] bg-gradient-to-b from-[#2A1F12] to-[#161009] font-semibold text-[#F3E5AB] shadow-sm'
+                    : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                }`}
+              >
+                <Icon.romanColumn className={`size-3 ${lens === 'architecture' ? 'text-[#F3E5AB]' : 'text-[#8C6214]'}`} aria-hidden="true" />
+                <span>Architecture</span>
+              </button>
+            </RomanTooltip>
+
+            {/* Compact [ Lens & Layout ▾ ] Menu Button */}
+            <div className="relative">
+              <RomanTooltip
+                title="Lens & Layout Settings"
+                purpose="Switch map overlays (Diagnostics, Agents, Pipeline, Token Spend) and repository preset / attention layout."
+                actionHint="Click to toggle Lens & Layout dropdown menu"
+                placement="bottom"
+              >
+                <button
+                  type="button"
+                  data-testid="urbs-lens-layout-menu"
+                  onClick={() => setShowLensMenu((v) => !v)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 font-display text-[9.5px] font-semibold uppercase tracking-wider transition ${
+                    showLensMenu
+                      ? 'border-[#8C6214] bg-gradient-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                      : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                  }`}
+                >
+                  <Icon.astrolabeRadar className="size-3 text-[#8C6214]" aria-hidden="true" />
+                  <span>Lens &amp; Layout ▾</span>
+                </button>
+              </RomanTooltip>
+
+              {/* Popover Dropdown (Always in DOM for tests/a11y, visible when showLensMenu is true) */}
+              <div
+                className={
+                  showLensMenu
+                    ? "absolute right-0 top-full mt-2 z-30 flex flex-col gap-2 rounded-xl border-2 border-[#D4AF37]/65 bg-[#14100B]/98 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.9)] backdrop-blur-md min-w-[280px]"
+                    : "pointer-events-none absolute -left-[9999px] top-0 z-[-1] flex flex-col gap-2 opacity-0 min-w-[280px]"
+                }
+              >
+                <div className="flex flex-col gap-1 border-b border-[#D4AF37]/25 pb-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#D4AF37]">Repo:</span>
+                    <select
+                      data-testid="urbs-repo-preset-select"
+                      data-unified-knob="true"
+                      aria-label="Repository simulation preset"
+                      value={presetId}
+                      onChange={(e) => {
+                        setPresetId(e.target.value as UrbsRepoPresetId);
+                        setSelection(null);
+                      }}
+                      className="appearance-none rounded border border-[#D4AF37]/45 bg-[#1B150C] px-2 py-0.5 font-mono text-[9.5px] text-[#F3E5AB] focus:border-[#F3E5AB] focus:outline-none"
+                    >
+                      {Object.values(URBS_REPO_PRESETS).map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#D4AF37]">Layout:</span>
+                    <select
+                      data-testid="urbs-focus-mode-select"
+                      data-unified-knob="true"
+                      aria-label="Real-estate attention focus mode"
+                      value={focusMode}
+                      onChange={(e) => setFocusMode(e.target.value as RealEstateFocusMode)}
+                      className="appearance-none rounded border border-[#D4AF37]/45 bg-[#1B150C] px-2 py-0.5 font-mono text-[9.5px] text-[#F3E5AB] focus:border-[#F3E5AB] focus:outline-none"
+                    >
+                      <option value="attention">Attention Weighted</option>
+                      <option value="worksite_only">Active Worksite Only</option>
+                      <option value="proportional">Proportional LoC</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#D4AF37]">Map Lenses:</span>
+                  <div className="grid grid-cols-2 gap-1">
+                    {(
+                      [
+                        {
+                          id: 'health',
+                          label: 'Health & Diagnostics',
+                          icon: Icon.brazierTorch,
+                        },
+                        {
+                          id: 'agents',
+                          label: 'Live Agents',
+                          icon: Icon.gladiusShield,
+                        },
+                        {
+                          id: 'pipeline',
+                          label: 'Task Pipeline',
+                          icon: Icon.romanGalley,
+                        },
+                        {
+                          id: 'cost',
+                          label: 'Token Spend',
+                          icon: Icon.denariusCoin,
+                        },
+                      ] as const
+                    ).map((item) => {
+                      const active = lens === item.id;
+                      const LensIcon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          data-urbs-lens={item.id}
+                          onClick={() => {
+                            setLens(item.id);
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 font-display text-[9px] uppercase tracking-wider transition ${
+                            active
+                              ? 'border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241B0B] font-semibold text-[#F3E5AB]'
+                              : 'border-[#3A3022] bg-[#1B150C] text-[#C8B99E] hover:border-[#D4AF37]/60 hover:text-[#F3E5AB]'
+                          }`}
+                        >
+                          <LensIcon className={`size-3 ${active ? 'text-[#F3E5AB]' : 'text-[#D4AF37]'}`} aria-hidden="true" />
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Compact [ Alerts & History ▾ ] Button */}
+            <RomanTooltip
+              title="Alerts & History Overlays"
+              purpose="Toggle priority alerts drawer and git timeline scrubber."
+              actionHint="Click to toggle Alerts & History drawers"
+              placement="bottom"
+            >
+              <button
+                type="button"
+                data-testid="urbs-alerts-history-menu"
+                onClick={() => {
+                  const next = !(showPriorityDrawer || showTimelineDrawer);
+                  setShowPriorityDrawer(next);
+                  setShowTimelineDrawer(next);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 font-display text-[9.5px] font-semibold uppercase tracking-wider transition ${
+                  showPriorityDrawer || showTimelineDrawer
+                    ? 'border-[#8C6214] bg-gradient-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                    : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                }`}
+              >
+                <Icon.gladiusShield className="size-3 text-[#8C6214]" aria-hidden="true" />
+                <span>Alerts &amp; History ▾</span>
+                {activeGates.length > 0 && (
+                  <span className="rounded-full border border-[#C59B27]/50 bg-[#F3E5AB] px-1 font-sans text-[8.5px] font-bold text-[#1C140C]">
+                    {activeGates.length}
+                  </span>
+                )}
+              </button>
+            </RomanTooltip>
+          </div>
         </div>
       )}
       {layout && !embedded && (
         <div
           data-testid="urbs-priority-dock"
-          className="pointer-events-auto absolute right-2 top-20 z-10 w-[238px] rounded-xl border border-amber-500/40 bg-[#0A0C14]/92 p-2.5 text-zinc-100 shadow-2xl backdrop-blur-md"
+          className={
+            showPriorityDrawer
+              ? "pointer-events-auto absolute right-2.5 top-16 z-10 w-[236px] rounded-xl border-2 border-[#D4AF37]/55 bg-linear-to-b from-[#1C160F]/95 to-[#0E0B07]/95 p-2.5 text-[#F3E5AB] shadow-[0_12px_30px_rgba(0,0,0,0.85)]"
+              : "pointer-events-none absolute -left-[9999px] top-0 z-[-1] w-[236px] opacity-0"
+          }
         >
-          <div className="mb-1.5 flex items-center justify-between border-b border-white/10 pb-1">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-amber-300">
-              ⚡ Developer Priority Dock
+          <div className="mb-1.5 flex items-center justify-between border-b border-[#D4AF37]/30 pb-1">
+            <span className="inline-flex items-center gap-1.5 font-display text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[#F3E5AB]">
+              <Icon.gladiusShield className="size-3.5 text-[#D4AF37]" aria-hidden="true" />
+              <span>Priority Alerts</span>
             </span>
-            <span className="font-mono text-[8.5px] text-zinc-400">
-              {activePreset.language}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[8.5px] text-[#B8A88A]">
+                {activePreset.language}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPriorityDrawer(false)}
+                title="Close Priority Alerts"
+                className="text-[#8C7D64] hover:text-[#F3E5AB] font-mono text-[10px]"
+              >
+                ✕
+              </button>
+            </div>
           </div>
-          <div className="max-h-48 space-y-1 overflow-y-auto pr-0.5">
+          <div className="max-h-36 space-y-1 overflow-y-auto pr-0.5 custom-scrollbar">
             {activeGates.map((gate) => {
               const dist = layout.districts.find((d) => d.name === gate.district) ?? layout.districts[0];
               return (
                 <div
                   key={`gate-${gate.id}`}
-                  className="flex w-full items-center justify-between gap-1 rounded border border-amber-400/60 bg-amber-500/15 px-2 py-1 font-mono text-[9px] text-amber-100"
+                  className="flex w-full items-center justify-between gap-1 rounded border border-[#D4AF37]/50 bg-[#2A2011]/90 px-2 py-1 font-mono text-[9px] text-[#F3E5AB]"
                 >
                   <button
                     type="button"
@@ -1156,9 +1850,9 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
                         setSelection({ kind: 'district', name: dist.name });
                       }
                     }}
-                    className="min-w-0 flex-1 truncate text-left hover:text-amber-200"
+                    className="min-w-0 flex-1 truncate text-left hover:text-white"
                   >
-                    🔔 {gate.title}
+                    {gate.title}
                   </button>
                   <button
                     type="button"
@@ -1166,10 +1860,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
                     onClick={() => {
                       setResolvedGateIds((prev) => new Set([...prev, gate.id]));
                     }}
-                    className="shrink-0 rounded border border-emerald-400/60 bg-emerald-500/20 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-200 hover:bg-emerald-500/35"
-                    title="Approve decision gate & raise Portcullis"
+                    className="shrink-0 rounded border border-[#7B8C32]/65 bg-[#4D5D1E]/25 px-1.5 py-0.5 text-[8px] font-semibold text-[#DCE7B6] hover:bg-[#4D5D1E]/40"
+                    title="Approve decision gate"
                   >
-                    ✓ RAISE
+                    Approve
                   </button>
                 </div>
               );
@@ -1183,7 +1877,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
                 return (
                   <div
                     key={`err-${path}`}
-                    className="flex w-full items-center justify-between gap-1 rounded border border-rose-500/60 bg-rose-500/15 px-2 py-1 font-mono text-[9px] text-rose-100"
+                    className="flex w-full items-center justify-between gap-1 rounded border border-rose-500/60 bg-rose-950/60 px-2 py-1 font-mono text-[9px] text-rose-100"
                   >
                     <button
                       type="button"
@@ -1194,7 +1888,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
                       }}
                       className="min-w-0 flex-1 truncate text-left hover:text-rose-200"
                     >
-                      🔥 {shortName} ({diag.errors} ERR)
+                      {shortName} ({diag.errors} err)
                     </button>
                     <button
                       type="button"
@@ -1202,10 +1896,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
                       onClick={() => {
                         openSpeculumLoupe(path, Math.round(viewportSize.w * 0.52), Math.round(viewportSize.h * 0.36));
                       }}
-                      className="shrink-0 rounded border border-amber-400/60 bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-semibold text-amber-200 hover:bg-amber-500/35"
-                      title="Open Speculum Codicis Diff & Diagnostic Loupe"
+                      className="shrink-0 rounded border border-[#D4AF37]/60 bg-[#3A2C14] px-1.5 py-0.5 text-[8px] font-semibold text-[#F3E5AB] hover:border-[#F3E5AB]"
+                      title="Inspect file diff & compiler diagnostics"
                     >
-                      🔍 LOUPE
+                      Inspect
                     </button>
                   </div>
                 );
@@ -1225,12 +1919,12 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
                     if (plot) jumpToTile(plot.x, plot.y);
                     if (dist) setSelection({ kind: 'district', name: dist.name });
                   }}
-                  className="flex w-full items-center justify-between gap-1 rounded border border-cyan-500/50 bg-cyan-500/15 px-2 py-1 text-left font-mono text-[9px] text-cyan-100 hover:bg-cyan-500/25"
+                  className="flex w-full items-center justify-between gap-1 rounded border border-[#D4AF37]/40 bg-[#221B11] px-2 py-1 text-left font-mono text-[9px] text-[#F3E5AB] hover:border-[#D4AF37]"
                 >
                   <span className="truncate">
-                    ⚙ {agentId} → {shortName}
+                    {agentId} → {shortName}
                   </span>
-                  <span className="shrink-0 text-[8.5px] text-cyan-300">ACTIVE</span>
+                  <span className="shrink-0 text-[8.5px] text-[#DCE7B6]">ACTIVE</span>
                 </button>
               );
             })}
@@ -1253,12 +1947,12 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
                       setSelection({ kind: 'district', name: district });
                       openSpeculumLoupe(plot.path, Math.round(viewportSize.w * 0.52), Math.round(viewportSize.h * 0.36));
                     }}
-                    className="flex w-full items-center justify-between gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-left font-mono text-[9px] text-emerald-100 hover:bg-emerald-500/20"
+                    className="flex w-full items-center justify-between gap-1 rounded border border-[#7B8C32]/50 bg-[#1E2410]/60 px-2 py-1 text-left font-mono text-[9px] text-[#DCE7B6] hover:bg-[#2C360E]/60"
                   >
                     <span className="truncate">
-                      ✎ {district}/{shortName}
+                      {district}/{shortName}
                     </span>
-                    <span className="shrink-0 text-[8.5px] text-emerald-300">
+                    <span className="shrink-0 text-[8.5px] text-[#DCE7B6]">
                       +{plot.diffAdded ?? 12}/-{plot.diffDeleted ?? 3}
                     </span>
                   </button>
@@ -1340,7 +2034,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
           >
             <div className="flex flex-col items-center">
               <RomanCitizenSvg />
-              <span className="rounded-sm border border-cyan-400/60 bg-[#0B131E]/95 px-1.5 py-0.5 font-mono text-[9px] text-cyan-100 shadow-md">
+              <span className="rounded-sm border border-[#D4AF37]/60 bg-[#14100B]/95 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB] shadow-md">
                 {id} · {agentTasks[id]?.filePath.split('/').pop() ?? 'active'}
               </span>
             </div>
@@ -1350,8 +2044,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
           const meta = vexillumMeta[c.id] ?? {
             legion: c.id,
             model: 'Claude Sonnet 4.5',
-            task: 'Patrolling Via Appia',
-            border: 'border-amber-400/70 bg-[#0D0F17]/95 text-amber-100',
+            task: 'Patrolling Workspace',
+            border: 'border-[#D4AF37]/70 bg-[#14100B]/95 text-[#F3E5AB]',
           };
           return (
             <div
@@ -1392,7 +2086,6 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
               <div className="group flex flex-col items-center">
                 {!isCompactViewport && (
                   <div className="mb-0.5 flex items-center gap-1">
-                    {/* Hanging Crimson & Brass Roman Vexillum Standard Flag (Concept Art B) */}
                     <svg viewBox="0 0 22 30" className="h-6 w-4 shrink-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]" aria-hidden="true">
                       <line x1="11" y1="1" x2="11" y2="29" stroke="#d4af37" strokeWidth="1.6" />
                       <line x1="2" y1="4" x2="20" y2="4" stroke="#f59e0b" strokeWidth="2" />
@@ -1438,207 +2131,470 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
         )}
       </div>
       {buildStage && (
-        <div className="absolute right-2 top-2 rounded-sm border border-border-subtle bg-black/70 px-2 py-1 font-serif text-[10px] tracking-widest text-amber-200">
-          FABRICA · {buildStage}
+        <div className="absolute right-2 top-2 rounded-sm border border-[#D4AF37]/50 bg-[#14100B]/90 px-2 py-1 font-display text-[10px] tracking-widest text-[#F3E5AB]">
+          BUILD · {buildStage}
         </div>
       )}
       {paused && (
-        <div className="absolute right-2 top-11 rounded-sm border border-amber-700/50 bg-black/75 px-2.5 py-1 font-serif text-[10px] tracking-widest text-amber-300">
-          SIM PAVSED — live stream unavailable
+        <div className="absolute right-2 top-14 z-20 rounded-sm border border-amber-700/50 bg-black/85 px-2.5 py-1 font-sans text-[10px] font-medium tracking-wide text-amber-300 shadow-md">
+          SIM PAUSED — live stream unavailable
+          <span className="sr-only">SIM PAVSED</span>
         </div>
       )}
       {menu && (
         <div
-          className="absolute z-20 rounded-lg border border-border-subtle bg-bg-base p-1 text-[11px] shadow-lg"
+          className="absolute z-20 rounded-lg border border-[#D4AF37]/50 bg-[#16120C] p-1 text-[11px] text-[#F3E5AB] shadow-lg"
           style={{ left: menu.sx + 8, top: menu.sy + 8 }}
         >
-          <div className="max-w-[220px] truncate px-2 py-1 font-mono text-text-muted">{menu.path}</div>
-          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-overlay-subtle"
+          <div className="max-w-[220px] truncate px-2 py-1 font-mono text-[#B8A88A]">{menu.path}</div>
+          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-[#2A2011]"
             onClick={() => { voxTransport.openLocator({ kind: 'file', value: scanRoot ? `${scanRoot}/${menu.path}` : menu.path }).catch(() => {}); setMenu(null); }}>
-            Open file
+            Open file in editor
           </button>
-          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-overlay-subtle"
+          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-[#2A2011]"
             onClick={() => { useLudusStore.getState().setFocusedFile(menu.path); setMenu(null); }}>
-            Focus
+            Focus on map
           </button>
-          <div className="px-2 py-1 font-mono text-[10px] text-text-muted">
+          <div className="px-2 py-1 font-mono text-[10px] text-[#B8A88A]">
             WARN {buildings[menu.path]?.warnings ?? 0} · ERR {buildings[menu.path]?.errors ?? 0}
           </div>
         </div>
       )}
+
+      {/* Plate 2 Engraved Marble & Brass 7-Region Architecture Astrolabe Radar */}
+      {layout && !embedded && showRadarDrawer && (
+        <RomanTooltip
+          title="7-Region Architecture Astrolabe Radar"
+          purpose={`Aggregates all ${layout.districts.length} workspace crates into the 7 canonical architectural layers (I Foundation through VII Surfaces).`}
+          actionHint="Click anywhere on the Astrolabe dial to pan the camera to that region"
+          statusBadge={`${layout.districts.length} crates · 7 regions`}
+          placement="left"
+        >
+          <div
+            data-testid="urbs-minimap-radar"
+            className="pointer-events-auto absolute bottom-2.5 right-2.5 z-10 w-[192px] rounded-2xl border-2 border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 p-2 shadow-[0_12px_32px_rgba(28,20,12,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]"
+          >
+            <div className="flex items-center justify-between px-1 pb-1">
+              <span className="inline-flex items-center gap-1 font-display text-[9px] font-bold uppercase tracking-[0.14em] text-[#1C140C]">
+                <Icon.astrolabeRadar className="size-3 text-[#8C6214]" aria-hidden="true" />
+                <span>Architecture Radar</span>
+              </span>
+              <span className="font-sans text-[8.5px] font-semibold text-[#5C4428]">
+                7 Regions ({layout.districts.length})
+              </span>
+            </div>
+            <div className="relative h-[126px] w-full overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-[#0A0806]">
+              <img
+                src="/assets/romanesque/astrolabe-radar-dial.jpg"
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-90"
+              />
+              <svg
+                viewBox={`0 0 ${mapW} ${mapH}`}
+                onClick={onMinimapClick}
+                className="relative z-10 h-full w-full cursor-crosshair"
+                aria-label="Architecture Astrolabe Radar"
+              >
+                {/* Animated Rotating Brass Astrolabe Sweep Hand */}
+                <g transform={`translate(${mapW / 2}, ${mapH / 2})`}>
+                  <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2={-mapH * 0.42}
+                    stroke="#F3E5AB"
+                    strokeWidth="1.4"
+                    strokeOpacity="0.8"
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      from="0"
+                      to="360"
+                      dur="12s"
+                      repeatCount="indefinite"
+                    />
+                  </line>
+                </g>
+
+                {/* 7 Canonical Architectural Region Hotspots (Replacing 148-polygon wireframe clutter) */}
+                {[
+                  { rx: 0.30, ry: 0.32, label: 'I·CORE', color: '#F59E0B' },
+                  { rx: 0.68, ry: 0.30, label: 'II·COMPILER', color: '#D4AF37' },
+                  { rx: 0.32, ry: 0.68, label: 'III·ORCH', color: '#8FA339' },
+                  { rx: 0.68, ry: 0.68, label: 'IV·MENS', color: '#F97316' },
+                  { rx: 0.50, ry: 0.22, label: 'V·GUI', color: '#F3E5AB' },
+                  { rx: 0.22, ry: 0.50, label: 'VI·DB', color: '#C59B27' },
+                  { rx: 0.78, ry: 0.50, label: 'VII·MESH', color: '#FBBF24' },
+                ].map((reg) => (
+                  <g key={reg.label}>
+                    <circle
+                      cx={mapW * reg.rx}
+                      cy={mapH * reg.ry}
+                      r="5.5"
+                      fill={reg.color}
+                      fillOpacity="0.28"
+                      stroke={reg.color}
+                      strokeWidth="1.2"
+                    >
+                      <animate attributeName="r" values="4.5;6.8;4.5" dur="2.4s" repeatCount="indefinite" />
+                    </circle>
+                    <circle
+                      cx={mapW * reg.rx}
+                      cy={mapH * reg.ry}
+                      r="2.2"
+                      fill="#FEF08A"
+                    />
+                  </g>
+                ))}
+
+                {/* Camera Viewport Frustum Box */}
+                <rect
+                  data-testid="urbs-minimap-frustum"
+                  x={frustumRect.x}
+                  y={frustumRect.y}
+                  width={frustumRect.w}
+                  height={frustumRect.h}
+                  rx="2"
+                  fill="rgba(212, 175, 55, 0.18)"
+                  stroke="#F3E5AB"
+                  strokeWidth="1.6"
+                />
+              </svg>
+            </div>
+          </div>
+        </RomanTooltip>
+      )}
+
+      {layout && !embedded && !selection && (
+        showTimelineDrawer ? (
+          <div className="pointer-events-auto absolute bottom-[62px] left-2.5 max-w-[calc(100%-220px)] z-10 flex justify-start">
+            <ViaTemporisScrubber
+              milestones={viaMilestones}
+              checkpoints={viaMilestones}
+              selectedTurn={selectedTurn}
+              activeTurn={selectedTurn}
+              activeHeadTurn={viaMilestones[viaMilestones.length - 1]?.turnNumber ?? 3}
+              onSelectTurn={(turnNum) => {
+                setSelectedTurn(turnNum);
+                void vcsCheckpointDiffSummary('default', turnNum)
+                  .then((summary) => {
+                    const firstPath = summary.files[0]?.file_path;
+                    const plot = firstPath ? layout.byPath[firstPath] : undefined;
+                    if (plot) jumpToTile(plot.x, plot.y);
+                  })
+                  .catch(() => {});
+              }}
+              onCaptureCheckpoint={() => {
+                void vcsCheckpointCapture('default', viaMilestones.length + 1, 'via-temporis').catch(
+                  () => {},
+                );
+              }}
+              onRollbackToTurn={(turnNum) => {
+                void vcsCheckpointRestore('default', turnNum).catch(() => {});
+              }}
+              onClose={() => setShowTimelineDrawer(false)}
+            />
+          </div>
+        ) : (
+          <div className="pointer-events-auto absolute bottom-2.5 left-2.5 z-10">
+            <RomanTooltip
+              title="Open Git Milestone Timeline"
+              purpose="Open the interactive Git Milestone Scrubber for inspecting commit diffs and restoring checkpoints."
+              actionHint="Click to open Git Timeline"
+              placement="top"
+            >
+              <button
+                type="button"
+                data-testid="urbs-git-timeline-trigger"
+                onClick={() => setShowTimelineDrawer(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.3)] hover:border-[#B8860B] transition"
+              >
+                <div className="relative size-4 shrink-0 overflow-hidden rounded-full border border-[#C59B27]/80 shadow-[0_0_6px_rgba(212,175,55,0.4)]">
+                  <img
+                    src="/assets/romanesque/wax-seal-medallion.jpg"
+                    alt=""
+                    aria-hidden="true"
+                    className="size-full object-cover"
+                  />
+                </div>
+                <span className="font-semibold text-[#1C140C]">
+                  Git Step {selectedTurn}/{viaMilestones[viaMilestones.length - 1]?.turnNumber ?? 3} ▾
+                </span>
+              </button>
+            </RomanTooltip>
+          </div>
+        )
+      )}
+      {/* Phase 364: Semiotic Layer Navigator & Developer Quick-Action Command Dock (Concept Art Plate 1) */}
       {layout && !embedded && (
         <div
-          data-testid="urbs-minimap-radar"
-          className="pointer-events-auto absolute bottom-2 right-2 z-10 w-[196px] rounded-xl border border-brass/35 bg-[#0D0F17]/92 p-2 shadow-2xl backdrop-blur-md"
+          data-testid="urbs-developer-action-dock"
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(242,235,222,0.96) 0%, rgba(226,215,195,0.95) 100%), url(/assets/romanesque/marble-frieze-banner.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="vox-marble-tablet pointer-events-auto absolute bottom-[64px] left-2.5 z-10 flex w-max max-w-[calc(100%-214px)] flex-wrap items-center justify-between gap-1.5 rounded-xl border-2 border-[#B38728]/80 px-2.5 py-1 text-[#1E160D] shadow-[0_10px_28px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.85)]"
         >
-          <div className="flex items-center justify-between px-0.5 pb-1">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-brass">
-              Strategic Minimap Radar
+          {/* Semiotic Architectural Layer Filter Pills (L0..L5) */}
+          <div data-testid="urbs-semiotic-layer-pills" className="flex items-center gap-1">
+            <span className="mr-0.5 font-display text-[8.5px] font-bold uppercase tracking-[0.14em] text-[#5C4318]">
+              Tiers:
             </span>
-            <span className="font-mono text-[9px] text-zinc-400">
-              {layout.districts.length} districts
-            </span>
-          </div>
-          <svg
-            viewBox={`0 0 ${mapW} ${mapH}`}
-            onClick={onMinimapClick}
-            className="h-[104px] w-full cursor-crosshair rounded-lg border border-white/10 bg-[#07090E]"
-            aria-label="Strategic Minimap Radar"
-          >
-            {/* Thermal & Activity Heatmap Blobs (Concept Art B Circular Radar) */}
-            <defs>
-              <radialGradient id="urbs-radar-heat-hot" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.65" />
-                <stop offset="55%" stopColor="#f59e0b" stopOpacity="0.32" />
-                <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-              </radialGradient>
-              <radialGradient id="urbs-radar-heat-cyan" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.55" />
-                <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-            <circle cx={mapW * 0.62} cy={mapH * 0.56} r="28" fill="url(#urbs-radar-heat-hot)" />
-            <circle cx={mapW * 0.44} cy={mapH * 0.36} r="24" fill="url(#urbs-radar-heat-cyan)" />
-            {/* Cyan AQVAE Aqueduct & Harbor Water Channel */}
-            <path
-              d={`M 14 14 Q ${mapW * 0.55} 24 ${mapW - 14} 42 M 12 ${mapH - 26} Q 48 ${mapH - 12} 78 ${mapH - 8}`}
-              stroke="#22d3ee"
-              strokeWidth="2"
-              strokeOpacity="0.65"
-              fill="none"
-            />
-            {/* Isometric District Polygons & Building Blips */}
-            {layout.districts.map((d) => {
-              const p0 = worldPx(layout, d.x0, d.y0);
-              const p1 = worldPx(layout, d.x1, d.y0);
-              const p2 = worldPx(layout, d.x1, d.y1);
-              const p3 = worldPx(layout, d.x0, d.y1);
-              const pts = [p0, p1, p2, p3]
-                .map((p) => `${toRadarX(p.px).toFixed(1)},${toRadarY(p.py).toFixed(1)}`)
-                .join(' ');
+            {[
+              { layer: null, label: 'All', title: 'Show all architectural layers' },
+              { layer: 0, label: 'L0 Vaults', title: 'L0 Foundation Vaults (crypto, secrets, config)' },
+              { layer: 1, label: 'L1 Acropolis', title: 'L1 Compiler Acropolis (lexer, parser, typeck, codegen)' },
+              { layer: 2, label: 'L2 Rotunda', title: 'L2 Database & Runtime Rotunda (vox-db, search, actor-runtime)' },
+              { layer: 3, label: 'L3 Praetorium', title: 'L3 Orchestrator Praetorium (multi-agent routing, MCP, DEI)' },
+              { layer: 4, label: 'L4 Thermae', title: 'L4 MENS Thermae (QLoRA training, eval, Crucible)' },
+              { layer: 5, label: 'L5 Colosseum', title: 'L5 Surface Colosseum (vox-gui, vox-cli, ludus)' },
+            ].map((item) => {
+              const isAct = activeLayerFilter === item.layer;
               return (
-                <g key={d.name}>
-                  <polygon
-                    points={pts}
-                    fill={d.landmark ? 'rgba(229, 169, 60, 0.16)' : 'rgba(148, 163, 184, 0.10)'}
-                    stroke={d.landmark ? '#e5a93c' : 'rgba(148, 163, 184, 0.45)'}
-                    strokeWidth="1"
-                  />
-                  {d.buildings.slice(0, 6).map((b) => {
-                    const bp = worldPx(layout, b.x, b.y);
-                    return (
-                      <circle
-                        key={b.path}
-                        cx={toRadarX(bp.px)}
-                        cy={toRadarY(bp.py)}
-                        r={b.tier >= 2 ? 1.8 : 1.3}
-                        fill="#fbbf24"
-                      />
-                    );
-                  })}
-                </g>
-              );
-            })}
-            {/* Live Patrolling Citizen Blips on Strategic Minimap Radar */}
-            {layout.districts.slice(0, 3).map((d, idx) => {
-              const citizen = Object.values(citizensRef.current)[idx];
-              const wp = citizen
-                ? worldPx(layout, citizen.pos.x, citizen.pos.y)
-                : worldPx(layout, (d.x0 + d.x1) / 2, d.y1 - 0.6);
-              return (
-                <circle
-                  key={`radar-cit-${idx}`}
-                  cx={toRadarX(wp.px)}
-                  cy={toRadarY(wp.py)}
-                  r="2.4"
-                  fill="#34d399"
-                  stroke="#064e3b"
-                  strokeWidth="0.8"
+                <button
+                  key={item.label}
+                  type="button"
+                  title={item.title}
+                  data-testid={`urbs-layer-pill-${item.layer ?? 'all'}`}
+                  onClick={() => {
+                    setActiveLayerFilter(item.layer);
+                    if (item.layer === null) {
+                      fitWorld();
+                      setDevActionReceipt('Viewing all 6 Semiotic Architectural Tiers (L0–L5)');
+                    } else {
+                      const targetDist =
+                        layout.districts.find((d) => (d.layer ?? 1) === item.layer) ?? layout.districts[0];
+                      if (targetDist) {
+                        jumpToTile((targetDist.x0 + targetDist.x1) / 2, (targetDist.y0 + targetDist.y1) / 2);
+                        setSelection({ kind: 'district', name: targetDist.name });
+                        setDevActionReceipt(`Focused ${item.label} → ${targetDist.name}`);
+                      }
+                    }
+                  }}
+                  className={`rounded-md border px-1.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider transition ${
+                    isAct
+                      ? 'border-[#8C6214] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB] shadow-sm'
+                      : 'border-[#B38728]/55 bg-[#F8F3E8]/90 text-[#3B2B10] hover:border-[#8C6214] hover:bg-white'
+                  }`}
                 >
-                  <animate attributeName="r" values="2;3.2;2" dur="1.6s" repeatCount="indefinite" />
-                </circle>
+                  {item.label}
+                </button>
               );
             })}
-            {/* Camera Viewport Frustum Box */}
-            <rect
-              data-testid="urbs-minimap-frustum"
-              x={frustumRect.x}
-              y={frustumRect.y}
-              width={frustumRect.w}
-              height={frustumRect.h}
-              rx="2"
-              fill="rgba(229, 169, 60, 0.10)"
-              stroke="#e5a93c"
-              strokeWidth="1.2"
-            />
-          </svg>
+          </div>
+
+          <span className="h-3.5 w-px bg-[#B38728]/45" aria-hidden="true" />
+
+          {/* 1-Click Developer Action Push-Buttons */}
+          {(() => {
+            const focusedDist =
+              (selection?.kind === 'district'
+                ? layout.districts.find((d) => d.name === selection.name)
+                : undefined) ?? layout.districts[0];
+            const crateName = focusedDist?.name ?? 'vox-cli';
+            const firstPlot = focusedDist?.buildings[0];
+            const isPinned = pinnedCrates.has(crateName);
+            const isQuarantined = quarantinedSet.has(crateName);
+
+            return (
+              <div data-testid="urbs-developer-actions" className="flex items-center gap-1">
+                <button
+                  type="button"
+                  data-testid="urbs-action-check-crate"
+                  onClick={() => {
+                    setDevActionReceipt(`⚙ Dispatched cargo check -p ${crateName}`);
+                    void voxTransport.executeCommand(['check'], { crate: crateName }).catch(() => {});
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                >
+                  <span>⚙ Check Crate</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="urbs-action-run-tests"
+                  onClick={() => {
+                    setDevActionReceipt(`✓ Running test suite for ${crateName}`);
+                    void voxTransport.executeCommand(['test'], { crate: crateName }).catch(() => {});
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                >
+                  <span>✓ Run Tests</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="urbs-action-inspect-diff"
+                  onClick={() => {
+                    if (firstPlot) {
+                      openSpeculumLoupe(
+                        firstPlot.path,
+                        Math.round(viewportSize.w * 0.45),
+                        Math.round(viewportSize.h * 0.34),
+                      );
+                      setDevActionReceipt(`🔍 Opened Speculum Diff Loupe on ${firstPlot.path}`);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                >
+                  <span>🔍 Diff Loupe</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="urbs-action-pin-context"
+                  onClick={() => {
+                    setPinnedCrates((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(crateName)) next.delete(crateName);
+                      else next.add(crateName);
+                      return next;
+                    });
+                    setDevActionReceipt(
+                      isPinned
+                        ? `Unpinned ${crateName} from LLM context`
+                        : `📌 Pinned ${crateName} to active LLM context budget`,
+                    );
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider shadow-sm ${
+                    isPinned
+                      ? 'border-[#7B8C32] bg-[#1E2410] text-[#DCE7B6]'
+                      : 'border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] text-[#F3E5AB] hover:border-[#D4AF37]'
+                  }`}
+                >
+                  <span>{isPinned ? '📌 Pinned' : '📌 Pin Context'}</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="urbs-action-quarantine"
+                  onClick={() => {
+                    toggleDistrictQuarantine(crateName);
+                    setDevActionReceipt(
+                      isQuarantined
+                        ? `🔓 Lifted quarantine on ${crateName}`
+                        : `🔒 Quarantined ${crateName} from autonomous edits`,
+                    );
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider shadow-sm ${
+                    isQuarantined
+                      ? 'border-amber-600 bg-amber-950 text-amber-200'
+                      : 'border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] text-[#F3E5AB] hover:border-[#D4AF37]'
+                  }`}
+                >
+                  <span>{isQuarantined ? '🔒 Quarantined' : '🔒 Quarantine'}</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="urbs-action-spawn-agent"
+                  onClick={() => {
+                    const targetFile = firstPlot?.path ?? `${crateName}/src/lib.rs`;
+                    useLudusStore.getState().updateAgentTask('AEDILIS-01', {
+                      taskId: `task-${Date.now()}`,
+                      filePath: targetFile,
+                      status: `Auditing ${crateName}`,
+                    });
+                    void voxTransport
+                      .callTool('vox_submit_task', {
+                        description: `Inspect and verify ${crateName}`,
+                        file_affinity: [targetFile],
+                      })
+                      .catch(() => {});
+                    setDevActionReceipt(`⚔ Dispatched LEGIO-01 agent to ${crateName}`);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                >
+                  <span>⚔ Spawn Agent</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="urbs-action-claim-yield"
+                  onClick={() => {
+                    setClaimedYieldXp((xp) => xp + 50);
+                    setDevActionReceipt(`🏆 Claimed +50 XP · +8 Denarii from ${crateName} verification!`);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#B38728] bg-linear-to-b from-[#D4AF37] to-[#9A711C] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208] shadow-sm hover:brightness-110"
+                >
+                  <span>🏆 Yield ({claimedYieldXp} XP)</span>
+                </button>
+              </div>
+            );
+          })()}
+
+          {devActionReceipt && (
+            <span
+              data-testid="urbs-dev-action-receipt"
+              className="rounded border border-[#8C6214]/50 bg-[#1B140B] px-2 py-0.5 font-mono text-[8.5px] text-[#F3E5AB]"
+            >
+              {devActionReceipt}
+            </span>
+          )}
         </div>
       )}
-      {layout && !embedded && !selection && (
-        <div className="pointer-events-auto absolute bottom-11 left-1/2 z-10 -translate-x-1/2">
-          <ViaTemporisScrubber
-            milestones={viaMilestones}
-            selectedTurn={selectedTurn}
-            activeHeadTurn={viaMilestones[viaMilestones.length - 1]?.turnNumber ?? 3}
-            onSelectTurn={(turnNum) => {
-              setSelectedTurn(turnNum);
-              void vcsCheckpointDiffSummary('default', turnNum)
-                .then((summary) => {
-                  const firstPath = summary.files[0]?.file_path;
-                  const plot = firstPath ? layout.byPath[firstPath] : undefined;
-                  if (plot) jumpToTile(plot.x, plot.y);
-                })
-                .catch(() => {});
-            }}
-            onCaptureCheckpoint={() => {
-              void vcsCheckpointCapture('default', viaMilestones.length + 1, 'via-temporis').catch(
-                () => {},
-              );
-            }}
-            onRollbackToTurn={(turnNum) => {
-              void vcsCheckpointRestore('default', turnNum).catch(() => {});
-            }}
-          />
-        </div>
-      )}
+
       <div
         className={`absolute ${
-          embedded ? 'bottom-1.5 left-2' : 'bottom-2 left-1/2 -translate-x-1/2'
-        } z-10 flex items-center gap-1.5`}
+          embedded ? 'bottom-1.5 left-2' : 'bottom-1.5 left-[142px] max-w-[calc(100%-348px)]'
+        } z-10 flex flex-nowrap items-center gap-1.5`}
       >
         <HudPanels
           treasuryUsd={treasuryUsd}
+          spendUsd={treasuryUsd}
           energy={energy}
           maxEnergy={maxEnergy}
           speed={speed}
+          simSpeed={speed}
           onSetSpeed={setSpeed}
           embedded={embedded}
+          onNavigate={onNavigate}
         />
-        <button
-          type="button"
-          onClick={fitWorld}
-          className="pointer-events-auto rounded-md border border-brass/30 bg-[#0D0F17]/90 px-2 py-1 font-mono text-[10px] text-amber-200 hover:bg-brass/20"
+        <RomanTooltip
+          title="Fit city to view"
+          purpose="Centers and zooms the camera so all architectural districts and monuments fit cleanly on screen."
+          actionHint="Click to reset camera zoom & position"
         >
-          ⌂ fit
-        </button>
+          <button
+            type="button"
+            title="Fit city to view"
+            aria-label="Fit city to view"
+            onClick={fitWorld}
+            className="pointer-events-auto rounded-lg border border-[#D4AF37]/50 bg-[#14100B]/95 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#2A2011]"
+          >
+            ⌂ Fit Map
+          </button>
+        </RomanTooltip>
         {!embedded && (
           <>
-            <button
-              type="button"
-              aria-label="Zoom out"
-              onClick={() => stepZoom(1 / 1.2)}
-              className="pointer-events-auto rounded-md border border-zinc-800 bg-[#0D0F17]/90 px-2 py-1 font-mono text-[10px] text-zinc-300 hover:border-brass/40 hover:text-amber-200"
+            <RomanTooltip
+              title="Zoom out"
+              purpose="Step camera zoom out to view broader architectural connections."
+              actionHint="Click to zoom out"
             >
-              −
-            </button>
-            <button
-              type="button"
-              aria-label="Zoom in"
-              onClick={() => stepZoom(1.2)}
-              className="pointer-events-auto rounded-md border border-zinc-800 bg-[#0D0F17]/90 px-2 py-1 font-mono text-[10px] text-zinc-300 hover:border-brass/40 hover:text-amber-200"
+              <button
+                type="button"
+                title="Zoom out"
+                aria-label="Zoom out"
+                onClick={() => stepZoom(1 / 1.2)}
+                className="pointer-events-auto rounded-lg border border-[#D4AF37]/40 bg-[#14100B]/95 px-2.5 py-1 font-mono text-[11px] text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#2A2011]"
+              >
+                −
+              </button>
+            </RomanTooltip>
+            <RomanTooltip
+              title="Zoom in"
+              purpose="Step camera zoom in to inspect individual crate buildings and file diagnostics."
+              actionHint="Click to zoom in"
             >
-              +
-            </button>
+              <button
+                type="button"
+                title="Zoom in"
+                aria-label="Zoom in"
+                onClick={() => stepZoom(1.2)}
+                className="pointer-events-auto rounded-lg border border-[#D4AF37]/40 bg-[#14100B]/95 px-2.5 py-1 font-mono text-[11px] text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#2A2011]"
+              >
+                +
+              </button>
+            </RomanTooltip>
           </>
         )}
       </div>

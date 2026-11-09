@@ -37,7 +37,7 @@ Download a plugin archive, extract the binary onto `PATH`, and `vox` will
 dispatch automatically — no rebuild of the core required.
 
 
-- **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
+- **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON; see [`vox` CLI machine-readable `--json` output](cli-json-output.md)), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
 - **Discover capabilities:** **`vox explain <thing>`** prints what a capability is, its owning crate and layer, CLI/MCP/GUI equivalents and docs link (accepts a capability id, CLI path, MCP tool name, GUI view key, crate or skill; near misses give a numbered shortlist). **`vox features [--domain <d>]`** lists every domain with counts, or one domain's capabilities. Both answer from the embedded capability index; add the global `--json` for the raw index rows (the MCP tools `vox_capability_explain` / `vox_capability_features` return the same rows).

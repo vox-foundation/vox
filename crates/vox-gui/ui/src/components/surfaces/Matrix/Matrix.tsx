@@ -216,28 +216,28 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
                   <text
                     x="0"
                     y={y + 11}
-                    fill={isSelected ? '#E5A93C' : '#9BA3B4'}
+                    fill={isSelected ? '#92400E' : '#4A3620'}
                     fontSize="10"
-                    fontFamily="monospace"
+                    fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif"
                   >
                     {item.branch.slice(0, 16)}
                   </text>
-                  <rect x="115" y={y + 3} width="340" height="8" rx="4" fill="rgba(255,255,255,0.06)" />
+                  <rect x="115" y={y + 3} width="340" height="8" rx="4" fill="rgba(197,155,39,0.16)" />
                   <rect
                     x="115"
                     y={y + 3}
                     width={barW}
                     height="8"
                     rx="4"
-                    fill={isSelected ? '#E5A93C' : '#38BDF8'}
-                    fillOpacity={isSelected ? '0.95' : '0.7'}
+                    fill={isSelected ? '#B8860B' : '#C59B27'}
+                    fillOpacity={isSelected ? '0.95' : '0.75'}
                   />
                   <text
                     x="465"
                     y={y + 11}
-                    fill="#E6EAF2"
+                    fill="#1C140C"
                     fontSize="10"
-                    fontFamily="monospace"
+                    fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif"
                   >
                     {Math.round(item.conf * 100)}%
                   </text>

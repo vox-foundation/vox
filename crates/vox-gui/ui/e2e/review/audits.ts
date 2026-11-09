@@ -63,6 +63,9 @@ export interface DomQualityReport {
   composerToolbarRowCount: number;
   composerToolbarHeightPx: number;
   duplicateControlGroupCount: number;
+  skeletonCount: number;
+  rawBacktickCount: number;
+  digitalColorLeakCount: number;
   discoveredSubTabLabels: string[];
   discoveredPopoverTriggers: string[];
 }
@@ -143,7 +146,12 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
       const r = el.getBoundingClientRect();
       if (r.width < 20 || r.height < 14) continue;
       if ((el.textContent || '').trim().length === 0) continue;
-      if (el.closest('.react-flow__controls, [data-theme-preview]')) continue;
+      if (
+        el.closest(
+          '.react-flow__controls, [data-theme-preview], [data-roman-frieze="true"], [data-roman-gauge="true"], .vox-marble-tablet',
+        )
+      )
+        continue;
       const style = window.getComputedStyle(el);
       const bg = style.backgroundColor;
       const fg = style.color;
@@ -154,11 +162,12 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
         const green = Number(m[2]);
         const blue = Number(m[3]);
         const alpha = m[4] !== undefined ? Number(m[4]) : 1;
-        // Flag light pastel card/pill backgrounds (>215 RGB) that aren't intentional high-contrast badges with dark text
+        // Flag light cool-gray/pastel card backgrounds (>215 RGB) that aren't warm ivory/travertine marble with dark text
         const fgLuma = fgMatch
           ? 0.2126 * Number(fgMatch[1]) + 0.7152 * Number(fgMatch[2]) + 0.0722 * Number(fgMatch[3])
           : 255;
-        if (alpha > 0.65 && red > 215 && green > 215 && blue > 215 && fgLuma > 60) {
+        const isWarmMarble = red >= green && green >= blue && red - blue >= 10;
+        if (alpha > 0.65 && red > 215 && green > 215 && blue > 215 && !isWarmMarble && fgLuma > 110) {
           lightThemeContrastLeakCount++;
         }
       }
@@ -319,6 +328,47 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     .map((el) => (el.getAttribute('data-testid') || el.getAttribute('aria-label') || el.textContent || '').trim())
     .filter((label) => label.length > 0);
 
+  // Phase 358 (`ROMA-CV-STRUCT-01..03`): Detect loading skeletons, raw markdown backticks, and cold digital slate/cyan leaks
+  let skeletonCount = 0;
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>('main [aria-busy="true"], main .animate-pulse'))) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 24 && r.height >= 10 && (el.textContent || '').trim().length === 0) {
+      skeletonCount++;
+    }
+  }
+  if ((document.querySelector('main')?.innerText || '').includes('Loading the capability index')) {
+    skeletonCount += 1;
+  }
+
+  let rawBacktickCount = 0;
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>('main button, main h1, main h2, main h3, main label'))) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 4 && r.height > 4 && (el.textContent || '').includes('`')) {
+      rawBacktickCount++;
+    }
+  }
+
+  let digitalColorLeakCount = 0;
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>('main section, main article, main div, main button, main span'))) {
+    const r = el.getBoundingClientRect();
+    if (r.width < 16 || r.height < 12) continue;
+    const st = window.getComputedStyle(el);
+    const bg = st.backgroundColor;
+    const fg = st.color;
+    // Flag cold navy/slate cards (#0c121b = rgb(12, 18, 27), #0e131a = rgb(14, 19, 26)), raw neon cyan text (rgb(34, 211, 238)), or neon digital green/emerald (rgb(16, 185, 129), rgb(52, 211, 153), rgb(110, 231, 183))
+    if (
+      bg === 'rgb(12, 18, 27)' ||
+      bg === 'rgb(14, 19, 26)' ||
+      fg === 'rgb(34, 211, 238)' ||
+      fg === 'rgb(6, 182, 212)' ||
+      fg === 'rgb(16, 185, 129)' ||
+      fg === 'rgb(52, 211, 153)' ||
+      fg === 'rgb(110, 231, 183)'
+    ) {
+      digitalColorLeakCount++;
+    }
+  }
+
   return {
     outerOverflowPx,
     scrollHostOverflowPx,
@@ -334,6 +384,9 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     composerToolbarRowCount,
     composerToolbarHeightPx,
     duplicateControlGroupCount,
+    skeletonCount,
+    rawBacktickCount,
+    digitalColorLeakCount,
     discoveredSubTabLabels,
     discoveredPopoverTriggers,
   };

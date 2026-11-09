@@ -30,7 +30,7 @@ cargo build -p vox-mcp
 ls target/debug/vox-mcp*
 
 # Re-run doctor
-vox agent doctor
+vox doctor
 ```
 
 If you're using a release build, make sure `vox-agent.json` points to `target/release/vox-mcp`.
@@ -53,7 +53,7 @@ Check `target/debug/vox-lsp.stderr.log` if it exists.
 
 ---
 
-### Port conflict on `vox dashboard`
+### Port conflict on `vox gui`
 **Cause**: Port `8080` (default) is already in use.
 
 **Fix**:
@@ -65,7 +65,7 @@ netstat -ano | findstr :8080
 taskkill /PID <PID> /F
 
 # Or launch on a different port
-VOX_DASHBOARD_PORT=8090 vox dashboard
+VOX_GUI_PORT=8090 vox gui
 ```
 
 ---
@@ -89,7 +89,7 @@ vox completions powershell >> $PROFILE
 ### `vox_map_agent_session` failing
 **Cause**: The session ID is already mapped, or the agent doesn't exist.
 
-**Fix**: Run `vox agent status` to see current session-to-agent mappings. If stale, restart the MCP server: `cargo run -p vox-mcp`.
+**Fix**: Check current session-to-agent mappings in the orchestrator runtime, or restart the MCP server: `vox mcp`.
 
 ---
 
@@ -103,14 +103,14 @@ vox completions powershell >> $PROFILE
 ### Agent scoped to the wrong files
 **Cause**: The `scope:` line in `.vox/agents/<agent>.md` doesn't match the edited file's path.
 
-**Fix** { Run `vox agent sync` to regenerate agents from the current crate graph, or manually edit `.vox/agents/<agent>.md` to update the `scope:` field.
+**Fix**: Update `.vox/agents/<agent>.md` to update the `scope:` field for the agent.
 
 ---
 
-### Dashboard shows no agents
+### GUI shows no agents
 **Cause**: The orchestrator has no active agents. Agents are only spawned when tasks are submitted.
 
-**Fix**: Submit a task via an AI session or run `vox orchestrator spawn` to create a dev agent, then reload the dashboard.
+**Fix**: Submit a task via an AI session to spawn an agent, then reload the GUI.
 ---
 
 ## Compiler Diagnostics & Error Codes

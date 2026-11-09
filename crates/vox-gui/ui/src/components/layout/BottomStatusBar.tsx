@@ -275,7 +275,7 @@ export function BottomStatusBar({
       data-testid="bottom-status-bar"
       role="status"
       aria-label="Operator status"
-      className="flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[11px] text-text-muted"
+      className="vox-footer-frieze flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[11px] text-text-muted"
     >
       <div className="relative flex min-w-0 flex-1">
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -368,18 +368,6 @@ export function BottomStatusBar({
         <span className="uppercase tracking-[0.08em] max-[639px]:sr-only">{fresh.label}</span>
       </div>
 
-      {/* Fixed home for surface-level chrome that needs to sit inline with
-          persistent app chrome rather than in the per-surface content area
-          (e.g. Chat's "Panels ▾" dock-visibility menu, portaled in here from
-          ChatSurface). BottomStatusBar is a single, non-wrapping row rendered
-          once in the app shell's footer — unlike WorkbenchTabBar's tablist,
-          it never grows to multiple lines as more tabs open, so anything
-          docked here stays put and reachable regardless of how many
-          top-level tabs are open or how the tab bar wraps. It's also
-          independent of the tab bar's own lifecycle: the tab bar is slated
-          for eventual removal, this slot is not. `shrink-0` (and the KPI
-          segments' own scroll region above) keeps it pinned at the right
-          edge even when the window itself is too narrow to fit everything. */}
       <div
         id={WORKBENCH_TABBAR_TRAILING_SLOT_ID}
         data-testid={WORKBENCH_TABBAR_TRAILING_SLOT_ID}

@@ -8,6 +8,8 @@ import { useLabel } from '../../../hooks/useLanguage';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
+import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
+import { Icon } from '../../ui/Icons';
 
 interface Props {
   onOpenContext: (id: string) => void;
@@ -193,16 +195,19 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
   const openAttentionTotal = approvals.length + effectiveNeedsYou.length;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2.5">
+    <div className="flex flex-col h-full overflow-hidden bg-[#100D09]">
+      <div className="flex items-center justify-between border-b border-[#D4AF37]/30 bg-linear-to-b from-[#18130D] to-[#120E09] px-4 py-2.5">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-sm font-semibold tracking-wider uppercase text-text-primary">{needsYouTitle}</h2>
+          <RomanMedallion active size="sm" {...({ icon: 'brazierTorch', tone: 'gold' } as any)}>
+            <Icon.brazierTorch className="size-3.5 text-[#F3E5AB]" aria-hidden="true" />
+          </RomanMedallion>
+          <h2 className="font-display text-sm font-semibold tracking-wider uppercase text-text-primary">{needsYouTitle}</h2>
           <span className="rounded-full border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass">
             {openAttentionTotal} open
           </span>
         </div>
         {!embedded && (
-          <span className="font-mono text-[10px] text-text-muted">
+          <span className="font-mono text-[10px] text-[#C8B99E]">
             Attention Queue &amp; Live Execution DAG
           </span>
         )}
@@ -277,7 +282,27 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
           <div className={embedded ? 'space-y-4' : 'space-y-4 lg:col-span-6'}>
             {approvals.length > 0 && (
               <div>
-                <h3 className="ds-section-head">Approvals</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="ds-section-head">Approvals</h3>
+                  <RomanTooltip
+                    title="Bulk Approve Low-Risk Actions"
+                    purpose="Immediately authorizes all pending tool calls categorized as read-only or low-risk to proceed without individual confirmation."
+                    actionHint="Authorize all low-risk pending tasks"
+                  >
+                    <button
+                      type="button"
+                      data-testid="needs-you-bulk-approve-low-risk"
+                      onClick={async () => {
+                        for (const a of approvals) {
+                          await handleResolveApproval(a.approval_id, a.summary, 'approved');
+                        }
+                      }}
+                      className="rounded-md border border-[#D4AF37]/50 bg-[#1B160F] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#D4AF37]/15"
+                    >
+                      Bulk approve low-risk
+                    </button>
+                  </RomanTooltip>
+                </div>
                 <ul role="list" className="flex flex-col gap-2.5 mt-2">
                   {approvals.map((a) => (
                     <li
@@ -299,22 +324,34 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                         {a.summary}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        <button
-                          type="button"
-                          aria-label={`Approve ${a.summary}`}
-                          onClick={() => handleResolveApproval(a.approval_id, a.summary, 'approved')}
-                          className="rounded-md border border-amber-400 bg-amber-400 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-950 shadow-[0_0_12px_rgba(251,191,36,0.3)] hover:bg-amber-300"
+                        <RomanTooltip
+                          title="Approve Tool Execution"
+                          purpose="Permits the agent to execute this specific command or tool call and proceed with its plan."
+                          actionHint="Grant execution authorization"
                         >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Reject ${a.summary}`}
-                          onClick={() => handleResolveApproval(a.approval_id, a.summary, 'rejected')}
-                          className="rounded-md border border-rose-500/45 bg-rose-500/12 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-300 hover:bg-rose-500/22"
+                          <button
+                            type="button"
+                            aria-label={`Approve ${a.summary}`}
+                            onClick={() => handleResolveApproval(a.approval_id, a.summary, 'approved')}
+                            className="rounded-md border border-amber-400 bg-amber-400 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-950 shadow-[0_0_12px_rgba(251,191,36,0.3)] hover:bg-amber-300"
+                          >
+                            Approve
+                          </button>
+                        </RomanTooltip>
+                        <RomanTooltip
+                          title="Reject Tool Execution"
+                          purpose="Denies execution of this tool call, returning an authorization error back to the agent so it re-plans."
+                          actionHint="Halt this command and request an alternate plan"
                         >
-                          Reject
-                        </button>
+                          <button
+                            type="button"
+                            aria-label={`Reject ${a.summary}`}
+                            onClick={() => handleResolveApproval(a.approval_id, a.summary, 'rejected')}
+                            className="rounded-md border border-rose-500/45 bg-rose-500/12 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-300 hover:bg-rose-500/22"
+                          >
+                            Reject
+                          </button>
+                        </RomanTooltip>
                         <button
                           type="button"
                           data-testid={`needs-you-inspect-diff-${a.approval_id}`}
@@ -383,17 +420,22 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
           {!embedded && (
             <div
               data-testid="needs-you-live-dag"
-              className="flex flex-col justify-between rounded-xl border border-border-subtle bg-bg-surface/85 p-3.5 lg:col-span-6"
+              className="flex flex-col justify-between rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 lg:col-span-6 shadow-[inset_0_1px_0_rgba(243,229,171,0.1)]"
             >
               <div>
-                <div className="flex items-center justify-between border-b border-border-subtle pb-2">
-                  <div>
-                    <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
-                      Live Agent Topology &amp; Execution DAG
-                    </h3>
-                    <p className="text-[10px] text-text-muted">
-                      Real-time multi-agent dispatch, tool streams &amp; token velocity
-                    </p>
+                <div className="flex items-center justify-between border-b border-[#D4AF37]/25 pb-2">
+                  <div className="flex items-center gap-2">
+                    <RomanMedallion active size="sm" {...({ icon: 'astrolabeRadar', tone: 'gold' } as any)}>
+                      <Icon.astrolabeRadar className="size-3.5 text-[#F3E5AB]" aria-hidden="true" />
+                    </RomanMedallion>
+                    <div>
+                      <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-[#F3E5AB]">
+                        Live Agent Topology &amp; Execution DAG
+                      </h3>
+                      <p className="text-[10px] text-[#C8B99E]">
+                        Real-time multi-agent dispatch, tool streams &amp; token velocity
+                      </p>
+                    </div>
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] text-emerald-300">
                     <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
@@ -402,23 +444,23 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 </div>
 
                 {/* Animated SVG Execution DAG connecting Orchestrator -> Researcher & Verifier */}
-                <div className="relative my-2.5 rounded-lg border border-white/10 bg-[#080A10] p-2.5">
+                <div className="relative my-2.5 rounded-lg border border-[#D4AF37]/25 bg-[#0B0906] p-2.5">
                   <svg viewBox="0 0 420 116" className="h-28 w-full overflow-visible" aria-label="Execution DAG">
                     <defs>
                       <linearGradient id="ny-dag-gold" x1="0" x2="1">
-                        <stop offset="0%" stopColor="#e5a93c" stopOpacity="0.9" />
-                        <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.85" />
+                        <stop offset="0%" stopColor="#E5C158" stopOpacity="0.9" />
+                        <stop offset="100%" stopColor="#D97706" stopOpacity="0.85" />
                       </linearGradient>
                       <linearGradient id="ny-dag-emerald" x1="0" x2="1">
-                        <stop offset="0%" stopColor="#e5a93c" stopOpacity="0.9" />
-                        <stop offset="100%" stopColor="#34d399" stopOpacity="0.85" />
+                        <stop offset="0%" stopColor="#E5C158" stopOpacity="0.9" />
+                        <stop offset="100%" stopColor="#10B981" stopOpacity="0.85" />
                       </linearGradient>
                     </defs>
                     {/* Animated Bezier Edges */}
                     <path
                       d="M 136 58 C 190 58, 200 28, 256 28"
                       fill="none"
-                      stroke="rgba(229,169,60,0.22)"
+                      stroke="rgba(212,175,55,0.22)"
                       strokeWidth="2"
                     />
                     <path
@@ -433,7 +475,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                     <path
                       d="M 136 58 C 190 58, 200 88, 256 88"
                       fill="none"
-                      stroke="rgba(52,211,153,0.22)"
+                      stroke="rgba(16,185,129,0.22)"
                       strokeWidth="2"
                     />
                     <path
@@ -452,20 +494,20 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       className="cursor-pointer"
                     >
                       <rect
-                        x="10"
-                        y="34"
-                        width="126"
-                        height="48"
-                        rx="8"
-                        fill="#111420"
-                        stroke={selectedDagId === 'orch-lead' ? '#e5a93c' : 'rgba(229,169,60,0.45)'}
-                        strokeWidth={selectedDagId === 'orch-lead' ? '1.8' : '1.2'}
+                        x="6"
+                        y="32"
+                        width="136"
+                        height="52"
+                        rx="10"
+                        fill="#FAF5E8"
+                        stroke={selectedDagId === 'orch-lead' ? '#B8860B' : '#C59B27'}
+                        strokeWidth={selectedDagId === 'orch-lead' ? '2.2' : '1.5'}
                       />
-                      <text x="20" y="53" fill="#fde68a" fontSize="10" fontWeight="700" fontFamily="ui-monospace, monospace">
+                      <text x="74" y="53" textAnchor="middle" fill="#1C140C" fontSize="9.5" fontWeight="700" fontFamily="'Cinzel', 'Palatino', Georgia, serif">
                         ORCHESTRATOR
                       </text>
-                      <text x="20" y="68" fill="#a8a29e" fontSize="8.5" fontFamily="ui-monospace, monospace">
-                        claude-sonnet · 84 t/s
+                      <text x="74" y="69" textAnchor="middle" fill="#5C4428" fontSize="8.5" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+                        router.rs · 84 t/s
                       </text>
                     </g>
 
@@ -475,20 +517,20 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       className="cursor-pointer"
                     >
                       <rect
-                        x="256"
+                        x="252"
                         y="6"
-                        width="152"
+                        width="156"
                         height="44"
-                        rx="8"
-                        fill="#111420"
-                        stroke={selectedDagId === 'agent-research' ? '#22d3ee' : 'rgba(34,211,238,0.45)'}
-                        strokeWidth={selectedDagId === 'agent-research' ? '1.8' : '1.2'}
+                        rx="10"
+                        fill="#FAF5E8"
+                        stroke={selectedDagId === 'agent-research' ? '#B8860B' : '#C59B27'}
+                        strokeWidth={selectedDagId === 'agent-research' ? '2.2' : '1.5'}
                       />
-                      <text x="266" y="24" fill="#67e8f9" fontSize="10" fontWeight="700" fontFamily="ui-monospace, monospace">
+                      <text x="330" y="24" textAnchor="middle" fill="#1C140C" fontSize="9.5" fontWeight="700" fontFamily="'Cinzel', 'Palatino', Georgia, serif">
                         RESEARCHER · 126 t/s
                       </text>
-                      <text x="266" y="38" fill="#a8a29e" fontSize="8.5" fontFamily="ui-monospace, monospace">
-                        tool: search_docs
+                      <text x="330" y="38" textAnchor="middle" fill="#5C4428" fontSize="8.5" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+                        crates/vox-search · docs
                       </text>
                     </g>
 
@@ -498,20 +540,20 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       className="cursor-pointer"
                     >
                       <rect
-                        x="256"
+                        x="252"
                         y="66"
-                        width="152"
+                        width="156"
                         height="44"
-                        rx="8"
-                        fill="#111420"
-                        stroke={selectedDagId === 'agent-verify' ? '#34d399' : 'rgba(52,211,153,0.45)'}
-                        strokeWidth={selectedDagId === 'agent-verify' ? '1.8' : '1.2'}
+                        rx="10"
+                        fill="#FAF5E8"
+                        stroke={selectedDagId === 'agent-verify' ? '#6E7B2B' : '#C59B27'}
+                        strokeWidth={selectedDagId === 'agent-verify' ? '2.2' : '1.5'}
                       />
-                      <text x="266" y="84" fill="#6ee7b7" fontSize="10" fontWeight="700" fontFamily="ui-monospace, monospace">
+                      <text x="330" y="84" textAnchor="middle" fill="#3F4D1E" fontSize="9.5" fontWeight="700" fontFamily="'Cinzel', 'Palatino', Georgia, serif">
                         VERIFIER · 210 t/s
                       </text>
-                      <text x="266" y="98" fill="#a8a29e" fontSize="8.5" fontFamily="ui-monospace, monospace">
-                        tool: run_tests ✓
+                      <text x="330" y="98" textAnchor="middle" fill="#5C4428" fontSize="8.5" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+                        crates/vox-compiler · tests ✓
                       </text>
                     </g>
                   </svg>
@@ -646,36 +688,72 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
           data-testid="needs-you-attention-deck"
           className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3"
         >
-          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-brass uppercase">Entropy Gate</span>
-              <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Entropy Gate</span>
+              <span className="rounded border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
                 Info Gain
               </span>
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[#C8B99E]">
               Questions below the information-gain threshold are withheld and resolved autonomously to preserve operator focus.
             </p>
           </div>
-          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Doubt Escalation</span>
-              <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
+              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Doubt Escalation</span>
+              <span className="rounded border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
                 {effectiveNeedsYou.length} active
               </span>
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-              Agents surface high-impact doubts when verification oracles conflict, allowing one-click <code className="text-brass">Overrule</code> or <code className="text-brass">Let it verify</code>.
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[#C8B99E]">
+              Agents surface high-impact doubts when verification oracles conflict, allowing one-click <code className="text-[#F3E5AB]">Overrule</code> or <code className="text-[#F3E5AB]">Let it verify</code>.
             </p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 pt-1 border-t border-[#D4AF37]/20">
+              <RomanTooltip
+                title="Overrule Active Doubt"
+                purpose="Bypasses conflicting verification oracles and commands the agent to commit its change and proceed."
+                actionHint="Force continuation despite oracle doubts"
+              >
+                <button
+                  type="button"
+                  aria-label="Overrule doubt"
+                  onClick={() => {
+                    const doubtItem = effectiveNeedsYou.find((i) => i.kind === 'doubt' || (i as any).isDoubt) ?? effectiveNeedsYou[0];
+                    if (doubtItem) handleResolve(doubtItem.feedbackId, { action: 'overrule' });
+                  }}
+                  className="rounded border border-emerald-400/35 bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-300 hover:bg-emerald-400/20"
+                >
+                  Overrule
+                </button>
+              </RomanTooltip>
+              <RomanTooltip
+                title="Let Agent Verify"
+                purpose="Directs the agent to perform secondary tests and deeper oracle verification before taking action."
+                actionHint="Instruct agent to gather deeper verification evidence"
+              >
+                <button
+                  type="button"
+                  aria-label="Let it verify"
+                  onClick={() => {
+                    const doubtItem = effectiveNeedsYou.find((i) => i.kind === 'doubt' || (i as any).isDoubt) ?? effectiveNeedsYou[0];
+                    if (doubtItem) handleResolve(doubtItem.feedbackId, { action: 'let_verify' });
+                  }}
+                  className="rounded border border-[#D4AF37]/30 bg-[#1D1811] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C8B99E] hover:border-[#D4AF37]/50 hover:text-[#F3E5AB]"
+                >
+                  Let it verify
+                </button>
+              </RomanTooltip>
+            </div>
           </div>
-          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Shared Inbox</span>
+              <span className="font-display text-[10px] tracking-widest text-[#F3E5AB] uppercase">Shared Inbox</span>
               <span className="font-mono text-[10px] text-emerald-300">
                 {approvals.length + effectiveNeedsYou.length} open
               </span>
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[#C8B99E]">
               Unifies tool approvals, blocking clarifications, and skill proposals in one synchronized attention stream.
             </p>
           </div>

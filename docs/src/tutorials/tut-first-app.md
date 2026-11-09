@@ -87,5 +87,6 @@ Visit `http://localhost:3000` to see your collaborative task list in action!
 ---
 
 **Next Steps**:
+- [Checkpoints Checklist](tut-first-vox-app-checkpoints.md) — Verify your minimal compile and run pipeline.
 - [Actor Basics](tut-actor-basics.md) — Add real-time collaboration with shared state.
 - [Durable Workflows](tut-workflow-durability.md) — Automate task reminders.

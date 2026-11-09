@@ -3,6 +3,7 @@ import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import type { Toast } from '../../../types/tauri';
@@ -172,6 +173,20 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
 
   return (
     <div className="grid grid-cols-12 gap-5">
+      <div className="col-span-12">
+        <RomanSurfaceHeader
+          domainTag="AGENTS · MESH"
+          title="Vox Populi Distributed Compute Mesh & Queue Dispatch"
+          subtitle="PEER DISCOVERY · VRAM TELEMETRY · REMOTE WORKLOAD DISPATCH"
+          waxSealBadge="MESH ACTIVE"
+          icon={<Icon.cpu className="size-4 text-[#F3E5AB]" />}
+          gauges={[
+            { label: 'Nodes', valueText: `${nodes.length}`, ratio: Math.min(1, Math.max(0.2, nodes.length / 8)), tone: 'gold' },
+            { label: 'Pending', valueText: `${pendingCount ?? 0}`, ratio: Math.min(1, (pendingCount ?? 0) / 10), tone: 'emerald' },
+            { label: 'Source', valueText: (nodesMeta.source ?? 'LOCAL').toUpperCase(), ratio: 0.9, tone: 'gold' },
+          ]}
+        />
+      </div>
       {/* Summary / queue header */}
       <Glass className="col-span-12 p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">

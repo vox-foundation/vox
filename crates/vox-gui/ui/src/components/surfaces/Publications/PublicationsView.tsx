@@ -5,6 +5,8 @@ import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { PUBLICATION_STAGES, groupByStage, PublicationManifest } from '../../../lib/pipeline';
 import { useLabel } from '../../../hooks/useLanguage';
 import { draftManuscript, renderLatex } from '../../../api/scientia';
+import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -56,19 +58,52 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('pub-pipeline')}</h2>
-        <button type="button" onClick={refresh} disabled={loading}
-          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
+      <RomanSurfaceHeader
+        domainTag="KNOWLEDGE · PUBLICATIONS"
+        title="Publication Pipeline & Archival Ledger"
+        subtitle="Track manuscript drafts, verification gates, LaTeX rendering, and archival status across publication venues."
+        waxSealBadge="ARCHIVAL READY"
+        icon={<Icon.book className="size-5 text-[#F3E5AB]" />}
+        gauges={[
+          {
+            label: 'MANIFESTS',
+            valueText: `${manifests.length}`,
+            ratio: Math.min(1, manifests.length / 20),
+            tone: 'gold',
+            purpose: 'Total publication pipeline manifests',
+          },
+          {
+            label: 'PUBLISHED',
+            valueText: `${groups['archived']?.length ?? 0}`,
+            ratio: Math.min(1, (groups['archived']?.length ?? 0) / 10),
+            tone: 'emerald',
+            purpose: 'Archived and released publications',
+          },
+          {
+            label: 'STAGES',
+            valueText: `${PUBLICATION_STAGES.length}`,
+            ratio: 1,
+            tone: 'gold',
+            purpose: 'Active pipeline verification stages',
+          },
+        ]}
+        actions={
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            className="rounded-lg border border-[#D4AF37]/40 bg-[#78350F]/20 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-[#F3E5AB] hover:bg-[#78350F]/40 disabled:opacity-40 transition"
+          >
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        }
+      />
       <div className="grid grid-cols-2 gap-2.5 pb-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         {PUBLICATION_STAGES.map(stage => (
           <div key={stage} className="min-w-0">
             <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">{stage.replace(/_/g, ' ')}</span>
-              <span className="rounded-full bg-overlay-subtle px-1.5 font-mono text-[9px] text-text-muted">{groups[stage].length}</span>
+              <span className="font-mono text-[10px] uppercase tracking-wide text-[#D4AF37]">{stage.replace(/_/g, ' ')}</span>
+              <span className="rounded-full border border-[#D4AF37]/30 bg-[#16120C] px-1.5 font-mono text-[9px] text-[#F3E5AB]">{groups[stage].length}</span>
             </div>
             <div className="space-y-2">
               {groups[stage].map(m => (
@@ -76,15 +111,17 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
                   type="button"
                   key={m.publication_id}
                   onClick={() => setSelected(m)}
-                  className={`w-full rounded-lg border bg-overlay-subtle p-2 text-left transition-colors hover:bg-overlay-subtle ${
-                    selected?.publication_id === m.publication_id ? 'border-cyan/50' : 'border-border-subtle'
+                  className={`w-full rounded-lg border p-2 text-left transition-colors ${
+                    selected?.publication_id === m.publication_id
+                      ? 'border-[#D4AF37] bg-[#2A2011] shadow-xs'
+                      : 'border-[#D4AF37]/25 bg-[#16120C] hover:border-[#D4AF37]/50'
                   }`}
                 >
-                  <div className="truncate font-mono text-[11px] text-text-secondary">{m.publication_id}</div>
-                  <div className="text-[10px] text-text-muted">{m.content_type}</div>
+                  <div className="truncate font-mono text-[11px] text-[#F3E5AB]">{m.publication_id}</div>
+                  <div className="text-[10px] text-[#D6CEBF]">{m.content_type}</div>
                 </button>
               ))}
-              {groups[stage].length === 0 && <div className="rounded-lg border border-dashed border-border-subtle p-2 text-center text-[10px] text-text-muted">—</div>}
+              {groups[stage].length === 0 && <div className="rounded-lg border border-dashed border-[#D4AF37]/20 p-2 text-center text-[10px] text-[#D6CEBF]/60">—</div>}
             </div>
           </div>
         ))}
@@ -101,36 +138,30 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           data-testid="publications-pipeline-overview"
           className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
         >
-          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-brass uppercase">IMRaD &amp; LaTeX</span>
-              <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
-                {manifests.length} manifests
-              </span>
+              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">IMRaD &amp; LaTeX</span>
+              <RomanWaxSealBadge label={`${manifests.length} manifests`} tone="gold" />
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
               Select any card above to preview its generated IMRaD manuscript, compile LaTeX source, or inspect extracted epistemic claims.
             </p>
           </div>
-          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Claim Verification</span>
-              <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
-                MiniCheck
-              </span>
+              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Claim Verification</span>
+              <RomanWaxSealBadge label="MiniCheck" tone="gold" />
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-              Every candidate paper undergoes automated claim extraction (<code className="text-brass">vox scientia claims</code>) and confidence scoring before approval.
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+              Every candidate paper undergoes automated claim extraction (<code className="text-[#F3E5AB]">vox scientia claims</code>) and confidence scoring before approval.
             </p>
           </div>
-          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Archival Deposit</span>
-              <span className="font-mono text-[10px] text-emerald-300">
-                DOI + SWHID
-              </span>
+              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Archival Deposit</span>
+              <RomanWaxSealBadge label="DOI + SWHID" tone="emerald" />
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
               Tracks Zenodo DOI reservation, ORCID attribution, and Software Heritage (SWHID) source archival across 7 lifecycle stages.
             </p>
           </div>
@@ -210,11 +241,11 @@ function PublicationDetail({
   const resolvedStageIdx = stageIdx === -1 ? 0 : stageIdx;
 
   return (
-    <div className="rounded-xl border border-cyan/30 bg-cyan/[0.02] p-4">
+    <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate font-mono text-sm text-text-primary">{manifest.publication_id}</div>
-          <div className="font-mono text-[11px] text-text-muted">{manifest.content_type} · {manifest.state}</div>
+          <div className="truncate font-mono text-sm text-[#F3E5AB]">{manifest.publication_id}</div>
+          <div className="font-mono text-[11px] text-[#D6CEBF]">{manifest.content_type} · {manifest.state}</div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -233,7 +264,7 @@ function PublicationDetail({
                 setBusy(false);
               }
             }}
-            className="rounded-lg border border-brass/30 bg-brass/10 px-3 py-1.5 text-xs text-brass hover:bg-brass/20"
+            className="rounded-lg border border-[#D4AF37]/40 bg-[#78350F]/20 px-3 py-1.5 text-xs text-[#F3E5AB] hover:bg-[#78350F]/40 transition"
           >
             Preview IMRaD
           </button>
@@ -253,25 +284,25 @@ function PublicationDetail({
                 setBusy(false);
               }
             }}
-            className="rounded-lg border border-cyan/30 bg-cyan/10 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/20"
+            className="rounded-lg border border-[#D4AF37]/40 bg-[#78350F]/20 px-3 py-1.5 text-xs text-[#F3E5AB] hover:bg-[#78350F]/40 transition"
           >
             Preview LaTeX
           </button>
           <button type="button" onClick={load} disabled={busy}
-            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
+            className="rounded-lg border border-[#D4AF37]/30 bg-[#2A2011] px-3 py-1.5 text-xs text-[#D6CEBF] hover:bg-[#78350F]/30 hover:text-[#F3E5AB]">
             {busy ? 'Loading…' : 'Reload'}
           </button>
           <button type="button" onClick={onClose}
-            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
+            className="rounded-lg border border-[#D4AF37]/30 bg-[#2A2011] px-3 py-1.5 text-xs text-[#D6CEBF] hover:bg-[#78350F]/30 hover:text-[#F3E5AB]">
             Close
           </button>
         </div>
       </div>
 
       {previewText && (
-        <div data-testid="publication-artifact-preview" className="mb-4 rounded-lg border border-border-subtle bg-black/50 p-3">
+        <div data-testid="publication-artifact-preview" className="mb-4 rounded-lg border border-[#D4AF37]/30 bg-[#1F170F] p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-brass">
+            <span className="font-mono text-xs uppercase tracking-wider text-[#D4AF37]">
               {previewKind === 'latex' ? 'LaTeX Document Preview' : 'IMRaD Manuscript Preview'}
             </span>
             <button
@@ -280,12 +311,12 @@ function PublicationDetail({
                 setPreviewText(null);
                 setPreviewKind(null);
               }}
-              className="font-mono text-[11px] text-text-muted hover:text-text-secondary"
+              className="font-mono text-[11px] text-[#D6CEBF] hover:text-[#F3E5AB]"
             >
               Close Preview
             </button>
           </div>
-          <pre className="max-h-52 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-secondary">
+          <pre className="max-h-52 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[#D6CEBF]">
             {previewText}
           </pre>
         </div>
@@ -296,9 +327,9 @@ function PublicationDetail({
         {PUBLICATION_STAGES.map((s, i) => (
           <React.Fragment key={s}>
             <span className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-              i <= resolvedStageIdx ? 'bg-cyan/15 text-cyan' : 'bg-overlay-subtle text-text-muted'
+              i <= resolvedStageIdx ? 'border border-[#D4AF37]/50 bg-[#78350F]/30 text-[#F3E5AB]' : 'bg-[#16120C] text-[#D6CEBF]'
             }`}>{s.replace(/_/g, ' ')}</span>
-            {i < PUBLICATION_STAGES.length - 1 && <span className="text-text-muted">›</span>}
+            {i < PUBLICATION_STAGES.length - 1 && <span className="text-[#D4AF37]/40">›</span>}
           </React.Fragment>
         ))}
       </div>
@@ -306,20 +337,20 @@ function PublicationDetail({
       <div className="grid gap-4 md:grid-cols-2">
         {/* Claims */}
         <div>
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+          <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">
             Claims {claims ? `(${claims.claim_count})` : ''}
           </div>
           {!claims || claims.claims.length === 0 ? (
-            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">
+            <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-3 text-[12px] text-[#D6CEBF]">
               {busy ? 'Loading…' : 'No extracted claims. Run claim extraction first.'}
             </div>
           ) : (
             <ul className="space-y-1">
               {claims.claims.map((c, i) => (
-                <li key={c.id ?? i} className="rounded-lg border border-border-subtle bg-overlay-subtle p-2">
-                  <div className="text-[12px] text-text-secondary">{c.text ?? '(no text)'}</div>
+                <li key={c.id ?? i} className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2">
+                  <div className="text-[12px] text-[#F3E5AB]">{c.text ?? '(no text)'}</div>
                   {c.verdict_label && (
-                    <div className="mt-0.5 font-mono text-[10px] text-text-muted">
+                    <div className="mt-0.5 font-mono text-[10px] text-[#D4AF37]">
                       {c.verdict_label}{typeof c.confidence === 'number' ? ` · ${c.confidence.toFixed(2)}` : ''}
                     </div>
                   )}
@@ -331,18 +362,18 @@ function PublicationDetail({
 
         {/* Venue routing */}
         <div>
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Venue routing</div>
+          <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">Venue routing</div>
           {!venue ? (
-            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">
+            <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-3 text-[12px] text-[#D6CEBF]">
               {busy ? 'Loading…' : `No routing for class "${manifest.content_type}".`}
             </div>
           ) : (
-            <div className="space-y-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3">
+            <div className="space-y-2 rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-3">
               <div className="flex flex-wrap gap-1.5">
                 {venue.recommended_venues.length === 0 ? (
-                  <span className="font-mono text-[11px] text-text-muted">No recommended venues.</span>
+                  <span className="font-mono text-[11px] text-[#D6CEBF]">No recommended venues.</span>
                 ) : venue.recommended_venues.map(v => (
-                  <span key={v} className="rounded-sm bg-cyan/10 px-2 py-0.5 font-mono text-[11px] text-cyan">{v}</span>
+                  <span key={v} className="rounded-sm border border-[#D4AF37]/35 bg-[#2A2011] px-2 py-0.5 font-mono text-[11px] text-[#F3E5AB]">{v}</span>
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] text-text-muted">

@@ -46,8 +46,6 @@ export const DEFAULT_SESSION_CONTEXT_PINS: SessionContextPin[] = [
   { id: 'ctx-2', label: '@kb:agentos-ssot-2026.md', scope: 'RRF 0.94' },
 ];
 
-
-
 export interface ChatExecutionTask {
   id: string;
   title: string;
@@ -268,7 +266,6 @@ export function ChatExecutionRail({
     return () => window.removeEventListener('vox:session-posture-change', onPostureSync);
   }, []);
 
-  // Editable task list state (overlays prop tasks so edits, additions, status toggles, and removals work immediately)
   const [addedTasks, setAddedTasks] = useState<ChatExecutionTask[]>([]);
   const [taskEdits, setTaskEdits] = useState<Record<string, { title?: string; status?: string; priority?: number }>>({});
   const [removedTaskIds, setRemovedTaskIds] = useState<Set<string>>(new Set());
@@ -276,7 +273,6 @@ export function ChatExecutionRail({
   const [editingTaskDraft, setEditingTaskDraft] = useState<string>('');
   const [newTaskTitle, setNewTaskTitle] = useState<string>('');
 
-  // Synchronize with CAS task ledger events from PlanPanel or LLM turn events
   useEffect(() => {
     const onLedgerDelta = (ev: Event) => {
       const custom = ev as CustomEvent<TaskLedgerDeltaEventDetail>;
@@ -319,7 +315,6 @@ export function ChatExecutionRail({
     return () => window.removeEventListener(TASK_LEDGER_DELTA_EVENT, onLedgerDelta);
   }, []);
 
-  // Editable session context pins state (synced with ChatSurface @kb Context Inspector)
   const [contextPins, setContextPins] = useState<SessionContextPin[]>(DEFAULT_SESSION_CONTEXT_PINS);
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
   const [editingPinDraft, setEditingPinDraft] = useState<string>('');
@@ -483,12 +478,11 @@ export function ChatExecutionRail({
     broadcastPins(contextPins.filter((p) => p.id !== pinId));
   };
 
-  // Re-read the context budget on every session change and every completed turn (read once per session, it went stale).
   useEffect(() => {
     let cancelled = false;
     if (budgetSessionRef.current !== sessionId) {
       budgetSessionRef.current = sessionId;
-      setBudget(null); // a new session never shows the previous session's reading
+      setBudget(null);
     }
     getContextBudget(sessionId)
       .then((next) => {
@@ -559,7 +553,6 @@ export function ChatExecutionRail({
           </div>
         </div>
 
-        {/* Concept-Art v4.2 Unified Inspector Underline Header (All | Plan & Tasks | Context | Routing) */}
         <div
           role="tablist"
           aria-label="Session inspector sections"
@@ -850,6 +843,38 @@ export function ChatExecutionRail({
               className="truncate rounded-sm px-2 py-0.5 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
             >
               {routingLine}
+            </button>
+            <button
+              type="button"
+              data-testid="execution-rail-mens-spoke"
+              data-allow-ellipsis="true"
+              title="Active MENS Spoke & Hub Base routed by DomainRouter (click to open MENS Crucible)"
+              onClick={() => {
+                if (onNavigate) {
+                  onNavigate('mens');
+                } else {
+                  window.location.hash = '#view=mens';
+                }
+              }}
+              className="flex items-center justify-between gap-1.5 rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-left text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+            >
+              <span className="uppercase tracking-[0.08em] text-text-muted">Spoke</span>
+              <span className="truncate font-mono text-[11px] text-(--color-status-pass)">
+                {(() => {
+                  const runningTitle = (
+                    tasks.find((t) => t.status === 'running' || t.status === 'in_progress')?.title ??
+                    tasks[0]?.title ??
+                    ''
+                  ).toLowerCase();
+                  if (runningTitle.includes('rust') || runningTitle.includes('cargo')) return 'rust_workspace · Qwen3-8B';
+                  if (runningTitle.includes('shell') || runningTitle.includes('pwsh')) return 'structured_shell · Qwen3-8B';
+                  if (runningTitle.includes('mcp') || runningTitle.includes('tool')) return 'mcp_tool_chain · Qwen3-8B';
+                  if (runningTitle.includes('voice') || runningTitle.includes('speech')) return 'speech_to_code · Qwen3-8B';
+                  if (runningTitle.includes('mesh') || runningTitle.includes('populi')) return 'populi_mesh · Qwen3-8B';
+                  if (runningTitle.includes('skill')) return 'skill_creation · Qwen3-8B';
+                  return 'vox_lang · Qwen3-8B';
+                })()}
+              </span>
             </button>
             {(routing.state || routing.alternatives.length > 0) && (
               <details className="px-2 text-[11px] text-text-muted">
@@ -1215,4 +1240,3 @@ export function ChatExecutionRail({
     </aside>
   );
 }
-

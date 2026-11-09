@@ -91,6 +91,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `job_timings` | — |
 | `mcp_vox_surface_parity` | — |
 | `mens_scorecard` | — |
+| `overlay_parity` | — |
 | `retired_symbol_check` | — |
 | `scaling_audit` | — |
 | `scientia_novelty_ledger_contract` | — |

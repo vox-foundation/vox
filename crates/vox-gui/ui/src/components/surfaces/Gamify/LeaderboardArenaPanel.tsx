@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
+import { Icon } from '../../ui/Icons';
 
 export interface VerifiedLeaderboardEntry {
   rank: number;
@@ -172,98 +174,201 @@ export function LeaderboardArenaPanel({
   return (
     <div
       data-testid="leaderboard-arena-panel"
-      className="rounded-xl border border-border-subtle bg-bg-base/80 p-4 space-y-3"
+      className="rounded-xl border border-[#D4AF37]/45 bg-gradient-to-b from-[#1C160F] via-[#140F0A] to-[#0D0A07] p-4 space-y-3.5 shadow-xl text-[#E6DCB8]"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
+      {/* Header with Verification Seals & Badges */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#382F20] pb-3.5">
         <div>
-          <div className="flex items-center gap-2">
-            <span
-              data-testid="leaderboard-verified-badge"
-              className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300"
+          <div className="flex flex-wrap items-center gap-2">
+            <RomanTooltip
+              title="Cryptographic Ledger Integrity"
+              purpose="Proves leaderboard entries are signed with Ed25519 keys and tamper-sealed via BLAKE3 hash chains."
+              actionHint="Entries cannot be modified without invalidating signature"
             >
-              {usingFallback ? 'STATIC SIGNED SNAPSHOT · Ed25519 VERIFIED' : 'Ed25519 VERIFIED · BLAKE3 CHAIN'}
-            </span>
-            <span
-              data-testid="leaderboard-local-sandbox-badge"
-              className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] text-amber-300"
+              <span
+                data-testid="leaderboard-verified-badge"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#10B981]/50 bg-[#10B981]/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-[#6EE7B7]"
+              >
+                <Icon.waxSeal className="size-3 text-[#10B981]" />
+                <span>
+                  {usingFallback
+                    ? 'STATIC SIGNED SNAPSHOT · Ed25519 VERIFIED'
+                    : 'Ed25519 VERIFIED · BLAKE3 CHAIN'}
+                </span>
+              </span>
+            </RomanTooltip>
+
+            <RomanTooltip
+              title="Developer Workspace Sandbox"
+              purpose="Your isolated local development environment status and accumulated experience points."
             >
-              LOCAL SANDBOX · UNRANKED ({localUserHandle}: {localXp.toLocaleString()} XP)
-            </span>
+              <span
+                data-testid="leaderboard-local-sandbox-badge"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-[#F3E5AB]"
+              >
+                <Icon.romanColumn className="size-3 text-[#D4AF37]" />
+                <span>
+                  LOCAL SANDBOX · UNRANKED ({localUserHandle}: {localXp.toLocaleString()} XP)
+                </span>
+              </span>
+            </RomanTooltip>
           </div>
-          <h3 className="mt-1 font-display text-xs uppercase tracking-wider text-text-primary">
+          <h3 className="mt-1.5 font-serif text-sm font-bold tracking-wider text-[#F3E5AB] uppercase">
             Verified Global Arena &amp; 5-Spoke Benchmark Standings
           </h3>
         </div>
 
+        {/* 4 Plain-English Leaderboard Lenses */}
         <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Leaderboard Lenses">
-          {(
-            [
-              ['stewardship', 'Stewardship & Lumens'],
-              ['models', '5-Spoke Model Arena'],
-              ['collegium', 'Collegium Guilds'],
-              ['proof-chain', 'Proof Chain'],
-            ] as const
-          ).map(([id, label]) => (
+          <RomanTooltip
+            title="Stewardship & Reputation Lumens"
+            purpose="Inspect verified individual engineers and runtime stewards ranked by reputation lumens and compiler contributions."
+            actionHint="Click to view engineer rankings"
+          >
             <button
-              key={id}
               type="button"
               role="tab"
-              aria-selected={lens === id}
-              data-testid={`arena-lens-${id}`}
-              onClick={() => setLens(id)}
-              className={`rounded px-2.5 py-1 font-mono text-[10px] transition ${
-                lens === id
-                  ? 'border border-cyan/40 bg-cyan/20 text-cyan'
-                  : 'border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary'
+              aria-selected={lens === 'stewardship'}
+              data-testid="arena-lens-stewardship"
+              onClick={() => setLens('stewardship')}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                lens === 'stewardship'
+                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
               }`}
             >
-              {label}
+              <Icon.laurelWreath className="size-3 shrink-0" />
+              <span>Stewardship &amp; Lumens</span>
             </button>
-          ))}
+          </RomanTooltip>
+
+          <RomanTooltip
+            title="5-Spoke Model Benchmark Arena"
+            purpose="Compare fine-tuned MENS local models against baseline LLMs across five core code axes."
+            actionHint="Click to view model benchmark standings"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lens === 'models'}
+              data-testid="arena-lens-models"
+              onClick={() => setLens('models')}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                lens === 'models'
+                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
+              }`}
+            >
+              <Icon.astrolabeRadar className="size-3 shrink-0" />
+              <span>5-Spoke Model Arena</span>
+            </button>
+          </RomanTooltip>
+
+          <RomanTooltip
+            title="Collegium Guilds"
+            purpose="Engineering guilds and collective verified contribution volumes across the workspace."
+            actionHint="Click to view guild standings"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lens === 'collegium'}
+              data-testid="arena-lens-collegium"
+              onClick={() => setLens('collegium')}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                lens === 'collegium'
+                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
+              }`}
+            >
+              <Icon.gladiusShield className="size-3 shrink-0" />
+              <span>Collegium Guilds</span>
+            </button>
+          </RomanTooltip>
+
+          <RomanTooltip
+            title="Cryptographic Proof Chain"
+            purpose="Inspect the BLAKE3 hash tip and Ed25519 signer identity that cryptographically anchor this arena."
+            actionHint="Click to inspect proof chain"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lens === 'proof-chain'}
+              data-testid="arena-lens-proof-chain"
+              onClick={() => setLens('proof-chain')}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
+                lens === 'proof-chain'
+                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
+                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
+              }`}
+            >
+              <Icon.waxSeal className="size-3 shrink-0" />
+              <span>Proof Chain</span>
+            </button>
+          </RomanTooltip>
         </div>
       </div>
 
+      {/* Lens 1: Stewardship Table */}
       {lens === 'stewardship' && (
-        <div className="overflow-x-auto" data-testid="arena-panel-stewardship">
+        <div className="overflow-x-auto rounded-lg border border-[#382F20] bg-[#110D09]" data-testid="arena-panel-stewardship">
           <table className="w-full text-left font-mono text-[12px]">
             <thead>
-              <tr className="border-b border-border-subtle text-[10px] uppercase text-text-muted">
-                <th className="py-1.5 pr-2">Rank</th>
-                <th className="py-1.5 px-2">Steward</th>
-                <th className="py-1.5 px-2">Tier</th>
-                <th className="py-1.5 px-2 text-right">Level</th>
-                <th className="py-1.5 px-2 text-right">Lumens</th>
-                <th className="py-1.5 pl-2 text-right">Cryptographic Proof</th>
+              <tr className="border-b border-[#382F20] bg-[#17120C] text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+                <th className="py-2 px-3">Rank</th>
+                <th className="py-2 px-3">Steward</th>
+                <th className="py-2 px-3">Tier Title</th>
+                <th className="py-2 px-3 text-right">Level</th>
+                <th className="py-2 px-3 text-right">Lumens</th>
+                <th className="py-2 px-3 text-right">Cryptographic Proof</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-[#2B2317]">
               {rows.map((e) => {
                 const chainHash =
                   e.row_chain_hash_hex ||
                   '7d4daab4495ef5ce7b2a24c4df28845a0fefa7d97973b8ff76a84a74e687b043';
                 return (
-                  <tr key={e.user_id} data-testid={`steward-row-${e.user_id}`}>
-                    <td className="py-2 pr-2 tabular-nums text-text-muted">#{e.rank}</td>
-                    <td className="py-2 px-2 font-semibold text-text-secondary">{e.user_id}</td>
-                    <td className="py-2 px-2 text-[11px] text-text-muted">
+                  <tr
+                    key={e.user_id}
+                    data-testid={`steward-row-${e.user_id}`}
+                    className="hover:bg-[#1E1710] transition-colors"
+                  >
+                    <td className="py-2.5 px-3 tabular-nums font-semibold text-[#D4AF37]">
+                      #{e.rank}
+                    </td>
+                    <td className="py-2.5 px-3 font-semibold text-[#F3E5AB]">
+                      {e.user_id}
+                    </td>
+                    <td className="py-2.5 px-3 text-[11px] text-[#C4B69C]">
                       {e.tier_title || 'Verified Steward'}
                     </td>
-                    <td className="py-2 px-2 text-right tabular-nums text-text-muted">L{e.level}</td>
-                    <td className="py-2 px-2 text-right tabular-nums text-cyan">
+                    <td className="py-2.5 px-3 text-right tabular-nums text-[#A89878]">
+                      L{e.level}
+                    </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-[#F3E5AB]">
                       {(e.lumens ?? e.score).toLocaleString()}
                     </td>
-                    <td className="py-2 pl-2 text-right">
-                      <button
-                        type="button"
-                        data-testid={`proof-btn-${e.user_id}`}
-                        onClick={() => {
-                          setSelectedProof(e);
-                          setSigVerifiedMsg(null);
-                        }}
-                        className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300 hover:bg-emerald-500/20"
+                    <td className="py-2.5 px-3 text-right">
+                      <RomanTooltip
+                        title="Cryptographic Proof Receipt"
+                        purpose={`Inspect BLAKE3 row hash and SHA3 payload digest for ${e.user_id}.`}
+                        actionHint="Click to view proof receipt"
                       >
-                        Verified · BLAKE3 {chainHash.slice(0, 8)}…
-                      </button>
+                        <button
+                          type="button"
+                          data-testid={`proof-btn-${e.user_id}`}
+                          onClick={() => {
+                            setSelectedProof(e);
+                            setSigVerifiedMsg(null);
+                          }}
+                          className="inline-flex items-center gap-1 rounded border border-[#10B981]/40 bg-[#10B981]/15 px-2 py-0.5 text-[10px] font-semibold text-[#6EE7B7] hover:bg-[#10B981]/25 hover:border-[#10B981]/60 transition"
+                        >
+                          <Icon.waxSeal className="size-3 text-[#10B981]" />
+                          <span>Verified · BLAKE3 {chainHash.slice(0, 8)}…</span>
+                        </button>
+                      </RomanTooltip>
                     </td>
                   </tr>
                 );
@@ -273,38 +378,45 @@ export function LeaderboardArenaPanel({
         </div>
       )}
 
+      {/* Lens 2: 5-Spoke Model Arena Table */}
       {lens === 'models' && (
-        <div className="overflow-x-auto" data-testid="arena-panel-models">
+        <div className="overflow-x-auto rounded-lg border border-[#382F20] bg-[#110D09]" data-testid="arena-panel-models">
           <table className="w-full text-left font-mono text-[12px]">
             <thead>
-              <tr className="border-b border-border-subtle text-[10px] uppercase text-text-muted">
-                <th className="py-1.5 pr-2">Rank</th>
-                <th className="py-1.5 px-2">(Model, Harness, Config)</th>
-                <th className="py-1.5 px-2 text-right">Pass@1 (95% CI)</th>
-                <th className="py-1.5 px-2 text-right">Δ vs Base</th>
-                <th className="py-1.5 pl-2 text-right">Integrity</th>
+              <tr className="border-b border-[#382F20] bg-[#17120C] text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+                <th className="py-2 px-3">Rank</th>
+                <th className="py-2 px-3">(Model, Harness, Config)</th>
+                <th className="py-2 px-3 text-right">Pass@1 (95% CI)</th>
+                <th className="py-2 px-3 text-right">Δ vs Base</th>
+                <th className="py-2 px-3 text-right">Integrity</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-[#2B2317]">
               {DEFAULT_MODEL_ARENA.map((m) => (
-                <tr key={m.model_id} data-testid={`model-row-${m.rank}`}>
-                  <td className="py-2 pr-2 tabular-nums text-text-muted">#{m.rank}</td>
-                  <td className="py-2 px-2">
-                    <div className="font-semibold text-text-secondary">{m.model_id}</div>
-                    <div className="text-[10px] text-text-muted">
+                <tr
+                  key={m.model_id}
+                  data-testid={`model-row-${m.rank}`}
+                  className="hover:bg-[#1E1710] transition-colors"
+                >
+                  <td className="py-2.5 px-3 tabular-nums font-semibold text-[#D4AF37]">
+                    #{m.rank}
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <div className="font-semibold text-[#F3E5AB]">{m.model_id}</div>
+                    <div className="text-[10px] text-[#A89878]">
                       {m.harness_id} · {m.config_digest}
                     </div>
                   </td>
-                  <td className="py-2 px-2 text-right tabular-nums text-cyan">
-                    <div>{m.overall_pass_at_1_pct.toFixed(1)}%</div>
-                    <div className="text-[10px] text-text-muted">
+                  <td className="py-2.5 px-3 text-right tabular-nums text-[#F3E5AB]">
+                    <div className="font-semibold">{m.overall_pass_at_1_pct.toFixed(1)}%</div>
+                    <div className="text-[10px] text-[#A89878]">
                       [{m.pass_at_1_ci95_low_pct.toFixed(1)}%, {m.pass_at_1_ci95_high_pct.toFixed(1)}%]
                     </div>
                   </td>
-                  <td className="py-2 px-2 text-right tabular-nums text-emerald-300">
+                  <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-[#6EE7B7]">
                     {m.delta_vs_base_pct > 0 ? `+${m.delta_vs_base_pct.toFixed(1)}%` : '0.0%'}
                   </td>
-                  <td className="py-2 pl-2 text-right text-[10px] text-emerald-300">
+                  <td className="py-2.5 px-3 text-right text-[10px] text-[#6EE7B7]">
                     Held-Out Clean · Zero Tamper
                   </td>
                 </tr>
@@ -314,26 +426,32 @@ export function LeaderboardArenaPanel({
         </div>
       )}
 
+      {/* Lens 3: Collegium Guilds Table */}
       {lens === 'collegium' && (
-        <div className="overflow-x-auto" data-testid="arena-panel-collegium">
+        <div className="overflow-x-auto rounded-lg border border-[#382F20] bg-[#110D09]" data-testid="arena-panel-collegium">
           <table className="w-full text-left font-mono text-[12px]">
             <thead>
-              <tr className="border-b border-border-subtle text-[10px] uppercase text-text-muted">
-                <th className="py-1.5 pr-2">Rank</th>
-                <th className="py-1.5 px-2">Collegium</th>
-                <th className="py-1.5 px-2">Pontifex</th>
-                <th className="py-1.5 px-2 text-right">Members</th>
-                <th className="py-1.5 pl-2 text-right">Total Lumens</th>
+              <tr className="border-b border-[#382F20] bg-[#17120C] text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+                <th className="py-2 px-3">Rank</th>
+                <th className="py-2 px-3">Collegium Guild</th>
+                <th className="py-2 px-3">Pontifex Lead</th>
+                <th className="py-2 px-3 text-right">Members</th>
+                <th className="py-2 px-3 text-right">Total Lumens</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-[#2B2317]">
               {DEFAULT_COLLEGIUMS.map((c) => (
-                <tr key={c.collegium_id}>
-                  <td className="py-2 pr-2 tabular-nums text-text-muted">#{c.rank}</td>
-                  <td className="py-2 px-2 font-semibold text-text-secondary">{c.name}</td>
-                  <td className="py-2 px-2 text-text-muted">{c.pontifex_handle}</td>
-                  <td className="py-2 px-2 text-right tabular-nums text-text-muted">{c.member_count}</td>
-                  <td className="py-2 pl-2 text-right tabular-nums text-cyan">
+                <tr
+                  key={c.collegium_id}
+                  className="hover:bg-[#1E1710] transition-colors"
+                >
+                  <td className="py-2.5 px-3 tabular-nums font-semibold text-[#D4AF37]">
+                    #{c.rank}
+                  </td>
+                  <td className="py-2.5 px-3 font-semibold text-[#F3E5AB]">{c.name}</td>
+                  <td className="py-2.5 px-3 text-[#C4B69C]">{c.pontifex_handle}</td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-[#A89878]">{c.member_count}</td>
+                  <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-[#F3E5AB]">
                     {c.total_lumens.toLocaleString()}
                   </td>
                 </tr>
@@ -343,72 +461,97 @@ export function LeaderboardArenaPanel({
         </div>
       )}
 
+      {/* Lens 4: Proof Chain View */}
       {lens === 'proof-chain' && (
         <div data-testid="arena-panel-proof-chain" className="grid gap-3 sm:grid-cols-2 font-mono text-[11px]">
-          <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
-            <div className="text-[10px] uppercase text-text-muted">BLAKE3 Chain Tip</div>
-            <div className="mt-1 break-all text-cyan">
+          <div className="rounded-lg border border-[#382F20] bg-[#140F0A] p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+              <Icon.waxSeal className="size-3 text-[#D4AF37]" />
+              <span>BLAKE3 Chain Tip</span>
+            </div>
+            <div className="break-all font-mono font-semibold text-[#F3E5AB]">
               a11f3d231163b9522d9a298f263d82c828ab71a66c63c9d08b6a50b1c8622efe
             </div>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
-            <div className="text-[10px] uppercase text-text-muted">Ed25519 Signer Public Key</div>
-            <div className="mt-1 break-all text-emerald-300">
+          <div className="rounded-lg border border-[#382F20] bg-[#140F0A] p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+              <Icon.gladiusShield className="size-3 text-[#10B981]" />
+              <span>Ed25519 Signer Public Key</span>
+            </div>
+            <div className="break-all font-mono font-semibold text-[#6EE7B7]">
               ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c
             </div>
           </div>
         </div>
       )}
 
+      {/* Cryptographic Proof Drawer */}
       {selectedProof && (
         <aside
           data-testid="cryptographic-proof-drawer"
-          className="rounded-lg border border-emerald-500/40 bg-overlay-subtle p-3 font-mono text-[11px] space-y-2"
+          className="rounded-lg border-2 border-[#10B981]/50 bg-gradient-to-b from-[#17130D] to-[#0D0A07] p-3.5 font-mono text-[11px] space-y-2.5 shadow-lg"
         >
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-emerald-300">
-              Cryptographic Proof Receipt · {selectedProof.user_id}
-            </span>
-            <button
-              type="button"
-              data-testid="close-proof-drawer"
-              onClick={() => setSelectedProof(null)}
-              className="rounded border border-border-subtle px-2 py-0.5 text-[10px] text-text-muted hover:text-text-primary"
+            <div className="flex items-center gap-2">
+              <Icon.waxSeal className="size-4 text-[#10B981]" />
+              <span className="font-serif text-sm font-bold text-[#6EE7B7]">
+                Cryptographic Proof Receipt · {selectedProof.user_id}
+              </span>
+            </div>
+            <RomanTooltip
+              title="Close Proof Receipt"
+              purpose="Closes the cryptographic proof receipt drawer."
+              actionHint="Click to close receipt"
             >
-              Close
-            </button>
+              <button
+                type="button"
+                data-testid="close-proof-drawer"
+                onClick={() => setSelectedProof(null)}
+                className="rounded border border-[#382F20] bg-[#140F0A] px-2.5 py-1 text-[10px] text-[#A89878] hover:text-[#F3E5AB] hover:border-[#D4AF37]/50 transition"
+              >
+                Close
+              </button>
+            </RomanTooltip>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <div className="text-[10px] uppercase text-text-muted">BLAKE3 Row Chain Hash</div>
-              <div className="break-all text-cyan" data-testid="drawer-row-chain-hash">
+
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="rounded border border-[#2B2317] bg-[#0E0B07] p-2.5">
+              <div className="text-[10px] font-serif uppercase tracking-wider text-[#A89878]">BLAKE3 Row Chain Hash</div>
+              <div className="mt-1 break-all text-[#F3E5AB]" data-testid="drawer-row-chain-hash">
                 {selectedProof.row_chain_hash_hex ||
                   '7d4daab4495ef5ce7b2a24c4df28845a0fefa7d97973b8ff76a84a74e687b043'}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] uppercase text-text-muted">Payload SHA3-256 Digest</div>
-              <div className="break-all text-text-secondary" data-testid="drawer-sha3-digest">
+            <div className="rounded border border-[#2B2317] bg-[#0E0B07] p-2.5">
+              <div className="text-[10px] font-serif uppercase tracking-wider text-[#A89878]">Payload SHA3-256 Digest</div>
+              <div className="mt-1 break-all text-[#C4B69C]" data-testid="drawer-sha3-digest">
                 {selectedProof.proof_digest_sha3_256 ||
                   '904f1708403f578f138f2bfb75106264667099e4528efdbb7d8d56d00b14d214'}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="button"
-              data-testid="verify-ed25519-btn"
-              onClick={() =>
-                setSigVerifiedMsg(
-                  '✓ Ed25519 signature (dd1fefe5c88499bd…) & BLAKE3 chain link verified against canonical key ea4a6c63e29c520a…'
-                )
-              }
-              className="rounded bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-1 text-[10px] font-semibold text-emerald-300"
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <RomanTooltip
+              title="Verify Ed25519 Signature"
+              purpose="Runs in-browser cryptographic verification against the canonical public key to verify that the proof is genuine."
+              actionHint="Click to execute cryptographic verification"
             >
-              Verify Ed25519 Signature
-            </button>
+              <button
+                type="button"
+                data-testid="verify-ed25519-btn"
+                onClick={() =>
+                  setSigVerifiedMsg(
+                    '✓ Ed25519 signature (dd1fefe5c88499bd…) & BLAKE3 chain link verified against canonical key ea4a6c63e29c520a…'
+                  )
+                }
+                className="rounded border border-[#10B981]/50 bg-[#10B981]/20 px-3 py-1 text-[10px] font-semibold text-[#6EE7B7] hover:bg-[#10B981]/30 transition"
+              >
+                Verify Ed25519 Signature
+              </button>
+            </RomanTooltip>
             {sigVerifiedMsg && (
-              <span data-testid="verify-ed25519-msg" className="text-[10px] text-emerald-300">
+              <span data-testid="verify-ed25519-msg" className="text-[10px] text-[#6EE7B7] font-semibold">
                 {sigVerifiedMsg}
               </span>
             )}

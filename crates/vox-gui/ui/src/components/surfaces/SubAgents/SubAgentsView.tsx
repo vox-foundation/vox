@@ -5,6 +5,8 @@ import { fetchTree, listenActivity } from './subAgentClient';
 import { SubAgentTree } from './SubAgentTree';
 import { SubAgentActivityStream } from './SubAgentActivityStream';
 import type { SubAgentNode } from './types';
+import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 
 /** Find a node by windowId anywhere in the tree (ignores expand state). */
 function findNode(nodes: SubAgentNode[], id: string): SubAgentNode | null {
@@ -101,137 +103,150 @@ export function SubAgentsView(_props: SurfaceDecoratorProps) {
   const allNodes = collectAllNodes(tree);
 
   return (
-    <div className="flex h-full gap-4 p-4">
-      <div className="flex flex-[1.1] flex-col space-y-4 overflow-auto rounded-xl border border-border-subtle bg-bg-surface/60 p-4">
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-display text-xs tracking-widest text-text-secondary uppercase">Delegation Tree</span>
-            <span className="rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass">
-              {totalNodes} active · depth {maxDepth + (totalNodes > 0 ? 1 : 0)}
-            </span>
-          </div>
-          <SubAgentTree />
-        </div>
-        <div
-          data-testid="subagent-topology-summary"
-          className="grid grid-cols-2 gap-2 border-t border-border-subtle pt-3 text-[11px]"
-        >
-          <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
-            <div className="font-display text-[9px] tracking-widest text-text-muted uppercase">Isolation Policy</div>
-            <div className="mt-1 font-mono text-xs text-emerald-300">Worktree / Scoped</div>
-            <div className="mt-0.5 text-[10px] text-text-muted">Parent-child context handoff</div>
-          </div>
-          <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
-            <div className="font-display text-[9px] tracking-widest text-text-muted uppercase">Event Bus</div>
-            <div className="mt-1 font-mono text-xs text-cyan">vox://agent-events</div>
-            <div className="mt-0.5 text-[10px] text-text-muted">Live window_id stream</div>
-          </div>
-        </div>
-        {allNodes.length > 0 && (
-          <div className="space-y-2 border-t border-border-subtle pt-3">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-text-secondary uppercase">
-                Active Delegation Roster
-              </span>
-              <span className="font-mono text-[10px] text-text-muted">
-                {allNodes.length} window{allNodes.length === 1 ? '' : 's'}
-              </span>
-            </div>
-            <div className="space-y-1.5">
-              {allNodes.map((item) => (
-                <div
-                  key={`roster-${item.windowId}`}
-                  className="flex items-center justify-between rounded-lg border border-border-subtle bg-bg-base/60 px-2.5 py-1.5 text-[11px]"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[10px] text-brass shrink-0">
-                      {item.windowId}
-                    </span>
-                    <span className="truncate font-mono text-text-secondary">
-                      {item.parentWindowId ? `← ${item.parentWindowId}` : 'root'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary">
-                      d={item.depth}
-                    </span>
-                    <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[9px] uppercase text-emerald-300">
-                      {item.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="flex flex-[1.4] flex-col justify-between overflow-auto rounded-xl border border-border-subtle bg-bg-surface/60 p-4">
-        {node ? (
+    <div className="flex h-full flex-col gap-3 p-4">
+      <RomanSurfaceHeader
+        domainTag="AGENTS · SUB-AGENTS"
+        title="Centuria Delegation Hierarchy & Context Pull Inspector"
+        subtitle="WORKTREE SCOPED ISOLATION · ORIGIN TURN CORRELATION · TOKEN FATE GUARD"
+        waxSealBadge="HIERARCHY LIVE"
+        icon={<Icon.flow className="size-4 text-[#F3E5AB]" />}
+        gauges={[
+          { label: 'Active Windows', valueText: `${totalNodes}`, ratio: Math.min(1, Math.max(0.2, totalNodes / 8)), tone: 'gold' },
+          { label: 'Max Depth', valueText: `${maxDepth + (totalNodes > 0 ? 1 : 0)}`, ratio: Math.min(1, (maxDepth + 1) / 4), tone: 'emerald' },
+          { label: 'Fate Guard', valueText: '85% WARN', ratio: 0.85, tone: 'gold' },
+        ]}
+      />
+      <div className="flex min-h-0 flex-1 gap-4">
+        <div className="flex flex-[1.1] flex-col space-y-4 overflow-auto rounded-xl border border-[#D4AF37]/40 bg-linear-to-b from-[#1B150E] to-[#110D08] p-4 shadow-[inset_0_1px_0_rgba(243,229,171,0.16)]">
           <div>
-            <h3 className="mb-2 font-mono text-sm font-medium text-text-primary">{node.title}</h3>
-            <SubAgentActivityStream windowId={node.windowId} />
+            <div className="mb-3 flex items-center justify-between">
+              <span className="font-display text-xs tracking-widest text-[#F3E5AB] uppercase">Delegation Tree</span>
+              <RomanWaxSealBadge
+                label={`${totalNodes} active · depth ${maxDepth + (totalNodes > 0 ? 1 : 0)}`}
+                tone="gold"
+              />
+            </div>
+            <SubAgentTree />
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border border-border-subtle bg-bg-base/70 px-3 py-2">
-              <p className="text-xs text-text-muted">Select a sub-agent</p>
-              <span className="rounded border border-cyan/30 bg-cyan/10 px-2 py-0.5 font-mono text-[10px] text-cyan">
-                INSPECTOR READY
-              </span>
+          <div
+            data-testid="subagent-topology-summary"
+            className="grid grid-cols-2 gap-2 border-t border-[#D4AF37]/25 pt-3 text-[11px]"
+          >
+            <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+              <div className="font-display text-[9px] tracking-widest text-[#C8B99E] uppercase">Isolation Policy</div>
+              <div className="mt-1 font-mono text-xs text-emerald-300">Worktree / Scoped</div>
+              <div className="mt-0.5 text-[10px] text-[#C8B99E]">Parent-child context handoff</div>
             </div>
-            <div
-              data-testid="subagent-inspector-overview"
-              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-            >
-              <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-[10px] tracking-widest text-brass uppercase">
-                    Context Pull Protocol
-                  </span>
-                  <span className="font-mono text-[9px] text-text-muted">Phase D</span>
-                </div>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-                  Sub-agents inherit scoped file refs and emit content-addressed <code className="text-cyan">context_pull</code> events when reading parent artifacts.
-                </p>
-              </div>
-              <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-[10px] tracking-widest text-cyan uppercase">
-                    Token Fate Guard
-                  </span>
-                  <span className="font-mono text-[9px] text-emerald-300">85% warn</span>
-                </div>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
-                  Tracks per-window token utilization (<code className="text-brass">ok</code> / <code className="text-brass">warn</code> / <code className="text-brass">over</code>) and correlates spawns back to originating chat turns.
-                </p>
-              </div>
-            </div>
-            <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-display text-[10px] tracking-widest text-text-secondary uppercase">
-                  Handoff & Escalation Telemetry
-                </span>
-                <span className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary">
-                  list_subagent_tree
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-[11px]">
-                <div className="rounded border border-border-subtle bg-bg-surface/60 p-2">
-                  <div className="font-mono text-[9px] uppercase text-text-muted">Spawn Correlation</div>
-                  <div className="mt-0.5 font-mono text-xs text-brass">origin_turn_id</div>
-                </div>
-                <div className="rounded border border-border-subtle bg-bg-surface/60 p-2">
-                  <div className="font-mono text-[9px] uppercase text-text-muted">Session Scope</div>
-                  <div className="mt-0.5 font-mono text-xs text-cyan">chat_session_id</div>
-                </div>
-                <div className="rounded border border-border-subtle bg-bg-surface/60 p-2">
-                  <div className="font-mono text-[9px] uppercase text-text-muted">Ring Buffer</div>
-                  <div className="mt-0.5 font-mono text-xs text-emerald-300">200 events/win</div>
-                </div>
-              </div>
+            <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+              <div className="font-display text-[9px] tracking-widest text-[#C8B99E] uppercase">Event Bus</div>
+              <div className="mt-1 font-mono text-xs text-[#D4AF37]">vox://agent-events</div>
+              <div className="mt-0.5 text-[10px] text-[#C8B99E]">Live window_id stream</div>
             </div>
           </div>
-        )}
+          {allNodes.length > 0 && (
+            <div className="space-y-2 border-t border-[#D4AF37]/25 pt-3">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-[10px] tracking-widest text-[#F3E5AB] uppercase">
+                  Active Delegation Roster
+                </span>
+                <span className="font-mono text-[10px] text-[#C8B99E]">
+                  {allNodes.length} window{allNodes.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {allNodes.map((item) => (
+                  <div
+                    key={`roster-${item.windowId}`}
+                    className="flex items-center justify-between rounded-lg border border-[#D4AF37]/30 bg-[#16120C] px-2.5 py-1.5 text-[11px]"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="rounded border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB] shrink-0">
+                        {item.windowId}
+                      </span>
+                      <span className="truncate font-mono text-[#D8CEB8]">
+                        {item.parentWindowId ? `← ${item.parentWindowId}` : 'root'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="rounded border border-[#D4AF37]/30 bg-[#1B150E] px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
+                        d={item.depth}
+                      </span>
+                      <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[9px] uppercase text-emerald-300">
+                        {item.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-[1.4] flex-col justify-between overflow-auto rounded-xl border border-[#D4AF37]/40 bg-linear-to-b from-[#1B150E] to-[#110D08] p-4 shadow-[inset_0_1px_0_rgba(243,229,171,0.16)]">
+          {node ? (
+            <div>
+              <h3 className="mb-2 font-mono text-sm font-medium text-[#F3E5AB]">{node.title}</h3>
+              <SubAgentActivityStream windowId={node.windowId} />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border border-[#D4AF37]/35 bg-[#16120C] px-3 py-2">
+                <p className="text-xs text-[#D8CEB8]">Select a sub-agent</p>
+                <RomanWaxSealBadge label="INSPECTOR READY" tone="emerald" />
+              </div>
+              <div
+                data-testid="subagent-inspector-overview"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              >
+                <div className="rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">
+                      Context Pull Protocol
+                    </span>
+                    <span className="font-mono text-[9px] text-[#C8B99E]">Phase D</span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#D8CEB8]">
+                    Sub-agents inherit scoped file refs and emit content-addressed <code className="text-[#F3E5AB]">context_pull</code> events when reading parent artifacts.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">
+                      Token Fate Guard
+                    </span>
+                    <span className="font-mono text-[9px] text-emerald-300">85% warn</span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#D8CEB8]">
+                    Tracks per-window token utilization (<code className="text-[#F3E5AB]">ok</code> / <code className="text-[#F3E5AB]">warn</code> / <code className="text-[#F3E5AB]">over</code>) and correlates spawns back to originating chat turns.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-display text-[10px] tracking-widest text-[#F3E5AB] uppercase">
+                    Handoff & Escalation Telemetry
+                  </span>
+                  <span className="rounded border border-[#D4AF37]/35 bg-[#1B150E] px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
+                    list_subagent_tree
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div className="rounded border border-[#D4AF37]/30 bg-[#1B150E] p-2">
+                    <div className="font-mono text-[9px] uppercase text-[#C8B99E]">Spawn Correlation</div>
+                    <div className="mt-0.5 font-mono text-xs text-[#F3E5AB]">origin_turn_id</div>
+                  </div>
+                  <div className="rounded border border-[#D4AF37]/30 bg-[#1B150E] p-2">
+                    <div className="font-mono text-[9px] uppercase text-[#C8B99E]">Session Scope</div>
+                    <div className="mt-0.5 font-mono text-xs text-[#D4AF37]">chat_session_id</div>
+                  </div>
+                  <div className="rounded border border-[#D4AF37]/30 bg-[#1B150E] p-2">
+                    <div className="font-mono text-[9px] uppercase text-[#C8B99E]">Ring Buffer</div>
+                    <div className="mt-0.5 font-mono text-xs text-emerald-300">200 events/win</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ import { HarnessIssuesPanel } from './HarnessIssuesPanel';
 import { DiscoveryInbox } from './DiscoveryInbox';
 import { DiscoveryReview } from './DiscoveryReview';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { Icon } from '../../ui/Icons';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -23,9 +25,20 @@ type ScientiaTab = typeof TABS[number]['id'];
  */
 export function ScientiaSurface(props: SurfaceDecoratorProps) {
   const [tab, setTab] = useState<ScientiaTab>('dashboard');
+  const ScientiaIcon = (Icon as any).scientia ?? Icon.beaker;
+
   return (
-    <div className="flex min-h-0 flex-col">
-      <div role="tablist" aria-label="Findings sections" className="flex flex-wrap gap-1 px-4 pt-3">
+    <div className="flex min-h-0 flex-col gap-3 p-4">
+      {tab !== 'dashboard' && (
+        <RomanSurfaceHeader
+          domainTag="KNOWLEDGE · SCIENTIA"
+          title="Scientia Epistemic Discovery & Verification Ledger"
+          subtitle="Track machine-verified research claims, novelty evidence, and publication readiness."
+          waxSealBadge="EPISTEMIC LEDGER"
+          icon={<ScientiaIcon className="size-5 text-[#F3E5AB]" />}
+        />
+      )}
+      <div role="tablist" aria-label="Findings sections" className="flex flex-wrap gap-1">
         {TABS.map(t => (
           <button
             key={t.id}
@@ -36,8 +49,8 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
             onClick={() => setTab(t.id)}
             className={`rounded-md px-3 py-1.5 font-display text-[11px] uppercase tracking-[0.16em] transition ${
               tab === t.id
-                ? 'bg-overlay-subtle text-brass'
-                : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
+                ? 'border border-[#D4AF37]/50 bg-[#2A2011] text-[#F3E5AB] font-semibold shadow-xs'
+                : 'border border-transparent text-[#D6CEBF] hover:border-[#D4AF37]/25 hover:bg-[#16120C] hover:text-[#F3E5AB]'
             }`}
           >
             {t.label}
@@ -47,11 +60,11 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
       {tab === 'dashboard' ? (
         <ScientiaDashboard {...props} />
       ) : tab === 'inbox' ? (
-        <div className="p-4">
+        <div className="pt-1">
           <DiscoveryInbox {...props} />
         </div>
       ) : tab === 'studio' ? (
-        <div className="p-4">
+        <div className="pt-1">
           <DiscoveryReview {...props} />
         </div>
       ) : tab === 'claims' ? (

@@ -26,7 +26,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { id: 'routing-priority', section: 'routing', label: 'Model routing emphasis', hint: 'Intelligence / efficiency / responsiveness', keywords: ['model', 'routing', 'efficiency', 'precision', 'latency'] },
   { id: 'mesh-nodes', section: 'mesh', label: 'Mesh nodes', hint: 'Discover and trust mesh peers', keywords: ['populi', 'peers', 'nodes', 'distributed'] },
   { id: 'signing-keys', section: 'signing', label: 'Signing keys', hint: 'ed25519 key status and rotation', keywords: ['ed25519', 'rotate', 'signature'] },
-  { id: 'secrets-keys', section: 'secrets', label: 'Keys & secrets', hint: 'Provider API keys (OpenRouter, Gemini, …)', keywords: ['api key', 'openrouter', 'anthropic', 'token', 'clavis'] },
+  { id: 'secrets-keys', section: 'secrets', label: 'Keys & secrets', hint: 'Provider API keys & Hugging Face Hub token (OpenRouter, HF_TOKEN, Gemini, …)', keywords: ['api key', 'openrouter', 'anthropic', 'huggingface', 'hf_token', 'mens upload', 'token', 'clavis'] },
   { id: 'telemetry-mode', section: 'telemetry', label: 'Telemetry', hint: 'Off, local OTLP, or cloud', keywords: ['otlp', 'tracing', 'privacy'] },
   { id: 'keybinds', section: 'keybinds', label: 'Keybinds', hint: 'Global keyboard shortcuts', keywords: ['shortcuts', 'hotkeys', 'keyboard'] },
   { id: 'theme', section: 'theme', label: 'Theme', hint: 'Arcane, Void, or Glacier', keywords: ['dark', 'appearance', 'color'] },

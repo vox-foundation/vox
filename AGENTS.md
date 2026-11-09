@@ -433,8 +433,8 @@ that cost hours on a loaded machine and duplicated the gate. Evidence and plan:
 - **Work reaches `main` only through a PR.** Branch, batch commits, `git push -u origin HEAD:<branch>`,
   `gh pr create --draft`, read CI, self-review, mark ready, merge through the queue. The pre-push
   hook refuses a push to `main` (`VOX_ALLOW_MAIN_PUSH=1` overrides for emergencies only).
-- **Git hooks never build.** They call the installed `vox` and `toestub`; `vox ci dev-loop-guard`
-  (fast tier, local and CI) fails if a hook runs `cargo run/build/test/clippy`, calls an unregistered
+- **Git hooks never build.** They call the installed `vox` and `toestub`; the dev-loop guard (`vox ci pre-push`,
+  fast tier, local and CI) fails if a hook runs `cargo run/build/test/clippy`, calls an unregistered
   `vox` command, or `.cargo/config.toml` hardcodes `[build] jobs`.
 - **No hardcoded CPU or job counts** in config, the build broker, workflows or scripts: derive from
   the machine (`available_parallelism`, load). An env var may override; a literal default may not.

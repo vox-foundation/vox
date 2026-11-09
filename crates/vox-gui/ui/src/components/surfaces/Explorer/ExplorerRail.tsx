@@ -86,7 +86,7 @@ export function ExplorerRail({
   return (
     <Glass
       inset={false}
-      className="w-[240px] shrink-0 rounded-xl p-2 max-h-full overflow-y-auto custom-scrollbar"
+      className="vox-marble-tablet w-[228px] shrink-0 rounded-xl p-2 max-h-full overflow-y-auto custom-scrollbar"
     >
       <nav aria-label="Domains" className="space-y-1">
         {items.map((item, idx) => {
@@ -129,18 +129,18 @@ export function ExplorerRail({
                 }
               }}
               className={cn(
-                'flex h-10 w-full flex-col justify-center gap-1 rounded-lg px-2 text-left transition-colors',
+                'flex h-9 w-full flex-col justify-center gap-0.5 rounded-lg px-2.5 text-left transition-colors',
                 isSelected
-                  ? 'border-l-2 border-(--color-accent-default) bg-overlay-subtle text-(--color-accent-default)'
+                  ? 'border border-[#8C6825] bg-[#251C0E] text-[#F3E5AB]'
                   : isZero
-                    ? 'text-text-muted hover:bg-overlay-hover'
-                    : 'text-text-secondary hover:bg-overlay-hover',
+                    ? 'text-text-muted hover:bg-[#DFD2BC]/70'
+                    : 'text-[#1E150C] hover:bg-[#DFD2BC]/85',
               )}
             >
               <span className="sr-only">{srText}</span>
-              <span aria-hidden="true" className="flex items-center justify-between gap-2 w-full">
-                <span className="truncate text-[13px]">{item.label}</span>
-                <span className="shrink-0 font-mono text-[11px] text-text-muted">
+              <span aria-hidden="true" className="flex items-center justify-between gap-1.5 w-full">
+                <span className="truncate font-display text-[10.5px] font-bold tracking-[0.04em]">{item.label}</span>
+                <span className={cn('shrink-0 font-serif text-[10.5px] font-bold tabular-nums', isSelected ? 'text-[#D4AF37]' : 'text-[#5C441E]')}>
                   {item.mix.total}
                 </span>
               </span>

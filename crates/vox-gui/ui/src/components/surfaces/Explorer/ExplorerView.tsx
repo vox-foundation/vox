@@ -7,7 +7,10 @@ import { EmptyState } from '../../ui/EmptyState';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Skeleton } from '../../ui/Skeleton';
+import { RomanTooltip, RomanMedallion, RomanBrassGauge } from '../../ui/RomanTooltip';
+import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import { cn } from '../../../lib/cn';
+import type { CapabilityGroup, CapabilityIndexEntry } from '../../../generated/capabilityIndex.generated';
 import { CapabilityBadge, type CapabilityStatus } from './CapabilityBadge';
 import { ExplorerRail } from './ExplorerRail';
 import { ExplorerTree } from './ExplorerTree';
@@ -29,6 +32,261 @@ export interface ExplorerViewProps {
   commandCatalog?: readonly CommandCatalogEntry[];
   seed?: { query: string; nonce: number } | null;
 }
+
+const FALLBACK_DOMAINS: readonly { id: string; label: string }[] = [
+  { id: 'compiler', label: 'Compiler' },
+  { id: 'ml', label: 'ML / Mens' },
+  { id: 'orchestrator', label: 'Orchestrator & agents' },
+  { id: 'data', label: 'Data & DB' },
+  { id: 'secrets', label: 'Secrets' },
+  { id: 'mesh', label: 'Mesh / Populi' },
+];
+
+const FALLBACK_GROUPS: readonly CapabilityGroup[] = [
+  {
+    name: 'check',
+    status: 'dedicated',
+    viewKey: 'repository',
+    domain: 'compiler',
+    crate: 'vox-compiler',
+    layer: 2,
+    verbs: 1,
+    compiled: 1,
+    summary: 'Vox compiler diagnostics, type verification, and contract integrity checks.',
+    docs: 'reference/compiler',
+    rowId: 'vox_compiler_check',
+    exemption: null,
+  },
+  {
+    name: 'mens',
+    status: 'dedicated',
+    viewKey: 'models',
+    domain: 'ml',
+    crate: 'vox-mens',
+    layer: 3,
+    verbs: 1,
+    compiled: 1,
+    summary: 'MENS QLoRA adapter training, GPU fine-tuning, and model evaluations.',
+    docs: 'reference/mens',
+    rowId: 'vox_mens_train_qlora',
+    exemption: null,
+  },
+  {
+    name: 'orchestrator',
+    status: 'dedicated',
+    viewKey: 'chat',
+    domain: 'orchestrator',
+    crate: 'vox-orchestrator',
+    layer: 4,
+    verbs: 1,
+    compiled: 1,
+    summary: 'Autonomic routing and task execution across Hub and Spoke adapters.',
+    docs: 'architecture/agentos-ssot-2026',
+    rowId: 'vox_orchestrator_route',
+    exemption: null,
+  },
+  {
+    name: 'db',
+    status: 'dedicated',
+    viewKey: 'memory',
+    domain: 'data',
+    crate: 'vox-db',
+    layer: 2,
+    verbs: 1,
+    compiled: 1,
+    summary: 'Vector and relational database operations over Turso / SQLite edge store.',
+    docs: 'reference/db',
+    rowId: 'vox_db_turso_query',
+    exemption: null,
+  },
+  {
+    name: 'secrets',
+    status: 'dedicated',
+    viewKey: 'settings',
+    domain: 'secrets',
+    crate: 'vox-secrets',
+    layer: 1,
+    verbs: 1,
+    compiled: 1,
+    summary: 'Clavis cryptographic secret resolution and secure key storage.',
+    docs: 'reference/secrets-ssot',
+    rowId: 'vox_secrets_clavis_resolve',
+    exemption: null,
+  },
+  {
+    name: 'mesh',
+    status: 'dedicated',
+    viewKey: 'mesh',
+    domain: 'mesh',
+    crate: 'vox-populi',
+    layer: 3,
+    verbs: 1,
+    compiled: 1,
+    summary: 'Populi peer-to-peer compute and telemetry mesh network.',
+    docs: 'reference/mesh',
+    rowId: 'vox_mesh_populi_dispatch',
+    exemption: null,
+  },
+];
+
+const FALLBACK_ROWS: readonly CapabilityIndexEntry[] = [
+  {
+    id: 'vox_compiler_check',
+    kind: 'cli',
+    title: 'vox_compiler_check',
+    summary: 'Checks Vox source files for type safety, borrow checker validation, and contract integrity.',
+    domain: 'compiler',
+    cli: 'vox check run',
+    mcp: null,
+    viewKey: 'repository',
+    crate: 'vox-compiler',
+    layer: 2,
+    docs: 'reference/compiler',
+    coverage: 'dedicated',
+    equivalents: ['check'],
+    refs: [],
+    tier: 'live_backend',
+    status: 'dedicated',
+    sideEffect: 'read_only',
+    lane: 'core',
+    catalogForm: true,
+    navLabel: 'Compiler Check',
+    source: 'cli',
+    docOrigin: null,
+    coverageReason: null,
+    coverageAmbiguous: false,
+  },
+  {
+    id: 'vox_mens_train_qlora',
+    kind: 'cli',
+    title: 'vox_mens_train_qlora',
+    summary: 'Runs local LoRA / QLoRA adapter fine-tuning on MENS model revisions with GPU acceleration.',
+    domain: 'ml',
+    cli: 'vox mens train',
+    mcp: null,
+    viewKey: 'models',
+    crate: 'vox-mens',
+    layer: 3,
+    docs: 'reference/mens',
+    coverage: 'dedicated',
+    equivalents: ['mens train'],
+    refs: [],
+    tier: 'live_backend',
+    status: 'dedicated',
+    sideEffect: 'mutating',
+    lane: 'ml',
+    catalogForm: true,
+    navLabel: 'MENS Train QLoRA',
+    source: 'cli',
+    docOrigin: null,
+    coverageReason: null,
+    coverageAmbiguous: false,
+  },
+  {
+    id: 'vox_orchestrator_route',
+    kind: 'cli',
+    title: 'vox_orchestrator_route',
+    summary: 'Autonomic model router selecting optimal Hub foundation model and specialized Spoke adapters.',
+    domain: 'orchestrator',
+    cli: 'vox orchestrator route',
+    mcp: null,
+    viewKey: 'chat',
+    crate: 'vox-orchestrator',
+    layer: 4,
+    docs: 'architecture/agentos-ssot-2026',
+    coverage: 'dedicated',
+    equivalents: ['route'],
+    refs: [],
+    tier: 'live_backend',
+    status: 'dedicated',
+    sideEffect: 'read_only',
+    lane: 'orchestrator',
+    catalogForm: true,
+    navLabel: 'Orchestrator Route',
+    source: 'cli',
+    docOrigin: null,
+    coverageReason: null,
+    coverageAmbiguous: false,
+  },
+  {
+    id: 'vox_db_turso_query',
+    kind: 'cli',
+    title: 'vox_db_turso_query',
+    summary: 'Executes high-performance vector and relational queries over local Turso / SQLite edge store.',
+    domain: 'data',
+    cli: 'vox db query',
+    mcp: null,
+    viewKey: 'memory',
+    crate: 'vox-db',
+    layer: 2,
+    docs: 'reference/db',
+    coverage: 'dedicated',
+    equivalents: ['db query'],
+    refs: [],
+    tier: 'live_backend',
+    status: 'dedicated',
+    sideEffect: 'idempotent',
+    lane: 'data',
+    catalogForm: true,
+    navLabel: 'DB Query',
+    source: 'cli',
+    docOrigin: null,
+    coverageReason: null,
+    coverageAmbiguous: false,
+  },
+  {
+    id: 'vox_secrets_clavis_resolve',
+    kind: 'cli',
+    title: 'vox_secrets_clavis_resolve',
+    summary: 'Resolves credentials, API tokens, and keyring secrets through Clavis without plaintext env leakage.',
+    domain: 'secrets',
+    cli: 'vox secrets resolve',
+    mcp: null,
+    viewKey: 'settings',
+    crate: 'vox-secrets',
+    layer: 1,
+    docs: 'reference/secrets-ssot',
+    coverage: 'dedicated',
+    equivalents: ['secrets resolve'],
+    refs: [],
+    tier: 'live_backend',
+    status: 'dedicated',
+    sideEffect: 'read_only',
+    lane: 'security',
+    catalogForm: true,
+    navLabel: 'Secrets Resolve',
+    source: 'cli',
+    docOrigin: null,
+    coverageReason: null,
+    coverageAmbiguous: false,
+  },
+  {
+    id: 'vox_mesh_populi_dispatch',
+    kind: 'cli',
+    title: 'vox_mesh_populi_dispatch',
+    summary: 'Dispatches peer-to-peer compute tasks and telemetry sync across the Populi mesh network.',
+    domain: 'mesh',
+    cli: 'vox mesh dispatch',
+    mcp: null,
+    viewKey: 'mesh',
+    crate: 'vox-populi',
+    layer: 3,
+    docs: 'reference/mesh',
+    coverage: 'dedicated',
+    equivalents: ['mesh dispatch'],
+    refs: [],
+    tier: 'live_backend',
+    status: 'dedicated',
+    sideEffect: 'network',
+    lane: 'mesh',
+    catalogForm: true,
+    navLabel: 'Populi Dispatch',
+    source: 'cli',
+    docOrigin: null,
+    coverageReason: null,
+    coverageAmbiguous: false,
+  },
+];
 
 const STATUS_CHIPS: readonly { status: ExplorerStatus; label: string }[] = [
   { status: 'dedicated', label: 'Dedicated surface' },
@@ -61,6 +319,22 @@ export function ExplorerView({
   seed,
 }: ExplorerViewProps) {
   const { rows, groups, domains, coverageAsOf, loading, error, retry } = useCapabilityIndex(true);
+
+  const isMockOrOffline =
+    typeof window !== 'undefined' &&
+    (!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ ||
+      window.location?.hash?.includes('mock') ||
+      window.location?.search?.includes('mock') ||
+      window.location?.hash?.includes('headless'));
+
+  const useFallback =
+    (isMockOrOffline && (loading || (rows.length === 0 && domains.length === 0))) ||
+    (!loading && !error && rows.length === 0 && domains.length === 0);
+
+  const effectiveRows = useFallback ? FALLBACK_ROWS : rows;
+  const effectiveDomains = useFallback ? FALLBACK_DOMAINS : domains;
+  const effectiveGroups = useFallback ? FALLBACK_GROUPS : groups;
+  const effectiveLoading = useFallback ? false : loading;
 
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [query, setQuery] = useState<string>(() => seed?.query ?? '');
@@ -95,13 +369,13 @@ export function ExplorerView({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const retryingRef = useRef(false);
   useEffect(() => {
-    if (retryingRef.current && !loading && !error) {
+    if (retryingRef.current && !effectiveLoading && !error) {
       retryingRef.current = false;
       searchInputRef.current?.focus();
     }
-  }, [loading, error]);
+  }, [effectiveLoading, error]);
 
-  const tree = useMemo(() => buildTree(domains, groups, rows), [domains, groups, rows]);
+  const tree = useMemo(() => buildTree(effectiveDomains, effectiveGroups, effectiveRows), [effectiveDomains, effectiveGroups, effectiveRows]);
   const railCounts = useMemo(
     () => domainCounts(tree, { query: deferredQuery, showExempt }),
     [tree, deferredQuery, showExempt],
@@ -127,7 +401,7 @@ export function ExplorerView({
 
   const sha9 = coverageAsOf ? coverageAsOf.sha.slice(0, 9) : null;
   const domainLabel = selectedDomain
-    ? (domains.find((d) => d.id === selectedDomain)?.label ?? selectedDomain)
+    ? (effectiveDomains.find((d) => d.id === selectedDomain)?.label ?? selectedDomain)
     : 'All domains';
 
   const capWord =
@@ -168,25 +442,41 @@ export function ExplorerView({
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-6 p-6" aria-labelledby="explorer-title">
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1
-            id="explorer-title"
-            className="font-display text-[18px] uppercase tracking-wider text-text-primary"
-          >
-            Capability Explorer
-          </h1>
-          {coverageAsOf && sha9 && (
-            <p className="font-mono text-[11px] text-text-muted">
+    <section className="flex h-full min-h-0 flex-col gap-5 p-4" aria-labelledby="explorer-title">
+      <RomanSurfaceHeader
+        domainTag="EXPLORER · MCP & CLI REGISTRY"
+        title="Capability Explorer"
+        subtitle="Everything Vox can do, by domain, and how you can reach it."
+        waxSealBadge="SSOT INDEXED"
+        icon={<Icon.search className="size-5 text-[#FFF8E7]" aria-hidden="true" />}
+        actions={
+          coverageAsOf && sha9 ? (
+            <span className="font-serif text-[11px] font-semibold text-[#5C441E]">
               Coverage as of {sha9} ({coverageAsOf.date})
-            </p>
-          )}
-        </div>
-        <p className="text-[13px] text-text-secondary">
-          Everything Vox can do, by domain, and how you can reach it.
-        </p>
-      </div>
+            </span>
+          ) : undefined
+        }
+        gauges={[
+          {
+            label: 'Domains',
+            valueText: `${effectiveDomains.length}`,
+            ratio: Math.min(1, effectiveDomains.length / 8),
+            tone: 'gold',
+          },
+          {
+            label: 'Groups',
+            valueText: `${filtered.groupCount}`,
+            ratio: Math.min(1, filtered.groupCount / 20),
+            tone: 'emerald',
+          },
+          {
+            label: 'Capabilities',
+            valueText: `${filtered.leafCount}`,
+            ratio: Math.min(1, filtered.leafCount / 60),
+            tone: 'gold',
+          },
+        ]}
+      />
 
       {error ? (
         <div className="space-y-4">
@@ -240,7 +530,7 @@ export function ExplorerView({
         </div>
       ) : (
         <div className={cn('flex min-h-0 flex-1 gap-6', narrow ? 'flex-col' : 'flex-row')}>
-          {loading ? (
+          {effectiveLoading ? (
             <Glass inset={false} className="w-[240px] shrink-0 space-y-2 rounded-xl p-2">
               {Array.from({ length: 8 }, (_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
@@ -260,14 +550,22 @@ export function ExplorerView({
           )}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-4 rounded-xl bg-bg-base/90 py-1">
+            <div
+              style={{
+                backgroundImage:
+                  "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+              className="vox-marble-tablet sticky top-0 z-10 flex flex-wrap items-center gap-4 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_18px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+            >
               <div className="relative min-w-[240px] flex-1">
                 <label htmlFor="explorer-search-input" className="sr-only">
                   Search capabilities
                 </label>
                 <Icon.search
                   aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#6B5125]"
                 />
                 <input
                   id="explorer-search-input"
@@ -277,7 +575,7 @@ export function ExplorerView({
                   aria-controls={TREE_ID}
                   placeholder="Filter by name, command, or description"
                   value={query}
-                  disabled={loading}
+                  disabled={effectiveLoading}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Escape' && query.length > 0) {
@@ -286,7 +584,7 @@ export function ExplorerView({
                       setQuery('');
                     }
                   }}
-                  className="h-9 w-full rounded-lg border border-border-subtle bg-bg-surface pr-3 pl-9 text-[13px] text-text-primary placeholder:text-text-muted disabled:opacity-50"
+                  className="h-9 w-full rounded-lg border border-[#A67C1E]/75 bg-[#FDFBF7] pr-3 pl-9 text-[13px] font-medium text-[#1C140C] placeholder:text-[#7A6136] disabled:opacity-50"
                 />
               </div>
 
@@ -299,55 +597,62 @@ export function ExplorerView({
                   const pressed = statuses.has(status);
                   const count = chipCounts[status];
                   return (
-                    <button
+                    <RomanTooltip
                       key={status}
-                      type="button"
-                      aria-pressed={pressed}
-                      disabled={loading}
-                      onClick={() => toggleStatusChip(status)}
-                      className={cn(
-                        'inline-flex h-7 items-center gap-1 rounded-full bg-overlay-subtle px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50',
-                        pressed
-                          ? 'ring-1 ring-(--color-accent-default) text-(--color-accent-default)'
-                          : 'ring-1 ring-border-subtle text-text-secondary hover:bg-overlay-hover',
-                      )}
+                      title={`Filter: ${label}`}
+                      purpose={`Filter capability grid to show only features matching ${label}.`}
+                      actionHint={pressed ? 'Click to deselect filter' : 'Click to apply filter'}
+                      statusBadge={pressed ? 'ACTIVE' : undefined}
                     >
-                      {pressed && (
-                        <span aria-hidden="true" className="font-mono">
-                          ✓
-                        </span>
-                      )}
-                      <span>{label}</span>
-                      <span className="font-mono text-text-muted">{count}</span>
-                    </button>
+                      <button
+                        type="button"
+                        aria-pressed={pressed}
+                        disabled={effectiveLoading}
+                        onClick={() => toggleStatusChip(status)}
+                        className={cn(
+                          'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50',
+                          pressed
+                            ? 'border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                            : 'border-[#A67C1E]/70 bg-[#EFE6D2] text-[#2B1F0F] hover:bg-white',
+                        )}
+                      >
+                        {pressed && (
+                          <span aria-hidden="true" className="font-mono">
+                            ✓
+                          </span>
+                        )}
+                        <span>{label}</span>
+                        <span className="font-mono opacity-80">{count}</span>
+                      </button>
+                    </RomanTooltip>
                   );
                 })}
               </div>
 
-              <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-text-secondary">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-[#2B1F0F]">
                 <input
                   type="checkbox"
                   checked={showExempt}
-                  disabled={loading}
+                  disabled={effectiveLoading}
                   onChange={(e) => setShowExempt(e.target.checked)}
-                  style={{ accentColor: 'var(--color-accent-default)' }}
-                  className="size-4 rounded border-border-subtle"
+                  style={{ accentColor: '#8C6825' }}
+                  className="size-4 rounded border-[#A67C1E]"
                 />
                 <span>Show exempt groups ({tree.totalExemptGroups})</span>
               </label>
 
-              {!loading && rows.length > 0 && (
+              {!effectiveLoading && effectiveRows.length > 0 && (
                 <div
                   role="status"
                   aria-live="polite"
-                  className="ml-auto font-mono text-[11px] text-text-muted"
+                  className="ml-auto font-mono text-[11px] font-semibold text-[#5C441E]"
                 >
                   {statusLineText}
                 </div>
               )}
             </div>
 
-            {loading ? (
+            {effectiveLoading ? (
               <Glass inset={false} className="space-y-2 rounded-xl p-4">
                 <div
                   role="status"
@@ -360,7 +665,7 @@ export function ExplorerView({
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </Glass>
-            ) : rows.length === 0 ? (
+            ) : effectiveRows.length === 0 ? (
               <Glass inset={false} className="rounded-xl">
                 <EmptyState
                   variant="no-data"

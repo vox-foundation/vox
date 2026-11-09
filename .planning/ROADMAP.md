@@ -1,5 +1,287 @@
 # Roadmap: Vox Unified Workstream
 
+# Roadmap: v6.4 — Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography (`Phases 373–377`)
+
+**Milestone:** v6.4
+**Status:** Complete (`5/5` Phases Verified — 2026-11-08)
+**Approved Visual Direction:** Milestone `v6.4` White/Gold Carrara Marble Concept Art (`v65_concept_urbs_simulator_white_gold_acropolis_1794158463815.jpg`, `v65_concept_explorer_tasks_runs_white_gold_1794158471421.jpg`, `v65_concept_chat_mens_knowledge_white_gold_1794158501800.jpg`) — Full-body Sunlit White/Cream Carrara Marble & Ivory Travertine (`#FAF6EE` / `#F5EFE2` / `#EFE6D5`), Burnished Gold borders (`#C59B27`), High-Contrast Dark Espresso Ink (`#1C140C`), Vitruvian Architectural Watermark background (`carrara-page-watermark-bg.jpg`), Sculpted Roman Frieze footer (`roman-architectural-frieze-footer.jpg`), Painted Roman Monument Simulator (`urbs-white-gold-citadel-bg.jpg` + `monument-*.jpg`), Single-Line Roman Controls, and Zero Courier/Arial/Menlo Monospace Typography.
+
+### Phase 373: Concept Art Generation, Circular `ORCHESTRATOR` Bubble Cutoff Fix & Single-Line `Explorer` Controls (`ROMA-V64-FLOW-EXP-01..04`) `[COMPLETE]`
+
+**Goal:** Generate Milestone `v6.4` concept art, monument portraits, and background/frieze textures; enlarge the central `ORCHESTRATOR` circular hub medallion (`r=66` in `AgentFlow.tsx`) and widen the `ORCHESTRATOR` DAG node (`width=136` in `NeedsYouSurface.tsx`) for zero text cutoff; make `OPEN FORM`, `EXPLAIN CAPABILITY`, `OPEN DOCS` strictly single-line (`ExplorerTree.tsx`, `Button.tsx`) and `= GENERIC FORM` a sleek single-line Roman pill (`CapabilityBadge.tsx`).
+
+### Phase 374: Non-Procedural Painted Roman Monument Simulator & Live File/Folder Aqueduct Streams (`ROMA-V64-URBS-MONUMENTS-01..04`) `[COMPLETE]`
+
+**Goal:** Remove procedural 2D polygon building/wall drawing from `worldRenderer.ts` (`paintFullBleedRomanLandscape`, `drawDistrictCurtainWall`, `drawIsoFileBuilding`, `paintDistrictWonder`, `paintLandmarks`); wire `LudusSandbox.tsx` to `urbs-white-gold-citadel-bg.jpg`, generated painted monument portraits (`monument-pantheon-orchestrator.jpg`, `monument-temple-compiler.jpg`, `monument-library-knowledge.jpg`, `monument-colosseum-harness.jpg`), real-time active file/folder badges (`src/parser.rs`, `gamify/LudusSandbox.tsx`, `src/turso.rs`, `src/qlora.rs`, `models/select.rs`, `src/mesh.rs`), and animated SVG golden aqueduct streams.
+
+### Phase 375: Full-Body Sunlit White/Cream Carrara Marble & Burnished Gold Theme + Architectural Watermark & Frieze Footer (`ROMA-V64-WHITE-GOLD-01..04`) `[COMPLETE]`
+
+**Goal:** Convert `Backdrop.tsx`, `Glass.tsx`, and `index.css` (`:root` color tokens, `main`, tables, rows, inputs, selects, buttons, and legacy dark utilities) across all 32 surfaces to the Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic with subtle Vitruvian architectural watermark background and sculpted bottom Roman frieze footer.
+
+### Phase 376: Universal Roman Typography Enforcement & Zero Monospace/Courier/Arial Purge (`ROMA-V64-TYPO-01..04`) `[COMPLETE]`
+
+**Goal:** Remap `--font-mono`, `--font-family-mono`, `.font-mono`, `pre`, `code`, `kbd`, `samp`, `.cm-editor`, `.cm-content` in `index.css` and `dockview-vox.css`, plus all SVG/Canvas font declarations across `AgentFlow.tsx`, `worldRenderer.ts`, `riverCanvasRenderer.ts`, `NeedsYouSurface.tsx`, `Matrix.tsx`, and `MensTrainingView.tsx`, to `'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif` (`tabular-nums`) and `'Cinzel', 'Palatino', Georgia, serif`.
+
+### Phase 377: Multi-Resolution (`1280×800`, `1440×900`, `1920×1080`) Built-In Gemini Vision + Playwright CV Flywheel Verification (`ROMA-V64-VERIFY-01..04`) `[COMPLETE]`
+
+**Directory:** `.planning/phases/377-v64-white-gold-carrara-marble-unification/`
+**Goal:** Verify all 32 `SURFACE_REGISTRY` surfaces and 3 viewport resolutions (`1280×800`, `1440×900`, `1920×1080`) via Playwright + `@ngi/platform-ssot` CV Flywheel (`0` `axeViolations`, `0` `clippedInteractiveCount`, `0` `overlappingControlPairs`, `0` `digitalColorLeakCount`), inspect screenshots with built-in Gemini vision, eliminate all Vite/CSS/bundler warnings, and present inline Before/After carousels.
+
+---
+
+# Roadmap: v6.3 — Game-UI Romanesque Unification, 92px Sculptural Medallion Sidebar Rail, Sunlit Travertine & Parchment Stone Tablets, Zero-Void/Zero-Truncation Multi-Resolution Layout & Built-In VLM Vision Flywheel (`Phases 368–372`)
+
+**Milestone:** v6.3
+**Status:** Executing with Parallel Subagent Waves (`image-generator` + `self`).
+**Updated:** 2026-11-08
+**Approved Visual Direction:** Game-UI Romanesque Concept Art (`v61_concept_compute_and_market_1794141010387.jpg`, `v61_concept_workspace_and_commands_1794141011579.jpg`, `v62_concept_semiotic_urbs_codebase_city_1794147288395.jpg`) — 92px Sculptural Bronze Medallion Sidebar Rail, Sunlit Travertine & Parchment Stone Tablets (`#EDE3D1`/`#DFD3BD`), Riveted Burnished Brass Console Bezels, Large Semicircular Brass Chronometer Dials, Olive-Laurel Bronze & Crimson Wax Seal Badges (zero digital neon green/cyan/blue), and zero clipping/truncation/empty void across `1280×800`, `1440×900`, and `1920×1080`.
+
+### Phase 368: Built-In VLM Vision Audit & Structural/Chromatic Flywheel Upgrade (`vlmVisionFlywheel.ts`, `audits.ts`, `cv-flywheel.spec.ts`) (`ROMA-CV-V63-01..04`) `[WAVE 1]`
+
+**Goal:** Upgrade the Playwright + VLM Computer Vision Flywheel (`vlmVisionFlywheel.ts`, `audits.ts`, `cv-flywheel.spec.ts`) to detect child clipping inside `overflow-hidden` containers (`clippedChildInOverflowHiddenCount`), mid-word text truncation (`truncatedTextElementCount`), empty viewport void (`emptyViewportVoidRatio`), digital green/teal/cyan pixel leaks (`digitalGreenBluePixelRatio`), and sunlit travertine/parchment tablet coverage (`travertineParchmentSlabRatio`).
+**Depends on:** Phase 367
+**Requirements:** `ROMA-CV-V63-01`, `ROMA-CV-V63-02`, `ROMA-CV-V63-03`, `ROMA-CV-V63-04`
+
+### Phase 369: 92px Sculptural Bronze Medallion Game-UI Sidebar Rail (`Sidebar.tsx`, `Layout.tsx`, `StatusBar.tsx`) & Zero-Truncation Status Bar (`ROMA-RAIL-CHROME-01..04`) `[WAVE 2A]`
+
+**Goal:** Transform `Sidebar.tsx` from a `216px` SaaS sidebar list into the Concept Art's `92px` Sculptural 3D Bronze Coin Medallion Game-UI Rail (embossed circular bronze medallions on top, chiseled uppercase `Cinzel` labels beneath, glowing vertical gold active bar, reclaiming `124px` of horizontal screen space); fix `StatusBar.tsx` truncation (`ROUTING Auto → anthr`) and replace neon green/cyan dots with Romanesque gold, olive-laurel bronze, and crimson wax seals.
+**Depends on:** Phase 368
+**Requirements:** `ROMA-RAIL-CHROME-01`, `ROMA-RAIL-CHROME-02`, `ROMA-RAIL-CHROME-03`, `ROMA-RAIL-CHROME-04`
+
+### Phase 370: Sunlit Travertine & Parchment Stone Tablets, Large Semicircular Brass Chronometer Dials & Zero-Digital-Color Purge (`index.css`, `RomanSurfaceHeader.tsx`, All 32 Surfaces) (`ROMA-TABLET-GAMEUI-01..04`) `[WAVE 2B]`
+
+**Goal:** Replace dark `#0E0C0A`/`#14100B` IBM-style card/table bodies and digital neon green/teal/cyan pills across `index.css` and surface components (`ModelsView`, `VoxPopuliView`, `MercatusView`, `TerminalSurface`, `RepositoryView`, `CommandCatalogSurface`, `SkillsPluginsView`, `MemoryView`, `ScientiaSurface`, `ExplorerView`, `SettingsView`, `Dashboard`, `HarnessRiverPanel`) with Warm Sunlit Roman Travertine & Parchment Stone Tablets (`#EDE3D1` / `#DFD3BD` with `#1E150C` deep espresso ink), Riveted Brass Console Bezels, large semicircular `<RomanBrassGauge>` chronometer dials, and Olive-Laurel / Crimson Wax Seal badges.
+**Depends on:** Phase 368
+**Requirements:** `ROMA-TABLET-GAMEUI-01`, `ROMA-TABLET-GAMEUI-02`, `ROMA-TABLET-GAMEUI-03`, `ROMA-TABLET-GAMEUI-04`
+
+### Phase 371: Multi-Resolution (`1280×800`, `1440×900`, `1920×1080`) Zero-Clipping & Empty-Void Elimination (`LudusSandbox.tsx`, `HarnessRiverPanel.tsx`, `VoxPopuliView.tsx`, `MercatusView.tsx`, `TerminalSurface.tsx`) (`ROMA-VOID-RES-01..04`) `[WAVE 2C]`
+
+**Goal:** Eliminate bottom dock/radar collision and top toolbar wrapping at `1280×800` in `LudusSandbox.tsx`, eliminate bottom funnel clipping at `1280×800` in `HarnessRiverPanel.tsx`, and replace empty bottom viewport voids in `VoxPopuliView.tsx`, `MercatusView.tsx`, and `TerminalSurface.tsx` with interactive Roman Mesh Topology, Arbitrage Matrix, and Command Quick-Launch Stone Tablets.
+**Depends on:** Phases 369–370
+**Requirements:** `ROMA-VOID-RES-01`, `ROMA-VOID-RES-02`, `ROMA-VOID-RES-03`, `ROMA-VOID-RES-04`
+
+### Phase 372: Multi-Pass Built-In Vision + Playwright CV Flywheel Verification & Inline Before/After Presentation (`ROMA-V63-VERIFY-01..04`) `[WAVE 3]`
+
+**Goal:** Run multi-pass Playwright + VLM CV Flywheel audits across all 32 surfaces and 3 resolutions (`1280×800`, `1440×900`, `1920×1080`), inspect every screenshot directly with Gemini built-in vision against the Concept Art, verify `pnpm --dir crates/vox-gui/ui build`, and present inline Before/After carousels.
+**Depends on:** Phase 371
+**Requirements:** `ROMA-V63-VERIFY-01`, `ROMA-V63-VERIFY-02`, `ROMA-V63-VERIFY-03`, `ROMA-V63-VERIFY-04`
+
+---
+
+# Roadmap: v6.2 — Romanesque Semiotic Codebase City, Aqueduct LLM/Orchestrator Cascade & Gamified Developer Controls (`Phases 363–367`)
+
+**Milestone:** v6.2
+**Status:** Executing with Parallel Subagent Waves (`image-generator` + `self`).
+**Updated:** 2026-11-08
+**Research & Design SSOTs:**
+- [`docs/src/architecture/semiotic-codebase-and-aqueduct-orchestrator-simulator-research-2026.md`](../docs/src/architecture/semiotic-codebase-and-aqueduct-orchestrator-simulator-research-2026.md)
+- [`docs/src/architecture/romanesque-white-marble-pillars-animation-ui-spec-2026.md`](../docs/src/architecture/romanesque-white-marble-pillars-animation-ui-spec-2026.md)
+
+### Phase 363: Nov 2026 Semiotic Codebase & Aqueduct Orchestrator Research KB + High-Resolution Concept Art & Simulator Assets (`ROMA-KB-CONCEPT-01..04`) `[WAVE 1]`
+
+**Goal:** Research external software city visualizers (*CodeCharta*, *CodeCity*, *M3triCity*), multi-agent LLM orchestrator graphs (*LangGraph Studio*, *AutoGen Studio*, *Rivet*, *Arize Phoenix*), and hydraulic city-builder UX mechanics (*Anno 117: Pax Romana*, *Timberborn*, *Caesar III*), persist the findings in `docs/src/architecture/semiotic-codebase-and-aqueduct-orchestrator-simulator-research-2026.md`, and generate high-resolution Concept Art plates + simulator/aqueduct raster assets (`urbs-semiotic-citadel-bg.jpg`, `aqueduct-sluice-cascade-bg.jpg`).
+**Depends on:** Phase 362
+**Requirements:** `ROMA-KB-CONCEPT-01`, `ROMA-KB-CONCEPT-02`, `ROMA-KB-CONCEPT-03`, `ROMA-KB-CONCEPT-04`
+
+### Phase 364: Semiotic Codebase City (`L0`–`L5`), White Carrara Marble Temples & Interactive Developer Command Dock (`LudusSandbox.tsx`, `worldRenderer.ts`) (`ROMA-URBS-SEMIOTIC-01..04`) `[WAVE 2A]`
+
+**Goal:** Upgrade `worldRenderer.ts` and `LudusSandbox.tsx` with high-contrast white Carrara marble temple/basilica colonnades, gilded domes, semiotic architectural layer badges (`L0 Foundation` through `L5 Surfaces`), hydraulic token-stream particles, a **Semiotic Layer & Legend Bar** (`[All | L0..L5]`), and a 1-click **Developer Action Command Dock** (`[⚙ Check Crate]`, `[✓ Run Tests]`, `[🔍 Diff Loupe]`, `[📌 Pin Context]`, `[🔒 Quarantine]`, `[⚔ Spawn Agent]`, `[🏆 Claim Yield]`).
+**Depends on:** Phase 363
+**Requirements:** `ROMA-URBS-SEMIOTIC-01`, `ROMA-URBS-SEMIOTIC-02`, `ROMA-URBS-SEMIOTIC-03`, `ROMA-URBS-SEMIOTIC-04`
+
+### Phase 365: Aqueduct Hydraulic LLM & Orchestrator Cascade, 8-Spoke Source Arches & Interactive Brass Sluice Gates (`HarnessRiverPanel.tsx`, `riverCanvasRenderer.ts`) (`ROMA-AQUEDUCT-FLOW-01..04`) `[WAVE 2B]`
+
+**Goal:** Transform `HarnessRiverPanel.tsx` and `riverCanvasRenderer.ts` into a multi-tiered Roman Aqueduct LLM & Orchestrator Cascade backed by `aqueduct-sluice-cascade-bg.jpg`, featuring the **Aquae Caput (Hub + 8-Spoke Source Arcade)**, **3-Tier Marble Channels (`Cursus I/II/III`)** with live shape+color token particles (`❯❯` Cyan Supply, `◆◆` Gold Token Stream, `◉` Emerald Verified, `▲` Crimson Fault), **4 Interactive Brass Sluice Gates (`Clausurae`: `AST Parse`, `Typecheck`, `TOESTUB Audit`, `Test Suite`)**, and 1-click developer orchestrator actions (`[Dispatch Task]`, `[Flush Sluice]`, `[Run Check]`, `[Compact Context]`, `[Claim Quest Yield]`).
+**Depends on:** Phase 363
+**Requirements:** `ROMA-AQUEDUCT-FLOW-01`, `ROMA-AQUEDUCT-FLOW-02`, `ROMA-AQUEDUCT-FLOW-03`, `ROMA-AQUEDUCT-FLOW-04`
+
+### Phase 366: Gamified Developer Loop & Bi-Directional Surface Navigation (`ROMA-GAMIFY-DEV-01..04`) `[WAVE 2C]`
+
+**Goal:** Connect developer actions in `LudusSandbox` and `HarnessRiverPanel` to real backend/RPC operations and live gamified XP/Denarii quest yield feedback with toast/status confirmation and 1-click surface navigation.
+**Depends on:** Phases 364–365
+**Requirements:** `ROMA-GAMIFY-DEV-01`, `ROMA-GAMIFY-DEV-02`, `ROMA-GAMIFY-DEV-03`, `ROMA-GAMIFY-DEV-04`
+
+### Phase 367: Multi-Pass VLM + Playwright Computer Vision Flywheel Convergence & Inline Before/After Presentation (`ROMA-V62-FLYWHEEL-01..04`) `[WAVE 3]`
+
+**Goal:** Capture true Before baselines, upgrade `vlmVisionFlywheel.ts` and `cv-flywheel.spec.ts` to verify semiotic layer badges, aqueduct sluice gates, and developer action docks, run multi-pass Playwright + VLM CV Flywheel audits across all surfaces, build `vox-gui`, and present Concept Art + Before/After carousels inline.
+**Depends on:** Phase 366
+**Requirements:** `ROMA-V62-FLYWHEEL-01`, `ROMA-V62-FLYWHEEL-02`, `ROMA-V62-FLYWHEEL-03`, `ROMA-V62-FLYWHEEL-04`
+
+### Phase 368: Romanesque MENS Corpus & Pipeline Studio GUI + Auto-Sync JSONL Flywheel (`MENS-STUDIO-GUI-01..04`)
+
+**Directory:** `.planning/phases/368-mens-corpus-pipeline-studio-gui/`
+**Goal:** Eliminate manual JSONL regeneration and surface the entire MENS corpus/mix/reasoning/checkpoint pipeline in `vox-gui` (`MensCorpusStudioPanel.tsx` inside `MensTrainingView.tsx`), matching the Romanesque Concept Art (`concept_mens_pipeline_studio_romanesque_1794153153510.jpg`) via CV Flywheel convergence:
+1. Auto-materialize missing/stale synthetic and extracted JSONL sources (`vox_reasoning_traces.jsonl`, `docs.jsonl`, `rust_source.jsonl`) and auto-regenerate `train_mixed*.jsonl` + `mens/data/train.jsonl` whenever source fingerprints or weights change.
+2. Expose real Tauri IPC commands (`mens_corpus_studio_snapshot`, `mens_corpus_read_jsonl`, `mens_corpus_save_jsonl_row`, `mens_corpus_rebuild_mix`) backed by `vox_corpus` and `vox_compiler::parser::parse` AST verification — zero hardcoded/fake data.
+3. Build the 3-arch Romanesque `MensCorpusStudioPanel.tsx` (`Mix Sources & Auto-Materializer DAG`, `Live JSONL Record Inspector & Inline AST Editor`, `Ladder Checkpoints & Collateral Gate Matrix`) with live search, task-family filtering, inline `<think>` & Vox code editing, compiler diagnostics, and one-click/auto mix rebuild.
+4. Verify with Rust unit tests, Vitest component tests, and Playwright CV Flywheel visual convergence against the Romanesque concept art.
+**Depends on:** Phase 362
+**Requirements:** `MENS-STUDIO-GUI-01`, `MENS-STUDIO-GUI-02`, `MENS-STUDIO-GUI-03`, `MENS-STUDIO-GUI-04`
+**Plans:** 1/1 plan complete (`368-01-PLAN.md` -> `368-01-SUMMARY.md`) — **Complete**
+
+---
+
+# Roadmap: v6.1 — Full-Surface Plate 2 Romanesque Generalization, High-Resolution Diorama Simulator & Structural CV Flywheel (`Phases 358–361`)
+
+**Milestone:** v6.1
+**Status:** Executing with Parallel Subagent Waves (`pro` + `flash` disjoint file scopes).
+**Updated:** 2026-11-08
+**Approved Visual Direction:** Concrete Plate 2 Romanesque Suite (`axis_romanesque_concept_2_urbs_ludus_1794129218189.jpg`, `v61_concept_compute_and_market_1794141010387.jpg`, `v61_concept_workspace_and_commands_1794141011579.jpg`, `v61_concept_knowledge_explorer_urbs_refined_1794141055158.jpg`) — Universal carved Roman marble bas-relief frieze headers (`<RomanSurfaceHeader>`), embossed circular bronze medallions (`<RomanMedallion>`), semicircular antique brass dial gauges (`<RomanBrassGauge>`), crimson wax-seal status badges, warm travertine stone tablets, readable humanist typography, high-resolution transparent-composited `urbs-diorama-bg.jpg` simulator canvas, and upgraded CV Flywheel detectors (`skeletonCount === 0`, `digitalColorLeakCount === 0`, `rawBacktickCount === 0`).
+
+### Phase 358: Structural CV Flywheel Upgrade (`audits.ts`, `cvFlywheel.ts`, `cv-flywheel.spec.ts`) (`ROMA-CV-STRUCT-01..04`) `[WAVE 1A]`
+
+**Goal:** Upgrade the automated Playwright CV Flywheel (`audits.ts`, `cvFlywheel.ts`, `cv-flywheel.spec.ts`) so it catches and fails on non-Romanesque regressions across all 32 surfaces: loading skeleton bars (`skeletonCount`), cold digital slate/cyan/violet leaks (`digitalColorLeakCount`), raw unrendered markdown backticks (`rawBacktickCount`), and opaque canvas fills obscuring the Roman diorama in `LudusSandbox`.
+**Depends on:** Phase 357
+**Requirements:** `ROMA-CV-STRUCT-01`, `ROMA-CV-STRUCT-02`, `ROMA-CV-STRUCT-03`, `ROMA-CV-STRUCT-04`
+
+### Phase 359: Concrete Non-Abstract Concept Art Plates & High-Resolution Roman Diorama Simulator (`LudusSandbox.tsx`, `worldRenderer.ts`, `hydraulicNetwork.ts`) (`ROMA-SIM-DIORAMA-01..04`) `[WAVE 1B]`
+
+**Goal:** Generate concrete, non-abstract Plate 2 Romanesque concept art plates for `COMPUTE & MARKET`, `WORKSPACE & COMMANDS`, and `KNOWLEDGE, EXPLORER & URBS SIMULATOR`; eliminate the double opaque dark-blue canvas fill (`#0a1019` in `LudusSandbox.tsx` and `#040e18` in `worldRenderer.ts`) that obliterated 90% of `urbs-diorama-bg.jpg`; and replace neon cyan viaduct/conduit strokes in `worldRenderer.ts` and `hydraulicNetwork.ts` with burnished Roman gold (`#D4AF37`), warm travertine (`#F3E5AB`), and verdigris aqueduct emerald (`#10B981`).
+**Depends on:** Phase 358
+**Requirements:** `ROMA-SIM-DIORAMA-01`, `ROMA-SIM-DIORAMA-02`, `ROMA-SIM-DIORAMA-03`, `ROMA-SIM-DIORAMA-04`
+
+### Phase 360: Universal Plate 2 Romanesque Generalization Across `COMPUTE`, `MARKET`, `WORKSPACE`, `COMMANDS`, `KNOWLEDGE`, `REVIEW`, `EXPLORER` & `SETTINGS` (`ROMA-ALL-TABS-01..04`) `[PARALLEL-SAFE WAVE 2]`
+
+**Goal:** Build `<RomanSurfaceHeader>` (carved marble bas-relief frieze banner, embossed bronze medallion, semicircular `<RomanBrassGauge>` KPI dials, crimson wax-seal status pill, and progressive-disclosure `<RomanTooltip>`) + global Plate 2 CSS table/card/input overrides in `index.css`, and generalize Plate 2 Romanesque styling across `ModelsView`, `CommandCardsView` (`Populi` & `Oratio`), `Mercatus`, `RepositoryView`, `Console`, `BrowserView`, `CodeRabbitView`, `Catalog`, `CommandCatalogForm`, `SkillsPluginsView`, `MemoryView`, `ScientiaSurface`, `ResearchView`, `PublicationsView`, `VoxGraphStatusPanel`, `ApprovalsView`, `PoliciesView`, `ExplorerView` (instant zero-skeleton hydration), and `SettingsView`.
+**Depends on:** Phase 359
+**Requirements:** `ROMA-ALL-TABS-01`, `ROMA-ALL-TABS-02`, `ROMA-ALL-TABS-03`, `ROMA-ALL-TABS-04`
+
+### Phase 361: Multi-Round 32-Surface Before/After Playwright CV Flywheel Verification & Inline Presentation (`ROMA-V61-VERIFY-01..04`) `[WAVE 3]`
+
+**Goal:** Run multi-round Playwright CV Flywheel verification across all 32 surfaces (`skeletonCount === 0`, `digitalColorLeakCount === 0`, `rawBacktickCount === 0`, `overlappingControlPairs === 0`, `axeViolations === 0`), capture before/after screenshots across `COMPUTE`, `MARKET`, `WORKSPACE`, `COMMANDS`, `KNOWLEDGE`, `EXPLORER`, and `URBS SIMULATOR`, rebuild `vox-gui`, and present inline before/after carousels.
+**Depends on:** Phase 360
+**Requirements:** `ROMA-V61-VERIFY-01`, `ROMA-V61-VERIFY-02`, `ROMA-V61-VERIFY-03`, `ROMA-V61-VERIFY-04`
+
+### Phase 362: MENS Regression Root-Cause Fixes (`supervised_ratio`, `<think>` Reasoning Synthesis & Cued Answer Grader) (`MENS-REGFIX-01..04`)
+
+**Goal:** Eliminate the four verified root causes of MENS training/collateral regressions across the Qwen3 ladder:
+1. Switch `generate_training_system_prompt()` in `crates/vox-corpus/src/training/mod.rs` from `generate_system_prompt()` (~2,200 tokens / 8.6 KB `mens/config/system_prompt.txt`) to `builtin_system_prompt()` (~350 tokens / 1.48 KB), raising `supervised_ratio` from `4.5%` (`< 10%` gate failure) to `~20–25%` and speeding up QLoRA step time by ~4x.
+2. Add deterministic, compiler-verified, zero-leakage Vox `<think>` reasoning trace synthesis (`crates/vox-corpus/src/corpus/vox_reasoning_synth.rs`: 120 rows across `literal_debug`, `state_trace`, and `invariant_check`) and wire `mens/data/mix_sources/vox_reasoning_traces.jsonl` (`weight: 2.0`) into `mens/config/mix.yaml`, `mens/config/mix-vox-lang.yaml`, and `mix_prepare.rs` so adapters do not auto-fix literal-execution `debug` items or ramble past 2048 tokens without closing `</think>`.
+3. Harden `extract_cued_answer` in `crates/vox-eval/src/qwen_reasoning.rs` (scanning cues right-to-left, rejecting English prose stopwords like `"The"`/`"that"`/`"not"`, and recovering earlier valid cues when a trace truncates right after `"So the answer is "`) and sync `qwen_reasoning.rs` v2 across worktrees.
+4. Use `--rank 8 --alpha 16` (`grad_accum=8`) when retraining 28-layer models (`0.6B`, `1.7B`) so `lm_head` + projection LoRA updates preserve base reasoning calibration.
+**Depends on:** Phase 333, Phase 345
+**Requirements:** `MENS-REGFIX-01`, `MENS-REGFIX-02`, `MENS-REGFIX-03`, `MENS-REGFIX-04`
+**Plans:** 1 plan (`362-01-PLAN.md` — Complete 2026-11-08)
+
+---
+
+# Roadmap: v5.9 — Full-Prompt Goal Audit & Universal Plate 2 Romanesque Convergence (`Phases 352–356`)
+
+**Milestone:** v5.9
+**Status:** Executing with Parallel Subagent Waves (`pro` + `flash` disjoint file scopes).
+**Updated:** 2026-11-08
+**Approved Visual Direction:** Concept Art Plate 2 (`axis_romanesque_concept_2_urbs_ludus_1794129218189.jpg`) — Universal carved Roman travertine & burnished brass design system across all 32 Vox Axis surfaces, Plate 2 exact 5-medallion top frieze & 3-part Stone Telemetry Console (`Git Timeline`, 3 `RomanBrassGauge` dials, `Architecture Astrolabe Radar`) on `LudusSandbox`, complete elimination of residual sci-fi "Argon AI" cyan/void visuals in `riverCanvasRenderer.ts` and `AgentTrajectoryBraid.tsx`, 1-click navigable monuments from both `Dashboard` and `GamifyView`, universal progressive-disclosure `RomanTooltip` & `Tooltip` across all surfaces, live Chat Orchestrator→Spoke & Hub Model visualizer, and 32-surface × 3-resolution CV Flywheel convergence.
+
+### Phase 352: Plate 2 Exact Urbs Stone Telemetry Console, Top-5 Medallion Frieze & 1-Click Navigable Monuments (`ROMA-URBS-CONSOLE-01..04`) `[PARALLEL-SAFE WAVE 1A — PRO]`
+
+**Goal:** Converge `LudusSandbox.tsx`, `HudPanels.tsx`, `ViaTemporisScrubber.tsx`, `GamifyView.tsx`, and `surfaceComponents.tsx` with Concept Art Plate 2 by adding the top-row 5-medallion carved marble frieze (`Workspace Map`, `Agent Orchestrator`, `CI & Verification`, `Task Harbor`, `Token Treasury`), upgrading the bottom stone telemetry console so all 3 gauges (`Budget`, `Energy`, `Speed`) render as animated semicircular `RomanBrassGauge` dials flanked by carved Roman column dividers (`I` and `III`), adding the crimson wax seal (`wax-seal-medallion.jpg`) + laurel wreath to `ViaTemporisScrubber.tsx`, threading `onNavigate` into `GamifyView.tsx`, and making every monument plaque and landmark medallion 1-click navigable.
+**Depends on:** Phase 351
+**Requirements:** `ROMA-URBS-CONSOLE-01`, `ROMA-URBS-CONSOLE-02`, `ROMA-URBS-CONSOLE-03`, `ROMA-URBS-CONSOLE-04`
+
+### Phase 353: Sci-Fi "Argon AI" Elimination in `HarnessRiverPanel` (`riverCanvasRenderer.ts`, `AgentTrajectoryBraid.tsx`), `AgentFlow` & `NeedsYouSurface` (`ROMA-ARGON-PURGE-01..04`) `[PARALLEL-SAFE WAVE 1B — FLASH]`
+
+**Goal:** Replace the remaining cold sci-fi `#070709` black background, glowing cyan singularity orb, and laser scanner line in `riverCanvasRenderer.ts` and `AgentTrajectoryBraid.tsx` with warm Roman aqueduct stone, molten gold (`#D4AF37`), amber-bronze (`#D97706`), verdigris emerald (`#10B981`), and a carved travertine & brass keystone banner; reskin `AgentFlow.tsx` (`AGENTS › FLOW`) and `NeedsYouSurface.tsx` to Plate 2 marble frieze headers, embossed bronze/gold node rings, and `<RomanTooltip>` progressive disclosure.
+**Depends on:** Phase 351
+**Requirements:** `ROMA-ARGON-PURGE-01`, `ROMA-ARGON-PURGE-02`, `ROMA-ARGON-PURGE-03`, `ROMA-ARGON-PURGE-04`
+
+### Phase 354: Universal Plate 2 Romanesque Card/Tooltip Primitives (`Glass`, `Kpi`, `Tooltip`), Live Chat Orchestrator→Spoke Visualizer & `ExplorerView` Hydration (`ROMA-UNIVERSAL-01..04`) `[PARALLEL-SAFE WAVE 1C — FLASH]`
+
+**Goal:** Upgrade `Glass.tsx`, `Kpi.tsx`, and `Tooltip.tsx` to Plate 2's warm carved travertine (`#15110C` / `#1B160F`) and burnished brass (`#D4AF37`) aesthetic so all 32 surfaces share a unified Romanesque skin; enhance `ChatExecutionRail.tsx` with a prominent Plate 2 Live Orchestrator Hub & Active Spoke visualizer with `<RomanTooltip>` progressive disclosure; and hydrate `get_capability_index` in `tauriMockRich.ts` so `ExplorerView` renders rich capability cards without loading skeletons.
+**Depends on:** Phase 351
+**Requirements:** `ROMA-UNIVERSAL-01`, `ROMA-UNIVERSAL-02`, `ROMA-UNIVERSAL-03`, `ROMA-UNIVERSAL-04`
+
+### Phase 355: Multi-Resolution (`1280×800`, `1440×900`, `1920×1080`) 32-Surface CV Flywheel Pass & Full-Goal Audit Matrix (`ROMA-AUDIT-CV-01..04`) `[WAVE 2]`
+
+**Goal:** Execute multi-resolution Playwright CV Flywheel verification across all 32 surfaces and 3 resolutions (`1280×800`, `1440×900`, `1920×1080`), capture updated before/after visual artifacts, verify every prompt requirement end-to-end, rebuild the production bundle, and relaunch `vox-gui`.
+**Depends on:** Phases 352–354
+**Requirements:** `ROMA-AUDIT-CV-01`, `ROMA-AUDIT-CV-02`, `ROMA-AUDIT-CV-03`, `ROMA-AUDIT-CV-04`
+
+## Progress Table (`v5.9`)
+
+| Phase | Requirements | Status |
+|---|---|---|
+| 352 Plate 2 Exact Urbs Stone Telemetry Console, Top-5 Medallion Frieze & 1-Click Navigable Monuments | `ROMA-URBS-CONSOLE-01..04` | Complete (`2026-11-08`) |
+| 353 Sci-Fi "Argon AI" Elimination in `HarnessRiverPanel`, `AgentFlow` & `NeedsYouSurface` | `ROMA-ARGON-PURGE-01..04` | Complete (`2026-11-08`) |
+| 354 Universal Plate 2 Primitives (`Glass`, `Kpi`, `Tooltip`), Chat Orchestrator Visualizer & `ExplorerView` | `ROMA-UNIVERSAL-01..04` | Complete (`2026-11-08`) |
+| 355 Multi-Resolution 32-Surface CV Flywheel Pass & Full-Goal Audit Matrix | `ROMA-AUDIT-CV-01..04` | Complete (`2026-11-08`) |
+
+---
+
+# Roadmap: v5.8 — Plate 2 Romanesque Axis Overhaul, Plain-English Navigable Surfaces, Generated Art Assets, Progressive-Disclosure Tooltips & 32-Surface CV Flywheel (`Phases 346–351`) — COMPLETE
+
+**Milestone:** v5.8
+**Status:** Complete (`24/24` requirements verified 2026-11-08) — Extended in `v5.9` (`Phases 352–355`).
+**Updated:** 2026-11-08
+**Approved Visual Direction:** Concept Art Plate 2 (`axis_romanesque_concept_2_urbs_ludus_1794129218189.jpg`) — Carved marble frieze headers, embossed bronze/gold medallions, warm travertine tablets, crimson wax seals, brass gauges, and engraved astrolabe radar, with **100% plain-English labels**, **generated raster art assets (no crude polygons)**, **clickable/navigable map buildings & radar regions**, **Plate 2-styled Sidebar**, and **Romanesque progressive-disclosure tooltips** explaining what every feature is for and what clicking it does.
+
+### Phase 346: Generated Romanesque Art Assets, Plate 2 Marble Frieze Sidebar, Plain-English Semiotics & Progressive-Disclosure Tooltips (`ROMA-CHROME-01..04`) `[PARALLEL-SAFE WAVE 1]`
+
+**Goal:** Generate real raster art assets (`public/assets/romanesque/*` — carved marble frieze, engraved astrolabe dial, isometric Roman architectural diorama & monuments, bronze medallion icons, crimson wax seal), reskin `Sidebar.tsx` and `BreadcrumbBar.tsx` into Plate 2's carved marble frieze & bronze medallion style (fixing the top-left `[ Sidebar › ]` collision), replace emojis with bespoke SVG/art semiotics (`Icons.tsx`), and ship the Romanesque Progressive-Disclosure Tooltip component (`RomanTooltip.tsx`) that explains in plain English what every button, knob, and surface is for and what interacting with it does.
+**Depends on:** Nothing (Wave 1)
+**Requirements:** `ROMA-CHROME-01`, `ROMA-CHROME-02`, `ROMA-CHROME-03`, `ROMA-CHROME-04`
+**Success Criteria** (what must be TRUE):
+  1. Generated Romanesque art assets (`frieze-header.jpg`, `astrolabe-dial.jpg`, `urbs-diorama-bg.jpg`, `wax-seal-badge.jpg`) live under `crates/vox-gui/ui/public/assets/romanesque/` and replace polygon-only placeholders.
+  2. `Sidebar.tsx` and `BreadcrumbBar.tsx` use Plate 2's carved marble frieze & bronze medallion styling with plain-English navigation labels, Romanesque progressive-disclosure tooltips on every nav item, and zero overlap when `sidebarMode === 'hidden'` across `1280×800`, `1440×900`, and `1920×1080`.
+  3. `RomanTooltip.tsx` and `SurfaceHelpTooltip.tsx` render carved travertine & burnished brass progressive-disclosure tooltips explaining **What it is**, **What it does**, and **Click action / shortcut** in clear English.
+
+### Phase 347: Plain-English Interactive `Workspace Map` (`LudusSandbox`), Navigable Buildings, Animated Astrolabe Radar & Dashboard Minimap Isolation (`ROMA-DASH-URBS-01..04`) `[PARALLEL-SAFE WAVE 2A]`
+
+**Goal:** Wrap `Dashboard.tsx`'s embedded mini-map in `<EmbeddedSurfaceProvider value={true}>`, replace all cryptic Latin-only labels in `LudusSandbox.tsx`, `HudPanels.tsx`, and `ViaTemporisScrubber.tsx` with clear English (`Workspace Map`, `Orchestrator`, `MCP Tools`, `CI & Gates`, `Task Queue`, `Git History`, `Compiler`, `Database`, `MENS Models`, `Mesh Network`, `Security`, `Git Timeline`, `Priority Alerts`, `Architecture Radar`), make every mapped building/landmark and radar region clickable and navigable to its real Vox Axis surface, replace the 148-polygon radar smear with the generated/animated **7-Region Architecture Astrolabe Radar**, and animate brass gauges, radar sweep, and hydraulic flow.
+**Depends on:** Phase 346
+**Requirements:** `ROMA-DASH-URBS-01`, `ROMA-DASH-URBS-02`, `ROMA-DASH-URBS-03`, `ROMA-DASH-URBS-04`
+**Success Criteria** (what must be TRUE):
+  1. `Dashboard.tsx` embeds `<LudusSandbox />` via `<EmbeddedSurfaceProvider value={true}>` with zero HUD pileups and clear plain-English controls + progressive-disclosure tooltips.
+  2. Every landmark pill, mapped building (`Orchestrator`, `Compiler`, `GUI & Surfaces`, `Database`, `MENS Models`, `Mesh Network`, `Security & Crypto`), and radar sector (`Foundation`, `Core`, `Orchestrator`, `Runtime`, `MENS`, `Mesh & DB`, `GUI`) is interactive: clicking focuses the region and provides a working `[Open <Surface> ↗]` action that navigates directly to that surface (`onNavigate`).
+  3. The 148-polygon wireframe radar is replaced by the Plate 2 engraved marble & brass **Architecture Astrolabe Radar** with animated sweep, glowing hotspot braziers, draggable/clickable viewport frustum, and zero clipped background canvas text (`AQUA Supply`).
+
+### Phase 348: Plate 2 Romanesque Reskin of `GamifyView` (`Arena & Quests`) & `HarnessRiverPanel` (`Pipeline Cascade & Task Stream`) with Generated Art & Animations (`ROMA-LUDUS-RIVER-01..04`) `[PARALLEL-SAFE WAVE 2B]`
+
+**Goal:** Reskin `GamifyView.tsx`, `LudusHud.tsx`, `LeaderboardArenaPanel.tsx`, and `HarnessRiverPanel.tsx` (`WaveformTierStrip.tsx`, `riverCanvasRenderer.ts`, `VerificationFunnelFooter.tsx`) into Plate 2's carved marble, bronze medallion, brass gauge, and crimson wax-seal aesthetic with 100% plain-English terminology (`Workspace Map`, `Arena & Quests`, `Engineering Leaderboard`, `Fast Local Tier`, `Balanced Hybrid Tier`, `Deep Architecture Tier`, `Live Task Stream`, `Verification Funnel: Generated → Compiled → Tested → Gated`), generated art backgrounds, smooth animations, and progressive-disclosure tooltips on every control.
+**Depends on:** Phase 346
+**Requirements:** `ROMA-LUDUS-RIVER-01`, `ROMA-LUDUS-RIVER-02`, `ROMA-LUDUS-RIVER-03`, `ROMA-LUDUS-RIVER-04`
+**Success Criteria** (what must be TRUE):
+  1. `GamifyView.tsx`, `LudusHud.tsx`, and `LeaderboardArenaPanel.tsx` render Plate 2 travertine tablets, laurel wreaths, crimson wax-seal verification badges, and plain-English tabs/controls with interactive tooltips.
+  2. `HarnessRiverPanel.tsx` replaces sci-fi argon neon with Plate 2 brass pressure gauges, animated golden/amber/emerald laminar task streams through a bronze astrolabe interceptor gate, and stepped travertine verification basins.
+
+### Phase 349: Interactive Status Bar Popover Dropdowns, Live `Repo / Local Version` Tile & `Configure ▾` Persistence (`ROMA-STATUSBAR-01..04`) `[PARALLEL-SAFE WAVE 2C]`
+
+**Goal:** Upgrade `BottomStatusBar.tsx` and `useHudTiles.ts` to Plate 2's burnished brass & travertine style, add the live `Repo / Version` (`REPO vox@main · 98ea5d2 · v0.6.0`) tile backed by `get_vcs_status` / `get_app_version`, and give every status bar tile (`Repo`, `Engine`, `Spend`, `Mesh`, `Routing`, `Alerts`, `Research`) both a rich interactive popover dropdown (with plain-English progressive-disclosure explanations and live controls) and one-click navigation to its surface, all configurable in `Configure ▾`.
+**Depends on:** Phase 346
+**Requirements:** `ROMA-STATUSBAR-01`, `ROMA-STATUSBAR-02`, `ROMA-STATUSBAR-03`, `ROMA-STATUSBAR-04`
+**Success Criteria** (what must be TRUE):
+  1. `BottomStatusBar.tsx` displays `REPO vox@<branch> · <short_sha> · v<version>` and opens a rich Repository popover (`Branch`, `Commit`, `Working Tree Status`, `[Open Git Surface ↗]`, `[Refresh Status]`).
+  2. Every status bar tile (`Repo`, `Engine`, `Spend`, `Mesh`, `Routing`, `Alerts`, `Research`) has both an interactive popover dropdown and a direct `[Open <Surface> ↗]` navigation button, plus progressive-disclosure tooltips and `Configure ▾` persistence.
+
+### Phase 350: Progressive Disclosure, Button Clustering & Multi-Resolution (`1280×800`, `1440×900`, `1920×1080`) Overflow Elimination Across All 32 Surfaces (`ROMA-DISCLOSURE-01..04`) `[WAVE 3]`
+
+**Goal:** Audit and refine all 32 registered surfaces (`Dashboard`, `Chat`, `MENS Training`, `Workspace Map`, `Harness River`, `Operations Hub`, `Tasks`, `Mesh`, `Sub-Agents`, `Model Router`, `Cost Analytics`, `Scientia`, `Repository`, `Settings`, etc.) to apply Plate 2 button theming, progressive disclosure (`[Details ▾]` drawers and Romanesque tooltips), and responsive overflow fixes at `1280×800`, `1440×900`, and `1920×1080`.
+**Depends on:** Phases 346–349
+**Requirements:** `ROMA-DISCLOSURE-01`, `ROMA-DISCLOSURE-02`, `ROMA-DISCLOSURE-03`, `ROMA-DISCLOSURE-04`
+**Success Criteria** (what must be TRUE):
+  1. All 32 surfaces use plain-English labels, Plate 2 Romanesque button/card tokens, and progressive-disclosure tooltips/drawers without crowded toolbars or text truncation.
+
+### Phase 351: Multi-Pass 32-Surface × 3-Resolution Before/After Playwright CV Flywheel & Live Vox Axis Verification (`ROMA-CV-FLYWHEEL-01..04`) `[WAVE 4]`
+
+**Goal:** Run multi-pass Playwright CV Flywheel verification across all 32 surfaces and 3 resolutions (`1280×800`, `1440×900`, `1920×1080`) against Concept Art Plate 2 until zero mechanical or accessibility defects remain, capture before/after visual comparisons, and rebuild/relaunch the live `vox-gui` desktop binary.
+**Depends on:** Phase 350
+**Requirements:** `ROMA-CV-FLYWHEEL-01`, `ROMA-CV-FLYWHEEL-02`, `ROMA-CV-FLYWHEEL-03`, `ROMA-CV-FLYWHEEL-04`
+**Success Criteria** (what must be TRUE):
+  1. Multi-resolution Playwright CV Flywheel passes with `overlappingControlPairs === 0`, `clippedTextCount === 0`, `horizontalOverflowPx === 0`, and `axeViolations === 0`.
+  2. Live `vox-gui` binary is rebuilt and running with all v5.8 Plate 2 improvements.
+
+## Progress Table (`v5.8`)
+
+| Phase | Requirements | Status |
+|---|---|---|
+| 346 Top-Left Collision Fix, Romanesque Tokens & Engraved SVG Semiotics | `ROMA-CHROME-01..04` | Ready |
+| 347 Dashboard Embedded Minimap, Frieze Drawers & 7-Regio `Forma Urbis` Radar | `ROMA-DASH-URBS-01..04` | Ready |
+| 348 Romanesque Reskin of `GamifyView` & `AQVAEDUCTUS` Harness River | `ROMA-LUDUS-RIVER-01..04` | Ready |
+| 349 Interactive Status Bar Popover Dropdowns & `Repo / Local Version` Tile | `ROMA-STATUSBAR-01..04` | Ready |
+| 350 Progressive Disclosure, Button Clustering & 32-Surface Overflow Elimination | `ROMA-DISCLOSURE-01..04` | Ready |
+| 351 Multi-Pass 32-Surface × 3-Resolution Before/After CV Flywheel | `ROMA-CV-FLYWHEEL-01..04` | Ready |
+
+---
+
 # Roadmap: v5.7 — Vox ↔ Python Bridge & Tolerant CLI Ergonomics
 
 **Milestone:** v5.7
@@ -174,6 +456,7 @@ Plans:
 **Out of scope (rejected after verification — see SSOT):** reality-audit-driven banners (inventory has no status field; banners already ledger-driven, owned by `docs-freshness` Phase 32), `stability-matrix.v1.json` + Content Layer collections (invented contract; generated-`.md` pattern is canonical), `remark-vox-attributes` tokens / `::include{}` directives / `// !hide` / `examples/golden/anti/` titles (zero call sites), `starlight-markdown-blocks` custom asides.
 
 Plans:
+
 - [x] 342-01-PLAN.md — Fix both remark-doc-links failures at source (t3 page links; hub generator links only existing API pages, test-first) and freeze the pre-upgrade test baseline (wave 1)
 - [x] 342-02-PLAN.md — Package-legitimacy gate, then astro 7 / Starlight 0.42 upgrade (unified() processor, alias via import.meta.resolve, llms-txt 0.12 patch), dependabot unpin, agent-safe Playwright (wave 2)
 - [x] 342-03-PLAN.md — starlight-github-alerts renders every alert as an aside; un-nest the two list-nested alerts for GitHub parity (wave 3)
@@ -190,37 +473,61 @@ Plans:
 - **DOCS-DRIFT-01 (prevent, regen-list parity):** derive `scripts/ssot-regen.vox`'s regenerator list from `run_ssot_drift`'s stage table (or add a parity check that fails on mismatch). Removes the "keep in sync" hand list.
 - **DOCS-DRIFT-02 (detect, overlay parity):** a `vox ci` check that extracts normative claims (forbidden/required frontmatter keys, retired symbols, banned commands) from `AGENTS.md` and fails when `.cursor/rules/*.mdc`, `GEMINI.md`, `CLAUDE.md` or `.github/copilot-instructions.md` contradict them. First fix: the `last_updated` contradiction in `documentation-policy.mdc`.
 - **DOCS-DRIFT-03 (detect, prose vs code):** scan docs and agent files for `vox <cmd> [--flag]` mentions and "planned per …" claims. Fail when a mentioned command or flag is absent from `contracts/cli/command-registry.yaml`, or when a "planned" surface already exists there. First fixes: AGENTS.md `vox audit retirement` / `vox audit effort`.
-- **DOCS-DRIFT-04 (detect, dead guards and orphans):** make guards that silently no-op when their input file is missing fail loudly (`check_docs_ssot` orphan inventory). Add an orphan-page report: a `docs/src` page no other page or nav entry links to, with a shrink-only baseline.
+- **DOCS-DRIFT-04 (detect, dead guards and orphans):** make guards that silently no-op when their input file is missing fail loudly (`check_docs_ssot` orphan inventory). Add an orphan-page report: a `docs/src` page no other page or nav entry links to, with zero reader-facing orphans (no baseline).
 - **DOCS-DRIFT-05 (auto-correct, scheduled loops):** a scheduled job runs `vox audit docs --update-ledger` and the external link checker. It opens one draft PR with ledger refreshes and proposed `.lycheeignore` / link fixes, instead of a nightly-failure issue (#578). Decide whether to revive or retire the dormant docs-reality-audit program and the self-heal bot's draft-PR stage.
 - **DOCS-DRIFT-06 (meta-gate):** a test asserts that every gate listed in docs-system-ssot §4 is wired where the table says (pre-push tier / `docs-quality.yml` / nightly). It also asserts §6 lists only gaps with no matching gate. The map can then never silently disagree with the machinery.
 
 Plans:
 **Wave 1**
+
 - [ ] 343-01-PLAN.md — ssot-drift stage table + `ssot_regen_parity` (ssot-regen.vox and lefthook retry list checked against it); decision on the lefthook retry list (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 343-02-PLAN.md — overlay parity: AGENTS.md claims YAML checked against CLAUDE/GEMINI/copilot/.cursor overlays; `last_updated` and other contradictions fixed; decision on the build-environment cargo path (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 343-03-PLAN.md — CLI-claims stage (clap tree + registry): agent files gated, reader-facing pages measured; decision fix-vs-baseline for reader-facing defects (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 343-04-PLAN.md — fix every reader-facing CLI-claim defect and enforce the reader-facing scope (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 343-05-PLAN.md — dead guards removed or made fatal (`check_docs_ssot`, `check-links`, retired-symbol overlays); decision on expired link-allowlist entries (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 343-06-PLAN.md — corrected inbound-link graph + `docs_orphan_pages` stage; decision on orphan linking vs shrink-only baseline (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 343-07-PLAN.md — idempotent ledger refresh + `Docs Drift Refresh` draft-PR workflow; decisions on `.lycheeignore` scope and reality-audit/self-heal (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 343-08-PLAN.md — lychee triage script into the bot PR, reality-audit/self-heal decision applied, docs describe what runs (wave 8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 343-09-PLAN.md — `docs_system_parity` meta-gate: §4 wiring proven against the machinery, §6 lists only open gaps (wave 9)
+
+### Phase 345: Kiln Synthetic Topic Trees & Vox Axis MENS Studio (`MENS-STUDIO-01..04`)
+
+**Directory:** `.planning/phases/345-kiln-inspired-synthetic-topic-trees-vox-axis-mens-all-hubs-a/`
+**Goal:** Port Kiln AI's high-leverage synthetic dataset mechanisms natively into Rust (`SpokeTopicTreeV1` recursive topic-tree expansion, Teacher→Student CoT distillation, and automatic Oracle-Fail→Teacher-Repair→DPO pair synthesis in `vox-corpus` without Python `kiln_ai` dependencies) and upgrade Vox Axis's `MensTrainingView` into the Option A "Ladder × Spokes Crucible Matrix" MENS Training Studio with real Rust Tauri backend commands (`mens_ladder_status`, `mens_save_custom_spoke`, `mens_save_crucible_config`, `mens_live_telemetry`, `explain_routing`), Clavis `HF_TOKEN` auto-sync (`1 auto 2 confirm`), live Orchestrator→Spoke routing visualization in Chat and MENS, and multi-resolution CV Before/After Flywheel verification (`1280×800`, `1440×900`, `1920×1080`).
+**Requirements**: MENS-STUDIO-01, MENS-STUDIO-02, MENS-STUDIO-03, MENS-STUDIO-04
+**Depends on:** Independent of Phases 342–344
+**SSOT:** `docs/src/architecture/kiln-synthetic-data-and-mens-axis-gui-research-2026.md`
+**UI-SPEC:** `.planning/phases/345-kiln-inspired-synthetic-topic-trees-vox-axis-mens-all-hubs-a/345-UI-SPEC.md`
+**Plans:** 2 plans
+
+Plans:
+
+- [x] `345-01`: Option A MENS Crucible Studio UI, Clavis `HF_TOKEN` Settings deep-link, Chat Orchestrator→Spoke badge, and 8-pass multi-resolution Playwright CV Flywheel (`visualAfterScore: 0.9352`, `axeViolations: 0`, `overlappingControlPairs: 0`) (completed 2026-11-08)
+- [x] `345-02`: Full-stack Rust Tauri backend plumbing (`mens_ladder_status` reading `mens/config/gpu-specs.yaml` & `mens/runs/size_train/*.json`, `mens_save_custom_spoke`, `mens_save_crucible_config`, `mens_live_telemetry` JSONL time-series spline hydration, `explain_routing` daemon integration, and CLI flag parity for `train`/`eval-local`/`eval-gate`/`serve`/`hub`) (completed 2026-11-08)
 
 ---
 
