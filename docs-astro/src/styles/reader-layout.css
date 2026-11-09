@@ -45,7 +45,7 @@
   --sl-color-gray-6: #f1f5f9;
   --sl-color-black: #ffffff;
   --sl-color-bg: #f8fafc;
-  --sl-color-bg-nav: rgba(248, 250, 252, 0.9);
+  --sl-color-bg-nav: rgba(248, 250, 252, 0.96);
   --sl-color-bg-sidebar: #f1f5f9;
   --sl-color-hairline-light: rgba(15, 23, 42, 0.08);
   --sl-color-hairline: rgba(15, 23, 42, 0.15);
@@ -57,11 +57,12 @@
 }
 
 header.header {
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  z-index: var(--sl-z-index-navbar);
 }
 
-/* One seam chevron per pane. The container stays out of the sidebar flow. */
+/* One seam chevron per pane. The container stays out of the sidebar flow and below the navbar. */
 .vox-sidebar-toggle-container {
   position: absolute;
   width: 0;
@@ -70,7 +71,7 @@ header.header {
   padding: 0;
   margin: 0;
   border: 0;
-  z-index: 50;
+  z-index: 8;
 }
 
 .vox-edge-toggle {
@@ -86,7 +87,7 @@ header.header {
   color: var(--sl-color-gray-2);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
   cursor: pointer;
-  z-index: 50;
+  z-index: 8;
   pointer-events: auto;
   transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
@@ -180,14 +181,14 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   }
 }
 
-/* The outline chevron sits on the left edge of the docked outline and floats on top. */
+/* The outline chevron sits on the left edge of the docked outline and stays below the navbar. */
 #vox-toc-edge {
   position: fixed;
   top: 50%;
   left: auto;
   right: calc(18.5rem - 0.875rem);
   transform: translateY(-50%);
-  z-index: 50;
+  z-index: 8;
 }
 
 @media (max-width: 71.99rem) {
@@ -225,10 +226,21 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
  * and the container — never `display: none` on the button's ancestor.
  */
 @media (min-width: 72rem) {
+  .right-sidebar {
+    width: 18.5rem !important;
+    top: var(--sl-nav-height) !important;
+    height: calc(100vh - var(--sl-nav-height)) !important;
+    padding-top: 0 !important;
+  }
+
+  .right-sidebar-panel {
+    padding-inline-start: 1.5rem;
+  }
+
   .right-sidebar .sl-container {
-    width: 16.5rem;
+    width: 16rem;
     min-width: 16rem;
-    max-width: 16.5rem;
+    max-width: 16rem;
   }
 
   .right-sidebar-panel :where(a) {
@@ -239,13 +251,16 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   aside.right-sidebar-container {
     width: 18.5rem !important;
     min-width: 18.5rem;
+    max-width: 18.5rem;
     flex: 0 0 18.5rem;
-    margin-inline-start: auto;
+    margin-inline-start: 0;
     position: relative;
-    z-index: 45;
+    z-index: 4;
   }
 
-  .main-pane {
+  .main-pane,
+  [data-has-sidebar][data-has-toc] .main-pane {
+    --sl-content-margin-inline: 0 auto;
     width: auto !important;
     flex: 1 1 auto;
     min-width: 0;
@@ -255,11 +270,14 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   html[data-toc-state="hidden"] .right-sidebar {
     width: 0 !important;
     min-width: 0 !important;
+    max-width: 0 !important;
+    flex: 0 0 0px !important;
+    margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     overflow: visible !important;
     pointer-events: none !important;
-    z-index: 45 !important;
+    z-index: 4 !important;
   }
 
   html[data-toc-state="hidden"] .right-sidebar-panel {
@@ -273,7 +291,7 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
     right: 0.35rem;
     transform: translateY(-50%);
     pointer-events: auto !important;
-    z-index: 50 !important;
+    z-index: 8 !important;
   }
 
   html[data-toc-state="hidden"] .main-frame {
@@ -306,43 +324,49 @@ body {
 
 /* Article Width Expansion and Breakout Rules */
 :root {
-  --sl-content-width: 48rem;
+  --sl-content-width: 50rem;
 }
 
 @media (min-width: 50rem) {
   /* Outline is not docked yet, so the article can take the recovered sidebar. */
   html[data-sidebar-state="collapsed"],
   html[data-sidebar-state="hidden"] {
-    --sl-content-width: min(60rem, calc(100vw - 2rem));
+    --sl-content-width: min(68rem, calc(100vw - 4.25rem));
   }
 }
 
 @media (min-width: 72rem) {
-  /* Leave at least 20rem for the outline so it cannot shrink to one column. */
+  /* Both sidebars open: fill the center pane between 18.75rem left nav and 18.5rem right TOC. */
   :root {
-    --sl-content-width: min(48rem, calc(100vw - var(--sl-sidebar-width) - 20rem));
+    --__toc-width: 18.5rem;
+    --sl-content-width: min(50rem, calc(100vw - var(--sl-sidebar-width) - 21.5rem));
   }
 
+  /* Left sidebar collapsed, right TOC open: recover the 16.5rem freed on the left. */
   html[data-sidebar-state="collapsed"]:not([data-toc-state="hidden"]),
   html[data-sidebar-state="hidden"]:not([data-toc-state="hidden"]) {
-    --sl-content-width: min(48rem, calc(100vw - 20rem));
+    --sl-content-width: min(66.5rem, calc(100vw - 23.75rem));
   }
 
-  html[data-toc-state="hidden"] {
-    --sl-content-width: min(60rem, calc(100vw - var(--sl-sidebar-width) - 2rem));
+  /* Right TOC collapsed, left sidebar open: recover the 16.25rem freed on the right. */
+  html[data-toc-state="hidden"]:not([data-sidebar-state="collapsed"]):not([data-sidebar-state="hidden"]) {
+    --__toc-width: 0rem;
+    --sl-content-width: min(66.5rem, calc(100vw - var(--sl-sidebar-width) - 5.25rem));
   }
 
+  /* Both sidebars collapsed: recover horizontal space from both sides. */
   html[data-sidebar-state="collapsed"][data-toc-state="hidden"],
   html[data-sidebar-state="hidden"][data-toc-state="hidden"] {
-    --sl-content-width: min(74rem, calc(100vw - 2rem));
+    --__toc-width: 0rem;
+    --sl-content-width: min(84rem, calc(100vw - 7.5rem));
   }
 }
 
-/* Typography Line Length Constraint */
+/* Prose & lists fill the active --sl-content-width container so collapsing a sidebar recovers width for all content. */
 .sl-markdown-content > p,
 .sl-markdown-content > ul,
 .sl-markdown-content > ol {
-  max-width: 75ch;
+  max-width: 100%;
 }
 
 /* Wide Content Breakout */
@@ -464,4 +488,288 @@ body {
 main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   display: none;
 }
+
+/* Homepage Hero & Progressive Onboarding Cards — Dual Theme Contrast (Dark & Light) */
+.vox-home-hero {
+  text-align: center;
+  padding: 2.25rem 1rem 1.5rem;
+  background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.14), transparent 72%);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 14px;
+  margin-bottom: 1.5rem;
+}
+
+:root[data-theme='light'] .vox-home-hero {
+  background: radial-gradient(ellipse at 50% 0%, rgba(2, 132, 199, 0.1), rgba(248, 250, 252, 0.9) 72%);
+  border-color: rgba(2, 132, 199, 0.28);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+}
+
+.vox-hero-btn-primary {
+  background: var(--sl-color-accent);
+  color: #05080f;
+  padding: 0.65rem 1.35rem;
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+:root[data-theme='light'] .vox-hero-btn-primary {
+  background: #0284c7;
+  color: #ffffff !important;
+}
+
+.vox-progressive-tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+  gap: 1.15rem;
+  margin: 1rem 0 1.65rem;
+}
+
+.vox-tier-card {
+  border-radius: 14px;
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.vox-tier-card--cyan {
+  border: 1.5px solid rgba(34, 211, 238, 0.72);
+  background-color: #0b101b;
+  background-image: radial-gradient(circle at 18% 12%, rgba(34, 211, 238, 0.24) 0%, rgba(14, 165, 233, 0.08) 42%, rgba(11, 16, 27, 0.96) 100%);
+  box-shadow: 0 0 32px -6px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgba(186, 230, 253, 0.22);
+}
+
+.vox-tier-card--amber {
+  border: 1.5px solid rgba(245, 158, 11, 0.65);
+  background-color: #0f1117;
+  background-image: radial-gradient(circle at 18% 12%, rgba(245, 158, 11, 0.22) 0%, rgba(180, 83, 9, 0.08) 45%, rgba(15, 17, 23, 0.96) 100%);
+  box-shadow: 0 0 32px -6px rgba(245, 158, 11, 0.18), inset 0 1px 0 rgba(253, 230, 138, 0.18);
+}
+
+.vox-tier-card--emerald {
+  border: 1.5px solid rgba(16, 185, 129, 0.68);
+  background-color: #0b1317;
+  background-image: radial-gradient(circle at 18% 12%, rgba(16, 185, 129, 0.22) 0%, rgba(5, 150, 105, 0.08) 45%, rgba(11, 19, 23, 0.96) 100%);
+  box-shadow: 0 0 32px -6px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(167, 243, 208, 0.18);
+}
+
+.vox-tier-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.vox-tier-accent--cyan {
+  color: #22d3ee;
+}
+
+.vox-tier-accent--amber {
+  color: #f59e0b;
+}
+
+.vox-tier-accent--emerald {
+  color: #10b981;
+}
+
+.vox-tier-body {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+.vox-tier-note {
+  margin: 0 0 0.85rem;
+  font-size: 0.81rem;
+  line-height: 1.48;
+  color: #94a3b8;
+}
+
+.vox-tier-code--cyan {
+  color: #7dd3fc;
+  font-family: var(--sl-font-mono, monospace);
+  font-weight: 600;
+}
+
+.vox-tier-code--amber {
+  color: #fbbf24;
+  font-family: var(--sl-font-mono, monospace);
+  font-weight: 600;
+}
+
+.vox-tier-code--emerald {
+  color: #6ee7b7;
+  font-family: var(--sl-font-mono, monospace);
+  font-weight: 600;
+}
+
+.vox-tier-list--amber {
+  margin: 0 0 0.95rem;
+  padding-left: 1.15rem;
+  font-size: 0.83rem;
+  line-height: 1.62;
+  color: #fde68a;
+}
+
+.vox-tier-list--emerald {
+  margin: 0 0 0.75rem;
+  padding-left: 1.15rem;
+  font-size: 0.81rem;
+  line-height: 1.58;
+  color: #d1fae5;
+}
+
+.vox-tier-btn-cyan-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%);
+  color: #041019 !important;
+  padding: 0 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-decoration: none;
+  margin-bottom: 0.85rem;
+  box-shadow: 0 4px 20px rgba(34, 211, 238, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.vox-tier-btn-cyan-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  background: linear-gradient(180deg, #22d3ee 0%, #0ea5e9 100%);
+  color: #041019 !important;
+  padding: 0 0.95rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.86rem;
+  text-decoration: none;
+  box-shadow: 0 2px 14px rgba(14, 165, 233, 0.28);
+}
+
+.vox-tier-btn-amber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.48);
+  color: #fde68a !important;
+  padding: 0 0.95rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.vox-tier-link {
+  color: #38bdf8;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Light-Theme Overrides for Progressive Onboarding Cards */
+:root[data-theme='light'] .vox-tier-card--cyan {
+  border-color: rgba(2, 132, 199, 0.42);
+  background-color: #ffffff;
+  background-image: radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.2) 0%, rgba(224, 242, 254, 0.55) 46%, #ffffff 100%);
+  box-shadow: 0 8px 24px -6px rgba(2, 132, 199, 0.14), inset 0 1px 0 #ffffff;
+}
+
+:root[data-theme='light'] .vox-tier-card--amber {
+  border-color: rgba(217, 119, 6, 0.42);
+  background-color: #ffffff;
+  background-image: radial-gradient(circle at 18% 12%, rgba(251, 191, 36, 0.22) 0%, rgba(254, 243, 199, 0.55) 46%, #ffffff 100%);
+  box-shadow: 0 8px 24px -6px rgba(217, 119, 6, 0.12), inset 0 1px 0 #ffffff;
+}
+
+:root[data-theme='light'] .vox-tier-card--emerald {
+  border-color: rgba(5, 150, 105, 0.42);
+  background-color: #ffffff;
+  background-image: radial-gradient(circle at 18% 12%, rgba(16, 185, 129, 0.2) 0%, rgba(209, 250, 229, 0.55) 46%, #ffffff 100%);
+  box-shadow: 0 8px 24px -6px rgba(5, 150, 105, 0.12), inset 0 1px 0 #ffffff;
+}
+
+:root[data-theme='light'] .vox-tier-title {
+  color: #0f172a;
+}
+
+:root[data-theme='light'] .vox-tier-accent--cyan {
+  color: #0284c7;
+}
+
+:root[data-theme='light'] .vox-tier-accent--amber {
+  color: #b45309;
+}
+
+:root[data-theme='light'] .vox-tier-accent--emerald {
+  color: #047857;
+}
+
+:root[data-theme='light'] .vox-tier-body {
+  color: #1e293b;
+}
+
+:root[data-theme='light'] .vox-tier-note {
+  color: #475569;
+}
+
+:root[data-theme='light'] .vox-tier-code--cyan {
+  color: #0369a1;
+  background: rgba(2, 132, 199, 0.1);
+  padding: 0.05rem 0.28rem;
+  border-radius: 4px;
+}
+
+:root[data-theme='light'] .vox-tier-code--amber {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.14);
+  padding: 0.05rem 0.28rem;
+  border-radius: 4px;
+}
+
+:root[data-theme='light'] .vox-tier-code--emerald {
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.14);
+  padding: 0.05rem 0.28rem;
+  border-radius: 4px;
+}
+
+:root[data-theme='light'] .vox-tier-list--amber,
+:root[data-theme='light'] .vox-tier-list--emerald {
+  color: #1e293b;
+}
+
+:root[data-theme='light'] .vox-tier-btn-cyan-top,
+:root[data-theme='light'] .vox-tier-btn-cyan-bottom {
+  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(2, 132, 199, 0.25);
+}
+
+:root[data-theme='light'] .vox-tier-btn-amber {
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+  border-color: #b45309;
+  color: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(180, 83, 9, 0.22);
+}
+
+:root[data-theme='light'] .vox-tier-link {
+  color: #0284c7;
+}
+
+.sl-markdown-content img[src*='vox-suite-pillars'] {
+  border-radius: 14px;
+  border: 1px solid var(--sl-color-hairline);
+  box-shadow: var(--sl-shadow-md);
+}
+
 

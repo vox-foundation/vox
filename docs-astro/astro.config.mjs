@@ -91,6 +91,7 @@ export default defineConfig({
       pagefind: true,
       customCss: ['./src/styles/reader-layout.css', './src/styles/vox-diagram.css'],
       components: {
+        ThemeProvider: './src/components/ThemeProvider.astro',
         SiteTitle: './src/components/SiteTitle.astro',
         Sidebar: './src/components/Sidebar.astro',
         TableOfContents: './src/components/TableOfContents.astro',

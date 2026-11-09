@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" width="760" height="500" role="img" aria-labelledby="fragTitle fragDesc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 792 512" width="760" height="491" role="img" aria-labelledby="fragTitle fragDesc">
   <title id="fragTitle">One field, written four times</title>
   <desc id="fragDesc">A task completion field is completed_at in SQL, Option of DateTime in Rust, completedAt null in JSON, and isDone boolean in TypeScript. One Vox table states done as bool, and SQL, Rust, JSON, and TypeScript all keep that name.</desc>
   <style>
     svg { color-scheme: light dark; }
+    .canvas { fill: #f1f5f9; stroke: #cbd5e1; }
     .ink { fill: #0f172a; }
-    .muted { fill: #64748b; }
+    .muted { fill: #475569; }
     .dim { fill: #334155; }
     .hot { fill: #c2410c; }
-    .panel { fill: #ffffff; stroke: #e2e8f0; }
-    .well { fill: #f8fafc; stroke: #e2e8f0; }
+    .panel { fill: #ffffff; stroke: #cbd5e1; }
+    .well { fill: #f8fafc; stroke: #cbd5e1; }
     .chip { fill: #fff7ed; stroke: #fdba74; }
     .chiptext { fill: #9a3412; }
-    .good { fill: #f0fdfa; stroke: #99f6e4; }
+    .good { fill: #f0fdfa; stroke: #5eead4; }
     .goodink { fill: #0f766e; }
-    .stem { stroke: #cbd5e1; }
+    .stem { stroke: #94a3b8; }
     text { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
     @media (prefers-color-scheme: dark) {
+      .canvas { fill: #0d131f; stroke: #1e293b; }
       .ink { fill: #f8fafc; }
       .muted { fill: #94a3b8; }
       .dim { fill: #cbd5e1; }
@@ -32,8 +34,10 @@
     }
   </style>
 
-  <text class="ink" x="0" y="24" font-size="20" font-weight="700">One field, written four times</text>
-  <text class="muted" x="0" y="46" font-size="13">The same fact changes name or type at every boundary.</text>
+  <rect class="canvas" x="1" y="1" width="790" height="510" rx="18"/>
+  <g transform="translate(16, 12)">
+  <text class="ink" x="4" y="24" font-size="20" font-weight="700">One field, written four times</text>
+  <text class="muted" x="4" y="46" font-size="13">The same fact changes name or type at every boundary.</text>
 
   <rect class="panel" x="0" y="64" width="372" height="420" rx="14"/>
   <text class="hot" x="18" y="90" font-size="12" font-weight="700">FOUR COPIES</text>
@@ -107,4 +111,5 @@
   <text class="mono" x="530" y="400" font-size="14"><tspan class="goodink">done</tspan><tspan class="dim">: boolean</tspan></text>
 
   <text class="muted" x="406" y="448" font-size="12">Same name. Same type.</text>
+  </g>
 </svg>

@@ -10,7 +10,7 @@ training_eligible: true
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
 import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
 
-<div class="vox-home-hero" style="text-align: center; padding: 2.25rem 1rem 1.5rem; background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.14), transparent 72%); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 14px; margin-bottom: 1.5rem;">
+<div class="vox-home-hero">
   <p style="font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-color-accent-high); margin: 0 0 0.6rem;">
     Pre-1.0 Research Prototype · Workspace v0.6.0 · Apache-2.0
   </p>
@@ -24,7 +24,7 @@ import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
     Missing values are <code>Option[T]</code>. Fallible calls return <code>Result[T]</code>. Code that ignores either case does not type-check. This is a pre-1.0 research prototype.
   </p>
   <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
-    <a href="/tutorials/tut-getting-started/" style="background: var(--sl-color-accent); color: #05080f; padding: 0.65rem 1.35rem; border-radius: 8px; font-weight: 700; text-decoration: none;">Start the 5-Minute Tutorial →</a>
+    <a href="/tutorials/tut-getting-started/" class="vox-hero-btn-primary">Start the 5-Minute Tutorial →</a>
     <a href="#try-it" style="border: 1px solid var(--sl-color-accent); color: var(--sl-color-text); padding: 0.65rem 1.35rem; border-radius: 8px; font-weight: 600; text-decoration: none;">Try in Your Browser ↓</a>
     <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); color: var(--sl-color-gray-2); padding: 0.65rem 1.25rem; border-radius: 8px; text-decoration: none;">Syntax Cheat Sheet</a>
     <a href="https://github.com/vox-foundation/vox" style="padding: 0.65rem 1.1rem; border-radius: 8px; text-decoration: none; color: var(--sl-color-gray-2);">GitHub ↗</a>
@@ -33,64 +33,64 @@ import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Build in One Voice
 
-<div class="vox-progressive-tiers" data-testid="progressive-onboarding-tiers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); gap: 1.15rem; margin: 1rem 0 1.65rem;">
-  <div style="border: 1.5px solid rgba(34, 211, 238, 0.72); border-radius: 14px; padding: 1.35rem; background: radial-gradient(circle at 18% 12%, rgba(34, 211, 238, 0.24) 0%, rgba(14, 165, 233, 0.08) 42%, rgba(11, 16, 27, 0.96) 100%); box-shadow: 0 0 32px -6px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgba(186, 230, 253, 0.22); display: flex; flex-direction: column; justify-content: space-between;">
+<div class="vox-progressive-tiers" data-testid="progressive-onboarding-tiers">
+  <div class="vox-tier-card vox-tier-card--cyan">
     <div>
-      <h3 style="margin: 0 0 0.4rem; font-size: 1.12rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;">
-        <span style="color: #22d3ee;">60s:</span> Zero-Install Playground
+      <h3 class="vox-tier-title">
+        <span class="vox-tier-accent--cyan">60s:</span> Zero-Install Playground
       </h3>
-      <p style="margin: 0 0 0.95rem; font-size: 0.88rem; line-height: 1.48; color: #cbd5e1;">
-        Execute a typed <span style="color: #7dd3fc; font-family: var(--sl-font-mono, monospace);">.vox</span> program right here in your browser.
+      <p class="vox-tier-body">
+        Execute a typed <span class="vox-tier-code--cyan">.vox</span> program right here in your browser.
       </p>
-      <a href="#try-it" style="display: flex; align-items: center; justify-content: center; height: 2.75rem; background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%); color: #041019; padding: 0 1rem; border-radius: 8px; font-weight: 700; font-size: 0.92rem; text-decoration: none; margin-bottom: 0.85rem; box-shadow: 0 4px 20px rgba(34, 211, 238, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);">
+      <a href="#try-it" class="vox-tier-btn-cyan-top">
         Run that now
       </a>
-      <p style="margin: 0 0 0.85rem; font-size: 0.81rem; line-height: 1.48; color: #94a3b8;">
-        Zero Cargo build wait. Edit <span style="color: #bae6fd; font-family: var(--sl-font-mono, monospace);">example.vox</span> below and inspect Turso SQL, Rust Axum, and React TSX in lockstep.
+      <p class="vox-tier-note">
+        Zero Cargo build wait. Edit <span class="vox-tier-code--cyan">example.vox</span> below and inspect Turso SQL, Rust Axum, and React TSX in lockstep.
       </p>
     </div>
-    <a href="/tutorials/tut-getting-started/#1-60-second-zero-install-sandbox" style="display: flex; align-items: center; justify-content: center; height: 2.5rem; background: linear-gradient(180deg, #22d3ee 0%, #0ea5e9 100%); color: #041019; padding: 0 0.95rem; border-radius: 8px; font-weight: 700; font-size: 0.86rem; text-decoration: none; box-shadow: 0 2px 14px rgba(14, 165, 233, 0.28);">
+    <a href="/tutorials/tut-getting-started/#1-60-second-zero-install-sandbox" class="vox-tier-btn-cyan-bottom">
       Open 60s Sandbox →
     </a>
   </div>
 
-  <div style="border: 1.5px solid rgba(245, 158, 11, 0.65); border-radius: 14px; padding: 1.35rem; background: radial-gradient(circle at 18% 12%, rgba(245, 158, 11, 0.22) 0%, rgba(180, 83, 9, 0.08) 45%, rgba(15, 17, 23, 0.96) 100%); box-shadow: 0 0 32px -6px rgba(245, 158, 11, 0.18), inset 0 1px 0 rgba(253, 230, 138, 0.18); display: flex; flex-direction: column; justify-content: space-between;">
+  <div class="vox-tier-card vox-tier-card--amber">
     <div>
-      <h3 style="margin: 0 0 0.4rem; font-size: 1.12rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;">
-        <span style="color: #f59e0b;">5-Min:</span> Single-File Full-Stack App
+      <h3 class="vox-tier-title">
+        <span class="vox-tier-accent--amber">5-Min:</span> Single-File Full-Stack App
       </h3>
-      <p style="margin: 0 0 0.85rem; font-size: 0.88rem; line-height: 1.52; color: #cbd5e1;">
+      <p class="vox-tier-body">
         Start the 5-Min Single-File Full-Stack App. Unite your schema, backend routes, reactive UI, and agent tool in one module:
       </p>
-      <ul style="margin: 0 0 0.95rem; padding-left: 1.15rem; font-size: 0.83rem; line-height: 1.62; color: #fde68a;">
-        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">table Task</span> → Turso / SQLite schema</li>
-        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">query &amp; mutation</span> → Typed Rust Axum API</li>
-        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">component TaskBoard()</span> → Reactive React TSX</li>
-        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">tool "complete_task"</span> → MCP Agent Schema</li>
+      <ul class="vox-tier-list--amber">
+        <li><span class="vox-tier-code--amber">table Task</span> → Turso / SQLite schema</li>
+        <li><span class="vox-tier-code--amber">query &amp; mutation</span> → Typed Rust Axum API</li>
+        <li><span class="vox-tier-code--amber">component TaskBoard()</span> → Reactive React TSX</li>
+        <li><span class="vox-tier-code--amber">tool "complete_task"</span> → MCP Agent Schema</li>
       </ul>
     </div>
-    <a href="/tutorials/tut-getting-started/#2-5-minute-single-file-full-stack-app" style="display: flex; align-items: center; justify-content: center; height: 2.5rem; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.48); color: #fde68a; padding: 0 0.95rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none;">
+    <a href="/tutorials/tut-getting-started/#2-5-minute-single-file-full-stack-app" class="vox-tier-btn-amber">
       Build the 5-Min App →
     </a>
   </div>
 
-  <div style="border: 1.5px solid rgba(16, 185, 129, 0.68); border-radius: 14px; padding: 1.35rem; background: radial-gradient(circle at 18% 12%, rgba(16, 185, 129, 0.22) 0%, rgba(5, 150, 105, 0.08) 45%, rgba(11, 19, 23, 0.96) 100%); box-shadow: 0 0 32px -6px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(167, 243, 208, 0.18); display: flex; flex-direction: column; justify-content: space-between;">
+  <div class="vox-tier-card vox-tier-card--emerald">
     <div>
-      <h3 style="margin: 0 0 0.4rem; font-size: 1.12rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;">
-        <span style="color: #10b981;">15-Min:</span> Agent Harness &amp; Axis GUI
+      <h3 class="vox-tier-title">
+        <span class="vox-tier-accent--emerald">15-Min:</span> Agent Harness &amp; Axis GUI
       </h3>
-      <p style="margin: 0 0 0.65rem; font-size: 0.86rem; line-height: 1.48; color: #cbd5e1;">
+      <p class="vox-tier-body">
         Launch the multi-agent harness &amp; desktop workbench in four steps:
       </p>
-      <ul style="margin: 0 0 0.75rem; padding-left: 1.15rem; font-size: 0.81rem; line-height: 1.58; color: #d1fae5;">
-        <li>Step 1: Replayable <span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">workflow</span> &amp; <span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">activity</span> journals</li>
-        <li>Step 2: Clavis <span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">vox secrets</span> &amp; capability sandboxing</li>
-        <li>Step 3: Loquela posture controls (<span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">Alt+1..4</span>)</li>
+      <ul class="vox-tier-list--emerald">
+        <li>Step 1: Replayable <span class="vox-tier-code--emerald">workflow</span> &amp; <span class="vox-tier-code--emerald">activity</span> journals</li>
+        <li>Step 2: Clavis <span class="vox-tier-code--emerald">vox secrets</span> &amp; capability sandboxing</li>
+        <li>Step 3: Loquela posture controls (<span class="vox-tier-code--emerald">Alt+1..4</span>)</li>
         <li>Step 4: Multi-panel Axis GUI &amp; 132-crate Atlas</li>
       </ul>
     </div>
-    <p style="margin: 0; font-size: 0.8rem; color: #94a3b8;">
-      For desktop &amp; harness setup, open <a href="/how-to/how-to-axis-workbench/" style="color: #38bdf8; text-decoration: none; font-weight: 600; white-space: nowrap;">#axis-workbench →</a>
+    <p class="vox-tier-note" style="margin: 0;">
+      For desktop &amp; harness setup, open <a href="/how-to/how-to-axis-workbench/" class="vox-tier-link">#axis-workbench →</a>
     </p>
   </div>
 </div>
