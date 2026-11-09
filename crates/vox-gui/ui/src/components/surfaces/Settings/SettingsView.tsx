@@ -1372,6 +1372,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         <RomanSurfaceHeader
           domainTag="SYSTEM · SETTINGS"
           title={useLabel('settings')}
+          headingLevel={2}
           subtitle="LEX & STATUTA · CLAVIS SECRETS · ORCHESTRATOR POSTURE & ROUTING WEIGHTS"
           waxSealBadge="CLAVIS SEALED"
           icon={<Icon.shield className="size-4 text-[#F3E5AB]" />}

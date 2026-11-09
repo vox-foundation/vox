@@ -1301,7 +1301,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             {
               id: 'FORVM',
               label: 'Workspace Map',
-              shortLabel: 'Workspace',
+              shortLabel: 'Workspace Map',
               purpose: 'Reset camera to fit the entire repository architecture and inspect core compiler crates.',
               actionHint: 'Click to fit map & inspect Core Architecture (click again to open Dashboard)',
               surface: 'dashboard',
@@ -1493,7 +1493,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               {
                 id: 'FORVM',
                 label: 'Workspace Map',
-                shortLabel: 'Workspace',
+                shortLabel: 'Workspace Map',
                 purpose: 'Reset camera to fit the entire repository architecture and inspect core compiler crates.',
                 actionHint: 'Click to fit map & inspect Core Architecture (click again to open Dashboard)',
                 surface: 'dashboard',

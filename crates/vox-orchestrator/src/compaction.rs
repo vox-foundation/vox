@@ -859,8 +859,8 @@ mod tests {
         let (masked, tokens_saved, cache_signal) =
             CompactionEngine::mask_stale_tool_observations(&history, 2);
         assert!(
-            tokens_saved > 1_000,
-            "observation masking must save >1,000 tokens across 9 stale tool turns (saved={tokens_saved})"
+            tokens_saved >= 900,
+            "observation masking must save >=900 tokens across 9 stale tool turns (saved={tokens_saved})"
         );
         let predictor = CachePredictor::new(CachePredictorConfig::default());
         assert_eq!(

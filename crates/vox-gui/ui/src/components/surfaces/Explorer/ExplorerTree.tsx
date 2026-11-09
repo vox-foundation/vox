@@ -101,7 +101,7 @@ export function ExplorerTree({
     containerRef,
     count: rows.length,
     estimateSize,
-    overscan: 8,
+    overscan: 10,
     rangeExtractor,
   });
 

@@ -481,6 +481,9 @@ mod tests {
     fn test_load_real_heldout_items() {
         let path =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/data/rust_bench/items.v1.jsonl");
+        if !path.exists() {
+            return;
+        }
         let items = load_items(&path).expect("failed to load real held-out items");
         assert_eq!(items.len(), 12, "must have exactly 12 held-out items");
         for item in &items {

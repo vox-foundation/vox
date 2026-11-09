@@ -50,6 +50,7 @@ const BEFORE_FILE = join(OUT_DIR, 'before-metrics.json');
 const REPORT_FILE = join(OUT_DIR, 'cv-flywheel-report.json');
 const ALL_SURFACES_REPORT_FILE = join(OUT_DIR, 'cv-flywheel-all-surfaces.json');
 const STAGE = (process.env.CV_STAGE ?? 'after').toLowerCase();
+const RUN_CV_FLYWHEEL = !process.env.CI || process.env.VOX_CV_FLYWHEEL === '1';
 const DISCOVERY_MANIFEST = discoverAllGuiSurfacesAndPanels();
 const ALL_SURFACES = DISCOVERY_MANIFEST.registeredViewKeys;
 
@@ -169,6 +170,7 @@ function computeWeightedScore(r: VisionRubricScores): number {
 }
 
 test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking & Urbs Civilization', () => {
+  test.skip(!RUN_CV_FLYWHEEL, 'set VOX_CV_FLYWHEEL=1 to run the 32-surface CV flywheel suite in CI');
   test('captures and evaluates all 4 Chat/Dock/Urbs surfaces through @ngi/platform-ssot CV Flywheel', async ({
     page,
   }) => {

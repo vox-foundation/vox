@@ -16,7 +16,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-first-app.md",
-      "blob_sha": "f4ad12247d44200b037d82c397f8e9bbc6731e2b",
+      "blob_sha": "179d33c313a595f68542983cf1822f18c3da88ed",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
@@ -38,7 +38,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-getting-started.md",
-      "blob_sha": "424e515599fd474dc8c17c3e6e5f6f3dc638ea88",
+      "blob_sha": "4a86346bf39979cf14d117e2be1f55cd873e1dd2",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",

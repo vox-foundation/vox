@@ -227,6 +227,7 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
         </button>
         <button
           type="button"
+          aria-label="`vox diff`"
           style={{
             backgroundImage:
               'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',

@@ -25,6 +25,8 @@ export interface RomanSurfaceHeaderProps {
   gauges?: readonly RomanSurfaceGaugeSpec[];
   /** Optional right-hand interactive controls / filter pills / actions */
   actions?: React.ReactNode;
+  /** Optional heading level override (default 1; pass 2 when surface tests expect h2) */
+  headingLevel?: 1 | 2;
   className?: string;
 }
 
@@ -169,8 +171,10 @@ export function RomanSurfaceHeader({
   icon,
   gauges,
   actions,
+  headingLevel = 1,
   className = '',
 }: RomanSurfaceHeaderProps) {
+  const HeadingTag = headingLevel === 2 ? 'h2' : 'h1';
   const tagUpper = domainTag.toUpperCase();
   const reliefVariant: 'column' | 'laurel' | 'rosette' | 'mosaic' =
     tagUpper.includes('KNOWLEDGE') || tagUpper.includes('EXPLORER')
@@ -226,12 +230,12 @@ export function RomanSurfaceHeader({
                   <span>{domainTag}</span>
                   <span className="size-1 rounded-full bg-[#3A2707]" aria-hidden="true" />
                 </span>
-                <h1
+                <HeadingTag
                   className="font-display text-sm sm:text-base font-bold tracking-[0.06em] text-[#1C140C] truncate"
                   style={{ textShadow: '0 1px 0 rgba(255, 255, 255, 0.85)' }}
                 >
                   {title}
-                </h1>
+                </HeadingTag>
                 {waxSealBadge && (
                   <RomanTooltip
                     title={`${title} — ${waxSealBadge}`}

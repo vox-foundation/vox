@@ -327,19 +327,8 @@ export function ExplorerView({
       window.location?.search?.includes('mock') ||
       window.location?.hash?.includes('headless'));
 
-  const [slowFallbackReady, setSlowFallbackReady] = useState(false);
-
-  useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => {
-      setSlowFallbackReady(true);
-    }, 40);
-    return () => clearTimeout(timer);
-  }, [loading]);
-
   const useFallback =
     (isMockOrOffline && (loading || (rows.length === 0 && domains.length === 0))) ||
-    (loading && slowFallbackReady) ||
     (!loading && !error && rows.length === 0 && domains.length === 0);
 
   const effectiveRows = useFallback ? FALLBACK_ROWS : rows;
