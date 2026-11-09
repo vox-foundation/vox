@@ -380,7 +380,7 @@ export function Sidebar({
                 <AxisMark size={14} />
               </RomanMedallion>
               <div className="leading-tight min-w-0">
-                <div className="font-display text-[10.5px] font-bold tracking-[0.16em] text-[#1C140C] truncate">VOX AXIS</div>
+                <div className="font-display text-[10.5px] font-bold tracking-[0.16em] text-[#1C140C] truncate">AXIS</div>
                 <div className="font-display text-[7.5px] font-semibold uppercase tracking-wider text-[#5C441E] truncate">Control Studio</div>
               </div>
             </div>

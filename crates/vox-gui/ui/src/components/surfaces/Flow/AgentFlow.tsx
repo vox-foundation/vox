@@ -465,6 +465,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
               </span>
               <button
                 type="button"
+                tabIndex={0}
                 onClick={() =>
                   setFlowReceipt(`⚔ Dispatched sub-agent task to ${selectedNode.label} via file-affinity router`)
                 }
@@ -474,6 +475,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
               </button>
               <button
                 type="button"
+                tabIndex={0}
                 onClick={() =>
                   setFlowReceipt(`🌊 Rerouted ${selectedNode.label} stream to Cursus I Fast Local MENS`)
                 }
@@ -483,6 +485,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
               </button>
               <button
                 type="button"
+                tabIndex={0}
                 onClick={() =>
                   setFlowReceipt(`🔍 Captured BLAKE3 tool-call trace for ${selectedNode.label}`)
                 }
@@ -492,6 +495,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
               </button>
               <button
                 type="button"
+                tabIndex={0}
                 onClick={() => {
                   setFlowYieldXp((xp) => xp + 150);
                   setFlowReceipt(`🏆 Claimed +150 XP · +12 Denarii from ${selectedNode.label} verification!`);

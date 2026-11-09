@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
-import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
 import { ContextWindowMeter } from './ContextWindowMeter';
 import { useLabel } from '../../../hooks/useLanguage';
 import { useMetricSeries, type MetricPoint } from '../../../hooks/useMetricSeries';
@@ -46,11 +45,6 @@ export const DEFAULT_SESSION_CONTEXT_PINS: SessionContextPin[] = [
   { id: 'ctx-1', label: '@kb:where-things-live.md', scope: 'RRF 0.98' },
   { id: 'ctx-2', label: '@kb:agentos-ssot-2026.md', scope: 'RRF 0.94' },
 ];
-
-export const SPOKE_ADAPTERS = ['vox-lang', 'rust-expert', 'react-ui', 'sql-voxdb'] as const;
-export type SpokeAdapter = (typeof SPOKE_ADAPTERS)[number];
-
-
 
 export interface ChatExecutionTask {
   id: string;
@@ -272,7 +266,6 @@ export function ChatExecutionRail({
     return () => window.removeEventListener('vox:session-posture-change', onPostureSync);
   }, []);
 
-  // Editable task list state (overlays prop tasks so edits, additions, status toggles, and removals work immediately)
   const [addedTasks, setAddedTasks] = useState<ChatExecutionTask[]>([]);
   const [taskEdits, setTaskEdits] = useState<Record<string, { title?: string; status?: string; priority?: number }>>({});
   const [removedTaskIds, setRemovedTaskIds] = useState<Set<string>>(new Set());
@@ -280,7 +273,6 @@ export function ChatExecutionRail({
   const [editingTaskDraft, setEditingTaskDraft] = useState<string>('');
   const [newTaskTitle, setNewTaskTitle] = useState<string>('');
 
-  // Synchronize with CAS task ledger events from PlanPanel or LLM turn events
   useEffect(() => {
     const onLedgerDelta = (ev: Event) => {
       const custom = ev as CustomEvent<TaskLedgerDeltaEventDetail>;
@@ -323,7 +315,6 @@ export function ChatExecutionRail({
     return () => window.removeEventListener(TASK_LEDGER_DELTA_EVENT, onLedgerDelta);
   }, []);
 
-  // Editable session context pins state (synced with ChatSurface @kb Context Inspector)
   const [contextPins, setContextPins] = useState<SessionContextPin[]>(DEFAULT_SESSION_CONTEXT_PINS);
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
   const [editingPinDraft, setEditingPinDraft] = useState<string>('');
@@ -487,12 +478,11 @@ export function ChatExecutionRail({
     broadcastPins(contextPins.filter((p) => p.id !== pinId));
   };
 
-  // Re-read the context budget on every session change and every completed turn (read once per session, it went stale).
   useEffect(() => {
     let cancelled = false;
     if (budgetSessionRef.current !== sessionId) {
       budgetSessionRef.current = sessionId;
-      setBudget(null); // a new session never shows the previous session's reading
+      setBudget(null);
     }
     getContextBudget(sessionId)
       .then((next) => {
@@ -519,19 +509,6 @@ export function ChatExecutionRail({
   const routingLine = routing
     ? `Routes to ${routing.model}${routing.reason ? ` — ${routing.reason}` : ''}`
     : '';
-
-  const [selectedSpoke, setSelectedSpoke] = useState<SpokeAdapter>('vox-lang');
-  const hubModel = routing?.model
-    ? (routing.model.toLowerCase().includes('hub') ? routing.model : `${routing.model} Hub`)
-    : 'Qwen3-8B Hub';
-
-  const handleConfigureMens = () => {
-    if (onNavigate) {
-      onNavigate('mens');
-    } else if (typeof window !== 'undefined') {
-      window.location.hash = '#view=mens';
-    }
-  };
 
   return (
     <aside aria-label="Execution rail" className="flex h-full w-full min-w-0 flex-col">
@@ -576,82 +553,6 @@ export function ChatExecutionRail({
           </div>
         </div>
 
-        {/* Concept Art Option B: Sleek Orchestrator Hub & Active Spoke Capsule */}
-        <div
-          data-testid="orchestrator-hub-spoke-strip"
-          className="flex flex-col gap-1 rounded-lg border border-[#D4AF37]/35 bg-linear-to-r from-[#1E1912]/95 via-[#15120D]/95 to-[#0F0D09]/95 px-2.5 py-1.5 shadow-[0_2px_10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(244,211,138,0.15)]"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="relative flex size-2 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981]" />
-              </span>
-              <span className="font-display text-[10px] font-bold uppercase tracking-wider text-[#F3E5AB] truncate">
-                Orchestrator Hub &amp; Spoke
-              </span>
-            </div>
-            <RomanTooltip
-              title="MENS Studio Configuration"
-              purpose="Configure model weights, LoRA/QLoRA spoke adapters, and routing policies in MENS Studio."
-              actionHint="Opens MENS Studio (#view=mens)"
-              placement="left"
-            >
-              <button
-                type="button"
-                onClick={handleConfigureMens}
-                data-testid="configure-mens-studio-btn"
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB] transition hover:border-[#D4AF37] hover:bg-[#D4AF37]/20"
-              >
-                <span>⚙ MENS</span>
-              </button>
-            </RomanTooltip>
-          </div>
-          <div className="flex items-center justify-between gap-1.5 min-w-0 rounded border border-border-subtle/70 bg-black/25 px-2 py-0.5">
-            <div className="min-w-0 flex-1 truncate">
-              <RomanTooltip
-                title="Active Orchestrator Hub Model"
-                purpose={`Central foundation model (${hubModel}) orchestrating reasoning, chat state, and prompt synthesis.`}
-                actionHint="Click to inspect model routing in MENS Studio"
-                placement="top"
-              >
-                <button
-                  type="button"
-                  onClick={handleConfigureMens}
-                  data-testid="active-hub-model-badge"
-                  className="max-w-full font-mono text-[10.5px] font-medium text-[#F3E5AB] truncate hover:text-white transition"
-                >
-                  Hub: <span className="font-semibold text-brass">{hubModel.replace(/ Hub$/i, '')}</span>
-                </button>
-              </RomanTooltip>
-            </div>
-            <span className="text-[#D4AF37]/60 text-[11px] shrink-0 font-mono">➔</span>
-            <div className="shrink-0">
-              <RomanTooltip
-                title={`Active Spoke: ${selectedSpoke}`}
-                purpose="Specialized low-rank LoRA/QLoRA adapter dispatched on-demand for domain execution. Chat turns dynamically route between Hub reasoning and specialized Spokes."
-                actionHint="Click to cycle active spoke adapter"
-                statusBadge="ROUTED"
-                placement="top"
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextIndex = (SPOKE_ADAPTERS.indexOf(selectedSpoke) + 1) % SPOKE_ADAPTERS.length;
-                    setSelectedSpoke(SPOKE_ADAPTERS[nextIndex]);
-                  }}
-                  data-testid="active-spoke-adapter-badge"
-                  className="inline-flex shrink-0 items-center gap-1 font-mono text-[10.5px] font-semibold text-emerald-300 hover:text-emerald-200 transition"
-                >
-                  <span>Spoke:</span>
-                  <span className="underline decoration-dotted decoration-[#D4AF37]/50">{selectedSpoke}</span>
-                </button>
-              </RomanTooltip>
-            </div>
-          </div>
-        </div>
-
-        {/* Concept-Art v4.2 Unified Inspector Underline Header (All | Plan & Tasks | Context | Routing) */}
         <div
           role="tablist"
           aria-label="Session inspector sections"
@@ -955,9 +856,9 @@ export function ChatExecutionRail({
                   window.location.hash = '#view=mens';
                 }
               }}
-              className="sr-only"
+              className="flex items-center justify-between gap-1.5 rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-left text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
             >
-              <span className="uppercase tracking-[0.06em] text-text-muted">Spoke</span>
+              <span className="uppercase tracking-[0.08em] text-text-muted">Spoke</span>
               <span className="truncate font-mono text-[11px] text-(--color-status-pass)">
                 {(() => {
                   const runningTitle = (
@@ -1082,121 +983,115 @@ export function ChatExecutionRail({
             activeInspectorTab !== 'all' && activeInspectorTab !== 'context' ? 'sr-only' : ''
           }`}
         >
-          <details open className="group/context">
-            <summary className="flex cursor-pointer select-none items-center justify-between text-text-muted hover:text-text-secondary list-none [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-1 font-display text-[11px] uppercase tracking-[0.13em]">
-                <span className="text-[9px] text-brass/70 transition-transform group-open/context:rotate-90">▸</span>
-                <span>Pinned Context</span>
-              </span>
-              <span className="font-mono text-[11px] text-text-muted">
-                {contextPins.length} {contextPins.length === 1 ? 'pin' : 'pins'}
-              </span>
-            </summary>
-            <div className="mt-1 flex flex-col gap-1">
-              {contextPins.length === 0 ? (
-                <p className="text-[11px] text-text-muted">No pinned context items.</p>
-              ) : (
-                <ul className="flex flex-col gap-1">
-                  {contextPins.map((pin) => {
-                    const isEditingPin = editingPinId === pin.id;
-                    return (
-                      <li
-                        key={pin.id}
-                        className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-1"
+          <div className="flex items-center justify-between">
+            <span className="font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">
+              Pinned Context
+            </span>
+            <span className="font-mono text-[11px] text-text-muted">
+              {contextPins.length} {contextPins.length === 1 ? 'pin' : 'pins'}
+            </span>
+          </div>
+          {contextPins.length === 0 ? (
+            <p className="text-[11px] text-text-muted">No pinned context items.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {contextPins.map((pin) => {
+                const isEditingPin = editingPinId === pin.id;
+                return (
+                  <li
+                    key={pin.id}
+                    className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-1"
+                  >
+                    {isEditingPin ? (
+                      <input
+                        autoFocus
+                        data-testid="execution-rail-context-edit-input"
+                        aria-label={`Edit context pin ${pin.label}`}
+                        value={editingPinDraft}
+                        onChange={(e) => setEditingPinDraft(e.target.value)}
+                        onBlur={() => handleCommitPinEdit(pin.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCommitPinEdit(pin.id);
+                          if (e.key === 'Escape') setEditingPinId(null);
+                        }}
+                        className="min-w-0 flex-1 rounded border border-brass/40 bg-surface-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-primary outline-hidden"
+                      />
+                    ) : (
+                      <span
+                        className="min-w-0 flex-1 truncate font-mono text-[11px] text-brass"
+                        title={pin.label}
+                        onDoubleClick={() => {
+                          setEditingPinId(pin.id);
+                          setEditingPinDraft(pin.label);
+                        }}
                       >
-                        {isEditingPin ? (
-                          <input
-                            autoFocus
-                            data-testid="execution-rail-context-edit-input"
-                            aria-label={`Edit context pin ${pin.label}`}
-                            value={editingPinDraft}
-                            onChange={(e) => setEditingPinDraft(e.target.value)}
-                            onBlur={() => handleCommitPinEdit(pin.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleCommitPinEdit(pin.id);
-                              if (e.key === 'Escape') setEditingPinId(null);
-                            }}
-                            className="min-w-0 flex-1 rounded border border-brass/40 bg-surface-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-primary outline-hidden"
-                          />
-                        ) : (
-                          <span
-                            className="min-w-0 flex-1 truncate font-mono text-[11px] text-brass"
-                            title={pin.label}
-                            onDoubleClick={() => {
-                              setEditingPinId(pin.id);
-                              setEditingPinDraft(pin.label);
-                            }}
-                          >
-                            {pin.label}
-                            {pin.scope ? (
-                              <span className="ml-1.5 text-text-muted">· {pin.scope}</span>
-                            ) : null}
-                          </span>
-                        )}
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          <button
-                            type="button"
-                            data-testid={`execution-rail-context-edit-${pin.id}`}
-                            aria-label={`Edit context ${pin.label}`}
-                            onClick={() => {
-                              setEditingPinId(pin.id);
-                              setEditingPinDraft(pin.label);
-                            }}
-                            className="rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-brass"
-                          >
-                            ✎
-                          </button>
-                          <button
-                            type="button"
-                            data-testid={`execution-rail-context-remove-${pin.id}`}
-                            aria-label={`Remove context ${pin.label}`}
-                            onClick={() => handleRemovePin(pin.id)}
-                            className="rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-fail)"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              <div className="flex items-center gap-1 pt-0.5">
-                <input
-                  type="text"
-                  data-testid="execution-rail-add-context-input"
-                  aria-label="Add session context pin"
-                  placeholder="+ Pin @kb, file, or rule…"
-                  value={newPinLabel}
-                  onChange={(e) => setNewPinLabel(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddContextPin();
-                  }}
-                  className="min-w-0 flex-1 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
-                />
-                <button
-                  type="button"
-                  data-testid="execution-rail-add-context-btn"
-                  aria-label="Pin session context"
-                  onClick={handleAddContextPin}
-                  className="shrink-0 rounded border border-brass/30 bg-brass/10 px-2 py-1 font-mono text-[11px] text-brass transition hover:bg-brass/20"
-                >
-                  Pin
-                </button>
-              </div>
-            </div>
-          </details>
+                        {pin.label}
+                        {pin.scope ? (
+                          <span className="ml-1.5 text-text-muted">· {pin.scope}</span>
+                        ) : null}
+                      </span>
+                    )}
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        data-testid={`execution-rail-context-edit-${pin.id}`}
+                        aria-label={`Edit context ${pin.label}`}
+                        onClick={() => {
+                          setEditingPinId(pin.id);
+                          setEditingPinDraft(pin.label);
+                        }}
+                        className="rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-brass"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`execution-rail-context-remove-${pin.id}`}
+                        aria-label={`Remove context ${pin.label}`}
+                        onClick={() => handleRemovePin(pin.id)}
+                        className="rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-fail)"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="flex items-center gap-1 pt-0.5">
+            <input
+              type="text"
+              data-testid="execution-rail-add-context-input"
+              aria-label="Add session context pin"
+              placeholder="+ Pin @kb, file, or rule…"
+              value={newPinLabel}
+              onChange={(e) => setNewPinLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddContextPin();
+              }}
+              className="min-w-0 flex-1 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
+            />
+            <button
+              type="button"
+              data-testid="execution-rail-add-context-btn"
+              aria-label="Pin session context"
+              onClick={handleAddContextPin}
+              className="shrink-0 rounded border border-brass/30 bg-brass/10 px-2 py-1 font-mono text-[11px] text-brass transition hover:bg-brass/20"
+            >
+              Pin
+            </button>
+          </div>
         </section>
 
         <section
-           data-testid="chat-git-checkpoints-panel"
+          data-testid="chat-git-checkpoints-panel"
           aria-label="Git checkpoints and session interop"
           className="flex shrink-0 flex-col gap-1.5 border-t border-border-subtle pt-1.5"
         >
           <div className="flex items-center justify-between gap-1">
-            <span className="flex items-center gap-1 font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">
-              <span className="text-[9px] text-brass/70">▸</span>
-              <span>Git Checkpoints</span>
+            <span className="font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">
+              Git Checkpoints
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -1217,39 +1112,37 @@ export function ChatExecutionRail({
               </button>
             </div>
           </div>
-          <div className="mt-0.5 flex flex-col gap-1.5">
-            {restoredRefBanner && (
-              <div
-                data-testid="chat-checkpoint-status-banner"
-                className="rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass"
-              >
-                {restoredRefBanner}
-              </div>
-            )}
-            {gitCheckpoints.length > 0 && (
-              <ul className="flex flex-col gap-1">
-                {gitCheckpoints.slice(-3).map((ckpt) => (
-                  <li
-                    key={ckpt.ref_name}
-                    data-testid={`chat-checkpoint-row-${ckpt.turn_count}`}
-                    className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
+          {restoredRefBanner && (
+            <div
+              data-testid="chat-checkpoint-status-banner"
+              className="rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass"
+            >
+              {restoredRefBanner}
+            </div>
+          )}
+          {gitCheckpoints.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {gitCheckpoints.slice(-3).map((ckpt) => (
+                <li
+                  key={ckpt.ref_name}
+                  data-testid={`chat-checkpoint-row-${ckpt.turn_count}`}
+                  className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
+                >
+                  <span className="truncate">
+                    Turn #{ckpt.turn_count} · {ckpt.commit_oid.slice(0, 8)}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid={`chat-checkpoint-restore-${ckpt.turn_count}`}
+                    onClick={() => handleRestoreCheckpoint(ckpt.turn_count)}
+                    className="shrink-0 rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-[11px] text-brass hover:bg-brass/15"
                   >
-                    <span className="truncate">
-                      Turn #{ckpt.turn_count} · {ckpt.commit_oid.slice(0, 8)}
-                    </span>
-                    <button
-                      type="button"
-                      data-testid={`chat-checkpoint-restore-${ckpt.turn_count}`}
-                      onClick={() => handleRestoreCheckpoint(ckpt.turn_count)}
-                      className="shrink-0 rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-[11px] text-brass hover:bg-brass/15"
-                    >
-                      Restore
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                    Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {sessionInteropOpen && (
             <SessionInteropModal
               sessionId={sessionId ?? 'default-session'}
@@ -1347,4 +1240,3 @@ export function ChatExecutionRail({
     </aside>
   );
 }
-

@@ -4,27 +4,20 @@
  */
 
 export const HUD_TILE_KINDS = [
-  'repo_version',
   'active_agents',
   'budget_burn',
   'mesh_peers',
-  'routing_decision',
-  'attention_debt',
+  'active_model',
+  'pending_approvals',
 ] as const;
 
-export type HudTileKind =
-  | (typeof HUD_TILE_KINDS)[number]
-  | 'active_model'
-  | 'pending_approvals';
+export type HudTileKind = (typeof HUD_TILE_KINDS)[number];
 
 /** Card names — the Configure menu shows exactly these, so menu and cards cannot drift. */
 export const HUD_TILE_LABELS: Record<HudTileKind, string> = {
-  repo_version: 'Repo',
   active_agents: 'Engine',
   budget_burn: 'Spend',
   mesh_peers: 'Mesh',
-  routing_decision: 'Routing',
-  attention_debt: 'Needs you',
   active_model: 'Routing',
   pending_approvals: 'Needs you',
 };
@@ -46,7 +39,7 @@ export interface HudTilesConfig {
   tiles: HudTileEntry[];
 }
 
-const KIND_SET = new Set<string>([...HUD_TILE_KINDS, 'active_model', 'pending_approvals']);
+const KIND_SET = new Set<string>(HUD_TILE_KINDS);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -60,67 +53,6 @@ export function defaultHudTiles(): HudTilesConfig {
       kind,
       enabled: true,
     })),
-  };
-}
-
-/**
- * Normalizes a HUD tiles config (e.g. from localStorage), ensuring all default HUD_TILE_KINDS
- * (such as repo_version) are present while preserving existing ordering and explicit enabled/visible toggles.
- */
-export function normalizeHudTiles(raw: unknown): HudTilesConfig {
-  if (!isRecord(raw) || !Array.isArray(raw.tiles)) {
-    return defaultHudTiles();
-  }
-
-  const existingEntries = raw.tiles.filter((entry): entry is Record<string, unknown> => {
-    return isRecord(entry) && typeof entry.id === 'string' && !RETIRED_HUD_TILE_IDS.has(entry.id);
-  });
-
-  const tileMap = new Map<string, HudTileEntry>();
-  const order: string[] = [];
-
-  for (const entry of existingEntries) {
-    let id = entry.id as string;
-    let kind = entry.kind as string;
-
-    // Normalize legacy aliases
-    if (id === 'active_model') id = 'routing_decision';
-    if (id === 'pending_approvals') id = 'attention_debt';
-    if (kind === 'active_model') kind = 'routing_decision';
-    if (kind === 'pending_approvals') kind = 'attention_debt';
-
-    const enabled =
-      typeof entry.enabled === 'boolean'
-        ? entry.enabled
-        : typeof (entry as Record<string, unknown>).visible === 'boolean'
-        ? (entry as Record<string, unknown>).visible as boolean
-        : true;
-
-    if (KIND_SET.has(id) && KIND_SET.has(kind)) {
-      if (!tileMap.has(id)) {
-        order.push(id);
-      }
-      tileMap.set(id, { id, kind: kind as HudTileKind, enabled });
-    }
-  }
-
-  // Ensure every HUD_TILE_KINDS entry is included
-  for (const defaultKind of HUD_TILE_KINDS) {
-    if (!tileMap.has(defaultKind)) {
-      tileMap.set(defaultKind, { id: defaultKind, kind: defaultKind, enabled: true });
-      if (defaultKind === 'repo_version') {
-        order.unshift(defaultKind);
-      } else {
-        order.push(defaultKind);
-      }
-    }
-  }
-
-  const tiles = order.map((id) => tileMap.get(id)!).filter(Boolean);
-
-  return {
-    version: 1,
-    tiles,
   };
 }
 

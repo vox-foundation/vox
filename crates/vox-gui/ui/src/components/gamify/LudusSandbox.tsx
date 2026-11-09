@@ -159,7 +159,7 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     crateHint: 'vox-crypto',
     surface: 'settings',
     targetView: 'settings',
-    purpose: 'Clavis credential vault, BLAKE3/Ed25519 cryptographic envelopes, and policy gates.',
+    purpose: 'Clavis vault governance, BLAKE3 and Ed25519 cryptographic envelopes, and policy gates.',
     left: '71%',
     top: '26%',
     monumentArt: '/assets/romanesque/monument-temple-compiler.jpg',

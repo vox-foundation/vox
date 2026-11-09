@@ -991,7 +991,7 @@ mod tests {
         };
         let cx = CardContext {
             size: "4B",
-            base_pin: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+            base_pin: "Qwen/Qwen3-4B@1cfa9a720891", // gitleaks:allow
             namespace: "brbrainerd",
         };
         let assets = render_model_assets(&cx, &rec);

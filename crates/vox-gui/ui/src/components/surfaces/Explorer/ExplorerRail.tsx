@@ -133,7 +133,7 @@ export function ExplorerRail({
                 isSelected
                   ? 'border border-[#8C6825] bg-[#251C0E] text-[#F3E5AB]'
                   : isZero
-                    ? 'text-[#6B5A42] hover:bg-[#DFD2BC]/70'
+                    ? 'text-text-muted hover:bg-[#DFD2BC]/70'
                     : 'text-[#1E150C] hover:bg-[#DFD2BC]/85',
               )}
             >

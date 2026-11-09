@@ -457,9 +457,16 @@ export function ExplorerView({
       <RomanSurfaceHeader
         domainTag="EXPLORER · MCP & CLI REGISTRY"
         title="Capability Explorer"
-        subtitle={`Everything Vox can do, by domain, and how you can reach it.${coverageAsOf && sha9 ? ` · Coverage as of ${sha9} (${coverageAsOf.date})` : ''}`}
+        subtitle="Everything Vox can do, by domain, and how you can reach it."
         waxSealBadge="SSOT INDEXED"
         icon={<Icon.search className="size-5 text-[#FFF8E7]" aria-hidden="true" />}
+        actions={
+          coverageAsOf && sha9 ? (
+            <span className="font-serif text-[11px] font-semibold text-[#5C441E]">
+              Coverage as of {sha9} ({coverageAsOf.date})
+            </span>
+          ) : undefined
+        }
         gauges={[
           {
             label: 'Domains',
