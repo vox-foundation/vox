@@ -40,6 +40,36 @@ pub fn query_nvidia_smi_vram() -> Option<VramInfo> {
     parse_nvidia_smi_output(&String::from_utf8_lossy(&out.stdout))
 }
 
+/// `(index, memory.free MiB)` for every GPU nvidia-smi lists, in its (PCI bus)
+/// order; `None` when nvidia-smi is absent or any row is unreadable.
+pub fn query_nvidia_smi_free_mb() -> Option<Vec<(u32, u64)>> {
+    let out = std::process::Command::new("nvidia-smi")
+        .args([
+            "--query-gpu=index,memory.free",
+            "--format=csv,noheader,nounits",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    parse_nvidia_smi_free(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// One row per GPU; a row that does not parse (e.g. `[N/A]` on MIG) makes the
+/// whole reading unusable rather than silently dropping that device.
+fn parse_nvidia_smi_free(stdout: &str) -> Option<Vec<(u32, u64)>> {
+    let devices = stdout
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| {
+            let (index, free) = l.split_once(',')?;
+            Some((index.trim().parse().ok()?, free.trim().parse().ok()?))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (!devices.is_empty()).then_some(devices)
+}
+
 /// Query available GPU VRAM info.
 pub fn get_system_vram_info() -> Option<VramInfo> {
     // Priority 1: env override
@@ -128,6 +158,16 @@ pub fn vram_summary(_device_is_cuda: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nvidia_smi_free_reads_every_gpu() {
+        assert_eq!(
+            parse_nvidia_smi_free("0, 48000\n1, 2400\n"),
+            Some(vec![(0, 48_000), (1, 2_400)])
+        );
+        assert_eq!(parse_nvidia_smi_free("0, 48000\n1, [N/A]\n"), None);
+        assert_eq!(parse_nvidia_smi_free(""), None);
+    }
 
     #[test]
     fn accelerator_kind_from_vendor_maps_known_vendors() {

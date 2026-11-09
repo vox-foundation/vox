@@ -225,10 +225,18 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
  * and the container — never `display: none` on the button's ancestor.
  */
 @media (min-width: 72rem) {
+  .right-sidebar {
+    width: 18.5rem !important;
+  }
+
+  .right-sidebar-panel {
+    padding-inline-start: 1.5rem;
+  }
+
   .right-sidebar .sl-container {
-    width: 16.5rem;
+    width: 16rem;
     min-width: 16rem;
-    max-width: 16.5rem;
+    max-width: 16rem;
   }
 
   .right-sidebar-panel :where(a) {
@@ -239,13 +247,16 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   aside.right-sidebar-container {
     width: 18.5rem !important;
     min-width: 18.5rem;
+    max-width: 18.5rem;
     flex: 0 0 18.5rem;
-    margin-inline-start: auto;
+    margin-inline-start: 0;
     position: relative;
     z-index: 45;
   }
 
-  .main-pane {
+  .main-pane,
+  [data-has-sidebar][data-has-toc] .main-pane {
+    --sl-content-margin-inline: 0 auto;
     width: auto !important;
     flex: 1 1 auto;
     min-width: 0;
@@ -255,6 +266,9 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   html[data-toc-state="hidden"] .right-sidebar {
     width: 0 !important;
     min-width: 0 !important;
+    max-width: 0 !important;
+    flex: 0 0 0px !important;
+    margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     overflow: visible !important;
@@ -306,43 +320,49 @@ body {
 
 /* Article Width Expansion and Breakout Rules */
 :root {
-  --sl-content-width: 48rem;
+  --sl-content-width: 50rem;
 }
 
 @media (min-width: 50rem) {
   /* Outline is not docked yet, so the article can take the recovered sidebar. */
   html[data-sidebar-state="collapsed"],
   html[data-sidebar-state="hidden"] {
-    --sl-content-width: min(60rem, calc(100vw - 2rem));
+    --sl-content-width: min(68rem, calc(100vw - 4.25rem));
   }
 }
 
 @media (min-width: 72rem) {
-  /* Leave at least 20rem for the outline so it cannot shrink to one column. */
+  /* Both sidebars open: fill the center pane between 18.75rem left nav and 18.5rem right TOC. */
   :root {
-    --sl-content-width: min(48rem, calc(100vw - var(--sl-sidebar-width) - 20rem));
+    --__toc-width: 18.5rem;
+    --sl-content-width: min(50rem, calc(100vw - var(--sl-sidebar-width) - 21.5rem));
   }
 
+  /* Left sidebar collapsed, right TOC open: recover the 16.5rem freed on the left. */
   html[data-sidebar-state="collapsed"]:not([data-toc-state="hidden"]),
   html[data-sidebar-state="hidden"]:not([data-toc-state="hidden"]) {
-    --sl-content-width: min(48rem, calc(100vw - 20rem));
+    --sl-content-width: min(66.5rem, calc(100vw - 23.75rem));
   }
 
-  html[data-toc-state="hidden"] {
-    --sl-content-width: min(60rem, calc(100vw - var(--sl-sidebar-width) - 2rem));
+  /* Right TOC collapsed, left sidebar open: recover the 16.25rem freed on the right. */
+  html[data-toc-state="hidden"]:not([data-sidebar-state="collapsed"]):not([data-sidebar-state="hidden"]) {
+    --__toc-width: 0rem;
+    --sl-content-width: min(66.5rem, calc(100vw - var(--sl-sidebar-width) - 5.25rem));
   }
 
+  /* Both sidebars collapsed: recover horizontal space from both sides. */
   html[data-sidebar-state="collapsed"][data-toc-state="hidden"],
   html[data-sidebar-state="hidden"][data-toc-state="hidden"] {
-    --sl-content-width: min(74rem, calc(100vw - 2rem));
+    --__toc-width: 0rem;
+    --sl-content-width: min(84rem, calc(100vw - 7.5rem));
   }
 }
 
-/* Typography Line Length Constraint */
+/* Prose & lists fill the active --sl-content-width container so collapsing a sidebar recovers width for all content. */
 .sl-markdown-content > p,
 .sl-markdown-content > ul,
 .sl-markdown-content > ol {
-  max-width: 75ch;
+  max-width: 100%;
 }
 
 /* Wide Content Breakout */

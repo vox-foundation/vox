@@ -43,12 +43,6 @@ pub struct AdapterCard {
     /// What `training_syntax_fingerprint` is: `"ebnf-sha256"` until the Phase 13 behavioral fingerprint.
     #[serde(default)]
     pub syntax_fingerprint_kind: String,
-    /// Size token that survived the pre-load free-memory check. Empty when that check did not run.
-    #[serde(default)]
-    pub loaded_size: String,
-    /// Preset used after that check. Empty when unset.
-    #[serde(default)]
-    pub loaded_preset: String,
 }
 
 /// Lowercase-hex SHA-256/BLAKE3-sized digest check (64 chars, no uppercase).
@@ -296,8 +290,6 @@ impl AdapterCard {
             training_manifest_digest: String::new(),
             training_syntax_fingerprint: String::new(),
             syntax_fingerprint_kind: String::new(),
-            loaded_size: String::new(),
-            loaded_preset: String::new(),
         }
     }
 }

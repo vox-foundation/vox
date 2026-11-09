@@ -202,6 +202,11 @@ pub enum PopuliAction {
         #[cfg(feature = "gpu")]
         #[arg(long, default_value_t = false)]
         fast_corpus: bool,
+        /// Resolve the run (size pick, preset, corpus, contamination) and print it, then exit
+        /// before downloading or training. Add --json for one JSON object on stdout.
+        #[cfg(feature = "gpu")]
+        #[arg(long, default_value_t = false, conflicts_with_all = ["background", "log_dir"])]
+        plan_only: bool,
         /// Provenance: coarse family label for upstream lineage (e.g. `kimi-k2.5`, `qwen2.5`).
         #[arg(long)]
         base_model_family: Option<String>,
@@ -242,12 +247,17 @@ pub enum PopuliAction {
         /// HF Hub repo to upload the trained adapter
         #[arg(long)]
         adapter_upload_hf: Option<String>,
-        /// Absolute hard cap for runtime in seconds
+        /// Hard cap on run time in seconds. Cloud: the job's limit. Local Metal: training stops
+        /// at the first optimizer step after this many seconds of training (model load excluded)
+        /// and writes the adapter with `capped: true` in run_summary.json.
         #[arg(long)]
         max_runtime_secs: Option<u64>,
         /// Transition cloud deployments to long-lived mesh nodes after training.
         #[arg(long, default_value_t = false)]
         persistent: bool,
+        /// Disable automatic Hugging Face Hub adapter publish after gated training (`VOX_MENS_HF_SYNC=0` equivalent).
+        #[arg(long, default_value_t = false)]
+        no_hf_sync: bool,
     },
 
     #[cfg(not(feature = "gpu"))]
@@ -602,8 +612,9 @@ pub enum PopuliAction {
         /// Path to heldout benchmark directory (default: mens/data/heldout_bench)
         #[arg(long, default_value = "mens/data/heldout_bench")]
         bench: PathBuf,
-        /// Maximum tokens to generate per sample
-        #[arg(long, default_value = "128")]
+        /// Maximum tokens to generate per sample (fits the longest held-out
+        /// reference answer about 3x over)
+        #[arg(long, default_value_t = crate::commands::mens::eval_local_prompt::HELDOUT_MAX_TOKENS)]
         max_tokens: usize,
         /// Sampling temperature (0.0 = greedy)
         #[arg(long, default_value = "0.0")]
@@ -618,9 +629,13 @@ pub enum PopuliAction {
         /// Base RNG seed for sampled generations (used when temperature > 0)
         #[arg(long, default_value = "1337")]
         seed_base: u64,
-        /// Output JSON results to this path
+        /// Output JSON results to this path; generations are checkpointed
+        /// beside it (`<output>.ckpt.jsonl`) and a rerun resumes from there
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,
+        /// Discard this run's per-item checkpoint instead of resuming from it
+        #[arg(long)]
+        force_restart: bool,
     },
 
     /// Hugging Face Hub operations (upload / download model artifacts)

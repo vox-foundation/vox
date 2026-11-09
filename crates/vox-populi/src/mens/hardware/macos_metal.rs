@@ -137,8 +137,9 @@ fn apply_live_pressure_margin(
 /// it is not a resurrection of the deleted static VRAM ladder: it produces
 /// one number, not a lookup table.
 ///
-/// `None` if `vm_stat` fails to run or its output can't be parsed — callers
-/// should fall back to the driver advisory alone in that case.
+/// `None` if `vm_stat` fails to run or its output can't be parsed. The
+/// budget then falls back to the driver advisory alone, flagged by
+/// `AccelBudget::working_set_is_live`; the size selector refuses that (D-01).
 #[cfg(target_os = "macos")]
 pub(crate) fn live_pressure_budget_bytes() -> Option<u64> {
     let out = std::process::Command::new("vm_stat").output().ok()?;

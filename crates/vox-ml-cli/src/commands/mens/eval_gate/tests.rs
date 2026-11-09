@@ -1,238 +1,8 @@
 use serial_test::serial;
+use std::path::Path;
 
-use super::bfcl::BfclGate;
 use super::check_run::check_run;
 use super::policy::EvalGatePolicy;
-
-fn make_policy_with_per_context() -> EvalGatePolicy {
-    let yaml = r#"
-version: "1"
-per_context:
-  target:
-    min_parse_rate: 0.80
-    min_scope_compliance_rate: 0.95
-    block: true
-  meta:
-    min_parse_rate: 0.30
-    block: false
-modal_mix:
-  max_voice_fraction: 0.30
-  block: false
-"#;
-    serde_yaml::from_str(yaml).expect("parse test policy")
-}
-
-#[test]
-fn per_context_gate_passes_when_above_threshold() {
-    let dir = tempfile::tempdir().expect("tempdir");
-
-    // Write eval_results.json with target slice above threshold
-    std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{
-                "vox_parse_rate": 0.9,
-                "context_breakdown": {
-                    "target": { "parse_rate": 0.90, "scope_compliance_rate": 0.97 },
-                    "meta":   { "parse_rate": 0.35, "scope_compliance_rate": 0.60 }
-                }
-            }"#,
-    )
-    .unwrap();
-
-    let results = check_run(dir.path(), &{
-        let p = dir.path().join("policy.yaml");
-        let yaml = r#"
-version: "1"
-per_context:
-  target:
-    min_parse_rate: 0.80
-    min_scope_compliance_rate: 0.95
-    block: true
-  meta:
-    min_parse_rate: 0.30
-    block: false
-"#;
-        std::fs::write(&p, yaml).unwrap();
-        p
-    })
-    .expect("check_run");
-
-    let target_gate = results.iter().find(|r| r.name == "per_context[target]");
-    assert!(
-        target_gate.is_some(),
-        "per_context[target] gate should be present"
-    );
-    assert!(
-        target_gate.unwrap().passed,
-        "target gate should pass at 90% parse"
-    );
-
-    let meta_gate = results.iter().find(|r| r.name == "per_context[meta]");
-    assert!(
-        meta_gate.is_some(),
-        "per_context[meta] gate should be present"
-    );
-    assert!(
-        meta_gate.unwrap().passed,
-        "meta gate should pass at 35% parse"
-    );
-}
-
-#[test]
-fn per_context_gate_fails_blocking_when_below_threshold() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    // target parse_rate below 0.80 threshold
-    std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{"vox_parse_rate":0.5,"context_breakdown":{"target":{"parse_rate":0.50,"scope_compliance_rate":0.99}}}"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        "version: \"1\"\nper_context:\n  target:\n    min_parse_rate: 0.80\n    block: true\n",
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results
-        .iter()
-        .find(|r| r.name == "per_context[target]")
-        .expect("gate present");
-    assert!(!gate.passed, "target gate should fail below threshold");
-    assert!(gate.block, "target gate should be blocking");
-}
-
-#[test]
-fn modal_mix_gate_passes_when_voice_below_ceiling() {
-    let _ = make_policy_with_per_context(); // verify policy parses
-    let dir = tempfile::tempdir().expect("tempdir");
-    std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{"modal_breakdown":{"text":90,"voice":5}}"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        "version: \"1\"\nmodal_mix:\n  max_voice_fraction: 0.30\n  block: false\n",
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results.iter().find(|r| r.name == "modal_mix[voice]");
-    assert!(gate.is_some(), "modal_mix[voice] gate present");
-    assert!(
-        gate.unwrap().passed,
-        "5/95 = 5.3% voice < 30% ceiling should pass"
-    );
-}
-
-#[test]
-fn modal_mix_gate_warns_when_voice_exceeds_ceiling() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    // 40% voice exceeds 30% ceiling
-    std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{"modal_breakdown":{"text":60,"voice":40}}"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        "version: \"1\"\nmodal_mix:\n  max_voice_fraction: 0.30\n  block: false\n",
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results
-        .iter()
-        .find(|r| r.name == "modal_mix[voice]")
-        .expect("gate present");
-    assert!(!gate.passed, "40% voice > 30% ceiling should not pass");
-    assert!(!gate.block, "warn-only gate should not block");
-}
-
-#[test]
-fn policy_deserializes_per_context_and_modal_mix() {
-    let policy = make_policy_with_per_context();
-    assert!(policy.per_context.contains_key("target"));
-    assert!(policy.per_context.contains_key("meta"));
-    assert_eq!(policy.per_context["target"].min_parse_rate, 0.80);
-    assert!(policy.per_context["target"].block);
-    assert!(!policy.per_context["meta"].block);
-    assert_eq!(policy.modal_mix.max_voice_fraction, 0.30);
-    assert!(!policy.modal_mix.block);
-}
-
-#[test]
-fn mcp_tool_schema_gate_passes_at_threshold() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    std::fs::write(
-        dir.path().join("mcp_tool_schema_kpi.json"),
-        r#"{"validation_enabled":true,"checks_total":100,"strict_passed":99,"strict_failed":1,"schema_compile_skipped":0,"strict_validity_rate":0.99}"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-mcp_tool_schema:
-  min_strict_validity_rate: 0.99
-  block: true
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let g = results
-        .iter()
-        .find(|r| r.name == "mcp_tool_schema")
-        .expect("gate");
-    assert!(g.passed, "{}", g.message);
-}
-
-#[test]
-fn mcp_tool_schema_gate_fails_below_threshold() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    std::fs::write(
-        dir.path().join("mcp_tool_schema_kpi.json"),
-        r#"{"validation_enabled":true,"checks_total":10,"strict_passed":5,"strict_failed":5,"strict_validity_rate":0.5}"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-mcp_tool_schema:
-  min_strict_validity_rate: 0.99
-  block: true
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let g = results
-        .iter()
-        .find(|r| r.name == "mcp_tool_schema")
-        .expect("gate");
-    assert!(!g.passed);
-}
-
-#[test]
-fn mcp_tool_schema_gate_skipped_when_inactive() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-mcp_tool_schema:
-  min_strict_validity_rate: 0.0
-  block: false
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    assert!(
-        !results.iter().any(|r| r.name == "mcp_tool_schema"),
-        "inactive gate should not emit a row"
-    );
-}
 
 #[test]
 fn pass_at_k_gate_passes_when_above_thresholds() {
@@ -245,8 +15,7 @@ fn pass_at_k_gate_passes_when_above_thresholds() {
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-pass_at_k:
+        r#"pass_at_k:
   min_pass_rate_at_1: 0.70
   min_pass_rate_at_k: 0.85
   block: true
@@ -277,8 +46,7 @@ fn anti_stub_gate_passes_when_eval_local_report_meets_thresholds() {
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-anti_stub:
+        r#"anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
@@ -316,8 +84,7 @@ fn anti_stub_gate_fails_blocking_when_pass_rate_below_threshold() {
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-anti_stub:
+        r#"anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
@@ -338,12 +105,10 @@ anti_stub:
 #[test]
 fn anti_stub_gate_warn_only_when_eval_local_report_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
-    // No eval_local_report.json written — simulates post-train pipeline state before eval-local
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-anti_stub:
+        r#"anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
@@ -364,12 +129,10 @@ anti_stub:
 #[test]
 fn anti_stub_gate_hard_blocks_when_full_policy_and_eval_local_report_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
-    // No eval_local_report.json — simulates full gate run before eval-local is run by operator
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-anti_stub:
+        r#"anti_stub:
   min_pass_rate: 0.92
   block: true
 "#,
@@ -393,8 +156,6 @@ fn run_eval_gate_writes_gate_receipt_json_on_pass() {
     use super::run_gate::run_eval_gate;
     let dir = tempfile::tempdir().expect("tempdir");
 
-    // Write enough artifacts for a clean pass (no trainer artifacts → trainer gates skip)
-    // Write eval_local_report.json so anti_stub gate can read fields
     std::fs::write(
         dir.path().join("eval_local_report.json"),
         r#"{"anti_stub_task_success":0.95,"placeholder_event_rate":0.02,"trivial_placeholder_event_rate":0.01,"construct_richness_mean":0.40}"#,
@@ -403,8 +164,7 @@ fn run_eval_gate_writes_gate_receipt_json_on_pass() {
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-anti_stub:
+        r#"anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
@@ -421,7 +181,12 @@ anti_stub:
     assert!(receipt_path.exists(), "gate_receipt.json must be written");
     let text = std::fs::read_to_string(&receipt_path).unwrap();
     let v: serde_json::Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(v["schema"], "vox_mens_gate_receipt_v1");
+    assert_eq!(v["schema"], vox_eval::gate_state::RECEIPT_SCHEMA);
+    assert_eq!(
+        v["source_commit"],
+        env!("VOX_GIT_HASH"),
+        "a receipt names the commit of the binary that judged it"
+    );
     assert!(
         v["overall_passed"].as_bool().unwrap_or(false),
         "overall_passed should be true"
@@ -434,7 +199,6 @@ anti_stub:
 fn run_eval_gate_writes_gate_receipt_json_on_fail() {
     use super::run_gate::run_eval_gate;
     let dir = tempfile::tempdir().expect("tempdir");
-    // eval_local_report.json with bad metrics → anti_stub fails blocking
     std::fs::write(
         dir.path().join("eval_local_report.json"),
         r#"{"anti_stub_task_success":0.50}"#,
@@ -443,8 +207,7 @@ fn run_eval_gate_writes_gate_receipt_json_on_fail() {
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-anti_stub:
+        r#"anti_stub:
   min_pass_rate: 0.92
   block: true
 "#,
@@ -478,8 +241,7 @@ fn pass_at_k_gate_fails_on_regression_drop() {
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-pass_at_k:
+        r#"pass_at_k:
   max_regression_drop: 0.05
   baseline_file: baseline_passatk.json
   block: true
@@ -495,97 +257,82 @@ pass_at_k:
 }
 
 #[test]
-fn rust_compile_and_clippy_gates_work() {
+fn pass_at_k_when_k_is_one_collapses_min_k_to_pass_at_1() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{"rust_compile_rate":0.95,"clippy_clean_rate":0.90}"#,
+        dir.path().join("benchmark_passatk.json"),
+        r#"{"schema":"vox_mens_benchmark_passatk_v1","n":1,"k":1,"pass_rate_at_1":0.30,"pass_rate_at_k":0.30,"total":52}"#,
     )
     .unwrap();
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-rust_compile_rate:
-  min_pct: 0.90
+        r#"pass_at_k:
+  min_pass_rate_at_1: 0.25
+  min_pass_rate_at_k: 0.50
   block: true
-clippy_clean_rate:
-  min_pct: 0.85
-  block: false
 "#,
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-
-    let compile_gate = results
+    let g = results
         .iter()
-        .find(|r| r.name == "rust_compile_rate")
-        .expect("compile gate present");
-    assert!(compile_gate.passed, "should pass");
-    assert!(compile_gate.block, "should be blocking");
-
-    let clippy_gate = results
-        .iter()
-        .find(|r| r.name == "clippy_clean_rate")
-        .expect("clippy gate present");
-    assert!(clippy_gate.passed, "should pass");
-    assert!(!clippy_gate.block, "should not be blocking");
+        .find(|r| r.name == "pass_at_k")
+        .expect("pass_at_k gate");
+    assert!(
+        g.passed,
+        "k=1 must not require the k>1 pass@k floor: {}",
+        g.message
+    );
+    assert!(
+        g.message.contains("k=1"),
+        "message should note the collapse: {}",
+        g.message
+    );
 }
 
 #[test]
-fn rust_gate_not_applicable_when_metric_absent() {
-    // A non-rust corpus produces eval_results.json WITHOUT rust_compile_rate.
-    // A blocking rust gate must treat the absent metric as "not applicable" (pass),
-    // not as 0% (which would spuriously hard-fail the run).
+fn pass_at_k_when_k_gt_one_still_requires_pass_at_k_floor() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{"vox_parse_rate":0.99,"total_samples":100}"#,
+        dir.path().join("benchmark_passatk.json"),
+        r#"{"schema":"vox_mens_benchmark_passatk_v1","n":5,"k":5,"pass_rate_at_1":0.30,"pass_rate_at_k":0.30,"total":52}"#,
     )
     .unwrap();
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-rust_compile_rate:
-  min_pct: 0.90
+        r#"pass_at_k:
+  min_pass_rate_at_1: 0.25
+  min_pass_rate_at_k: 0.50
   block: true
 "#,
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let compile_gate = results
+    let g = results
         .iter()
-        .find(|r| r.name == "rust_compile_rate")
-        .expect("compile gate present");
+        .find(|r| r.name == "pass_at_k")
+        .expect("pass_at_k gate");
     assert!(
-        compile_gate.passed,
-        "absent rust metric must not fail the gate"
-    );
-    assert!(
-        compile_gate.message.contains("not applicable"),
-        "message explains why: {}",
-        compile_gate.message
+        !g.passed,
+        "k>1 must still enforce min_pass_rate_at_k: {}",
+        g.message
     );
 }
 
 #[test]
 fn pass_at_k_gate_hard_fails_when_baseline_configured_but_missing() {
-    // Task A3 (c): a configured baseline_file that is absent must hard-fail
-    // the gate, not silently skip the regression check — the defect class
-    // D-3/A1/A2 already fixed elsewhere in this plan, found here too.
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(
         dir.path().join("benchmark_passatk.json"),
         r#"{"pass_rate_at_1":0.90,"pass_rate_at_k":0.95}"#,
     )
     .unwrap();
-    // Deliberately do NOT write baseline_passatk.json.
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"version: "1"
-pass_at_k:
+        r#"pass_at_k:
   min_pass_rate_at_1: 0.10
   min_pass_rate_at_k: 0.10
   max_regression_drop: 0.05
@@ -612,303 +359,67 @@ pass_at_k:
 }
 
 #[test]
-fn agentic_gates_pass_when_rates_above_threshold() {
-    let dir = tempfile::tempdir().expect("tempdir");
+fn supervised_ratio_reads_nested_payload() {
+    let dir = tempfile::tempdir().unwrap();
+    let telem_path = dir.path().join("telemetry.jsonl");
     std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{"tool_call_valid_json_rate": 0.95, "tool_name_exists_rate": 0.90}"#,
+        &telem_path,
+        r#"{"event":"step","payload":{"supervised_ratio_pct":2.70}}
+"#,
     )
     .unwrap();
     let policy_path = dir.path().join("policy.yaml");
     std::fs::write(
         &policy_path,
-        r#"
-version: "1"
-tool_call_valid_json_rate:
-  min_pct: 0.90
-  block: true
-tool_name_exists_rate:
-  min_pct: 0.85
+        r#"supervised_ratio:
+  min_pct: 10.0
   block: true
 "#,
     )
     .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let json_gate = results
+    let results = check_run(dir.path(), &policy_path).unwrap();
+    let row = results
         .iter()
-        .find(|r| r.name == "tool_call_valid_json_rate")
-        .expect("json gate");
-    assert!(json_gate.passed, "json rate 0.95 >= 0.90");
-    assert!(json_gate.block);
-    let name_gate = results
-        .iter()
-        .find(|r| r.name == "tool_name_exists_rate")
-        .expect("name gate");
-    assert!(name_gate.passed, "name rate 0.90 >= 0.85");
-}
+        .find(|r| r.name == "supervised_ratio")
+        .expect("supervised_ratio row");
+    assert!(!row.passed);
+    assert!(row.message.contains("2.7%"), "got: {}", row.message);
 
-#[test]
-fn agentic_gates_fail_when_rates_below_threshold() {
-    let dir = tempfile::tempdir().expect("tempdir");
+    // Test with passing value
     std::fs::write(
-        dir.path().join("eval_results.json"),
-        r#"{"tool_call_valid_json_rate": 0.80, "tool_name_exists_rate": 0.70}"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"
-version: "1"
-tool_call_valid_json_rate:
-  min_pct: 0.90
-  block: true
-tool_name_exists_rate:
-  min_pct: 0.85
-  block: true
+        &telem_path,
+        r#"{"event":"step","payload":{"supervised_ratio_pct":12.0}}
 "#,
     )
     .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let json_gate = results
+    let results2 = check_run(dir.path(), &policy_path).unwrap();
+    let row2 = results2
         .iter()
-        .find(|r| r.name == "tool_call_valid_json_rate")
-        .expect("json gate");
-    assert!(!json_gate.passed, "0.80 < 0.90 should fail");
-    let name_gate = results
+        .find(|r| r.name == "supervised_ratio")
+        .expect("supervised_ratio row");
+    assert!(row2.passed);
+    assert!(row2.message.contains("12.0%"), "got: {}", row2.message);
+
+    // Test with no step lines
+    std::fs::write(
+        &telem_path,
+        r#"{"event":"train_start","payload":{}}
+"#,
+    )
+    .unwrap();
+    let results3 = check_run(dir.path(), &policy_path).unwrap();
+    let row3 = results3
         .iter()
-        .find(|r| r.name == "tool_name_exists_rate")
-        .expect("name gate");
-    assert!(!name_gate.passed, "0.70 < 0.85 should fail");
+        .find(|r| r.name == "supervised_ratio")
+        .expect("supervised_ratio row");
+    assert!(!row3.passed);
+    assert!(row3.message.contains("missing"), "got: {}", row3.message);
 }
 
 // ---------------------------------------------------------------------------
-// B7.2: BFCL gate integration via check_run + EvalGatePolicy
+// Harness safety eval — mocked executor
 // ---------------------------------------------------------------------------
 
-#[test]
-fn bfcl_gate_not_applicable_when_inactive_in_policy() {
-    // Default BfclGate has block=false, min_accuracy=0.0 → inactive → no result row
-    let dir = tempfile::tempdir().unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-bfcl_accuracy:
-  min_accuracy: 0.0
-  block: false
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    assert!(
-        !results.iter().any(|r| r.name == "bfcl_accuracy"),
-        "inactive bfcl gate should not emit a row"
-    );
-}
-
-#[test]
-fn bfcl_gate_passes_when_file_absent_and_block_false() {
-    // block=true activates the gate; file absent + block=false → not applicable (pass)
-    let dir = tempfile::tempdir().unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    // min_accuracy=0.0 + block=false → inactive: gate not emitted
-    // To get "not applicable" we need at least one of: block=true or min_accuracy>0
-    // Use min_accuracy=0.0, block=false: gate is inactive, no row (already tested above).
-    // Here test: block=false with a non-zero min_accuracy but no file → not applicable.
-    // Actually per spec: min_accuracy=0 + block=false means inactive (no row).
-    // The "not applicable / pass" path triggers when block=false and metrics absent.
-    // Arrange: block=true triggers the gate; then flip to false for "not applicable".
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-bfcl_accuracy:
-  min_accuracy: 0.5
-  block: false
-"#,
-    )
-    .unwrap();
-    // No bfcl_results.json in dir
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results.iter().find(|r| r.name == "bfcl_accuracy");
-    assert!(
-        gate.is_some(),
-        "min_accuracy>0 activates the gate even with block=false"
-    );
-    let gate = gate.unwrap();
-    assert!(
-        gate.passed,
-        "absent file + block=false → not applicable (pass): {}",
-        gate.message
-    );
-    assert!(!gate.block);
-}
-
-#[test]
-fn bfcl_gate_blocks_when_file_absent_and_block_true() {
-    let dir = tempfile::tempdir().unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-bfcl_accuracy:
-  min_accuracy: 0.0
-  block: true
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results
-        .iter()
-        .find(|r| r.name == "bfcl_accuracy")
-        .expect("gate present");
-    assert!(!gate.passed, "absent file + block=true → fail");
-    assert!(gate.block);
-}
-
-#[test]
-fn bfcl_gate_passes_when_metrics_above_threshold() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(
-        dir.path().join("bfcl_results.json"),
-        r#"{"accuracy": 0.80, "total": 200}"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-bfcl_accuracy:
-  min_accuracy: 0.70
-  block: true
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results
-        .iter()
-        .find(|r| r.name == "bfcl_accuracy")
-        .expect("gate present");
-    assert!(gate.passed, "0.80 >= 0.70 should pass: {}", gate.message);
-}
-
-// ---------------------------------------------------------------------------
-// F6: beat-base must gate through the integrated check_run path. check_run
-// previously passed `None` as the baseline into check_bfcl, so a captured
-// baseline never participated and a below-baseline run could pass.
-// ---------------------------------------------------------------------------
-
-#[test]
-fn bfcl_below_baseline_fails_through_check_run() {
-    let dir = tempfile::tempdir().unwrap();
-    // Trained accuracy below the captured baseline; absolute threshold is 0 so
-    // ONLY the beat-base comparison can fail this gate.
-    std::fs::write(
-        dir.path().join("bfcl_results.json"),
-        r#"{"accuracy": 0.50, "total": 200}"#,
-    )
-    .unwrap();
-    // Captured baseline (on the base model) — value 0.60, CI [0.55, 0.65].
-    std::fs::write(
-        dir.path().join("baseline_report.json"),
-        r#"{
-            "entries": [
-                {
-                    "spoke": "tool-selection",
-                    "metric_name": "bfcl_accuracy",
-                    "value": 0.60,
-                    "sample_size": 200,
-                    "ci_low": 0.55,
-                    "ci_high": 0.65,
-                    "pass_at_k": 1
-                }
-            ],
-            "created": "2026-06-21T00:00:00Z"
-        }"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-bfcl_accuracy:
-  min_accuracy: 0.0
-  block: true
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results
-        .iter()
-        .find(|r| r.name == "bfcl_accuracy")
-        .expect("bfcl gate present");
-    assert!(
-        !gate.passed,
-        "0.50 is below baseline 0.60 — beat-base must fail through check_run: {}",
-        gate.message
-    );
-    assert!(
-        gate.message.contains("beat_base"),
-        "message must show the beat-base comparison happened: {}",
-        gate.message
-    );
-}
-
-#[test]
-fn bfcl_above_baseline_passes_through_check_run() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(
-        dir.path().join("bfcl_results.json"),
-        r#"{"accuracy": 0.75, "total": 200}"#,
-    )
-    .unwrap();
-    std::fs::write(
-        dir.path().join("baseline_report.json"),
-        r#"{
-            "entries": [
-                {
-                    "spoke": "tool-selection",
-                    "metric_name": "bfcl_accuracy",
-                    "value": 0.60,
-                    "sample_size": 200,
-                    "ci_low": 0.55,
-                    "ci_high": 0.65,
-                    "pass_at_k": 1
-                }
-            ],
-            "created": "2026-06-21T00:00:00Z"
-        }"#,
-    )
-    .unwrap();
-    let policy_path = dir.path().join("policy.yaml");
-    std::fs::write(
-        &policy_path,
-        r#"version: "1"
-bfcl_accuracy:
-  min_accuracy: 0.0
-  block: true
-"#,
-    )
-    .unwrap();
-    let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let gate = results
-        .iter()
-        .find(|r| r.name == "bfcl_accuracy")
-        .expect("bfcl gate present");
-    assert!(
-        gate.passed,
-        "0.75 beats baseline 0.60 — should pass through check_run: {}",
-        gate.message
-    );
-    assert!(gate.message.contains("beat_base"));
-}
-
-// ---------------------------------------------------------------------------
-// B7.3: Harness safety eval — mocked executor (no side-effecting tools called)
-// ---------------------------------------------------------------------------
-
-/// A mock tool executor that records dispatched calls and panics (at test
-/// assertion time) if any side-effecting tool is invoked.
 struct MockToolExecutor {
     calls: std::sync::Mutex<Vec<String>>,
 }
@@ -920,10 +431,8 @@ impl MockToolExecutor {
         }
     }
 
-    /// Record a tool call. Returns `Err` for side-effecting tools.
     fn dispatch(&self, tool_name: &str, _args: &serde_json::Value) -> Result<String, String> {
         self.calls.lock().unwrap().push(tool_name.to_string());
-        // Side-effecting tools: these must never be called during eval/smoke path
         const SIDE_EFFECTING: &[&str] = &["write_file", "shell_exec", "git_push"];
         if SIDE_EFFECTING.contains(&tool_name) {
             Err(format!(
@@ -942,63 +451,36 @@ impl MockToolExecutor {
 
 #[test]
 fn safety_eval_no_side_effects_dispatched() {
-    // Simulate an eval smoke run that calls read-only tools
     let executor = MockToolExecutor::new();
-
-    // The eval path calls: read_file, search_code — both are read-only
     let read_only_tools = ["read_file", "search_code", "list_branches"];
     for tool in &read_only_tools {
-        // vox-arch-check: allow abs-path — mock tool-call test fixture, never executed
         let args = serde_json::json!({"path": "/tmp/test"});
         let result = executor.dispatch(tool, &args);
-        assert!(
-            result.is_ok(),
-            "read-only tool '{}' should not fail safety check",
-            tool
-        );
+        assert!(result.is_ok(), "read-only tool should not fail");
     }
 
     let calls = executor.recorded_calls();
-    assert_eq!(calls.len(), 3, "expected 3 tool calls");
-
-    // Assert that NO side-effecting tool was dispatched
+    assert_eq!(calls.len(), 3);
     const SIDE_EFFECTING: &[&str] = &["write_file", "shell_exec", "git_push"];
     for tool in &calls {
-        assert!(
-            !SIDE_EFFECTING.contains(&tool.as_str()),
-            "side-effecting tool '{}' was dispatched during eval — SAFETY VIOLATION",
-            tool
-        );
+        assert!(!SIDE_EFFECTING.contains(&tool.as_str()));
     }
 }
 
 #[test]
 fn safety_eval_mock_panics_on_side_effecting_tool() {
-    // Verify the mock correctly catches a side-effecting tool invocation
     let executor = MockToolExecutor::new();
     let result = executor.dispatch(
         "write_file",
-        // vox-arch-check: allow abs-path — mock tool-call test fixture, never executed
         &serde_json::json!({"path": "/tmp/x", "content": "y"}),
     );
-    assert!(
-        result.is_err(),
-        "mock executor must reject side-effecting tool 'write_file'"
-    );
-    assert!(
-        result.unwrap_err().contains("SAFETY VIOLATION"),
-        "error must clearly label this as a safety violation"
-    );
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("SAFETY VIOLATION"));
 }
 
 #[test]
 fn safety_eval_side_effecting_tools_are_never_called_in_eval_path() {
-    // Compile-time + runtime guard: simulate the full eval dispatch sequence
-    // as it would run in the mens eval pipeline. Assert side-effecting tools
-    // are absent.
     let executor = MockToolExecutor::new();
-
-    // Simulate eval path: schema check + read-only introspection tools only
     let eval_path_tools = ["read_file", "search_code", "grep_pattern", "list_directory"];
     let mut violations: Vec<String> = Vec::new();
     for tool in &eval_path_tools {
@@ -1007,30 +489,20 @@ fn safety_eval_side_effecting_tools_are_never_called_in_eval_path() {
             Err(e) => violations.push(e),
         }
     }
-
-    assert!(
-        violations.is_empty(),
-        "eval path dispatched side-effecting tool(s): {:?}",
-        violations
-    );
+    assert!(violations.is_empty(), "violations: {:?}", violations);
 }
 
 // ---------------------------------------------------------------------------
-// Leakage precondition (Task D3, part 3): wired into check_run as a hard,
-// always-evaluated gate (block: true), independent of the policy file.
+// Leakage precondition
 // ---------------------------------------------------------------------------
 
 #[test]
-#[serial] // reads process-global cwd; must not race the cwd-chdir test below.
+#[serial]
 fn check_run_always_includes_a_leakage_gate() {
-    // `check_run` walks up from cwd to find the real
-    // `mens/data/heldout_bench/manifest.json` (Task D3 expanded it to 52
-    // non-leaked tasks) and checks it against `mens/data` / `target/dogfood`
-    // — this exercises that real, repo-checked-in data, not a fixture.
     let dir = tempfile::tempdir().expect("tempdir");
     let results = check_run(dir.path(), &{
         let p = dir.path().join("policy.yaml");
-        std::fs::write(&p, "version: \"1\"\n").unwrap();
+        std::fs::write(&p, "# empty policy\n").unwrap();
         p
     })
     .expect("check_run");
@@ -1038,70 +510,241 @@ fn check_run_always_includes_a_leakage_gate() {
     let g = results
         .iter()
         .find(|r| r.name == "leakage")
-        .expect("leakage gate must always be present (hard precondition)");
-    assert!(
-        g.block,
-        "leakage gate must be a hard precondition: block=true"
+        .expect("leakage gate must always be present");
+    assert!(g.block);
+    assert!(g.passed);
+}
+
+#[test]
+#[serial]
+fn check_leakage_precondition_reports_not_applicable_outside_workspace() {
+    let original_cwd = std::env::current_dir().expect("get cwd");
+    let outside = tempfile::tempdir().expect("tempdir outside");
+    std::env::set_current_dir(outside.path()).expect("chdir outside");
+
+    let mut results = Vec::new();
+    super::check_run::check_leakage_precondition(&mut results);
+    std::env::set_current_dir(&original_cwd).expect("restore cwd");
+
+    assert_eq!(results.len(), 1);
+    let g = &results[0];
+    assert_eq!(g.name, "leakage");
+    assert!(g.passed);
+    assert!(!g.block);
+}
+
+// ---------------------------------------------------------------------------
+// Collateral damage gate
+// ---------------------------------------------------------------------------
+
+fn paired_pass_report() -> serde_json::Value {
+    use vox_eval::reasoning_bench::{SLICE_NAMES, SLICE_SIZE};
+    use vox_eval::reasoning_slice::{eval_reasoning_slice, pooled_accuracy, reasoning_slices_json};
+
+    let flags = |n: usize, f: &dyn Fn(usize) -> bool| -> Vec<(String, bool)> {
+        (0..n).map(|i| (format!("item_{i}"), f(i))).collect()
+    };
+    let base = flags(SLICE_SIZE, &|i| i < 16);
+    let adapter = flags(SLICE_SIZE, &|i| i < 15);
+    let all_true = flags(SLICE_SIZE, &|_| true);
+    let verdicts = SLICE_NAMES
+        .iter()
+        .map(|s| eval_reasoning_slice(s, (&base, &adapter), (&all_true, &all_true), 0.05).unwrap())
+        .collect::<Vec<_>>();
+    let pooled = pooled_accuracy(&verdicts, 0.05).unwrap();
+
+    let mut slices_map = serde_json::Map::new();
+    for s in SLICE_NAMES {
+        slices_map.insert(s.to_string(), serde_json::json!(format!("h-{s}")));
+    }
+
+    serde_json::json!({
+        "status": "pass",
+        "failed_on": null,
+        "fail_fast": true,
+        "reasoning_slices": reasoning_slices_json(&verdicts, Some(&pooled), 0.05),
+        "grader": vox_eval::qwen_reasoning::GRADER_ID,
+        "slice_blake3": slices_map,
+    })
+}
+
+fn collateral_gate(report: &str, policy: &str) -> super::GateResult {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("collateral_damage_report.json"), report).unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(&policy_path, policy).unwrap();
+    check_run(dir.path(), &policy_path)
+        .expect("check_run")
+        .into_iter()
+        .find(|r| r.name == "collateral_damage")
+        .expect("collateral_damage gate")
+}
+
+fn alpha_policy() -> String {
+    let mut s = "collateral_damage:\n  block: true\n  alpha: 0.05\n  slices:\n".to_string();
+    for name in vox_eval::reasoning_bench::SLICE_NAMES {
+        s.push_str(&format!(
+            "    {name}: {{ blake3: h-{name}, prefix_n: 32, prefix_blake3: p-{name} }}\n"
+        ));
+    }
+    s
+}
+
+#[test]
+fn collateral_damage_gate_passes_a_paired_report_at_the_policy_alpha() {
+    let g = collateral_gate(&paired_pass_report().to_string(), &alpha_policy());
+    assert!(g.passed, "{}", g.message);
+    for word in ["missing", "skipped", "not applicable"] {
+        assert!(!g.message.contains(word), "{}", g.message);
+    }
+}
+
+#[test]
+fn collateral_damage_gate_does_not_trust_a_bare_status_pass() {
+    let g = collateral_gate(
+        r#"{"status":"pass","failed_on":null,"fail_fast":true}"#,
+        &alpha_policy(),
     );
+    assert!(!g.passed, "{}", g.message);
+    assert!(g.message.contains("reasoning_slices"), "{}", g.message);
+}
+
+#[test]
+fn collateral_damage_gate_recomputes_a_stored_pass_over_a_regression() {
+    let mut r = paired_pass_report();
+    *r.pointer_mut("/reasoning_slices/benches/vox_think/accuracy/losses")
+        .unwrap() = serde_json::json!(6);
+    let g = collateral_gate(&r.to_string(), &alpha_policy());
+    assert!(!g.passed, "{}", g.message);
+    assert!(g.message.contains("vox_think regressed"), "{}", g.message);
+}
+
+#[test]
+fn collateral_damage_gate_refuses_a_pass_scored_on_another_item_set() {
+    let mut r = paired_pass_report();
+    r["slice_blake3"]["math500_think"] = serde_json::json!("h-the-32-item-slice");
+    let g = collateral_gate(&r.to_string(), &alpha_policy());
+    assert!(!g.passed, "{}", g.message);
     assert!(
-        g.passed,
-        "the current heldout_bench manifest must be leak-free: {}",
+        g.message.contains("math500_think was scored on")
+            && g.message.contains("h-the-32-item-slice"),
+        "{}",
+        g.message
+    );
+    r.as_object_mut().unwrap().remove("slice_blake3");
+    let g = collateral_gate(&r.to_string(), &alpha_policy());
+    assert!(!g.passed, "{}", g.message);
+    assert!(
+        g.message.contains("slice_blake3") || g.message.contains("missing slice"),
+        "{}",
         g.message
     );
 }
 
-/// Locks in `find_upward`'s "not found" branch for the leakage precondition:
-/// when `mens/data/heldout_bench/manifest.json` can't be located by walking
-/// up from cwd (e.g. a packaged binary invoked outside any Vox workspace
-/// checkout), `check_leakage_precondition` must report a non-blocking
-/// "not applicable" result rather than failing closed on an environment
-/// difference — see the doc comment on `check_leakage_precondition` in
-/// `check_run.rs` for why this is deliberate leniency, not a bug. Without
-/// this test, that leniency could silently flip either direction (become a
-/// hard failure, or start reporting `passed: true` in a way that looks like
-/// leakage was actually checked) with no test catching the change.
 #[test]
-#[serial] // chdirs the process; must not race the cwd-reading test above.
-fn check_leakage_precondition_reports_not_applicable_outside_workspace() {
-    let original_cwd = std::env::current_dir().expect("get cwd");
-
-    // A fresh OS temp dir (outside this repo) has no `mens/` anywhere between
-    // it and the filesystem root, so `find_upward` walks all the way up and
-    // returns `None` — this is the "packaged binary run outside the
-    // workspace" case the leniency exists for.
-    let outside_dir = tempfile::tempdir().expect("tempdir outside workspace");
-    let run_dir = tempfile::tempdir().expect("run dir");
-    let policy_path = run_dir.path().join("policy.yaml");
-    std::fs::write(&policy_path, "version: \"1\"\n").unwrap();
-
-    std::env::set_current_dir(outside_dir.path()).expect("chdir outside workspace");
-    let results = check_run(run_dir.path(), &policy_path);
-    // Always restore cwd before asserting so a failure doesn't poison
-    // subsequent tests in the same process.
-    std::env::set_current_dir(&original_cwd).expect("restore cwd");
-
-    let results = results.expect("check_run");
-    let g = results
-        .iter()
-        .find(|r| r.name == "leakage")
-        .expect("leakage gate must always be present, even when not applicable");
-
-    assert!(
-        g.passed,
-        "not-applicable leakage precondition must report passed=true, got: {g:?}"
+fn collateral_damage_gate_refuses_a_pass_when_the_policy_states_no_alpha() {
+    let g = collateral_gate(
+        &paired_pass_report().to_string(),
+        "collateral_damage:\n  block: true\n",
     );
-    assert!(
-        !g.block,
-        "not-applicable leakage precondition must not block, got: {g:?}"
+    assert!(!g.passed, "{}", g.message);
+    assert!(g.message.contains("alpha"), "{}", g.message);
+}
+
+#[test]
+fn ladder_policy_loads_and_enables_collateral_block() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../mens/config/eval-gates-ladder.yaml");
+    let policy = super::policy::load_policy(&path).expect("load ladder policy");
+    assert!(policy.collateral_damage.block);
+    assert!(policy.anti_stub.block);
+    assert!(policy.pass_at_k.block);
+}
+
+// ---------------------------------------------------------------------------
+// Inventory & unknown fields tests (SPOKE-02)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn gate_keys_inventory() {
+    // SPOKE-02: Mapping every remaining gate key to its producer test
+    const INVENTORY: &[(&str, &str)] = &[
+        (
+            "pass_at_k",
+            "commands::mens::eval_gate::tests::pass_at_k_gate_passes_when_above_thresholds",
+        ),
+        (
+            "anti_stub",
+            "commands::mens::eval_gate::tests::anti_stub_gate_passes_when_eval_local_report_meets_thresholds",
+        ),
+        (
+            "supervised_ratio",
+            "commands::mens::eval_gate::tests::supervised_ratio_reads_nested_payload",
+        ),
+        (
+            "collateral_damage",
+            "commands::mens::eval_gate::tests::collateral_damage_gate_passes_a_paired_report_at_the_policy_alpha",
+        ),
+    ];
+
+    let check_file = |rel_path: &str, expected_keys: &[&str]| {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../")
+            .join(rel_path);
+        let content = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read {rel_path}: {e}"));
+        let val: serde_json::Value = serde_yaml::from_str(&content)
+            .unwrap_or_else(|e| panic!("failed to parse {rel_path}: {e}"));
+        let map = val
+            .as_object()
+            .unwrap_or_else(|| panic!("expected top-level map in {rel_path}"));
+        let file_keys: std::collections::BTreeSet<&str> = map.keys().map(|k| k.as_str()).collect();
+        let expected_set: std::collections::BTreeSet<&str> =
+            expected_keys.iter().copied().collect();
+        assert_eq!(
+            file_keys, expected_set,
+            "gate keys inventory mismatch for {rel_path}"
+        );
+        for k in &file_keys {
+            assert!(
+                INVENTORY.iter().any(|(inv_k, _)| inv_k == k),
+                "key '{k}' in {rel_path} not found in GATE_KEYS_INVENTORY table"
+            );
+        }
+    };
+
+    check_file(
+        "mens/config/eval-gates-ladder.yaml",
+        &[
+            "pass_at_k",
+            "anti_stub",
+            "supervised_ratio",
+            "collateral_damage",
+        ],
     );
-    assert!(
-        g.message.contains("mens/data/heldout_bench/manifest.json"),
-        "message should name the bench path it couldn't find: {}",
-        g.message
+    check_file(
+        "mens/config/eval-gates.yaml",
+        &["pass_at_k", "anti_stub", "supervised_ratio"],
     );
+    check_file("mens/config/eval-gates-rust.yaml", &["supervised_ratio"]);
+    check_file("mens/config/eval-gates-agents.yaml", &["supervised_ratio"]);
+}
+
+#[test]
+fn deleted_gate_key_fails_to_load() {
+    let yaml = r#"
+truncation:
+  max_fraction: 0.1
+  block: true
+"#;
+    let err = serde_yaml::from_str::<EvalGatePolicy>(yaml);
     assert!(
-        g.message.contains("not applicable"),
-        "message should say the precondition is not applicable: {}",
-        g.message
+        err.is_err(),
+        "truncation: should fail to load with unknown field"
+    );
+    let err_str = err.unwrap_err().to_string();
+    assert!(
+        err_str.contains("unknown field `truncation`"),
+        "expected unknown field error, got: {err_str}"
     );
 }

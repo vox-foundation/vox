@@ -8,6 +8,17 @@ use std::path::Path;
 
 use vox_bounded_fs::read_utf8_path_capped;
 
+/// Default `eval-local --max-tokens`. The longest reference answer in
+/// `mens/data/heldout_bench` is 316 Qwen3 tokens (median 126, p90 215), so 1024
+/// fits a fenced answer with some prose about 3x over. Generation stops at EOS,
+/// so the budget only costs time on runaway samples.
+pub(crate) const HELDOUT_MAX_TOKENS: usize = 1024;
+
+/// Prompt protocol, recorded in the report and the checkpoint header: the
+/// Qwen3 non-thinking codegen prefix (`/no_think` plus a prefilled empty think
+/// block) that QLoRA training supervises.
+pub(crate) const HELDOUT_PROMPT_PROTOCOL: &str = "qwen3_non_thinking_codegen_v1";
+
 /// One benchmark row after resolving paths and assembling the inference prompt.
 pub(crate) struct PreparedBench {
     pub(crate) manifest_index: usize,
@@ -115,25 +126,16 @@ pub(crate) fn prepare_bench_item(
     let prompt = if raw_prompt.trim().is_empty() {
         raw_prompt
     } else {
+        use vox_eval::qwen_reasoning::{Lane, assistant_opener_for_lane, user_for_lane};
         let sys_prompt = vox_corpus::training::generate_training_system_prompt();
-        // Same prefix training uses for a direct answer: `/no_think` and the
-        // empty think block Qwen3 prefills when thinking is off.
-        #[cfg(feature = "mens-base")]
-        {
-            let cfg = vox_populi::mens::tensor::training_config::ChatmlConfig::default();
-            vox_populi::mens::tensor::training_text::chatml_prefix_open_assistant(
-                &sys_prompt,
-                &raw_prompt,
-                "",
-                &cfg,
-            )
-        }
-        #[cfg(not(feature = "mens-base"))]
-        {
-            format!(
-                "<|im_start|>system\n{sys_prompt}<|im_end|>\n<|im_start|>user\n{raw_prompt} /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
-            )
-        }
+        // Byte-identical to the codegen training prefix (`chatml_prefix_for_lane`,
+        // Lane::Codegen): `/no_think` on the user turn and an empty think block
+        // prefilled, so Qwen3 answers directly instead of opening `<think>`.
+        let user = user_for_lane(&raw_prompt, Lane::Codegen);
+        let opener = assistant_opener_for_lane(Lane::Codegen);
+        format!(
+            "<|im_start|>system\n{sys_prompt}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{opener}"
+        )
     };
     let semantic_expected_contains: Vec<String> = bench_item["semantic_expected_contains"]
         .as_array()
@@ -204,15 +206,6 @@ mod tests {
         assert_eq!(p.manifest_index, 3);
         assert!(p.prompt.contains("Write a Vox program that: Hello."));
         assert!(!p.prompt.contains("Primary file"));
-        assert!(
-            p.prompt.contains(" /no_think"),
-            "direct-answer eval uses the non-thinking user flag"
-        );
-        assert!(
-            p.prompt
-                .ends_with("<|im_start|>assistant\n<think>\n\n</think>\n\n"),
-            "eval prefills the canonical empty think block"
-        );
     }
 
     #[test]
@@ -286,5 +279,37 @@ mod tests {
             total_vox >= REL_PATHS.len(),
             "expected more goldens than the smoke set (drift if equal — add new .vox or shrink REL_PATHS)"
         );
+    }
+
+    /// Qwen3 thinks by default and is still thinking at any small budget, so the
+    /// held-out prompt must be the non-thinking codegen prefix training
+    /// supervises: `/no_think` on the user turn and an empty think block
+    /// prefilled after `assistant\n`.
+    #[test]
+    fn the_heldout_prompt_is_non_thinking() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = prepare_bench_item(
+            dir.path(),
+            0,
+            &json!({"id": "t", "file": "x.vox", "description": "Hello."}),
+        );
+        assert!(
+            p.prompt
+                .ends_with("<|im_start|>assistant\n<think>\n\n</think>\n\n"),
+            "assistant turn must prefill the empty think block: {:?}",
+            p.prompt
+        );
+        assert!(
+            p.prompt.contains("Hello. /no_think<|im_end|>"),
+            "user turn must end in /no_think: {:?}",
+            p.prompt
+        );
+    }
+
+    /// The longest reference answer in `mens/data/heldout_bench` is 316 Qwen3
+    /// tokens (median 126), so 128 truncated half the bench even without think.
+    #[test]
+    fn the_heldout_budget_fits_a_full_answer() {
+        assert_eq!(super::HELDOUT_MAX_TOKENS, 1024);
     }
 }

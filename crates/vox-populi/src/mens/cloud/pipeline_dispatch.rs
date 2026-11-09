@@ -545,8 +545,6 @@ fn card_from_manifest(
         training_manifest_digest: String::new(),
         training_syntax_fingerprint: String::new(),
         syntax_fingerprint_kind: String::new(),
-        loaded_size: String::new(),
-        loaded_preset: String::new(),
     };
     card.validate()?;
     // write_sidecar expects a file path and writes adapter_card.json next to it.

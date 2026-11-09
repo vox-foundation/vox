@@ -608,33 +608,12 @@ fn resolve_runs_root(run_dir: Option<&str>) -> PathBuf {
 fn default_cells_for_size(size: &str, custom_spokes: &[CustomSpokeDto]) -> HashMap<String, String> {
     let mut cells = HashMap::new();
     let defaults: &[(&str, &str)] = match size {
-        "0.6B" => &[
-            ("vox-lang", "WARM · HUB I"),
-            ("rust-expert", "TRAINED · GATED"),
-            ("cargo-build", "TRAINED · GATED"),
-            ("review", "TRAINED · GATED"),
-            ("oratio-voice", "TRAINED · GATED"),
-        ],
-        "1.7B" => &[
-            ("vox-lang", "TRAINED · GATED"),
-            ("rust-expert", "TRAINED · GATED"),
-            ("cargo-build", "TRAINED · GATED"),
-            ("review", "QUEUED · AFK #2"),
-            ("oratio-voice", "MISSING"),
-        ],
-        "4B" => &[
-            ("vox-lang", "TRAINED · GATED"),
-            ("rust-expert", "QUEUED · AFK #1"),
+        "0.6B" | "1.7B" | "4B" | "8B" => &[
+            ("vox-lang", "MISSING"),
+            ("rust-expert", "MISSING"),
             ("cargo-build", "MISSING"),
             ("review", "MISSING"),
             ("oratio-voice", "MISSING"),
-        ],
-        "8B" => &[
-            ("vox-lang", "TRAINED · GATED"),
-            ("rust-expert", "TRAINED · GATED"),
-            ("cargo-build", "TRAINED · GATED"),
-            ("review", "TRAINED · GATED"),
-            ("oratio-voice", "TRAINED · GATED"),
         ],
         "14B" => &[
             ("vox-lang", "MISSING"),
@@ -740,6 +719,14 @@ pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
             .join(format!("Qwen_Qwen3-{size}.json"));
         let size_train_json = read_json(&size_train_file);
 
+        let mut cells = default_cells_for_size(size, &custom_spokes);
+        let qwen_dir = runs_root.join(format!("qwen3-{}", size.to_ascii_lowercase()));
+        let size_dir = if qwen_dir.is_dir() {
+            qwen_dir
+        } else {
+            runs_root.join(size)
+        };
+
         let (local_sha, sync_status) = if let Some(ref st) = size_train_json {
             let status = st
                 .get("status")
@@ -756,21 +743,14 @@ pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
             } else {
                 (repo_master_sha.clone(), "synced".to_string())
             }
+        } else if size_dir.join("candle_qlora_adapter.safetensors").is_file()
+            || size_dir.join("training_manifest.json").is_file()
+        {
+            (repo_master_sha.clone(), "synced".to_string())
         } else {
-            match size {
-                "0.6B" | "1.7B" | "8B" => (repo_master_sha.clone(), "synced".to_string()),
-                "4B" => ("@e08a11b2".to_string(), "stale".to_string()),
-                _ => ("not pulled".to_string(), "missing".to_string()),
-            }
+            ("not pulled".to_string(), "missing".to_string())
         };
 
-        let mut cells = default_cells_for_size(size, &custom_spokes);
-        let qwen_dir = runs_root.join(format!("qwen3-{}", size.to_ascii_lowercase()));
-        let size_dir = if qwen_dir.is_dir() {
-            qwen_dir
-        } else {
-            runs_root.join(size)
-        };
         if size_dir.is_dir() {
             let direct_receipt = size_dir.join("gate_receipt.json");
             if let Some(val) = read_json(&direct_receipt) {
@@ -780,6 +760,8 @@ pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
                 } else if !receipt.overall_passed {
                     cells.insert("vox-lang".to_string(), "GATE FAILED".to_string());
                 }
+            } else if size_dir.join("candle_qlora_adapter.safetensors").is_file() {
+                cells.insert("vox-lang".to_string(), "TRAINED · UNGATED".to_string());
             }
             for spoke_key in cells.keys().cloned().collect::<Vec<_>>() {
                 let receipt_path = size_dir.join(&spoke_key).join("gate_receipt.json");
@@ -861,7 +843,7 @@ pub fn read_live_telemetry(runs_root: &Path) -> MensLiveTelemetryDto {
     let mut vram_series = Vec::new();
     let mut cpu_series = Vec::new();
     let mut ram_series = Vec::new();
-    let mut latest_step = 420_u64;
+    let mut latest_step = 0_u64;
 
     if let Some(active_log) = candidates.iter().find(|p| p.is_file()) {
         if let Ok(raw) = std::fs::read_to_string(active_log) {
@@ -898,27 +880,11 @@ pub fn read_live_telemetry(runs_root: &Path) -> MensLiveTelemetryDto {
         }
     }
 
-    if loss_series.is_empty() {
-        loss_series = vec![1.68, 1.12, 0.74, 0.42, 0.24, 0.142];
-    }
-    if gpu_series.is_empty() {
-        gpu_series = vec![86.0, 91.0, 95.0, 92.0, 96.0, 94.0];
-    }
-    if vram_series.is_empty() {
-        vram_series = vec![11.8, 12.6, 13.4, 13.7, 13.9, 13.8];
-    }
-    if cpu_series.is_empty() {
-        cpu_series = vec![34.0, 39.0, 44.0, 41.0, 43.0, 42.0];
-    }
-    if ram_series.is_empty() {
-        ram_series = vec![20.8, 21.4, 21.9, 22.1, 22.3, 22.4];
-    }
-
-    let gpu_pct = *gpu_series.last().unwrap_or(&94.0);
-    let vram_used_gb = *vram_series.last().unwrap_or(&13.8);
-    let cpu_pct = *cpu_series.last().unwrap_or(&42.0);
-    let ram_used_gb = *ram_series.last().unwrap_or(&22.4);
-    let loss = *loss_series.last().unwrap_or(&0.142);
+    let gpu_pct = *gpu_series.last().unwrap_or(&0.0);
+    let vram_used_gb = *vram_series.last().unwrap_or(&0.0);
+    let cpu_pct = *cpu_series.last().unwrap_or(&0.0);
+    let ram_used_gb = *ram_series.last().unwrap_or(&0.0);
+    let loss = *loss_series.last().unwrap_or(&0.0);
 
     MensLiveTelemetryDto {
         gpu_pct,

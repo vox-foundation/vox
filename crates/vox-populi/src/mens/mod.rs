@@ -21,6 +21,21 @@ pub mod healing;
 #[cfg(feature = "mens-hf-hub")]
 pub mod hub;
 
+#[cfg(feature = "mens-hf-hub")]
+pub mod hub_repo;
+
+#[cfg(feature = "mens-hf-hub")]
+pub mod hub_sync;
+
+#[cfg(feature = "mens-hf-hub")]
+pub mod gate_policy;
+
+#[cfg(feature = "mens-hf-hub")]
+pub mod hub_card;
+
+#[cfg(feature = "mens-hf-hub")]
+pub mod hub_cards_push;
+
 #[cfg(feature = "mens-cloud")]
 pub mod cloud;
 

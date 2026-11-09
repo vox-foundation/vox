@@ -432,7 +432,7 @@ fn finish_recombined(
 /// llama/gemma2 bases the Ollama lane is cheaper; see `--keep-merged`.
 ///
 /// `convert_hf_to_gguf.py` is llama.cpp's own script, invoked as a
-/// third-party tool. AGENTS.md's VoxLang-first rule bans glue *we author*;
+/// third-party tool. AGENTS.md's VoxScript-first rule bans glue *we author*;
 /// it does not require reimplementing someone else's converter.
 #[must_use]
 pub fn llama_cpp_commands(

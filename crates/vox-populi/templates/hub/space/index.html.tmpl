@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vox MENS — Qwen3 WebGPU &amp; Hub Playground</title>
+  <style>
+    :root {
+      --bg: #0b0d13;
+      --panel: #121621;
+      --panel-alt: #171c2b;
+      --border: #262e45;
+      --gold: #e2b857;
+      --gold-dim: rgba(226, 184, 87, 0.16);
+      --indigo: #6366f1;
+      --emerald: #10b981;
+      --crimson: #ef4444;
+      --amber: #f59e0b;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.5;
+    }
+    header {
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #131826 0%, #0b0d13 100%);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: 0.02em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand p {
+      margin: 4px 0 0;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-family: var(--mono);
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--panel-alt);
+    }
+    .badge-pass { color: #34d399; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); }
+    .badge-fail { color: #f87171; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); }
+    .badge-warn { color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1); }
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 22px 28px 48px;
+    }
+    .ladder-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .rung-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+    .rung-card:hover { border-color: var(--gold); }
+    .rung-card.active {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 1px var(--gold);
+      background: linear-gradient(180deg, rgba(226, 184, 87, 0.09) 0%, var(--panel) 100%);
+    }
+    .rung-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .rung-size {
+      font-family: var(--mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .rung-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    .tab-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+    .tab-btn.active {
+      color: #0b0d13;
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 1.02rem;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 960px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-family: var(--mono);
+    }
+    select, textarea, input[type="number"] {
+      width: 100%;
+      background: #0d1018;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 0.84rem;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    button.primary {
+      background: var(--gold);
+      color: #0b0d13;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    button.primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: var(--panel-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    pre.code-box {
+      background: #080a10;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin: 0;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      min-height: 220px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .status-bar {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      font-family: var(--mono);
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--gold); font-weight: 600; }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>
+        <span>⚡ Vox MENS — Qwen3 Adapter Ladder Playground</span>
+        <span class="badge" id="webgpu-badge">Checking WebGPU…</span>
+      </h1>
+      <p>
+        Live Hugging Face Hub Evidence Explorer &amp; In-Browser WebGPU LoRA Runner for
+        <a href="https://huggingface.co/{{NAMESPACE}}/vox-mens-index" target="_blank" rel="noopener">{{NAMESPACE}}/vox-mens-index</a>
+        · <a href="https://voxlang.org/reference/mens-models/" target="_blank" rel="noopener">voxlang.org/reference/mens-models</a>
+      </p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <label style="margin:0;">Active Rung:</label>
+      <select id="size-select" style="width:auto; min-width:140px;">
+        <option value="0.6B" selected>Qwen3-0.6B</option>
+        <option value="1.7B">Qwen3-1.7B</option>
+        <option value="4B">Qwen3-4B</option>
+        <option value="8B">Qwen3-8B</option>
+        <option value="14B">Qwen3-14B</option>
+        <option value="32B">Qwen3-32B</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="ladder-strip" id="ladder-strip"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-btn-evidence" type="button">1. Live Hub Held-Out &amp; Gate Evidence</button>
+      <button class="tab-btn" id="tab-btn-webgpu" type="button">2. Live Inference &amp; Provider Router (WebGPU / HF Router / Local Serve)</button>
+    </div>
+
+    <!-- TAB 1: LIVE HUB EVIDENCE -->
+    <div id="tab-evidence">
+      <div class="panel">
+        <h2>
+          <span id="rung-summary-title">Rung Evidence Summary</span>
+          <span id="rung-repo-link" style="font-size:0.82rem; font-family:var(--mono);"></span>
+        </h2>
+        <div id="rung-summary-body" style="font-family:var(--mono); font-size:0.83rem; color:var(--muted);">
+          Fetching live records from Hugging Face Hub…
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>
+          <span>Held-Out Vox Benchmark (52 Prompts — Base vs. LoRA Adapter)</span>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="filter-verdict" style="width:auto;">
+              <option value="ALL">All Verdicts</option>
+              <option value="FIXED">Fixed (Adapter Wins)</option>
+              <option value="BOTH_PASS">Both Pass</option>
+              <option value="REGRESSION">Regression</option>
+              <option value="STILL_FAILS">Still Fails</option>
+            </select>
+            <button class="secondary" id="copy-to-webgpu-btn" type="button">Test Prompt in WebGPU Tab →</button>
+          </div>
+        </h2>
+        <div style="margin-bottom:12px;">
+          <label for="sample-select">Select Held-Out Sample (`qwen3_non_thinking_codegen_v1`):</label>
+          <select id="sample-select"></select>
+        </div>
+        <div id="sample-prompt-box" class="status-bar" style="margin-bottom:14px; color:var(--text);"></div>
+        <div class="grid-2">
+          <div>
+            <label id="base-sample-label">Pinned Base Qwen3 Output</label>
+            <pre class="code-box" id="base-sample-code"></pre>
+          </div>
+          <div>
+            <label id="adapter-sample-label">Vox MENS LoRA Adapter Output (`nf4_base_plus_lora_arm v2`)</label>
+            <pre class="code-box" id="adapter-sample-code"></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2><span>Reasoning Collateral Check (Thinking Mode — McNemar Paired Test)</span></h2>
+        <div id="collateral-table-wrap"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: IN-BROWSER WEBGPU & UNIVERSAL INFERENCE PROVIDER ROUTER -->
+    <div id="tab-webgpu" class="hidden">
+      <div class="panel">
+        <h2>
+          <span>Universal Side-by-Side Decoder (WebGPU SafeTensors LoRA · HF Inference Provider Router · Local `vox mens serve`)</span>
+          <span class="badge" id="lora-manifest-badge">Adapter: Not Loaded</span>
+        </h2>
+        <p style="margin:0 0 14px; font-size:0.85rem; color:var(--muted);">
+          Supports every rung on the ladder (<strong>0.6B, 1.7B, 4B, 8B, 14B, 32B</strong>):
+          <strong>In-Browser WebGPU</strong> downloads <code>candle_qlora_adapter.safetensors</code> and <code>adapter_manifest.json</code> live from
+          <code>{{NAMESPACE}}/vox-mens-qwen3-&lt;size&gt;</code> and merges every rank-<code>r</code> LoRA pair
+          (<code>ΔW = (B @ A) * (alpha / rank)</code>) into the Qwen3 4-bit ONNX weights in-memory (<code>0.6B</code>–<code>8B</code>);
+          <strong>HF Inference Provider Router</strong> queries <code>https://router.huggingface.co/v1/chat/completions</code> for all 6 sizes (<code>0.6B</code>–<code>32B</code>) while verifying live Hub SafeTensors and recorded adapter checkpoints;
+          <strong>Local `vox mens serve`</strong> connects to your local Metal/CUDA OpenAI endpoint (<code>http://127.0.0.1:11435/v1/chat/completions</code>) for any size.
+        </p>
+        <div class="grid-2" style="margin-bottom:12px;">
+          <div>
+            <label for="inference-provider-select">Inference Provider Backend:</label>
+            <select id="inference-provider-select">
+              <option value="auto" selected>Auto (In-Browser WebGPU 0.6B–4B · HF Router / Local Serve 8B–32B)</option>
+              <option value="webgpu">In-Browser WebGPU + Live SafeTensors LoRA Merger (0.6B / 1.7B / 4B / 8B)</option>
+              <option value="hf-router">Hugging Face Inference Provider Router (All Sizes 0.6B–32B · router.huggingface.co)</option>
+              <option value="local-serve">Local `vox mens serve` OpenAI Endpoint (All Sizes 0.6B–32B · 127.0.0.1:11435)</option>
+            </select>
+          </div>
+          <div>
+            <label for="provider-endpoint-input">HF Token (`hf_...` for HF Router) or Local Endpoint URL:</label>
+            <input type="password" id="provider-endpoint-input" placeholder="Optional: hf_... token for router.huggingface.co, or http://127.0.0.1:11435/v1/chat/completions" style="width:100%; background:#181617; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-family:var(--mono); font-size:0.82rem;" />
+          </div>
+        </div>
+        <div class="grid-2" style="margin-bottom:12px;">
+          <div>
+            <label for="system-prompt-input">System Prompt (`qwen3_non_thinking_codegen_v1`):</label>
+            <textarea id="system-prompt-input">You are a Vox compiler engineer. Output only valid Vox source code that satisfies the user request. Do not wrap the response in markdown prose or explanations.</textarea>
+          </div>
+          <div>
+            <label for="user-prompt-input">User Prompt:</label>
+            <textarea id="user-prompt-input">Write a Vox program that: write a test named `smoke` that calls `add(1, 2)` and asserts the result equals 3</textarea>
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:14px;">
+          <div style="width:160px;">
+            <label for="max-tokens-input">Max New Tokens:</label>
+            <input type="number" id="max-tokens-input" value="192" min="16" max="512" step="16" />
+          </div>
+          <div style="padding-top:18px; display:flex; gap:10px;">
+            <button class="primary" id="run-webgpu-btn" type="button">⚡ Decode Base vs. LoRA Adapter</button>
+            <button class="secondary" id="inspect-safetensors-btn" type="button">Inspect Live `candle_qlora_adapter.safetensors` Header</button>
+          </div>
+        </div>
+        <div class="status-bar" id="webgpu-status">Ready. Select any ladder size (0.6B–32B) and click Decode to run inference.</div>
+        <div class="grid-2" style="margin-top:14px;">
+          <div>
+            <label id="webgpu-base-label">Base Qwen3 Live Output</label>
+            <pre class="code-box" id="webgpu-base-output"></pre>
+          </div>
+          <div>
+            <label id="webgpu-adapter-label">Vox MENS LoRA Adapter Output (`ΔW = (B @ A) * α/r`)</label>
+            <pre class="code-box" id="webgpu-adapter-output"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const NAMESPACE = "{{NAMESPACE}}";
+    const SIZES = ["0.6B", "1.7B", "4B", "8B", "14B", "32B"];
+    const ONNX_REPO_BY_SIZE = {
+      "0.6B": "onnx-community/Qwen3-0.6B-ONNX",
+      "1.7B": "onnx-community/Qwen3-1.7B-ONNX",
+      "4B": "onnx-community/Qwen3-4B-ONNX",
+      "8B": "onnx-community/Qwen3-8B-ONNX",
+    };
+    const HF_BASE_MODEL_BY_SIZE = {
+      "0.6B": "Qwen/Qwen3-0.6B",
+      "1.7B": "Qwen/Qwen3-1.7B",
+      "4B": "Qwen/Qwen3-4B",
+      "8B": "Qwen/Qwen3-8B",
+      "14B": "Qwen/Qwen3-14B",
+      "32B": "Qwen/Qwen3-32B",
+    };
+
+    const state = {
+      activeSize: "0.6B",
+      ladderIndex: null,
+      rungCache: {},
+      filteredSamples: [],
+      webgpuBusy: false,
+      cachedSessions: {},
+    };
+
+    const el = (id) => document.getElementById(id);
+
+    async function checkWebGPU() {
+      const badge = el("webgpu-badge");
+      if (!("gpu" in navigator)) {
+        badge.textContent = "WASM SIMD Fallback (WebGPU Unavailable)";
+        badge.className = "badge badge-warn";
+        return false;
+      }
+      try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) {
+          badge.textContent = "WASM SIMD Fallback (No WebGPU Adapter)";
+          badge.className = "badge badge-warn";
+          return false;
+        }
+        badge.textContent = "WebGPU Ready";
+        badge.className = "badge badge-pass";
+        return true;
+      } catch (err) {
+        badge.textContent = "WASM SIMD Fallback";
+        badge.className = "badge badge-warn";
+        return false;
+      }
+    }
+
+    function hfUrl(repoId, path) {
+      return `https://huggingface.co/${repoId}/resolve/main/${path}`;
+    }
+
+    function repoIdForSize(size) {
+      return `${NAMESPACE}/vox-mens-qwen3-${size.toLowerCase()}`;
+    }
+
+    async function fetchJsonOptional(repoId, path) {
+      try {
+        const res = await fetch(hfUrl(repoId, path));
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function fetchJsonlOptional(repoId, path) {
+      try {
+        const res = await fetch(hfUrl(repoId, path));
+        if (!res.ok) return [];
+        const text = await res.text();
+        return text
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .map((l) => {
+            try { return JSON.parse(l); } catch { return null; }
+          })
+          .filter(Boolean);
+      } catch {
+        return [];
+      }
+    }
+
+    function parsePromptTurn(promptJson) {
+      if (!promptJson) return "";
+      try {
+        const parsed = JSON.parse(promptJson);
+        if (Array.isArray(parsed)) {
+          const userMsg = parsed.find((m) => m && m.role === "user");
+          if (userMsg && typeof userMsg.content === "string") return userMsg.content;
+        }
+      } catch {}
+      return String(promptJson);
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function extractAnswerRegion(text) {
+      if (typeof text !== "string") return "";
+      const closeIdx = text.lastIndexOf("</think>");
+      if (closeIdx !== -1) return text.slice(closeIdx + "</think>".length).trimStart();
+      if (text.trimStart().startsWith("<think>")) return "";
+      return text;
+    }
+
+    function extractShownCode(text) {
+      const body = extractAnswerRegion(text);
+      const start = body.indexOf("```");
+      if (start === -1) return body.trim();
+      const after = body.slice(start + 3);
+      const nl = after.indexOf("\n");
+      const code = nl === -1 ? after : after.slice(nl + 1);
+      const end = code.indexOf("```");
+      return (end === -1 ? code : code.slice(0, end)).trim();
+    }
+
+    function matchCkptText(preview, texts) {
+      if (!preview || typeof preview !== "string") return null;
+      if (Array.isArray(texts) && texts.length > 0) {
+        const pHead = Array.from(preview).slice(0, 240).join("");
+        const hits = texts.filter(
+          (t) =>
+            extractAnswerRegion(t).slice(0, 240) === preview.slice(0, 240) ||
+            Array.from(extractAnswerRegion(t)).slice(0, 240).join("") === pHead
+        );
+        if (hits.length === 1) return extractShownCode(hits[0]);
+      }
+      return extractShownCode(preview);
+    }
+
+    function parseCkptLines(rows) {
+      if (!Array.isArray(rows) || rows.length === 0) return { texts: [], serving: null };
+      const header = rows[0] || {};
+      const serving = header?.inputs?.model?.adapter_serving || null;
+      const texts = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || typeof r.response !== "string") continue;
+        try {
+          const parsed = JSON.parse(r.response);
+          if (typeof parsed.generated_text === "string") texts.push(parsed.generated_text);
+        } catch {}
+      }
+      return { texts, serving };
+    }
+
+    async function loadLadderIndex() {
+      const indexData = await fetchJsonOptional(`${NAMESPACE}/vox-mens-index`, "ladder_index.json");
+      state.ladderIndex = indexData;
+      renderLadderStrip();
+    }
+
+    function renderLadderStrip() {
+      const strip = el("ladder-strip");
+      strip.innerHTML = "";
+      const rowsBySize = {};
+      if (state.ladderIndex && Array.isArray(state.ladderIndex.sizes)) {
+        for (const r of state.ladderIndex.sizes) {
+          rowsBySize[r.size] = r;
+        }
+      }
+      for (const size of SIZES) {
+        const r = rowsBySize[size] || {};
+        const card = document.createElement("div");
+        card.className = `rung-card${state.activeSize === size ? " active" : ""}`;
+        const status = r.gate_status || r.remote_gate_status || r.local_gate_status || "untrained";
+        const statusShort = status.startsWith("ungated") ? "ungated" : status;
+        let badgeClass = "badge-warn";
+        if (status === "passed") badgeClass = "badge-pass";
+        else if (status.startsWith("failed") || status.startsWith("ungated")) badgeClass = "badge-fail";
+        const rev = r.latest_version || (r.remote_revision ? `v${r.remote_revision}` : (r.sync_status || "n/a"));
+        card.innerHTML = `
+          <div class="rung-top">
+            <span class="rung-size">${escapeHtml(size)}</span>
+            <span class="badge ${escapeHtml(badgeClass)}" title="${escapeHtml(status)}">${escapeHtml(statusShort)}</span>
+          </div>
+          <div class="rung-meta">Hub: ${escapeHtml(rev)} · ${escapeHtml(r.sync_status || "unknown")}</div>
+        `;
+        card.addEventListener("click", () => selectSize(size));
+        strip.appendChild(card);
+      }
+    }
+
+    async function loadRungEvidence(size) {
+      if (state.rungCache[size]) return state.rungCache[size];
+      const repoId = repoIdForSize(size);
+      const [
+        syncManifest,
+        adapterManifest,
+        gateReceipt,
+        collateral,
+        baseReport,
+        adapterReport,
+        baseCkpt,
+        adapterCkpt,
+      ] = await Promise.all([
+        fetchJsonOptional(repoId, "hf_sync_manifest.json"),
+        fetchJsonOptional(repoId, "adapter_manifest.json"),
+        fetchJsonOptional(repoId, "gate_receipt.json"),
+        fetchJsonOptional(repoId, "collateral_damage_report.json"),
+        fetchJsonOptional(repoId, "evidence/heldout_base_nothink.json"),
+        fetchJsonOptional(repoId, "evidence/heldout_adapter_nothink.json"),
+        fetchJsonlOptional(repoId, "evidence/heldout_base_nothink.ckpt.jsonl"),
+        fetchJsonlOptional(repoId, "evidence/heldout_adapter_nothink.ckpt.jsonl"),
+      ]);
+
+      const baseCkptParsed = parseCkptLines(baseCkpt);
+      const adapterCkptParsed = parseCkptLines(adapterCkpt);
+      const adapterServing =
+        adapterCkptParsed.serving ||
+        (adapterReport && adapterReport.adapter_serving) ||
+        "none";
+
+      const baseResults =
+        baseReport && Array.isArray(baseReport.results)
+          ? baseReport.results
+          : baseReport && Array.isArray(baseReport.samples)
+            ? baseReport.samples
+            : [];
+      const adapterResults =
+        adapterReport && Array.isArray(adapterReport.results)
+          ? adapterReport.results
+          : adapterReport && Array.isArray(adapterReport.samples)
+            ? adapterReport.samples
+            : [];
+      const adapterById = {};
+      for (const r of adapterResults) {
+        const id = r.id || r.sample_id;
+        if (id) adapterById[id] = r;
+      }
+
+      const joined = [];
+      for (const b of baseResults) {
+        const itemId = b.id || b.sample_id;
+        if (!itemId) continue;
+        const a = adapterById[itemId] || null;
+        const bSample = Array.isArray(b.samples) && b.samples[0] ? b.samples[0] : b;
+        const aSample = a ? (Array.isArray(a.samples) && a.samples[0] ? a.samples[0] : a) : null;
+
+        const bPass = Boolean(bSample?.pass ?? bSample?.constructed);
+        const aPass = aSample ? Boolean(aSample?.pass ?? aSample?.constructed) : false;
+        let verdict = "STILL_FAILS";
+        if (!bPass && aPass) verdict = "FIXED";
+        else if (bPass && aPass) verdict = "BOTH_PASS";
+        else if (bPass && !aPass) verdict = "REGRESSION";
+
+        const bPreview = typeof bSample?.completion_preview === "string" ? bSample.completion_preview : null;
+        const aPreview = typeof aSample?.completion_preview === "string" ? aSample.completion_preview : null;
+        const baseOutput = matchCkptText(bPreview, baseCkptParsed.texts);
+        const adapterOutput = matchCkptText(aPreview, adapterCkptParsed.texts);
+        const promptText = "Write a Vox program that: " + (b.description || itemId);
+
+        joined.push({
+          sample_id: itemId,
+          category: b.category || "vox",
+          verdict,
+          base: bSample,
+          adapter: aSample,
+          baseOutput,
+          adapterOutput,
+          promptText,
+        });
+      }
+
+      const bundle = {
+        size,
+        repoId,
+        syncManifest,
+        adapterManifest,
+        gateReceipt,
+        collateral,
+        baseReport,
+        adapterReport,
+        adapterServing,
+        joined,
+      };
+      state.rungCache[size] = bundle;
+      return bundle;
+    }
+
+    function formatDiag(sample) {
+      if (!sample) return "not evaluated";
+      const passed = Boolean(sample.pass ?? sample.constructed);
+      if (passed) return "PASS (parse + HIR + typecheck + AST checks)";
+      const c = sample.checks || sample;
+      if (c.non_empty === false) return "FAIL: empty output";
+      if (c.parse_ok === false) return `FAIL: parse (${c.parse_error || sample.error_Preview || "syntax error"})`;
+      if (c.hir_ok === false) return "FAIL: HIR lowering";
+      if (c.typecheck_ok === false) {
+        const errDetail =
+          typeof c.diag_errors === "number"
+            ? `${c.diag_errors} type error(s)`
+            : sample.first_typecheck_error || "type error";
+        return `FAIL: typecheck (${errDetail})`;
+      }
+      if (c.anti_stub_pass === false) return "FAIL: anti-stub check";
+      if (c.pass_compile === false) return "FAIL: compile check";
+      if (c.pass_ast === false) return "FAIL: AST check";
+      if (Array.isArray(sample.ast_check_failures) && sample.ast_check_failures.length > 0) {
+        return `FAIL: AST (${sample.ast_check_failures.join(", ")})`;
+      }
+      return "FAIL: empty/unconstructed";
+    }
+
+    async function selectSize(size) {
+      state.activeSize = size;
+      el("size-select").value = size;
+      renderLadderStrip();
+      el("rung-summary-title").textContent = `Qwen3-${size} Live Hub Evidence`;
+      const repoId = repoIdForSize(size);
+      el("rung-repo-link").innerHTML = `<a href="https://huggingface.co/${escapeHtml(repoId)}" target="_blank" rel="noopener">${escapeHtml(repoId)} ↗</a>`;
+      el("rung-summary-body").textContent = `Loading live artifacts from ${repoId}…`;
+
+      const bundle = await loadRungEvidence(size);
+      const sm = bundle.syncManifest;
+      const gr = bundle.gateReceipt;
+      const br = bundle.baseReport;
+      const ar = bundle.adapterReport;
+
+      const brPassed = br ? (br.passed_at_1 ?? br.constructed ?? 0) : 0;
+      const brRate = br ? (br.pass_rate_at_1 ?? br.pass_rate ?? 0) : 0;
+      const baseScore = br ? `${brPassed}/${br.total} (${(brRate * 100).toFixed(1)}%)` : "n/a";
+      const adapterServing = bundle.adapterServing || (ar && ar.adapter_serving) || "none";
+      const adapterCurrent = adapterServing === "nf4_base_plus_lora_arm v2";
+      const arPassed = ar ? (ar.passed_at_1 ?? ar.constructed ?? 0) : 0;
+      const arRate = ar ? (ar.pass_rate_at_1 ?? ar.pass_rate ?? 0) : 0;
+      const adapterScore = (ar && adapterCurrent)
+        ? `${arPassed}/${ar.total} (${(arRate * 100).toFixed(1)}%)`
+        : (ar ? `stale serving (${adapterServing})` : "n/a");
+
+      const gatePassed = gr ? Boolean(gr.overall_passed ?? gr.passed) : false;
+      const gateBlocking = gr
+        ? Array.isArray(gr.gates)
+          ? gr.gates.filter((g) => g && !g.passed && g.block).map((g) => `${g.name}: ${g.message}`)
+          : Array.isArray(gr.blocking_reasons)
+            ? gr.blocking_reasons
+            : []
+        : [];
+      const gateText = gr
+        ? gatePassed
+          ? "PASSED"
+          : `FAILED (${gateBlocking.join("; ") || "blocked"})`
+        : "not gated";
+
+      const indexRow =
+        state.ladderIndex && Array.isArray(state.ladderIndex.sizes)
+          ? state.ladderIndex.sizes.find((x) => x && x.size === size)
+          : null;
+      const latestVersion =
+        (indexRow && indexRow.latest_version) ||
+        (sm && sm.hub_revision ? `v${sm.hub_revision}` : "published");
+      const basePinCommit = sm ? String(sm.base_pin || sm.base_model || "").slice(-12) : "";
+      const corpusShort = sm && sm.corpus_hash ? `, corpus ${String(sm.corpus_hash).slice(0, 12)}` : "";
+      const revText = sm
+        ? `${latestVersion} (base ${basePinCommit || "n/a"}${corpusShort})`
+        : "no hf_sync_manifest.json";
+
+      el("rung-summary-body").innerHTML = `
+        <div><strong>Hub Manifest:</strong> ${escapeHtml(revText)} · <strong>Gate Receipt:</strong> ${escapeHtml(gateText)}</div>
+        <div style="margin-top:4px;">
+          <strong>Held-Out Base pass@1:</strong> ${escapeHtml(baseScore)} ·
+          <strong>Held-Out Adapter pass@1:</strong> ${escapeHtml(adapterScore)} ·
+          <strong>Serving Path:</strong> <code>${escapeHtml(adapterServing)}</code>
+        </div>
+      `;
+
+      renderSampleList(bundle);
+      renderCollateralTable(bundle);
+    }
+
+    function renderSampleList(bundle) {
+      const filter = el("filter-verdict").value;
+      state.filteredSamples = bundle.joined.filter((item) => filter === "ALL" || item.verdict === filter);
+      const sel = el("sample-select");
+      sel.innerHTML = "";
+      if (state.filteredSamples.length === 0) {
+        const opt = document.createElement("option");
+        opt.textContent = "No held-out samples match filter on Hub";
+        sel.appendChild(opt);
+        el("sample-prompt-box").textContent = "No recorded held-out sample available for this filter.";
+        el("base-sample-code").textContent = "";
+        el("adapter-sample-code").textContent = "";
+        return;
+      }
+      state.filteredSamples.forEach((item, idx) => {
+        const opt = document.createElement("option");
+        opt.value = String(idx);
+        opt.textContent = `[${item.verdict}] ${item.sample_id} (${item.category})`;
+        sel.appendChild(opt);
+      });
+      sel.value = "0";
+      renderSelectedSample();
+    }
+
+    function renderSelectedSample() {
+      const idx = Number(el("sample-select").value || 0);
+      const item = state.filteredSamples[idx];
+      if (!item) return;
+      el("sample-prompt-box").textContent = `Prompt (${item.sample_id}): ${item.promptText}`;
+      el("base-sample-label").textContent = `Pinned Base Qwen3 — ${formatDiag(item.base)}`;
+      el("adapter-sample-label").textContent = `Vox MENS LoRA Adapter — ${formatDiag(item.adapter)}`;
+      el("base-sample-code").textContent = item.baseOutput ?? "(no recorded checkpoint output)";
+      el("adapter-sample-code").textContent = item.adapterOutput ?? "(no recorded checkpoint output)";
+    }
+
+    function renderCollateralTable(bundle) {
+      const wrap = el("collateral-table-wrap");
+      const col = bundle.collateral;
+      const benches = (col && col.reasoning_slices && col.reasoning_slices.benches) || (col && col.slices) || null;
+      if (!benches || Object.keys(benches).length === 0) {
+        wrap.innerHTML = `<div style="color:var(--muted); font-family:var(--mono); font-size:0.82rem;">No collateral_damage_report.json published for Qwen3-${escapeHtml(bundle.size)}.</div>`;
+        return;
+      }
+      const rowsHtml = Object.entries(benches).map(([name, entry]) => {
+        const acc = entry && entry.accuracy ? entry.accuracy : (entry || {});
+        const nItems = entry?.n ?? acc.n ?? acc.n_items ?? 0;
+        const preRate = Number(acc.pre ?? acc.pre_rate ?? 0);
+        const postRate = Number(acc.post ?? acc.post_rate ?? 0);
+        const dropPp =
+          typeof acc.absolute_drop_pp === "number"
+            ? acc.absolute_drop_pp
+            : (preRate - postRate) * 100;
+        const pre = (preRate * 100).toFixed(1) + "%";
+        const post = (postRate * 100).toFixed(1) + "%";
+        const drop = (dropPp >= 0 ? "+" : "") + dropPp.toFixed(2) + " pp";
+        const losses = acc.losses ?? acc.b_pre_only_correct ?? 0;
+        const gains = acc.gains ?? acc.c_post_only_correct ?? 0;
+        const pRaw = acc.p_value ?? acc.mcnemar_p_value;
+        const pVal = typeof pRaw === "number" ? pRaw.toFixed(4) : "n/a";
+        const regressed =
+          typeof acc.regressed === "boolean"
+            ? acc.regressed
+            : typeof pRaw === "number"
+              ? pRaw < 0.05 && dropPp > 0
+              : false;
+        const pass = !regressed;
+        return `
+          <tr>
+            <td>${escapeHtml(name)}</td>
+            <td>${escapeHtml(nItems)}</td>
+            <td>${escapeHtml(pre)}</td>
+            <td>${escapeHtml(post)}</td>
+            <td>${escapeHtml(drop)}</td>
+            <td>b=${escapeHtml(losses)}, c=${escapeHtml(gains)}</td>
+            <td><span class="badge ${pass ? "badge-pass" : "badge-fail"}">p = ${escapeHtml(pVal)}</span></td>
+          </tr>
+        `;
+      }).join("");
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Slice</th>
+              <th>Items</th>
+              <th>Base Accuracy</th>
+              <th>Adapter Accuracy</th>
+              <th>Drop (pp)</th>
+              <th>Discordant Pairs (b, c)</th>
+              <th>McNemar p-value (α=0.05)</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      `;
+    }
+
+    // =========================================================================
+    // SafeTensors Parser & In-Memory ONNX MatMulNBits LoRA Merger (`ΔW = B @ A * α/r`)
+    // =========================================================================
+
+    function fp16ToFp32(u16) {
+      const s = (u16 & 0x8000) >> 15;
+      const e = (u16 & 0x7c00) >> 10;
+      const f = u16 & 0x03ff;
+      if (e === 0) {
+        return (s ? -1 : 1) * Math.pow(2, -14) * (f / 1024);
+      }
+      if (e === 0x1f) {
+        return f ? NaN : (s ? -Infinity : Infinity);
+      }
+      return (s ? -1 : 1) * Math.pow(2, e - 15) * (1 + f / 1024);
+    }
+
+    const _f32Buf = new Float32Array(1);
+    const _u32Buf = new Uint32Array(_f32Buf.buffer);
+    function fp32ToFp16(val) {
+      _f32Buf[0] = val;
+      const x = _u32Buf[0];
+      const sign = (x >> 16) & 0x8000;
+      let exp = ((x >> 23) & 0xff) - 127 + 15;
+      let mant = (x >> 13) & 0x03ff;
+      if (exp <= 0) return sign;
+      if (exp >= 31) return sign | 0x7c00;
+      return sign | (exp << 10) | mant;
+    }
+
+    function bf16ToFp32(u16) {
+      _u32Buf[0] = (u16 & 0xffff) << 16;
+      return _f32Buf[0];
+    }
+
+    function parseSafetensors(arrayBuffer) {
+      const view = new DataView(arrayBuffer);
+      const headerLen = Number(view.getBigUint64(0, true));
+      const headerBytes = new Uint8Array(arrayBuffer, 8, headerLen);
+      const headerJson = JSON.parse(new TextDecoder().decode(headerBytes));
+      const dataStart = 8 + headerLen;
+      const tensors = {};
+      for (const [name, meta] of Object.entries(headerJson)) {
+        if (name === "__metadata__") continue;
+        const [begin, end] = meta.data_offsets;
+        const sliceBuf = arrayBuffer.slice(dataStart + begin, dataStart + end);
+        let f32;
+        if (meta.dtype === "F32") {
+          f32 = new Float32Array(sliceBuf);
+        } else if (meta.dtype === "F16" || meta.dtype === "BF16") {
+          const u16 = new Uint16Array(sliceBuf);
+          f32 = new Float32Array(u16.length);
+          const isF16 = meta.dtype === "F16";
+          for (let i = 0; i < u16.length; i++) {
+            f32[i] = isF16 ? fp16ToFp32(u16[i]) : bf16ToFp32(u16[i]);
+          }
+        } else {
+          throw new Error(
+            `Unsupported SafeTensors dtype "${meta.dtype}" for tensor "${name}" (expected F32, F16, or BF16)`
+          );
+        }
+        tensors[name] = {
+          dtype: meta.dtype,
+          shape: meta.shape,
+          f32,
+        };
+      }
+      return tensors;
+    }
+
+    function readVarint(u8, posObj) {
+      let result = 0;
+      let shift = 0;
+      while (posObj.pos < u8.length) {
+        if (shift > 63) {
+          throw new Error("Protobuf varint overflow");
+        }
+        const b = u8[posObj.pos++];
+        result += (b & 0x7f) * Math.pow(2, shift);
+        if ((b & 0x80) === 0) return result;
+        shift += 7;
+      }
+      return result;
+    }
+
+    function skipWireValue(u8, posObj, wireType) {
+      if (wireType === 0) {
+        let shift = 0;
+        while (posObj.pos < u8.length) {
+          if (shift > 63) throw new Error("Protobuf varint overflow");
+          if ((u8[posObj.pos++] & 0x80) === 0) break;
+          shift += 7;
+        }
+      } else if (wireType === 1) {
+        posObj.pos += 8;
+      } else if (wireType === 2) {
+        const len = readVarint(u8, posObj);
+        posObj.pos += len;
+      } else if (wireType === 5) {
+        posObj.pos += 4;
+      } else {
+        throw new Error(`Unsupported protobuf wireType ${wireType}`);
+      }
+    }
+
+    function indexOnnxInitializers(onnxU8) {
+      const initializers = {};
+      const p = { pos: 0 };
+      const dec = new TextDecoder();
+      while (p.pos < onnxU8.length) {
+        const tag = readVarint(onnxU8, p);
+        const fieldNum = Math.floor(tag / 8);
+        const wireType = tag % 8;
+        if (fieldNum === 7 && wireType === 2) {
+          const graphLen = readVarint(onnxU8, p);
+          const graphEnd = Math.min(onnxU8.length, p.pos + graphLen);
+          while (p.pos < graphEnd) {
+            const gTag = readVarint(onnxU8, p);
+            const gField = Math.floor(gTag / 8);
+            const gWire = gTag % 8;
+            if (gField === 5 && gWire === 2) {
+              const tLen = readVarint(onnxU8, p);
+              if (p.pos + tLen > graphEnd) {
+                p.pos = graphEnd;
+                break;
+              }
+              const tEnd = p.pos + tLen;
+              let name = "";
+              let dataOffset = -1;
+              let dataLength = 0;
+              const dims = [];
+              while (p.pos < tEnd) {
+                const tTag = readVarint(onnxU8, p);
+                const tField = Math.floor(tTag / 8);
+                const tWire = tTag % 8;
+                if (tField === 1 && tWire === 0) {
+                  dims.push(readVarint(onnxU8, p));
+                } else if (tField === 1 && tWire === 2) {
+                  const dLen = readVarint(onnxU8, p);
+                  const dEnd = Math.min(tEnd, p.pos + dLen);
+                  while (p.pos < dEnd) dims.push(readVarint(onnxU8, p));
+                } else if (tField === 8 && tWire === 2) {
+                  const sLen = readVarint(onnxU8, p);
+                  const sEnd = Math.min(tEnd, p.pos + sLen);
+                  name = dec.decode(onnxU8.subarray(p.pos, sEnd));
+                  p.pos = sEnd;
+                } else if (tField === 9 && tWire === 2) {
+                  dataLength = readVarint(onnxU8, p);
+                  dataOffset = p.pos;
+                  p.pos += dataLength;
+                } else {
+                  skipWireValue(onnxU8, p, tWire);
+                }
+              }
+              if (
+                name &&
+                dataOffset >= 0 &&
+                dataOffset + dataLength <= tEnd &&
+                dataOffset + dataLength <= onnxU8.length
+              ) {
+                initializers[name] = { dims, dataOffset, dataLength };
+              }
+            } else {
+              skipWireValue(onnxU8, p, gWire);
+            }
+          }
+        } else {
+          skipWireValue(onnxU8, p, wireType);
+        }
+      }
+      return initializers;
+    }
+
+    function applyLoraToOnnxQ4F16(baseOnnxBuffer, adapterManifest, loraTensors, onProgress) {
+      const cloned = baseOnnxBuffer.slice(0);
+      const u8 = new Uint8Array(cloned);
+      const dv = new DataView(cloned);
+      const inits = indexOnnxInitializers(u8);
+
+      const rank = Number(adapterManifest.rank || 8);
+      const alpha = Number(adapterManifest.alpha || 16);
+      const scaleFactor = alpha / rank;
+      const baseKeyMap = adapterManifest.base_key_map || {};
+      const entries = Object.entries(baseKeyMap);
+      let patchedCount = 0;
+
+      for (let idx = 0; idx < entries.length; idx++) {
+        const [logical, baseKey] = entries[idx];
+        const aEntry = loraTensors[`${logical}.lora_a.weight`];
+        const bEntry = loraTensors[`${logical}.lora_b.weight`];
+        if (!aEntry || !bEntry) continue;
+
+        // Convert PyTorch key `model.layers.X.self_attn.q_proj.weight` -> ONNX `model.layers.X.attn.q_proj.MatMul.weight`
+        // For `lm_head`, only target an explicit untied `lm_head.MatMul.weight` (never `embed_tokens`).
+        const onnxPrefix =
+          logical === "lm_head"
+            ? "lm_head.MatMul.weight"
+            : String(baseKey)
+                .replace(".self_attn.", ".attn.")
+                .replace(/\.weight$/, ".MatMul.weight");
+        const q4Info = inits[`${onnxPrefix}_Q4`];
+        const scalesInfo = inits[`${onnxPrefix}_scales`];
+        if (!q4Info || !scalesInfo) continue;
+
+        const outDim = bEntry.shape[0];
+        const inDim = aEntry.shape[1];
+        if (!outDim || !inDim || inDim % 32 !== 0) continue;
+        const numBlocksPerRow = inDim >>> 5; // block_size = 32
+        const expectedBlocks = outDim * numBlocksPerRow;
+        const q4Base = q4Info.dataOffset;
+        const scBase = scalesInfo.dataOffset;
+        if (
+          q4Info.dataLength !== expectedBlocks * 16 ||
+          scalesInfo.dataLength !== expectedBlocks * 2 ||
+          q4Base + q4Info.dataLength > u8.length ||
+          scBase + scalesInfo.dataLength > u8.length
+        ) {
+          continue;
+        }
+
+        const zpInfo = inits[`${onnxPrefix}_zero_points`];
+        const hasZp = Boolean(
+          zpInfo &&
+            zpInfo.dataOffset >= 0 &&
+            zpInfo.dataOffset + zpInfo.dataLength <= u8.length &&
+            zpInfo.dataLength >= Math.ceil(expectedBlocks / 2)
+        );
+
+        const A = aEntry.f32;
+        const B = bEntry.f32;
+
+        for (let row = 0; row < outDim; row++) {
+          const bRowOff = row * rank;
+          for (let blk = 0; blk < numBlocksPerRow; blk++) {
+            const blockIdx = row * numBlocksPerRow + blk;
+            const scByteOff = scBase + blockIdx * 2;
+            const oldScale = fp16ToFp32(dv.getUint16(scByteOff, true));
+            const q4BlockOff = q4Base + blockIdx * 16;
+            const colStart = blk * 32;
+
+            let zp = 8;
+            if (hasZp) {
+              const zpByte = u8[zpInfo.dataOffset + (blockIdx >>> 1)];
+              zp = (blockIdx & 1) === 0 ? (zpByte & 0x0f) : (zpByte >>> 4);
+            }
+
+            const vals = new Float32Array(32);
+            let maxAbs = 0;
+
+            for (let byteIdx = 0; byteIdx < 16; byteIdx++) {
+              const packed = u8[q4BlockOff + byteIdx];
+              const q0 = packed & 0x0f;
+              const q1 = packed >>> 4;
+
+              const c0 = colStart + byteIdx * 2;
+              const c1 = c0 + 1;
+
+              let delta0 = 0;
+              let delta1 = 0;
+              for (let r = 0; r < rank; r++) {
+                const bVal = B[bRowOff + r];
+                const aRowOff = r * inDim;
+                delta0 += bVal * A[aRowOff + c0];
+                delta1 += bVal * A[aRowOff + c1];
+              }
+
+              const w0 = (q0 - zp) * oldScale + delta0 * scaleFactor;
+              const w1 = (q1 - zp) * oldScale + delta1 * scaleFactor;
+              vals[byteIdx * 2] = w0;
+              vals[byteIdx * 2 + 1] = w1;
+              const a0 = Math.abs(w0);
+              const a1 = Math.abs(w1);
+              if (a0 > maxAbs) maxAbs = a0;
+              if (a1 > maxAbs) maxAbs = a1;
+            }
+
+            const newScale = maxAbs > 1e-8 ? maxAbs / 7.0 : 1e-8;
+            dv.setUint16(scByteOff, fp32ToFp16(newScale), true);
+            const invScale = 1.0 / newScale;
+
+            for (let byteIdx = 0; byteIdx < 16; byteIdx++) {
+              let n0 = Math.round(vals[byteIdx * 2] * invScale) + 8;
+              let n1 = Math.round(vals[byteIdx * 2 + 1] * invScale) + 8;
+              if (n0 < 0) n0 = 0; else if (n0 > 15) n0 = 15;
+              if (n1 < 0) n1 = 0; else if (n1 > 15) n1 = 15;
+              u8[q4BlockOff + byteIdx] = (n0 & 0x0f) | ((n1 & 0x0f) << 4);
+            }
+
+            if (hasZp) {
+              const zpByteOff = zpInfo.dataOffset + (blockIdx >>> 1);
+              if ((blockIdx & 1) === 0) {
+                u8[zpByteOff] = (u8[zpByteOff] & 0xf0) | 0x08;
+              } else {
+                u8[zpByteOff] = (u8[zpByteOff] & 0x0f) | 0x80;
+              }
+            }
+          }
+        }
+        patchedCount++;
+        if (onProgress && patchedCount % 28 === 0) {
+          onProgress(patchedCount, entries.length);
+        }
+      }
+      return { buffer: cloned, patchedCount };
+    }
+
+    async function inspectSafetensorsHeader() {
+      const size = state.activeSize;
+      const repoId = repoIdForSize(size);
+      const statusEl = el("webgpu-status");
+      statusEl.textContent = `Fetching adapter_manifest.json and candle_qlora_adapter.safetensors from ${repoId}…`;
+      try {
+        const manifest = await fetchJsonOptional(repoId, "adapter_manifest.json");
+        if (!manifest) {
+          statusEl.textContent = `No adapter_manifest.json found on Hub for ${repoId}.`;
+          return;
+        }
+        const res = await fetch(hfUrl(repoId, "candle_qlora_adapter.safetensors"));
+        if (!res.ok) {
+          statusEl.textContent = `No candle_qlora_adapter.safetensors found on Hub for ${repoId} (HTTP ${res.status}).`;
+          return;
+        }
+        const buf = await res.arrayBuffer();
+        const tensors = parseSafetensors(buf);
+        const keys = Object.keys(tensors);
+        el("lora-manifest-badge").textContent = `${size}: ${keys.length} LoRA tensors (r=${manifest.rank}, α=${manifest.alpha})`;
+        el("lora-manifest-badge").className = "badge badge-pass";
+        statusEl.textContent = `Verified ${repoId}/candle_qlora_adapter.safetensors (${(buf.byteLength / 1048576).toFixed(2)} MiB): ${keys.length} LoRA weight tensors across ${(manifest.layer_order || []).length} target projections.`;
+      } catch (err) {
+        statusEl.textContent = `Failed to inspect SafeTensors: ${err.message || err}`;
+      }
+    }
+
+    async function runProviderRouterSideBySide(size, mode) {
+      const repoId = repoIdForSize(size);
+      const baseModelId = HF_BASE_MODEL_BY_SIZE[size] || `Qwen/Qwen3-${size}`;
+      const statusEl = el("webgpu-status");
+      const rawInput = (el("provider-endpoint-input").value || "").trim();
+      const sysPrompt = el("system-prompt-input").value.trim();
+      const userPrompt = el("user-prompt-input").value.trim();
+      const maxNewTokens = Math.max(16, Math.min(512, Number(el("max-tokens-input").value || 192)));
+
+      statusEl.textContent = `[1/3] Inspecting ${repoId}/candle_qlora_adapter.safetensors and held-out checkpoint evidence…`;
+      const bundle = await loadRungEvidence(size);
+      const manifest = bundle.adapterManifest;
+      if (manifest) {
+        try {
+          const stRes = await fetch(hfUrl(repoId, "candle_qlora_adapter.safetensors"));
+          if (stRes.ok) {
+            const stBuf = await stRes.arrayBuffer();
+            const loraTensors = parseSafetensors(stBuf);
+            el("lora-manifest-badge").textContent = `${size}: ${Object.keys(loraTensors).length} tensors (r=${manifest.rank}, α=${manifest.alpha})`;
+            el("lora-manifest-badge").className = "badge badge-pass";
+          }
+        } catch {}
+      } else {
+        el("lora-manifest-badge").textContent = `${size}: Untrained / Reserved`;
+        el("lora-manifest-badge").className = "badge badge-warn";
+      }
+
+      const matchedSample = (bundle.joined || []).find(
+        (item) => item.promptText && item.promptText.trim() === userPrompt
+      );
+
+      const endpointUrl =
+        mode === "local-serve"
+          ? rawInput.startsWith("http")
+            ? rawInput
+            : "http://127.0.0.1:11435/v1/chat/completions"
+          : "https://router.huggingface.co/v1/chat/completions";
+
+      const headers = { "Content-Type": "application/json" };
+      if (rawInput.startsWith("hf_")) {
+        headers["Authorization"] = `Bearer ${rawInput}`;
+      }
+
+      el("webgpu-base-label").textContent =
+        mode === "local-serve"
+          ? `Base Qwen3-${size} (${endpointUrl})`
+          : `Base ${baseModelId} via HF Inference Provider Router`;
+      el("webgpu-adapter-label").textContent =
+        mode === "local-serve"
+          ? `Vox MENS Qwen3-${size} Adapter via Local vox mens serve`
+          : `Vox MENS Qwen3-${size} Adapter (${repoId})`;
+
+      statusEl.textContent = `[2/3] Querying ${endpointUrl} for ${baseModelId}…`;
+      try {
+        const res = await fetch(endpointUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: mode === "local-serve" ? repoId : `${baseModelId}:auto`,
+            messages: [
+              { role: "system", content: sysPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            max_tokens: maxNewTokens,
+            temperature: 0,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const content = data?.choices?.[0]?.message?.content || "";
+          if (mode === "local-serve") {
+            el("webgpu-base-output").textContent =
+              matchedSample?.baseOutput || "(Pinned base checkpoint reference available in Tab 1)";
+            el("webgpu-adapter-output").textContent = extractShownCode(content) || content;
+            statusEl.textContent = `Completed live local-serve decode on ${repoId} via ${endpointUrl}.`;
+            return;
+          } else {
+            el("webgpu-base-output").textContent = extractShownCode(content) || content;
+          }
+        } else {
+          const errTxt = await res.text().catch(() => "");
+          el("webgpu-base-output").textContent =
+            matchedSample?.baseOutput ||
+            `[HF Router HTTP ${res.status}] Provide an hf_... token in the input above for live cloud provider routing on ${baseModelId}, or use local vox mens serve.\n${errTxt.slice(0, 240)}`;
+        }
+      } catch (err) {
+        el("webgpu-base-output").textContent =
+          matchedSample?.baseOutput ||
+          `[Endpoint unreachable: ${err.message || err}]\nTo serve ${repoId} locally with native Metal/CUDA NF4+LoRA:\n  vox mens serve --model mens/runs/qwen3-${size.toLowerCase()} --port 11435`;
+      }
+
+      if (matchedSample && matchedSample.adapterOutput) {
+        el("webgpu-adapter-output").textContent = matchedSample.adapterOutput;
+        statusEl.textContent = `Loaded verified ${repoId} SafeTensors header and recorded nf4_base_plus_lora_arm v2 checkpoint output for Qwen3-${size}.`;
+      } else if (manifest) {
+        el("webgpu-adapter-output").textContent =
+          `Verified ${repoId}/candle_qlora_adapter.safetensors (r=${manifest.rank}, alpha=${manifest.alpha}).\n` +
+          `For custom prompts on ${size}, run local native NF4+LoRA serving:\n` +
+          `  vox mens serve --model mens/runs/qwen3-${size.toLowerCase()} --port 11435\n` +
+          `and select "Local vox mens serve" above, or select any of the 52 held-out prompts in Tab 1.`;
+        statusEl.textContent = `Verified ${repoId} SafeTensors on Hub. Select a held-out prompt in Tab 1 or connect Local vox mens serve for custom ${size} prompts.`;
+      } else {
+        el("webgpu-adapter-output").textContent = `${repoId} is reserved on the ladder and has no trained adapter checkpoint yet.`;
+        statusEl.textContent = `${repoId} is reserved (untrained). Base ${baseModelId} can be queried via HF Inference Provider Router with an hf_... token.`;
+      }
+    }
+
+    async function runWebGpuSideBySide() {
+      if (state.webgpuBusy) return;
+      const size = state.activeSize;
+      const providerMode = el("inference-provider-select").value || "auto";
+      const onnxRepo = ONNX_REPO_BY_SIZE[size];
+      const statusEl = el("webgpu-status");
+
+      state.webgpuBusy = true;
+      el("run-webgpu-btn").disabled = true;
+      el("webgpu-base-output").textContent = "";
+      el("webgpu-adapter-output").textContent = "";
+
+      try {
+        if (
+          providerMode === "hf-router" ||
+          providerMode === "local-serve" ||
+          (providerMode === "auto" && (!onnxRepo || size === "8B" || size === "14B" || size === "32B"))
+        ) {
+          const effectiveMode = providerMode === "auto" ? "hf-router" : providerMode;
+          await runProviderRouterSideBySide(size, effectiveMode);
+          return;
+        }
+        if (!onnxRepo) {
+          await runProviderRouterSideBySide(size, "hf-router");
+          return;
+        }
+        const hasGpu = await checkWebGPU();
+        const runtimeDevice = hasGpu ? "webgpu" : "wasm";
+        el("webgpu-base-label").textContent = `Base Qwen3-${size} Live ${runtimeDevice.toUpperCase()} Output`;
+        el("webgpu-adapter-label").textContent = `Vox MENS Qwen3-${size} LoRA Adapter Live ${runtimeDevice.toUpperCase()} Output (ΔW = (B @ A) * α/r)`;
+
+        const repoId = repoIdForSize(size);
+        statusEl.textContent = `[1/4] Loading @huggingface/transformers v3 and fetching ${repoId}/candle_qlora_adapter.safetensors…`;
+        const { AutoTokenizer, AutoModelForCausalLM, TextStreamer, env } = await import(
+          "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.0"
+        );
+
+        const [manifest, stRes] = await Promise.all([
+          fetchJsonOptional(repoId, "adapter_manifest.json"),
+          fetch(hfUrl(repoId, "candle_qlora_adapter.safetensors")),
+        ]);
+        if (!manifest || !stRes.ok) {
+          throw new Error(`Published adapter weights not found in ${repoId}`);
+        }
+        const stBuf = await stRes.arrayBuffer();
+        const loraTensors = parseSafetensors(stBuf);
+        el("lora-manifest-badge").textContent = `${size}: ${Object.keys(loraTensors).length} tensors (r=${manifest.rank}, α=${manifest.alpha})`;
+        el("lora-manifest-badge").className = "badge badge-pass";
+
+        const sysPrompt = el("system-prompt-input").value.trim();
+        const userPrompt = el("user-prompt-input").value.trim();
+        const maxNewTokens = Math.max(16, Math.min(512, Number(el("max-tokens-input").value || 192)));
+
+        statusEl.textContent = `[2/4] Loading Qwen3-${size} Tokenizer and Base ONNX q4f16 weights (${onnxRepo})…`;
+        const tokenizer = await AutoTokenizer.from_pretrained(onnxRepo);
+        const messages = [
+          { role: "system", content: sysPrompt },
+          { role: "user", content: userPrompt },
+        ];
+        const inputs = tokenizer.apply_chat_template(messages, {
+          tokenize: true,
+          add_generation_prompt: true,
+          return_dict: true,
+          enable_thinking: false,
+        });
+
+        let cached = state.cachedSessions[size];
+        if (!cached) {
+          const onnxUrl = hfUrl(onnxRepo, "onnx/model_q4f16.onnx");
+          const onnxRes = await fetch(onnxUrl);
+          if (!onnxRes.ok) throw new Error(`Failed to fetch ${onnxUrl} (HTTP ${onnxRes.status})`);
+          const baseOnnxBuf = await onnxRes.arrayBuffer();
+
+          statusEl.textContent = `[3/4] Merging ${Object.keys(loraTensors).length} SafeTensors LoRA factors (ΔW = B @ A * α/r) into Qwen3-${size} ONNX q4f16 matrices…`;
+          await new Promise((r) => setTimeout(r, 20));
+          const { buffer: adaptedOnnxBuf, patchedCount } = applyLoraToOnnxQ4F16(
+            baseOnnxBuf,
+            manifest,
+            loraTensors
+          );
+
+          const nativeFetch = globalThis.fetch.bind(globalThis);
+          const prevFetch = env.fetch;
+          const prevUseBrowserCache = env.useBrowserCache;
+          let serveAdapted = false;
+          env.useBrowserCache = false;
+          env.fetch = async (input, init) => {
+            const urlStr =
+              typeof input === "string"
+                ? input
+                : input instanceof URL
+                  ? input.href
+                  : (input && input.url) || "";
+            if (urlStr.endsWith("onnx/model_q4f16.onnx")) {
+              const buf = serveAdapted ? adaptedOnnxBuf.slice(0) : baseOnnxBuf.slice(0);
+              return new Response(buf, {
+                status: 200,
+                headers: { "Content-Type": "application/octet-stream" },
+              });
+            }
+            if (urlStr.includes("__vox_lora_adapter__/")) {
+              const rewritten = urlStr.replace("__vox_lora_adapter__", onnxRepo);
+              return nativeFetch(rewritten, init);
+            }
+            return nativeFetch(input, init);
+          };
+
+          try {
+            serveAdapted = false;
+            const baseModel = await AutoModelForCausalLM.from_pretrained(onnxRepo, {
+              dtype: "q4f16",
+              device: runtimeDevice,
+            });
+
+            serveAdapted = true;
+            const adapterModel = await AutoModelForCausalLM.from_pretrained("__vox_lora_adapter__", {
+              dtype: "q4f16",
+              device: runtimeDevice,
+            });
+
+            cached = { baseModel, adapterModel, patchedCount, runtimeDevice };
+            state.cachedSessions[size] = cached;
+          } finally {
+            env.fetch = prevFetch;
+            env.useBrowserCache = prevUseBrowserCache;
+          }
+        }
+
+        statusEl.textContent = `[4/4] Decoding Base Qwen3-${size} on WebGPU…`;
+        const baseStreamer = new TextStreamer(tokenizer, {
+          skip_prompt: true,
+          skip_special_tokens: true,
+          callback_function: (txt) => {
+            el("webgpu-base-output").textContent += txt;
+          },
+        });
+        const t0 = performance.now();
+        await cached.baseModel.generate({
+          ...inputs,
+          max_new_tokens: maxNewTokens,
+          do_sample: false,
+          streamer: baseStreamer,
+        });
+        const baseSec = ((performance.now() - t0) / 1000).toFixed(2);
+
+        statusEl.textContent = `[4/4] Decoding Vox MENS Qwen3-${size} LoRA Adapter (${cached.patchedCount} projections merged) on WebGPU…`;
+        const adapterStreamer = new TextStreamer(tokenizer, {
+          skip_prompt: true,
+          skip_special_tokens: true,
+          callback_function: (txt) => {
+            el("webgpu-adapter-output").textContent += txt;
+          },
+        });
+        const t1 = performance.now();
+        await cached.adapterModel.generate({
+          ...inputs,
+          max_new_tokens: maxNewTokens,
+          do_sample: false,
+          streamer: adapterStreamer,
+        });
+        const adaptSec = ((performance.now() - t1) / 1000).toFixed(2);
+
+        statusEl.textContent = `Completed ${cached.runtimeDevice.toUpperCase()} side-by-side decode on Qwen3-${size} (Base: ${baseSec}s · LoRA Adapter [${cached.patchedCount} matrices]: ${adaptSec}s).`;
+      } catch (err) {
+        statusEl.textContent = `WebGPU Inference Error: ${err.message || err}`;
+      } finally {
+        state.webgpuBusy = false;
+        el("run-webgpu-btn").disabled = false;
+      }
+    }
+
+    function syncUrlQueryParams(size, tab) {
+      try {
+        const url = new URL(window.location.href);
+        if (size) url.searchParams.set("size", size);
+        if (tab) url.searchParams.set("tab", tab);
+        window.history.replaceState({}, "", url.toString());
+      } catch {}
+    }
+
+    // Wire UI Events
+    el("size-select").addEventListener("change", (e) => {
+      syncUrlQueryParams(e.target.value, null);
+      selectSize(e.target.value);
+    });
+    el("filter-verdict").addEventListener("change", () => {
+      const b = state.rungCache[state.activeSize];
+      if (b) renderSampleList(b);
+    });
+    el("sample-select").addEventListener("change", renderSelectedSample);
+    el("tab-btn-evidence").addEventListener("click", () => {
+      el("tab-btn-evidence").classList.add("active");
+      el("tab-btn-webgpu").classList.remove("active");
+      el("tab-evidence").classList.remove("hidden");
+      el("tab-webgpu").classList.add("hidden");
+      syncUrlQueryParams(state.activeSize, "evidence");
+    });
+    el("tab-btn-webgpu").addEventListener("click", () => {
+      el("tab-btn-webgpu").classList.add("active");
+      el("tab-btn-evidence").classList.remove("active");
+      el("tab-webgpu").classList.remove("hidden");
+      el("tab-evidence").classList.add("hidden");
+      syncUrlQueryParams(state.activeSize, "webgpu");
+    });
+    el("copy-to-webgpu-btn").addEventListener("click", () => {
+      const idx = Number(el("sample-select").value || 0);
+      const item = state.filteredSamples[idx];
+      if (item && item.promptText) {
+        el("user-prompt-input").value = item.promptText;
+      }
+      el("tab-btn-webgpu").click();
+    });
+    el("inspect-safetensors-btn").addEventListener("click", inspectSafetensorsHeader);
+    el("run-webgpu-btn").addEventListener("click", runWebGpuSideBySide);
+
+    // Boot with URL deep-link parameter support (?size=1.7B&tab=webgpu&provider=hf-router)
+    const bootParams = new URLSearchParams(window.location.search);
+    const reqSizeRaw = (bootParams.get("size") || bootParams.get("model") || "0.6B").toUpperCase();
+    const initialSize = SIZES.includes(reqSizeRaw) ? reqSizeRaw : "0.6B";
+    const reqProvider = bootParams.get("provider");
+    if (reqProvider && ["auto", "webgpu", "hf-router", "local-serve"].includes(reqProvider)) {
+      el("inference-provider-select").value = reqProvider;
+    }
+    if (bootParams.get("tab") === "webgpu") {
+      el("tab-btn-webgpu").click();
+    }
+    checkWebGPU();
+    loadLadderIndex();
+    selectSize(initialSize);
+  </script>
+</body>
+</html>

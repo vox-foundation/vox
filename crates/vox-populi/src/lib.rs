@@ -246,12 +246,6 @@ pub fn resolve_vox_toml_best_effort() -> Option<PathBuf> {
         .filter(|p| p.is_file())
 }
 
-/// Map a phase-318 free-memory reading onto [`NodeRecord::accelerator_free_mb`].
-/// `None` means the probe failed or was not run, and the field stays omitted.
-fn accelerator_free_mb_from_reading(reading: Option<u32>) -> Option<u64> {
-    reading.map(u64::from)
-}
-
 /// Build a [`NodeRecord`] for this process using orchestrator host probe + populi env labels.
 #[must_use]
 pub fn node_record_for_current_process(node_id: String, listen_addr: Option<String>) -> NodeRecord {
@@ -326,9 +320,10 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             // TODO: cuda_driver_version from precision layer if needed.
         }
         rec.probe_failures = summary.probe_failures.clone();
-        rec.accelerator_free_mb = accelerator_free_mb_from_reading(
-            crate::mens::tensor::spoke_base_resolver::read_accelerator_free_mb().ok(),
-        );
+        // MESH-01: live free accelerator MB from the phase 318 reading. Omitted,
+        // not zero and not total VRAM, when there is no reading.
+        rec.accelerator_free_mb =
+            crate::mens::tensor::size_select::read_free_memory().map(|free| free.mb);
     }
     rec
 }
@@ -439,14 +434,3 @@ pub mod distributed_training;
 #[cfg(feature = "mens-candle-qlora")]
 #[allow(missing_docs)]
 pub mod inference;
-
-#[cfg(test)]
-mod accelerator_free_mb_tests {
-    use super::accelerator_free_mb_from_reading;
-
-    #[test]
-    fn accelerator_free_mb_from_reading_omits_on_failure() {
-        assert_eq!(accelerator_free_mb_from_reading(Some(14_000)), Some(14_000));
-        assert_eq!(accelerator_free_mb_from_reading(None), None);
-    }
-}

@@ -10,12 +10,15 @@ test('reader-layout.css exists and contains expected rules', () => {
   assert.ok(existsSync(CSS_PATH), 'reader-layout.css must exist');
   const css = readFileSync(CSS_PATH, 'utf8');
 
-  // Article width expansion rules
-  assert.match(css, /--sl-content-width:\s*min\(60rem,/, 'Must define 60rem content width for one pane closed');
-  assert.match(css, /--sl-content-width:\s*min\(74rem,/, 'Must define 74rem content width for both panes closed');
+  // Article width expansion rules (recover space when left, right, or both panes are closed)
+  assert.match(css, /--sl-content-width:\s*min\(66\.5rem,\s*calc\(100vw\s*-\s*23\.75rem\)\)/, 'Must expand content width when left sidebar is closed');
+  assert.match(css, /--sl-content-width:\s*min\(66\.5rem,\s*calc\(100vw\s*-\s*var\(--sl-sidebar-width\)\s*-\s*5\.25rem\)\)/, 'Must expand content width when right TOC is closed');
+  assert.match(css, /--sl-content-width:\s*min\(84rem,\s*calc\(100vw\s*-\s*7\.5rem\)\)/, 'Must expand content width when both panes are closed');
+  assert.match(css, /flex:\s*0\s+0\s+0px\s*!important;/, 'Must collapse right-sidebar-container flex-basis to 0px when hidden');
+  assert.match(css, /--sl-content-margin-inline:\s*0\s+auto;/, 'Must anchor .sl-container to start edge of .content-panel');
 
-  // Typography line length constraint
-  assert.match(css, /max-width:\s*75ch;/, 'Must constrain prose paragraphs/lists to 75ch');
+  // Prose & lists fill the active --sl-content-width container
+  assert.match(css, /max-width:\s*100%;/, 'Must allow prose paragraphs/lists to fill expanded --sl-content-width');
 
   // Hover and touch device discrimination
   assert.match(css, /@media\s*\(\s*hover:\s*hover\s*\)/, 'Must contain hover: hover query for overlays');

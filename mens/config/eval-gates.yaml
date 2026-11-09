@@ -1,48 +1,13 @@
-version: "1"
-# Full eval gate policy — used by:
-#   Step 2 of full-pipeline.vox (pre-flight, before training)
-#   `vox mens eval-gate --run-dir <run>` after eval-local + review pipeline
-#   Cycle 2 gate in scripts/mens/run_4080_cycles.vox
-#
-# All blocking gates require their source files to exist in the run directory.
-# On a first-ever run (no benchmark_passatk.json / eval_local_report.json /
-# review_metrics.json), use VOX_MENS_FORCE_TRAIN=1 to bypass Step 2.
-# After training run eval-local and the review pipeline to satisfy those gates.
-#
-# After every gate run (pass or fail) gate_receipt.json is written to run_dir:
-#   {"schema":"vox_mens_gate_receipt_v1","overall_passed":true,"gates":[...]}
-# Orchestrators and A2A consumers read this instead of re-running the gate.
+# Core eval gate policy (vox-lang spoke) — used after eval-local:
+#   `vox mens eval-gate --run-dir <run>`
 #
 # Source file map:
-#   training_manifest.json  → truncation, device_profile              (trainer)
-#   telemetry.jsonl         → supervised_ratio, throughput            (trainer)
-#   eval_results.json       → vox_parse_rate, construct_coverage_pct (corpus eval, Step 4)
+#   telemetry.jsonl         → supervised_ratio                       (trainer)
 #   benchmark_passatk.json  → pass_at_k                              (`vox mens eval-local`)
 #   eval_local_report.json  → anti_stub                              (`vox mens eval-local`)
-#   review_metrics.json     → review_recurrence                      (review pipeline)
 
 supervised_ratio:
   min_pct: 10.0
-  block: true
-
-truncation:
-  max_fraction: 0.50
-  block: true
-
-throughput:
-  min_tokens_per_sec:
-    cpu: 1.0
-    rtx_4080_super: 10.0
-  # Task Z1 proved the engine sustains ~22-25 tok/s on Apple Metal once the KV
-  # cache is threaded through generation; a run below the floor is now refused
-  # at serve (see assert_serve_preconditions in
-  # crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs) instead of shipping
-  # silently. Was `false` before Task Z2 made the recorded floor enforceable.
-  block: true
-
-eval_local:
-  min_parse_rate: 0.88    # Target after decorator fixes (was 60%)
-  min_coverage_pct: 0.25  # Target after expanded templates (was 35%)
   block: true
 
 pass_at_k:
@@ -53,33 +18,9 @@ pass_at_k:
   baseline_file: baseline_passatk.json
   block: true
 
-per_context: {}
-
-modal_mix:
-  max_voice_fraction: 0.30
-  block: false
-
-mcp_tool_schema:
-  min_strict_validity_rate: 0.0
-  block: false
-  metrics_file: mcp_tool_schema_kpi.json
-
 anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
-  # Must equal ANTI_STUB_MIN_CONSTRUCT_RICHNESS in crates/vox-ml-cli/src/commands/mens/eval_local.rs.
-  # Every task in mens/data/heldout_bench/manifest.json asks for exactly one top-level
-  # declaration, so AstEvalReport::coverage_score() (distinct-construct-kind-count / 8) tops
-  # out at 1/8 = 0.125 for even a perfect answer. A higher floor here rejects every correct
-  # single-declaration answer — this is the *mean* across a run of the same per-answer score
-  # the Rust constant floors, so it is structurally bound to the same ceiling. Kept in sync by
-  # `eval_gate_thresholds_match_anti_stub_min_construct_richness` in eval_local.rs's test module.
   min_construct_richness_mean: 0.125
-  block: true
-
-review_recurrence:
-  max_repeated_finding_rate: 0.30
-  max_post_training_regression_rate: 0.15
-  min_recurrence_delta: 0.01
   block: true

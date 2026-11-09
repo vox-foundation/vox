@@ -1,6 +1,6 @@
 //! Dispatch for [`PopuliAction`](crate::commands::mens::PopuliAction).
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use super::PopuliAction;
 
@@ -135,7 +135,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None,               // curriculum_schedule
                 Default::default(), // chatml_config
                 None,               // mix_config
-                true,               // automatic_qwen3
+                crate::commands::schola::train::TrainRunOpts::default(),
             )
             .await?;
             Ok(())
@@ -200,8 +200,16 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             optimizer_experiment_mode,
             data_mode,
             fast_corpus,
+            plan_only,
             persistent,
+            no_hf_sync,
         } => {
+            if no_hf_sync {
+                #[allow(unsafe_code)]
+                unsafe {
+                    std::env::set_var("VOX_MENS_HF_SYNC", "0");
+                }
+            }
             // The plugin self-heal preflight (run_train.rs, cuda path) reads this
             // env var. Setting it here keeps the opt-out from threading a bool
             // through the ~60-arg train dispatch chain.
@@ -280,6 +288,11 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 data_mode,
                 fast_corpus,
                 persistent,
+                crate::commands::schola::train::TrainRunOpts {
+                    plan_only,
+                    json: _global_json,
+                    max_runtime_secs,
+                },
             )
             .await
         }
@@ -350,12 +363,21 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             let model = model
                 .ok_or_else(|| anyhow::anyhow!("--model <path> is required for local serve"))?;
+            let model =
+                crate::commands::mens::ladder_serve::resolve_serve_run_dir(model.as_path())?;
 
             // Gate: Ensure collateral damage eval has run and passed if we're serving an adapter
             let manifest_path = model.join("training_manifest.json");
             let adapter_path = model.join("candle_qlora_adapter.safetensors");
             if manifest_path.exists() || adapter_path.exists() {
-                assert_collateral_gate(&model)?;
+                let policy_val = crate::commands::mens::eval_gate::policy::load_policy_value(
+                    std::path::Path::new(crate::commands::mens::eval_collateral::LADDER_POLICY),
+                )?;
+                let req = vox_eval::collateral_evidence::CollateralRequirement::from_policy_json(
+                    &policy_val,
+                )
+                .map_err(|e| anyhow::anyhow!("ladder policy requirement error: {e}"))?;
+                assert_collateral_gate(&model, &req)?;
                 assert_serve_preconditions(&model)?;
             }
 
@@ -633,6 +655,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             k,
             seed_base,
             output,
+            force_restart,
         } => eval_local::run_eval_local(
             model,
             base,
@@ -643,6 +666,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             k,
             seed_base,
             output,
+            force_restart,
         ),
 
         PopuliAction::Hub(hub_action) => crate::commands::mens::hub::run_hub(hub_action).await,
@@ -652,7 +676,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 run_dir,
                 policy,
                 five_spokes,
+                no_hf_sync,
             } => {
+                if no_hf_sync {
+                    #[allow(unsafe_code)]
+                    unsafe {
+                        std::env::set_var("VOX_MENS_HF_SYNC", "0");
+                    }
+                }
                 if five_spokes {
                     let eval = vox_corpus::flywheel::run_before_after_five_spoke_evaluation();
                     println!("{}", eval.to_markdown());
@@ -719,78 +750,93 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             super::mens_tail_subcommands::PopuliMensTail::EvalCollateralDamage {
                 pre_score,
                 post_adapter,
+                fail_fast,
+                no_fail_fast,
+                force_restart,
+                force_restart_base,
             } => {
                 #[cfg(not(feature = "gpu"))]
-                let _ = (pre_score, post_adapter);
+                let _ = (
+                    pre_score,
+                    post_adapter,
+                    fail_fast,
+                    no_fail_fast,
+                    force_restart,
+                    force_restart_base,
+                );
 
                 #[cfg(feature = "gpu")]
                 crate::commands::mens::eval_collateral::run_collateral_damage(
                     pre_score,
                     post_adapter,
+                    fail_fast,
+                    no_fail_fast,
+                    crate::commands::mens::item_checkpoint::ForceRestart {
+                        adapter: force_restart,
+                        base: force_restart_base,
+                    },
                 )?;
                 Ok(())
             }
 
+            // Without `gpu` nothing can be scored or recorded; a silent exit 0
+            // would read as success to a per-size loop.
+            #[cfg(not(feature = "gpu"))]
+            super::mens_tail_subcommands::PopuliMensTail::BaselineFromCompare { .. }
+            | super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare { .. } => {
+                anyhow::bail!(
+                    "vox mens eval-reasoning-compare requires the `gpu` cargo feature, \
+                     which was not enabled when this binary was built; rebuild with \
+                     `cargo build -p vox-ml-cli --release --features gpu`"
+                )
+            }
+
+            #[cfg(feature = "gpu")]
+            super::mens_tail_subcommands::PopuliMensTail::BaselineFromCompare { compare, out } => {
+                let baseline =
+                    crate::commands::mens::baseline_from_compare::baseline_json_from_compare(
+                        &compare,
+                    )?;
+                match out {
+                    Some(path) => {
+                        if let Some(parent) = path.parent() {
+                            std::fs::create_dir_all(parent).with_context(|| {
+                                format!("create baseline output dir {}", parent.display())
+                            })?;
+                        }
+                        std::fs::write(&path, serde_json::to_string_pretty(&baseline)?)
+                            .with_context(|| format!("write baseline {}", path.display()))?;
+                        eprintln!("wrote {}", path.display());
+                    }
+                    None => println!("{}", serde_json::to_string_pretty(&baseline)?),
+                }
+                Ok(())
+            }
+
+            #[cfg(feature = "gpu")]
             super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare {
                 base,
                 adapter,
                 hub_root,
                 bench_root,
                 out,
-            } => {
-                #[cfg(not(feature = "gpu"))]
-                let _ = (base, adapter, hub_root, bench_root, out);
-
-                #[cfg(feature = "gpu")]
-                crate::commands::mens::reasoning_compare::run_eval_reasoning_compare(
-                    crate::commands::mens::reasoning_compare::CompareArgs {
-                        base,
-                        adapter,
-                        hub_root,
-                        bench_root,
-                        out,
-                    },
-                )?;
-                Ok(())
-            }
-
-            super::mens_tail_subcommands::PopuliMensTail::SizeTrain {
-                hub_root,
-                runs_root,
-            } => {
-                #[cfg(not(feature = "gpu"))]
-                let _ = (hub_root, runs_root);
-
-                #[cfg(feature = "gpu")]
-                crate::commands::mens::size_train::run_size_train(
-                    crate::commands::mens::size_train::SizeTrainArgs {
-                        hub_root,
-                        runs_root,
-                    },
-                )?;
-                Ok(())
-            }
-
-            super::mens_tail_subcommands::PopuliMensTail::HarnessBeforeAfter {
-                hub_root,
-                bench_root,
-                runs_root,
-                out,
-            } => {
-                #[cfg(not(feature = "gpu"))]
-                let _ = (hub_root, bench_root, runs_root, out);
-
-                #[cfg(feature = "gpu")]
-                crate::commands::mens::harness_before_after::run_harness_before_after(
-                    crate::commands::mens::harness_before_after::HarnessBeforeAfterArgs {
-                        hub_root,
-                        bench_root,
-                        runs_root,
-                        out,
-                    },
-                )?;
-                Ok(())
-            }
+                slices,
+                merge_only,
+                force_restart,
+                force_restart_base,
+            } => crate::commands::mens::reasoning_compare::run_eval_reasoning_compare(
+                crate::commands::mens::reasoning_compare::CompareArgs {
+                    base,
+                    adapter,
+                    hub_root,
+                    bench_root,
+                    out,
+                    slices,
+                    merge_only,
+                    force_restart,
+                    force_restart_base,
+                },
+            ),
 
             super::mens_tail_subcommands::PopuliMensTail::BenchCompletion {
                 url,
@@ -860,7 +906,10 @@ fn export_gguf_not_implemented_message(
 /// model and never writes. The stored `status` alone is not trusted: the
 /// per-slice drops are recomputed from the stored numbers.
 #[cfg(feature = "gpu")]
-pub(crate) fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
+fn assert_collateral_gate(
+    model: &std::path::Path,
+    req: &vox_eval::collateral_evidence::CollateralRequirement,
+) -> Result<()> {
     use anyhow::Context;
     use vox_eval::reasoning_bench::{SLICE_NAMES, SLICE_SIZE};
     let report_path = model.join("collateral_damage_report.json");
@@ -887,15 +936,12 @@ pub(crate) fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
             "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
         );
     }
-    vox_eval::reasoning_slice::verify_reasoning_slices(
-        &report,
-        &vox_eval::CollateralDamageConfig::default(),
-    )
-    .map_err(|e| {
-        anyhow::anyhow!(
-            "eval_collateral_damage check refused: {e}. Re-run vox mens eval-collateral-damage for this adapter."
-        )
-    })?;
+    vox_eval::collateral_evidence::check_collateral_report(&report, req)
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "eval_collateral_damage check refused: {e}. Re-run vox mens eval-collateral-damage for this adapter."
+            )
+        })?;
     for name in SLICE_NAMES {
         let path = model
             .join("collateral_eval")
@@ -936,7 +982,7 @@ pub(crate) fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
 /// serve-boundary backstop that catches every present and future silent-skip
 /// without having to touch each of those branches individually.
 #[cfg(feature = "gpu")]
-pub(crate) fn assert_serve_preconditions(run_dir: &std::path::Path) -> Result<()> {
+fn assert_serve_preconditions(run_dir: &std::path::Path) -> Result<()> {
     use anyhow::Context;
 
     let receipt_path = run_dir.join("gate_receipt.json");
@@ -1090,11 +1136,12 @@ mod serve_preconditions_tests {
 #[cfg(all(test, feature = "gpu"))]
 mod collateral_gate_tests {
     use super::*;
-    use crate::commands::mens::eval_collateral::{BenchScore, run_collateral_damage_with};
+    use crate::commands::mens::eval_collateral::run_collateral_damage_with;
+    use crate::commands::mens::eval_collateral::test_support::{ALPHA, paired};
     use std::path::Path;
     use vox_eval::reasoning_bench::SLICE_NAMES;
 
-    /// The six reasoning keys at 20/32 (0.625) accuracy and think-initiation.
+    /// The six reasoning keys at 80/128 (0.625) accuracy and think-initiation.
     const SIX: &str = r#""gsm8k_think":0.625,"gsm8k_think_init":0.625,"math500_think":0.625,"math500_think_init":0.625,"vox_think":0.625,"vox_think_init":0.625"#;
 
     fn slice_file(dir: &Path, slice: &str) -> std::path::PathBuf {
@@ -1109,13 +1156,15 @@ mod collateral_gate_tests {
         let dir = tempfile::tempdir().unwrap();
         let pre = dir.path().join("pre.json");
         std::fs::write(&pre, format!(r#"{{"benchmarks":{{{SIX}}}}}"#)).unwrap();
-        let mut scorer = |_: &str| {
-            Ok(BenchScore {
-                value: 0.625,
-                n: Some(32),
-            })
+        let mut scorer = |bench: &str| {
+            let mut s = paired(80, 80);
+            s.items_blake3 = Some(format!(
+                "h-{}",
+                bench.trim_end_matches(vox_eval::reasoning_slice::THINK_INIT_SUFFIX)
+            ));
+            Ok(s)
         };
-        let code = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap();
+        let code = run_collateral_damage_with(&pre, dir.path(), ALPHA, &mut scorer).unwrap();
         assert_eq!(code, 0, "the fixture baseline must pass");
         for name in SLICE_NAMES {
             let path = slice_file(dir.path(), name);
@@ -1123,7 +1172,8 @@ mod collateral_gate_tests {
             std::fs::write(
                 path,
                 format!(
-                    r#"{{"benchmark":"{name}","status":"scored","n":32,"accuracy":0.625,"think_initiation_rate":0.625}}"#
+                    r#"{{"benchmark":"{name}","status":"scored","n":{},"accuracy":0.625,"think_initiation_rate":0.625}}"#,
+                    vox_eval::reasoning_bench::SLICE_SIZE
                 ),
             )
             .unwrap();
@@ -1135,8 +1185,41 @@ mod collateral_gate_tests {
         dir.join("collateral_damage_report.json")
     }
 
+    fn test_req(dir: &Path) -> vox_eval::collateral_evidence::CollateralRequirement {
+        let path = report_path(dir);
+        if let Ok(raw) = std::fs::read_to_string(&path) {
+            if let Ok(report) = serde_json::from_str::<serde_json::Value>(&raw) {
+                if let Some(pins_val) = report.get("slice_blake3").and_then(|v| v.as_object()) {
+                    let mut slices = std::collections::HashMap::new();
+                    for (k, v) in pins_val {
+                        if let Some(s) = v.as_str() {
+                            slices.insert(k.clone(), s.to_string());
+                        }
+                    }
+                    return vox_eval::collateral_evidence::CollateralRequirement {
+                        slices,
+                        rule: vox_eval::reasoning_slice::PAIRED_RULE.to_string(),
+                        alpha: ALPHA,
+                        grader: vox_eval::qwen_reasoning::GRADER_ID.to_string(),
+                    };
+                }
+            }
+        }
+        let mut slices = std::collections::HashMap::new();
+        for name in SLICE_NAMES {
+            slices.insert(name.to_string(), "test_hash".to_string());
+        }
+        vox_eval::collateral_evidence::CollateralRequirement {
+            slices,
+            rule: vox_eval::reasoning_slice::PAIRED_RULE.to_string(),
+            alpha: ALPHA,
+            grader: vox_eval::qwen_reasoning::GRADER_ID.to_string(),
+        }
+    }
+
     fn gate_err(dir: &Path) -> String {
-        assert_collateral_gate(dir)
+        let req = test_req(dir);
+        assert_collateral_gate(dir, &req)
             .expect_err("the gate must refuse")
             .to_string()
     }
@@ -1145,7 +1228,59 @@ mod collateral_gate_tests {
     fn a_report_written_by_the_writer_is_accepted() {
         let dir = valid_adapter_dir();
         assert!(!dir.path().join("gate_receipt.json").exists());
-        assert_collateral_gate(dir.path()).unwrap();
+        let req = test_req(dir.path());
+        assert_collateral_gate(dir.path(), &req).unwrap();
+    }
+
+    #[test]
+    fn a_report_checked_at_another_alpha_is_refused() {
+        let dir = valid_adapter_dir();
+        let mut req = test_req(dir.path());
+        req.alpha = 0.10;
+        let e = assert_collateral_gate(dir.path(), &req)
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("alpha"), "{e}");
+    }
+
+    #[test]
+    fn a_report_with_slice_blake3_removed_is_refused() {
+        let dir = valid_adapter_dir();
+        let req = test_req(dir.path());
+        edit_report(dir.path(), "/slice_blake3", serde_json::json!({}));
+        let e = assert_collateral_gate(dir.path(), &req)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            e.contains("refused") && (e.contains("slice_blake3") || e.contains("slice")),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn a_report_with_rule_edited_is_refused() {
+        let dir = valid_adapter_dir();
+        let req = test_req(dir.path());
+        edit_report(
+            dir.path(),
+            "/reasoning_slices/rule",
+            serde_json::json!("other_rule"),
+        );
+        let e = assert_collateral_gate(dir.path(), &req)
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("refused") && e.contains("rule"), "{e}");
+    }
+
+    #[test]
+    fn a_report_with_grader_changed_is_refused() {
+        let dir = valid_adapter_dir();
+        let req = test_req(dir.path());
+        edit_report(dir.path(), "/grader", serde_json::json!("other_grader"));
+        let e = assert_collateral_gate(dir.path(), &req)
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("refused") && e.contains("grader"), "{e}");
     }
 
     #[test]
@@ -1186,52 +1321,48 @@ mod collateral_gate_tests {
     }
 
     #[test]
-    fn a_hand_edited_pass_over_a_ten_percent_accuracy_drop_is_refused() {
+    fn a_hand_edited_pass_over_regressed_accuracy_counts_is_refused() {
         let dir = valid_adapter_dir();
         edit_report(
             dir.path(),
-            "/reasoning_slices/benches/gsm8k_think/accuracy/post",
-            serde_json::json!(0.5625),
+            "/reasoning_slices/benches/gsm8k_think/accuracy/losses",
+            serde_json::json!(5),
         );
         let e = gate_err(dir.path());
-        assert!(e.contains("gsm8k_think"), "{e}");
+        assert!(e.contains("gsm8k_think regressed"), "{e}");
     }
 
     #[test]
-    fn a_hand_edited_pass_over_a_think_initiation_drop_is_refused() {
+    fn a_hand_edited_pass_over_a_think_initiation_regression_is_refused() {
         let dir = valid_adapter_dir();
         let base = "/reasoning_slices/benches/math500_think/think_initiation";
-        edit_report(dir.path(), &format!("{base}/pre"), serde_json::json!(0.5));
-        edit_report(
-            dir.path(),
-            &format!("{base}/post"),
-            serde_json::json!(0.46875),
-        );
+        edit_report(dir.path(), &format!("{base}/losses"), serde_json::json!(6));
         let report: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(report_path(dir.path())).unwrap())
                 .unwrap();
         assert_eq!(
-            report.pointer(&format!("{base}/exceeds_threshold")),
+            report.pointer(&format!("{base}/regressed")),
             Some(&serde_json::json!(false)),
-            "the stored verdict must still claim no drop"
+            "the stored verdict must still claim no regression"
         );
         let e = gate_err(dir.path());
         assert!(e.contains("math500_think_init"), "{e}");
     }
 
     #[test]
-    fn an_out_of_range_stored_number_is_refused() {
+    fn an_inconsistent_stored_count_is_refused() {
         let dir = valid_adapter_dir();
-        // 1.5 is valid JSON (unlike 1e999, which serde_json rejects while
-        // parsing), so the refusal can only come from the [0, 1] range guard.
         edit_report(
             dir.path(),
-            "/reasoning_slices/benches/gsm8k_think/accuracy/post",
-            serde_json::json!(1.5),
+            "/reasoning_slices/benches/gsm8k_think/accuracy/gains",
+            // One more gain than the 48 items the base got wrong.
+            serde_json::json!(vox_eval::reasoning_bench::SLICE_SIZE - 80 + 1),
         );
         let e = gate_err(dir.path());
-        assert!(e.contains("outside [0, 1]"), "{e}");
-        assert!(e.contains("gsm8k_think"), "{e}");
+        assert!(
+            e.contains("inconsistent") && e.contains("gsm8k_think"),
+            "{e}"
+        );
     }
 
     #[test]

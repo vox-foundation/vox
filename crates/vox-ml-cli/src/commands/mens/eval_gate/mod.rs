@@ -3,17 +3,15 @@
 //! Reads `mens/config/eval-gates.yaml` and validates run artifacts.
 //! Exits non-zero if any blocking gate fails.
 
-// Re-exports are consumed by feature-gated `populi` / `ai::train` call sites; default `cargo check` may not reference every name.
 #![allow(unused_imports)]
 
 pub mod baseline;
-pub mod bfcl;
 mod check_run;
 mod io;
 pub mod leakage;
 mod legacy;
 pub mod planning_eval;
-mod policy;
+pub mod policy;
 mod run_gate;
 #[cfg(test)]
 mod tests;
@@ -22,7 +20,6 @@ pub use baseline::{
     BaselineEntry, BaselineReport, beat_base, capture_baseline, load_baseline, save_baseline,
     wilson_ci,
 };
-pub use bfcl::{BfclGate, check_bfcl};
 pub use check_run::{GateResult, check_run};
 pub use leakage::{
     BenchTask, SplitManifest, assert_no_leakage, assert_no_text_leakage, leaked_bench_task,
@@ -35,8 +32,7 @@ pub(crate) use legacy::{
 };
 pub use planning_eval::{PlanningEvalResult, evaluate_plan_sequence};
 pub use policy::{
-    ContextGateEntry, EvalGatePolicy, EvalLocalGate, McpToolSchemaGate, ModalMixGate, PassAtKGate,
-    PerplexityGate, ReviewRecurrenceGate, SupervisedRatioGate, ThroughputGate, TruncationGate,
-    load_policy,
+    AntiStubGate, CollateralDamageGate, EvalGatePolicy, PassAtKGate, SlicePin, SupervisedRatioGate,
+    load_policy, load_policy_value,
 };
 pub use run_gate::run_eval_gate;

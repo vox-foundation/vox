@@ -1,7 +1,7 @@
 //! Resolve a spoke capability tag -> concrete fine-tunable base that fits VRAM.
 //! Overlay source: `train_bases:` in mens/config/gpu-specs.yaml. Pure core +
 //! a thin disk loader; reuses vram_autodetect for the live VRAM number.
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Preset names accepted by `--preset` / planner normalization.
@@ -31,28 +31,18 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "vox-gen",
     // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
     "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_6g",      // Qwen3-1.7B QLoRA (6 GB class), live selector rung
+    "qwen3_12g",     // Qwen3-4B QLoRA (10-12 GB class), live selector rung
     "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
     "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
     "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
     "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
 ];
 
-fn default_floor_measured() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct TrainBase {
     pub hf_id: String,
-    /// Missing key is `None`. A measured rung must still carry a floor;
-    /// `parse_overlay` rejects `floor_measured: true` with no `floor_mb`, and
-    /// `floor_measured: false` with a number, so a guessed floor cannot load.
-    #[serde(default)]
-    pub floor_mb: Option<u32>,
-    /// `false` marks a rung whose floor has not been measured. Existing rows
-    /// omit the key and stay measured. `pick_base` skips unmeasured rows.
-    #[serde(default = "default_floor_measured")]
-    pub floor_measured: bool,
+    pub floor_mb: u32,
     #[serde(default)]
     pub methods: Vec<String>,
     /// SPDX-ish license identifier for this exact base checkpoint (e.g.
@@ -66,12 +56,75 @@ pub struct TrainBase {
     /// must carry an attribution notice per the base's license terms.
     #[serde(default)]
     pub attribution_required: bool,
+    /// True only after `floor_mb` was measured on hardware; otherwise it is an
+    /// estimate. Deliberately has no serde default: a rung without the key
+    /// fails to load.
+    pub floor_measured: bool,
+    /// Host and accelerator of the measurement; present only when `floor_measured`.
+    #[serde(default)]
+    pub measured_on: Option<String>,
+    /// Measured peak memory (MB); present only when `floor_measured`.
+    #[serde(default)]
+    pub peak_mb: Option<u32>,
 }
 
-/// Largest measured candidate for `tag` whose `floor_mb` is `Some` and
-/// `<= vram_mb`. Rows with `floor_measured: false` are not candidates.
-/// Errors if the tag is unknown or nothing fits (fail-closed — never silently
-/// pick a too-big base).
+impl TrainBase {
+    /// One-line floor report, e.g. `qlora floor 7400 MB is an estimate (floor unmeasured)`.
+    pub fn floor_label(&self) -> String {
+        let methods = self.methods.join("+");
+        if !self.floor_measured {
+            return format!(
+                "{methods} floor {} MB is an estimate (floor unmeasured)",
+                self.floor_mb
+            );
+        }
+        format!(
+            "{methods} floor {} MB measured on {} (peak {} MB)",
+            self.floor_mb,
+            self.measured_on.as_deref().unwrap_or("?"),
+            self.peak_mb
+                .map_or_else(|| "?".to_string(), |p| p.to_string())
+        )
+    }
+}
+
+/// Every rung whose `hf_id` equals `hf_id` exactly (a different revision or a
+/// bare repo id matches nothing), across all tags, sorted by `(floor_mb,
+/// methods)`. Only fully equal rungs are deduped, so an inconsistent copy of a
+/// repeated rung stays visible.
+pub fn rungs_for_hf_id<'a>(
+    overlay: &'a HashMap<String, Vec<TrainBase>>,
+    hf_id: &str,
+) -> Vec<&'a TrainBase> {
+    let mut rungs: Vec<&TrainBase> = overlay
+        .values()
+        .flatten()
+        .filter(|b| b.hf_id == hf_id)
+        .collect();
+    rungs.sort_by(|a, b| (a.floor_mb, &a.methods).cmp(&(b.floor_mb, &b.methods)));
+    rungs.dedup_by(|a, b| a == b);
+    rungs
+}
+
+/// Train-start report of the base's ladder rungs: one [`TrainBase::floor_label`]
+/// per rung of `hf_id`. Errs when the overlay does not parse, so a malformed
+/// gpu-specs.yaml is reported rather than read as "no rungs".
+pub fn floor_notes(
+    workspace_root: Option<&std::path::Path>,
+    hf_id: &str,
+) -> anyhow::Result<Vec<String>> {
+    let overlay = match workspace_root {
+        Some(root) => load_overlay(root)?,
+        None => load_embedded_overlay()?,
+    };
+    Ok(rungs_for_hf_id(&overlay, hf_id)
+        .iter()
+        .map(|b| b.floor_label())
+        .collect())
+}
+
+/// Largest candidate for `tag` whose `floor_mb <= vram_mb`. Errors if the tag is
+/// unknown or nothing fits (fail-closed — never silently pick a too-big base).
 pub fn pick_base<'a>(
     overlay: &'a HashMap<String, Vec<TrainBase>>,
     tag: &str,
@@ -82,119 +135,9 @@ pub fn pick_base<'a>(
     })?;
     candidates
         .iter()
-        .filter(|b| b.floor_measured && b.floor_mb.is_some_and(|floor| floor <= vram_mb))
+        .filter(|b| b.floor_mb <= vram_mb)
         .max_by_key(|b| b.floor_mb)
         .ok_or_else(|| anyhow::anyhow!("no '{tag}' base fits {vram_mb}MB VRAM"))
-}
-
-/// Pinned qwen3_code QLoRA identity for one dense Qwen3 size.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Qwen3SizePin {
-    pub hf_id: String,
-    pub revision: String,
-    pub license: String,
-    pub floor_measured: bool,
-}
-
-const QWEN3_SIZE_TOKENS: &[&str] = &["0.6B", "1.7B", "4B", "8B", "14B", "32B"];
-
-/// Exact size spellings `resolve_qwen3_size` accepts. No trim and no case fold.
-/// Capability tags such as `qwen3_16g` are `false` so callers can keep them on
-/// the memory picker instead of sending them here.
-pub fn is_qwen3_size_spelling(size: &str) -> bool {
-    qwen3_size_token(size).is_some()
-}
-
-fn qwen3_size_token(size: &str) -> Option<&'static str> {
-    if let Some(token) = QWEN3_SIZE_TOKENS
-        .iter()
-        .copied()
-        .find(|token| *token == size)
-    {
-        return Some(token);
-    }
-    for prefix in ["Qwen3-", "Qwen/Qwen3-"] {
-        if let Some(rest) = size.strip_prefix(prefix)
-            && let Some(token) = QWEN3_SIZE_TOKENS
-                .iter()
-                .copied()
-                .find(|token| *token == rest)
-        {
-            return Some(token);
-        }
-    }
-    None
-}
-
-fn pin_repo_id(hf_id: &str) -> &str {
-    hf_id.split_once('@').map(|(repo, _)| repo).unwrap_or(hf_id)
-}
-
-fn is_40_lowercase_hex(revision: &str) -> bool {
-    revision.len() == 40
-        && revision
-            .bytes()
-            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-}
-
-/// Resolve a dense Qwen3 size to the single `train_bases.qwen3_code` QLoRA pin.
-///
-/// Accepted spellings are the size token (`1.7B`), `Qwen3-<size>`, and
-/// `Qwen/Qwen3-<size>`. Anything else, including a capability tag, is an error.
-/// The license is the row's license; a missing license is an error.
-pub fn resolve_qwen3_size(
-    overlay: &HashMap<String, Vec<TrainBase>>,
-    size: &str,
-) -> anyhow::Result<Qwen3SizePin> {
-    let token = qwen3_size_token(size)
-        .ok_or_else(|| anyhow::anyhow!("unknown Qwen3 size spelling '{size}'"))?;
-    let repo = format!("Qwen/Qwen3-{token}");
-    let rows = overlay
-        .get("qwen3_code")
-        .ok_or_else(|| anyhow::anyhow!("train_bases has no qwen3_code tag to resolve '{size}'"))?;
-    let mut matched: Vec<&TrainBase> = Vec::new();
-    for base in rows {
-        if !base.methods.iter().any(|method| method == "qlora") {
-            continue;
-        }
-        if pin_repo_id(&base.hf_id) != repo {
-            continue;
-        }
-        if matched.iter().any(|seen| seen.hf_id == base.hf_id) {
-            continue;
-        }
-        matched.push(base);
-    }
-    if matched.len() != 1 {
-        anyhow::bail!(
-            "expected exactly one qwen3_code qlora pin for {repo}, found {}",
-            matched.len()
-        );
-    }
-    let base = matched[0];
-    let revision = base
-        .hf_id
-        .split_once('@')
-        .map(|(_, revision)| revision)
-        .filter(|revision| is_40_lowercase_hex(revision))
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "qwen3_code pin '{}' revision is not 40 lowercase hex",
-                base.hf_id
-            )
-        })?;
-    let license = base.license.clone().ok_or_else(|| {
-        anyhow::anyhow!(
-            "qwen3_code pin '{}' has no license; refusing to assume apache-2.0",
-            base.hf_id
-        )
-    })?;
-    Ok(Qwen3SizePin {
-        hf_id: base.hf_id.clone(),
-        revision: revision.to_string(),
-        license,
-        floor_measured: base.floor_measured,
-    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -206,18 +149,26 @@ struct GpuSpecsTrainBases {
 fn parse_overlay(raw: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
     let parsed: GpuSpecsTrainBases = serde_yaml::from_str(raw)
         .map_err(|e| anyhow::anyhow!("parse train_bases in gpu-specs.yaml: {e}"))?;
-    for (tag, bases) in &parsed.train_bases {
-        for base in bases {
-            if base.floor_measured && base.floor_mb.is_none() {
+    for (tag, rungs) in &parsed.train_bases {
+        for b in rungs {
+            let has_host = b
+                .measured_on
+                .as_deref()
+                .is_some_and(|s| !s.trim().is_empty());
+            let has_peak = b.peak_mb.is_some();
+            let ok = if b.floor_measured {
+                // pick_base trusts floor_mb, so the measured peak must fit under it.
+                has_host && b.peak_mb.is_some_and(|p| p > 0 && p <= b.floor_mb)
+            } else {
+                b.measured_on.is_none() && !has_peak
+            };
+            if !ok {
                 anyhow::bail!(
-                    "train_bases.{tag} rung '{}' is measured but has no floor_mb",
-                    base.hf_id
-                );
-            }
-            if !base.floor_measured && base.floor_mb.is_some() {
-                anyhow::bail!(
-                    "train_bases.{tag} rung '{}' is unmeasured and must not set floor_mb",
-                    base.hf_id
+                    "train_bases.{tag} rung {}: floor_measured is {} but measured_on/peak_mb \
+                     disagree; a measured floor needs measured_on and a peak_mb in \
+                     1..=floor_mb, an estimate carries neither",
+                    b.hf_id,
+                    b.floor_measured
                 );
             }
         }
@@ -227,7 +178,7 @@ fn parse_overlay(raw: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
 
 /// Compile-time copy so an installed `vox` can resolve `agentic_default`
 /// without a Vox Cargo workspace checkout.
-fn load_embedded_overlay() -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+pub(crate) fn load_embedded_overlay() -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
     const EMBEDDED: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../mens/config/gpu-specs.yaml"
@@ -239,27 +190,28 @@ pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Ve
     let p = root.join("mens/config/gpu-specs.yaml");
     match std::fs::read_to_string(&p) {
         Ok(s) => parse_overlay(&s),
-        Err(_) => load_embedded_overlay(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => load_embedded_overlay(),
+        Err(e) => Err(anyhow::anyhow!("read {}: {e}", p.display())),
     }
 }
 
 /// License metadata for a concrete `hf_id` (exact match, including any pinned
 /// `@sha` suffix), looked up across every `train_bases` rung regardless of tag.
-/// `None` when `hf_id` doesn't appear in any known rung (e.g. an ad hoc
-/// `--model` that isn't in `gpu-specs.yaml`).
+/// `Ok(None)` when `hf_id` doesn't appear in any known rung (e.g. an ad hoc
+/// `--model` that isn't in `gpu-specs.yaml`); `Err` when the overlay does not parse.
 fn license_for_hf_id(
     workspace_root: Option<&std::path::Path>,
     hf_id: &str,
-) -> Option<(Option<String>, bool)> {
+) -> anyhow::Result<Option<(Option<String>, bool)>> {
     let overlay = match workspace_root {
-        Some(root) => load_overlay(root).ok()?,
-        None => load_embedded_overlay().ok()?,
+        Some(root) => load_overlay(root)?,
+        None => load_embedded_overlay()?,
     };
-    overlay
+    Ok(overlay
         .values()
         .flatten()
         .find(|b| b.hf_id == hf_id)
-        .map(|b| (b.license.clone(), b.attribution_required))
+        .map(|b| (b.license.clone(), b.attribution_required)))
 }
 
 /// Conservative attribution-requirement default for a `--license-class` override whose
@@ -293,7 +245,10 @@ pub fn resolve_license_class(
     hf_id: Option<&str>,
     cli_override: Option<String>,
 ) -> anyhow::Result<(String, bool)> {
-    let resolved = hf_id.and_then(|id| license_for_hf_id(workspace_root, id));
+    let resolved = match hf_id {
+        Some(id) => license_for_hf_id(workspace_root, id)?,
+        None => None,
+    };
     if let Some(explicit) = cli_override {
         // If the base IS in gpu-specs.yaml, trust its recorded attribution_required — it was
         // reviewed when the entry was added. If the base is unmapped (`resolved` is `None`:
@@ -369,294 +324,6 @@ pub fn resolve_base_model(
     Ok(pick_base(&overlay, base_model, vram_mb)?.hf_id.clone())
 }
 
-/// Fail-closed Metal default: pick the largest `agentic_default` rung that
-/// fits `vram_mb`. Used by `vox mens train` **before** the CandleQlora
-/// `DEFAULT_MODEL_ID` fill so a Mac does not silently land on Qwen3-8B.
-///
-/// `workspace_root` may be `None` (installed binary); the overlay then comes
-/// from the compile-time `gpu-specs.yaml` embed.
-pub fn resolve_metal_default_base(
-    workspace_root: Option<&std::path::Path>,
-    vram_mb: u64,
-) -> anyhow::Result<String> {
-    let overlay = match workspace_root {
-        Some(root) => load_overlay(root)?,
-        None => load_embedded_overlay()?,
-    };
-    let base = pick_base(&overlay, "agentic_default", vram_mb as u32).map_err(|e| {
-        anyhow::anyhow!(
-            "{e} (live-available unified memory: {vram_mb} MB; agentic_default floor is 11000 MB). \
-             Pass --model, set VOX_MENS_DEFAULT_MODEL, or free memory. (This `vram_mb` comes from \
-             `hardware::macos_metal::probe_metal`'s `recommendedMaxWorkingSetSize` accessor, not \
-             live `vm_stat` pressure — that's a separate, additional constraint applied to the \
-             training working-set budget in `tensor::accel_budget::query_accel_budget`. \
-             `VOX_MENS_DISABLE_LIVE_MEM` is not a recognized toggle for either path.)"
-        )
-    })?;
-    ensure_not_placeholder(&base.hf_id)?;
-    Ok(base.hf_id.clone())
-}
-
-/// CLI precedence for the Metal default base: `--model` and
-/// `VOX_MENS_DEFAULT_MODEL` win; explicit `--device cpu`/`cuda` skip; nvidia
-/// never resolves. Fail-closed when the pick itself fails.
-pub fn maybe_resolve_metal_default_base(
-    model: Option<&str>,
-    env_default_model: Option<&str>,
-    vendor: &str,
-    device_best_or_metal: bool,
-    workspace_root: Option<&std::path::Path>,
-    vram_mb: u64,
-) -> anyhow::Result<Option<String>> {
-    let model_set = model.map(str::trim).filter(|s| !s.is_empty()).is_some();
-    let env_set = env_default_model
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .is_some();
-    if model_set || env_set || !device_best_or_metal {
-        return Ok(None);
-    }
-    if crate::mens::tensor::vram_autodetect::AcceleratorKind::from_vendor(vendor)
-        != crate::mens::tensor::vram_autodetect::AcceleratorKind::Metal
-    {
-        return Ok(None);
-    }
-    Ok(Some(resolve_metal_default_base(workspace_root, vram_mb)?))
-}
-
-/// Largest measured `qwen3_code` QLoRA size that fits one free-memory reading.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Qwen3LivePick {
-    pub hf_id: String,
-    pub size_token: String,
-    pub preset: String,
-    pub floor_mb: u32,
-    pub free_mb: u32,
-}
-
-/// Automatic pick, or an explicit size that must not be replaced.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SizeChoice {
-    Automatic(Qwen3LivePick),
-    Explicit(Qwen3LivePick),
-}
-
-/// Original size, the size that still fits at load, and the reading that decided.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PreloadRevision {
-    pub original_size: String,
-    pub loaded_size: String,
-    pub original_hf_id: String,
-    pub loaded_hf_id: String,
-    pub loaded_preset: String,
-    pub free_mb: u32,
-}
-
-fn preset_for_qwen3_size_token(token: &str) -> anyhow::Result<&'static str> {
-    match token {
-        "0.6B" => Ok("qwen3_dev_cpu"),
-        "8B" => Ok("qwen3_16g"),
-        "14B" => Ok("qwen3_24g"),
-        "32B" => Ok("qwen3_96g"),
-        other => anyhow::bail!("no qwen3_code QLoRA preset for size {other}"),
-    }
-}
-
-fn live_pick_from_row(row: &TrainBase, free_mb: u32) -> anyhow::Result<Qwen3LivePick> {
-    let token = qwen3_size_token(pin_repo_id(&row.hf_id)).ok_or_else(|| {
-        anyhow::anyhow!(
-            "winning qwen3_code qlora row '{}' is not a dense Qwen3 size",
-            row.hf_id
-        )
-    })?;
-    let floor_mb = row.floor_mb.ok_or_else(|| {
-        anyhow::anyhow!(
-            "winning qwen3_code qlora row '{}' has no floor_mb",
-            row.hf_id
-        )
-    })?;
-    Ok(Qwen3LivePick {
-        hf_id: row.hf_id.clone(),
-        size_token: token.to_string(),
-        preset: preset_for_qwen3_size_token(token)?.to_string(),
-        floor_mb,
-        free_mb,
-    })
-}
-
-/// `qwen3_code` rows whose methods contain `qlora`, under that same tag.
-fn qwen3_code_qlora_overlay(
-    overlay: &HashMap<String, Vec<TrainBase>>,
-) -> HashMap<String, Vec<TrainBase>> {
-    let rows = overlay
-        .get("qwen3_code")
-        .into_iter()
-        .flatten()
-        .filter(|base| base.methods.iter().any(|method| method == "qlora"))
-        .cloned()
-        .collect();
-    let mut filtered = HashMap::new();
-    filtered.insert("qwen3_code".to_string(), rows);
-    filtered
-}
-
-fn select_qwen3_code_qlora_from_overlay(
-    overlay: &HashMap<String, Vec<TrainBase>>,
-    free_mb: u32,
-) -> anyhow::Result<Qwen3LivePick> {
-    let filtered = qwen3_code_qlora_overlay(overlay);
-    let winner = pick_base(&filtered, "qwen3_code", free_mb)?;
-    live_pick_from_row(winner, free_mb)
-}
-
-/// Largest measured `qwen3_code` QLoRA floor that fits `free_mb`, via `pick_base`.
-pub fn select_qwen3_code_qlora_for_free_mb(free_mb: u32) -> anyhow::Result<Qwen3LivePick> {
-    let overlay = match vox_corpus::training::contract::find_workspace_root() {
-        Some(root) => load_overlay(&root)?,
-        None => load_embedded_overlay()?,
-    };
-    select_qwen3_code_qlora_from_overlay(&overlay, free_mb)
-}
-
-/// Explicit `resolve_qwen3_size` spelling. Unlike the automatic pick, this does
-/// not step down when the QLoRA floor is above `free_mb`.
-pub fn explicit_qwen3_code_qlora_for_free_mb(
-    size: &str,
-    free_mb: u32,
-) -> anyhow::Result<Qwen3LivePick> {
-    let overlay = match vox_corpus::training::contract::find_workspace_root() {
-        Some(root) => load_overlay(&root)?,
-        None => load_embedded_overlay()?,
-    };
-    explicit_qwen3_size_for_free_mb(&overlay, size, free_mb)
-}
-
-fn revision_keeping(pick: &Qwen3LivePick, free_mb_at_load: u32) -> PreloadRevision {
-    PreloadRevision {
-        original_size: pick.size_token.clone(),
-        loaded_size: pick.size_token.clone(),
-        original_hf_id: pick.hf_id.clone(),
-        loaded_hf_id: pick.hf_id.clone(),
-        loaded_preset: pick.preset.clone(),
-        free_mb: free_mb_at_load,
-    }
-}
-
-fn qwen3_code_qlora_floor_mb(
-    overlay: &HashMap<String, Vec<TrainBase>>,
-    hf_id: &str,
-) -> anyhow::Result<u32> {
-    let rows = overlay
-        .get("qwen3_code")
-        .ok_or_else(|| anyhow::anyhow!("train_bases has no qwen3_code tag"))?;
-    let row = rows
-        .iter()
-        .find(|base| base.hf_id == hf_id && base.methods.iter().any(|method| method == "qlora"))
-        .ok_or_else(|| anyhow::anyhow!("no qwen3_code qlora row for '{hf_id}'"))?;
-    row.floor_mb
-        .ok_or_else(|| anyhow::anyhow!("qwen3_code qlora row '{hf_id}' has no floor_mb"))
-}
-
-/// Accept only spellings `resolve_qwen3_size` accepts. Unmeasured rows and a
-/// QLoRA floor above `free_mb` are errors. This path does not pick a smaller size.
-pub fn explicit_qwen3_size_for_free_mb(
-    overlay: &HashMap<String, Vec<TrainBase>>,
-    size: &str,
-    free_mb: u32,
-) -> anyhow::Result<Qwen3LivePick> {
-    let pin = resolve_qwen3_size(overlay, size)?;
-    if !pin.floor_measured {
-        anyhow::bail!("Qwen3 size '{size}' is unmeasured and cannot be selected");
-    }
-    let floor_mb = qwen3_code_qlora_floor_mb(overlay, &pin.hf_id)?;
-    if floor_mb > free_mb {
-        anyhow::bail!(
-            "Qwen3 size '{size}' QLoRA floor {floor_mb} MB exceeds free memory {free_mb} MB"
-        );
-    }
-    let token = qwen3_size_token(size)
-        .ok_or_else(|| anyhow::anyhow!("unknown Qwen3 size spelling '{size}'"))?;
-    Ok(Qwen3LivePick {
-        hf_id: pin.hf_id,
-        size_token: token.to_string(),
-        preset: preset_for_qwen3_size_token(token)?.to_string(),
-        floor_mb,
-        free_mb,
-    })
-}
-
-/// Keep an automatic pick whose floor still fits. Otherwise step down through
-/// the same QLoRA picker. An explicit size is refused when its floor no longer fits.
-pub fn confirm_before_load(
-    overlay: &HashMap<String, Vec<TrainBase>>,
-    choice: &SizeChoice,
-    free_mb_at_load: u32,
-) -> anyhow::Result<PreloadRevision> {
-    match choice {
-        SizeChoice::Automatic(pick) => {
-            if pick.floor_mb <= free_mb_at_load {
-                Ok(revision_keeping(pick, free_mb_at_load))
-            } else {
-                let loaded = select_qwen3_code_qlora_from_overlay(overlay, free_mb_at_load)?;
-                Ok(PreloadRevision {
-                    original_size: pick.size_token.clone(),
-                    loaded_size: loaded.size_token,
-                    original_hf_id: pick.hf_id.clone(),
-                    loaded_hf_id: loaded.hf_id,
-                    loaded_preset: loaded.preset,
-                    free_mb: free_mb_at_load,
-                })
-            }
-        }
-        SizeChoice::Explicit(pick) => {
-            if pick.floor_mb > free_mb_at_load {
-                anyhow::bail!(
-                    "explicit Qwen3 size '{}' QLoRA floor {} MB exceeds free memory {} MB; refusing to substitute a smaller size",
-                    pick.size_token,
-                    pick.floor_mb,
-                    free_mb_at_load
-                );
-            }
-            Ok(revision_keeping(pick, free_mb_at_load))
-        }
-    }
-}
-
-/// CUDA `memory.free` wins when present. Otherwise Metal `memory_free_mb`.
-/// Both absent is an error. There is no environment override.
-pub fn free_mb_from_readings(
-    cuda: Option<crate::mens::tensor::vram_autodetect::VramInfo>,
-    metal_free_mb: Option<u64>,
-) -> anyhow::Result<u32> {
-    if let Some(info) = cuda {
-        let mb = info.free_gb * 1024.0;
-        if !mb.is_finite() || mb < 0.0 {
-            anyhow::bail!("CUDA free memory {mb} is not a usable MiB reading");
-        }
-        return Ok(mb.round() as u32);
-    }
-    if let Some(mb) = metal_free_mb {
-        return u32::try_from(mb)
-            .map_err(|_| anyhow::anyhow!("Metal memory_free_mb {mb} does not fit in u32"));
-    }
-    anyhow::bail!(
-        "no accelerator free-memory reading (CUDA free and Metal memory_free_mb are both absent)"
-    )
-}
-
-/// Live free memory: `query_nvidia_smi_vram`'s free field, else `monitor_metal`'s
-/// `memory_free_mb`. Unit tests inject readings into `free_mb_from_readings` instead.
-pub fn read_accelerator_free_mb() -> anyhow::Result<u32> {
-    let cuda = crate::mens::tensor::vram_autodetect::query_nvidia_smi_vram();
-    let metal_free_mb = if cuda.is_some() {
-        None
-    } else {
-        crate::mens::hardware::macos_metal::monitor_metal()
-            .map(|telemetry| telemetry.memory_free_mb)
-    };
-    free_mb_from_readings(cuda, metal_free_mb)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -668,19 +335,23 @@ mod tests {
             vec![
                 TrainBase {
                     hf_id: "small".into(),
-                    floor_mb: Some(6000),
-                    floor_measured: true,
+                    floor_mb: 6000,
                     methods: vec!["qlora".into()],
                     license: Some("apache-2.0".into()),
                     attribution_required: false,
+                    floor_measured: false,
+                    measured_on: None,
+                    peak_mb: None,
                 },
                 TrainBase {
                     hf_id: "big".into(),
-                    floor_mb: Some(11000),
-                    floor_measured: true,
+                    floor_mb: 11000,
                     methods: vec!["qlora".into()],
                     license: None,
                     attribution_required: false,
+                    floor_measured: false,
+                    measured_on: None,
+                    peak_mb: None,
                 },
             ],
         );
@@ -719,8 +390,15 @@ mod tests {
             .ancestors()
             .nth(2)
             .unwrap();
-        let id = resolve_base_model(root, "strong_code_default", Some(16384)).unwrap();
-        assert!(id.contains("Qwen"), "got {id}");
+        let id = resolve_base_model(root, "strong_code_default", Some(44_000)).unwrap();
+        assert!(id.contains("Qwen3"), "got {id}");
+        // Below every Qwen3 rung: fail closed, never a retired Qwen2.5 base.
+        let err = resolve_base_model(root, "strong_code_default", Some(16384)).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("no 'strong_code_default' base fits"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -742,11 +420,13 @@ mod tests {
             .nth(2)
             .unwrap();
         let overlay = load_overlay(root).expect("load overlay");
-        let base = pick_base(&overlay, "qwen3_code", 24_000).expect("14B fits at 24GB");
+        let floor = qlora_floor(&overlay, "qwen3_code", "Qwen/Qwen3-14B@");
+        let base = pick_base(&overlay, "qwen3_code", floor).expect("14B QLoRA fits");
         assert!(
-            base.hf_id.contains("Qwen3-14B"),
-            "expected Qwen3-14B at 24GB, got: {}",
-            base.hf_id
+            base.hf_id.contains("Qwen3-14B") && base.methods.iter().any(|m| m == "qlora"),
+            "expected Qwen3-14B QLoRA at its floor {floor} MB, got: {} {:?}",
+            base.hf_id,
+            base.methods
         );
         assert!(
             base.hf_id.contains('@'),
@@ -757,8 +437,8 @@ mod tests {
 
     #[test]
     fn qwen3_code_fail_closed_below_floor() {
-        // Lowest qwen3_code rung has floor_mb=2000 (CPU/dev tier, ~0.6B QLoRA).
-        // Anything below 2000 MB must fail-closed — no base should be returned.
+        // Lowest qwen3_code rung floor follows the measured 0.6B QLoRA peak (Phase 320).
+        // Anything below that floor must fail-closed — no base should be returned.
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
             .nth(2)
@@ -793,20 +473,25 @@ mod tests {
         assert!(ensure_not_placeholder("Qwen/Qwen2.5-Coder-7B-Instruct").is_ok());
     }
 
+    /// Floor of the `tag` QLoRA rung whose `hf_id` starts with `prefix`.
+    fn qlora_floor(overlay: &HashMap<String, Vec<TrainBase>>, tag: &str, prefix: &str) -> u32 {
+        overlay[tag]
+            .iter()
+            .find(|b| b.hf_id.starts_with(prefix) && b.methods.iter().any(|m| m == "qlora"))
+            .unwrap_or_else(|| panic!("{tag} has no QLoRA rung {prefix}"))
+            .floor_mb
+    }
+
     #[test]
     fn strong_code_default_16g_resolves_qwen3_8b() {
-        // USER DECISION (Qwen3 everywhere): a 16GB box must resolve to Qwen3-8B,
-        // not fall to Qwen2.5-Coder-7B. The Qwen3-8B rung (floor 12000) must outrank
-        // the Qwen2.5-Coder-7B rung (floor 11000) at 16384 MB.
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(2)
-            .unwrap();
-        let overlay = load_overlay(root).expect("load overlay");
-        let base = pick_base(&overlay, "strong_code_default", 16384).expect("a base fits at 16GB");
+        // USER DECISION (Qwen3 everywhere): once free memory clears the Qwen3-8B
+        // QLoRA floor, strong_code_default resolves Qwen3-8B.
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let floor = qlora_floor(&overlay, "strong_code_default", "Qwen/Qwen3-8B@");
+        let base = pick_base(&overlay, "strong_code_default", floor).expect("a base fits");
         assert!(
             base.hf_id.contains("Qwen3-8B"),
-            "16GB strong_code_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            "{floor} MB strong_code_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
             base.hf_id
         );
     }
@@ -814,18 +499,31 @@ mod tests {
     #[test]
     fn agentic_default_16g_resolves_qwen3_8b() {
         // USER DECISION (Qwen3 everywhere): the agentic_default ladder must also
-        // resolve Qwen3-8B at 16GB (the bare no-domain default tier).
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(2)
-            .unwrap();
-        let overlay = load_overlay(root).expect("load overlay");
-        let base = pick_base(&overlay, "agentic_default", 16384).expect("a base fits at 16GB");
+        // resolve Qwen3-8B once free memory clears its QLoRA floor.
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let floor = qlora_floor(&overlay, "agentic_default", "Qwen/Qwen3-8B@");
+        let base = pick_base(&overlay, "agentic_default", floor).expect("a base fits");
         assert!(
             base.hf_id.contains("Qwen3-8B"),
-            "16GB agentic_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            "{floor} MB agentic_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
             base.hf_id
         );
+    }
+
+    /// Qwen 2.5 is a retired family (AGENTS.md Retired Surfaces: use Qwen 3+),
+    /// so no train_bases tag may offer a Qwen2.5 rung for any selector to pick.
+    #[test]
+    fn no_train_base_tag_offers_a_retired_qwen2_5_rung() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        for (tag, rungs) in &overlay {
+            for b in rungs {
+                assert!(
+                    !b.hf_id.contains("Qwen2.5"),
+                    "train_bases.{tag} offers retired {}",
+                    b.hf_id
+                );
+            }
+        }
     }
 
     #[test]
@@ -838,7 +536,7 @@ mod tests {
             .unwrap();
         let overlay = load_overlay(root).expect("load overlay");
         // Even on a huge card, small_code_default must not exceed an 8B rung.
-        let base = pick_base(&overlay, "small_code_default", 96_000).expect("a base fits");
+        let base = pick_base(&overlay, "small_code_default", 1_000_000).expect("a base fits");
         assert!(
             !base.hf_id.contains("14B")
                 && !base.hf_id.contains("32B")
@@ -878,88 +576,6 @@ mod tests {
     }
 
     #[test]
-    fn resolve_metal_default_base_116g_is_qwen3_32b() {
-        let id = resolve_metal_default_base(Some(workspace_root()), 116_000).expect("116k MB fits");
-        assert!(
-            id.contains("Qwen3-32B"),
-            "116_000 MB agentic_default must resolve Qwen3-32B, got {id}"
-        );
-    }
-
-    #[test]
-    fn resolve_metal_default_base_13926_is_qwen3_8b() {
-        let id = resolve_metal_default_base(Some(workspace_root()), 13926).expect("13926 MB fits");
-        assert!(
-            id.contains("Qwen3-8B"),
-            "13926 MB agentic_default must resolve Qwen3-8B, got {id}"
-        );
-    }
-
-    #[test]
-    fn resolve_metal_default_base_6144_is_fail_closed() {
-        let err = resolve_metal_default_base(Some(workspace_root()), 6144)
-            .expect_err("8 GB is below floor");
-        let msg = err.to_string();
-        assert!(
-            msg.contains("agentic_default"),
-            "fail-closed error must name the tag, got {msg}"
-        );
-        assert!(
-            msg.contains("6144"),
-            "fail-closed error must name the live budget, got {msg}"
-        );
-        assert!(
-            msg.contains("11000") && msg.contains("--model"),
-            "fail-closed error must name the floor and a recovery flag, got {msg}"
-        );
-    }
-
-    #[test]
-    fn maybe_resolve_metal_default_base_honors_precedence() {
-        let root = Some(workspace_root());
-        assert_eq!(
-            maybe_resolve_metal_default_base(
-                Some("org/Explicit"),
-                None,
-                "apple",
-                true,
-                root,
-                116_000
-            )
-            .expect("skip"),
-            None
-        );
-        assert_eq!(
-            maybe_resolve_metal_default_base(None, Some("org/Env"), "apple", true, root, 116_000)
-                .expect("skip"),
-            None
-        );
-        assert_eq!(
-            maybe_resolve_metal_default_base(None, None, "nvidia", true, root, 116_000)
-                .expect("skip"),
-            None
-        );
-        assert_eq!(
-            maybe_resolve_metal_default_base(None, None, "apple", false, root, 116_000)
-                .expect("cpu skip"),
-            None
-        );
-        let got = maybe_resolve_metal_default_base(None, None, "apple", true, root, 116_000)
-            .expect("resolve")
-            .expect("some");
-        assert!(got.contains("Qwen3-32B"), "got {got}");
-        assert!(
-            maybe_resolve_metal_default_base(None, None, "apple", true, root, 6144).is_err(),
-            "6144 must fail-closed before any default id"
-        );
-        let embedded = resolve_metal_default_base(None, 116_000).expect("embedded overlay");
-        assert!(
-            embedded.contains("Qwen3-32B"),
-            "installed-binary fallback must still resolve 32B, got {embedded}"
-        );
-    }
-
-    #[test]
     fn agentic_default_rungs_pin_live_available_mb() {
         // Injected values are live-available MB (vm_stat reclaimable after
         // margin), not nameplate×0.85. 8 GB / 6144 must fail-closed — do not
@@ -967,12 +583,13 @@ mod tests {
         let overlay = load_overlay(workspace_root()).expect("load overlay");
         let cases: &[(u32, Option<(&str, &str)>)] = &[
             (6144, None),
-            // 11–12 GiB window: Qwen2.5-Coder-7B still outranks nothing Qwen3.
-            (11500, Some(("Qwen2.5-Coder-7B", "qlora"))),
-            (13926, Some(("Qwen3-8B", "qlora"))),
-            (20890, Some(("Qwen3-14B", "qlora"))),
-            (27853, Some(("Qwen3-14B", "qlora"))),
-            (31334, Some(("Qwen3-14B", "qlora"))),
+            // Below the cheapest agentic_default Qwen3 rung (Qwen3.8-27B, 34000)
+            // nothing fits: fail closed rather than fall to a retired Qwen2.5 base.
+            (11500, None),
+            (13926, None),
+            (20890, None),
+            (27853, None),
+            (31334, None),
             // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung
             // (floor_mb 34000) correctly displaces Qwen3-14B-LoRA at this
             // real, hardware-measured Mac memory tier — QLoRA's genuinely
@@ -982,7 +599,9 @@ mod tests {
             // in .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
             (41779, Some(("Qwen3.8-27B", "qlora"))),
             (55706, Some(("Qwen3-14B", "lora"))),
-            (83558, Some(("Qwen3-32B", "qlora"))),
+            // Qwen3-8B / 14B QLoRA floors are the Metal estimate (122876 / 195382),
+            // so the 14B un-quantized LoRA rung (44000, an older estimate) wins here.
+            (83558, Some(("Qwen3-14B", "lora"))),
             (111411, Some(("Qwen3-32B", "lora"))),
         ];
         for &(live_mb, expected) in cases {
@@ -991,7 +610,7 @@ mod tests {
                 None => {
                     assert!(
                         got.is_err(),
-                        "8 GB / {live_mb} MB must fail-closed on agentic_default, got {:?}",
+                        "{live_mb} MB must fail-closed on agentic_default, got {:?}",
                         got.ok().map(|b| (&b.hf_id, &b.methods))
                     );
                 }
@@ -1137,396 +756,224 @@ mod tests {
         );
     }
 
-    fn load_temp_overlay(yaml: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let config = dir.path().join("mens/config");
-        std::fs::create_dir_all(&config).expect("config dir");
-        std::fs::write(config.join("gpu-specs.yaml"), yaml).expect("write overlay");
-        load_overlay(dir.path())
+    // ---- Phase 317 (SIZE-01): floor evidence ----
+
+    const PIN_4B: &str = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
+
+    fn qlora_rung(floor_mb: u32) -> TrainBase {
+        TrainBase {
+            hf_id: PIN_4B.into(),
+            floor_mb,
+            methods: vec!["qlora".into()],
+            license: Some("apache-2.0".into()),
+            attribution_required: false,
+            floor_measured: false,
+            measured_on: None,
+            peak_mb: None,
+        }
     }
 
     #[test]
-    fn resolve_qwen3_size_1_7b_pin_and_16g_pick_unchanged() {
-        let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let pin = resolve_qwen3_size(&overlay, "1.7B").expect("1.7B pin");
+    fn floor_label_says_floor_unmeasured_for_an_estimate() {
+        let mut rung = qlora_rung(7400);
         assert_eq!(
-            pin.hf_id,
+            rung.floor_label(),
+            "qlora floor 7400 MB is an estimate (floor unmeasured)"
+        );
+        rung.floor_measured = true;
+        rung.measured_on = Some("m4-max-metal".into());
+        rung.peak_mb = Some(6900);
+        assert_eq!(
+            rung.floor_label(),
+            "qlora floor 7400 MB measured on m4-max-metal (peak 6900 MB)"
+        );
+    }
+
+    #[test]
+    fn overlay_rung_without_floor_measured_is_rejected() {
+        let raw =
+            "train_bases:\n  t:\n    - { hf_id: \"org/M@x\", floor_mb: 1, methods: [qlora] }\n";
+        let e = parse_overlay(raw).expect_err("a rung without floor_measured must not load");
+        assert!(format!("{e:#}").contains("floor_measured"), "{e:#}");
+    }
+
+    #[test]
+    fn rungs_for_hf_id_dedupes_repeats_across_tags() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let floors = |id: &str| -> Vec<u32> {
+            rungs_for_hf_id(&overlay, id)
+                .iter()
+                .map(|b| b.floor_mb)
+                .collect()
+        };
+        assert_eq!(
+            floors("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+            [122876]
+        );
+        assert_eq!(
+            floors("Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"),
+            [44000, 195382]
+        );
+        assert_eq!(
+            floors("Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"),
+            [100000, 295822]
+        );
+        assert!(floors("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567").is_empty());
+        assert!(floors("Qwen/Qwen3-8B").is_empty());
+    }
+
+    #[test]
+    fn qwen3_code_4b_rung_is_pinned_and_carries_its_measured_floor() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let base = pick_base(&overlay, "qwen3_code", 34_500).expect("4B fits");
+        assert_eq!(base.hf_id, PIN_4B);
+        assert_eq!(base.floor_mb, 34460);
+        assert_eq!(
+            pick_base(&overlay, "qwen3_code", 34_459)
+                .expect("1.7B fits")
+                .hf_id,
             "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
         );
-        assert_eq!(pin.revision, "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e");
-        assert_eq!(pin.license, "apache-2.0");
-        assert!(!pin.floor_measured);
-        let row = overlay
-            .get("qwen3_code")
-            .expect("qwen3_code")
-            .iter()
-            .find(|base| base.hf_id == pin.hf_id)
-            .expect("1.7B row");
-        assert!(row.floor_mb.is_none());
-        let at_16g = pick_base(&overlay, "qwen3_code", 16_384).expect("8B fits");
-        assert!(
-            at_16g
-                .hf_id
-                .contains("b968826d9c46dd6066d109eabc6255188de91218"),
-            "16GB qwen3_code must stay on the measured 8B pin, got {}",
-            at_16g.hf_id
+        assert_eq!(base.license.as_deref(), Some("apache-2.0"));
+        assert_eq!(
+            base.floor_label(),
+            "qlora floor 34460 MB measured on silicon-gpu-metal (peak 34460 MB)"
         );
-        assert!(pick_base(&overlay, "qwen3_code", 1_000).is_err());
+        assert_eq!(
+            pick_base(&overlay, "qwen3_code", 122_876)
+                .expect("8B fits")
+                .hf_id,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+        );
     }
 
     #[test]
-    fn unmeasured_floor_and_missing_floor_do_not_load() {
-        let guessed = r#"
-train_bases:
-  qwen3_code:
-    - { hf_id: "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e", floor_mb: 4000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
-"#;
-        assert!(load_temp_overlay(guessed).is_err());
-        let default_measured = r#"
-train_bases:
-  qwen3_code:
-    - { hf_id: "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e", methods: [qlora], license: apache-2.0, attribution_required: false }
-"#;
-        assert!(load_temp_overlay(default_measured).is_err());
-        assert!(load_overlay(workspace_root()).is_ok());
-    }
-
-    #[test]
-    fn resolve_qwen3_size_rejects_bad_revision_and_missing_license() {
-        let bad_rev = TrainBase {
-            hf_id: "Qwen/Qwen3-8B@not-a-sha".into(),
-            floor_mb: Some(1),
-            floor_measured: true,
-            methods: vec!["qlora".into()],
-            license: Some("apache-2.0".into()),
-            attribution_required: false,
+    fn measured_floor_needs_evidence() {
+        let yaml = |extra: &str| {
+            format!(
+                "train_bases:\n  t:\n    - {{ hf_id: \"{PIN_4B}\", floor_mb: 7400, methods: [qlora], {extra} }}\n"
+            )
         };
-        let mut overlay = HashMap::new();
-        overlay.insert("qwen3_code".into(), vec![bad_rev]);
-        assert!(resolve_qwen3_size(&overlay, "8B").is_err());
-        let upper = TrainBase {
-            hf_id: "Qwen/Qwen3-8B@B968826D9C46DD6066D109EABC6255188DE91218".into(),
-            floor_mb: Some(1),
-            floor_measured: true,
-            methods: vec!["qlora".into()],
-            license: Some("apache-2.0".into()),
-            attribution_required: false,
-        };
-        overlay.insert("qwen3_code".into(), vec![upper]);
-        assert!(resolve_qwen3_size(&overlay, "8B").is_err());
-        let no_license = TrainBase {
-            hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218".into(),
-            floor_mb: Some(1),
-            floor_measured: true,
-            methods: vec!["qlora".into()],
-            license: None,
-            attribution_required: false,
-        };
-        overlay.insert("qwen3_code".into(), vec![no_license]);
-        assert!(resolve_qwen3_size(&overlay, "8B").is_err());
+        for bad in [
+            "floor_measured: true",
+            "floor_measured: true, measured_on: m4-max-metal",
+            "floor_measured: true, peak_mb: 6900, measured_on: \"  \"",
+            "floor_measured: false, peak_mb: 6900",
+            "floor_measured: false, measured_on: m4-max-metal",
+            // A measured peak must be real and must fit under the floor it backs.
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 0",
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 7401",
+        ] {
+            let msg = format!("{:#}", parse_overlay(&yaml(bad)).expect_err(bad));
+            assert!(
+                msg.contains("floor_measured") && msg.contains(PIN_4B),
+                "{bad}: {msg}"
+            );
+        }
+        let ok = parse_overlay(&yaml(
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 6900",
+        ))
+        .expect("a measured rung with evidence loads");
+        assert!(
+            ok["t"][0]
+                .floor_label()
+                .contains("measured on m4-max-metal")
+        );
+        parse_overlay(&yaml(
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 7400",
+        ))
+        .expect("a peak equal to the floor loads");
+        parse_overlay(&yaml(
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 1",
+        ))
+        .expect("the smallest real peak loads");
     }
 
     #[test]
-    fn resolve_qwen3_size_covers_the_dense_ladder() {
-        let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let cases = [
-            (
-                "0.6B",
-                "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
-                "c1899de289a04d12100db370d81485cdf75e47ca",
-                true,
-            ),
-            (
-                "8B",
-                "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
-                "b968826d9c46dd6066d109eabc6255188de91218",
-                true,
-            ),
-            (
-                "14B",
-                "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
-                "40c069824f4251a91eefaf281ebe4c544efd3e18",
-                true,
-            ),
-            (
-                "32B",
-                "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
-                "9216db5781bf21249d130ec9da846c4624c16137",
-                true,
-            ),
-            (
-                "4B",
-                "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
-                "1cfa9a7208912126459214e8b04321603b3df60c",
-                false,
-            ),
-        ];
-        for (size, hf_id, revision, measured) in cases {
-            let pin =
-                resolve_qwen3_size(&overlay, size).unwrap_or_else(|err| panic!("{size}: {err}"));
-            assert_eq!(pin.hf_id, hf_id, "{size}");
-            assert_eq!(pin.revision, revision, "{size}");
-            assert_eq!(pin.license, "apache-2.0", "{size}");
-            assert_eq!(pin.floor_measured, measured, "{size}");
-            assert_eq!(revision.len(), 40, "{size}");
-        }
-        let four = overlay
-            .get("qwen3_code")
-            .expect("qwen3_code")
-            .iter()
-            .find(|base| base.hf_id.starts_with("Qwen/Qwen3-4B@"))
-            .expect("4B row");
-        assert!(four.floor_mb.is_none());
-        assert!(!four.floor_measured);
-        let four_pin = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
-        for spelling in ["4B", "Qwen3-4B", "Qwen/Qwen3-4B"] {
-            let pin = resolve_qwen3_size(&overlay, spelling).expect(spelling);
-            assert_eq!(pin.hf_id, four_pin, "{spelling}");
-        }
-        let eight_pin = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
-        for spelling in ["8B", "Qwen3-8B", "Qwen/Qwen3-8B"] {
-            let pin = resolve_qwen3_size(&overlay, spelling).expect(spelling);
-            assert_eq!(pin.hf_id, eight_pin, "{spelling}");
-        }
-    }
-
-    #[test]
-    fn unmeasured_pins_are_only_on_qwen3_code_and_measured_floors_stay() {
-        let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let pins = [
+    fn every_dense_ladder_pin_resolves_its_license() {
+        for pin in [
+            "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
             "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
-            "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
-        ];
-        for pin in pins {
-            let mut tags: Vec<&str> = overlay
-                .iter()
-                .filter(|(_, rows)| rows.iter().any(|row| row.hf_id == pin))
-                .map(|(tag, _)| tag.as_str())
-                .collect();
-            tags.sort_unstable();
-            assert_eq!(tags, ["qwen3_code"], "{pin}");
+            PIN_4B,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+            "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+        ] {
+            assert_eq!(
+                resolve_license_class(Some(workspace_root()), Some(pin), None).expect(pin),
+                ("apache-2.0".to_string(), false),
+                "{pin}"
+            );
         }
-        let qwen = overlay.get("qwen3_code").expect("qwen3_code");
-        let floor = |repo_suffix: &str, method: &str| -> u32 {
-            qwen.iter()
-                .find(|row| {
-                    row.hf_id.contains(repo_suffix) && row.methods.iter().any(|item| item == method)
-                })
-                .unwrap_or_else(|| panic!("{repo_suffix} {method}"))
-                .floor_mb
-                .expect("measured floor")
-        };
-        assert_eq!(floor("Qwen3-0.6B@", "qlora"), 2000);
-        assert_eq!(floor("Qwen3-8B@", "qlora"), 12000);
-        assert_eq!(floor("Qwen3-14B@", "qlora"), 20000);
-        assert_eq!(floor("Qwen3-14B@", "lora"), 44000);
-        assert_eq!(floor("Qwen3-32B@", "qlora"), 60000);
     }
 
     #[test]
-    fn live_pick_then_preload_reread_names_original_loaded_and_free_mb() {
-        let root = workspace_root();
-        let overlay = load_overlay(root).expect("load overlay");
-        let pick = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B fits");
-        assert_eq!(pick.size_token, "32B");
-        assert_eq!(pick.preset, "qwen3_96g");
-        assert_eq!(pick.floor_mb, 60_000);
-        assert_eq!(pick.free_mb, 70_000);
-        assert_eq!(
-            pick.hf_id,
-            "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
-        );
-
-        let stepped = confirm_before_load(&overlay, &SizeChoice::Automatic(pick.clone()), 25_000)
-            .expect("14B fits");
-        assert_eq!(stepped.original_size, "32B");
-        assert_eq!(stepped.loaded_size, "14B");
-        assert_eq!(stepped.loaded_preset, "qwen3_24g");
-        assert_eq!(
-            stepped.loaded_hf_id,
-            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"
-        );
-        assert_eq!(stepped.original_hf_id, pick.hf_id);
-        assert_eq!(stepped.free_mb, 25_000);
-        let loaded_floor = overlay
-            .get("qwen3_code")
-            .expect("qwen3_code")
-            .iter()
-            .find(|base| {
-                base.hf_id == stepped.loaded_hf_id
-                    && base.methods.iter().any(|method| method == "qlora")
-            })
-            .expect("loaded qlora row")
-            .floor_mb
-            .expect("measured floor");
-        assert_eq!(loaded_floor, 20_000);
-
-        let kept = confirm_before_load(&overlay, &SizeChoice::Automatic(pick), 70_000)
-            .expect("32B still fits");
-        assert_eq!(kept.loaded_size, "32B");
-        assert_eq!(kept.loaded_preset, "qwen3_96g");
-        assert_eq!(kept.original_size, "32B");
-        assert_eq!(kept.free_mb, 70_000);
-
-        let mid = select_qwen3_code_qlora_for_free_mb(50_000).expect("14B qlora fits");
-        assert_eq!(mid.floor_mb, 20_000);
-        assert_eq!(mid.preset, "qwen3_24g");
+    fn floor_notes_name_every_rung_of_a_pin() {
+        let notes = floor_notes(
+            Some(workspace_root()),
+            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+        )
+        .expect("overlay loads");
+        assert_eq!(notes.len(), 2, "{notes:?}");
         assert!(
-            mid.hf_id.starts_with("Qwen/Qwen3-14B@"),
-            "50000 MB must select the 14B QLoRA row, got {}",
-            mid.hf_id
+            notes.iter().all(|n| n.contains("floor unmeasured")),
+            "{notes:?}"
         );
-    }
-
-    #[test]
-    fn measured_qlora_ladder_and_unmeasured_sizes_fail_closed() {
-        let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let eight = select_qwen3_code_qlora_for_free_mb(15_000).expect("8B");
-        assert_eq!(eight.size_token, "8B");
-        assert_eq!(eight.preset, "qwen3_16g");
-        assert_eq!(eight.floor_mb, 12_000);
-        assert_eq!(
-            eight.hf_id,
-            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
-        );
-        let tiny = select_qwen3_code_qlora_for_free_mb(5_000).expect("0.6B");
-        assert_eq!(tiny.size_token, "0.6B");
-        assert_eq!(tiny.preset, "qwen3_dev_cpu");
-        assert_eq!(tiny.floor_mb, 2_000);
-        assert!(select_qwen3_code_qlora_for_free_mb(1_500).is_err());
-        let top = select_qwen3_code_qlora_for_free_mb(100_000).expect("32B");
-        assert_eq!(top.size_token, "32B");
-        assert!(!top.hf_id.contains("1.7B"), "{}", top.hf_id);
-        assert!(!top.hf_id.contains("4B"), "{}", top.hf_id);
-
-        let wide = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B");
-        let dropped = confirm_before_load(&overlay, &SizeChoice::Automatic(wide), 1_500);
-        let err = dropped.expect_err("0.6B floor no longer fits").to_string();
-        assert!(!err.contains("1.7B"), "{err}");
-        assert!(!err.contains("4B"), "{err}");
-        let _ = overlay;
-    }
-
-    #[test]
-    fn explicit_qwen3_size_refuses_unmeasured_and_over_floor() {
-        let overlay = load_overlay(workspace_root()).expect("load overlay");
-        assert!(explicit_qwen3_size_for_free_mb(&overlay, "1.7B", 100_000).is_err());
-        assert!(explicit_qwen3_size_for_free_mb(&overlay, "4B", 100_000).is_err());
-        assert!(explicit_qwen3_size_for_free_mb(&overlay, "Qwen3-1.7B", 100_000).is_err());
-        let over = explicit_qwen3_size_for_free_mb(&overlay, "32B", 25_000);
-        let over_err = over.expect_err("32B does not fit 25000").to_string();
         assert!(
-            !over_err.contains("40c069824f4251a91eefaf281ebe4c544efd3e18"),
-            "{over_err}"
+            notes.iter().any(|n| n.contains("195382")) && notes.iter().any(|n| n.contains("44000")),
+            "{notes:?}"
         );
-        let over_alias = explicit_qwen3_size_for_free_mb(&overlay, "Qwen/Qwen3-32B", 25_000);
-        assert!(over_alias.is_err());
-        let eight =
-            explicit_qwen3_size_for_free_mb(&overlay, "Qwen/Qwen3-8B", 12_000).expect("8B fits");
-        assert_eq!(eight.size_token, "8B");
-        assert_eq!(eight.preset, "qwen3_16g");
-        assert_eq!(eight.floor_mb, 12_000);
         assert_eq!(
-            eight.hf_id,
-            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+            floor_notes(None, PIN_4B).expect("embedded overlay loads"),
+            ["qlora floor 34460 MB measured on silicon-gpu-metal (peak 34460 MB)"]
         );
-        let refused = confirm_before_load(&overlay, &SizeChoice::Explicit(eight.clone()), 11_999);
-        let refused_err = refused.expect_err("explicit 8B below floor").to_string();
-        assert!(!refused_err.contains("0.6B"), "{refused_err}");
         assert!(
-            !refused_err.contains("c1899de289a04d12100db370d81485cdf75e47ca"),
-            "{refused_err}"
-        );
-        let kept = confirm_before_load(&overlay, &SizeChoice::Explicit(eight), 12_000)
-            .expect("floor fits");
-        assert_eq!(kept.loaded_size, "8B");
-        assert_eq!(kept.original_size, "8B");
-        assert_eq!(
-            kept.loaded_hf_id,
-            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+            floor_notes(
+                Some(workspace_root()),
+                "someone/Other-Model@0123456789abcdef0123456789abcdef01234567"
+            )
+            .expect("overlay loads")
+            .is_empty()
         );
     }
 
+    /// WR-01: a gpu-specs.yaml that fails to parse must surface its parse
+    /// error, never read as "no license entry" or "no floor notes". A missing
+    /// file still falls back to the embedded overlay.
     #[test]
-    fn preload_step_down_uses_the_same_overlay_as_the_pick() {
-        fn row(hf_id: &str, floor_mb: u32) -> TrainBase {
-            TrainBase {
-                hf_id: hf_id.into(),
-                floor_mb: Some(floor_mb),
-                floor_measured: true,
-                methods: vec!["qlora".into()],
-                license: Some("apache-2.0".into()),
-                attribution_required: false,
-            }
+    fn malformed_overlay_surfaces_its_parse_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("mens/config")).expect("mkdir");
+        std::fs::write(
+            dir.path().join("mens/config/gpu-specs.yaml"),
+            format!(
+                "train_bases:\n  t:\n    - {{ hf_id: \"{PIN_4B}\", floor_mb: 7400, \
+                 methods: [qlora], license: apache-2.0 }}\n"
+            ),
+        )
+        .expect("write overlay");
+        let root = Some(dir.path());
+        for over in [None, Some("apache-2.0".to_string())] {
+            let e = resolve_license_class(root, Some(PIN_4B), over.clone())
+                .expect_err("a malformed overlay must not resolve a license");
+            assert!(
+                format!("{e:#}").contains("parse train_bases"),
+                "{over:?}: {e:#}"
+            );
         }
-        let mut overlay = HashMap::new();
-        overlay.insert(
-            "qwen3_code".into(),
-            vec![
-                row("Qwen/Qwen3-32B@synthetic32", 50_000),
-                row("Qwen/Qwen3-8B@synthetic8", 1_000),
-            ],
-        );
-        let pick = select_qwen3_code_qlora_from_overlay(&overlay, 60_000).expect("32B");
-        assert_eq!(pick.hf_id, "Qwen/Qwen3-32B@synthetic32");
-        let stepped =
-            confirm_before_load(&overlay, &SizeChoice::Automatic(pick), 2_000).expect("step");
-        assert_eq!(stepped.loaded_size, "8B");
-        assert_eq!(stepped.loaded_hf_id, "Qwen/Qwen3-8B@synthetic8");
-        assert_ne!(stepped.loaded_size, "0.6B");
-    }
+        let e = floor_notes(root, PIN_4B).expect_err("a malformed overlay has no floor notes");
+        assert!(format!("{e:#}").contains("parse train_bases"), "{e:#}");
 
-    #[test]
-    fn capability_tags_stay_on_resolve_base_model() {
-        let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let root = workspace_root();
-        assert!(explicit_qwen3_size_for_free_mb(&overlay, "qwen3_16g", 100_000).is_err());
-        assert!(explicit_qwen3_size_for_free_mb(&overlay, "strong_code_default", 100_000).is_err());
-        assert!(explicit_qwen3_size_for_free_mb(&overlay, "2B", 100_000).is_err());
-        let small = resolve_base_model(root, "small_code_default", Some(100_000)).expect("small");
-        assert!(
-            small.contains("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
-            "{small}"
-        );
-        let strong = resolve_base_model(root, "strong_code_default", Some(16_384)).expect("strong");
-        assert!(
-            strong.contains("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
-            "{strong}"
-        );
+        let absent = tempfile::tempdir().expect("tempdir");
         assert_eq!(
-            resolve_base_model(root, "org/Custom-Model", None).expect("passthrough"),
-            "org/Custom-Model"
+            floor_notes(Some(absent.path()), PIN_4B).expect("absent file uses the embedded copy"),
+            ["qlora floor 34460 MB measured on silicon-gpu-metal (peak 34460 MB)"]
         );
-    }
 
-    #[test]
-    fn free_mb_from_readings_prefers_cuda_free_field() {
-        let cuda = crate::mens::tensor::vram_autodetect::VramInfo {
-            total_gb: 16.0,
-            used_gb: 4.0,
-            free_gb: 12_000.0 / 1024.0,
-        };
-        let mb = free_mb_from_readings(Some(cuda), Some(100)).expect("cuda free wins");
-        assert_eq!(mb, 12_000);
-    }
-
-    #[test]
-    fn free_mb_from_readings_uses_metal_when_cuda_absent() {
-        let mb = free_mb_from_readings(None, Some(4096)).expect("metal free");
-        assert_eq!(mb, 4096);
-    }
-
-    #[test]
-    fn free_mb_from_readings_errors_when_both_absent() {
-        assert!(free_mb_from_readings(None, None).is_err());
-    }
-
-    #[test]
-    fn explicit_qwen3_code_qlora_for_free_mb_refuses_over_floor() {
-        assert!(explicit_qwen3_code_qlora_for_free_mb("32B", 25_000).is_err());
-        let pick = explicit_qwen3_code_qlora_for_free_mb("32B", 70_000).expect("32B fits 70000");
-        assert_eq!(pick.size_token, "32B");
-        assert_eq!(pick.preset, "qwen3_96g");
-        assert_eq!(pick.floor_mb, 60_000);
+        // Present but unreadable (here: a directory) is an error, not a silent fallback.
+        let unreadable = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(unreadable.path().join("mens/config/gpu-specs.yaml"))
+            .expect("mkdir");
+        load_overlay(unreadable.path()).expect_err("an unreadable overlay must not fall back");
     }
 }

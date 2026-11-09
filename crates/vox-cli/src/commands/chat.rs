@@ -587,9 +587,7 @@ pub(crate) fn resolve_chat_config_with_auto_pick(
             } else {
                 // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
                 vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
-                let is_apple_silicon =
-                    vox_orchestrator::models::auto_select::is_host_apple_silicon();
-                vox_orchestrator::models::auto_select::select_optimal_local_model(is_apple_silicon)
+                vox_orchestrator::models::auto_select::select_optimal_local_model_for_host()
             };
             selection.map_err(anyhow::Error::msg)?.selected_model_id
         } else {

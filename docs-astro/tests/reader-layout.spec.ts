@@ -55,6 +55,25 @@ test.describe('SITE-01..05 Reader Layout Matrix', () => {
             // Desktop and tablet: one left chevron closes and reopens the navigation.
             const pinBtn = page.locator('#vox-sidebar-pin-toggle');
             if (await pinBtn.isVisible()) {
+              const measureContent = () =>
+                page.evaluate(() => {
+                  const container = document.querySelector('main .content-panel:last-of-type > .sl-container');
+                  const firstP = document.querySelector('.sl-markdown-content > p');
+                  const rightContainer = document.querySelector('aside.right-sidebar-container');
+                  const cr = container?.getBoundingClientRect();
+                  const pr = firstP?.getBoundingClientRect();
+                  const rr = rightContainer?.getBoundingClientRect();
+                  return {
+                    x: cr ? Math.round(cr.x) : 0,
+                    right: cr ? Math.round(cr.right) : 0,
+                    width: cr ? Math.round(cr.width) : 0,
+                    pWidth: pr ? Math.round(pr.width) : 0,
+                    rightSidebarWidth: rr ? Math.round(rr.width) : 0,
+                  };
+                });
+
+              const bothOpen = await measureContent();
+
               await pinBtn.click();
               await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'hidden');
               await expect(pinBtn).toBeVisible();
@@ -63,6 +82,12 @@ test.describe('SITE-01..05 Reader Layout Matrix', () => {
                 const el = document.querySelector('.sidebar-pane');
                 return el && window.getComputedStyle(el).width === '0px';
               }, { timeout: 3000 });
+
+              const leftHidden = await measureContent();
+              expect(leftHidden.width).toBeGreaterThan(bothOpen.width);
+              expect(leftHidden.pWidth).toBeGreaterThan(bothOpen.pWidth);
+              expect(leftHidden.x).toBeLessThan(bothOpen.x);
+              expect(leftHidden.right).toBe(bothOpen.right);
 
               await page.screenshot({
                 path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-02-left-hidden.png`),
@@ -76,13 +101,38 @@ test.describe('SITE-01..05 Reader Layout Matrix', () => {
                   await expect(page.locator('html')).toHaveAttribute('data-toc-state', 'hidden');
                   await expect(tocEdge).toBeVisible();
 
+                  const bothHidden = await measureContent();
+                  expect(bothHidden.rightSidebarWidth).toBe(0);
+                  expect(bothHidden.width).toBeGreaterThan(leftHidden.width);
+                  expect(bothHidden.pWidth).toBeGreaterThan(leftHidden.pWidth);
+                  expect(bothHidden.x).toBe(leftHidden.x);
+                  expect(bothHidden.right).toBeGreaterThan(leftHidden.right);
+
                   await page.screenshot({
                     path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-03-both-hidden.png`),
                     fullPage: false,
                   });
 
+                  // Reopen left sidebar while right TOC remains hidden -> verify right-only collapse recovery
+                  await pinBtn.click();
+                  await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'pinned');
+                  const rightHidden = await measureContent();
+                  expect(rightHidden.rightSidebarWidth).toBe(0);
+                  expect(rightHidden.width).toBeGreaterThan(bothOpen.width);
+                  expect(rightHidden.pWidth).toBeGreaterThan(bothOpen.pWidth);
+                  expect(rightHidden.x).toBe(bothOpen.x);
+                  expect(rightHidden.right).toBeGreaterThan(bothOpen.right);
+                  expect(bothHidden.width).toBeGreaterThan(rightHidden.width);
+
+                  await page.screenshot({
+                    path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-04-right-hidden.png`),
+                    fullPage: false,
+                  });
+
                   await tocEdge.click();
                   await expect(page.locator('html')).toHaveAttribute('data-toc-state', 'visible');
+                  await pinBtn.click();
+                  await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'hidden');
                 }
               }
 

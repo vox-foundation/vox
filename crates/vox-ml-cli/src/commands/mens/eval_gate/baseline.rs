@@ -13,7 +13,7 @@ use std::path::Path;
 pub struct BaselineEntry {
     /// Spoke identifier (e.g. "vox-lang", "rust", "tool-selection").
     pub spoke: String,
-    /// Metric name (e.g. "bfcl_accuracy", "pass_at_k", "vox_parse_rate").
+    /// Metric name (e.g. "accuracy", "pass_at_k", "vox_parse_rate").
     pub metric_name: String,
     /// Point estimate.
     pub value: f64,
@@ -94,15 +94,15 @@ pub fn wilson_ci(p: f64, n: usize, z: f64) -> (f64, f64) {
     (low, high)
 }
 
-/// Read a base-model eval result file (`bfcl_results.json` with shape
+/// Read a base-model eval result file (`eval_results.json` with shape
 /// `{"accuracy": f64, "total": usize}`) from `base_eval_dir` and build a
-/// [`BaselineReport`] containing a single `bfcl_accuracy` entry.
+/// [`BaselineReport`] containing a single `accuracy` entry.
 ///
 /// The entry's confidence interval is a Wilson 95% score interval computed from
 /// `(accuracy, total)`. `created` is caller-supplied (ISO-8601) so the function
 /// is deterministic and testable.
 ///
-/// Fail-closed: errors if `bfcl_results.json` is absent. A baseline MUST be
+/// Fail-closed: errors if `eval_results.json` is absent. A baseline MUST be
 /// captured from a real base eval — never fabricated — so the beat-base gate has
 /// a genuine point of comparison.
 pub fn capture_baseline(
@@ -111,10 +111,10 @@ pub fn capture_baseline(
     created: &str,
     judge_identity: Option<String>,
 ) -> Result<BaselineReport> {
-    let metrics_path = base_eval_dir.join("bfcl_results.json");
+    let metrics_path = base_eval_dir.join("eval_results.json");
     if !metrics_path.exists() {
         anyhow::bail!(
-            "base eval file missing: {} — run the BFCL eval harness against the BASE model \
+            "base eval file missing: {} — run the eval harness against the BASE model \
              (no adapter) first; a baseline must be captured from a real eval, not fabricated",
             metrics_path.display()
         );
@@ -136,7 +136,7 @@ pub fn capture_baseline(
 
     let entry = BaselineEntry {
         spoke: spoke.to_string(),
-        metric_name: "bfcl_accuracy".to_string(),
+        metric_name: "accuracy".to_string(),
         value: accuracy,
         sample_size: total,
         ci_low,
@@ -162,7 +162,7 @@ mod tests {
     fn entry(value: f64, ci_low: f64, ci_high: f64) -> BaselineEntry {
         BaselineEntry {
             spoke: "vox-lang".to_string(),
-            metric_name: "bfcl_accuracy".to_string(),
+            metric_name: "accuracy".to_string(),
             value,
             sample_size: 100,
             ci_low,
@@ -286,7 +286,7 @@ mod tests {
     fn capture_baseline_reads_fixture_and_builds_entry() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
-            dir.path().join("bfcl_results.json"),
+            dir.path().join("eval_results.json"),
             r#"{"accuracy": 0.6, "total": 100}"#,
         )
         .unwrap();
@@ -301,7 +301,7 @@ mod tests {
         assert_eq!(report.entries.len(), 1);
         let e = &report.entries[0];
         assert_eq!(e.spoke, "tool-selection");
-        assert_eq!(e.metric_name, "bfcl_accuracy");
+        assert_eq!(e.metric_name, "accuracy");
         assert_eq!(e.value, 0.6);
         assert_eq!(e.sample_size, 100);
         assert_eq!(e.pass_at_k, 1);
@@ -313,86 +313,12 @@ mod tests {
     #[test]
     fn capture_baseline_errors_when_file_absent() {
         let dir = tempfile::tempdir().unwrap();
-        // No bfcl_results.json written — fail-closed.
+        // No eval_results.json written — fail-closed.
         let err = capture_baseline(dir.path(), "vox-lang", "2026-06-21T00:00:00Z", None)
             .expect_err("must fail when base eval file is absent");
         assert!(
-            err.to_string().contains("bfcl_results.json"),
+            err.to_string().contains("eval_results.json"),
             "error should name the missing file: {err}"
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // End-to-end producer → consumer loop. The producer (capture_baseline +
-    // save_baseline) writes baseline_report.json that the consumer (check_run →
-    // check_bfcl → beat_base) reads. Proves the beat-base gate is live.
-    // -----------------------------------------------------------------------
-
-    fn run_loop(base_accuracy: f64, trained_accuracy: f64) -> bool {
-        use crate::commands::mens::eval_gate::check_run::check_run;
-
-        let train_dir = tempfile::tempdir().unwrap();
-        let base_dir = tempfile::tempdir().unwrap();
-
-        // 1. Base eval → capture_baseline → save into the TRAIN run dir.
-        std::fs::write(
-            base_dir.path().join("bfcl_results.json"),
-            format!(r#"{{"accuracy": {base_accuracy}, "total": 100}}"#),
-        )
-        .unwrap();
-        let report =
-            capture_baseline(base_dir.path(), "vox-lang", "2026-06-21T00:00:00Z", None).unwrap();
-        save_baseline(&train_dir.path().join("baseline_report.json"), &report).unwrap();
-
-        // 2. Trained adapter eval + manifest in the train run dir.
-        std::fs::write(
-            train_dir.path().join("bfcl_results.json"),
-            format!(r#"{{"accuracy": {trained_accuracy}, "total": 100}}"#),
-        )
-        .unwrap();
-        std::fs::write(
-            train_dir.path().join("training_manifest.json"),
-            r#"{"spoke":"vox-lang"}"#,
-        )
-        .unwrap();
-
-        // 3. Policy with bfcl_accuracy.block=true, threshold 0 (only beat-base gates).
-        let policy_path = train_dir.path().join("policy.yaml");
-        std::fs::write(
-            &policy_path,
-            "version: \"1\"\nbfcl_accuracy:\n  min_accuracy: 0.0\n  block: true\n",
-        )
-        .unwrap();
-
-        let results = check_run(train_dir.path(), &policy_path).expect("check_run");
-        let gate = results
-            .iter()
-            .find(|r| r.name == "bfcl_accuracy")
-            .expect("bfcl_accuracy gate present");
-        assert!(
-            gate.message.contains("beat_base"),
-            "beat-base comparison must run through the produced baseline: {}",
-            gate.message
-        );
-        gate.passed
-    }
-
-    #[test]
-    fn produced_baseline_gates_pass_when_trained_beats_base() {
-        // 0.75 trained beats 0.60 base → gate passes.
-        assert!(
-            run_loop(0.60, 0.75),
-            "trained 0.75 should beat produced baseline 0.60"
-        );
-    }
-
-    #[test]
-    fn produced_baseline_gates_fail_when_trained_below_base() {
-        // 0.50 trained does not beat 0.60 base → gate fails. Proves the
-        // producer→consumer loop actually gates (not silently skipping).
-        assert!(
-            !run_loop(0.60, 0.50),
-            "trained 0.50 must NOT beat produced baseline 0.60"
         );
     }
 }

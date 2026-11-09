@@ -1,0 +1,18 @@
+---
+title: Vox MENS Qwen3 Playground
+emoji: ⚡
+colorFrom: yellow
+colorTo: indigo
+sdk: static
+app_file: index.html
+pinned: true
+license: apache-2.0
+models:
+{{MODELS_YAML}}---
+# Vox MENS — Qwen3 Adapter Ladder Playground
+
+Live Hugging Face WebGPU & Hub Evidence Space for the [{{NAMESPACE}}/vox-mens-index](https://huggingface.co/{{NAMESPACE}}/vox-mens-index) Qwen3 QLoRA ladder:
+
+1. **In-Browser WebGPU Inference (`@huggingface/transformers` + Live SafeTensors LoRA Merger)**: Downloads `candle_qlora_adapter.safetensors` and `adapter_manifest.json` from `{{NAMESPACE}}/vox-mens-qwen3-<size>`, merges the trained rank-`r` LoRA factors (`lora_a.weight`, `lora_b.weight`) into the Qwen3 4-bit ONNX weights via `base_key_map` (`ΔW = (B @ A) * (alpha / rank)`), and runs side-by-side greedy decoding directly on your browser's WebGPU device.
+2. **Live Hub Evidence Explorer**: Fetches `ladder_index.json`, `gate_receipt.json`, `collateral_damage_report.json`, and `evidence/heldout_{base,adapter}_nothink.{json,ckpt.jsonl}` directly from the Hugging Face Hub CDN at runtime so every newly published adapter or gate update appears automatically.
+

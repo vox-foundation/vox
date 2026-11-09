@@ -46,7 +46,7 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 | `mens-candle-qlora-cuda` | mens-candle-qlora, candle-core/cuda, candle-nn/cuda |
 | `mens-candle-qlora-metal` | mens-candle-qlora, candle-core/metal, candle-nn/metal |
 | `mens-cloud` | mens, mens-hf-hub, dep:reqwest, dep:vox-http-client, vox-db/host-integration |
-| `mens-hf-hub` | mens, dep:hf-hub, tokio/rt-multi-thread |
+| `mens-hf-hub` | mens, dep:hf-hub, tokio/rt-multi-thread, dep:askama, dep:vox-eval, dep:tempfile |
 | `mens-train` | mens, mens-candle-qlora, mens-hf-hub, dep:vox-eval, dep:vox-plugin-host |
 | `mesh-discovery-publish` | dep:vox-publisher |
 | `nvml-gpu-probe` | — |
