@@ -11,6 +11,21 @@ impl ModelRegistry {
         let min_refresh = Self::min_refresh_interval().as_secs();
         let jitter = Self::jitter_ms();
 
+        let cache_file_check = vox_config::paths::dot_vox_user_dir()
+            .join("cache")
+            .join("model-catalog.v1.json");
+        if let Ok(meta) = std::fs::metadata(&cache_file_check)
+            && let Ok(modified) = meta.modified()
+            && let Ok(modified_epoch) = modified.duration_since(UNIX_EPOCH)
+            && now_secs.saturating_sub(modified_epoch.as_secs()) < min_refresh
+        {
+            tracing::debug!(
+                target: "vox.orchestrator.models",
+                "catalog refresh skipped (cache file within min refresh interval)"
+            );
+            return;
+        }
+
         enum RefreshFail {
             Runtime(String),
             Fetch(String),
@@ -22,18 +37,16 @@ impl ModelRegistry {
                 .build()
                 .map_err(|e| RefreshFail::Runtime(e.to_string()))?;
             rt.block_on(async {
-                let db = vox_db::VoxDb::open_default()
-                    .await
-                    .map_err(|_| anyhow::anyhow!("db error"))?;
-                if let Ok(Some(last_str)) = db
-                    .get_user_preference("global", MODEL_CATALOG_LAST_REFRESH_KEY)
-                    .await
-                {
-                    if let Ok(last_secs) = last_str.parse::<u64>() {
-                        if now_secs.saturating_sub(last_secs) < min_refresh {
-                            return Ok::<_, anyhow::Error>(None);
-                        }
+                if let Ok(db) = vox_db::VoxDb::open_default().await {
+                    if let Ok(Some(last_str)) = db
+                        .get_user_preference("global", MODEL_CATALOG_LAST_REFRESH_KEY)
+                        .await
+                        && let Ok(last_secs) = last_str.parse::<u64>()
+                        && now_secs.saturating_sub(last_secs) < min_refresh
+                    {
+                        return Ok::<_, anyhow::Error>(None);
                     }
+                    drop(db);
                 }
 
                 if jitter > 0 {
@@ -77,6 +90,8 @@ impl ModelRegistry {
                     }
                 }
 
+                let db_opt = vox_db::VoxDb::open_default().await.ok();
+
                 #[cfg(feature = "populi-transport")]
                 {
                     // Task 3.2: trusted, probed peers replace the asserted HTTP
@@ -86,7 +101,9 @@ impl ModelRegistry {
 
                                 // Sybil/Reliability check: query peer reputation from db
                                 let peer_key = peer.endpoint_id.to_string();
-                                if let Ok(Some((success, fail, timeout, invalid))) = db.get_peer_reputation(&peer_key).await {
+                                if let Some(ref db) = db_opt
+                                    && let Ok(Some((success, fail, timeout, invalid))) = db.get_peer_reputation(&peer_key).await
+                                {
                                     let total_bad = fail + timeout + invalid;
                                     // Blacklist condition: more than 3 failures, and bad events exceed successful tasks.
                                     if total_bad > 3 && total_bad > success {
@@ -127,13 +144,15 @@ impl ModelRegistry {
                     }
                 }
 
-                let _ = db
-                    .set_user_preference(
-                        "global",
-                        MODEL_CATALOG_LAST_REFRESH_KEY,
-                        &now_secs.to_string(),
-                    )
-                    .await;
+                if let Some(db) = db_opt {
+                    let _ = db
+                        .set_user_preference(
+                            "global",
+                            MODEL_CATALOG_LAST_REFRESH_KEY,
+                            &now_secs.to_string(),
+                        )
+                        .await;
+                }
 
                 // Apply LiteLLM pricing patches via the canonical apply_litellm_pricing()
                 // method so both foreground and background refresh paths share the same

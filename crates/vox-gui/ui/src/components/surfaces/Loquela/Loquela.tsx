@@ -1424,15 +1424,18 @@ export function Loquela({
           <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} showEffort={executionMode === 'task'} />
         )}
 
-        <div className="loquela-bar relative mt-1.5 flex items-center gap-1.5 border-t border-white/5 pt-1.5 text-[11px] whitespace-nowrap">
+        <div
+          ref={postureRootRef}
+          className="loquela-bar relative mt-1.5 flex flex-wrap items-center gap-1 border-t border-border-subtle/60 pt-1.5 text-[11px] whitespace-nowrap"
+        >
           <div className="flex items-center gap-1">
             <Tooltip content="Attach local file(s) to context" side="top">
-              <button type="button" data-loquela-toolbar-item="true" aria-label="Attach local file(s) to context" onClick={attachContext} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+              <button type="button" data-loquela-toolbar-item="true" aria-label="Attach local file(s) to context" onClick={attachContext} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-brass/40 transition">
                 <Icon.plus className="size-3.5" aria-hidden="true" />
               </button>
             </Tooltip>
             <Tooltip content="Attach a URL to context" side="top">
-              <button type="button" data-loquela-toolbar-item="true" aria-label="Attach a URL to context" onClick={attachUrl} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+              <button type="button" data-loquela-toolbar-item="true" aria-label="Attach a URL to context" onClick={attachUrl} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-brass/40 transition">
                 <Icon.link className="size-3.5" aria-hidden="true" />
               </button>
             </Tooltip>
@@ -1449,7 +1452,7 @@ export function Loquela({
                     ? 'border-border-subtle bg-overlay-subtle text-text-muted cursor-wait'
                     : recording
                     ? 'border-(--color-status-fail)/50 bg-(--color-status-fail)/15 text-(--color-status-fail) animate-pulse'
-                    : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25'
+                    : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-brass/40'
                 }`}
               >
                 <Icon.mic className="size-3.5" aria-hidden="true" />
@@ -1457,10 +1460,10 @@ export function Loquela({
             </Tooltip>
           </div>
 
-          <span className="h-4 w-px bg-white/10" aria-hidden="true" />
+          <span className="h-4 w-px bg-border-subtle" aria-hidden="true" />
 
-          {/* v4.0 Progressive Disclosure: Unified Execution Posture & Routing Popover */}
-          <div className="relative flex items-center" ref={postureRootRef}>
+          {/* v4.0 Progressive Disclosure: Unified Execution Posture & Routing Inline Drawer */}
+          <div className="contents">
             <Tooltip content="Execution Posture & Routing (Mode · Risk · Oversight · @kb · Research — Alt+/ for shortcuts)" side="top">
               <button
                 type="button"
@@ -1476,7 +1479,7 @@ export function Loquela({
                   setSkillOpen(false);
                   setKeybindHudOpen(false);
                 }}
-                className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 font-medium transition ${
+                className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 font-medium transition ${
                   postureOpen
                     ? 'border-brass/60 bg-brass/20 text-brass shadow-sm'
                     : 'border-brass/35 bg-brass/10 text-brass hover:border-brass/55 hover:bg-brass/16'
@@ -1496,15 +1499,15 @@ export function Loquela({
               aria-label="Execution Posture & Routing"
               className={
                 postureOpen
-                  ? 'absolute bottom-full left-0 z-50 mb-2 w-[min(42rem,94vw)] space-y-2 rounded-xl border border-brass/40 bg-overlay-solid/98 p-3.5 text-[11px] shadow-2xl ring-1 ring-white/5 backdrop-blur-xl'
+                  ? 'order-first mb-1.5 w-full basis-full space-y-2 rounded-xl border border-brass/40 bg-bg-elevated/95 p-3 text-[11px] whitespace-normal shadow-md'
                   : 'sr-only'
               }
             >
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2">
                 <span className="font-display text-[11px] font-semibold uppercase tracking-[0.13em] text-brass">
                   Execution Posture & Routing
                 </span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <span
                     data-testid="loquela-live-posture-badge"
                     title="Active session posture — persists in real time across future chat turns, plans, and background tasks (Alt+1..4/C Mode · Alt+R Risk · Alt+T Tier · Alt+M Track · Alt+O Ovs · Alt+K @kb)"
@@ -1629,11 +1632,11 @@ export function Loquela({
                 </div>
               </div>
 
-              <div className="grid grid-cols-[6.75rem_1fr] items-center gap-x-3 gap-y-2 pt-0.5">
+              <div className="grid grid-cols-1 items-center gap-x-2.5 gap-y-2 pt-0.5 sm:grid-cols-[5.5rem_1fr]">
                 <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
                   Mode & Risk
                 </span>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   <DriveConsole
                     control={control}
                     onControlChange={(n) => {
@@ -1653,7 +1656,7 @@ export function Loquela({
                 <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
                   Oversight & @kb
                 </span>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   <div className="relative inline-flex items-center">
                     <select
                       aria-label="Oversight level"
@@ -1748,7 +1751,7 @@ export function Loquela({
                 <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
                   Skill & Checks
                 </span>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   <div className="relative">
                     <button
                       type="button"

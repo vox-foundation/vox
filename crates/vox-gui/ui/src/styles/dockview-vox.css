@@ -27,43 +27,54 @@
      0.92) was close to but not identical to --color-bg-base (#0c0e10), and
      the 0.92 alpha compositing differently over different layers created a
      visible seam against the app chrome. */
-  --dv-background-color: var(--color-bg-base);
-  --dv-group-view-background-color: transparent;
-  --dv-tabs-and-actions-container-background-color: rgba(255, 255, 255, 0.02);
-  --dv-activegroup-visiblepanel-tab-background-color: rgba(212, 175, 55, 0.08);
-  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
-  --dv-activegroup-visiblepanel-tab-color: var(--color-text-primary);
-  --dv-activegroup-hiddenpanel-tab-color: var(--color-text-muted);
-  --dv-separator-border: rgba(255, 255, 255, 0.06);
-  --dv-drag-over-background-color: rgba(212, 175, 55, 0.12);
-  --dv-tab-divider-color: rgba(255, 255, 255, 0.06);
-  --dv-icon-hover-background-color: rgba(255, 255, 255, 0.06);
-  --dv-floating-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
-  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
-  --dv-inactivegroup-visiblepanel-tab-color: var(--color-text-muted);
-  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-muted);
-  --dv-paneview-active-outline-color: rgba(212, 175, 55, 0.4);
-  --dv-paneview-header-border-color: rgba(255, 255, 255, 0.06);
-  --dv-active-sash-color: rgba(212, 175, 55, 0.3);
-  --dv-scrollbar-background-color: rgba(255, 255, 255, 0.12);
-  --dv-tabs-container-scrollbar-color: rgba(255, 255, 255, 0.12);
+  --dv-background-color: var(--color-bg-base) !important;
+  --dv-group-view-background-color: var(--color-bg-surface) !important;
+  --dv-tabs-and-actions-container-background-color: var(--color-bg-elevated) !important;
+  --dv-activegroup-visiblepanel-tab-background-color: rgba(197, 155, 39, 0.22) !important;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent !important;
+  --dv-activegroup-visiblepanel-tab-color: var(--color-text-primary) !important;
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-text-muted) !important;
+  --dv-separator-border: var(--color-border-subtle) !important;
+  --dv-drag-over-background-color: rgba(212, 175, 55, 0.14) !important;
+  --dv-tab-divider-color: var(--color-border-subtle) !important;
+  --dv-icon-hover-background-color: var(--color-overlay-hover) !important;
+  --dv-floating-box-shadow: 0 8px 24px rgba(28, 20, 12, 0.22) !important;
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent !important;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent !important;
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-text-secondary) !important;
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-muted) !important;
+  --dv-paneview-active-outline-color: var(--color-border-strong) !important;
+  --dv-paneview-header-border-color: var(--color-border-subtle) !important;
+  --dv-active-sash-color: var(--color-border-strong) !important;
+  --dv-scrollbar-background-color: rgba(184, 134, 11, 0.28) !important;
+  --dv-tabs-container-scrollbar-color: rgba(184, 134, 11, 0.28) !important;
 }
 
 .dockview-theme-vox .dv-tabs-and-actions-container {
-  height: 26px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  height: 28px;
+  background-color: var(--color-bg-elevated) !important;
+  border-bottom: 1.5px solid var(--color-border-strong) !important;
 }
 
 .dockview-theme-vox .dv-tab {
   font-family: 'Cinzel', 'Palatino', 'Palatino Linotype', Georgia, serif;
   font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding-inline: 10px;
+  color: var(--color-text-primary) !important;
   transition: background-color 120ms ease, color 120ms ease;
 }
 
 .dockview-theme-vox .dv-tab.dv-active-tab {
-  box-shadow: inset 0 2px 0 rgba(212, 175, 55, 0.75);
+  background-color: rgba(243, 229, 171, 0.55) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: inset 0 2px 0 var(--color-accent-default);
+}
+
+html[data-theme="void"] .dockview-theme-vox .dv-tab.dv-active-tab,
+html[data-theme="slate"] .dockview-theme-vox .dv-tab.dv-active-tab {
+  background-color: rgba(56, 189, 248, 0.14) !important;
+  color: #38bdf8 !important;
 }

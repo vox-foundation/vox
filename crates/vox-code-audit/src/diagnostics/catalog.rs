@@ -281,6 +281,9 @@ pub const MCP_ACCESS_AND_ERROR_SAFETY: &str = "vox/mcp/access-and-error-safety";
 /// UI layout thrashing (`transition-all`, unthrottled `new ResizeObserver`, bare `:has(`) or V8 dictionary-mode `delete obj[k]`.
 pub const UI_LAYOUT_AND_PERF_HAZARDS: &str = "vox/ui/layout-and-perf-hazards";
 
+/// GUI Theme Contract drift: hardcoded legacy dark-brown surface hexes (`#0A0805`..`#2A2011`) or banned non-Romanesque font literals (`Courier`, `Arial`, `Consolas`, `Menlo`, `Monaco`) in `crates/vox-gui/ui/src/`.
+pub const UI_THEME_CONTRACT_DRIFT: &str = "vox/ui/theme-contract-drift";
+
 /// Wall-clock / real-time wait in tests (t3code no-wall-clock / no-real-time-wait / frame-waits).
 pub const TEST_WALL_CLOCK: &str = "vox/test/wall-clock";
 
@@ -381,6 +384,7 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     TEST_FLAKY_WAIT_AND_UNREASONED_SKIP,
     MCP_ACCESS_AND_ERROR_SAFETY,
     UI_LAYOUT_AND_PERF_HAZARDS,
+    UI_THEME_CONTRACT_DRIFT,
     TEST_WALL_CLOCK,
     TEST_IN_LOOP,
     HOST_RUNTIME_PROBE,

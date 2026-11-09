@@ -1,4 +1,5 @@
 {
+  "brass": { "value": "184 134 11" },
   "color": {
     "neutral": {
       "950": { "value": "#09090b" },
@@ -12,17 +13,27 @@
     "brass": {
       "default": { "value": "#d4af37" }
     },
+    "carrara": {
+      "50": { "value": "#FAF6EE" },
+      "100": { "value": "#F5EFE2" },
+      "200": { "value": "#EFE6D5" },
+      "300": { "value": "#E5D9C3" },
+      "ink": { "value": "#1C140C" },
+      "ink-soft": { "value": "#3E2F1D" },
+      "ink-muted": { "value": "#553D22" }
+    },
     "basalt":     { "950": { "value": "#0a0c0d" }, "900": { "value": "#0c0e10" }, "850": { "value": "#11151a" }, "800": { "value": "#15191c" }, "700": { "value": "#1f262b" }, "600": { "value": "#2b343a" } },
-    "travertine": { "50": { "value": "#f6f1e7" }, "100": { "value": "#f4eee1" }, "200": { "value": "#ece5d6" }, "300": { "value": "#e3dbc8" }, "ink": { "value": "#2a2620" }, "ink-soft": { "value": "#4a443a" }, "ink-muted": { "value": "#6b6457" } },
-    "gold":       { "300": { "value": "#e0c478" }, "400": { "value": "#d4af37" }, "500": { "value": "#c9a24a" }, "600": { "value": "#a8842f" }, "700": { "value": "#7d5f20" } },
+    "travertine": { "50": { "value": "#f6f1e7" }, "100": { "value": "#f4eee1" }, "200": { "value": "#ece5d6" }, "300": { "value": "#e3dbc8" }, "ink": { "value": "#2a2620" }, "ink-soft": { "value": "#4a443a" }, "ink-muted": { "value": "#5a5347" } },
+    "gold":       { "300": { "value": "#e0c478" }, "400": { "value": "#d4af37" }, "500": { "value": "#c9a24a" }, "600": { "value": "#B8860B" }, "700": { "value": "#7d5f20" } },
+    "emerald":    { "500": { "value": "#228B4E" }, "600": { "value": "#1B6B3A" }, "700": { "value": "#14532D" } },
     "verdigris":  { "300": { "value": "#79c8ba" }, "400": { "value": "#4a9e8f" }, "600": { "value": "#2f7d6f" }, "700": { "value": "#1f5a50" } },
-    "terracotta": { "400": { "value": "#d98b6a" }, "600": { "value": "#9f4e2f" } },
-    "oxblood":    { "600": { "value": "#a3402f" }, "700": { "value": "#7e2d20" } },
+    "terracotta": { "400": { "value": "#d98b6a" }, "600": { "value": "#B86B11" } },
+    "oxblood":    { "600": { "value": "#9E2B25" }, "700": { "value": "#7e2d20" } },
     "status": {
-      "pass": { "value": "#a7f3d0" },
-      "fail": { "value": "#fca5a5" },
-      "warn": { "value": "#fde68a" },
-      "info": { "value": "#bfdbfe" }
+      "pass": { "value": "#1B6B3A" },
+      "fail": { "value": "#9E2B25" },
+      "warn": { "value": "#B86B11" },
+      "info": { "value": "#8B6914" }
     }
   },
   "space": {
@@ -34,6 +45,10 @@
     "sm": { "value": "6px" }, "md": { "value": "10px" }, "lg": { "value": "16px" }, "xl": { "value": "24px" }
   },
   "font": {
+    "display": { "value": "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif" },
+    "sans": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
+    "serif": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
+    "mono": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
     "size": {
       "xs": { "value": "12px" }, "sm": { "value": "14px" }, "base": { "value": "16px" },
       "lg": { "value": "18px" }, "xl": { "value": "24px" }, "2xl": { "value": "32px" }
@@ -42,7 +57,12 @@
       "regular": { "value": "400" }, "medium": { "value": "500" }, "semibold": { "value": "600" }, "bold": { "value": "700" }
     },
     "leading": { "tight": { "value": "1.25" }, "normal": { "value": "1.5" } },
-    "family": { "display": { "value": "Cinzel, Georgia, serif" }, "sans": { "value": "Inter, system-ui, sans-serif" }, "serif": { "value": "EB Garamond, Georgia, serif" }, "mono": { "value": "ui-monospace, Consolas, monospace" } }
+    "family": {
+      "display": { "value": "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif" },
+      "sans": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
+      "serif": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
+      "mono": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" }
+    }
   },
   "motion": {
     "fast": { "value": "120ms" }, "base": { "value": "200ms" }, "slow": { "value": "400ms" }

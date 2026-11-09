@@ -117,30 +117,30 @@ export function RomanTooltip({
             role="tooltip"
             data-testid="roman-progressive-tooltip"
             style={{ top: `${coords.top}px`, left: `${coords.left}px`, width: '268px' }}
-            className="fixed z-[99999] pointer-events-none rounded-lg border-2 border-[#D4AF37]/80 bg-linear-to-b from-[#F5EFE4] via-[#EAE0CE] to-[#DFD2BC] p-2.5 text-left shadow-[0_14px_34px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.92)] animate-in fade-in-0 zoom-in-95 duration-150"
+            className="vox-marble-tablet fixed z-[99999] pointer-events-none rounded-lg border-2 border-border-strong bg-bg-surface p-2.5 text-left text-text-primary shadow-[0_12px_28px_rgba(28,20,12,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] animate-in fade-in-0 zoom-in-95 duration-150"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-[#9E7B2F]/45 pb-1.5 mb-1.5">
-              <span className="font-display text-[11px] font-bold uppercase tracking-[0.12em] text-[#1E160D] truncate">
+            <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1.5 mb-1.5">
+              <span className="font-display text-[11px] font-bold uppercase tracking-[0.12em] text-text-primary truncate">
                 {title}
               </span>
               <div className="flex items-center gap-1 shrink-0">
                 {statusBadge && (
-                  <span className="rounded border border-[#8C6825] bg-[#231B12] px-1.5 py-0.5 font-display text-[9px] text-[#F3E5AB]">
+                  <span className="rounded border border-(--color-status-pass) bg-(--color-status-pass)/15 px-1.5 py-0.5 font-display text-[9px] font-bold text-(--color-status-pass)">
                     {statusBadge}
                   </span>
                 )}
                 {shortcut && (
-                  <kbd className="rounded border border-[#8C6825] bg-[#231B12] px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
+                  <kbd className="rounded border border-border-strong bg-bg-elevated px-1.5 py-0.5 font-mono text-[9px] font-bold text-text-primary">
                     {shortcut}
                   </kbd>
                 )}
               </div>
             </div>
-            <p className="font-serif text-[11.5px] leading-snug text-[#2B2116]">{purpose}</p>
+            <p className="font-serif text-[11.5px] leading-snug text-text-secondary">{purpose}</p>
             {actionHint && (
-              <div className="mt-1.5 flex items-center gap-1.5 rounded border border-[#9E7B2F]/50 bg-[#231B12] px-2 py-1 text-[10px] text-[#F3E5AB]">
-                <span className="inline-block size-1.5 rounded-full bg-[#D4AF37] animate-pulse shrink-0" />
-                <span className="truncate font-medium">{actionHint}</span>
+              <div className="mt-1.5 flex items-center gap-1.5 rounded border border-border-subtle bg-bg-elevated px-2 py-1 text-[10px] text-text-primary">
+                <span className="inline-block size-1.5 rounded-full bg-(--color-status-pass) animate-pulse shrink-0" />
+                <span className="truncate font-semibold">{actionHint}</span>
               </div>
             )}
           </div>,
@@ -151,7 +151,7 @@ export function RomanTooltip({
 }
 
 /**
- * Plate 2 3D Embossed Antique Bronze & Gold Medallion Badge (`/assets/romanesque/bronze-medallion-emblem.jpg`).
+ * Sunlit Gold & Cream Carrara Marble Medallion Badge (`<RomanMedallion>`).
  */
 export function RomanMedallion({
   active = false,
@@ -170,15 +170,16 @@ export function RomanMedallion({
     <span
       data-roman-medallion="true"
       style={{
-        backgroundImage:
-          'radial-gradient(circle, rgba(28,20,10,0.68) 0%, rgba(18,13,6,0.82) 72%), url(/assets/romanesque/bronze-medallion-emblem.jpg)',
+        backgroundImage: active
+          ? 'radial-gradient(circle, rgba(255,250,230,0.92) 0%, rgba(235,210,135,0.88) 68%, rgba(197,155,39,0.92) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)'
+          : 'radial-gradient(circle, rgba(250,246,238,0.94) 0%, rgba(236,226,207,0.92) 72%, rgba(218,202,172,0.94) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
       className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
         active
-          ? 'vox-animate-brass-glint border-[#F3E5AB] text-[#FFF8E7] shadow-[0_3px_12px_rgba(0,0,0,0.65),0_0_14px_rgba(212,175,55,0.55),inset_0_1px_2px_rgba(255,245,200,0.75)]'
-          : 'border-[#9E7B2F] text-[#F3E5AB] shadow-[0_2px_6px_rgba(0,0,0,0.55),inset_0_1px_2px_rgba(212,175,55,0.38)] group-hover:border-[#F3E5AB] group-hover:scale-105'
+          ? 'vox-animate-brass-glint border-[#9A7014] text-[#1C140C] shadow-[0_3px_10px_rgba(28,20,12,0.28),0_0_12px_rgba(212,175,55,0.45),inset_0_1px_2px_rgba(255,255,255,0.9)]'
+          : 'border-[#B88E28] text-[#2B1E10] shadow-[0_2px_5px_rgba(28,20,12,0.18),inset_0_1px_2px_rgba(255,255,255,0.85)] group-hover:border-[#8C6825] group-hover:scale-105'
       } ${className}`}
     >
       {children}
@@ -208,32 +209,40 @@ export function RomanBrassGauge({
   const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
   const angleDeg = -86 + clamped * 172;
   const arcColor =
-    tone === 'emerald' ? '#5B6B24' : tone === 'crimson' ? '#A81C1C' : '#B8860B';
+    tone === 'emerald'
+      ? 'var(--color-status-pass)'
+      : tone === 'crimson'
+        ? 'var(--color-status-fail)'
+        : 'var(--color-accent-default)';
   const needleColor =
-    tone === 'emerald' ? '#3E4A16' : tone === 'crimson' ? '#881B1B' : '#231709';
+    tone === 'emerald'
+      ? 'var(--color-status-pass)'
+      : tone === 'crimson'
+        ? 'var(--color-status-fail)'
+        : 'var(--color-text-primary)';
 
   const body = (
     <button
       type="button"
       data-roman-gauge="true"
       onClick={onClick}
-      className={`vox-animate-dial-breathe group relative flex items-center gap-2 rounded-lg border-2 border-[#9E7B2F] bg-linear-to-b from-[#F9F5EC] via-[#EDE3D0] to-[#DFD3BC] px-2.5 py-1 shadow-[0_3px_10px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.95)] transition-all duration-200 ${
-        onClick ? 'cursor-pointer hover:border-[#D4AF37] hover:-translate-y-0.5' : 'cursor-default'
+      className={`vox-animate-dial-breathe group relative flex items-center gap-2 rounded-lg border-2 border-border-strong bg-bg-surface px-2.5 py-1 text-text-primary shadow-[0_3px_10px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.25)] transition-all duration-200 ${
+        onClick ? 'cursor-pointer hover:border-(--color-accent-default) hover:-translate-y-0.5' : 'cursor-default'
       }`}
     >
       <svg viewBox="0 0 56 32" className="w-13 h-7.5 shrink-0 overflow-visible" aria-hidden="true">
         {/* Outer cast brass bezel & cream Carrara marble dial face */}
         <path
           d="M 4 28 A 24 24 0 0 1 52 28 Z"
-          fill="#F6F0E4"
-          stroke="#8C6825"
+          fill="var(--color-bg-elevated)"
+          stroke="var(--color-border-strong)"
           strokeWidth="2.2"
         />
         {/* Recessed inner track */}
         <path
           d="M 8 27 A 20 20 0 0 1 48 27"
           fill="none"
-          stroke="#D5C7B0"
+          stroke="var(--color-border-subtle)"
           strokeWidth="4.2"
           strokeLinecap="round"
         />
@@ -251,7 +260,7 @@ export function RomanBrassGauge({
         {/* Engraved Roman dial tick marks */}
         {[-75, -45, -15, 15, 45, 75].map((deg) => (
           <g key={deg} transform={`translate(28, 27) rotate(${deg})`}>
-            <line x1="0" y1="-20" x2="0" y2="-23" stroke="#4A381D" strokeWidth="1" />
+            <line x1="0" y1="-20" x2="0" y2="-23" stroke="var(--color-text-muted)" strokeWidth="1" />
           </g>
         ))}
         {/* Animated sweeping needle */}
@@ -260,14 +269,14 @@ export function RomanBrassGauge({
           className="transition-transform duration-700 ease-out"
         >
           <polygon points="-1.4,0 0,-19 1.4,0" fill={needleColor} />
-          <circle cx="0" cy="0" r="3.2" fill="#D4AF37" stroke="#231709" strokeWidth="1" />
+          <circle cx="0" cy="0" r="3.2" fill="var(--color-accent-default)" stroke="var(--color-text-primary)" strokeWidth="1" />
         </g>
       </svg>
       <div className="flex flex-col text-left leading-tight">
-        <span className="font-display text-[8px] font-bold uppercase tracking-[0.14em] text-[#5C441E]">
+        <span className="font-display text-[8px] font-bold uppercase tracking-[0.14em] text-text-muted">
           {label}
         </span>
-        <span className="font-display text-[11px] font-bold text-[#1A1208] whitespace-nowrap">
+        <span className="font-display text-[11px] font-bold text-text-primary whitespace-nowrap">
           {valueText}
         </span>
       </div>

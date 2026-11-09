@@ -39,6 +39,7 @@ import { getPermissionMode } from '../../../transport';
 import { ResearchView } from '../Research/ResearchView';
 import { BrowserView } from '../Browser/BrowserView';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
+import { EmbeddedSurfaceProvider } from '../../dashboard/EmbeddedSurfaceContext';
 import { useStore } from 'zustand';
 import { useLudusStore } from '../../gamify/store';
 import { Tooltip } from '../../ui/Tooltip';
@@ -277,9 +278,9 @@ export function TerminalDockPanel(props: IDockviewPanelProps<{ onNavigate?: (vie
 
   return (
     <div data-testid="chat-dock-terminal" className="flex h-full flex-col overflow-hidden p-2 text-xs">
-      <div className="flex items-center justify-between border-b border-white/10 pb-1.5 font-mono text-[11px]">
+      <div className="flex items-center justify-between border-b border-border-subtle pb-1.5 font-mono text-[11px]">
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-cyan">
+          <span className="font-semibold text-(--color-status-info)">
             {termState.activeSessionId ? `term:${termState.activeSessionId}` : 'term:ready'}
           </span>
           <span className="text-text-muted">· {termState.blocks.length} blocks</span>
@@ -297,7 +298,7 @@ export function TerminalDockPanel(props: IDockviewPanelProps<{ onNavigate?: (vie
           <div className="text-center text-text-muted">No terminal blocks recorded yet.</div>
         ) : (
           termState.blocks.slice(-5).map((block) => (
-            <div key={block.id} className="mb-2 rounded border border-white/10 bg-black/40 p-1.5">
+            <div key={block.id} className="mb-2 rounded border border-border-subtle bg-overlay-subtle p-1.5">
               <div className="font-semibold text-text-primary">$ {block.input}</div>
               <pre className="max-h-20 overflow-y-auto whitespace-pre-wrap text-[11px] text-text-muted">
                 {block.output.map((c) => c.text).join('')}
@@ -852,8 +853,12 @@ export function ChatSurface({
   }, []);
 
   const urbsNode = useMemo(
-    () => <LudusSandbox energy={ludusEnergy.energy} maxEnergy={ludusEnergy.maxEnergy} />,
-    [ludusEnergy.energy, ludusEnergy.maxEnergy],
+    () => (
+      <EmbeddedSurfaceProvider value={true}>
+        <LudusSandbox energy={ludusEnergy.energy} maxEnergy={ludusEnergy.maxEnergy} onNavigate={onNavigate} />
+      </EmbeddedSurfaceProvider>
+    ),
+    [ludusEnergy.energy, ludusEnergy.maxEnergy, onNavigate],
   );
 
   const estimatedKbTokens = useMemo(() => {
@@ -935,7 +940,6 @@ export function ChatSurface({
                 waitingQuestions={waitingQuestions}
                 blockedTasks={blockedTasks}
                 defaultCollapsed={
-                  messages.length > 4 &&
                   !waitingQuestions &&
                   !blockedTasks &&
                   (attention_budget.max_attention_ms > 0
@@ -1172,10 +1176,18 @@ export function ChatSurface({
     api: DockviewApi,
     def: (typeof panelDefs)[ChatDockPanelId],
   ): { direction: 'right' | 'below'; referencePanel: string } | undefined => {
+    const liveContainerWidth = dockRootRef.current?.clientWidth ?? 0;
+    const isCompactDesktop = liveContainerWidth > 0 && liveContainerWidth < 1560;
     const last = activationOrderRef.current[activationOrderRef.current.length - 1];
     if (last && api.getPanel(last)) {
-      const direction = activationOrderRef.current.length >= OPT_IN_ROW_STACK_THRESHOLD ? 'below' : 'right';
+      const direction =
+        isCompactDesktop || activationOrderRef.current.length >= OPT_IN_ROW_STACK_THRESHOLD
+          ? 'below'
+          : 'right';
       return { direction, referencePanel: last };
+    }
+    if (isCompactDesktop && api.getPanel('executionRail')) {
+      return { direction: 'below', referencePanel: 'executionRail' };
     }
     const anchor = def.referenceChain.find(candidateId => api.getPanel(candidateId));
     return anchor ? { direction: 'right', referencePanel: anchor } : undefined;
@@ -1292,11 +1304,30 @@ export function ChatSurface({
         closedPanelIds.current.add(p.id);
       }
     });
+    const addedRightIds: ChatDockPanelId[] = [];
     for (const id of presetPanels) {
       if (id === 'executionRail' && !executionRailNode) continue;
-      if (!api.getPanel(id)) {
-        addDefaultPanel(api, id);
+      const existing = api.getPanel(id);
+      if (existing) {
+        api.removePanel(existing);
       }
+      const def = panelDefs[id];
+      const position =
+        addedRightIds.length === 0
+          ? ({ direction: 'right', referencePanel: 'transcript' } as const)
+          : addedRightIds.length === 1
+            ? ({ direction: 'below', referencePanel: addedRightIds[0]! } as const)
+            : ({ direction: 'within', referencePanel: addedRightIds[addedRightIds.length - 1]! } as const);
+      api.addPanel({
+        id,
+        component: id,
+        title: def.title,
+        params: def.params,
+        position,
+        ...(PANEL_SIZE_CONSTRAINTS[id] ?? {}),
+      });
+      closedPanelIds.current.delete(id);
+      addedRightIds.push(id);
     }
     setOpenPanelIds(new Set(api.panels.map((p) => p.id)));
   };
@@ -1311,7 +1342,18 @@ export function ChatSurface({
       api.removePanel(existing);
       closedPanelIds.current.add('urbs');
     } else {
-      addDefaultPanel(api, 'urbs');
+      const def = panelDefs.urbs;
+      const execPanel = api.getPanel('executionRail');
+      api.addPanel({
+        id: 'urbs',
+        component: 'urbs',
+        title: def.title,
+        params: def.params,
+        position: execPanel
+          ? { direction: 'above', referencePanel: 'executionRail' }
+          : { direction: 'right', referencePanel: 'transcript' },
+      });
+      closedPanelIds.current.delete('urbs');
     }
     setOpenPanelIds(new Set(api.panels.map((p) => p.id)));
   };
@@ -1337,7 +1379,7 @@ export function ChatSurface({
       role="group"
       aria-label="Quick workspace layout presets"
       data-testid="chat-header-layout-presets"
-      className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-overlay-solid/90 px-1.5 py-0.5 font-mono text-[11px]"
+      className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-border-subtle bg-overlay-solid/90 px-1.5 py-0.5 font-mono text-[11px]"
     >
       <span className="px-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">Layout:</span>
       <button
@@ -1370,7 +1412,7 @@ export function ChatSurface({
         type="button"
         data-testid="chat-header-preset-multi"
         data-cv-subsurface="preset-multi"
-        onClick={() => applyWorkspacePreset(['harness', 'urbs'])}
+        onClick={() => applyWorkspacePreset(['urbs', 'executionRail', 'harness'])}
         className={`whitespace-nowrap rounded px-2 py-0.5 transition ${
           isMultiPreset
             ? 'border border-brass/50 bg-brass/18 text-brass font-medium shadow-xs'
@@ -1540,7 +1582,7 @@ export function ChatSurface({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           data-testid="chat-top-header-bar"
-          className="mb-1.5 flex shrink-0 items-center justify-between gap-2 rounded-lg border border-border-subtle/80 bg-overlay-solid/85 px-3 py-1.5"
+          className="mb-1.5 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle/80 bg-overlay-solid/85 px-3 py-1.5"
         >
           <div className="flex min-w-0 items-center gap-2 font-mono text-xs">
             <span className="text-text-muted">Chat</span>
@@ -1668,6 +1710,23 @@ export function ChatSurface({
                 position: { direction: 'right', referencePanel: 'transcript' },
               });
               execPanel?.api?.setSize?.({ width: 340 });
+            }
+            const liveDockW = dockRootRef.current?.clientWidth ?? 0;
+            if (liveDockW > 0) {
+              const migratedV66 = window.localStorage.getItem('gui.chat.dockview_v66_2col') === '1';
+              const hasTooManyCols = liveDockW < 1560 && event.api.groups.length > 3;
+              if (!migratedV66 || hasTooManyCols) {
+                window.localStorage.setItem('gui.chat.dockview_v66_2col', '1');
+                const openOptIns = event.api.panels
+                  .map((p) => p.id as ChatDockPanelId)
+                  .filter((id) => id !== 'transcript' && id !== 'executionRail' && id !== 'todos');
+                if (openOptIns.length > 1 || hasTooManyCols) {
+                  const keepPreset: ChatDockPanelId[] = openOptIns.includes('urbs')
+                    ? ['urbs', 'executionRail']
+                    : ['executionRail'];
+                  applyWorkspacePreset(keepPreset);
+                }
+              }
             }
           }}
         />

@@ -103,7 +103,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           <div key={stage} className="min-w-0">
             <div className="mb-2 flex items-center justify-between">
               <span className="font-mono text-[10px] uppercase tracking-wide text-[#D4AF37]">{stage.replace(/_/g, ' ')}</span>
-              <span className="rounded-full border border-[#D4AF37]/30 bg-[#16120C] px-1.5 font-mono text-[9px] text-[#F3E5AB]">{groups[stage].length}</span>
+              <span className="rounded-full border border-[#D4AF37]/30 bg-bg-surface px-1.5 font-mono text-[9px] text-[#F3E5AB]">{groups[stage].length}</span>
             </div>
             <div className="space-y-2">
               {groups[stage].map(m => (
@@ -113,8 +113,8 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
                   onClick={() => setSelected(m)}
                   className={`w-full rounded-lg border p-2 text-left transition-colors ${
                     selected?.publication_id === m.publication_id
-                      ? 'border-[#D4AF37] bg-[#2A2011] shadow-xs'
-                      : 'border-[#D4AF37]/25 bg-[#16120C] hover:border-[#D4AF37]/50'
+                      ? 'border-[#D4AF37] bg-bg-elevated shadow-xs'
+                      : 'border-[#D4AF37]/25 bg-bg-surface hover:border-[#D4AF37]/50'
                   }`}
                 >
                   <div className="truncate font-mono text-[11px] text-[#F3E5AB]">{m.publication_id}</div>
@@ -138,7 +138,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           data-testid="publications-pipeline-overview"
           className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
         >
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
             <div className="flex items-center justify-between">
               <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">IMRaD &amp; LaTeX</span>
               <RomanWaxSealBadge label={`${manifests.length} manifests`} tone="gold" />
@@ -147,7 +147,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
               Select any card above to preview its generated IMRaD manuscript, compile LaTeX source, or inspect extracted epistemic claims.
             </p>
           </div>
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
             <div className="flex items-center justify-between">
               <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Claim Verification</span>
               <RomanWaxSealBadge label="MiniCheck" tone="gold" />
@@ -156,7 +156,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
               Every candidate paper undergoes automated claim extraction (<code className="text-[#F3E5AB]">vox scientia claims</code>) and confidence scoring before approval.
             </p>
           </div>
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
+          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
             <div className="flex items-center justify-between">
               <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Archival Deposit</span>
               <RomanWaxSealBadge label="DOI + SWHID" tone="emerald" />
@@ -241,7 +241,7 @@ function PublicationDetail({
   const resolvedStageIdx = stageIdx === -1 ? 0 : stageIdx;
 
   return (
-    <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-4">
+    <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate font-mono text-sm text-[#F3E5AB]">{manifest.publication_id}</div>
@@ -289,20 +289,20 @@ function PublicationDetail({
             Preview LaTeX
           </button>
           <button type="button" onClick={load} disabled={busy}
-            className="rounded-lg border border-[#D4AF37]/30 bg-[#2A2011] px-3 py-1.5 text-xs text-[#D6CEBF] hover:bg-[#78350F]/30 hover:text-[#F3E5AB]">
+            className="rounded-lg border border-[#D4AF37]/30 bg-bg-elevated px-3 py-1.5 text-xs text-[#D6CEBF] hover:bg-[#78350F]/30 hover:text-[#F3E5AB]">
             {busy ? 'Loading…' : 'Reload'}
           </button>
           <button type="button" onClick={onClose}
-            className="rounded-lg border border-[#D4AF37]/30 bg-[#2A2011] px-3 py-1.5 text-xs text-[#D6CEBF] hover:bg-[#78350F]/30 hover:text-[#F3E5AB]">
+            className="rounded-lg border border-[#D4AF37]/30 bg-bg-elevated px-3 py-1.5 text-xs text-[#D6CEBF] hover:bg-[#78350F]/30 hover:text-[#F3E5AB]">
             Close
           </button>
         </div>
       </div>
 
       {previewText && (
-        <div data-testid="publication-artifact-preview" className="mb-4 rounded-lg border border-[#D4AF37]/30 bg-[#1F170F] p-3">
+        <div data-testid="publication-artifact-preview" className="mb-4 rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-[#D4AF37]">
+            <span className="font-mono text-xs uppercase tracking-wider text-brass">
               {previewKind === 'latex' ? 'LaTeX Document Preview' : 'IMRaD Manuscript Preview'}
             </span>
             <button
@@ -311,12 +311,12 @@ function PublicationDetail({
                 setPreviewText(null);
                 setPreviewKind(null);
               }}
-              className="font-mono text-[11px] text-[#D6CEBF] hover:text-[#F3E5AB]"
+              className="font-mono text-[11px] text-text-secondary hover:text-text-primary"
             >
               Close Preview
             </button>
           </div>
-          <pre className="max-h-52 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[#D6CEBF]">
+          <pre className="max-h-52 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-primary">
             {previewText}
           </pre>
         </div>
@@ -327,7 +327,7 @@ function PublicationDetail({
         {PUBLICATION_STAGES.map((s, i) => (
           <React.Fragment key={s}>
             <span className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-              i <= resolvedStageIdx ? 'border border-[#D4AF37]/50 bg-[#78350F]/30 text-[#F3E5AB]' : 'bg-[#16120C] text-[#D6CEBF]'
+              i <= resolvedStageIdx ? 'border border-[#D4AF37]/50 bg-bg-elevated text-text-primary' : 'bg-bg-surface text-text-secondary'
             }`}>{s.replace(/_/g, ' ')}</span>
             {i < PUBLICATION_STAGES.length - 1 && <span className="text-[#D4AF37]/40">›</span>}
           </React.Fragment>
@@ -337,20 +337,20 @@ function PublicationDetail({
       <div className="grid gap-4 md:grid-cols-2">
         {/* Claims */}
         <div>
-          <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">
+          <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-brass">
             Claims {claims ? `(${claims.claim_count})` : ''}
           </div>
           {!claims || claims.claims.length === 0 ? (
-            <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-3 text-[12px] text-[#D6CEBF]">
+            <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-surface p-3 text-[12px] text-text-secondary">
               {busy ? 'Loading…' : 'No extracted claims. Run claim extraction first.'}
             </div>
           ) : (
             <ul className="space-y-1">
               {claims.claims.map((c, i) => (
-                <li key={c.id ?? i} className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2">
-                  <div className="text-[12px] text-[#F3E5AB]">{c.text ?? '(no text)'}</div>
+                <li key={c.id ?? i} className="rounded-lg border border-[#D4AF37]/25 bg-bg-surface p-2">
+                  <div className="text-[12px] text-text-primary">{c.text ?? '(no text)'}</div>
                   {c.verdict_label && (
-                    <div className="mt-0.5 font-mono text-[10px] text-[#D4AF37]">
+                    <div className="mt-0.5 font-mono text-[10px] text-brass">
                       {c.verdict_label}{typeof c.confidence === 'number' ? ` · ${c.confidence.toFixed(2)}` : ''}
                     </div>
                   )}
@@ -362,18 +362,18 @@ function PublicationDetail({
 
         {/* Venue routing */}
         <div>
-          <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">Venue routing</div>
+          <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-brass">Venue routing</div>
           {!venue ? (
-            <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-3 text-[12px] text-[#D6CEBF]">
+            <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-surface p-3 text-[12px] text-text-secondary">
               {busy ? 'Loading…' : `No routing for class "${manifest.content_type}".`}
             </div>
           ) : (
-            <div className="space-y-2 rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-3">
+            <div className="space-y-2 rounded-lg border border-[#D4AF37]/25 bg-bg-surface p-3">
               <div className="flex flex-wrap gap-1.5">
                 {venue.recommended_venues.length === 0 ? (
-                  <span className="font-mono text-[11px] text-[#D6CEBF]">No recommended venues.</span>
+                  <span className="font-mono text-[11px] text-text-secondary">No recommended venues.</span>
                 ) : venue.recommended_venues.map(v => (
-                  <span key={v} className="rounded-sm border border-[#D4AF37]/35 bg-[#2A2011] px-2 py-0.5 font-mono text-[11px] text-[#F3E5AB]">{v}</span>
+                  <span key={v} className="rounded-sm border border-[#D4AF37]/35 bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-text-primary">{v}</span>
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] text-text-muted">

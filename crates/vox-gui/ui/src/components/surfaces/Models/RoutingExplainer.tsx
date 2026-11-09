@@ -24,10 +24,10 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
     return (
       <div
         data-testid="routing-explainer-loading"
-        className="min-h-36 rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4 flex items-center justify-center shadow-inner"
+        className="min-h-36 rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-4 flex items-center justify-center shadow-inner"
         aria-busy={loading}
       >
-        {!loading && <p className="text-xs text-[#A69B89]">Routing explanation unavailable</p>}
+        {!loading && <p className="text-xs text-text-muted">Routing explanation unavailable</p>}
       </div>
     );
   }
@@ -40,17 +40,17 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
       data-testid="routing-explainer"
       aria-labelledby="routing-explainer-title"
       aria-busy={loading}
-      className="flex min-h-36 min-w-0 flex-col gap-3 rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+      className="flex min-h-36 min-w-0 flex-col gap-3 rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-4 shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
     >
       <header className="space-y-1">
         <div className="flex items-center justify-between">
-          <h2 id="routing-explainer-title" className="text-sm font-display tracking-wide text-[#1E150C] font-bold">
+          <h2 id="routing-explainer-title" className="text-sm font-display tracking-wide text-text-primary font-bold">
             Why {explanation.chosen ?? 'no model'}
           </h2>
           <RomanWaxSealBadge label="CALIBRATED" tone="gold" />
         </div>
-        <p className="text-xs text-[#4A3620] font-medium">How task dispatch would choose now</p>
-        <p className="text-xs text-[#5C441E]">
+        <p className="text-xs text-text-secondary font-medium">How task dispatch would choose now</p>
+        <p className="text-xs text-text-muted">
           {modeLabel(explanation.mode)}: {modeObjective(explanation.mode)}
         </p>
         {explanation.only_candidate && (
@@ -59,11 +59,11 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
           </p>
         )}
       </header>
-      <div className="overflow-x-auto rounded-lg border border-[#D4AF37]/25 bg-[#16110B]/60">
+      <div className="overflow-x-auto rounded-lg border border-[#C59B27]/25 bg-bg-elevated/60">
         <table className="w-full min-w-[30rem] table-fixed text-xs tabular-nums">
           <caption className="sr-only">Candidates ranked by routing score</caption>
           <thead>
-            <tr className="text-left text-[#A69B89] uppercase tracking-wider border-b border-[#D4AF37]/25 bg-[#2A2011]/60">
+            <tr className="text-left text-text-muted uppercase tracking-wider border-b border-[#C59B27]/25 bg-bg-elevated/80">
               <th scope="col" className="w-8 py-2 px-2.5">#</th>
               <th scope="col" className="w-48 sm:w-60 py-2 px-2">Model</th>
               <th scope="col" className="hidden w-20 sm:table-cell py-2 px-2">Tier</th>
@@ -83,24 +83,24 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
                     chosen ? 'bg-[#D4AF37]/10' : 'hover:bg-[#D4AF37]/5'
                   }`}
                 >
-                  <td className="py-2 px-2.5 text-[#A69B89]">{i + 1}</td>
-                  <td className="truncate font-mono py-2 px-2 text-[#F3E5AB]" title={c.id}>
+                  <td className="py-2 px-2.5 text-text-muted">{i + 1}</td>
+                  <td className="truncate font-mono py-2 px-2 text-text-primary" title={c.id}>
                     {c.id} {chosen && (
                       <span className="ml-1 inline-flex items-center gap-1">
                         <RomanWaxSealBadge label="Chosen" tone="gold" className="text-[8px] py-0 px-1.5" />
                       </span>
                     )}
                   </td>
-                  <td className="hidden sm:table-cell py-2 px-2 text-[#C5BCAC]">{c.tier}</td>
-                  <td className="truncate whitespace-nowrap py-2 px-2 text-[#D6CEBF]" title={qualityLabel(c.quality)}>
-                    {(c.quality.value * 100).toFixed(0)} · <span className="text-[#8C806B]">{qualityLabel(c.quality)}</span>
+                  <td className="hidden sm:table-cell py-2 px-2 text-text-secondary">{c.tier}</td>
+                  <td className="truncate whitespace-nowrap py-2 px-2 text-text-primary" title={qualityLabel(c.quality)}>
+                    {(c.quality.value * 100).toFixed(0)} · <span className="text-text-muted">{qualityLabel(c.quality)}</span>
                   </td>
-                  <td className="py-2 px-2 text-[#D6CEBF]" title={c.price_out_per_m == null && !c.is_free ? 'price not published' : undefined}>
+                  <td className="py-2 px-2 text-text-primary" title={c.price_out_per_m == null && !c.is_free ? 'price not published' : undefined}>
                     {priceLabel(c.price_out_per_m, c.is_free)}
                   </td>
-                  <td className="py-2 px-2 text-[#F3E5AB]">
+                  <td className="py-2 px-2 text-text-primary">
                     <span className="mr-2 font-mono">{c.score.toFixed(2)}</span>
-                    <span aria-hidden="true" className="hidden h-2 w-24 overflow-hidden rounded-full border border-[#D4AF37]/30 bg-[#16110B] align-middle sm:inline-flex">
+                    <span aria-hidden="true" className="hidden h-2 w-24 overflow-hidden rounded-full border border-[#D4AF37]/30 bg-bg-elevated align-middle sm:inline-flex">
                       {SEGMENTS.map(s => (
                         <span
                           key={s.key}
@@ -124,15 +124,15 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
           </tbody>
         </table>
       </div>
-      <details data-testid="routing-excluded" className="text-xs rounded-lg border border-[#D4AF37]/25 bg-[#16110B]/80 p-2.5">
-        <summary className="cursor-pointer font-display text-[10px] uppercase tracking-wider text-[#D4AF37] hover:text-[#F3E5AB]">
+      <details data-testid="routing-excluded" className="text-xs rounded-lg border border-[#D4AF37]/25 bg-bg-elevated/80 p-2.5">
+        <summary className="cursor-pointer font-display text-[10px] uppercase tracking-wider text-brass hover:text-text-primary">
           Not considered ({excludedTotal})
         </summary>
         <ul className="mt-2 flex flex-col gap-1 pl-2">
           {explanation.excluded.map(g => (
-            <li key={g.reason} className="text-[#C5BCAC]">
+            <li key={g.reason} className="text-text-secondary">
               {exclusionLabel(g.reason)} ({g.count})
-              <span className="ml-1 font-mono text-[#8C806B]">{g.examples.join(', ')}</span>
+              <span className="ml-1 font-mono text-text-muted">{g.examples.join(', ')}</span>
             </li>
           ))}
         </ul>

@@ -159,9 +159,9 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
               />
               Free only
             </label>
-            <div className="rounded-lg border border-[#8C6825] bg-[#251C0E] px-2.5 py-1 text-right">
-              <div className="text-[9px] uppercase tracking-widest text-[#D8C7A8]">Active</div>
-              <div className="font-mono text-xs text-[#F3E5AB] font-semibold">{activeModel ?? 'auto-route'}</div>
+            <div className="rounded-lg border border-[#8C6825] bg-bg-elevated px-2.5 py-1 text-right">
+              <div className="text-[9px] uppercase tracking-widest text-text-secondary">Active</div>
+              <div className="font-mono text-xs text-text-primary font-semibold">{activeModel ?? 'auto-route'}</div>
             </div>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
       <BackendAvailability statuses={providerStatuses} />
       <ModelLeaderboardPanel />
       {loading && models.length === 0 ? (
-        <Glass className="p-8 text-center text-[#C5BCAC] text-sm border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08]">
+        <Glass className="p-8 text-center text-text-secondary text-sm border-[#D4AF37]/35 bg-bg-surface">
           Loading model catalog…
         </Glass>
       ) : (
@@ -191,28 +191,28 @@ function RoutingPanel() {
   const [task, setTask] = useState<string>('codegen');
   const { explanation, health, loading } = useRoutingExplanation(mode, task, 7);
   return (
-    <Glass id="routing-panel" className="p-4 flex flex-col gap-3 border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+    <Glass id="routing-panel" className="p-4 flex flex-col gap-3 border-[#D4AF37]/35 bg-bg-surface shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="font-display text-[11px] tracking-[0.2em] uppercase text-[#D4AF37]">Routing</div>
-          <label className="flex items-center gap-1.5 text-[#D6CEBF]">
+          <div className="font-display text-[11px] tracking-[0.2em] uppercase text-brass">Routing</div>
+          <label className="flex items-center gap-1.5 text-text-secondary">
             Routing mode
             <select
               aria-label="Routing mode"
               value={mode}
               onChange={e => setMode(e.target.value)}
-              className="h-7 rounded-md border border-[#D4AF37]/30 bg-[#16110B] px-2.5 pr-7 font-mono text-[11px] text-[#F3E5AB] focus:border-[#D4AF37] focus:outline-hidden"
+              className="h-7 rounded-md border border-[#D4AF37]/30 bg-bg-elevated px-2.5 pr-7 font-mono text-[11px] text-text-primary focus:border-[#D4AF37] focus:outline-hidden"
             >
               {MODES.map(m => <option key={m} value={m}>{modeLabel(m)}</option>)}
             </select>
           </label>
-          <label className="flex items-center gap-1.5 text-[#D6CEBF]">
+          <label className="flex items-center gap-1.5 text-text-secondary">
             Task
             <select
               aria-label="Task"
               value={task}
               onChange={e => setTask(e.target.value)}
-              className="h-7 rounded-md border border-[#D4AF37]/30 bg-[#16110B] px-2.5 pr-7 font-mono text-[11px] text-[#F3E5AB] focus:border-[#D4AF37] focus:outline-hidden"
+              className="h-7 rounded-md border border-[#D4AF37]/30 bg-bg-elevated px-2.5 pr-7 font-mono text-[11px] text-text-primary focus:border-[#D4AF37] focus:outline-hidden"
             >
               {TASKS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -232,8 +232,8 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
-        <div className="font-display text-[11px] tracking-[0.2em] uppercase text-[#D4AF37]">{title}</div>
-        <span className="font-mono text-[10px] text-[#A69B89]">{items.length} models</span>
+        <div className="font-display text-[11px] tracking-[0.2em] uppercase text-brass">{title}</div>
+        <span className="font-mono text-[10px] text-text-muted">{items.length} models</span>
       </div>
       <div role="list" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {items.slice(0, 48).map(m => {
@@ -242,14 +242,14 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
             <Glass
               key={m.id}
               role="listitem"
-              className={`p-4 flex flex-col gap-3 border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] shadow-[0_4px_16px_rgba(0,0,0,0.4)] ${
+              className={`p-4 flex flex-col gap-3 border-[#D4AF37]/35 bg-bg-surface shadow-[0_4px_16px_rgba(0,0,0,0.2)] ${
                 isActive ? 'ring-1 ring-[#D4AF37] border-[#D4AF37]' : ''
               }`}
             >
               <div className="flex justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-mono text-xs text-[#F3E5AB] truncate font-medium" title={m.id}>{m.id}</div>
-                  <div className="text-[10px] text-[#A69B89]">{m.provider} · {m.tier}</div>
+                  <div className="font-mono text-xs text-text-primary truncate font-medium" title={m.id}>{m.id}</div>
+                  <div className="text-[10px] text-text-secondary">{m.provider} · {m.tier}</div>
                 </div>
                 {m.is_free && <RomanWaxSealBadge label="FREE" tone="emerald" />}
               </div>

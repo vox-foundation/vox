@@ -452,7 +452,7 @@ export function Dashboard({
               type="button"
               data-testid="open-chat-cta"
               onClick={onOpenChat}
-              className="shrink-0 rounded-lg border border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] px-3 py-1 font-display text-[11px] font-semibold tracking-wide text-[#F3E5AB] transition hover:border-[#D4AF37]"
+              className="shrink-0 rounded-lg border border-[#8C6825] bg-bg-elevated px-3 py-1 font-display text-[11px] font-semibold tracking-wide text-text-primary transition hover:border-[#D4AF37]"
             >
               Open Chat
             </button>
@@ -554,7 +554,7 @@ export function Dashboard({
       </div>
 
       {/* Workspace Architecture & Simulation Map (Plate 2 Romanesque Edition - immediately below KPI strip) */}
-      <div className="mx-5 mb-2.5 rounded-xl border-2 border-[#C59B27] bg-[#0E0C08]/95 shadow-[0_10px_28px_rgba(0,0,0,0.65)] overflow-hidden">
+      <div className="mx-5 mb-2.5 rounded-xl border-2 border-[#C59B27] bg-bg-surface shadow-[0_10px_28px_rgba(0,0,0,0.25)] overflow-hidden">
         <div
           data-roman-frieze="true"
           style={{
@@ -586,7 +586,7 @@ export function Dashboard({
               <button
                 type="button"
                 onClick={() => onNavigate?.('vox-harness-river')}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#5B6B24] bg-[#2C360E]/90 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-[#DCE7B6] transition hover:border-[#8FA339] hover:bg-[#3A4714]"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#5B6B24] bg-bg-elevated px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-text-primary transition hover:border-[#8FA339]"
               >
                 <Icon.aqueductArch className="size-3" aria-hidden="true" />
                 <span>Pipeline Cascade</span>
@@ -601,9 +601,9 @@ export function Dashboard({
               <button
                 type="button"
                 onClick={() => onNavigate?.('vox-Ludus-view')}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/60 bg-linear-to-b from-[#3A2C14] to-[#1E160A] px-2.5 py-1 font-display text-[10px] font-semibold uppercase tracking-wider text-[#F3E5AB] transition hover:border-[#F3E5AB]"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/60 bg-bg-elevated px-2.5 py-1 font-display text-[10px] font-semibold uppercase tracking-wider text-text-primary transition hover:border-[#D4AF37]"
               >
-                <Icon.astrolabeRadar className="size-3 text-[#D4AF37]" aria-hidden="true" />
+                <Icon.astrolabeRadar className="size-3 text-brass" aria-hidden="true" />
                 <span>Full-Screen Map</span>
               </button>
             </RomanTooltip>
@@ -616,7 +616,7 @@ export function Dashboard({
               <button
                 type="button"
                 onClick={() => setSandboxCollapsed(!sandboxCollapsed)}
-                className="rounded-md border border-[#D4AF37]/30 bg-[#18130D] px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-[#C8B99E] hover:border-[#D4AF37] hover:text-[#F3E5AB]"
+                className="rounded-md border border-[#D4AF37]/30 bg-bg-elevated px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-text-secondary hover:border-[#D4AF37] hover:text-text-primary"
               >
                 {sandboxCollapsed ? 'Expand' : 'Collapse'}
               </button>
@@ -646,7 +646,7 @@ export function Dashboard({
             onClick={() => setActiveBottomTab('agents')}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-display text-[11px] font-semibold uppercase tracking-wider transition ${
               activeBottomTab === 'agents'
-                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-[#F3E5AB] shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-text-primary shadow-[0_0_12px_rgba(212,175,55,0.15)]'
                 : 'border border-transparent text-text-muted hover:border-border-subtle hover:bg-overlay-subtle hover:text-text-secondary'
             }`}
           >
@@ -660,7 +660,7 @@ export function Dashboard({
             onClick={() => setActiveBottomTab('budget')}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-display text-[11px] font-semibold uppercase tracking-wider transition ${
               activeBottomTab === 'budget'
-                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-[#F3E5AB] shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-text-primary shadow-[0_0_12px_rgba(212,175,55,0.15)]'
                 : 'border border-transparent text-text-muted hover:border-border-subtle hover:bg-overlay-subtle hover:text-text-secondary'
             }`}
           >
@@ -674,7 +674,7 @@ export function Dashboard({
             onClick={() => setActiveBottomTab('resources')}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-display text-[11px] font-semibold uppercase tracking-wider transition ${
               activeBottomTab === 'resources'
-                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-[#F3E5AB] shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+                ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/15 text-text-primary shadow-[0_0_12px_rgba(212,175,55,0.15)]'
                 : 'border border-transparent text-text-muted hover:border-border-subtle hover:bg-overlay-subtle hover:text-text-secondary'
             }`}
           >
@@ -688,8 +688,8 @@ export function Dashboard({
         {attention_budget ? (
           <AttentionBudgetMeter budget={attention_budget} />
         ) : (
-          <div className="rounded-xl border border-dashed border-[#D4AF37]/30 bg-[#0E0C08]/80 p-6 text-center">
-            <p className="font-display text-xs text-[#C8B99E]">No active attention budget constraint for current session.</p>
+          <div className="rounded-xl border border-dashed border-[#D4AF37]/30 bg-bg-surface p-6 text-center">
+            <p className="font-display text-xs text-text-secondary">No active attention budget constraint for current session.</p>
           </div>
         )}
       </div>

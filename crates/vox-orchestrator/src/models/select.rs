@@ -27,8 +27,7 @@ use vox_config::AutoRoutingPriority;
 use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
 
 pub use super::auto_select::{
-    AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
-    select_optimal_local_model_for_host,
+    AutoModelSelection, select_for_free_memory, select_optimal_local_model_for_host,
 };
 
 // ─── Canonical request/response (SSOT API) ─────────────────────────────────

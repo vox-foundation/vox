@@ -1,5 +1,76 @@
 # Roadmap: Vox Unified Workstream
 
+# Roadmap: v6.6 — Chat Multi-Dock Responsive Architecture, Diegetic Uncropped Simulator & Aqueduct Panorama, Playwright Button-Click CV Flywheel, `VoxDb` Lock-Free Daemon Boot & Enforceable Theme Contract (`Phases 383–386`)
+
+**Milestone:** v6.6
+**Status:** Complete (`4/4` Phases Verified — 2026-11-09)
+**Approved Visual & Functional Direction:**
+1. **Responsive Multi-Dock & Chat Surface (`Phase 383`):** Zero 4-column crush at `1280×800` and `1440×900` (`ChatSurface.tsx` auto-consolidates multi-dock layouts to a clean 2-column split and stacks secondary panels as tabs inside the right-hand companion column when viewport `< 1560px`), collapsed 1-line `AttentionBudgetMeter` by default unless attention is `>=80%` or blocked, unclipped `[EDIT] [REGENERATE] [COMPACT HERE]` transcript controls, and structured `LLM error:` retry notice cards.
+2. **Diegetic Uncropped Simulator & Aqueduct Cascade (`Phase 384`):** Full-height vertical coverage (`drawH = safeCh`, `drawY = 0`) in narrow docked panels (`diegeticEnvironment.ts`), diegetic water ripples (`drawDiegeticWatercourses`), animated Roman citizen & legionary crowds (`drawDiegeticCrowds`), and 3-tier hydraulic sluice gates (`riverCanvasRenderer.ts`).
+3. **Playwright Button-Click Audit (`before-click`, `on-click`, `after-click`), Synchronized Panorama Camera, Bounded Inspector & Lock-Free `VoxDb` (`Phase 385`):**
+   - Eliminated `VoxDb` file-lock contention between `ModelRegistry::new()` background refresh (`catalog_seed.rs`) and `step_db` (`daemon_steps/run.rs`), plus graceful `.unwrap_or_default()` in `compute_model_leaderboard` (`gui_ops/models.rs`).
+   - Synchronized `LudusSandbox.tsx` `panoRect` with relative camera zoom/pan (`relZoom`, `relDx`, `relDy`), fixed `useEffect([blit])` image reload bug on selection change, added an **Imperial Gold Focus Halo & Target Reticle** on `<canvas>`, and bounded `ImperiumInspector.tsx` (`bottom-[82px] max-h-[calc(100%-136px)]`) so it never overlaps the top architrave toolbar or bottom `TIERS` bar.
+   - Compacted `NotificationCenter.tsx` (`max-h-[min(320px,calc(100vh-96px))]`) and `HudPanels.tsx` (`urbs-hud-embedded`) so notifications never collapse too high and docked HUD controls never clip (`S...`).
+4. **Enforceable & Self-Expanding GUI Theme Contract + Adversarial `/gsd-review` Entropy Hardening (`Phase 386` — `ROMA-V66-THEME-CONTRACT-01..05`):**
+   - **Machine-Readable 4-Profile Theme Contract SSOT (`contracts/gui/theme-contract.v1.json` & `crates/vox-gui/ui/src/lib/themeContract.ts`):** Canonical schema defining all 4 supported theme profiles (`arcane` — Default Imperial Carrara White & Gold; `slate` / `void` — Minimalist Grey-Blue Dark; `high-contrast` — High Contrast Obsidian & Gold; `glacier` / `travertine` — Sunlit Travertine & Verdigris), all `22` required semantic CSS variables (`--brass`, `--color-bg-*`, `--color-text-*`, `--color-border-*`, `--color-accent-*`, `--color-status-*`, `--color-overlay-*`, `--font-*`), programmatic **WCAG 2.1 Relative Luminance Contrast Ratio** verification (`>= 4.5:1` across all 4 profiles), general dark-hex/RGBA pattern detection, and single-line / zero-clipping control invariants.
+   - **Style-Dictionary 4-Profile Token Generation (`tokens/primitive.json`, `tokens/semantic.json`, `tokens/semantic.slate.json`, `tokens/semantic.contrast.json`, `tokens/semantic.travertine.json`, `style-dictionary.config.mjs`):** Generates all 4 standalone CSS files (`tokens.generated.css`, `tokens.slate.generated.css`, `tokens.contrast.generated.css`, `tokens.travertine.generated.css`), each individually defining all 22 required semantic CSS variables, imported directly by `src/index.css` as the single source of truth.
+   - **Blocking `Severity::Error` Static `vox-code-audit` Detector (`vox/ui/theme-contract-drift` in `crates/vox-code-audit/src/detectors/ui_theme_contract.rs`):** Enforces in `vox audit code` with `Severity::Error` that any `.tsx`, `.ts`, or `.css` file under `crates/vox-gui/ui/src/` uses semantic theme tokens (`bg-bg-surface`, `var(--color-*)`, etc.) and flags arbitrary dark background hexes (`bg-[#0..2...]`, `from-[#0..2...]`, `to-[#0..2...]`), dark inline `rgba(...)` surfaces, and quoted or unquoted banned font literals (`Courier`, `Arial`, `Consolas`, `Menlo`, `Monaco`).
+   - **Zero Dark-Hex / Dark-RGBA Component Remediation Across 42 UI Components, Portals, Charts & Modals:** Replaced all remaining hardcoded dark-brown/near-black hex (`bg-[#1A140B]`, `bg-[#120E09]`, `bg-[#0c0a09]`, `bg-[#1F170E]`, etc.) and inline dark `rgba(...)` backgrounds across `RomanTooltip.tsx`, `SpeculumLoupePopover.tsx`, `ViaTemporisScrubber.tsx`, `ErrorBoundary.tsx`, `Popover.tsx`, `ImperiumInspector.tsx`, `chartWidgetShared.tsx`, `LudusSandbox.tsx`, and 34 surface components with semantic tokens (`bg-bg-surface`, `bg-bg-elevated`, `text-text-primary`, `var(--color-*)`).
+   - **Self-Expanding Surface/Component Vitest Gate (`crates/vox-gui/ui/src/lib/themeContract.test.ts`), Live DOM `getComputedStyle` Health Report & 4-Theme Playwright Verification (`SettingsView.tsx`, `cv-flywheel.spec.ts`):** Automatically walks all `.tsx`/`.ts`/`.css` source files plus `discoverAllGuiSurfacesAndPanels()` (`37` views + `14` Chat docks) and verifies all 4 themes (`arcane`, `slate`, `glacier`, `high-contrast`) in Playwright E2E and Gemini Computer Vision.
+
+---
+
+# Roadmap: v6.5 — Complete 32-Surface White/Gold Carrara Marble Unification, Seamless Texture & Roman Emerald Signet Overhaul, and User-Selectable Minimalist Grey-Blue (`slate`) Theme (`Phases 378–382`)
+
+**Milestone:** v6.5
+**Status:** In Progress (`Phases 378–382`)
+**Approved Visual Direction:**
+1. **Default Theme — Imperial Carrara White & Gold (`arcane` / `carrara`):** Sunlit White/Cream Honed Carrara Marble (`#FAF6EE` / `#F5EFE2` / `#EFE6D5`), Burnished Gold mouldings (`#C59B27`), Deep Espresso Ink (`#1C140C`), **Roman Imperial Emerald & Gilded Laurel Wreath Signets** (`#1B6B3A` / `#228B4E` with `#D4AF37` gold border) for active/working status (crimson `#881B1B` reserved strictly for errors/alerts), seamless non-cropped marble textures, and universal Romanesque serif typography (`Cinzel`, `Palatino`) across all 32 surfaces, sidebar buttons, tooltips, and drawers.
+2. **User-Selectable Minimalist Dark Theme — Grey-Blue Basalt Slate (`slate` / `void`):** Clean, minimalist grey-blue slate palette (`#0c0e10` base, `#15191c` surface, `#1f262b` elevated, `#2b343a` subtle border, `#f1f5f9` crisp text, `#38bdf8`/`#60a5fa` steel-blue & emerald `#10b981` status indicators, zero marble textures or decorative columns), configurable in `Settings → Theme`.
+
+### Phase 378: Seamless Roman Marble Texture & Concept Art Generation + Fix Glitchy/Repeating/Offset Background Layers (`ROMA-V65-TEXTURES-01..04`) `[WAVE 1]`
+
+**Goal:** Generate seamless frame-free honed white Carrara marble (`carrara-seamless-stone.jpg`), wide horizontal Roman acanthus frieze band (`carrara-acanthus-header-band.jpg`), Roman Imperial Emerald & Gilded Laurel Signet emblem (`roman-emerald-laurel-seal.jpg`), and Milestone `v6.5` concept art plates (`v66_concept_settings_dual_theme_white_and_slate.jpg`, `v66_concept_missed_surfaces_scientia_approvals_white_gold.jpg`); fix `@keyframes vox-marble-sheen` 3-layer `background-position` bug so marble textures never slide or tile; replace framed `travertine-parchment-tablet.jpg` and repeating `roman-architectural-frieze-footer.jpg` astrolabe seams across `index.css`, `Glass.tsx`, `Backdrop.tsx`, `RomanSurfaceHeader.tsx`, `BreadcrumbBar.tsx`, and `RomanTooltip.tsx`.
+
+### Phase 379: Roman Emerald & Gilded Laurel Working Status System + Full Sidebar & Outside-`<main>` Chrome/Drawer White-Gold Conversion (`ROMA-V65-EMERALD-CHROME-01..04`) `[WAVE 2A]`
+
+**Goal:** Replace red working/live `waxSealBadge` pills (`RomanSurfaceHeader.tsx`) and brown `bg-accent-secondary` live dots (`Sidebar.tsx`) with high-visibility **Roman Imperial Emerald & Gilded Laurel Wreath Signets** (`#1B6B3A` / `#228B4E` emerald cabochon + `#D4AF37` burnished gold rim + crisp vector laurel wreath SVG, legible at all resolutions); convert all dark-brown buttons and containers in `Sidebar.tsx` (collapse/expand/hide buttons, `⌘K` badge, expanded Chat Sessions list, active child items, count badges, operator card), `SessionSidebarSection.tsx`, `BackendStatusPill.tsx`, `BottomStatusBar.tsx`, `RomanTooltip.tsx`, `Omnibar.tsx`, `Dialog.tsx`, and all Drawers (`ExplainDrawer`, `DocViewerDrawer`, `InspectorDrawer`, `AchievementsDrawer`, `ResearchEngineDrawer`) to sunlit White/Gold Carrara Marble.
+
+### Phase 380: Convert All 15+ Missed Surfaces & Purge Remaining Dark-Brown Remnants Across 85 Files (`ROMA-V65-SURFACES-01..04`) `[WAVE 2B]`
+
+**Goal:** Convert all remaining hardcoded dark-brown (`#0A0805`..`#2A2011`) classes, inline styles, and canvas fills across `SettingsView.tsx`, `ScientiaDashboard.tsx`, `CommandCatalogForm.tsx`, `LudusSandbox.tsx`, `HudPanels.tsx`, `ImperiumInspector.tsx`, `worldRenderer.ts`, `PublicationsView.tsx`, `MemoryView.tsx`, `DiscoverySurface.tsx`, `ActivitySurface.tsx`, `ApprovalsView.tsx`, `PoliciesView.tsx`, `SubAgentsView.tsx`, `RepositoryView.tsx`, `BrowserView.tsx`, `CodeRabbitView.tsx`, `CommandCardsView.tsx`, `Mercatus.tsx`, `ModelsView.tsx`, `MensTrainingView.tsx`, `MensCorpusStudioPanel.tsx`, `GamifyView.tsx`, `LeaderboardArenaPanel.tsx`, and `HarnessRiverPanel.tsx` to the unified White/Gold Carrara Marble aesthetic, and extend `index.css` attribute overrides from `main` to `#root` when in the default White/Gold theme.
+
+### Phase 381: Dual-Theme Architecture — Preserve & Wire User-Selectable Minimalist Grey-Blue Dark Theme (`slate` / `void`) in `Settings → Theme` (`ROMA-V65-DUAL-THEME-01..04`) `[WAVE 2C]`
+
+**Goal:** Update `crates/vox-gui/ui/src/lib/theme.ts`, `SettingsView.tsx`, `index.css`, `Glass.tsx`, `Backdrop.tsx`, `Sidebar.tsx`, and `RomanSurfaceHeader.tsx` so users can switch seamlessly in `Settings → Theme` between **Imperial Carrara White & Gold (`arcane` — Default)** and **Minimalist Grey-Blue Slate (`slate` / `void`)** (`#0c0e10` / `#15191c` / `#1f262b` / `#2b343a` dark grey-blue palette with crisp sans/mono typography, emerald working indicators, and zero marble textures).
+
+### Phase 382: Full 28-Surface + Dual-Theme Playwright & Gemini Computer Vision Flywheel Verification, Build & Live `vox axis` Relaunch (`ROMA-V65-CV-VERIFY-01..04`) `[WAVE 3]`
+
+**Goal:** Expand `crates/vox-gui/ui/e2e/review/cv-flywheel.spec.ts` to capture and audit all 28 navigable `SURFACE_REGISTRY` surfaces + drawers/modals across **both** the Default White/Gold Carrara Marble theme and the Minimalist Grey-Blue Slate theme, inspect screenshots with Gemini built-in vision, present inline Before/After carousels, rebuild `vox-gui` + `vox` (`--features gui`), and relaunch `vox axis`.
+
+---
+
+### Phase 383: Dynamic Hugging Face Hub Sync, Zero-Hardcode SVG & Card Telemetry, Full Ladder Held-Out Re-Evaluation (`0.6B`–`8B`), and Universal Inference Provider & Playground Integration (`MENS-HUB-DYN-01..04`)
+
+**Directory:** `.planning/phases/383-dynamic-hf-hub-sync-and-universal-inference/`
+**Goal:** Eliminate all hardcoded SVG telemetry, stale phase/research prose, and `Pending` / `REGRESSED` misclassifications across `brbrainerd/vox-mens-index`, `brbrainerd/vox-mens-qwen3-{0.6b,1.7b,4b,8b,14b,32b}`, and `spaces/brbrainerd/vox-mens-playground`, while giving every ladder model (`0.6B`..`32B`) live inference provider & widget coverage:
+1. **Zero-Hardcode Dynamic SVG & Fact Derivation (`MENS-HUB-DYN-01`)**:
+   - In `crates/vox-populi/src/mens/hub_card/facts.rs` and `svg.rs`, replace the hardcoded `let is_pos = delta >= -0.005;` check in `render_scorecard_svg` with `!r.regressed` from the McNemar `collateral_damage_report.json` (`p >= 0.05` renders emerald `CLEAR`, eliminating false red `REGRESSED` badges on `0.6B`'s `math500_think` and `vox_think`).
+   - Replace the hardcoded 5-spoke SVG strip in `render_scorecard_svg` and hardcoded `Active` / `Planned` spoke status + `default_vram_gb` array in `render_overview_svg` with dynamic rendering driven by `hub_cards().spokes`, `spoke_of(rec)`, `rec.spoke_gates`, `gate.state`, and each size's measured `peak_mb`.
+   - Derive `spoke_of(rec)` dynamically from `rec.training_manifest` / `rec.spoke_gates` before falling back to `hub-cards.yaml` `default_spoke`, and purge stale internal phase/research references from `mens/config/hub-cards.yaml` and `crates/vox-populi/templates/hub/index.md`.
+2. **Full-Coverage Hub Sync Across Trained, Diverged & Untrained Repos (`MENS-HUB-DYN-02`)**:
+   - Update `crates/vox-populi/src/mens/hub_cards_push.rs` and `hub_sync.rs` so `NotTrained` (`32B`) cards/SVGs and `Diverged` repos whose remote `.safetensors` weights already match local are automatically synced in place during `vox mens hub sync --push`, alongside `brbrainerd/vox-mens-index` and `spaces/brbrainerd/vox-mens-playground`.
+3. **Universal Inference Provider, Rich Vox `widget:` Frontmatter & Deep-Linked Playground (`MENS-HUB-DYN-03`)**:
+   - Emit `inference: true` and real Vox codegen `widget:` examples in `crates/vox-populi/templates/hub/partials/frontmatter.md` across **all 6 model cards (`0.6B`..`32B`)** so Hugging Face never falls back to generic chatbot prompts (`"Hi, what can you help me with?"`).
+   - Add direct deep-links (`https://huggingface.co/spaces/brbrainerd/vox-mens-playground?size=<SIZE>&tab=webgpu`) to `partials/use_it.md` and `index.md`.
+   - Upgrade `crates/vox-populi/templates/hub/space/index.html.tmpl` to honor `?size=` and `?tab=` URL parameters and support live interactive inference across all 6 sizes (`0.6B`..`32B`) via both **In-Browser WebGPU SafeTensors LoRA Merger** (`0.6B`, `1.7B`, `4B`, `8B`) and **OpenAI-Compatible Cloud / Local Inference Provider Router** (`https://router.huggingface.co/v1/chat/completions` + local `vox mens serve` `http://127.0.0.1:11435/v1/chat/completions`) for `0.6B`..`32B`.
+4. **Full Held-Out `nf4_base_plus_lora_arm v2` Re-Evaluation & Live Playwright Verification (`MENS-HUB-DYN-04`)**:
+   - Complete `1.7B` retrain + `eval-local` + `eval-reasoning-compare` + `eval-collateral-damage` + `eval-gate`, re-run `eval-local --force-restart` + `eval-gate` on `4B` and `8B` so all four (`0.6B`, `1.7B`, `4B`, `8B`) carry `"adapter_serving": "nf4_base_plus_lora_arm v2"` and recorded examples, push all repos + Space live, and verify with Playwright.
+**Depends on:** Phase 362, Phase 368
+**Requirements:** `MENS-HUB-DYN-01`, `MENS-HUB-DYN-02`, `MENS-HUB-DYN-03`, `MENS-HUB-DYN-04`
+
+---
+
 # Roadmap: v6.4 — Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography (`Phases 373–377`)
 
 **Milestone:** v6.4

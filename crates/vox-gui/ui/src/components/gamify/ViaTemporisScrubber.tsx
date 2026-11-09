@@ -80,19 +80,13 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
       data-testid="urbs-via-temporis-scrubber"
       role="region"
       aria-label="Git Commit Timeline & Checkpoint Scrubber"
-      style={{
-        backgroundImage:
-          'linear-gradient(90deg, rgba(16, 13, 10, 0.96) 0%, rgba(28, 22, 14, 0.94) 50%, rgba(16, 13, 10, 0.96) 100%), url(/assets/romanesque/marble-frieze-banner.jpg)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-      className="flex flex-col gap-1 rounded-xl border border-[#D4AF37]/65 px-2.5 py-1 text-xs text-[#F5EFE0] shadow-[0_10px_28px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(243,229,171,0.25)] select-none max-w-full"
+      className="vox-marble-tablet flex flex-col gap-1 rounded-xl border border-border-strong bg-bg-surface px-2.5 py-1 text-xs text-text-primary shadow-[0_8px_20px_rgba(28,20,12,0.18),inset_0_1px_0_rgba(255,255,255,0.25)] select-none max-w-full"
     >
       {/* Top Row: Wax seal, badge, and step indicators */}
       <div className="flex flex-nowrap items-center justify-between gap-2 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1.5">
           {/* Miniature Crimson Wax Seal Medallion */}
-          <div className="relative size-5 shrink-0 overflow-hidden rounded-full border border-[#D4AF37]/60 shadow-[0_0_8px_rgba(212,175,55,0.35)]">
+          <div className="relative size-5 shrink-0 overflow-hidden rounded-full border border-border-strong shadow-[0_0_8px_rgba(212,175,55,0.35)]">
             <img
               src="/assets/romanesque/wax-seal-medallion.jpg"
               alt=""
@@ -106,13 +100,13 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
             purpose="Scrub through repository commit milestones and agent turn checkpoints to inspect diffs or restore a prior working state."
             actionHint="Select any milestone step to inspect its changes"
           >
-            <span className="inline-flex items-center gap-1 rounded border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-2 py-0.5 font-display text-[9px] font-bold tracking-wider text-[#F3E5AB]">
-              <Icon.laurelWreath className="size-3 text-[#D4AF37]" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1 rounded border border-border-strong bg-bg-elevated px-2 py-0.5 font-display text-[9px] font-bold tracking-wider text-text-primary">
+              <Icon.laurelWreath className="size-3 text-(--color-accent-default)" aria-hidden="true" />
               <span>GIT TIMELINE · CHECKPOINTS</span>
             </span>
           </RomanTooltip>
 
-          <span className="font-mono text-[9px] text-[#C7BCA8] whitespace-nowrap">
+          <span className="font-mono text-[9px] text-text-secondary whitespace-nowrap">
             Step {currentTurn}/{headTurn}
           </span>
         </div>
@@ -137,15 +131,15 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
                   title={`${m.refName} (+${m.addedLines}/-${m.deletedLines} LoC, ${m.testShieldStatus.toUpperCase()})`}
                   className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[9px] font-bold transition ${
                     isSelected
-                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241B0B] text-[#FEF08A] shadow-[0_0_8px_rgba(212,175,55,0.45)]'
+                      ? 'border border-(--color-accent-default) bg-bg-elevated text-text-primary shadow-[0_0_8px_rgba(212,175,55,0.35)]'
                       : isFail
-                        ? 'border border-red-500/70 bg-[#1A1610] text-[#E7DEC8] hover:border-red-400'
-                        : 'border border-[#D4AF37]/40 bg-[#1A1610] text-[#E7DEC8] hover:border-[#F3E5AB]'
+                        ? 'border border-(--color-status-fail)/70 bg-bg-surface text-text-primary hover:border-(--color-status-fail)'
+                        : 'border border-border-subtle bg-bg-surface text-text-secondary hover:border-border-strong'
                   }`}
                 >
-                  <Icon.romanColumn className={`size-2.5 ${isSelected ? 'text-[#F3E5AB]' : 'text-[#B8A88A]'}`} />
+                  <Icon.romanColumn className={`size-2.5 ${isSelected ? 'text-(--color-accent-default)' : 'text-text-muted'}`} />
                   <span>Step {m.turnNumber} ({m.romanNumeral})</span>
-                  <span className={`text-[8.5px] ${isFail ? 'text-red-400' : 'text-emerald-400'}`}>
+                  <span className={`text-[8.5px] ${isFail ? 'text-(--color-status-fail)' : 'text-(--color-status-pass)'}`}>
                     {isFail ? 'FAIL' : 'PASS'}
                   </span>
                 </button>
@@ -163,7 +157,7 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
             >
               <span
                 data-testid="urbs-scrubber-delta-pill"
-                className="rounded border border-emerald-500/40 bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[9px] text-[#A7F3D0] whitespace-nowrap"
+                className="rounded border border-(--color-status-pass)/40 bg-(--color-status-pass)/15 px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-pass) whitespace-nowrap"
               >
                 +{activeMilestone.addedLines}/-{activeMilestone.deletedLines} LoC · {activeMilestone.tokenCostBu} BU
               </span>
@@ -179,7 +173,7 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
               type="button"
               data-testid="urbs-scrubber-capture-btn"
               onClick={onCaptureCheckpoint}
-              className="rounded border border-[#D4AF37]/65 bg-gradient-to-b from-[#443416] to-[#241B0B] px-2 py-0.5 font-display text-[9px] font-bold text-[#F3E5AB] hover:border-[#F3E5AB] transition whitespace-nowrap"
+              className="rounded border border-border-strong bg-bg-elevated px-2 py-0.5 font-display text-[9px] font-bold text-text-primary hover:border-(--color-accent-default) transition whitespace-nowrap"
             >
               + Checkpoint
             </button>
@@ -195,7 +189,7 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
               data-testid="urbs-scrubber-rollback-btn"
               disabled={busyRestore}
               onClick={() => onRollbackToTurn?.(currentTurn)}
-              className="rounded border border-red-500/60 bg-red-950/40 px-2 py-0.5 font-display text-[9px] font-bold text-[#FECACA] hover:border-red-400 transition whitespace-nowrap disabled:opacity-50"
+              className="rounded border border-(--color-status-fail)/60 bg-(--color-status-fail)/15 px-2 py-0.5 font-display text-[9px] font-bold text-(--color-status-fail) hover:border-(--color-status-fail) transition whitespace-nowrap disabled:opacity-50"
             >
               Restore Step {currentTurn} ({toRomanNumeral(currentTurn)})
             </button>
@@ -212,7 +206,7 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
                 data-testid="urbs-scrubber-close-btn"
                 onClick={onClose}
                 aria-label="Collapse Git Timeline"
-                className="rounded border border-[#D4AF37]/45 bg-[#18130C] px-1.5 py-0.5 font-mono text-[9px] text-[#A89878] hover:border-[#F3E5AB] hover:text-[#F3E5AB] transition"
+                className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:border-border-strong hover:text-text-primary transition"
               >
                 ✕
               </button>
@@ -222,10 +216,10 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
       </div>
 
       {/* Thin Golden Progress Bar showing active turn position */}
-      <div className="h-1 w-full overflow-hidden rounded-full bg-[#18130D] border border-[#D4AF37]/30">
+      <div className="h-1 w-full overflow-hidden rounded-full bg-bg-elevated border border-border-subtle">
         <div
           data-testid="urbs-scrubber-progress-bar"
-          className="h-full bg-gradient-to-r from-[#8C6D23] via-[#D4AF37] to-[#F3E5AB] transition-all duration-300 shadow-[0_0_6px_rgba(212,175,55,0.6)]"
+          className="h-full bg-(--color-accent-default) transition-all duration-300 shadow-[0_0_6px_rgba(212,175,55,0.6)]"
           style={{ width: `${progressPct}%` }}
         />
       </div>

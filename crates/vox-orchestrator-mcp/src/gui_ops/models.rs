@@ -287,7 +287,7 @@ pub async fn compute_model_leaderboard()
         let rows = db
             .model_benchmark_summary(since_ms)
             .await
-            .map_err(|e| e.to_string())?;
+            .unwrap_or_default();
         for r in &rows {
             let confidence = reg
                 .get(&r.model_id)

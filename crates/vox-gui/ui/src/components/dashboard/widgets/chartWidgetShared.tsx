@@ -3,7 +3,7 @@ import { Glass } from '../../ui/Glass';
 import type { MetricPoint } from '../../../hooks/useMetricSeries';
 
 export const BRASS_STROKE = 'rgb(var(--brass))';
-export const GRID_STROKE = '#27272a';
+export const GRID_STROKE = 'var(--color-border-subtle)';
 
 export interface ChartWidgetProps {
   title: string;
@@ -43,11 +43,11 @@ export function ChartWidgetFrame({
 
 export const tooltipStyle = {
   contentStyle: {
-    background: 'rgba(24,24,27,0.95)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'var(--color-bg-elevated)',
+    border: '1px solid var(--color-border-subtle)',
     borderRadius: 8,
     fontSize: 11,
   },
-  labelStyle: { color: '#a1a1aa' },
+  labelStyle: { color: 'var(--color-text-secondary)' },
   itemStyle: { color: BRASS_STROKE },
 } as const;

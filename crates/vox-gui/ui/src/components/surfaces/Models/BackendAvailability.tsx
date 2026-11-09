@@ -47,7 +47,7 @@ export function BackendAvailability({ statuses }: { statuses: ProviderStatus[] }
               role="listitem"
               aria-label={s.provider}
               title={s.provider}
-              className="flex items-center gap-2.5 rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 min-w-0 shadow-sm transition-colors hover:border-[#D4AF37]"
+              className="flex items-center gap-2.5 rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 min-w-0 shadow-sm transition-colors hover:border-[#D4AF37]"
             >
               <span
                 aria-hidden
@@ -57,12 +57,12 @@ export function BackendAvailability({ statuses }: { statuses: ProviderStatus[] }
                     : 'bg-[#78350F]'
                 }`}
               />
-              <span className="font-mono text-[10px] text-[#F3E5AB] font-medium truncate min-w-0">{s.provider}</span>
-              <span className="ml-auto shrink-0 whitespace-nowrap text-[9px] uppercase tracking-widest text-[#D8C7A8]">
+              <span className="font-mono text-[10px] text-text-primary font-medium truncate min-w-0">{s.provider}</span>
+              <span className="ml-auto shrink-0 whitespace-nowrap text-[9px] uppercase tracking-widest text-text-secondary">
                 {live ? (
                   <RomanWaxSealBadge label={label} tone="emerald" className="text-[8px] py-0 px-1.5" />
                 ) : (
-                  <span className="font-display text-[#D8C7A8]">{label}</span>
+                  <span className="font-display text-text-secondary">{label}</span>
                 )}
               </span>
             </div>

@@ -512,8 +512,8 @@ export function ChatExecutionRail({
 
   return (
     <aside aria-label="Execution rail" className="flex h-full w-full min-w-0 flex-col">
-      <Glass className="flex h-full flex-col gap-2 overflow-y-auto custom-scrollbar p-2.5">
-        <div className="flex shrink-0 items-center justify-between gap-2 whitespace-nowrap">
+      <Glass className="flex h-full flex-col gap-2 overflow-y-auto custom-scrollbar p-2.5 pb-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5">
             <h2 className="text-[11px] uppercase tracking-[0.08em] text-brass">{useLabel('chat-execution')}</h2>
             {displayTasks.length > 0 && (
@@ -543,11 +543,11 @@ export function ChatExecutionRail({
             <span
               data-testid="execution-rail-cas-rev"
               title={`Task list version v${ledgerRev} (${pendingDeltasCount} recent edits synced with assistant)`}
-              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-brass"
+              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-brass"
             >
               Synced · v{ledgerRev}
             </span>
-            <span className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
+            <span className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
               {displayTasks.length === 0 ? 'IDLE · READY' : `${displayTasks.length} ACTIVE`}
             </span>
           </div>
@@ -557,7 +557,7 @@ export function ChatExecutionRail({
           role="tablist"
           aria-label="Session inspector sections"
           data-testid="execution-rail-segmented-tabs"
-          className="grid shrink-0 grid-cols-4 gap-0.5 border-b border-border-subtle bg-overlay-solid/90 px-0.5 pt-0.5 font-mono text-[11px]"
+          className="flex shrink-0 items-center justify-between gap-0.5 overflow-x-auto no-scrollbar border-b border-border-subtle bg-overlay-solid/90 px-0.5 pt-0.5 font-mono text-[10px]"
         >
           {(
             [
@@ -576,7 +576,7 @@ export function ChatExecutionRail({
               data-testid={`execution-rail-tab-${tab.id}`}
               aria-selected={activeInspectorTab === tab.id}
               onClick={() => setActiveInspectorTab(tab.id)}
-              className={`whitespace-nowrap rounded-t px-1.5 py-1 text-center transition ${
+              className={`min-w-0 flex-1 whitespace-nowrap rounded-t px-1 py-1 text-center tracking-tight transition ${
                 activeInspectorTab === tab.id
                   ? 'border-b-2 border-brass bg-brass/12 text-brass font-semibold'
                   : 'border-b-2 border-transparent text-text-muted hover:text-text-secondary'
@@ -662,7 +662,7 @@ export function ChatExecutionRail({
           {displayTasks.length === 0 ? (
             <p className="text-[11px] text-text-muted">No active tasks for this session.</p>
           ) : (
-            <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto custom-scrollbar">
+            <ul className="flex max-h-52 flex-col gap-1 overflow-y-auto custom-scrollbar">
               {displayTasks.map((task) => {
                 const statusLower = task.status?.toLowerCase() ?? 'pending';
                 const isDone = statusLower === 'completed' || statusLower === 'done';
@@ -711,7 +711,7 @@ export function ChatExecutionRail({
                           />
                         ) : (
                           <p
-                            className={`text-xs leading-snug truncate ${
+                            className={`text-xs leading-snug truncate whitespace-normal line-clamp-2 wrap-break-word ${
                               isDone ? 'text-(--color-status-pass)/90' : 'text-text-secondary'
                             }`}
                             title={task.title}
@@ -840,7 +840,7 @@ export function ChatExecutionRail({
               data-testid="execution-rail-routing"
               title={routingLine}
               onClick={() => onOpenRouting?.()}
-              className="truncate rounded-sm px-2 py-0.5 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
+              className="truncate whitespace-normal line-clamp-2 wrap-break-word rounded-sm px-2 py-0.5 text-left text-[11px] leading-snug text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
             >
               {routingLine}
             </button>
@@ -856,7 +856,7 @@ export function ChatExecutionRail({
                   window.location.hash = '#view=mens';
                 }
               }}
-              className="flex items-center justify-between gap-1.5 rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-left text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+              className="flex flex-wrap items-center justify-between gap-1.5 rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-left text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
             >
               <span className="uppercase tracking-[0.08em] text-text-muted">Spoke</span>
               <span className="truncate font-mono text-[11px] text-(--color-status-pass)">
@@ -1018,7 +1018,7 @@ export function ChatExecutionRail({
                       />
                     ) : (
                       <span
-                        className="min-w-0 flex-1 truncate font-mono text-[11px] text-brass"
+                        className="min-w-0 flex-1 line-clamp-2 break-all font-mono text-[11px] leading-snug text-brass"
                         title={pin.label}
                         onDoubleClick={() => {
                           setEditingPinId(pin.id);
@@ -1156,7 +1156,7 @@ export function ChatExecutionRail({
           aria-label="Session verification deck"
           className="mt-auto flex shrink-0 flex-col gap-1.5 border-t border-border-subtle pt-2"
         >
-          <div className="flex items-center justify-between whitespace-nowrap">
+          <div className="flex flex-wrap items-center justify-between gap-1">
             <span className="font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">
               System Checks
             </span>

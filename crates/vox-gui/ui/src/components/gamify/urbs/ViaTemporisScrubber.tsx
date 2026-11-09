@@ -70,14 +70,11 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
         justifyContent: 'space-between',
         gap: 10,
         padding: '6px 12px',
-        backgroundImage:
-          'linear-gradient(90deg, rgba(16, 13, 10, 0.96) 0%, rgba(28, 22, 14, 0.94) 50%, rgba(16, 13, 10, 0.96) 100%), url(/assets/romanesque/marble-frieze-banner.jpg)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        border: '1.5px solid rgba(212, 175, 55, 0.65)',
+        background: 'var(--color-bg-surface)',
+        border: '1.5px solid var(--color-border-strong)',
         borderRadius: 10,
-        boxShadow: '0 10px 28px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(243, 229, 171, 0.25)',
-        color: '#F5EFE0',
+        boxShadow: '0 8px 20px rgba(28, 20, 12, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
+        color: 'var(--color-text-primary)',
         fontSize: 11,
         flexWrap: 'wrap',
       }}
@@ -97,22 +94,22 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
               fontSize: 10,
               fontWeight: 800,
               letterSpacing: '0.08em',
-              color: '#F3E5AB',
+              color: 'var(--color-text-primary)',
               padding: '3px 8px',
               borderRadius: 6,
-              background: 'rgba(212, 175, 55, 0.18)',
-              border: '1px solid rgba(212, 175, 55, 0.48)',
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-strong)',
               whiteSpace: 'nowrap',
             }}
           >
-            <Icon.hourglassVia style={{ width: 12, height: 12, color: '#D4AF37' }} />
+            <Icon.hourglassVia style={{ width: 12, height: 12, color: 'var(--color-accent-default)' }} />
             <span>GIT TIMELINE</span>
           </span>
         </RomanTooltip>
         <span
           style={{
             fontSize: 10,
-            color: '#C7BCA8',
+            color: 'var(--color-text-secondary)',
             fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
             whiteSpace: 'nowrap',
           }}
@@ -159,25 +156,25 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
                   fontSize: 10,
                   fontWeight: 800,
                   background: isSelected
-                    ? 'linear-gradient(180deg, rgba(212, 175, 55, 0.42) 0%, rgba(120, 74, 12, 0.52) 100%)'
-                    : 'rgba(26, 22, 16, 0.92)',
+                    ? 'var(--color-bg-elevated)'
+                    : 'var(--color-bg-surface)',
                   border: isSelected
-                    ? '1.5px solid #F3E5AB'
+                    ? '1.5px solid var(--color-accent-default)'
                     : isFail
-                      ? '1px solid rgba(248, 113, 113, 0.7)'
-                      : '1px solid rgba(212, 175, 55, 0.35)',
-                  color: isSelected ? '#FEF08A' : '#E7DEC8',
+                      ? '1px solid var(--color-status-fail)'
+                      : '1px solid var(--color-border-subtle)',
+                  color: 'var(--color-text-primary)',
                   boxShadow: isSelected
-                    ? '0 0 10px rgba(212, 175, 55, 0.42)'
+                    ? '0 0 10px var(--color-overlay-hover)'
                     : 'none',
                 }}
               >
-                <Icon.romanColumn style={{ width: 11, height: 11, color: isSelected ? '#F3E5AB' : '#B8A88A' }} />
+                <Icon.romanColumn style={{ width: 11, height: 11, color: isSelected ? 'var(--color-accent-default)' : 'var(--color-text-muted)' }} />
                 <span>Step {m.turnNumber} ({m.romanNumeral})</span>
                 <span
                   style={{
                     fontSize: 9,
-                    color: isFail ? '#F87171' : '#DCE7B6',
+                    color: isFail ? 'var(--color-status-fail)' : 'var(--color-status-pass)',
                   }}
                 >
                   {isFail ? 'FAIL' : 'PASS'}
@@ -200,9 +197,9 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
               style={{
                 fontSize: 10,
                 fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
-                color: '#F3E5AB',
-                background: 'rgba(212, 175, 55, 0.16)',
-                border: '1px solid rgba(212, 175, 55, 0.45)',
+                color: 'var(--color-text-primary)',
+                background: 'var(--color-bg-elevated)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: 5,
                 padding: '2px 7px',
                 whiteSpace: 'nowrap',
@@ -228,9 +225,9 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
               fontWeight: 700,
               borderRadius: 6,
               cursor: 'pointer',
-              background: 'linear-gradient(180deg, rgba(68, 52, 22, 0.9) 0%, rgba(36, 27, 11, 0.95) 100%)',
-              border: '1px solid rgba(212, 175, 55, 0.65)',
-              color: '#F3E5AB',
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-strong)',
+              color: 'var(--color-text-primary)',
               whiteSpace: 'nowrap',
             }}
           >
@@ -253,9 +250,9 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
               fontWeight: 700,
               borderRadius: 6,
               cursor: 'pointer',
-              background: 'rgba(153, 27, 27, 0.35)',
-              border: '1px solid rgba(248, 113, 113, 0.65)',
-              color: '#FECACA',
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-status-fail)',
+              color: 'var(--color-status-fail)',
               whiteSpace: 'nowrap',
             }}
           >

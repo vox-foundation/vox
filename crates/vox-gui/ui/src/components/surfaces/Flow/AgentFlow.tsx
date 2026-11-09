@@ -105,9 +105,9 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
               ['ETA',    agent.eta],
               ['Skill',  agent.skill ?? '—'],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-md border border-[#8C6825]/60 bg-[#251C0E] px-2 py-1 text-[#F3E5AB]">
-                <div className="text-[8.5px] font-display uppercase tracking-widest text-[#D4AF37]">{label}</div>
-                <div className="mt-0.5 font-serif text-[11px] font-bold text-[#F3E5AB]">{value}</div>
+              <div key={label} className="rounded-md border border-[#8C6825]/60 bg-bg-surface px-2 py-1 text-text-primary">
+                <div className="text-[8.5px] font-display uppercase tracking-widest text-brass">{label}</div>
+                <div className="mt-0.5 font-serif text-[11px] font-bold text-text-primary">{value}</div>
               </div>
             ))}
           </div>
@@ -180,15 +180,15 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
         data-roman-frieze="true"
         className="vox-animate-marble-sheen relative flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-2 border-[#C59B27] px-4 py-3"
         style={{
-          backgroundImage: `linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(246,240,229,0.88) 0%, rgba(238,229,212,0.74) 48%, rgba(246,240,229,0.88) 100%), url('/assets/romanesque/white-marble-frieze-banner.jpg')`,
+          backgroundImage: `linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(250,246,238,0.92) 0%, rgba(242,235,221,0.82) 48%, rgba(250,246,238,0.92) 100%), url('/assets/romanesque/carrara-acanthus-header-band.jpg')`,
           backgroundSize: '240% 100%, 100% 100%, cover',
-          backgroundPosition: 'center',
+          backgroundPosition: 'center, center, center',
         }}
       >
         <div className="relative z-10 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <RomanMedallion active size="sm" {...({ icon: 'brazierTorch', tone: 'gold' } as any)}>
-              <Icon.brazierTorch className="size-3.5 text-[#FFF8E7]" aria-hidden="true" />
+              <Icon.brazierTorch className="size-3.5 text-[#1C140C]" aria-hidden="true" />
             </RomanMedallion>
             <span className="rounded border border-[#785312] bg-linear-to-b from-[#F2D67B] via-[#D4AF37] to-[#9A741C] px-2 py-0.5 font-display text-[9px] font-bold tracking-[0.12em] uppercase text-[#1A1205]">
               Agent Flow
@@ -214,9 +214,9 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 type="button"
                 tabIndex={0}
                 onClick={() => setIsLive(!isLive)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/40 bg-[#1D1811] px-2 py-1 font-mono text-[10px] text-[#F3E5AB] hover:border-[#D4AF37]"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#1B6B3A]/75 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2.5 py-1 font-display text-[10px] font-bold text-[#1C140C] hover:border-[#1B6B3A]"
               >
-                <span className={`size-1.5 rounded-full ${isLive ? 'bg-[#8FA339] animate-pulse' : 'bg-[#8C7A5E]'}`} />
+                <span className={`size-2 rounded-full ${isLive ? 'bg-[#1B6B3A] ring-2 ring-[#D4AF37]/65 animate-pulse' : 'bg-[#8C7A5E]'}`} />
                 <span>{isLive ? 'Live' : 'Paused'}</span>
               </button>
             </RomanTooltip>
@@ -229,7 +229,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 type="button"
                 tabIndex={0}
                 onClick={() => { setSel('ROOT'); onSelect?.('ROOT'); }}
-                className="rounded-md border border-[#D4AF37]/40 bg-[#1D1811] px-2 py-1 font-mono text-[10px] text-[#C8B99E] hover:border-[#D4AF37] hover:text-[#F3E5AB]"
+                className="rounded-md border border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2.5 py-1 font-display text-[10px] font-semibold text-[#1C140C] hover:border-[#9A7014]"
               >
                 Reset View
               </button>
@@ -241,12 +241,12 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             <Legend color="bg-brass"      label="Executing" purpose="Agent is actively modifying source files, executing tool commands, or generating code." />
             <Legend color="bg-[#D97706]"  label="Verifying" purpose="Agent is running verification gates, test suites, or AST integrity checks." />
             <Legend color="bg-text-muted" label="Paused" purpose="Agent is suspended awaiting operator feedback or approval." />
-            <Legend color="bg-[#8FA339]"  label="Validated" purpose="Agent changes passed verification and are certified safe." />
+            <Legend color="bg-[#1B6B3A]"  label="Validated" purpose="Agent changes passed verification and are certified safe." />
           </div>
         </div>
       </div>
 
-      <div className="relative min-h-[220px] w-full flex-1 overflow-hidden bg-[#0E0B07]">
+      <div className="relative min-h-[220px] w-full flex-1 overflow-hidden bg-[#F6F1E6]">
         {/* High-Resolution Roman Aqueduct & Castellum Divisorium Backdrop */}
         <img
           src="/assets/romanesque/aqueduct-sluice-cascade-bg.jpg"
@@ -254,7 +254,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-55 select-none"
         />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(18,13,8,0.25)_0%,rgba(14,10,6,0.72)_100%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,246,238,0.18)_0%,rgba(243,235,220,0.45)_100%)]" />
 
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -309,7 +309,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             return (
               <g key={i}>
                 {/* Outer Carved Stone Aqueduct Channel */}
-                <path d={d} stroke="rgba(24, 18, 12, 0.82)" strokeWidth="7" fill="none" />
+                <path d={d} stroke="rgba(184, 134, 11, 0.28)" strokeWidth="7" fill="none" />
                 <path d={d} stroke="rgba(212, 175, 55, 0.38)" strokeWidth="4.2" fill="none" />
                 {/* Animated Hydraulic Token Stream */}
                 <path
@@ -446,14 +446,14 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
       </div>
 
       {selectedNode && (
-        <div className="shrink-0 border-t-2 border-[#C59B27]/65 bg-[#14100B] p-3">
+        <div className="shrink-0 border-t-2 border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] p-3 text-[#1C140C]">
           <AgentInspector node={selectedNode} agent={selectedAgent} />
           {/* Interactive Developer Orchestrator Control Bar */}
           <div
             data-testid="flow-orchestrator-control-bar"
             style={{
               backgroundImage:
-                'linear-gradient(180deg, rgba(244,238,225,0.95) 0%, rgba(229,218,198,0.95) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+                'linear-gradient(180deg, rgba(250,246,238,0.95) 0%, rgba(238,229,212,0.95) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
@@ -469,7 +469,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 onClick={() =>
                   setFlowReceipt(`⚔ Dispatched sub-agent task to ${selectedNode.label} via file-affinity router`)
                 }
-                className="rounded border border-[#8C6214]/85 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB]"
+                className="rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C]"
               >
                 [⚔ Dispatch Sub-Agent]
               </button>
@@ -479,7 +479,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 onClick={() =>
                   setFlowReceipt(`🌊 Rerouted ${selectedNode.label} stream to Cursus I Fast Local MENS`)
                 }
-                className="rounded border border-[#8C6214]/85 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB]"
+                className="rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C]"
               >
                 [🌊 Reroute Aqueduct Tier]
               </button>
@@ -489,7 +489,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 onClick={() =>
                   setFlowReceipt(`🔍 Captured BLAKE3 tool-call trace for ${selectedNode.label}`)
                 }
-                className="rounded border border-[#8C6214]/85 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB]"
+                className="rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C]"
               >
                 [🔍 Inspect Trace]
               </button>
@@ -500,13 +500,13 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                   setFlowYieldXp((xp) => xp + 150);
                   setFlowReceipt(`🏆 Claimed +150 XP · +12 Denarii from ${selectedNode.label} verification!`);
                 }}
-                className="rounded border border-[#B38728] bg-linear-to-b from-[#D4AF37] to-[#9A711C] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208]"
+                className="rounded border border-[#B38728] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208]"
               >
                 [🏆 Claim Yield +{flowYieldXp} XP]
               </button>
             </div>
             {flowReceipt && (
-              <span className="rounded border border-[#8C6214]/50 bg-[#1B140B] px-2 py-0.5 font-mono text-[8.5px] text-[#F3E5AB]">
+              <span className="rounded border border-[#1B6B3A]/65 bg-[#E6F4EA] px-2 py-0.5 font-serif text-[9px] font-bold text-[#14532D]">
                 {flowReceipt}
               </span>
             )}

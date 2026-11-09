@@ -121,13 +121,13 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
   const showArena = subtab === 'all' || subtab === 'arena';
 
   const renderNotifications = () => (
-    <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-3.5 space-y-2">
-      <div className="flex items-center gap-2 border-b border-[#382F20] pb-2 font-serif text-[11px] font-bold uppercase tracking-wider text-[#D4AF37]">
-        <Icon.scrollTabula className="size-3.5 text-[#D4AF37]" />
+    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2 text-[#1C140C]">
+      <div className="flex items-center gap-2 border-b border-[#C59B27]/40 pb-1.5 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
+        <Icon.scrollTabula className="size-3.5 text-[#8C6214]" />
         <span>Imperial Notices &amp; Dispatches</span>
       </div>
       {notes.length === 0 ? (
-        <div className="rounded-lg border border-[#2B2317] bg-[#0E0B07] p-3 text-[11px] text-[#8C7D64]">
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2.5 text-[11px] text-text-secondary">
           No unread notifications.
         </div>
       ) : (
@@ -135,11 +135,11 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
           {notes.map(n => (
             <li
               key={n.id}
-              className="flex items-start justify-between gap-3 rounded-lg border border-[#382F20] bg-[#1A140D] p-3 shadow-xs"
+              className="flex items-start justify-between gap-3 rounded-lg border border-border-subtle bg-bg-elevated p-2.5 shadow-xs"
             >
               <div className="min-w-0">
-                <div className="font-serif text-[12px] font-semibold text-[#F3E5AB]">{n.title}</div>
-                <div className="text-[11px] text-[#C4B69C]">{n.message}</div>
+                <div className="font-display text-[12px] font-semibold text-text-primary">{n.title}</div>
+                <div className="text-[11px] text-text-secondary">{n.message}</div>
               </div>
               <RomanTooltip
                 title="Acknowledge Notice"
@@ -150,7 +150,7 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                   type="button"
                   onClick={() => ack(n.id)}
                   aria-label={`Acknowledge ${n.title}`}
-                  className="shrink-0 rounded-md border border-[#D4AF37]/40 bg-[#2B200E] px-2.5 py-1 font-mono text-[10px] font-semibold text-[#F3E5AB] hover:border-[#F3E5AB] transition"
+                  className="shrink-0 rounded-md border border-border-strong bg-bg-surface px-2.5 py-1 font-mono text-[10px] font-semibold text-text-primary hover:border-(--color-accent-default) transition"
                 >
                   Ack
                 </button>
@@ -163,13 +163,13 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
   );
 
   const renderCompanions = () => (
-    <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-3.5 space-y-3">
-      <div className="flex items-center gap-2 border-b border-[#382F20] pb-2 font-serif text-[11px] font-bold uppercase tracking-wider text-[#D4AF37]">
-        <Icon.gladiusShield className="size-3.5 text-[#D4AF37]" />
+    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2.5 text-[#1C140C]">
+      <div className="flex items-center gap-2 border-b border-[#C59B27]/40 pb-1.5 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
+        <Icon.gladiusShield className="size-3.5 text-[#8C6214]" />
         <span>Companion Assistants &amp; Familiars</span>
       </div>
       {companions.length === 0 ? (
-        <div className="rounded-lg border border-[#2B2317] bg-[#0E0B07] p-3 text-[11px] text-[#8C7D64]">
+        <div className="rounded-lg border border-[#C59B27]/40 bg-[#F4EDE0] p-2.5 text-[11px] text-[#5C4428]">
           No companions yet.
         </div>
       ) : (
@@ -184,24 +184,24 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
             return (
               <div
                 key={c.id}
-                className="rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1C160F] to-[#110D09] p-3 shadow-md"
+                className="rounded-xl border border-[#C59B27]/65 bg-linear-to-b from-[#FFFDF9] to-[#F2E9D8] p-3 shadow-sm"
               >
-                <div className="relative mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#D4AF37]/70 bg-gradient-to-b from-[#3A2C14] via-[#221A0C] to-[#120E08] shadow-[0_0_16px_rgba(212,175,55,0.28),inset_0_1px_0_rgba(255,244,214,0.35)]">
+                <div className="relative mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#C59B27] bg-bg-elevated shadow-[0_0_12px_rgba(212,175,55,0.28)]">
                   <img
                     src="/assets/romanesque/wax-seal-medallion.jpg"
                     alt=""
                     aria-hidden="true"
                     className="absolute inset-0 h-full w-full rounded-full object-cover opacity-35 mix-blend-luminosity"
                   />
-                  <CompanionIcon className="relative z-10 size-7 text-[#F3E5AB] drop-shadow-[0_2px_6px_rgba(212,175,55,0.45)]" />
+                  <CompanionIcon className="relative z-10 size-6 text-brass" />
                 </div>
-                <div className="truncate text-center font-serif text-[13px] font-bold text-[#F3E5AB]">
+                <div className="truncate text-center font-display text-[12px] font-bold text-[#1C140C]">
                   {c.name}
                 </div>
-                <div className="text-center font-mono text-[10px] uppercase tracking-wider text-[#A89878]">
+                <div className="text-center font-mono text-[10px] uppercase tracking-wider text-[#5C4428]">
                   {c.mood} · {c.language}
                 </div>
-                <div className="mt-2.5 space-y-1.5">
+                <div className="mt-2 space-y-1.5">
                   <Bar label="HP" value={c.health} max={c.max_health} tone="bg-[#7B8C32]" />
                   <Bar label="EN" value={c.energy} max={c.max_energy} tone="bg-[#D4AF37]" />
                 </div>
@@ -214,13 +214,13 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
   );
 
   const renderQuests = () => (
-    <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-3.5 space-y-3">
-      <div className="flex items-center gap-2 border-b border-[#382F20] pb-2 font-serif text-[11px] font-bold uppercase tracking-wider text-[#D4AF37]">
-        <Icon.scrollTabula className="size-3.5 text-[#D4AF37]" />
+    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2.5 text-[#1C140C]">
+      <div className="flex items-center gap-2 border-b border-[#C59B27]/40 pb-1.5 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
+        <Icon.scrollTabula className="size-3.5 text-[#8C6214]" />
         <span>Active Engineering Quests</span>
       </div>
       {quests.length === 0 ? (
-        <div className="rounded-lg border border-[#2B2317] bg-[#0E0B07] p-3 text-[11px] text-[#8C7D64]">
+        <div className="rounded-lg border border-[#C59B27]/40 bg-[#F4EDE0] p-2.5 text-[11px] text-[#5C4428]">
           No active quests.
         </div>
       ) : (
@@ -228,26 +228,26 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
           {quests.map(q => (
             <li
               key={q.id}
-              className="rounded-lg border border-[#382F20] bg-[#18130C] p-3 shadow-sm"
+              className="rounded-lg border border-[#C59B27]/55 bg-[#FFFDF8] p-2.5 shadow-xs"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate font-serif text-[12px] font-semibold text-[#F3E5AB]">
+                  <div className="truncate font-display text-[12px] font-semibold text-[#1C140C]">
                     {q.description}
                   </div>
-                  <div className="truncate text-[11px] text-[#A89878]">{q.hint}</div>
+                  <div className="truncate text-[11px] text-[#5C4428]">{q.hint}</div>
                 </div>
                 <span
                   className={`shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase font-semibold ${
                     q.completed
-                      ? 'border-[#7B8C32]/50 bg-[#4D5D1E]/20 text-[#DCE7B6]'
-                      : 'border-[#4A3D29] bg-[#110D09] text-[#9E9079]'
+                      ? 'border-[#10B981]/50 bg-[#10B981]/15 text-[#065F46]'
+                      : 'border-[#C59B27]/60 bg-[#F3E5AB]/55 text-[#1C140C]'
                   }`}
                 >
                   {q.completed ? 'done' : q.status}
                 </span>
               </div>
-              <div className="mt-2.5">
+              <div className="mt-2">
                 <Bar
                   label={`${q.progress}/${q.target}`}
                   value={q.progress}
@@ -255,8 +255,8 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                   tone="bg-[#D4AF37]"
                 />
               </div>
-              <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-[#C4B69C]">
-                <Icon.denariusCoin className="size-3 text-[#D4AF37]" />
+              <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-[#5C4428]">
+                <Icon.denariusCoin className="size-3 text-[#8C6214]" />
                 <span>
                   +{q.xp_reward} XP · +{q.crystal_reward} Crystals · {q.quest_type}
                 </span>
@@ -269,15 +269,15 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
   );
 
   return (
-    <section data-testid="gamify-view" className="space-y-2.5 text-[#E6DCB8]">
+    <section data-testid="gamify-view" className="space-y-1.5 text-[#E6DCB8]">
       {/* Plate 2 Luminous White Carrara Marble Frieze Header */}
       <div
         data-roman-frieze="true"
-        className="vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-4 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.65),inset_0_2px_0_rgba(255,255,255,0.92)]"
+        className="vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-3 py-1.5 shadow-[0_6px_18px_rgba(28,20,12,0.18),inset_0_2px_0_rgba(255,255,255,0.92)]"
         style={{
-          backgroundImage: `linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(246,240,229,0.88) 0%, rgba(238,229,212,0.74) 48%, rgba(246,240,229,0.88) 100%), url('/assets/romanesque/white-marble-frieze-banner.jpg')`,
+          backgroundImage: `linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(250,246,238,0.92) 0%, rgba(242,235,221,0.82) 48%, rgba(250,246,238,0.92) 100%), url('/assets/romanesque/carrara-acanthus-header-band.jpg')`,
           backgroundSize: '240% 100%, 100% 100%, cover',
-          backgroundPosition: 'center',
+          backgroundPosition: 'center, center, center',
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -302,7 +302,7 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
             <div
               role="group"
               aria-label="Civilization sub-surfaces"
-              className="flex flex-wrap items-center rounded-lg border border-[#D4AF37]/35 bg-[#0D0B08]/85 p-0.5"
+              className="flex flex-wrap items-center rounded-lg border border-border-subtle bg-bg-elevated p-0.5"
             >
               <RomanTooltip
                 title="Workspace Map"
@@ -319,8 +319,8 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                   }}
                   className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                     subtab === 'urbs' && simMode === 'urbs'
-                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                      ? 'border border-(--color-accent-default) bg-bg-surface text-text-primary shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   <Icon.romanColumn className="size-3 shrink-0" />
@@ -343,8 +343,8 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                   }}
                   className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                     subtab === 'urbs' && simMode === 'river'
-                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                      ? 'border border-(--color-accent-default) bg-bg-surface text-text-primary shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   <Icon.aqueductArch className="size-3 shrink-0" />
@@ -364,8 +364,8 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                   onClick={() => setSubtab('collegium')}
                   className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                     subtab === 'collegium'
-                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                      ? 'border border-(--color-accent-default) bg-bg-surface text-text-primary shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   <Icon.gladiusShield className="size-3 shrink-0" />
@@ -385,8 +385,8 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                   onClick={() => setSubtab('arena')}
                   className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                     subtab === 'arena'
-                      ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                      : 'text-[#B8A88A] hover:text-[#F3E5AB]'
+                      ? 'border border-(--color-accent-default) bg-bg-surface text-text-primary shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   <Icon.laurelWreath className="size-3 shrink-0" />
@@ -404,7 +404,7 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                 type="button"
                 onClick={refresh}
                 disabled={loading}
-                className="rounded-md border border-[#4A3D29] bg-[#18130C] px-2.5 py-1 font-mono text-[10px] text-[#D8CEBA] hover:border-[#D4AF37]/60 hover:text-[#F3E5AB] transition"
+                className="rounded-md border border-border-subtle bg-bg-elevated px-2.5 py-1 font-mono text-[10px] text-text-secondary hover:border-border-strong hover:text-text-primary transition"
               >
                 {loading ? 'Loading…' : 'Refresh'}
               </button>
@@ -415,13 +415,13 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
 
       {/* Primary Simulator Sandbox Container */}
       {showUrbs && (
-        <div className="overflow-hidden rounded-2xl border-2 border-[#C59B27]/75 bg-[#0E0B07] shadow-2xl">
+        <div className="overflow-hidden rounded-2xl border-2 border-border-strong bg-bg-surface shadow-2xl">
           {simMode === 'urbs' ? (
-            <div className="h-[calc(100vh-215px)] min-h-[520px] max-h-[680px] w-full">
+            <div className="h-[calc(100vh-208px)] min-h-[465px] max-h-[860px] w-full">
               <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} onNavigate={onNavigate} />
             </div>
           ) : (
-            <div data-testid="gamify-live-river-container" className="p-2.5">
+            <div data-testid="gamify-live-river-container" className="p-2">
               <HarnessRiverPanel gamifyEnabled />
             </div>
           )}
@@ -431,20 +431,14 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
       {/* When on Workspace Map (subtab === 'urbs'), render Collegium sections inside a progressive-disclosure accordion */}
       {subtab === 'urbs' && (
         <div
-          style={{
-            backgroundImage:
-              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-          className="vox-marble-tablet relative overflow-hidden rounded-xl border-2 border-[#C59B27]/85 px-3.5 py-2 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+          className="vox-marble-tablet relative overflow-hidden rounded-xl border border-border-strong bg-bg-surface px-3 py-1 shadow-[0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]"
         >
-          <div className="flex items-center justify-between font-serif text-[11px] font-bold tracking-wide text-[#1C140C]">
+          <div className="flex items-center justify-between font-serif text-[11px] font-bold tracking-wide text-text-primary">
             <span>▸ Companion Familiars, Imperial Notices &amp; Active Quests</span>
             <button
               type="button"
               onClick={() => setSubtab('collegium')}
-              className="rounded border border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] px-2.5 py-0.5 font-mono text-[10px] font-semibold text-[#F3E5AB] hover:border-[#D4AF37]"
+              className="rounded border border-border-strong bg-bg-elevated px-2.5 py-0.5 font-mono text-[10px] font-semibold text-text-primary hover:border-(--color-accent-default)"
             >
               Open Arena &amp; Quests ↗
             </button>
@@ -462,7 +456,7 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
         profile ? (
           <LudusHud profile={profile} />
         ) : (
-          <div className="rounded-xl border border-[#382F20] bg-[#14100A] p-4 text-sm text-[#A89878]">
+          <div className="rounded-xl border border-border-subtle bg-bg-surface p-4 text-sm text-text-secondary">
             No profile yet.
           </div>
         )
@@ -494,9 +488,9 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-2">
-      <span className="w-12 shrink-0 font-mono text-[9px] uppercase tracking-wider text-[#A89878]">{label}</span>
+      <span className="w-12 shrink-0 font-mono text-[9px] uppercase tracking-wider text-text-secondary">{label}</span>
       <div
-        className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#241E15] border border-[#382F20]/60"
+        className="h-1.5 flex-1 overflow-hidden rounded-full bg-bg-elevated border border-border-subtle"
         role="progressbar"
         aria-label={label}
         aria-valuenow={Math.round(pct)}

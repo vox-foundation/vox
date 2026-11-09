@@ -174,7 +174,7 @@ export function LeaderboardArenaPanel({
   return (
     <div
       data-testid="leaderboard-arena-panel"
-      className="rounded-xl border border-[#D4AF37]/45 bg-gradient-to-b from-[#1C160F] via-[#140F0A] to-[#0D0A07] p-4 space-y-3.5 shadow-xl text-[#E6DCB8]"
+      className="rounded-xl border border-[#C59B27]/45 bg-bg-surface p-4 space-y-3.5 shadow-sm text-text-primary"
     >
       {/* Header with Verification Seals & Badges */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#382F20] pb-3.5">
@@ -233,8 +233,8 @@ export function LeaderboardArenaPanel({
               onClick={() => setLens('stewardship')}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                 lens === 'stewardship'
-                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
+                  ? 'border border-[#D4AF37] bg-bg-elevated text-text-primary shadow-sm'
+                  : 'border border-border-subtle bg-bg-surface text-text-secondary hover:text-text-primary'
               }`}
             >
               <Icon.laurelWreath className="size-3 shrink-0" />
@@ -255,8 +255,8 @@ export function LeaderboardArenaPanel({
               onClick={() => setLens('models')}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                 lens === 'models'
-                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
+                  ? 'border border-[#D4AF37] bg-bg-elevated text-text-primary shadow-sm'
+                  : 'border border-border-subtle bg-bg-surface text-text-secondary hover:text-text-primary'
               }`}
             >
               <Icon.astrolabeRadar className="size-3 shrink-0" />
@@ -277,8 +277,8 @@ export function LeaderboardArenaPanel({
               onClick={() => setLens('collegium')}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                 lens === 'collegium'
-                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
+                  ? 'border border-[#D4AF37] bg-bg-elevated text-text-primary shadow-sm'
+                  : 'border border-border-subtle bg-bg-surface text-text-secondary hover:text-text-primary'
               }`}
             >
               <Icon.gladiusShield className="size-3 shrink-0" />
@@ -299,8 +299,8 @@ export function LeaderboardArenaPanel({
               onClick={() => setLens('proof-chain')}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-serif text-[11px] font-semibold tracking-wide transition ${
                 lens === 'proof-chain'
-                  ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB] shadow-sm'
-                  : 'border border-[#382F20] bg-[#120E09] text-[#9E9079] hover:text-[#E6DCB8]'
+                  ? 'border border-[#D4AF37] bg-bg-elevated text-text-primary shadow-sm'
+                  : 'border border-border-subtle bg-bg-surface text-text-secondary hover:text-text-primary'
               }`}
             >
               <Icon.waxSeal className="size-3 shrink-0" />
@@ -312,10 +312,10 @@ export function LeaderboardArenaPanel({
 
       {/* Lens 1: Stewardship Table */}
       {lens === 'stewardship' && (
-        <div className="overflow-x-auto rounded-lg border border-[#382F20] bg-[#110D09]" data-testid="arena-panel-stewardship">
+        <div className="overflow-x-auto rounded-lg border border-border-subtle bg-bg-surface" data-testid="arena-panel-stewardship">
           <table className="w-full text-left font-mono text-[12px]">
             <thead>
-              <tr className="border-b border-[#382F20] bg-[#17120C] text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+              <tr className="border-b border-border-subtle bg-bg-elevated text-[10px] font-serif uppercase tracking-wider text-text-secondary">
                 <th className="py-2 px-3">Rank</th>
                 <th className="py-2 px-3">Steward</th>
                 <th className="py-2 px-3">Tier Title</th>
@@ -324,7 +324,7 @@ export function LeaderboardArenaPanel({
                 <th className="py-2 px-3 text-right">Cryptographic Proof</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#2B2317]">
+            <tbody className="divide-y divide-border-subtle">
               {rows.map((e) => {
                 const chainHash =
                   e.row_chain_hash_hex ||
@@ -333,21 +333,21 @@ export function LeaderboardArenaPanel({
                   <tr
                     key={e.user_id}
                     data-testid={`steward-row-${e.user_id}`}
-                    className="hover:bg-[#1E1710] transition-colors"
+                    className="hover:bg-bg-elevated transition-colors"
                   >
-                    <td className="py-2.5 px-3 tabular-nums font-semibold text-[#D4AF37]">
+                    <td className="py-2.5 px-3 tabular-nums font-semibold text-brass">
                       #{e.rank}
                     </td>
-                    <td className="py-2.5 px-3 font-semibold text-[#F3E5AB]">
+                    <td className="py-2.5 px-3 font-semibold text-text-primary">
                       {e.user_id}
                     </td>
-                    <td className="py-2.5 px-3 text-[11px] text-[#C4B69C]">
+                    <td className="py-2.5 px-3 text-[11px] text-text-secondary">
                       {e.tier_title || 'Verified Steward'}
                     </td>
-                    <td className="py-2.5 px-3 text-right tabular-nums text-[#A89878]">
+                    <td className="py-2.5 px-3 text-right tabular-nums text-text-muted">
                       L{e.level}
                     </td>
-                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-[#F3E5AB]">
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-text-primary">
                       {(e.lumens ?? e.score).toLocaleString()}
                     </td>
                     <td className="py-2.5 px-3 text-right">
@@ -363,7 +363,7 @@ export function LeaderboardArenaPanel({
                             setSelectedProof(e);
                             setSigVerifiedMsg(null);
                           }}
-                          className="inline-flex items-center gap-1 rounded border border-[#10B981]/40 bg-[#10B981]/15 px-2 py-0.5 text-[10px] font-semibold text-[#6EE7B7] hover:bg-[#10B981]/25 hover:border-[#10B981]/60 transition"
+                          className="inline-flex items-center gap-1 rounded border border-[#10B981]/40 bg-[#10B981]/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 hover:bg-[#10B981]/25 hover:border-[#10B981]/60 transition"
                         >
                           <Icon.waxSeal className="size-3 text-[#10B981]" />
                           <span>Verified · BLAKE3 {chainHash.slice(0, 8)}…</span>
@@ -380,10 +380,10 @@ export function LeaderboardArenaPanel({
 
       {/* Lens 2: 5-Spoke Model Arena Table */}
       {lens === 'models' && (
-        <div className="overflow-x-auto rounded-lg border border-[#382F20] bg-[#110D09]" data-testid="arena-panel-models">
+        <div className="overflow-x-auto rounded-lg border border-border-subtle bg-bg-surface" data-testid="arena-panel-models">
           <table className="w-full text-left font-mono text-[12px]">
             <thead>
-              <tr className="border-b border-[#382F20] bg-[#17120C] text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+              <tr className="border-b border-border-subtle bg-bg-elevated text-[10px] font-serif uppercase tracking-wider text-text-secondary">
                 <th className="py-2 px-3">Rank</th>
                 <th className="py-2 px-3">(Model, Harness, Config)</th>
                 <th className="py-2 px-3 text-right">Pass@1 (95% CI)</th>
@@ -391,32 +391,32 @@ export function LeaderboardArenaPanel({
                 <th className="py-2 px-3 text-right">Integrity</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#2B2317]">
+            <tbody className="divide-y divide-border-subtle">
               {DEFAULT_MODEL_ARENA.map((m) => (
                 <tr
                   key={m.model_id}
                   data-testid={`model-row-${m.rank}`}
-                  className="hover:bg-[#1E1710] transition-colors"
+                  className="hover:bg-bg-elevated transition-colors"
                 >
-                  <td className="py-2.5 px-3 tabular-nums font-semibold text-[#D4AF37]">
+                  <td className="py-2.5 px-3 tabular-nums font-semibold text-brass">
                     #{m.rank}
                   </td>
                   <td className="py-2.5 px-3">
-                    <div className="font-semibold text-[#F3E5AB]">{m.model_id}</div>
-                    <div className="text-[10px] text-[#A89878]">
+                    <div className="font-semibold text-text-primary">{m.model_id}</div>
+                    <div className="text-[10px] text-text-secondary">
                       {m.harness_id} · {m.config_digest}
                     </div>
                   </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-[#F3E5AB]">
+                  <td className="py-2.5 px-3 text-right tabular-nums text-text-primary">
                     <div className="font-semibold">{m.overall_pass_at_1_pct.toFixed(1)}%</div>
-                    <div className="text-[10px] text-[#A89878]">
+                    <div className="text-[10px] text-text-secondary">
                       [{m.pass_at_1_ci95_low_pct.toFixed(1)}%, {m.pass_at_1_ci95_high_pct.toFixed(1)}%]
                     </div>
                   </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-[#6EE7B7]">
+                  <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-emerald-700">
                     {m.delta_vs_base_pct > 0 ? `+${m.delta_vs_base_pct.toFixed(1)}%` : '0.0%'}
                   </td>
-                  <td className="py-2.5 px-3 text-right text-[10px] text-[#6EE7B7]">
+                  <td className="py-2.5 px-3 text-right text-[10px] text-emerald-700">
                     Held-Out Clean · Zero Tamper
                   </td>
                 </tr>
@@ -428,10 +428,10 @@ export function LeaderboardArenaPanel({
 
       {/* Lens 3: Collegium Guilds Table */}
       {lens === 'collegium' && (
-        <div className="overflow-x-auto rounded-lg border border-[#382F20] bg-[#110D09]" data-testid="arena-panel-collegium">
+        <div className="overflow-x-auto rounded-lg border border-border-subtle bg-bg-surface" data-testid="arena-panel-collegium">
           <table className="w-full text-left font-mono text-[12px]">
             <thead>
-              <tr className="border-b border-[#382F20] bg-[#17120C] text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+              <tr className="border-b border-border-subtle bg-bg-elevated text-[10px] font-serif uppercase tracking-wider text-text-secondary">
                 <th className="py-2 px-3">Rank</th>
                 <th className="py-2 px-3">Collegium Guild</th>
                 <th className="py-2 px-3">Pontifex Lead</th>
@@ -439,19 +439,19 @@ export function LeaderboardArenaPanel({
                 <th className="py-2 px-3 text-right">Total Lumens</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#2B2317]">
+            <tbody className="divide-y divide-border-subtle">
               {DEFAULT_COLLEGIUMS.map((c) => (
                 <tr
                   key={c.collegium_id}
-                  className="hover:bg-[#1E1710] transition-colors"
+                  className="hover:bg-bg-elevated transition-colors"
                 >
-                  <td className="py-2.5 px-3 tabular-nums font-semibold text-[#D4AF37]">
+                  <td className="py-2.5 px-3 tabular-nums font-semibold text-brass">
                     #{c.rank}
                   </td>
-                  <td className="py-2.5 px-3 font-semibold text-[#F3E5AB]">{c.name}</td>
-                  <td className="py-2.5 px-3 text-[#C4B69C]">{c.pontifex_handle}</td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-[#A89878]">{c.member_count}</td>
-                  <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-[#F3E5AB]">
+                  <td className="py-2.5 px-3 font-semibold text-text-primary">{c.name}</td>
+                  <td className="py-2.5 px-3 text-text-secondary">{c.pontifex_handle}</td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-text-muted">{c.member_count}</td>
+                  <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-text-primary">
                     {c.total_lumens.toLocaleString()}
                   </td>
                 </tr>
@@ -464,21 +464,21 @@ export function LeaderboardArenaPanel({
       {/* Lens 4: Proof Chain View */}
       {lens === 'proof-chain' && (
         <div data-testid="arena-panel-proof-chain" className="grid gap-3 sm:grid-cols-2 font-mono text-[11px]">
-          <div className="rounded-lg border border-[#382F20] bg-[#140F0A] p-3 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
-              <Icon.waxSeal className="size-3 text-[#D4AF37]" />
+          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-serif uppercase tracking-wider text-text-secondary">
+              <Icon.waxSeal className="size-3 text-brass" />
               <span>BLAKE3 Chain Tip</span>
             </div>
-            <div className="break-all font-mono font-semibold text-[#F3E5AB]">
+            <div className="break-all font-mono font-semibold text-text-primary">
               a11f3d231163b9522d9a298f263d82c828ab71a66c63c9d08b6a50b1c8622efe
             </div>
           </div>
-          <div className="rounded-lg border border-[#382F20] bg-[#140F0A] p-3 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] font-serif uppercase tracking-wider text-[#A89878]">
+          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-serif uppercase tracking-wider text-text-secondary">
               <Icon.gladiusShield className="size-3 text-[#10B981]" />
               <span>Ed25519 Signer Public Key</span>
             </div>
-            <div className="break-all font-mono font-semibold text-[#6EE7B7]">
+            <div className="break-all font-mono font-semibold text-emerald-700">
               ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c
             </div>
           </div>
@@ -489,12 +489,12 @@ export function LeaderboardArenaPanel({
       {selectedProof && (
         <aside
           data-testid="cryptographic-proof-drawer"
-          className="rounded-lg border-2 border-[#10B981]/50 bg-gradient-to-b from-[#17130D] to-[#0D0A07] p-3.5 font-mono text-[11px] space-y-2.5 shadow-lg"
+          className="rounded-lg border-2 border-[#10B981]/50 bg-bg-elevated p-3.5 font-mono text-[11px] space-y-2.5 shadow-lg"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Icon.waxSeal className="size-4 text-[#10B981]" />
-              <span className="font-serif text-sm font-bold text-[#6EE7B7]">
+              <span className="font-serif text-sm font-bold text-emerald-700">
                 Cryptographic Proof Receipt · {selectedProof.user_id}
               </span>
             </div>
@@ -507,7 +507,7 @@ export function LeaderboardArenaPanel({
                 type="button"
                 data-testid="close-proof-drawer"
                 onClick={() => setSelectedProof(null)}
-                className="rounded border border-[#382F20] bg-[#140F0A] px-2.5 py-1 text-[10px] text-[#A89878] hover:text-[#F3E5AB] hover:border-[#D4AF37]/50 transition"
+                className="rounded border border-border-subtle bg-bg-surface px-2.5 py-1 text-[10px] text-text-secondary hover:text-text-primary hover:border-[#D4AF37]/50 transition"
               >
                 Close
               </button>
@@ -515,16 +515,16 @@ export function LeaderboardArenaPanel({
           </div>
 
           <div className="grid gap-2.5 sm:grid-cols-2">
-            <div className="rounded border border-[#2B2317] bg-[#0E0B07] p-2.5">
-              <div className="text-[10px] font-serif uppercase tracking-wider text-[#A89878]">BLAKE3 Row Chain Hash</div>
-              <div className="mt-1 break-all text-[#F3E5AB]" data-testid="drawer-row-chain-hash">
+            <div className="rounded border border-border-subtle bg-bg-surface p-2.5">
+              <div className="text-[10px] font-serif uppercase tracking-wider text-text-secondary">BLAKE3 Row Chain Hash</div>
+              <div className="mt-1 break-all text-text-primary" data-testid="drawer-row-chain-hash">
                 {selectedProof.row_chain_hash_hex ||
                   '7d4daab4495ef5ce7b2a24c4df28845a0fefa7d97973b8ff76a84a74e687b043'}
               </div>
             </div>
-            <div className="rounded border border-[#2B2317] bg-[#0E0B07] p-2.5">
-              <div className="text-[10px] font-serif uppercase tracking-wider text-[#A89878]">Payload SHA3-256 Digest</div>
-              <div className="mt-1 break-all text-[#C4B69C]" data-testid="drawer-sha3-digest">
+            <div className="rounded border border-border-subtle bg-bg-surface p-2.5">
+              <div className="text-[10px] font-serif uppercase tracking-wider text-text-secondary">Payload SHA3-256 Digest</div>
+              <div className="mt-1 break-all text-text-secondary" data-testid="drawer-sha3-digest">
                 {selectedProof.proof_digest_sha3_256 ||
                   '904f1708403f578f138f2bfb75106264667099e4528efdbb7d8d56d00b14d214'}
               </div>

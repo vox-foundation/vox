@@ -34,8 +34,7 @@ pub mod tiering;
 pub mod vram;
 
 pub use auto_select::{
-    AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
-    select_optimal_local_model_for_host,
+    AutoModelSelection, select_for_free_memory, select_optimal_local_model_for_host,
 };
 pub use cost_tier::{
     CHEAP_COST_PER_1K_USD, CostTier, blended_cost_per_1k, cost_tier_for, cost_tier_for_blended,

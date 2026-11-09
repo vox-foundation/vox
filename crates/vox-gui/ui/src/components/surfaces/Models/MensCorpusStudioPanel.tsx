@@ -584,7 +584,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
   return (
     <Glass
       data-testid="mens-corpus-studio-panel"
-      className="relative overflow-hidden rounded-2xl border border-brass/50 bg-linear-to-b from-[#17130E]/95 via-[#110E0B]/95 to-[#0D0B09]/98 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.65)]"
+      className="relative overflow-hidden rounded-2xl border border-brass/50 bg-bg-surface p-3 shadow-[0_12px_36px_rgba(0,0,0,0.2)]"
     >
       {/* Ornate Romanesque Corner Filigree & Keystones */}
       <span className="pointer-events-none absolute top-0 left-0 h-3.5 w-3.5 rounded-tl-2xl border-t-2 border-l-2 border-brass/85" />
@@ -937,7 +937,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
             {/* Split Inline Editor Drawer: Prompt/Metadata + <think> Reasoning Trace + Final Answer */}
             <div
               data-testid="mens-jsonl-inline-editor"
-              className="rounded-xl border border-brass/40 bg-[#120F0B]/95 p-2.5 space-y-2"
+              className="rounded-xl border border-brass/40 bg-bg-elevated p-2.5 space-y-2"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 font-mono text-[9.5px]">
@@ -1084,7 +1084,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
                   III · Ladder Checkpoints &amp; Gate
                 </span>
               </div>
-              <span className="font-mono text-[9px] text-emerald-400">McNemar p ≥ 0.10</span>
+              <span className="font-mono text-[9px] text-emerald-400">McNemar α = 0.05</span>
             </div>
 
             <div className="space-y-1.5">
@@ -1092,8 +1092,10 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
                 const totalItems = rung.vox_think_total + rung.gsm8k_think_total;
                 const doneItems = rung.vox_think_done + rung.gsm8k_think_done;
                 const progressPct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-                const tone: 'emerald' | 'gold' | 'crimson' =
-                  rung.status.includes('GATED') || rung.status.includes('CACHED')
+                const mcnemarPassed = rung.mcnemar_p_value === null || rung.mcnemar_p_value >= 0.05;
+                const tone: 'emerald' | 'gold' | 'crimson' = !mcnemarPassed
+                  ? 'crimson'
+                  : rung.status.includes('GATED') || rung.status.includes('CACHED')
                     ? 'emerald'
                     : 'gold';
 
@@ -1145,8 +1147,13 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
                       </div>
 
                       {rung.mcnemar_p_value !== null && (
-                        <div className="font-mono text-[8px] text-emerald-400">
-                          McNemar p = {rung.mcnemar_p_value.toFixed(3)} ≥ 0.10 · PASS
+                        <div
+                          className={`font-mono text-[8px] ${
+                            rung.mcnemar_p_value >= 0.05 ? 'text-emerald-400' : 'text-rose-400'
+                          }`}
+                        >
+                          McNemar p = {rung.mcnemar_p_value.toFixed(3)}{' '}
+                          {rung.mcnemar_p_value >= 0.05 ? '≥ 0.05 · PASS' : '< 0.05 · FAIL'}
                         </div>
                       )}
                     </div>

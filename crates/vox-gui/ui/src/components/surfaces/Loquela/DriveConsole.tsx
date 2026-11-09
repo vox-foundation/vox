@@ -70,7 +70,7 @@ export function DriveConsole({
   }, [riskOpen]);
 
   return (
-    <div className="relative flex h-7 shrink-0 items-stretch whitespace-nowrap rounded-md border border-border-subtle bg-overlay-subtle/60 text-[11px]">
+    <div className="relative flex min-h-7 max-w-full flex-wrap items-center whitespace-nowrap rounded-md border border-border-subtle bg-overlay-subtle/60 text-[11px]">
       {/* ① Mode */}
       <div className="relative flex items-center gap-1 border-r border-border-subtle px-1.5">
         <Icon.settings className="size-3 text-text-muted shrink-0" aria-hidden="true" />

@@ -185,16 +185,24 @@ export function RomanSurfaceHeader({
           ? 'mosaic'
           : 'laurel';
 
+  const badgeUpper = waxSealBadge?.toUpperCase() ?? '';
+  const isErrorSeal =
+    badgeUpper.includes('FAIL') ||
+    badgeUpper.includes('ERROR') ||
+    badgeUpper.includes('DENIED') ||
+    badgeUpper.includes('CRITICAL') ||
+    badgeUpper.includes('QUARANTINE');
+
   return (
     <header
       data-roman-frieze="true"
       style={{
         backgroundImage:
-          'linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(246,240,229,0.88) 0%, rgba(238,229,212,0.74) 48%, rgba(246,240,229,0.88) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+          'linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(250,246,238,0.92) 0%, rgba(242,233,218,0.82) 48%, rgba(250,246,238,0.92) 100%), url(/assets/romanesque/carrara-acanthus-header-band.jpg)',
         backgroundSize: '240% 100%, 100% 100%, cover',
-        backgroundPosition: 'center',
+        backgroundPosition: 'center, center, center',
       }}
-      className={`vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-2.5 py-2 shadow-[0_10px_28px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.92),inset_0_-2px_0_rgba(168,132,47,0.55)] ${className}`}
+      className={`vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-2.5 py-2 shadow-[0_6px_18px_rgba(28,20,12,0.22),inset_0_2px_0_rgba(255,255,255,0.95),inset_0_-2px_0_rgba(168,132,47,0.45)] ${className}`}
     >
       {/* Top & bottom burnished gold cornice fillets */}
       <div
@@ -215,7 +223,7 @@ export function RomanSurfaceHeader({
           <div className="flex min-w-0 items-center gap-3">
             <RomanMedallion active size="lg">
               {icon ?? (
-                <span className="font-display text-xs font-bold tracking-wider text-[#FFF8E7]">
+                <span className="font-display text-xs font-bold tracking-wider text-[#1C140C]">
                   {domainTag.slice(0, 2).toUpperCase()}
                 </span>
               )}
@@ -239,20 +247,12 @@ export function RomanSurfaceHeader({
                 {waxSealBadge && (
                   <RomanTooltip
                     title={`${title} — ${waxSealBadge}`}
-                    purpose={subtitle ?? `${domainTag} surface status verified in Plate 2 Romanesque console.`}
+                    purpose={subtitle ?? `${domainTag} surface status verified in Romanesque console.`}
                   >
-                    <span
-                      data-roman-wax-seal="true"
-                      className="inline-flex items-center gap-1.5 rounded-full border-2 border-[#FCA5A5]/65 bg-linear-to-b from-[#A81C1C] via-[#7F1313] to-[#4A0808] px-2.5 py-0.5 font-display text-[9px] font-bold uppercase tracking-[0.14em] text-[#FFF1F2] shadow-[0_3px_10px_rgba(127,19,19,0.55),inset_0_1px_1px_rgba(254,202,202,0.55)]"
-                    >
-                      <img
-                        src="/assets/romanesque/wax-seal-medallion.jpg"
-                        alt=""
-                        aria-hidden="true"
-                        className="size-4 rounded-full object-cover ring-1 ring-[#FDE68A]/70"
-                      />
-                      <span>{waxSealBadge}</span>
-                    </span>
+                    <RomanWaxSealBadge
+                      label={waxSealBadge}
+                      tone={isErrorSeal ? 'crimson' : 'emerald'}
+                    />
                   </RomanTooltip>
                 )}
               </div>
@@ -281,7 +281,7 @@ export function RomanSurfaceHeader({
                 />
               ))}
               {actions && (
-                <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-[#A8842F]/55 bg-[#231B12]/90 px-2 py-1 text-[#F6F0E4] shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]">
+                <div className="vox-header-actions-tray flex flex-wrap items-center gap-1.5 rounded-lg border-1.5 border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-1 text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_2px_6px_rgba(28,20,12,0.16)]">
                   {actions}
                 </div>
               )}
@@ -297,11 +297,14 @@ export function RomanSurfaceHeader({
 }
 
 /**
- * Plate 2 Embossed Crimson / Olive-Laurel / Gold Wax-Seal Status Pill (`<RomanWaxSealBadge>`).
+ * Roman Imperial Emerald & Gilded Laurel Wreath Working Status Signet (`<RomanWaxSealBadge>`).
+ * Uses high-visibility Imperial Emerald/Malachite green (`#156B3B` -> `#0D4A27`) with a burnished
+ * gold rim (`#D4AF37`) and crisp vector Corona Triumphalis laurel wreath so active/working status
+ * is unmistakably green and legible at any resolution. Crimson is reserved strictly for errors.
  */
 export function RomanWaxSealBadge({
   label,
-  tone = 'crimson',
+  tone = 'emerald',
   className = '',
 }: {
   label: string;
@@ -310,22 +313,32 @@ export function RomanWaxSealBadge({
 }) {
   const palette =
     tone === 'emerald'
-      ? 'border-[#C59B27]/85 from-[#5B6B24] via-[#435118] to-[#2C360E] text-[#FBF5E6] shadow-[0_2px_7px_rgba(44,54,14,0.55),inset_0_1px_1px_rgba(243,229,171,0.45)]'
+      ? 'border-[#D4AF37] from-[#1E7E46] via-[#156336] to-[#0D4524] text-[#F4FBF6] shadow-[0_2px_8px_rgba(21,99,54,0.45),0_0_8px_rgba(34,139,78,0.28),inset_0_1px_1px_rgba(167,243,208,0.45)]'
       : tone === 'gold'
-        ? 'border-[#785312] from-[#F2D67B] via-[#D4AF37] to-[#9A741C] text-[#1A1205] shadow-[0_2px_6px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,250,225,0.8)]'
+        ? 'border-[#785312] from-[#F2D67B] via-[#D4AF37] to-[#9A741C] text-[#1A1205] shadow-[0_2px_6px_rgba(0,0,0,0.32),inset_0_1px_1px_rgba(255,250,225,0.85)]'
         : 'border-[#FCA5A5]/65 from-[#A81C1C] via-[#7F1313] to-[#4A0808] text-[#FFF1F2] shadow-[0_2px_7px_rgba(127,19,19,0.55),inset_0_1px_1px_rgba(254,202,202,0.5)]';
 
   return (
     <span
       data-roman-wax-seal="true"
-      className={`inline-flex items-center gap-1.5 rounded-full border bg-linear-to-b px-2.5 py-0.5 font-display text-[9px] font-bold uppercase tracking-[0.12em] ${palette} ${className}`}
+      data-seal-tone={tone}
+      className={`inline-flex items-center gap-1.5 rounded-full border-1.5 bg-linear-to-b px-2.5 py-0.5 font-display text-[9px] font-bold uppercase tracking-[0.13em] ${palette} ${className}`}
     >
-      <img
-        src="/assets/romanesque/wax-seal-medallion.jpg"
-        alt=""
-        aria-hidden="true"
-        className="size-3.5 rounded-full object-cover ring-1 ring-current/40"
-      />
+      {tone === 'emerald' ? (
+        <span className="relative inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-[#F3E5AB] bg-radial from-[#34D399] via-[#15803D] to-[#064E3B] shadow-[0_0_6px_rgba(52,211,153,0.6)]">
+          <svg viewBox="0 0 20 20" className="size-3.5 overflow-visible" aria-hidden="true">
+            <circle cx="10" cy="10" r="8.2" fill="none" stroke="#F3E5AB" strokeWidth="1.2" strokeDasharray="2.2 1.1" />
+            <path d="M6.2 10.3 L8.9 13 L14.1 7.4" fill="none" stroke="#FFFDF5" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      ) : (
+        <img
+          src={tone === 'crimson' ? '/assets/romanesque/wax-seal-medallion.jpg' : '/assets/romanesque/roman-emerald-laurel-seal.jpg'}
+          alt=""
+          aria-hidden="true"
+          className="size-3.5 rounded-full object-cover ring-1 ring-current/40"
+        />
+      )}
       <span>{label}</span>
     </span>
   );

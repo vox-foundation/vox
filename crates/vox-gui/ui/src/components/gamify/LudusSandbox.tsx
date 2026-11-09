@@ -25,6 +25,11 @@ import {
 } from './urbs/camera';
 import { worldBounds, occupiedWorldBounds, worldPx, tileFromWorld } from './urbs/lod';
 import { WorldRenderer, type HarnessSnapshot } from './urbs/worldRenderer';
+import {
+  computeSafePanoramaRect,
+  drawDiegeticCrowdsAndGalleys,
+  drawDiegeticWatercourses,
+} from './urbs/diegeticEnvironment';
 import { fetchHarnessSnapshot, HARNESS_POLL_MS } from './urbs/harnessData';
 import { nearestRoad, findPath } from './urbs/pathfind';
 import { spawnCitizen, stepCitizen, type Citizen } from './urbs/citizens';
@@ -100,8 +105,8 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     surface: 'explorer',
     targetView: 'explorer',
     purpose: 'Vox parser, HIR typechecker, effect gate, and Rust/TSX code generator.',
-    left: '17%',
-    top: '25%',
+    left: '27%',
+    top: '16%',
     monumentArt: '/assets/romanesque/monument-temple-compiler.jpg',
     defaultFilePath: 'crates/vox-compiler/src/typeck/mod.rs',
   },
@@ -112,8 +117,8 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     surface: 'flow',
     targetView: 'flow',
     purpose: 'Multi-agent turn coordinator, spoke router, worktree leases, and tool verification.',
-    left: '21%',
-    top: '56%',
+    left: '16%',
+    top: '57%',
     monumentArt: '/assets/romanesque/monument-pantheon-orchestrator.jpg',
     defaultFilePath: 'crates/vox-orchestrator/src/router.rs',
   },
@@ -124,8 +129,8 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     surface: 'dashboard',
     targetView: 'dashboard',
     purpose: 'Vox Axis Tauri 2 desktop workbench and all 32 interactive operator surfaces.',
-    left: '48%',
-    top: '23%',
+    left: '56%',
+    top: '19%',
     monumentArt: '/assets/romanesque/monument-colosseum-harness.jpg',
     defaultFilePath: 'crates/vox-gui/ui/src/App.tsx',
   },
@@ -136,8 +141,8 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     surface: 'memory',
     targetView: 'memory',
     purpose: 'Turso/SQLite state store, Tantivy hybrid search index, and Scientia knowledge graph.',
-    left: '42%',
-    top: '45%',
+    left: '39%',
+    top: '32%',
     monumentArt: '/assets/romanesque/monument-library-knowledge.jpg',
     defaultFilePath: 'crates/vox-db/src/turso.rs',
   },
@@ -148,8 +153,8 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     surface: 'mens',
     targetView: 'mens',
     purpose: 'Native QLoRA fine-tuning ladder (0.6B–32B), 8-spoke adapters, and Hugging Face sync.',
-    left: '67%',
-    top: '41%',
+    left: '85%',
+    top: '56%',
     monumentArt: '/assets/romanesque/monument-pantheon-orchestrator.jpg',
     defaultFilePath: 'crates/vox-mens/src/qlora.rs',
   },
@@ -160,8 +165,8 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     surface: 'settings',
     targetView: 'settings',
     purpose: 'Clavis vault governance, BLAKE3 and Ed25519 cryptographic envelopes, and policy gates.',
-    left: '71%',
-    top: '26%',
+    left: '83%',
+    top: '23%',
     monumentArt: '/assets/romanesque/monument-temple-compiler.jpg',
     defaultFilePath: 'crates/vox-crypto/src/envelope.rs',
   },
@@ -172,8 +177,8 @@ export const MONUMENT_CALLOUTS: MonumentCallout[] = [
     surface: 'mesh',
     targetView: 'mesh',
     purpose: 'Distributed iroh QUIC peer mesh, live VRAM selector, and task dispatch queue.',
-    left: '61%',
-    top: '55%',
+    left: '64%',
+    top: '67%',
     monumentArt: '/assets/romanesque/monument-colosseum-harness.jpg',
     defaultFilePath: 'crates/vox-populi/src/mesh.rs',
   },
@@ -565,31 +570,91 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     ctx.clearRect(0, 0, cw, ch);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+    const nowMs = performance.now();
+    const activeTaskCount = Object.keys(agentTasks).length;
+    const totalErrCount = Object.values(buildings).reduce((s, b) => s + (b.errors ?? 0), 0);
     const bgImg = dioramaImgRef.current;
+    const baseCam = fitBounds(
+      occupiedWorldBounds(layout),
+      cw,
+      ch,
+      embedded ? 12 : 20,
+    );
+    const relZoom = Math.max(
+      0.88,
+      Math.min(1.45, cam.zoom / Math.max(0.05, baseCam.zoom)),
+    );
+    const relDx = (cam.x - baseCam.x) * 0.42;
+    const relDy = (cam.y - baseCam.y) * 0.42;
+    const basePanoRect =
+      bgImg && bgImg.complete && bgImg.naturalWidth > 0
+        ? computeSafePanoramaRect(cw, ch, bgImg.naturalWidth, bgImg.naturalHeight)
+        : { drawX: 0, drawY: 0, drawW: cw, drawH: ch };
+    const panoRect = {
+      drawX: basePanoRect.drawX * relZoom + cw * (1 - relZoom) * 0.5 + relDx,
+      drawY: basePanoRect.drawY * relZoom + ch * (1 - relZoom) * 0.5 + relDy,
+      drawW: basePanoRect.drawW * relZoom,
+      drawH: basePanoRect.drawH * relZoom,
+    };
     if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
-      const imgAspect = bgImg.naturalWidth / bgImg.naturalHeight;
-      const canvasAspect = cw / Math.max(1, ch);
-      let drawW = cw;
-      let drawH = ch;
-      let drawX = 0;
-      let drawY = 0;
-      if (canvasAspect > imgAspect) {
-        drawH = cw / imgAspect;
-        drawY = (ch - drawH) * 0.5;
-      } else {
-        drawW = ch * imgAspect;
-        drawX = (cw - drawW) * 0.5;
-      }
       ctx.save();
-      ctx.globalAlpha = 0.98;
-      ctx.drawImage(bgImg, drawX, drawY, drawW, drawH);
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, ch);
+      skyGrad.addColorStop(0, '#DFEDF5');
+      skyGrad.addColorStop(0.5, '#F3EBD8');
+      skyGrad.addColorStop(1, '#1C6E85');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.globalAlpha = 0.99;
+      ctx.drawImage(bgImg, panoRect.drawX, panoRect.drawY, panoRect.drawW, panoRect.drawH);
       ctx.restore();
     }
+    drawDiegeticWatercourses(ctx, panoRect, nowMs, activeTaskCount, totalErrCount);
+    drawDiegeticCrowdsAndGalleys(ctx, panoRect, nowMs, activeTaskCount);
+    ctx.save();
     ctx.translate(cam.x, cam.y);
     ctx.scale(cam.zoom, cam.zoom);
+    ctx.globalAlpha = bgImg && bgImg.complete && bgImg.naturalWidth > 0 ? 0.58 : 1;
     ctx.drawImage(buffer, 0, 0, buffer.width / scale, buffer.height / scale);
+    ctx.globalAlpha = 1;
     rendererRef.current.drawFires(ctx, state, cam.zoom, fireFrame);
-    rendererRef.current.drawAnimatedWorldEffects(ctx, state, performance.now());
+    rendererRef.current.drawAnimatedWorldEffects(ctx, state, nowMs);
+    ctx.restore();
+    if (selection) {
+      let focusUv: [number, number] = [0.49, 0.52];
+      if (selection.kind === 'landmark') {
+        if (selection.id === 'PRAETORIVM') focusUv = [0.28, 0.63];
+        else if (selection.id === 'CASTRVM') focusUv = [0.84, 0.36];
+        else if (selection.id === 'PORTVS') focusUv = [0.68, 0.70];
+        else focusUv = [0.37, 0.31];
+      } else if (selection.kind === 'district') {
+        const nm = selection.name.toLowerCase();
+        if (nm.includes('compiler') || nm.includes('lexer') || nm.includes('typeck')) focusUv = [0.37, 0.31];
+        else if (nm.includes('gui') || nm.includes('surface')) focusUv = [0.61, 0.34];
+        else if (nm.includes('db') || nm.includes('search')) focusUv = [0.47, 0.43];
+        else if (nm.includes('orchestrator') || nm.includes('mcp')) focusUv = [0.28, 0.63];
+        else if (nm.includes('mens') || nm.includes('populi')) focusUv = [0.86, 0.62];
+        else if (nm.includes('crypto') || nm.includes('secrets')) focusUv = [0.84, 0.36];
+      }
+      const fx = panoRect.drawX + focusUv[0] * panoRect.drawW;
+      const fy = panoRect.drawY + focusUv[1] * panoRect.drawH;
+      ctx.save();
+      const haloGrad = ctx.createRadialGradient(fx, fy, 6, fx, fy, 68);
+      haloGrad.addColorStop(0, 'rgba(255, 245, 190, 0.52)');
+      haloGrad.addColorStop(0.55, 'rgba(212, 175, 55, 0.24)');
+      haloGrad.addColorStop(1, 'rgba(212, 175, 55, 0)');
+      ctx.fillStyle = haloGrad;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 68, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.92)';
+      ctx.lineWidth = 2.2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, 46, 24, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }, [
     layout,
@@ -603,18 +668,25 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     quarantinedDistrictsList,
     collisionRadar.collisions,
     activeToolPulses,
+    embedded,
   ]);
+
+  const blitRef = useRef(blit);
+  blitRef.current = blit;
 
   useEffect(() => {
     if (typeof Image === 'undefined') return;
+    if (dioramaImgRef.current && dioramaImgRef.current.complete && dioramaImgRef.current.naturalWidth > 0) {
+      return;
+    }
     const img = new Image();
     img.src = '/assets/romanesque/urbs-white-gold-citadel-bg.jpg';
     img.onload = () => {
       dioramaImgRef.current = img;
-      blit();
+      blitRef.current();
     };
     dioramaImgRef.current = img;
-  }, [blit]);
+  }, []);
 
   useEffect(() => { blit(); }, [blit]);
 
@@ -715,9 +787,24 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     const wrap = wrapRef.current;
     if (!wrap || !layout) return;
     const { px, py } = worldPx(layout, tx, ty);
-    const zoom = Math.max(cameraRef.current.zoom, 1.15);
+    const baseCam = fitBounds(
+      occupiedWorldBounds(layout),
+      wrap.clientWidth,
+      wrap.clientHeight,
+      embedded ? 12 : 20,
+    );
+    const zoom = Math.min(
+      MAX_ZOOM,
+      Math.max(cameraRef.current.zoom, baseCam.zoom * 1.12),
+    );
+    const targetX = wrap.clientWidth / 2 - px * zoom;
+    const targetY = wrap.clientHeight / 2 - py * zoom;
     cameraRef.current = clampCamera(
-      { zoom, x: wrap.clientWidth / 2 - px * zoom, y: wrap.clientHeight / 2 - py * zoom },
+      {
+        zoom,
+        x: baseCam.x * 0.62 + targetX * 0.38,
+        y: baseCam.y * 0.62 + targetY * 0.38,
+      },
       worldBounds(layout),
       wrap.clientWidth,
       wrap.clientHeight,
@@ -966,19 +1053,19 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       legion: 'LEGIO-01',
       model: 'Claude Sonnet 4.5',
       task: `Editing ${primaryEditFile}`,
-      border: 'border-[#D4AF37]/85 bg-[#1C150D]/95 text-[#F3E5AB]',
+      border: 'border-[#D4AF37]/85 bg-bg-elevated/95 text-text-primary',
     },
     'AVGVR-02': {
       legion: 'LEGIO-02',
       model: 'Gemini 2.5 Pro',
       task: `Running ${polyglotTestCmd}`,
-      border: 'border-[#7B8C32]/85 bg-[#1E2410]/95 text-[#DCE7B6]',
+      border: 'border-[#7B8C32]/85 bg-bg-elevated/95 text-text-primary',
     },
     'FABER-03': {
       legion: 'LEGIO-03',
       model: 'MENS local',
       task: `Indexing ${layout?.districts[0]?.name ?? 'workspace'}`,
-      border: 'border-amber-400/75 bg-[#1E160C]/95 text-amber-100',
+      border: 'border-amber-400/75 bg-bg-elevated/95 text-text-primary',
     },
   };
   const ambientRosters =
@@ -1078,7 +1165,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
   // ── Render ───────────────────────────────────────────────────────────────
   if (scanFailed) {
     return (
-      <div className="flex h-full w-full items-center justify-center rounded-2xl border border-border-subtle bg-[#0c0a09] text-sm text-text-muted">
+      <div className="flex h-full w-full items-center justify-center rounded-2xl border border-border-subtle bg-bg-surface text-sm text-text-muted">
         Workspace scan unavailable — the town cannot render.
       </div>
     );
@@ -1088,12 +1175,12 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       ref={wrapRef}
       className="relative h-full w-full overflow-hidden rounded-xl border border-[#C59B27]/65 bg-[#F5EFE2]"
     >
-      {/* Milestone v6.4 Generated Sunlit White/Gold Roman Acropolis Architectural Diorama Baseplate */}
+      {/* Phase 384 Uncropped Safe-Frame Sunlit White/Gold Roman Metropolis Panorama */}
       <img
         src="/assets/romanesque/urbs-white-gold-citadel-bg.jpg"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-98 select-none"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-98 select-none"
       />
       <canvas
         ref={canvasRef}
@@ -1107,62 +1194,80 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         onClick={onClick}
       />
 
-      {/* Animated Golden Aqueduct Activity Stream SVG + Interactive Painted Roman Monument Cards */}
+      {/* Diegetic Watercourse Shimmer SVG + Compact Chiseled Monument Nameplates */}
       {layout && (
         <div className="pointer-events-none absolute inset-0 z-[5]">
           <svg
+            data-testid="urbs-diegetic-water-svg"
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 h-full w-full opacity-90"
           >
             <defs>
-              <linearGradient id="urbs-aqueduct-gold" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.85" />
-                <stop offset="50%" stopColor="#FEF08A" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#C59B27" stopOpacity="0.85" />
-              </linearGradient>
+              <radialGradient id="urbs-waterfall-mist" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.65" />
+                <stop offset="55%" stopColor="#E0F7FA" stopOpacity="0.28" />
+                <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
+              </radialGradient>
             </defs>
-            {/* Golden Aqueduct Stream Channels from Orchestrator Pantheon (21,56) to Crate Monuments */}
+            {/* Diegetic Waterfall Plunge Mist & Concentric Ripples inside Nymphaeum Pool & Portus Harbor Cascade */}
             {[
-              { x: 17, y: 25 },
-              { x: 48, y: 23 },
-              { x: 42, y: 45 },
-              { x: 67, y: 41 },
-              { x: 71, y: 26 },
-              { x: 61, y: 55 },
-            ]
-              .slice(0, embedded ? 2 : 6)
-              .map((pt, i) => {
-                const mx = (21 + pt.x) / 2;
-                const my = Math.min(56, pt.y) - 6;
-                const dPath = `M 21 56 Q ${mx} ${my} ${pt.x} ${pt.y}`;
-                return (
-                  <g key={`aq-stream-${i}`}>
-                    <path
-                      d={dPath}
-                      fill="none"
-                      stroke="rgba(197, 155, 39, 0.35)"
-                      strokeWidth="0.45"
-                    />
-                    <path
-                      d={dPath}
-                      fill="none"
-                      stroke="url(#urbs-aqueduct-gold)"
-                      strokeWidth="0.32"
-                      strokeDasharray="1.8 1.8"
-                    >
-                      <animate
-                        attributeName="stroke-dashoffset"
-                        from="7.2"
-                        to="0"
-                        dur={`${2.2 + i * 0.3}s`}
-                        repeatCount="indefinite"
-                      />
-                    </path>
-                  </g>
-                );
-              })}
+              { id: 'nymphaeum-pool', cx: 51.5, cy: 61.5, rx: 3.2, ry: 1.4, dur: '2.4s' },
+              { id: 'canal-bridge-pool', cx: 61.0, cy: 73.0, rx: 2.6, ry: 1.1, dur: '2.9s' },
+              { id: 'harbor-cascade-pool', cx: 61.0, cy: 87.5, rx: 4.4, ry: 1.7, dur: '2.1s' },
+            ].map((pool) => (
+              <g key={pool.id}>
+                <ellipse
+                  cx={pool.cx}
+                  cy={pool.cy}
+                  rx={pool.rx}
+                  ry={pool.ry}
+                  fill="url(#urbs-waterfall-mist)"
+                >
+                  <animate
+                    attributeName="rx"
+                    values={`${pool.rx * 0.85};${pool.rx * 1.25};${pool.rx * 0.85}`}
+                    dur={pool.dur}
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName=" opacity"
+                    values="0.55;0.9;0.55"
+                    dur={pool.dur}
+                    repeatCount="indefinite"
+                  />
+                </ellipse>
+                <ellipse
+                  cx={pool.cx}
+                  cy={pool.cy}
+                  rx={pool.rx * 0.7}
+                  ry={pool.ry * 0.65}
+                  fill="none"
+                  stroke="rgba(224, 247, 250, 0.65)"
+                  strokeWidth="0.18"
+                >
+                  <animate
+                    attributeName="rx"
+                    values={`${pool.rx * 0.4};${pool.rx * 1.35}`}
+                    dur={pool.dur}
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="ry"
+                    values={`${pool.ry * 0.4};${pool.ry * 1.35}`}
+                    dur={pool.dur}
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="stroke-opacity"
+                    values="0.75;0"
+                    dur={pool.dur}
+                    repeatCount="indefinite"
+                  />
+                </ellipse>
+              </g>
+            ))}
           </svg>
 
           {MONUMENT_CALLOUTS.filter(
@@ -1170,10 +1275,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
           ).map((m) => {
             const topPos = embedded
               ? m.id === 'monument-compiler'
-                ? '30%'
+                ? '22%'
                 : m.id === 'monument-orchestrator'
                   ? '58%'
-                  : '46%'
+                  : '52%'
               : m.top;
             const leftPos = m.left;
             const matchedDistrict = layout.districts.find((d) =>
@@ -1211,10 +1316,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   purpose={`${m.purpose} Active target: ${activeFilePath}`}
                   actionHint={
                     onNavigate
-                      ? `Click to focus ${m.crateHint} (click again or click Open ↗ to jump directly to ${m.targetView})`
+                      ? `Click to focus ${m.crateHint} (click again or click ↗ to jump directly to ${m.targetView})`
                       : `Click to focus ${m.crateHint} on the map`
                   }
-                  statusBadge={activeFilePath}
+                  statusBadge={shortFileBadge}
                 >
                   <button
                     type="button"
@@ -1234,32 +1339,19 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       ev.stopPropagation();
                       onNavigate?.(m.targetView);
                     }}
-                    className={`group inline-flex items-center gap-1.5 rounded-lg border-2 border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 ${
-                      embedded ? 'px-1.5 py-0.5 text-[8.5px]' : 'px-2 py-1 text-[9.5px]'
-                    } font-display font-semibold tracking-wide text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.32),inset_0_1px_0_rgba(255,255,255,0.9)] transition-all hover:scale-105 hover:border-[#B8860B]`}
+                    className={`group inline-flex items-center gap-1 rounded-full border border-[#C59B27]/90 bg-linear-to-b from-[#FAF6EE]/95 to-[#EDE1CA]/95 ${
+                      embedded ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[8.5px]'
+                    } font-display font-bold tracking-wide text-[#1C140C] shadow-[0_4px_12px_rgba(28,20,12,0.35),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:scale-105 hover:border-[#8C6214]`}
                   >
-                    <img
-                      src={m.monumentArt}
-                      alt=""
+                    <span
+                      className={`size-1.5 shrink-0 rounded-full ${
+                        liveTaskForMonument
+                          ? 'animate-pulse bg-[#10B981] shadow-[0_0_6px_#10B981]'
+                          : 'bg-[#B8860B] shadow-[0_0_5px_#D4AF37]'
+                      }`}
                       aria-hidden="true"
-                      className={`${
-                        embedded ? 'size-4' : 'size-6'
-                      } shrink-0 rounded border border-[#C59B27]/75 object-cover shadow-xs`}
                     />
-                    <span className="flex flex-col items-start leading-tight">
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                        <span
-                          className="size-1.5 animate-pulse rounded-full bg-[#B8860B] shadow-[0_0_6px_#D4AF37]"
-                          aria-hidden="true"
-                        />
-                        <span>{plaqueLabel}</span>
-                      </span>
-                      {!embedded && (
-                        <span className="whitespace-nowrap font-sans text-[8px] font-medium tracking-normal text-[#5C4428]">
-                          ⚙ {shortFileBadge}
-                        </span>
-                      )}
-                    </span>
+                    <span className="whitespace-nowrap">{plaqueLabel}</span>
                     {onNavigate && (
                       <span
                         data-testid={`open-${m.id}`}
@@ -1268,9 +1360,9 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                           onNavigate(m.targetView);
                         }}
                         title={`Jump directly to ${m.label} (${m.targetView})`}
-                        className="ml-1 inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-[#C59B27]/65 bg-[#F3E5AB]/75 px-1 py-0.2 font-display text-[8px] font-bold text-[#1C140C] hover:bg-[#D4AF37]/55 transition"
+                        className="ml-0.5 inline-flex items-center whitespace-nowrap rounded-full border border-[#C59B27]/65 bg-[#F3E5AB]/85 px-1 font-display text-[7.5px] font-bold text-[#1C140C] hover:bg-[#D4AF37]/65 transition"
                       >
-                        Open ↗
+                        ↗
                       </span>
                     )}
                   </button>
@@ -1295,13 +1387,13 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
-          className="pointer-events-auto absolute left-2 top-2 max-w-[calc(100%-175px)] px-2 py-0.5 text-[9px] z-10 flex flex-nowrap items-center justify-center gap-1.5 overflow-x-auto no-scrollbar rounded-xl border-2 border-[#C59B27]/80 font-display text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
+          className="pointer-events-auto absolute left-2 top-2 max-w-[calc(100%-86px)] px-1.5 py-0.5 text-[8.5px] z-10 flex flex-nowrap items-center justify-start gap-1 overflow-x-auto no-scrollbar rounded-xl border border-[#C59B27]/85 font-display text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
         >
           {[
             {
               id: 'FORVM',
               label: 'Workspace Map',
-              shortLabel: 'Workspace Map',
+              shortLabel: 'Map',
               purpose: 'Reset camera to fit the entire repository architecture and inspect core compiler crates.',
               actionHint: 'Click to fit map & inspect Core Architecture (click again to open Dashboard)',
               surface: 'dashboard',
@@ -1383,8 +1475,6 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               },
             },
           ].map((lm) => {
-            const IconComp = lm.icon;
-            const isSelected = selection?.kind === 'landmark' && selection.id === lm.id;
             return (
               <RomanTooltip
                 key={lm.id}
@@ -1403,7 +1493,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     ev.stopPropagation();
                     onNavigate?.(lm.surface);
                   }}
-                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 transition ${
+                  className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-1.5 py-0.5 transition ${
                     lm.lit
                       ? 'border-[#C59B27]/80 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
                       : 'border-[#C59B27]/45 bg-[#EFE6D5] text-[#5C4428] hover:text-[#1C140C]'
@@ -1415,7 +1505,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     }`}
                     aria-hidden="true"
                   />
-                  <span className="font-semibold tracking-wider uppercase text-[8.5px]">
+                  <span className="font-semibold tracking-wider uppercase text-[8px]">
                     {lm.shortLabel}
                   </span>
                 </button>
@@ -1425,52 +1515,22 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         </div>
       )}
 
-      {/* Embedded Right-Hand Progressive Disclosure Quick-Action Stack (Concept Art Plate 1 & 2) */}
+      {/* Embedded Right-Hand Compact Full-Screen Map Pill */}
       {layout && embedded && (
-        <div className="pointer-events-auto absolute right-2 top-2 z-10 flex flex-col gap-1">
+        <div className="pointer-events-auto absolute right-2 top-2 z-10 flex items-center gap-1">
           <RomanTooltip
-            title="Git Commit Timeline"
-            purpose="Open the full-screen Workspace Map with the interactive Git Milestone Scrubber."
-            actionHint="Click to open Git Timeline in Full-Screen Map"
+            title="Full-Screen Workspace Map"
+            purpose={`Open the full-screen Urbs Simulator (${activeGates.length} priority alerts, Git Timeline, and 7-Region Astrolabe Radar).`}
+            actionHint="Click to expand Workspace Map"
             placement="left"
           >
             <button
               type="button"
               onClick={() => onNavigate?.('vox-Ludus-view')}
-              className="inline-flex items-center justify-between gap-1.5 rounded-lg border border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
+              className="inline-flex items-center gap-1 rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
             >
-              <Icon.hourglassVia className="size-3 text-[#8C6214]" aria-hidden="true" />
-              <span>Git Timeline</span>
-            </button>
-          </RomanTooltip>
-          <RomanTooltip
-            title="Priority Alerts & Gates"
-            purpose={`${activeGates.length} pending review gates or compiler diagnostics across workspace districts.`}
-            actionHint="Click to inspect & resolve Priority Alerts"
-            placement="left"
-          >
-            <button
-              type="button"
-              onClick={() => onNavigate?.('vox-Ludus-view')}
-              className="inline-flex items-center justify-between gap-1.5 rounded-lg border border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
-            >
-              <Icon.gladiusShield className="size-3 text-[#8C6214]" aria-hidden="true" />
-              <span>Priority ({activeGates.length})</span>
-            </button>
-          </RomanTooltip>
-          <RomanTooltip
-            title="7-Region Architecture Radar"
-            purpose="Open the engraved Astrolabe Radar to inspect all 7 architectural layers and active hotspots."
-            actionHint="Click to open Full-Screen Architecture Radar"
-            placement="left"
-          >
-            <button
-              type="button"
-              onClick={() => onNavigate?.('vox-Ludus-view')}
-              className="inline-flex items-center justify-between gap-1.5 rounded-lg border border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
-            >
-              <Icon.astrolabeRadar className="size-3 text-[#8C6214]" aria-hidden="true" />
-              <span>Radar View</span>
+              <Icon.astrolabeRadar className="size-2.5 text-[#8C6214]" aria-hidden="true" />
+              <span>Full Map ↗</span>
             </button>
           </RomanTooltip>
         </div>
@@ -1641,11 +1701,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 onClick={() => setLens('architecture')}
                 className={`group inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 font-display text-[9.5px] uppercase tracking-wider transition ${
                   lens === 'architecture'
-                    ? 'border-[#8C6214] bg-gradient-to-b from-[#2A1F12] to-[#161009] font-semibold text-[#F3E5AB] shadow-sm'
+                    ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 font-semibold text-[#1C140C] shadow-sm'
                     : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
                 }`}
               >
-                <Icon.romanColumn className={`size-3 ${lens === 'architecture' ? 'text-[#F3E5AB]' : 'text-[#8C6214]'}`} aria-hidden="true" />
+                <Icon.romanColumn className={`size-3 ${lens === 'architecture' ? 'text-[#8C6214]' : 'text-[#8C6214]'}`} aria-hidden="true" />
                 <span>Architecture</span>
               </button>
             </RomanTooltip>
@@ -1664,7 +1724,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   onClick={() => setShowLensMenu((v) => !v)}
                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 font-display text-[9.5px] font-semibold uppercase tracking-wider transition ${
                     showLensMenu
-                      ? 'border-[#8C6214] bg-gradient-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                      ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-[#1C140C]'
                       : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
                   }`}
                 >
@@ -1677,13 +1737,13 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               <div
                 className={
                   showLensMenu
-                    ? "absolute right-0 top-full mt-2 z-30 flex flex-col gap-2 rounded-xl border-2 border-[#D4AF37]/65 bg-[#14100B]/98 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.9)] backdrop-blur-md min-w-[280px]"
+                    ? "absolute right-0 top-full mt-2 z-30 flex flex-col gap-2 rounded-xl border-2 border-[#D4AF37]/65 bg-bg-elevated/98 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md min-w-[280px]"
                     : "pointer-events-none absolute -left-[9999px] top-0 z-[-1] flex flex-col gap-2 opacity-0 min-w-[280px]"
                 }
               >
                 <div className="flex flex-col gap-1 border-b border-[#D4AF37]/25 pb-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#D4AF37]">Repo:</span>
+                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#8C6214]">Repo:</span>
                     <select
                       data-testid="urbs-repo-preset-select"
                       data-unified-knob="true"
@@ -1693,7 +1753,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                         setPresetId(e.target.value as UrbsRepoPresetId);
                         setSelection(null);
                       }}
-                      className="appearance-none rounded border border-[#D4AF37]/45 bg-[#1B150C] px-2 py-0.5 font-mono text-[9.5px] text-[#F3E5AB] focus:border-[#F3E5AB] focus:outline-none"
+                      className="appearance-none rounded border border-[#D4AF37]/45 bg-bg-surface px-2 py-0.5 font-mono text-[9.5px] text-text-primary focus:border-[#B8860B] focus:outline-none"
                     >
                       {Object.values(URBS_REPO_PRESETS).map((preset) => (
                         <option key={preset.id} value={preset.id}>
@@ -1703,14 +1763,14 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     </select>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-1">
-                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#D4AF37]">Layout:</span>
+                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#8C6214]">Layout:</span>
                     <select
                       data-testid="urbs-focus-mode-select"
                       data-unified-knob="true"
                       aria-label="Real-estate attention focus mode"
                       value={focusMode}
                       onChange={(e) => setFocusMode(e.target.value as RealEstateFocusMode)}
-                      className="appearance-none rounded border border-[#D4AF37]/45 bg-[#1B150C] px-2 py-0.5 font-mono text-[9.5px] text-[#F3E5AB] focus:border-[#F3E5AB] focus:outline-none"
+                      className="appearance-none rounded border border-[#D4AF37]/45 bg-bg-surface px-2 py-0.5 font-mono text-[9.5px] text-text-primary focus:border-[#B8860B] focus:outline-none"
                     >
                       <option value="attention">Attention Weighted</option>
                       <option value="worksite_only">Active Worksite Only</option>
@@ -1720,7 +1780,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#D4AF37]">Map Lenses:</span>
+                  <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#8C6214]">Map Lenses:</span>
                   <div className="grid grid-cols-2 gap-1">
                     {(
                       [
@@ -1758,11 +1818,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                           }}
                           className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 font-display text-[9px] uppercase tracking-wider transition ${
                             active
-                              ? 'border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241B0B] font-semibold text-[#F3E5AB]'
-                              : 'border-[#3A3022] bg-[#1B150C] text-[#C8B99E] hover:border-[#D4AF37]/60 hover:text-[#F3E5AB]'
+                              ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 font-semibold text-text-primary'
+                              : 'border-border-subtle bg-bg-surface text-text-secondary hover:border-[#D4AF37]/60 hover:text-text-primary'
                           }`}
                         >
-                          <LensIcon className={`size-3 ${active ? 'text-[#F3E5AB]' : 'text-[#D4AF37]'}`} aria-hidden="true" />
+                          <LensIcon className={`size-3 ${active ? 'text-[#8C6214]' : 'text-[#D4AF37]'}`} aria-hidden="true" />
                           <span className="truncate">{item.label}</span>
                         </button>
                       );
@@ -1789,7 +1849,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 }}
                 className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 font-display text-[9.5px] font-semibold uppercase tracking-wider transition ${
                   showPriorityDrawer || showTimelineDrawer
-                    ? 'border-[#8C6214] bg-gradient-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                    ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-[#1C140C]'
                     : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
                 }`}
               >
@@ -1810,7 +1870,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
           data-testid="urbs-priority-dock"
           className={
             showPriorityDrawer
-              ? "pointer-events-auto absolute right-2.5 top-16 z-10 w-[236px] rounded-xl border-2 border-[#D4AF37]/55 bg-linear-to-b from-[#1C160F]/95 to-[#0E0B07]/95 p-2.5 text-[#F3E5AB] shadow-[0_12px_30px_rgba(0,0,0,0.85)]"
+              ? "pointer-events-auto absolute right-2.5 top-16 z-10 w-[236px] rounded-xl border-2 border-[#C59B27]/65 bg-bg-elevated/95 p-2.5 text-text-primary shadow-lg"
               : "pointer-events-none absolute -left-[9999px] top-0 z-[-1] w-[236px] opacity-0"
           }
         >
@@ -1839,7 +1899,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               return (
                 <div
                   key={`gate-${gate.id}`}
-                  className="flex w-full items-center justify-between gap-1 rounded border border-[#D4AF37]/50 bg-[#2A2011]/90 px-2 py-1 font-mono text-[9px] text-[#F3E5AB]"
+                  className="flex w-full items-center justify-between gap-1 rounded border border-[#D4AF37]/50 bg-bg-elevated/90 px-2 py-1 font-mono text-[9px] text-[#F3E5AB]"
                 >
                   <button
                     type="button"
@@ -1860,7 +1920,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     onClick={() => {
                       setResolvedGateIds((prev) => new Set([...prev, gate.id]));
                     }}
-                    className="shrink-0 rounded border border-[#7B8C32]/65 bg-[#4D5D1E]/25 px-1.5 py-0.5 text-[8px] font-semibold text-[#DCE7B6] hover:bg-[#4D5D1E]/40"
+                    className="shrink-0 rounded border border-emerald-600/55 bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-700 hover:bg-emerald-500/25"
                     title="Approve decision gate"
                   >
                     Approve
@@ -1896,7 +1956,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       onClick={() => {
                         openSpeculumLoupe(path, Math.round(viewportSize.w * 0.52), Math.round(viewportSize.h * 0.36));
                       }}
-                      className="shrink-0 rounded border border-[#D4AF37]/60 bg-[#3A2C14] px-1.5 py-0.5 text-[8px] font-semibold text-[#F3E5AB] hover:border-[#F3E5AB]"
+                      className="shrink-0 rounded border border-[#D4AF37]/60 bg-bg-surface px-1.5 py-0.5 text-[8px] font-semibold text-text-primary hover:border-[#D4AF37]"
                       title="Inspect file diff & compiler diagnostics"
                     >
                       Inspect
@@ -1911,44 +1971,44 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               );
               const shortName = task.filePath.split('/').pop() ?? task.filePath;
               return (
-                <button
-                  key={`task-${agentId}-${task.taskId}`}
-                  type="button"
-                  data-testid="urbs-priority-item-agent"
-                  onClick={() => {
-                    if (plot) jumpToTile(plot.x, plot.y);
-                    if (dist) setSelection({ kind: 'district', name: dist.name });
-                  }}
-                  className="flex w-full items-center justify-between gap-1 rounded border border-[#D4AF37]/40 bg-[#221B11] px-2 py-1 text-left font-mono text-[9px] text-[#F3E5AB] hover:border-[#D4AF37]"
-                >
-                  <span className="truncate">
-                    {agentId} → {shortName}
-                  </span>
-                  <span className="shrink-0 text-[8.5px] text-[#DCE7B6]">ACTIVE</span>
-                </button>
-              );
-            })}
-            {layout.districts
-              .flatMap((d) =>
-                d.buildings
-                  .filter((b) => b.isTouched)
-                  .map((b) => ({ district: d.name, plot: b })),
-              )
-              .slice(0, 4)
-              .map(({ district, plot }) => {
-                const shortName = plot.path.split('/').pop() ?? plot.path;
-                return (
                   <button
-                    key={`diff-${plot.path}`}
+                    key={`task-${agentId}-${task.taskId}`}
                     type="button"
-                    data-testid="urbs-priority-item-diff"
+                    data-testid="urbs-priority-item-agent"
                     onClick={() => {
-                      jumpToTile(plot.x, plot.y);
-                      setSelection({ kind: 'district', name: district });
-                      openSpeculumLoupe(plot.path, Math.round(viewportSize.w * 0.52), Math.round(viewportSize.h * 0.36));
+                      if (plot) jumpToTile(plot.x, plot.y);
+                      if (dist) setSelection({ kind: 'district', name: dist.name });
                     }}
-                    className="flex w-full items-center justify-between gap-1 rounded border border-[#7B8C32]/50 bg-[#1E2410]/60 px-2 py-1 text-left font-mono text-[9px] text-[#DCE7B6] hover:bg-[#2C360E]/60"
+                    className="flex w-full items-center justify-between gap-1 rounded border border-[#D4AF37]/40 bg-bg-surface px-2 py-1 text-left font-mono text-[9px] text-text-primary hover:border-[#D4AF37]"
                   >
+                    <span className="truncate">
+                      {agentId} → {shortName}
+                    </span>
+                    <span className="shrink-0 text-[8.5px] text-emerald-700 font-semibold">ACTIVE</span>
+                  </button>
+                );
+              })}
+              {layout.districts
+                .flatMap((d) =>
+                  d.buildings
+                    .filter((b) => b.isTouched)
+                    .map((b) => ({ district: d.name, plot: b })),
+                )
+                .slice(0, 4)
+                .map(({ district, plot }) => {
+                  const shortName = plot.path.split('/').pop() ?? plot.path;
+                  return (
+                    <button
+                      key={`diff-${plot.path}`}
+                      type="button"
+                      data-testid="urbs-priority-item-diff"
+                      onClick={() => {
+                        jumpToTile(plot.x, plot.y);
+                        setSelection({ kind: 'district', name: district });
+                        openSpeculumLoupe(plot.path, Math.round(viewportSize.w * 0.52), Math.round(viewportSize.h * 0.36));
+                      }}
+                      className="flex w-full items-center justify-between gap-1 rounded border border-[#7B8C32]/50 bg-bg-surface/90 px-2 py-1 text-left font-mono text-[9px] text-text-primary hover:bg-bg-elevated"
+                    >
                     <span className="truncate">
                       {district}/{shortName}
                     </span>
@@ -2034,7 +2094,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
           >
             <div className="flex flex-col items-center">
               <RomanCitizenSvg />
-              <span className="rounded-sm border border-[#D4AF37]/60 bg-[#14100B]/95 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB] shadow-md">
+              <span className="rounded-sm border border-[#D4AF37]/60 bg-bg-elevated/95 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB] shadow-md">
                 {id} · {agentTasks[id]?.filePath.split('/').pop() ?? 'active'}
               </span>
             </div>
@@ -2045,7 +2105,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             legion: c.id,
             model: 'Claude Sonnet 4.5',
             task: 'Patrolling Workspace',
-            border: 'border-[#D4AF37]/70 bg-[#14100B]/95 text-[#F3E5AB]',
+            border: 'border-[#D4AF37]/70 bg-bg-elevated/95 text-[#F3E5AB]',
           };
           return (
             <div
@@ -2131,7 +2191,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         )}
       </div>
       {buildStage && (
-        <div className="absolute right-2 top-2 rounded-sm border border-[#D4AF37]/50 bg-[#14100B]/90 px-2 py-1 font-display text-[10px] tracking-widest text-[#F3E5AB]">
+        <div className="absolute right-2 top-2 rounded-sm border border-[#D4AF37]/50 bg-bg-elevated/90 px-2 py-1 font-display text-[10px] tracking-widest text-[#F3E5AB]">
           BUILD · {buildStage}
         </div>
       )}
@@ -2143,15 +2203,15 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       )}
       {menu && (
         <div
-          className="absolute z-20 rounded-lg border border-[#D4AF37]/50 bg-[#16120C] p-1 text-[11px] text-[#F3E5AB] shadow-lg"
+          className="absolute z-20 rounded-lg border border-[#D4AF37]/50 bg-bg-surface p-1 text-[11px] text-[#F3E5AB] shadow-lg"
           style={{ left: menu.sx + 8, top: menu.sy + 8 }}
         >
           <div className="max-w-[220px] truncate px-2 py-1 font-mono text-[#B8A88A]">{menu.path}</div>
-          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-[#2A2011]"
+          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-bg-elevated"
             onClick={() => { voxTransport.openLocator({ kind: 'file', value: scanRoot ? `${scanRoot}/${menu.path}` : menu.path }).catch(() => {}); setMenu(null); }}>
             Open file in editor
           </button>
-          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-[#2A2011]"
+          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-bg-elevated"
             onClick={() => { useLudusStore.getState().setFocusedFile(menu.path); setMenu(null); }}>
             Focus on map
           </button>
@@ -2172,18 +2232,18 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         >
           <div
             data-testid="urbs-minimap-radar"
-            className="pointer-events-auto absolute bottom-2.5 right-2.5 z-10 w-[192px] rounded-2xl border-2 border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 p-2 shadow-[0_12px_32px_rgba(28,20,12,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]"
+            className="pointer-events-auto absolute bottom-1.5 right-1.5 z-10 w-[148px] rounded-xl border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/95 to-[#EFE5D2]/95 p-1.5 shadow-[0_8px_22px_rgba(28,20,12,0.32),inset_0_1px_0_rgba(255,255,255,0.9)]"
           >
-            <div className="flex items-center justify-between px-1 pb-1">
-              <span className="inline-flex items-center gap-1 font-display text-[9px] font-bold uppercase tracking-[0.14em] text-[#1C140C]">
-                <Icon.astrolabeRadar className="size-3 text-[#8C6214]" aria-hidden="true" />
-                <span>Architecture Radar</span>
+            <div className="flex items-center justify-between px-0.5 pb-1">
+              <span className="inline-flex items-center gap-1 font-display text-[8px] font-bold uppercase tracking-[0.12em] text-[#1C140C]">
+                <Icon.astrolabeRadar className="size-2.5 text-[#8C6214]" aria-hidden="true" />
+                <span>Radar</span>
               </span>
-              <span className="font-sans text-[8.5px] font-semibold text-[#5C4428]">
-                7 Regions ({layout.districts.length})
+              <span className="font-sans text-[8px] font-semibold text-[#5C4428]">
+                7 Tiers ({layout.districts.length})
               </span>
             </div>
-            <div className="relative h-[126px] w-full overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-[#0A0806]">
+            <div className="relative h-[86px] w-full overflow-hidden rounded-lg border border-[#D4AF37]/45 bg-bg-surface">
               <img
                 src="/assets/romanesque/astrolabe-radar-dial.jpg"
                 alt=""
@@ -2327,31 +2387,31 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
           </div>
         )
       )}
-      {/* Phase 364: Semiotic Layer Navigator & Developer Quick-Action Command Dock (Concept Art Plate 1) */}
+      {/* Phase 364 / 384: Compact Single-Row Semiotic Layer Navigator & Developer Command Dock */}
       {layout && !embedded && (
         <div
           data-testid="urbs-developer-action-dock"
           style={{
             backgroundImage:
-              'linear-gradient(180deg, rgba(242,235,222,0.96) 0%, rgba(226,215,195,0.95) 100%), url(/assets/romanesque/marble-frieze-banner.jpg)',
+              'linear-gradient(180deg, rgba(250,246,238,0.95) 0%, rgba(238,229,212,0.95) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
-          className="vox-marble-tablet pointer-events-auto absolute bottom-[64px] left-2.5 z-10 flex w-max max-w-[calc(100%-214px)] flex-wrap items-center justify-between gap-1.5 rounded-xl border-2 border-[#B38728]/80 px-2.5 py-1 text-[#1E160D] shadow-[0_10px_28px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.85)]"
+          className="vox-marble-tablet pointer-events-auto absolute bottom-[48px] left-2 z-20 flex w-max max-w-[calc(100%-168px)] flex-nowrap items-center justify-between gap-1 overflow-x-auto no-scrollbar rounded-xl border border-[#B38728]/80 px-2 py-0.5 text-[#1E160D] shadow-[0_6px_18px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.85)]"
         >
           {/* Semiotic Architectural Layer Filter Pills (L0..L5) */}
-          <div data-testid="urbs-semiotic-layer-pills" className="flex items-center gap-1">
-            <span className="mr-0.5 font-display text-[8.5px] font-bold uppercase tracking-[0.14em] text-[#5C4318]">
+          <div data-testid="urbs-semiotic-layer-pills" className="flex shrink-0 items-center gap-0.5">
+            <span className="mr-0.5 font-display text-[8px] font-bold uppercase tracking-[0.12em] text-[#5C4318]">
               Tiers:
             </span>
             {[
               { layer: null, label: 'All', title: 'Show all architectural layers' },
-              { layer: 0, label: 'L0 Vaults', title: 'L0 Foundation Vaults (crypto, secrets, config)' },
-              { layer: 1, label: 'L1 Acropolis', title: 'L1 Compiler Acropolis (lexer, parser, typeck, codegen)' },
-              { layer: 2, label: 'L2 Rotunda', title: 'L2 Database & Runtime Rotunda (vox-db, search, actor-runtime)' },
-              { layer: 3, label: 'L3 Praetorium', title: 'L3 Orchestrator Praetorium (multi-agent routing, MCP, DEI)' },
-              { layer: 4, label: 'L4 Thermae', title: 'L4 MENS Thermae (QLoRA training, eval, Crucible)' },
-              { layer: 5, label: 'L5 Colosseum', title: 'L5 Surface Colosseum (vox-gui, vox-cli, ludus)' },
+              { layer: 0, label: 'L0', title: 'L0 Foundation Vaults (crypto, secrets, config)' },
+              { layer: 1, label: 'L1', title: 'L1 Compiler Acropolis (lexer, parser, typeck, codegen)' },
+              { layer: 2, label: 'L2', title: 'L2 Database & Runtime Rotunda (vox-db, search, actor-runtime)' },
+              { layer: 3, label: 'L3', title: 'L3 Orchestrator Praetorium (multi-agent routing, MCP, DEI)' },
+              { layer: 4, label: 'L4', title: 'L4 MENS Thermae (QLoRA training, eval, Crucible)' },
+              { layer: 5, label: 'L5', title: 'L5 Surface Colosseum (vox-gui, vox-cli, ludus)' },
             ].map((item) => {
               const isAct = activeLayerFilter === item.layer;
               return (
@@ -2375,9 +2435,9 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       }
                     }
                   }}
-                  className={`rounded-md border px-1.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider transition ${
+                  className={`rounded border px-1.5 py-0.5 font-display text-[8px] font-bold uppercase tracking-wider transition ${
                     isAct
-                      ? 'border-[#8C6214] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB] shadow-sm'
+                      ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-[#1C140C] shadow-sm'
                       : 'border-[#B38728]/55 bg-[#F8F3E8]/90 text-[#3B2B10] hover:border-[#8C6214] hover:bg-white'
                   }`}
                 >
@@ -2409,7 +2469,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     setDevActionReceipt(`⚙ Dispatched cargo check -p ${crateName}`);
                     void voxTransport.executeCommand(['check'], { crate: crateName }).catch(() => {});
                   }}
-                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   <span>⚙ Check Crate</span>
                 </button>
@@ -2420,7 +2480,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     setDevActionReceipt(`✓ Running test suite for ${crateName}`);
                     void voxTransport.executeCommand(['test'], { crate: crateName }).catch(() => {});
                   }}
-                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   <span>✓ Run Tests</span>
                 </button>
@@ -2437,7 +2497,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       setDevActionReceipt(`🔍 Opened Speculum Diff Loupe on ${firstPlot.path}`);
                     }
                   }}
-                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   <span>🔍 Diff Loupe</span>
                 </button>
@@ -2459,8 +2519,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   }}
                   className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider shadow-sm ${
                     isPinned
-                      ? 'border-[#7B8C32] bg-[#1E2410] text-[#DCE7B6]'
-                      : 'border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] text-[#F3E5AB] hover:border-[#D4AF37]'
+                      ? 'border-[#7B8C32] bg-emerald-500/15 text-text-primary'
+                      : 'border-[#8C6214]/80 bg-bg-elevated text-text-primary hover:border-[#D4AF37]'
                   }`}
                 >
                   <span>{isPinned ? '📌 Pinned' : '📌 Pin Context'}</span>
@@ -2478,8 +2538,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   }}
                   className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider shadow-sm ${
                     isQuarantined
-                      ? 'border-amber-600 bg-amber-950 text-amber-200'
-                      : 'border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] text-[#F3E5AB] hover:border-[#D4AF37]'
+                      ? 'border-amber-600 bg-amber-500/20 text-text-primary'
+                      : 'border-[#8C6214]/80 bg-bg-elevated text-text-primary hover:border-[#D4AF37]'
                   }`}
                 >
                   <span>{isQuarantined ? '🔒 Quarantined' : '🔒 Quarantine'}</span>
@@ -2502,7 +2562,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       .catch(() => {});
                     setDevActionReceipt(`⚔ Dispatched LEGIO-01 agent to ${crateName}`);
                   }}
-                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   <span>⚔ Spawn Agent</span>
                 </button>
@@ -2524,7 +2584,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
           {devActionReceipt && (
             <span
               data-testid="urbs-dev-action-receipt"
-              className="rounded border border-[#8C6214]/50 bg-[#1B140B] px-2 py-0.5 font-mono text-[8.5px] text-[#F3E5AB]"
+              className="rounded border border-[#8C6214]/50 bg-bg-elevated px-2 py-0.5 font-mono text-[8.5px] text-text-primary"
             >
               {devActionReceipt}
             </span>
@@ -2534,8 +2594,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
 
       <div
         className={`absolute ${
-          embedded ? 'bottom-1.5 left-2' : 'bottom-1.5 left-[142px] max-w-[calc(100%-348px)]'
-        } z-10 flex flex-nowrap items-center gap-1.5`}
+          embedded
+            ? 'bottom-1.5 left-1.5 right-1.5 max-w-[calc(100%-12px)] overflow-x-auto no-scrollbar'
+            : 'bottom-1.5 left-[142px] max-w-[calc(100%-348px)]'
+        } z-10 flex flex-nowrap items-center gap-1`}
       >
         <HudPanels
           treasuryUsd={treasuryUsd}
@@ -2558,9 +2620,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             title="Fit city to view"
             aria-label="Fit city to view"
             onClick={fitWorld}
-            className="pointer-events-auto rounded-lg border border-[#D4AF37]/50 bg-[#14100B]/95 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#2A2011]"
+            className={`pointer-events-auto shrink-0 whitespace-nowrap rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 ${
+              embedded ? 'px-1.5 py-0.5 text-[8.5px]' : 'px-2.5 py-1 text-[10px]'
+            } font-display font-bold uppercase tracking-wider text-[#1C140C] hover:border-[#9A7014] hover:bg-[#FAF6EE]`}
           >
-            ⌂ Fit Map
+            {embedded ? '⌂ Fit' : '⌂ Fit Map'}
           </button>
         </RomanTooltip>
         {!embedded && (
@@ -2575,7 +2639,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 title="Zoom out"
                 aria-label="Zoom out"
                 onClick={() => stepZoom(1 / 1.2)}
-                className="pointer-events-auto rounded-lg border border-[#D4AF37]/40 bg-[#14100B]/95 px-2.5 py-1 font-mono text-[11px] text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#2A2011]"
+                className="pointer-events-auto rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 px-2.5 py-1 font-display text-[11px] font-bold text-[#1C140C] hover:border-[#9A7014] hover:bg-[#FAF6EE]"
               >
                 −
               </button>
@@ -2590,7 +2654,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 title="Zoom in"
                 aria-label="Zoom in"
                 onClick={() => stepZoom(1.2)}
-                className="pointer-events-auto rounded-lg border border-[#D4AF37]/40 bg-[#14100B]/95 px-2.5 py-1 font-mono text-[11px] text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#2A2011]"
+                className="pointer-events-auto rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 px-2.5 py-1 font-display text-[11px] font-bold text-[#1C140C] hover:border-[#9A7014] hover:bg-[#FAF6EE]"
               >
                 +
               </button>

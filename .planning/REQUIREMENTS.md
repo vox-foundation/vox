@@ -1,3 +1,26 @@
+# Requirements: Vox Milestone v6.5 (`Phases 378–382`) — Complete 32-Surface White/Gold Carrara Marble Unification, Seamless Texture & Roman Emerald Signet Overhaul, and User-Selectable Minimalist Grey-Blue (`slate`) Theme
+
+**Defined:** 2026-11-08
+**Core Value (`v6.5`):** Eliminate every remaining dark-brown (`#0E0B07`..`#2A2011`) surface, sidebar button, drawer, tooltip, and missed page across all 32 Vox Axis GUI surfaces in the default Roman White/Gold Carrara Marble theme; fix all 5 glitchy/repeating/offset texture defects; replace red working status seals with high-visibility **Roman Imperial Emerald & Gilded Laurel Wreath Signets** (`#1B6B3A` / `#228B4E` with burnished gold `#D4AF37` border, reserving crimson strictly for errors/alerts); preserve and wire the clean **Minimalist Grey-Blue Dark Theme (`slate` / `void`)** selectable in `Settings → Theme`; and verify all 28 navigable `SURFACE_REGISTRY` surfaces + drawers/modals across both themes via Playwright + Gemini Computer Vision.
+
+## v6.5 Requirements (`Phases 378–382`, `20` Requirements)
+
+- [ ] **ROMA-V65-TEXTURES-01..04** (Phase 378): Generate frame-free seamless honed Carrara marble (`carrara-seamless-stone.jpg`), wide Roman acanthus header band (`carrara-acanthus-header-band.jpg`), Roman Imperial Emerald & Gold Laurel Signet (`roman-emerald-laurel-seal.jpg`), and Milestone `v6.5` concept art plates; fix `@keyframes vox-marble-sheen` 3-layer `background-position` sliding bug, framed `travertine-parchment-tablet.jpg` edge cropping, and `roman-architectural-frieze-footer.jpg` repeating astrolabe seam.
+- [ ] **ROMA-V65-EMERALD-CHROME-01..04** (Phase 379): Replace red `waxSealBadge` working/live pills (`RomanSurfaceHeader.tsx`) and brown live dots (`Sidebar.tsx`) with the **Roman Imperial Emerald & Gilded Laurel Wreath Signet** (`#1B6B3A` / `#228B4E` emerald cabochon + `#D4AF37` gold border + crisp vector laurel wreath SVG); convert all dark-brown buttons/containers in `Sidebar.tsx`, `SessionSidebarSection.tsx`, `BackendStatusPill.tsx`, `BottomStatusBar.tsx`, `RomanTooltip.tsx`, `Omnibar.tsx`, `Dialog.tsx`, and all Drawers to sunlit White/Gold Carrara Marble.
+- [ ] **ROMA-V65-SURFACES-01..04** (Phase 380): Purge all remaining dark-brown classes, inline styles, and canvas fills across the 15 previously un-audited surfaces (`SettingsView`, `ScientiaDashboard`, `CommandCatalogForm`, `PublicationsView`, `MemoryView`, `DiscoverySurface`, `ActivitySurface`, `ApprovalsView`, `PoliciesView`, `SubAgentsView`, `RepositoryView`, `BrowserView`, `CodeRabbitView`, `GamifyView`, `LeaderboardArenaPanel`, `ModelsView`, `Populi`, `Oratio`, `Skills`) and simulator HUD/canvas (`LudusSandbox`, `HudPanels`, `ImperiumInspector`, `worldRenderer.ts`).
+- [ ] **ROMA-V65-DUAL-THEME-01..04** (Phase 381): Preserve and wire the user-selectable **Minimalist Grey-Blue Dark Theme (`slate` / `void`)** in `Settings → Theme` (`lib/theme.ts`, `SettingsView.tsx`, `index.css`, `Glass.tsx`, `Backdrop.tsx`, `Sidebar.tsx`, `RomanSurfaceHeader.tsx`) with `#0c0e10`/`#15191c`/`#1f262b` grey-blue slate surfaces, crisp typography, emerald active indicators, and zero marble textures when selected.
+- [ ] **ROMA-V65-CV-VERIFY-01..04** (Phase 382): Expand `e2e/review/cv-flywheel.spec.ts` to cover all 28 navigable `SURFACE_REGISTRY` surfaces + drawers/modals across both themes (`arcane` White/Gold Carrara Marble and `slate` Minimalist Grey-Blue Dark), verify via Playwright + Gemini Vision, present inline Before/After carousels, rebuild `vox-gui` + `vox` (`--features gui`), and relaunch `vox axis`.
+
+| Requirement | Phase | Status |
+|---|---|---|
+| `ROMA-V65-TEXTURES-01..04` | Phase 378 | In Progress |
+| `ROMA-V65-EMERALD-CHROME-01..04` | Phase 379 | Pending |
+| `ROMA-V65-SURFACES-01..04` | Phase 380 | Pending |
+| `ROMA-V65-DUAL-THEME-01..04` | Phase 381 | Pending |
+| `ROMA-V65-CV-VERIFY-01..04` | Phase 382 | Pending |
+
+---
+
 # Requirements: Vox Milestone v6.4 (`Phases 373–377`) — Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography
 
 **Defined:** 2026-11-08

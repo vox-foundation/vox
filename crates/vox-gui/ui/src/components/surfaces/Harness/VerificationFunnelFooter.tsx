@@ -56,11 +56,11 @@ export function VerificationFunnelFooter({
         <div
           style={{
             backgroundImage:
-              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+              "linear-gradient(180deg, rgba(250, 246, 238, 0.96) 0%, rgba(239, 230, 213, 0.95) 100%), url('/assets/romanesque/carrara-seamless-stone.jpg')",
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
-          className="vox-marble-tablet rounded-xl border-2 border-[#C59B27]/85 p-2 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)] space-y-1.5"
+          className="vox-marble-tablet rounded-xl border-2 border-[#C59B27]/85 p-2 shadow-[0_6px_16px_rgba(28,20,12,0.18),inset_0_1px_0_rgba(255,255,255,0.92)] space-y-1.5"
         >
           <div className="flex items-center gap-1.5 border-b border-[#C59B27]/45 pb-1 text-[9px] font-serif font-bold uppercase tracking-wider text-[#5C441E]">
             <Icon.alert className="size-3 text-[#9A5812]" />
@@ -91,11 +91,11 @@ export function VerificationFunnelFooter({
       <div
         style={{
           backgroundImage:
-            "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+            "linear-gradient(180deg, rgba(250, 246, 238, 0.96) 0%, rgba(239, 230, 213, 0.95) 100%), url('/assets/romanesque/carrara-seamless-stone.jpg')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
-        className="vox-marble-tablet rounded-xl border-2 border-[#C59B27]/85 p-2 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)] space-y-1.5"
+        className="vox-marble-tablet rounded-xl border-2 border-[#C59B27]/85 p-2 shadow-[0_6px_16px_rgba(28,20,12,0.18),inset_0_1px_0_rgba(255,255,255,0.92)] space-y-1.5"
       >
         <div className="flex items-center justify-between border-b border-[#C59B27]/45 pb-1 text-[9px] font-serif font-bold uppercase tracking-wider text-[#5C441E]">
           <div className="flex items-center gap-1.5">
@@ -122,19 +122,19 @@ export function VerificationFunnelFooter({
               >
                 <div className="flex flex-col items-center w-full cursor-default">
                   <div
-                    className="flex items-center justify-between rounded-md border border-[#8C6825] bg-gradient-to-r from-[#241A0B] via-[#1A1308] to-[#120D07] px-2 py-1 text-[9.5px] text-[#F3E5AB] shadow-xs transition-[width] hover:border-[#D4AF37]"
+                    className="flex items-center justify-between rounded-md border border-[#8C6825] bg-bg-elevated px-2 py-1 text-[9.5px] text-text-primary shadow-xs transition-[width] hover:border-[#D4AF37]"
                     style={{ width: `${Math.max(48, stage.retentionPct)}%` }}
                   >
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <StageIcon className="size-3 shrink-0 text-[#D4AF37]" />
-                      <span className="font-serif font-bold tracking-wide text-[#F3E5AB] truncate">
+                      <StageIcon className="size-3 shrink-0 text-brass" />
+                      <span className="font-serif font-bold tracking-wide text-text-primary truncate">
                         {meta.plainName}
                       </span>
-                      <span className="text-[8px] font-mono uppercase tracking-wider text-[#A89878] truncate hidden sm:inline">
+                      <span className="text-[8px] font-mono uppercase tracking-wider text-text-muted truncate hidden sm:inline">
                         · {stage.label}
                       </span>
                     </div>
-                    <span className="font-mono font-semibold text-[#F3E5AB] shrink-0 ml-1">
+                    <span className="font-mono font-semibold text-text-primary shrink-0 ml-1">
                       {stage.count} ({stage.retentionPct}%)
                     </span>
                   </div>
@@ -186,17 +186,17 @@ export function VerificationFunnelFooter({
           >
             <div
               data-testid="ludus-crystal-yield"
-              className="mt-2 flex items-center justify-between rounded-lg border border-[#D4AF37]/40 bg-gradient-to-r from-[#241A0B] to-[#120D07] px-2.5 py-1.5 cursor-default hover:border-[#D4AF37] transition"
+              className="mt-2 flex items-center justify-between rounded-lg border border-[#D4AF37]/40 bg-bg-elevated px-2.5 py-1.5 cursor-default hover:border-[#D4AF37] transition"
             >
               <div className="flex items-center gap-1.5">
                 <RomanMedallion size="sm" active>
-                  <Icon.denariusCoin className="size-3 text-[#F3E5AB]" />
+                  <Icon.denariusCoin className="size-3 text-text-primary" />
                 </RomanMedallion>
-                <span className="text-[9px] font-serif uppercase tracking-wider text-[#F3E5AB] font-bold">
+                <span className="text-[9px] font-serif uppercase tracking-wider text-text-primary font-bold">
                   LUDUS {snapshot.ludusYield.thriftRankLabel}
                 </span>
               </div>
-              <span className="font-mono font-semibold text-[#DCE7B6]">
+              <span className="font-mono font-semibold text-emerald-700">
                 +{snapshot.ludusYield.xpEarned} XP · +{snapshot.ludusYield.crystalsEarned} ◆
               </span>
             </div>

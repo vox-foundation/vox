@@ -12,6 +12,7 @@ import { PriorityChainEditor } from './PriorityChainEditor';
 import { TaskPolicySection } from './TaskPolicySection';
 import { HudTilesEditor } from './HudTilesEditor';
 import { applyTheme } from '../../../lib/theme';
+import { getThemeContractHealthReport } from '../../../lib/themeContract';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { useLang, useLabel } from '../../../hooks/useLanguage';
 import { labelFor } from '../../../lib/lexicon';
@@ -89,10 +90,27 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
   );
 }
 
-function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+function Toggle({ on, onClick, 'data-testid': testId }: { on: boolean; onClick: () => void; 'data-testid'?: string }) {
   return (
-    <button type="button" aria-label={on ? 'Toggle on' : 'Toggle off'} aria-pressed={on} onClick={onClick} className={`relative h-5 w-9 rounded-full transition ${on ? 'bg-brass/40' : 'bg-overlay-subtle'}`}>
-      <span className={`absolute top-0.5 size-4 rounded-full bg-[#fafafa] transition ${on ? 'left-[18px]' : 'left-0.5'}`} />
+    <button
+      type="button"
+      data-testid={testId}
+      aria-label={on ? 'Toggle on' : 'Toggle off'}
+      aria-pressed={on}
+      onClick={onClick}
+      className={`relative h-5 w-9 rounded-full border transition ${
+        on
+          ? 'border-[#1B6B3A] bg-linear-to-r from-[#1E7E46] to-[#156336]'
+          : 'border-border-strong bg-bg-elevated'
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 size-3.5 rounded-full border transition ${
+          on
+            ? 'left-[18px] border-[#9A7014] bg-linear-to-b from-[#FFF8E7] to-[#DFC878] shadow-xs'
+            : 'left-0.5 border-border-strong bg-bg-surface'
+        }`}
+      />
     </button>
   );
 }
@@ -109,10 +127,10 @@ function RangeInline({
       <input
         type="range" aria-label={label} min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
-        style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
+        className="vox-range flex-1 h-1.5 appearance-none rounded-full overflow-hidden border border-border-subtle"
+        style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, var(--color-overlay-hover) ${pct}%)` } as any}
       />
-      <span className="w-14 text-right font-mono text-[11px] text-text-secondary">{prefix}{value}{suffix}</span>
+      <span className="w-14 text-right font-mono text-[11px] font-semibold text-text-secondary">{prefix}{value}{suffix}</span>
     </div>
   );
 }
@@ -1426,14 +1444,15 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
               <button
                 key={s.id}
                 type="button"
+                data-testid={`settings-nav-${s.id}`}
                 onClick={() => setSection(s.id)}
                 className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition ${
                   on
-                    ? 'border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB] shadow-sm'
-                    : 'border-transparent text-[#3B2E1E] hover:border-[#A67C1E]/50 hover:bg-white/60 hover:text-[#1C140C]'
+                    ? 'border-[#9A7014] bg-linear-to-r from-[#F3E5AB] via-[#E5CE82] to-[#DFC878] text-[#1C140C] font-bold shadow-[0_2px_6px_rgba(28,20,12,0.18),inset_0_1px_0_rgba(255,255,255,0.9)]'
+                    : 'border-transparent text-text-secondary hover:border-border-strong hover:bg-overlay-hover hover:text-text-primary'
                 }`}
               >
-                <IcoCmp className={`size-4 ${on ? 'text-[#F3E5AB]' : 'text-[#6B5125]'}`} />
+                <IcoCmp className={`size-4 ${on ? 'text-[#1C140C]' : 'text-[#6B5125]'}`} />
                 <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase">{s.label}</span>
               </button>
             );
@@ -1443,7 +1462,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       </Glass>
 
       {/* Content */}
-      <Glass className="col-span-12 md:col-span-9 p-5 border-[#d4af37]/30 bg-[#14100b]/92">
+      <Glass className="col-span-12 md:col-span-9 p-5">
         {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
         {sectionLocked && section === 'runtime' && <LlmSpendMeter />}
         {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
@@ -1660,7 +1679,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                     Bounded Empirical Bayes priors (±15% max weight delta) from ~/.vox/cache/community-intelligence.v1.json. Set VOX_COMMUNITY_INTELLIGENCE=off to disable independently of telemetry upload.
                   </div>
                 </div>
-                <span className="shrink-0 rounded border border-[#7B8C32]/50 bg-[#4D5D1E]/20 px-2 py-0.5 font-mono text-[10px] text-[#DCE7B6]">
+                <span className="shrink-0 rounded border border-emerald-600/50 bg-emerald-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-700">
                   Ed25519 Verified · Offline Ready
                 </span>
               </div>
@@ -1733,26 +1752,123 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         {shownSection === 'theme' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-theme')}</h2>
-            <p className="mt-0.5 text-[11px] text-text-muted">Aesthetic mode for the GUI layer</p>
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+            <p className="mt-0.5 text-[11px] text-text-muted">
+              Select the unified Imperial Carrara White &amp; Gold aesthetic (default) or switch to the Minimalist Grey-Blue Slate dark mode for a distraction-free dark workspace.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
               {[
-                { id: 'arcane',  name: 'Arcane',  swatch: 'from-brass via-amber-600 to-zinc-900' },
-                { id: 'void',    name: 'Void',    swatch: 'from-[#8C6825] via-[#2B2012] to-[#120D08]' },
-                { id: 'glacier', name: 'Glacier', swatch: 'from-[#E8DEC8] via-[#A69272] to-[#261E14]' },
-              ].map(t => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => update({ theme: t.id })}
-                  className={`rounded-xl border p-3 text-left transition ${
-                    vals.theme === t.id ? 'border-brass/40 bg-brass/5' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
-                  }`}
-                >
-                  <div className={`h-16 w-full rounded-lg bg-linear-to-br ${t.swatch}`} />
-                  <div className="mt-2 font-display text-[12px] tracking-wider text-text-secondary">{t.name}</div>
-                </button>
-              ))}
+                {
+                  id: 'arcane',
+                  name: 'Imperial Carrara White & Gold (Default)',
+                  subtitle: 'Sunlit white/cream honed Carrara marble, burnished gold mouldings, Romanesque serif typography, and emerald laurel working signets.',
+                  swatch: 'from-[#FAF6EE] via-[#EFE6D5] to-[#D4AF37]',
+                  badge: 'DEFAULT · ROMAN MARBLE',
+                },
+                {
+                  id: 'void',
+                  name: 'Minimalist Grey-Blue Slate (Void / Dark)',
+                  subtitle: 'Clean, distraction-free dark grey-blue basalt & slate palette (#0c0e10 / #15191c / #1f262b) with crisp geometry and zero marble textures.',
+                  swatch: 'from-[#0c0e10] via-[#15191c] to-[#38bdf8]',
+                  badge: 'MINIMALIST DARK',
+                },
+                {
+                  id: 'glacier',
+                  name: 'Travertine Daylight',
+                  subtitle: 'Warm architectural Roman travertine stone with understated bronze & verdigris accents.',
+                  swatch: 'from-[#F4EEE1] via-[#E3DBC8] to-[#A8842F]',
+                  badge: 'WARM STONE',
+                },
+                {
+                  id: 'high-contrast',
+                  name: 'High Contrast Obsidian & Gold',
+                  subtitle: 'Maximum WCAG AAA contrast obsidian black (#000000) with pure white typography and high-luminance gold & emerald signets.',
+                  swatch: 'from-[#000000] via-[#0a0a0a] to-[#D4AF37]',
+                  badge: 'WCAG AAA DARK',
+                },
+              ].map(t => {
+                const isSelected =
+                  vals.theme === t.id ||
+                  (t.id === 'void' && vals.theme === 'slate') ||
+                  (t.id === 'arcane' && !vals.theme);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    data-testid={`settings-theme-card-${t.id}`}
+                    data-multiline="true"
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      applyTheme(t.id);
+                      update({ theme: t.id });
+                    }}
+                    className={`overflow-hidden whitespace-normal rounded-xl border-2 p-3.5 text-left transition ${
+                      isSelected
+                        ? 'border-brass bg-brass/12 shadow-[0_4px_14px_rgba(28,20,12,0.16)]'
+                        : 'border-border-subtle hover:border-border-strong bg-overlay-subtle'
+                    }`}
+                  >
+                    <div data-theme-swatch="true" className={`h-16 w-full rounded-lg border border-border-subtle bg-linear-to-br ${t.swatch}`} />
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="font-display text-[11.5px] font-bold tracking-wider text-text-primary">{t.name}</div>
+                      <span className="shrink-0 rounded border border-border-strong bg-bg-elevated px-1.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-widest text-text-secondary">
+                        {isSelected ? 'ACTIVE' : t.badge}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 whitespace-normal text-[11px] leading-snug text-text-muted">{t.subtitle}</p>
+                  </button>
+                );
+              })}
             </div>
+            {(() => {
+              const contractReport = getThemeContractHealthReport(vals.theme);
+              return (
+                <div
+                  data-testid="theme-contract-observability-card"
+                  className="mt-4 rounded-xl border border-border-subtle bg-bg-surface p-3.5 space-y-2.5"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="font-display text-[11px] font-bold uppercase tracking-[0.14em] text-text-primary">
+                        Theme Contract Observability Ledger · {contractReport.contractId}
+                      </div>
+                      <div className="text-[11px] text-text-muted">
+                        Enforced by Style Dictionary, Vitest self-expanding surface discovery, and static rule vox/ui/theme-contract-drift.
+                      </div>
+                    </div>
+                    <span
+                      data-testid="theme-contract-status-badge"
+                      className="shrink-0 rounded-full border border-status-pass/50 bg-status-pass/15 px-2.5 py-0.5 font-display text-[9.5px] font-bold uppercase tracking-widest text-status-pass"
+                    >
+                      {contractReport.enforced ? 'ENFORCED · ZERO DRIFT' : 'DRIFT DETECTED'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-[11px]">
+                    <div className="rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-2">
+                      <div className="font-display text-[9px] uppercase tracking-wider text-text-muted">Active Profile</div>
+                      <div className="mt-0.5 font-semibold text-text-primary truncate">{contractReport.activeThemeLabel}</div>
+                    </div>
+                    <div className="rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-2">
+                      <div className="font-display text-[9px] uppercase tracking-wider text-text-muted">Semantic Tokens</div>
+                      <div className="mt-0.5 font-semibold text-text-primary">
+                        {contractReport.resolvedSemanticVarCount} / {contractReport.requiredSemanticVarCount} Verified · WCAG {contractReport.minContrastRatio.toFixed(1)}:1
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-2">
+                      <div className="font-display text-[9px] uppercase tracking-wider text-text-muted">Auto-Enrolled Surfaces</div>
+                      <div className="mt-0.5 font-semibold text-text-primary">
+                        {contractReport.enrolledSurfaceCount} Views
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-2">
+                      <div className="font-display text-[9px] uppercase tracking-wider text-text-muted">Auto-Enrolled Docks</div>
+                      <div className="mt-0.5 font-semibold text-text-primary">
+                        {contractReport.enrolledChatDockCount} Chat Docks
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
 

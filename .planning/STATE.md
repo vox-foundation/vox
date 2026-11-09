@@ -1,20 +1,20 @@
 ---
 gsd_state_version: "1.0"
-milestone: v6.4
-milestone_name: Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography
-current_phase: 377
-current_phase_name: Multi-Resolution (1280×800, 1440×900, 1920×1080) Built-in Gemini Vision CV Flywheel & Inline Before/After Verification
-status: completed
-stopped_at: Milestone v6.4 (Phases 373–377) completed and verified across all 32 SURFACE_REGISTRY surfaces and 3 viewport resolutions.
-last_updated: "2026-11-08T18:04:00.000Z"
-last_activity: 2026-11-08
-last_activity_desc: Milestone v6.4 (Phases 373–377) shipped and verified via Playwright + @ngi/platform-ssot CV Flywheel and built-in Gemini vision across all 32 surfaces.
-state_head: 98ea5d2cf3758fb3b8d105d3f67247d86399ce29
+milestone: v6.6
+milestone_name: Chat Multi-Dock Responsive Architecture, Diegetic Uncropped Simulator & Aqueduct Panorama, Playwright Button-Click CV Flywheel, VoxDb Lock-Free Daemon Boot & Enforceable 4-Profile Theme Contract
+current_phase: 386
+current_phase_name: Enforceable & Self-Expanding GUI Theme Contract + Adversarial /gsd-review Entropy Hardening (/gsd-review)
+status: complete
+stopped_at: Milestone v6.6 (Phases 383–386) and adversarial /gsd-review completed and verified across all 4 theme profiles (arcane, slate/void, glacier/travertine, high-contrast), 37 routed views, 14 Chat docks, and 3 resolutions (1280x800, 1440x900, 1920x1080).
+last_updated: "2026-11-09T08:50:00.000Z"
+last_activity: 2026-11-09
+last_activity_desc: Completed Phase 386 adversarial /gsd-review audit and entropy-prevention hardening: 4-profile Style Dictionary CSS generation (22/22 tokens each), programmatic WCAG 2.1 contrast verification (>= 4.5:1), general dark-hex/RGBA/font static enforcement (Severity::Error in vox-code-audit + Vitest), 42-component dark-hex purge, and 4-theme Playwright + Gemini CV verification.
+state_head: dc0226023a054e5e1f41a249505aa4c80455814b
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 6
+  completed_plans: 6
   percent: 100
 ---
 
@@ -22,12 +22,14 @@ progress:
 
 ## Current Position
 
-Phase: 373–377 (Milestone v6.4: Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography) — COMPLETE
-Plan: 373-01 .. 377-01
-Status: Milestone v6.4 (`Phases 373–377`) complete (5/5 phases verified).
-Last activity: 2026-11-08 — Completed Milestone v6.4 (`Phases 373–377`): unified all 32 surfaces into the full-body Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic with subtle Vitruvian watermark background and Roman frieze footer, replaced procedural polygon building models in the Urbs simulator with generated painted Roman monument artwork wired to live agent/orchestrator files & folders and animated golden aqueduct streams, enlarged the `ORCHESTRATOR` circular bubble (`r=66`) and DAG node (`width=136`) for zero cutoff, made `OPEN FORM` / `EXPLAIN CAPABILITY` / `OPEN DOCS` strictly single-line and `= GENERIC FORM` compact, and purged all Courier/Arial/Menlo monospace font fallbacks.
+Phase: 378–383 (Milestone v6.5: Complete 32-Surface White/Gold Carrara Marble Unification, Seamless Texture & Roman Emerald Signet Overhaul, Chat & Multi-Dock Workbench Reorganization, and User-Selectable Minimalist Grey-Blue (`slate`) Theme) — COMPLETE
+Plan: 378-01 .. 383-01 (`383-UI-SPEC.md`)
+Status: Complete (Phases 378–383 verified across 1280×800, 1440×900, and 1920×1080 in both Imperial Carrara White & Gold and Minimalist Grey-Blue Slate).
+Last activity: 2026-11-08 — Completed Phase 383 (`/gsd-ui-phase`) Chat Surfaces, Loquela Inline Posture Drawer, Execution Rail & 2D Multi-Panel Dock Tiling overhaul.
 
 ## Milestone History (Recent)
+
+- ✅ **v6.5 (`Phases 378–383`, `6/6` — complete 2026-11-08):** Complete 32-Surface White/Gold Carrara Marble Unification, Seamless Texture & Roman Emerald Signet Overhaul, Chat & Multi-Dock 2D Tiling Workbench (`383-UI-SPEC.md`), and User-Selectable Minimalist Grey-Blue (`slate`/`void`) Theme ([Roadmap](ROADMAP.md))
 
 - ✅ **v6.4 (`Phases 373–377`, `5/5` — complete 2026-11-08):** Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography ([Roadmap](ROADMAP.md))
 

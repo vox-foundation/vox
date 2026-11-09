@@ -157,6 +157,7 @@ pub mod test_in_loop;
 pub mod test_wall_clock;
 pub mod thin_transport_bypass;
 pub mod ui_perf_hazards;
+pub mod ui_theme_contract;
 pub mod unreasoned_suppression;
 
 #[cfg(test)]
@@ -236,6 +237,7 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(test_clock_and_skip::TestClockAndSkipDetector::new()),
         Box::new(mcp_access_and_error_safety::McpAccessAndErrorSafetyDetector::new()),
         Box::new(ui_perf_hazards::UiPerfHazardsDetector::new()),
+        Box::new(ui_theme_contract::UiThemeContractDetector::new()),
         Box::new(test_wall_clock::TestWallClockDetector::new()),
         Box::new(test_in_loop::TestInLoopDetector::new()),
         Box::new(host_runtime_probe::HostRuntimeProbeDetector::new()),
@@ -245,7 +247,7 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    65
+    66
 }
 
 #[cfg(test)]

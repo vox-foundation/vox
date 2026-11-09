@@ -71,7 +71,7 @@ export function DiscoverySurface({ pushToast, gamifyEnabled, condensed }: Discov
           { label: 'Provenance', valueText: 'VERIFIED', ratio: 0.95, tone: 'gold' },
         ]}
         actions={
-          <div role="tablist" aria-label="Discovery presets" className="flex gap-1 rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-1">
+          <div role="tablist" aria-label="Discovery presets" className="flex gap-1 rounded-lg border border-[#C59B27]/35 bg-bg-elevated p-1">
             {PRESETS.map(p => (
               <button
                 key={p.id}

@@ -9,22 +9,22 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
   return (
     <div
       data-testid="ludus-hud"
-      className="rounded-xl border border-[#D4AF37]/45 bg-gradient-to-b from-[#1E1810] via-[#16120C] to-[#0E0B07] p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(244,211,138,0.2)] text-[#E6DCB8] space-y-2.5"
+      className="rounded-xl border border-[#C59B27]/45 bg-bg-surface p-3.5 shadow-sm text-text-primary space-y-2.5"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <RomanMedallion active size="sm">
-            <Icon.laurelWreath className="size-3.5 text-[#F3E5AB]" />
+            <Icon.laurelWreath className="size-3.5 text-text-primary" />
           </RomanMedallion>
-          <div className="truncate font-serif text-sm font-bold tracking-wider text-[#F3E5AB] uppercase">
+          <div className="truncate font-serif text-sm font-bold tracking-wider text-text-primary uppercase">
             {profile.full_title}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 font-mono text-[11px] text-[#C8B896]">
-          <span className="rounded border border-[#D4AF37]/30 bg-[#241A0B] px-2 py-0.5 font-semibold text-[#F3E5AB]">
+        <div className="flex items-center gap-2 shrink-0 font-mono text-[11px] text-text-secondary">
+          <span className="rounded border border-[#D4AF37]/30 bg-bg-elevated px-2 py-0.5 font-semibold text-text-primary">
             Level {profile.level}
           </span>
-          <span className="text-[#8C7A5E]">·</span>
+          <span className="text-text-muted">·</span>
           <span>Prestige {profile.prestige_level}</span>
         </div>
       </div>
@@ -38,7 +38,7 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
       >
         <div className="space-y-1 cursor-default">
           <div
-            className="h-2 overflow-hidden rounded-full bg-[#241E15] border border-[#382F20]/70"
+            className="h-2 overflow-hidden rounded-full bg-bg-elevated border border-border-subtle"
             role="progressbar"
             aria-label="XP progress"
             aria-valuenow={xpPct}
@@ -50,7 +50,7 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
               style={{ width: xpBarPct(profile.xp_progress) }}
             />
           </div>
-          <div className="flex justify-between font-mono text-[10px] text-[#A89878]">
+          <div className="flex justify-between font-mono text-[10px] text-text-secondary">
             <span>{profile.xp.toLocaleString()} XP</span>
             <span>{profile.xp_to_next_level.toLocaleString()} to next level</span>
           </div>
@@ -66,7 +66,7 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
           <Stat
             label="Crystals"
             value={String(profile.crystals)}
-            icon={<Icon.denariusCoin className="size-3.5 text-[#F3E5AB]" />}
+            icon={<Icon.denariusCoin className="size-3.5 text-brass" />}
           />
         </RomanTooltip>
 
@@ -90,7 +90,7 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
           <Stat
             label="Energy"
             value={`${profile.energy}/${profile.max_energy}`}
-            icon={<Icon.astrolabeRadar className="size-3.5 text-[#D4AF37]" />}
+            icon={<Icon.astrolabeRadar className="size-3.5 text-brass" />}
           />
         </RomanTooltip>
 
@@ -112,9 +112,9 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
 
 function Stat({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div className="flex flex-col justify-between rounded-lg border border-[#382F20] bg-gradient-to-b from-[#18130C] to-[#0E0B07] px-2.5 py-1.5 shadow-xs transition hover:border-[#D4AF37]/40">
-      <div className="text-[9px] font-serif uppercase tracking-wider text-[#9E9079]">{label}</div>
-      <div className="mt-0.5 inline-flex items-center gap-1.5 font-mono text-sm font-semibold text-[#F3E5AB]">
+    <div className="flex flex-col justify-between rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-1.5 shadow-xs transition hover:border-[#D4AF37]/40">
+      <div className="text-[9px] font-serif uppercase tracking-wider text-text-secondary">{label}</div>
+      <div className="mt-0.5 inline-flex items-center gap-1.5 font-mono text-sm font-semibold text-text-primary">
         <span>{value}</span>
         {icon}
       </div>

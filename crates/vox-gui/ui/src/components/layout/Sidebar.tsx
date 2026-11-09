@@ -88,14 +88,14 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
     <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={effectiveAriaLabel}
       className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-2 px-2"} py-1.5 rounded-xl border transition-all duration-150 ${
         active
-          ? "border-[#9E7B2F] bg-linear-to-r from-[#DFD0B5] via-[#EBE0C9] to-[#F7F1E5] text-[#1C140C] font-bold shadow-[0_3px_10px_rgba(68,50,20,0.22),inset_0_1px_0_rgba(255,255,255,0.92)]"
+          ? "vox-sidebar-item-active border-[#9E7B2F] bg-linear-to-r from-[#DFD0B5] via-[#EBE0C9] to-[#F7F1E5] text-[#1C140C] font-bold shadow-[0_3px_10px_rgba(68,50,20,0.22),inset_0_1px_0_rgba(255,255,255,0.92)]"
           : "border-transparent text-[#2B2013] hover:border-[#C59B27]/55 hover:bg-[#EFE6D4]/85 hover:text-[#1C140C]"
       }`}>
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3.5px] rounded-r bg-[#B8860B] shadow-[0_0_8px_rgba(184,134,11,0.65)]" />}
       <RomanMedallion active={active} size="md">{icon}</RomanMedallion>
       {!collapsed && <span className="flex-1 min-w-0 text-left font-display text-[10.5px] font-bold tracking-[0.09em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
-      {!collapsed && badge != null && <span className={`rounded-full border border-[#8C6825] px-1.5 py-0.5 font-mono text-[9px] font-semibold ${badgeClass ?? 'bg-[#251C0E] text-[#F3E5AB]'}`}>{badge}</span>}
-      {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-[#8C6825] text-[#FFF8E7] font-bold'}`}>{badge}</span>}
+      {!collapsed && badge != null && <span className={`rounded-full border border-[#9A7014] px-1.5 py-0.5 font-mono text-[9px] font-bold ${badgeClass ?? 'bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C]'}`}>{badge}</span>}
+      {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'border border-[#785312] bg-[#D4AF37] text-[#1C140C] font-bold'}`}>{badge}</span>}
     </button>
   );
 
@@ -228,7 +228,7 @@ export function Sidebar({
     usesPolling: orchUsesPolling,
   });
   const orchDotClass =
-    tone === 'live' ? 'bg-accent-secondary' : tone === 'poll' ? 'bg-brass' : 'bg-text-muted';
+    tone === 'live' ? 'bg-(--color-status-pass)' : tone === 'poll' ? 'bg-brass' : 'bg-text-muted';
 
   useEffect(() => {
     invoke<{ display_name: string }>('get_identity_summary')
@@ -338,11 +338,11 @@ export function Sidebar({
             aria-label="Show sidebar"
             aria-expanded={false}
             title="Show sidebar"
-            className="fixed left-3 top-2.5 z-50 inline-flex items-center gap-1.5 rounded-lg border-2 border-[#D4AF37]/65 bg-linear-to-b from-[#2A2011] to-[#120E08] px-2.5 py-1.5 font-display text-[10px] font-semibold uppercase tracking-[0.14em] text-[#F3E5AB] shadow-[0_6px_18px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(243,229,171,0.3)] transition hover:border-[#F3E5AB] hover:text-white"
+            className="vox-marble-tablet fixed left-3 top-2.5 z-50 inline-flex items-center gap-1.5 rounded-lg border-2 border-[#C59B27] bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2.5 py-1.5 font-display text-[10px] font-bold uppercase tracking-[0.14em] text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.32),inset_0_1px_0_rgba(255,255,255,0.92)] transition hover:border-[#8C6825] hover:bg-[#F3E5AB]/85"
           >
-            <Icon.romanColumn className="size-3.5 text-[#D4AF37]" aria-hidden="true" />
+            <Icon.romanColumn className="size-3.5 text-[#8C6825]" aria-hidden="true" />
             <span>Sidebar</span>
-            <Icon.chevR className="size-3 text-[#D4AF37]" aria-hidden="true" />
+            <Icon.chevR className="size-3 text-[#8C6825]" aria-hidden="true" />
           </button>
         </RomanTooltip>
       </aside>
@@ -354,24 +354,24 @@ export function Sidebar({
       <Glass
         style={{
           backgroundImage:
-            'linear-gradient(180deg, rgba(248,243,233,0.95) 0%, rgba(238,229,211,0.93) 50%, rgba(229,217,195,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+            'linear-gradient(180deg, rgba(250,246,238,0.96) 0%, rgba(242,233,218,0.95) 55%, rgba(235,224,205,0.96) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
-        className="flex h-full flex-col p-2 rounded-none border-y-0 border-l-0 border-r-2 border-[#C59B27] shadow-[4px_0_18px_rgba(0,0,0,0.45),inset_-1px_0_0_rgba(255,255,255,0.85)]"
+        className="flex h-full flex-col p-2 rounded-none border-y-0 border-l-0 border-r-2 border-[#C59B27] shadow-[4px_0_16px_rgba(28,20,12,0.18),inset_-1px_0_0_rgba(255,255,255,0.9)]"
       >
         <div
           style={{
             backgroundImage:
-              'linear-gradient(180deg, rgba(252,248,240,0.94) 0%, rgba(236,226,207,0.9) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+              'linear-gradient(180deg, rgba(252,249,242,0.95) 0%, rgba(239,229,210,0.92) 100%), url(/assets/romanesque/carrara-acanthus-header-band.jpg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
-          className={`flex items-center ${collapsed ? "justify-center p-1.5" : "justify-between px-2 py-1.5"} mb-1.5 rounded-lg border-2 border-[#C59B27] shadow-[0_3px_10px_rgba(68,50,20,0.25),inset_0_1px_0_rgba(255,255,255,0.95)] shrink-0`}
+          className={`vox-sidebar-header flex items-center ${collapsed ? "justify-center p-1.5" : "justify-between px-2 py-1.5"} mb-1.5 rounded-lg border-2 border-[#C59B27] shadow-[0_3px_10px_rgba(68,50,20,0.2),inset_0_1px_0_rgba(255,255,255,0.95)] shrink-0`}
         >
           {collapsed && (
-            <div className="grid size-6 place-items-center rounded-full border border-[#8C6825] bg-[#251C0E] shrink-0">
-              <AxisMark className="size-4 text-[#F3E5AB]" />
+            <div className="grid size-6 place-items-center rounded-full border-1.5 border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] shrink-0 shadow-xs">
+              <AxisMark className="size-4 text-[#1C140C]" />
             </div>
           )}
           {!collapsed && (
@@ -387,11 +387,11 @@ export function Sidebar({
           )}
           <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
             <button type="button" onClick={() => cycle(-1)} disabled={effectiveMode === "rail"} title="Collapse to icon rail" aria-label="Collapse sidebar"
-              className={`flex size-5.5 items-center justify-center rounded-md border border-[#9E7B2F]/65 bg-[#231B12] ${effectiveMode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:border-[#D4AF37] text-[#F3E5AB] hover:text-white"}`}>
+              className={`vox-sidebar-ctrl-btn flex size-5.5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${effectiveMode === "rail" ? "opacity-35 cursor-not-allowed" : "hover:border-[#8C6825] hover:bg-[#F3E5AB]"}`}>
               <Icon.chevL className="size-3" aria-hidden="true"/>
             </button>
             <button type="button" onClick={() => cycle(1)} disabled={effectiveMode === "wide"} title="Expand sidebar width" aria-label="Expand sidebar"
-              className={`flex size-5.5 items-center justify-center rounded-md border border-[#9E7B2F]/65 bg-[#231B12] ${effectiveMode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:border-[#D4AF37] text-[#F3E5AB] hover:text-white"}`}>
+              className={`vox-sidebar-ctrl-btn flex size-5.5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${effectiveMode === "wide" ? "opacity-35 cursor-not-allowed" : "hover:border-[#8C6825] hover:bg-[#F3E5AB]"}`}>
               <Icon.chevR className="size-3" aria-hidden="true"/>
             </button>
             <button
@@ -401,7 +401,7 @@ export function Sidebar({
               title="Hide sidebar"
               aria-label="Hide sidebar"
               aria-expanded={true}
-              className="flex size-5.5 items-center justify-center rounded-md border border-[#9E7B2F]/65 bg-[#231B12] text-[#F3E5AB] transition hover:border-[#D4AF37] hover:text-white"
+              className="vox-sidebar-ctrl-btn flex size-5.5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition hover:border-[#8C6825] hover:bg-[#F3E5AB]"
             >
               <Icon.x className="size-3" aria-hidden="true" />
             </button>
@@ -433,7 +433,7 @@ export function Sidebar({
                   <span className="flex-1 min-w-0 text-left font-display text-[10.5px] font-bold tracking-[0.1em] uppercase whitespace-nowrap overflow-hidden text-ellipsis text-[#1C140C]">
                     Search
                   </span>
-                  <span className="rounded border border-[#8C6825] bg-[#231B12] px-1.5 py-0.5 font-mono text-[8.5px] tracking-widest text-[#F3E5AB]">⌘K</span>
+                  <span className="rounded border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] px-1.5 py-0.5 font-mono text-[8.5px] font-bold tracking-widest text-[#1C140C]">⌘K</span>
                 </>
               )}
             </button>
@@ -552,7 +552,7 @@ export function Sidebar({
                             }}
                             className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition ${
                               view === childKey
-                                ? 'border border-[#8C6825] bg-[#251C0E] text-[#F3E5AB] font-semibold'
+                                ? 'border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C] font-bold'
                                 : 'text-[#2B2013] hover:bg-[#DFD2BC] hover:text-[#1C140C]'
                             }`}
                           >
@@ -565,7 +565,7 @@ export function Sidebar({
                   )}
                 </div>
                 {isExpanded && key === 'chat' && chatSessions && (
-                  <div className="ml-3 border-l-2 border-[#9E7B2F]/55 pl-1.5 max-h-[50vh] overflow-y-auto custom-scrollbar rounded-r bg-[#231B12]/90 py-1 pr-1">
+                  <div className="vox-sidebar-sessions ml-3 border-l-2 border-[#C59B27]/75 pl-1.5 max-h-[50vh] overflow-y-auto custom-scrollbar rounded-r bg-linear-to-b from-[#FAF6EE]/95 to-[#EFE6D5]/95 py-1 pr-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
                     <SessionSidebarSection
                       sessions={chatSessions}
                       activeSessionId={activeSessionId ?? null}
@@ -604,7 +604,7 @@ export function Sidebar({
                           title={availability.available || !availability.reason ? undefined : UNAVAILABLE_COPY[availability.reason].title}
                           className={`w-full rounded-lg px-2 py-1 text-left font-display text-[10px] tracking-widest uppercase transition ${
                             view === childKey
-                              ? 'border border-[#8C6825] bg-[#251C0E] text-[#F3E5AB] font-bold'
+                              ? 'border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C] font-bold shadow-xs'
                               : 'text-[#2B2013] hover:bg-[#DFD2BC] hover:text-[#1C140C]'
                           } ${availability.available ? '' : 'opacity-50'}`}
                         >
@@ -655,19 +655,19 @@ export function Sidebar({
             </div>
           )}
 
-          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2 px-2"} rounded-lg border border-[#9E7B2F]/65 bg-linear-to-r from-[#261D10] to-[#1A130A] py-1.5 shadow-[inset_0_1px_0_rgba(243,229,171,0.22)]`}>
-            <div className="relative size-6 shrink-0 rounded-full border border-[#D4AF37]/80 bg-linear-to-br from-[#6B5022] to-[#23190B] grid place-items-center text-[#F3E5AB] font-display text-[10px] font-bold">
+          <div className={`vox-sidebar-identity flex items-center ${collapsed ? "justify-center" : "gap-2 px-2"} rounded-lg border-1.5 border-[#C59B27] bg-linear-to-r from-[#FAF6EE] via-[#F3ECE0] to-[#EAE0CC] py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_2px_6px_rgba(28,20,12,0.14)]`}>
+            <div className="relative size-6 shrink-0 rounded-full border-1.5 border-[#9A7014] bg-linear-to-br from-[#F3E5AB] to-[#C9A642] grid place-items-center text-[#1C140C] font-display text-[10px] font-bold shadow-xs">
               V
               <span
                 data-testid="sidebar-orch-freshness-dot"
                 aria-hidden="true"
-                className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-[#1A130A] ${orchDotClass}`}
+                className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-[#FAF6EE] ${orchDotClass}`}
               />
             </div>
             {!collapsed && (
               <div className="flex-1 leading-tight overflow-hidden">
-                <div className="font-display text-[10px] font-semibold text-[#F3E5AB] truncate">{identity}</div>
-                <div className="font-mono text-[8px] text-[#D8C7A8] truncate">Vox Axis · v{appVersion ?? '0.6.0'}</div>
+                <div className="font-display text-[10px] font-bold text-[#1C140C] truncate">{identity}</div>
+                <div className="font-mono text-[8px] font-semibold text-[#553D22] truncate">Vox Axis · v{appVersion ?? '0.6.0'}</div>
               </div>
             )}
           </div>

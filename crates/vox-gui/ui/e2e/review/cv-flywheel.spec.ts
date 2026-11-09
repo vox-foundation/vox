@@ -201,7 +201,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       weightedRubricScore: computeWeightedScore(chatRubric),
     };
 
-    // 2. Surface: loquela-knobs (open Execution Posture & Routing floating popover + inspect composer toolbar)
+    // 2. Surface: loquela-knobs (open Execution Posture & Routing inline drawer + inspect composer toolbar)
     await expect(page.getByTestId('loquela-live-posture-badge')).toBeVisible();
     await expect(page.getByTestId('loquela-keybind-hud-toggle')).toBeVisible();
     await expect(page.getByTestId('chat-turn-receipt-badge')).toBeVisible();
@@ -210,7 +210,15 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       await postureTrigger.click();
       await page.waitForTimeout(150);
     }
-    await expect(page.getByTestId('loquela-posture-popover')).toBeVisible();
+    const posturePopover = page.getByTestId('loquela-posture-popover');
+    await expect(posturePopover).toBeVisible();
+    const composerBox = await page.getByTestId('loquela-composer').boundingBox();
+    const popoverBox = await posturePopover.boundingBox();
+    const textareaBox = await page.locator('#loquela-composer').boundingBox();
+    if (composerBox && popoverBox && textareaBox) {
+      expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(composerBox.x + composerBox.width + 4);
+      expect(popoverBox.y).toBeGreaterThanOrEqual(textareaBox.y + textareaBox.height - 4);
+    }
     const knobsPngPath = join(OUT_DIR, `loquela-knobs-${STAGE}.png`);
     const knobsBuf = await page.screenshot({ path: knobsPngPath, animations: 'disabled' });
     const knobsPixels = await decodePngRgbaInPage(page, knobsBuf);
@@ -225,10 +233,21 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       vlmRubric: knobsRubric,
       weightedRubricScore: computeWeightedScore(knobsRubric),
     };
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(150);
+    if (await postureTrigger.isVisible()) {
+      await postureTrigger.click();
+      await page.waitForTimeout(150);
+    }
 
-    // 3. Surface: chat-dock-multi (open Panels ▾ menu to audit registered dock panels)
+    // 3. Surface: chat-dock-multi (2D Multi-Panel Dock Tiling: Chat + Urbs Tactical Map + Execution Rail + Panels menu)
+    const multiPresetBtn = page.getByTestId('chat-header-preset-multi');
+    if (await multiPresetBtn.isVisible()) {
+      await multiPresetBtn.click();
+      await page.waitForTimeout(350);
+    }
+    await page.screenshot({
+      path: join(OUT_DIR, `chat-dock-tactical-grid-${STAGE}.png`),
+      animations: 'disabled',
+    });
     const panelsBtn = page.getByRole('button', { name: /Panels/i });
     if (await panelsBtn.isVisible()) {
       await panelsBtn.click();
@@ -249,6 +268,24 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       weightedRubricScore: computeWeightedScore(dockRubric),
     };
     await page.keyboard.press('Escape');
+
+    // Audit Chat 2D Multi-Dock across 1280x800, 1440x900, and 1920x1080
+    for (const res of [
+      { width: 1280, height: 800, tag: '1280x800' },
+      { width: 1440, height: 900, tag: '1440x900' },
+      { width: 1920, height: 1080, tag: '1920x1080' },
+    ]) {
+      await page.setViewportSize({ width: res.width, height: res.height });
+      await page.waitForTimeout(220);
+      await page.screenshot({
+        path: join(OUT_DIR, `chat-multidock-${res.tag}-${STAGE}.png`),
+        animations: 'disabled',
+      });
+      const resDom = await auditDomInPage(page, `chat-multidock-${res.tag}`);
+      expect(resDom.outerOverflowPx, `chat-multidock-${res.tag} outerOverflowPx`).toBe(0);
+      expect(resDom.clippedInteractiveCount, `chat-multidock-${res.tag} clippedInteractiveCount`).toBe(0);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     // 4. Surface: urbs-civilization (navigate to Gamify / Workspace Map or Urbs Sandbox view)
     await page.goto('/#view=gamify');
@@ -819,5 +856,284 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       const dom = await auditDomInPage(page, `harness-river-${res.tag}`);
       expect(dom.outerOverflowPx, `harness-river ${res.tag} outerOverflowPx`).toBe(0);
     }
+  });
+
+  test('evaluates Milestone v6.5 previously missed surfaces (scientia, publications, memory, approvals, policies, sub-agents, repository, browser, coderabbit, catalog, skills, models, populi, oratio) and Dual-Theme Minimalist Grey-Blue Slate mode', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    mkdirSync(SURFACES_OUT_DIR, { recursive: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await addMockInitScript(page, installTauriMock, 'dashboard');
+    await addRichMockInitScript(page, 'dashboard');
+
+    const missedSurfaces = [
+      'scientia',
+      'publications',
+      'memory',
+      'approvals',
+      'policies',
+      'sub-agents',
+      'repository',
+      'browser',
+      'coderabbit',
+      'catalog',
+      'skills',
+      'models',
+      'populi',
+      'oratio',
+    ];
+
+    // 1. Audit all 14 previously missed surfaces in default Imperial Carrara White & Gold theme
+    for (const surfaceId of missedSurfaces) {
+      await page.goto(`/#view=${surfaceId}`);
+      await page.waitForSelector('nav', { timeout: 15_000 });
+      await page.waitForTimeout(300);
+      const pngPath = join(SURFACES_OUT_DIR, `v65-white-${surfaceId}.png`);
+      await page.screenshot({ path: pngPath, animations: 'disabled' });
+      const dom = await auditDomInPage(page, `v65-white-${surfaceId}`);
+      expect(dom.outerOverflowPx, `${surfaceId} white outerOverflowPx`).toBe(0);
+      expect(dom.clippedInteractiveCount, `${surfaceId} white clippedInteractiveCount`).toBe(0);
+      expect(dom.overlappingControlPairs, `${surfaceId} white overlappingControlPairs`).toBe(0);
+    }
+
+    // 2. Open Settings -> Theme tab in White/Gold mode, capture, then switch to Minimalist Grey-Blue Slate (`void`)
+    await page.goto('/#view=settings');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+    await page.waitForTimeout(300);
+    const themeNavBtn = page.getByRole('button', { name: /^Theme$/i });
+    if (await themeNavBtn.isVisible()) {
+      await themeNavBtn.click();
+      await page.waitForTimeout(250);
+    }
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v65-white-settings-theme.png'),
+      animations: 'disabled',
+    });
+
+    const voidThemeCard = page.getByTestId('settings-theme-card-void');
+    await expect(voidThemeCard).toBeVisible();
+    await voidThemeCard.click();
+    await page.waitForTimeout(300);
+
+    const activeThemeAttr = await page.evaluate(() =>
+      document.documentElement.getAttribute('data-theme'),
+    );
+    expect(activeThemeAttr).toBe('void');
+
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v65-slate-settings-theme.png'),
+      animations: 'disabled',
+    });
+
+    // 3. Verify Minimalist Grey-Blue Slate (`void`) theme across representative surfaces
+    const slateSurfaces = ['dashboard', 'chat', 'explorer', 'scientia', 'approvals', 'mens', 'gamify'];
+    for (const surfaceId of slateSurfaces) {
+      await page.goto(`/#view=${surfaceId}`);
+      await page.waitForSelector('nav', { timeout: 15_000 });
+      await page.waitForTimeout(320);
+      const pngPath = join(SURFACES_OUT_DIR, `v65-slate-${surfaceId}.png`);
+      await page.screenshot({ path: pngPath, animations: 'disabled' });
+      const dom = await auditDomInPage(page, `v65-slate-${surfaceId}`);
+      expect(dom.outerOverflowPx, `${surfaceId} slate outerOverflowPx`).toBe(0);
+    }
+
+    // Restore default Imperial Carrara White & Gold (`arcane`) theme
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'arcane');
+      window.localStorage.setItem('vox-theme', 'arcane');
+    });
+  });
+
+  test('evaluates Phase 385 Interactive Button-Click Audit (before-click, on-click, after-click) across Urbs Simulator, Chat Multi-Dock, Execution Rail, and Notification Center at 1280x800, 1440x900, and 1920x1080', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    mkdirSync(SURFACES_OUT_DIR, { recursive: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await addMockInitScript(page, installTauriMock, 'dashboard');
+    await addRichMockInitScript(page, 'dashboard');
+
+    // 1. Urbs Simulator Button-Click Sequence (before-click, on-click, after-click)
+    await page.goto('/#view=gamify');
+    await page.waitForSelector('[data-testid="urbs-canvas"]', { timeout: 15_000 });
+    await page.waitForTimeout(350);
+
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p385-urbs-before-click.png'),
+      animations: 'disabled',
+    });
+
+    // Click Orchestrator landmark button -> verify ImperiumInspector opens & canvas stays aligned
+    const praetoriumBtn = page.locator('[data-urbs-landmark="PRAETORIVM"]').first();
+    await praetoriumBtn.hover();
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p385-urbs-on-click-orchestrator.png'),
+      animations: 'disabled',
+    });
+    await praetoriumBtn.click();
+    await page.waitForTimeout(250);
+    await expect(page.getByTestId('urbs-imperium-inspector')).toBeVisible();
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p385-urbs-after-click-orchestrator.png'),
+      animations: 'disabled',
+    });
+
+    // Click L3 Tier Pill -> verify Dev Action Receipt & synchronized camera framing
+    const l3Pill = page.getByTestId('urbs-layer-pill-3');
+    await l3Pill.click();
+    await page.waitForTimeout(200);
+    await expect(page.getByTestId('urbs-dev-action-receipt')).toContainText('Focused L3');
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p385-urbs-after-click-tier-l3.png'),
+      animations: 'disabled',
+    });
+
+    // Click Fit Map -> verify full panorama restoration
+    await page.getByRole('button', { name: /Fit city to view/i }).click();
+    await page.waitForTimeout(200);
+
+    // 2. Chat Multi-Dock & Docked Urbs Civilization Button-Click Sequence at 1280x800, 1440x900, 1920x1080
+    await page.goto('/#view=chat');
+    await page.waitForSelector('[data-testid="chat-surface-layout"]', { timeout: 15_000 });
+    await page.waitForTimeout(350);
+
+    // Click Multi-Agent preset (before-click -> on-click -> after-click)
+    const multiBtn = page.getByTestId('chat-header-preset-multi');
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p385-chat-before-click.png'),
+      animations: 'disabled',
+    });
+    await multiBtn.hover();
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p385-chat-on-click-multi.png'),
+      animations: 'disabled',
+    });
+    await multiBtn.click();
+    await page.waitForTimeout(350);
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p385-chat-after-click-multi-1440x900.png'),
+      animations: 'disabled',
+    });
+
+    // Click Execution Rail tabs (All -> Tasks -> Context -> Routing -> All)
+    for (const tabId of ['tasks', 'context', 'routing', 'all'] as const) {
+      const tabBtn = page.getByTestId(`execution-rail-tab-${tabId}`);
+      if (await tabBtn.isVisible()) {
+        await tabBtn.click();
+        await page.waitForTimeout(120);
+      }
+    }
+
+    // Click Notification Center bell in bottom status bar (before-click -> after-click)
+    const bellBtn = page.getByRole('button', { name: /Notifications/i }).first();
+    if (await bellBtn.isVisible()) {
+      await bellBtn.click();
+      await page.waitForTimeout(200);
+      await expect(page.locator('#notification-center')).toBeVisible();
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, 'v66-p385-notifications-open.png'),
+        animations: 'disabled',
+      });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+    }
+
+    // Audit Multi-Agent Chat + Docked Urbs Simulator at 1280x800 and 1920x1080
+    for (const res of [
+      { width: 1280, height: 800, tag: '1280x800' },
+      { width: 1440, height: 900, tag: '1440x900' },
+      { width: 1920, height: 1080, tag: '1920x1080' },
+    ]) {
+      await page.setViewportSize({ width: res.width, height: res.height });
+      await page.waitForTimeout(280);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, `v66-p385-chat-multidock-${res.tag}.png`),
+        animations: 'disabled',
+      });
+      const dom = await auditDomInPage(page, `p385-chat-${res.tag}`);
+      expect(dom.outerOverflowPx, `p385-chat ${res.tag} outerOverflowPx`).toBe(0);
+      expect(dom.clippedInteractiveCount, `p385-chat ${res.tag} clippedInteractiveCount`).toBe(0);
+      expect(dom.overlappingControlPairs, `p385-chat ${res.tag} overlappingControlPairs`).toBe(0);
+    }
+  });
+
+  test('Phase 386: Enforceable Theme Contract Observability Ledger & Runtime CSS Token Parity (arcane + slate)', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    mkdirSync(SURFACES_OUT_DIR, { recursive: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await addMockInitScript(page, installTauriMock, 'settings');
+    await addRichMockInitScript(page, 'settings');
+    await page.goto('/#view=settings');
+    await page.waitForSelector('main', { timeout: 10_000 });
+    await page.waitForTimeout(300);
+
+    const themeNavBtn = page.getByTestId('settings-nav-theme');
+    await themeNavBtn.click();
+    await page.waitForTimeout(250);
+
+    const ledgerCard = page.getByTestId('theme-contract-observability-card');
+    await expect(ledgerCard).toBeVisible();
+    await expect(page.getByTestId('theme-contract-status-badge')).toContainText(
+      'ENFORCED · ZERO DRIFT',
+    );
+    await expect(ledgerCard).toContainText('22 / 22 Verified');
+
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p386-theme-contract-arcane.png'),
+      animations: 'disabled',
+    });
+
+    // Switch to Minimalist Grey-Blue Slate ('void') and verify live token switch
+    const voidThemeCard = page.getByTestId('settings-theme-card-void');
+    await voidThemeCard.click();
+    await page.waitForTimeout(250);
+    await expect(ledgerCard).toContainText('Minimalist Grey-Blue Slate');
+    await expect(page.getByTestId('theme-contract-status-badge')).toContainText(
+      'ENFORCED · ZERO DRIFT',
+    );
+
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p386-theme-contract-slate.png'),
+      animations: 'disabled',
+    });
+
+    const dom = await auditDomInPage(page, 'p386-settings-theme-slate');
+    expect(dom.outerOverflowPx).toBe(0);
+    expect(dom.clippedInteractiveCount).toBe(0);
+
+    // Switch to Travertine Daylight ('glacier') and verify live token switch
+    const glacierThemeCard = page.getByTestId('settings-theme-card-glacier');
+    await glacierThemeCard.click();
+    await page.waitForTimeout(250);
+    await expect(ledgerCard).toContainText('Sunlit Travertine & Verdigris');
+    await expect(page.getByTestId('theme-contract-status-badge')).toContainText(
+      'ENFORCED · ZERO DRIFT',
+    );
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p386-theme-contract-glacier.png'),
+      animations: 'disabled',
+    });
+
+    // Switch to High Contrast Obsidian & Gold ('high-contrast') and verify live token switch
+    const contrastThemeCard = page.getByTestId('settings-theme-card-high-contrast');
+    await contrastThemeCard.click();
+    await page.waitForTimeout(250);
+    await expect(ledgerCard).toContainText('High Contrast Obsidian & Gold');
+    await expect(page.getByTestId('theme-contract-status-badge')).toContainText(
+      'ENFORCED · ZERO DRIFT',
+    );
+    await page.screenshot({
+      path: join(SURFACES_OUT_DIR, 'v66-p386-theme-contract-high-contrast.png'),
+      animations: 'disabled',
+    });
+
+    // Switch back to Default Imperial Carrara White & Gold ('arcane')
+    const arcaneThemeCard = page.getByTestId('settings-theme-card-arcane');
+    await arcaneThemeCard.click();
+    await page.waitForTimeout(200);
+    await expect(ledgerCard).toContainText('Imperial Carrara White & Gold');
   });
 });

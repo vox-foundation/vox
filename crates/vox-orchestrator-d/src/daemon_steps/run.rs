@@ -13,13 +13,33 @@ use crate::boot_plan::StepFuture;
 
 pub(super) fn step_db(ctx: &mut DaemonBootCtx) -> StepFuture<'_> {
     Box::pin(async move {
-        let db = vox_db::connect_workspace_journey_optional_at(
-            vox_db::DbConnectSurface::Runtime,
-            ctx.start_dir.as_deref(),
-            false,
-        )
-        .await
-        .ok_or_else(|| "workspace journey store unavailable".to_string())?;
+        let mut connected = None;
+        for attempt in 0..5 {
+            if let Some(db) = vox_db::connect_workspace_journey_optional_at(
+                vox_db::DbConnectSurface::Runtime,
+                ctx.start_dir.as_deref(),
+                false,
+            )
+            .await
+            {
+                connected = Some(db);
+                break;
+            }
+            if attempt < 4 {
+                tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+            }
+        }
+        let db = match connected {
+            Some(db) => db,
+            None => {
+                tracing::warn!(
+                    "workspace journey store locked after retries; falling back to in-memory VoxDb so daemon stays healthy"
+                );
+                vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                    .await
+                    .map_err(|e| format!("workspace journey store unavailable: {e}"))?
+            }
+        };
         let db = Arc::new(db);
         if let Err(e) = ctx.orch.init_db(db.clone()).await {
             tracing::warn!(error = %e, "orchestrator init_db failed; continuing without persisted Codex");

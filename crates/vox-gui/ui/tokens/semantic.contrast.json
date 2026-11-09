@@ -1,8 +1,11 @@
 {
+  "brass": { "value": "212 175 55" },
   "color": {
     "bg":     { "base": { "value": "#000000" }, "surface": { "value": "#000000" }, "elevated": { "value": "#0a0a0a" } },
     "text":   { "primary": { "value": "#ffffff" }, "secondary": { "value": "#ffffff" }, "muted": { "value": "{color.neutral.300}" } },
     "border": { "subtle": { "value": "{color.neutral.400}" }, "strong": { "value": "#ffffff" } },
-    "accent": { "default": { "value": "{color.brass.default}" } }
+    "accent": { "default": { "value": "{color.brass.default}" }, "secondary": { "value": "#4ade80" } },
+    "status": { "pass": { "value": "#4ade80" }, "fail": { "value": "#f87171" }, "warn": { "value": "#fbbf24" }, "info": { "value": "#fde047" } },
+    "overlay": { "subtle": { "value": "rgba(255, 255, 255, 0.08)" }, "hover": { "value": "rgba(255, 255, 255, 0.16)" }, "solid": { "value": "#0a0a0a" } }
   }
 }

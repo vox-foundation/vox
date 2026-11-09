@@ -37,11 +37,11 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
     <div
       style={{
         backgroundImage:
-          'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(235,224,205,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+          'linear-gradient(180deg, rgba(250,246,238,0.96) 0%, rgba(239,230,213,0.95) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
-      className="rounded-lg border-2 border-[#C59B27] px-2.5 py-2 shadow-[0_3px_10px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]"
+      className="vox-marble-tablet rounded-lg border-2 border-[#C59B27] px-2.5 py-2 shadow-[0_3px_10px_rgba(28,20,12,0.16),inset_0_1px_0_rgba(255,255,255,0.9)]"
     >
       <div className={`font-display text-xl font-bold leading-none ${tone ?? 'text-[#1C140C]'}`}>{value}</div>
       <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-wider text-[#4A3718]">{label}</div>
@@ -169,7 +169,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
       <div aria-live="polite" className="space-y-3">
         {loading && !snap && <div className="font-mono text-xs text-text-muted">Loading queue snapshot…</div>}
         {!loading && !snap && (
-          <div className="rounded-xl border border-dashed border-[#D4AF37]/30 bg-[#16120C] p-4 font-mono text-xs text-[#D6CEBF]">
+          <div className="rounded-xl border border-dashed border-[#D4AF37]/30 bg-bg-surface p-4 font-mono text-xs text-[#D6CEBF]">
             Queue snapshot unavailable — click Refresh to retry.
           </div>
         )}
@@ -187,12 +187,12 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             </div>
 
             {Object.keys(snap.candidates.by_class).length > 0 && (
-              <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3">
-                <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">Candidates by class</div>
+              <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3">
+                <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-brass">Candidates by class</div>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(snap.candidates.by_class).map(([cls, n]) => (
-                    <span key={cls} className="rounded border border-[#D4AF37]/25 bg-[#1F170F] px-2.5 py-1 font-mono text-[11px] text-[#D6CEBF]">
-                      {cls} <span className="ml-1 font-bold text-[#F3E5AB]">{n}</span>
+                    <span key={cls} className="rounded border border-[#D4AF37]/25 bg-bg-elevated px-2.5 py-1 font-mono text-[11px] text-text-secondary">
+                      {cls} <span className="ml-1 font-bold text-text-primary">{n}</span>
                     </span>
                   ))}
                 </div>
@@ -200,23 +200,23 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             )}
 
             {snap.candidates.top_5_by_confidence.length > 0 && (
-              <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3">
-                <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">Top candidates</div>
+              <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3">
+                <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-brass">Top candidates</div>
                 <div className="space-y-2">
                   {snap.candidates.top_5_by_confidence.map((c) => (
                     <div
                       key={c.candidate_id}
-                      className="flex flex-wrap items-center gap-2.5 rounded-lg border border-[#D4AF37]/30 bg-[#1F170F] px-3 py-2 font-mono text-[11px]"
+                      className="flex flex-wrap items-center gap-2.5 rounded-lg border border-[#D4AF37]/30 bg-bg-elevated px-3 py-2 font-mono text-[11px]"
                     >
                       <RomanWaxSealBadge
                         label={`${c.confidence.toFixed(2)} CONF`}
                         tone={c.confidence >= 0.8 ? 'emerald' : c.confidence >= 0.5 ? 'gold' : 'crimson'}
                       />
-                      <span className="font-medium text-[#F3E5AB]">{c.candidate_id}</span>
-                      <span className="rounded border border-[#D4AF37]/25 bg-[#2A2011] px-1.5 py-0.5 text-[10px] text-[#D6CEBF]">
+                      <span className="font-medium text-text-primary">{c.candidate_id}</span>
+                      <span className="rounded border border-[#D4AF37]/25 bg-bg-surface px-1.5 py-0.5 text-[10px] text-text-secondary">
                         {c.candidate_class}
                       </span>
-                      <span className="ml-auto rounded border border-[#D4AF37]/35 bg-[#78350F]/20 px-2 py-0.5 text-[10px] font-semibold text-[#D4AF37]">
+                      <span className="ml-auto rounded border border-[#D4AF37]/35 bg-[#78350F]/20 px-2 py-0.5 text-[10px] font-semibold text-brass">
                         {c.state}
                       </span>
                     </div>
@@ -227,13 +227,13 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
 
             {snap.stalls.length > 0 && (
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5">
-                <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-300">Stalled candidates</div>
+                <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">Stalled candidates</div>
                 <div className="space-y-1">
                   {snap.stalls.map((s) => (
                     <div key={s.candidate_id} className="flex items-center gap-2 rounded border border-amber-500/20 bg-bg-base/60 px-2.5 py-1 font-mono text-[11px]">
                       <span className="font-medium text-text-primary">{s.candidate_id}</span>
                       <span className="text-text-secondary">{s.class}</span>
-                      <span className="ml-auto rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+                      <span className="ml-auto rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-700">
                         {Math.round(s.stuck_for_ms / 86_400_000)}d stuck
                       </span>
                     </div>
@@ -253,12 +253,12 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         />
 
         {cost && (
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3">
+          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3">
             <div className="mb-2 flex items-center justify-between">
-              <div className="font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">
+              <div className="font-display text-[10px] uppercase tracking-wider text-brass">
                 Cost this quarter
               </div>
-              <div className="rounded border border-[#D4AF37]/40 bg-[#78350F]/20 px-2 py-0.5 font-mono text-[10px] text-[#F3E5AB]">
+              <div className="rounded border border-[#D4AF37]/40 bg-[#78350F]/20 px-2 py-0.5 font-mono text-[10px] text-text-primary">
                 avg/finding{' '}
                 <span className="font-bold">${cost.per_finding_average_usd.toFixed(2)}</span>
               </div>
@@ -276,8 +276,8 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
                       key={r.label}
                       className={`flex items-center justify-between rounded border px-2 py-1 font-mono text-[11px] ${
                         r.label === 'Total'
-                          ? 'border-[#D4AF37]/45 bg-[#78350F]/25 font-bold text-[#F3E5AB]'
-                          : 'border-[#D4AF37]/20 bg-[#1F170F] text-[#D6CEBF]'
+                          ? 'border-[#D4AF37]/45 bg-[#78350F]/25 font-bold text-text-primary'
+                          : 'border-[#D4AF37]/20 bg-bg-elevated text-text-secondary'
                       }`}
                     >
                       <span>{r.label}</span>
@@ -287,17 +287,17 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-[#D4AF37]">
+                  <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass">
                     By provider
                   </div>
                   {providerRows(cost).length > 0 ? (
                     providerRows(cost).map((p) => (
                       <div
                         key={p.provider}
-                        className="flex items-center justify-between rounded border border-[#D4AF37]/20 bg-[#1F170F] px-2 py-1 font-mono text-[11px] text-[#D6CEBF]"
+                        className="flex items-center justify-between rounded border border-[#D4AF37]/20 bg-bg-elevated px-2 py-1 font-mono text-[11px] text-text-secondary"
                       >
                         <span>{p.provider}</span>
-                        <span className="font-medium text-[#F3E5AB]">{p.usd}</span>
+                        <span className="font-medium text-text-primary">{p.usd}</span>
                       </div>
                     ))
                   ) : (

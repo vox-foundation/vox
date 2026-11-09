@@ -195,11 +195,11 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
   const openAttentionTotal = approvals.length + effectiveNeedsYou.length;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#100D09]">
-      <div className="flex items-center justify-between border-b border-[#D4AF37]/30 bg-linear-to-b from-[#18130D] to-[#120E09] px-4 py-2.5">
+    <div className="flex flex-col h-full overflow-hidden bg-bg-base">
+      <div className="flex items-center justify-between border-b border-[#D4AF37]/30 bg-bg-surface px-4 py-2.5">
         <div className="flex items-center gap-2.5">
           <RomanMedallion active size="sm" {...({ icon: 'brazierTorch', tone: 'gold' } as any)}>
-            <Icon.brazierTorch className="size-3.5 text-[#F3E5AB]" aria-hidden="true" />
+            <Icon.brazierTorch className="size-3.5 text-text-primary" aria-hidden="true" />
           </RomanMedallion>
           <h2 className="font-display text-sm font-semibold tracking-wider uppercase text-text-primary">{needsYouTitle}</h2>
           <span className="rounded-full border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass">
@@ -207,7 +207,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
           </span>
         </div>
         {!embedded && (
-          <span className="font-mono text-[10px] text-[#C8B99E]">
+          <span className="font-mono text-[10px] text-text-secondary">
             Attention Queue &amp; Live Execution DAG
           </span>
         )}
@@ -224,7 +224,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 label: 'Active Agents',
                 value: '3 Running',
                 badge: '100% Healthy',
-                badgeTone: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',
+                badgeTone: 'text-emerald-700 border-emerald-500/30 bg-emerald-500/10',
                 spark: 'M2,16 L16,13 L30,14 L44,9 L58,10 L72,6 L86,5',
                 stroke: '#34d399',
               },
@@ -232,7 +232,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 label: 'Pending Approvals',
                 value: `${openAttentionTotal} Action${openAttentionTotal === 1 ? '' : 's'}`,
                 badge: 'Needs You',
-                badgeTone: 'text-amber-300 border-amber-500/35 bg-amber-500/12',
+                badgeTone: 'text-amber-700 border-amber-500/35 bg-amber-500/12',
                 spark: 'M2,14 L16,15 L30,11 L44,12 L58,8 L72,9 L86,6',
                 stroke: '#e5a93c',
               },
@@ -240,7 +240,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 label: 'Session Budget',
                 value: '$0.18 / $10.00',
                 badge: '1.8% Used',
-                badgeTone: 'text-cyan-300 border-cyan-500/30 bg-cyan-500/10',
+                badgeTone: 'text-cyan-700 border-cyan-500/30 bg-cyan-500/10',
                 spark: 'M2,17 L16,16 L30,15 L44,14 L58,13 L72,12 L86,11',
                 stroke: '#22d3ee',
               },
@@ -248,7 +248,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 label: 'Routing Health',
                 value: '99.8%',
                 badge: '14ms p50',
-                badgeTone: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10',
+                badgeTone: 'text-emerald-700 border-emerald-500/30 bg-emerald-500/10',
                 spark: 'M2,12 L16,11 L30,12 L44,10 L58,11 L72,9 L86,9',
                 stroke: '#34d399',
               },
@@ -297,7 +297,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                           await handleResolveApproval(a.approval_id, a.summary, 'approved');
                         }
                       }}
-                      className="rounded-md border border-[#D4AF37]/50 bg-[#1B160F] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#F3E5AB] hover:border-[#F3E5AB] hover:bg-[#D4AF37]/15"
+                      className="rounded-md border border-[#D4AF37]/50 bg-bg-elevated px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-primary hover:border-[#D4AF37] hover:bg-[#D4AF37]/15"
                     >
                       Bulk approve low-risk
                     </button>
@@ -311,7 +311,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-wider text-amber-300">
+                          <span className="rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-wider text-amber-700">
                             Pending Approval
                           </span>
                           <div className="font-mono text-[11px] font-semibold text-text-primary truncate">
@@ -320,7 +320,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                         </div>
                         <span className="font-mono text-[10px] text-text-muted">gate ·oversight</span>
                       </div>
-                      <div className="rounded-md border border-white/10 bg-[#080A10] px-2.5 py-1.5 font-mono text-[11px] text-amber-200 truncate">
+                      <div className="rounded-md border border-border-subtle bg-bg-elevated px-2.5 py-1.5 font-mono text-[11px] text-text-primary truncate">
                         {a.summary}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 pt-0.5">
@@ -347,7 +347,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                             type="button"
                             aria-label={`Reject ${a.summary}`}
                             onClick={() => handleResolveApproval(a.approval_id, a.summary, 'rejected')}
-                            className="rounded-md border border-rose-500/45 bg-rose-500/12 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-300 hover:bg-rose-500/22"
+                            className="rounded-md border border-rose-500/45 bg-rose-500/12 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-500/22"
                           >
                             Reject
                           </button>
@@ -364,7 +364,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       {diffByApproval[a.approval_id] != null && (
                         <pre
                           data-testid={`needs-you-diff-preview-${a.approval_id}`}
-                          className="mt-1 max-h-32 overflow-x-auto rounded-md border border-white/10 bg-[#06080D] p-2 font-mono text-[10px] leading-relaxed text-emerald-300"
+                          className="mt-1 max-h-32 overflow-x-auto rounded-md border border-border-subtle bg-bg-elevated p-2 font-mono text-[10px] leading-relaxed text-emerald-700"
                         >
                           {diffByApproval[a.approval_id]}
                         </pre>
@@ -420,31 +420,31 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
           {!embedded && (
             <div
               data-testid="needs-you-live-dag"
-              className="flex flex-col justify-between rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 lg:col-span-6 shadow-[inset_0_1px_0_rgba(243,229,171,0.1)]"
+              className="flex flex-col justify-between rounded-xl border border-[#D4AF37]/30 bg-bg-surface p-3.5 lg:col-span-6 shadow-[inset_0_1px_0_rgba(243,229,171,0.1)]"
             >
               <div>
                 <div className="flex items-center justify-between border-b border-[#D4AF37]/25 pb-2">
                   <div className="flex items-center gap-2">
                     <RomanMedallion active size="sm" {...({ icon: 'astrolabeRadar', tone: 'gold' } as any)}>
-                      <Icon.astrolabeRadar className="size-3.5 text-[#F3E5AB]" aria-hidden="true" />
+                      <Icon.astrolabeRadar className="size-3.5 text-text-primary" aria-hidden="true" />
                     </RomanMedallion>
                     <div>
-                      <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-[#F3E5AB]">
+                      <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
                         Live Agent Topology &amp; Execution DAG
                       </h3>
-                      <p className="text-[10px] text-[#C8B99E]">
+                      <p className="text-[10px] text-text-secondary">
                         Real-time multi-agent dispatch, tool streams &amp; token velocity
                       </p>
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] text-emerald-300">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] text-emerald-700">
                     <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
                     <span>420 t/s agg</span>
                   </span>
                 </div>
 
                 {/* Animated SVG Execution DAG connecting Orchestrator -> Researcher & Verifier */}
-                <div className="relative my-2.5 rounded-lg border border-[#D4AF37]/25 bg-[#0B0906] p-2.5">
+                <div className="relative my-2.5 rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
                   <svg viewBox="0 0 420 116" className="h-28 w-full overflow-visible" aria-label="Execution DAG">
                     <defs>
                       <linearGradient id="ny-dag-gold" x1="0" x2="1">
@@ -597,11 +597,11 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 </div>
               </div>
 
-              <div className="mt-3 flex items-center justify-between rounded-lg border border-border-subtle bg-[#0A0C14] px-3 py-2 font-mono text-[10px] text-text-secondary">
+              <div className="mt-3 flex items-center justify-between rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 font-mono text-[10px] text-text-secondary">
                 <span>
                   Selected: <strong className="text-brass">{selectedDagNode.role}</strong> ({selectedDagNode.model})
                 </span>
-                <span className="text-emerald-300">
+                <span className="text-emerald-700">
                   {selectedDagNode.tool} · {selectedDagNode.velocity}
                 </span>
               </div>
@@ -632,7 +632,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                     <th className="py-1.5 text-right">Gate</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 text-text-secondary">
+                <tbody className="divide-y divide-border-subtle text-text-secondary">
                   {[
                     {
                       runId: 'a091819-1761d53e',
@@ -641,7 +641,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       vel: '84 t/s · 14ms',
                       cost: '$0.014',
                       gate: 'Running',
-                      tone: 'border-amber-500/40 bg-amber-500/12 text-amber-300',
+                      tone: 'border-amber-500/40 bg-amber-500/12 text-amber-700',
                     },
                     {
                       runId: 'a021819-1891a599',
@@ -650,7 +650,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       vel: '126 t/s · 22ms',
                       cost: '$0.008',
                       gate: 'Running',
-                      tone: 'border-cyan-500/40 bg-cyan-500/12 text-cyan-300',
+                      tone: 'border-cyan-500/40 bg-cyan-500/12 text-cyan-700',
                     },
                     {
                       runId: 'a021846-1e44041d',
@@ -659,19 +659,19 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       vel: '210 t/s · 6ms',
                       cost: '$0.000',
                       gate: 'Verified',
-                      tone: 'border-emerald-500/40 bg-emerald-500/12 text-emerald-300',
+                      tone: 'border-emerald-500/40 bg-emerald-500/12 text-emerald-700',
                     },
                   ].map((r) => (
                     <tr key={r.runId}>
                       <td className="py-1.5 pr-3 text-text-muted">{r.runId}</td>
                       <td className="py-1.5 pr-3">
-                        <span className="mr-1.5 rounded border border-emerald-500/35 bg-emerald-500/12 px-1 py-0.5 text-[9px] font-semibold text-emerald-300">
+                        <span className="mr-1.5 rounded border border-emerald-500/35 bg-emerald-500/12 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">
                           PASS
                         </span>
                         <span className="text-text-primary">{r.task}</span>
                       </td>
                       <td className="py-1.5 pr-3 text-brass">{r.model}</td>
-                      <td className="py-1.5 pr-3 text-emerald-300">{r.vel}</td>
+                      <td className="py-1.5 pr-3 text-emerald-700">{r.vel}</td>
                       <td className="py-1.5 pr-3">{r.cost}</td>
                       <td className="py-1.5 text-right">
                         <span className={`rounded border px-1.5 py-0.5 text-[9px] ${r.tone}`}>{r.gate}</span>
@@ -688,26 +688,26 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
           data-testid="needs-you-attention-deck"
           className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3"
         >
-          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 shadow-sm">
+          <div className="rounded-xl border border-[#D4AF37]/30 bg-bg-surface p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Entropy Gate</span>
-              <span className="rounded border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
+              <span className="font-display text-[10px] tracking-widest text-brass uppercase">Entropy Gate</span>
+              <span className="rounded border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[9px] text-text-primary">
                 Info Gain
               </span>
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-[#C8B99E]">
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
               Questions below the information-gain threshold are withheld and resolved autonomously to preserve operator focus.
             </p>
           </div>
-          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 shadow-sm">
+          <div className="rounded-xl border border-[#D4AF37]/30 bg-bg-surface p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Doubt Escalation</span>
-              <span className="rounded border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
+              <span className="font-display text-[10px] tracking-widest text-brass uppercase">Doubt Escalation</span>
+              <span className="rounded border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[9px] text-text-primary">
                 {effectiveNeedsYou.length} active
               </span>
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-[#C8B99E]">
-              Agents surface high-impact doubts when verification oracles conflict, allowing one-click <code className="text-[#F3E5AB]">Overrule</code> or <code className="text-[#F3E5AB]">Let it verify</code>.
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Agents surface high-impact doubts when verification oracles conflict, allowing one-click <code className="text-text-primary">Overrule</code> or <code className="text-text-primary">Let it verify</code>.
             </p>
             <div className="mt-2.5 flex flex-wrap items-center gap-2 pt-1 border-t border-[#D4AF37]/20">
               <RomanTooltip
@@ -722,7 +722,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                     const doubtItem = effectiveNeedsYou.find((i) => i.kind === 'doubt' || (i as any).isDoubt) ?? effectiveNeedsYou[0];
                     if (doubtItem) handleResolve(doubtItem.feedbackId, { action: 'overrule' });
                   }}
-                  className="rounded border border-emerald-400/35 bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-300 hover:bg-emerald-400/20"
+                  className="rounded border border-emerald-400/35 bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-700 hover:bg-emerald-400/20"
                 >
                   Overrule
                 </button>
@@ -739,21 +739,21 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                     const doubtItem = effectiveNeedsYou.find((i) => i.kind === 'doubt' || (i as any).isDoubt) ?? effectiveNeedsYou[0];
                     if (doubtItem) handleResolve(doubtItem.feedbackId, { action: 'let_verify' });
                   }}
-                  className="rounded border border-[#D4AF37]/30 bg-[#1D1811] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#C8B99E] hover:border-[#D4AF37]/50 hover:text-[#F3E5AB]"
+                  className="rounded border border-[#D4AF37]/30 bg-bg-elevated px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary hover:border-[#D4AF37]/50 hover:text-text-primary"
                 >
                   Let it verify
                 </button>
               </RomanTooltip>
             </div>
           </div>
-          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#15110C]/90 p-3.5 shadow-sm">
+          <div className="rounded-xl border border-[#D4AF37]/30 bg-bg-surface p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-[#F3E5AB] uppercase">Shared Inbox</span>
-              <span className="font-mono text-[10px] text-emerald-300">
+              <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Shared Inbox</span>
+              <span className="font-mono text-[10px] text-emerald-700">
                 {approvals.length + effectiveNeedsYou.length} open
               </span>
             </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-[#C8B99E]">
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
               Unifies tool approvals, blocking clarifications, and skill proposals in one synchronized attention stream.
             </p>
           </div>

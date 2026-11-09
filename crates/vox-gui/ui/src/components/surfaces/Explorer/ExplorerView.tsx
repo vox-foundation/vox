@@ -612,7 +612,7 @@ export function ExplorerView({
                         className={cn(
                           'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50',
                           pressed
-                            ? 'border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                            ? 'border-[#8C6825] bg-bg-elevated text-text-primary'
                             : 'border-[#A67C1E]/70 bg-[#EFE6D2] text-[#2B1F0F] hover:bg-white',
                         )}
                       >

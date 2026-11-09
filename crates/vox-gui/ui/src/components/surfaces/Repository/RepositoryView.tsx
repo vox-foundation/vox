@@ -151,13 +151,13 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
   ];
 
   return (
-    <section className="space-y-4 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4">
+    <section className="space-y-4 rounded-xl border border-[#D4AF37]/40 bg-bg-surface p-4">
       <RomanSurfaceHeader
         domainTag="WORKSPACE · REPOSITORY"
         title="Repository Polyrepo & JJ VCS Ledger"
         subtitle="Inspect working-tree status, active branches, polyrepo roots, and compiler diagnostics."
         waxSealBadge="VCS ACTIVE"
-        icon={<GitIcon className="size-5 text-[#F3E5AB]" />}
+        icon={<GitIcon className="size-5 text-text-primary" />}
         gauges={repoGauges}
       />
       <div
@@ -171,13 +171,13 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
       >
         <h2 className="font-display text-xs font-bold text-[#1C140C] tracking-wider uppercase">{useLabel('repo-harness')}</h2>
         <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
-          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-2 py-0.5 text-[#D8C7A8]">
-            DEFAULT: <strong className="text-[#F3E5AB] uppercase">{isolation?.strategy_default ?? 'shared_branch'}</strong>
+          <span className="rounded border border-[#8C6825] bg-bg-elevated px-2 py-0.5 text-text-secondary">
+            DEFAULT: <strong className="text-text-primary uppercase">{isolation?.strategy_default ?? 'shared_branch'}</strong>
           </span>
-          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-2 py-0.5 text-[#D8C7A8]">
-            AGENTLANES: <strong className="text-[#F3E5AB]">{agentCount}</strong>
+          <span className="rounded border border-[#8C6825] bg-bg-elevated px-2 py-0.5 text-text-secondary">
+            AGENTLANES: <strong className="text-text-primary">{agentCount}</strong>
           </span>
-          <span className={`rounded border px-2 py-0.5 ${conflictCount > 0 ? 'border-amber-400/50 bg-[#3B2308] text-amber-200' : 'border-[#8C6825] bg-[#364116] text-[#DCE7B6]'}`}>
+          <span className={`rounded border px-2 py-0.5 ${conflictCount > 0 ? 'border-amber-500/50 bg-amber-500/15 text-amber-800' : 'border-emerald-600/50 bg-emerald-500/15 text-emerald-700'}`}>
             CONFLICTS: <strong>{conflictCount}</strong>
           </span>
         </div>
@@ -195,7 +195,7 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
           onClick={() => runAction('Workspace status', ['status'])}
         >
           <span>Workspace status</span>
-          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">vox status</span>
+          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">vox status</span>
         </button>
         <button
           type="button"
@@ -209,7 +209,7 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
           onClick={() => runAction('Repository health', ['check', 'workspace'])}
         >
           <span>Repo health check</span>
-          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">vox check workspace</span>
+          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">vox check workspace</span>
         </button>
         <button
           type="button"
@@ -223,7 +223,7 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
           onClick={() => runAction('Vox check', ['check'])}
         >
           <span className="font-mono text-[#1C140C]">Run Vox Check</span>
-          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">typecheck + lint</span>
+          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">typecheck + lint</span>
         </button>
         <button
           type="button"
@@ -238,14 +238,14 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
           onClick={() => runAction('List changed files', ['diff'])}
         >
           <span className="font-mono text-[#1C140C]">Inspect Git Diff</span>
-          <span className="rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 font-mono text-[10px] text-[#F3E5AB]">working tree</span>
+          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">working tree</span>
         </button>
       </div>
       <pre
         aria-label="Command output"
         aria-live="polite"
         aria-busy={busy}
-        className="max-h-[420px] overflow-auto rounded-lg border-2 border-[#C59B27] bg-[#18120B] p-3 font-mono text-xs text-[#F5EFE2] shadow-inner"
+        className="max-h-[420px] overflow-auto rounded-lg border-2 border-[#C59B27] bg-bg-elevated p-3 font-mono text-xs text-text-primary shadow-inner"
       >
         {output}
       </pre>
