@@ -261,7 +261,8 @@ fn compute_supervised_metrics(
         fallback_sources
             .iter()
             .filter(|s| s.exists)
-            .find_map(|s| Some(workspace_root.join(&s.path)))
+            .map(|s| workspace_root.join(&s.path))
+            .next()
     };
 
     let Some(path) = target_path else {

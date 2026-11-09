@@ -220,7 +220,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
   return (
     <div className="flex flex-col gap-4 p-4">
       <RomanSurfaceHeader
-        surfaceKey="vox-search"
+        domainTag="KNOWLEDGE"
         title={corpusHealthLabel}
         subtitle="Hybrid lexical + semantic retrieval corpora, staleness TTL governance, and architectural atlas."
         actions={
