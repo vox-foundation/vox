@@ -73,7 +73,7 @@ pub(crate) fn find_orphans(root: &Path, pages: &[PathBuf]) -> Result<Vec<String>
         }
 
         let inbound = graph.get(&rel);
-        if inbound.map_or(true, |set| set.is_empty()) {
+        if inbound.is_none_or(|set| set.is_empty()) {
             orphans.push(rel);
         }
     }
