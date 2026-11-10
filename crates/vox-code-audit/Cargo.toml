@@ -34,10 +34,15 @@ vox-scaling-policy = { workspace = true }
 vox-secrets = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-rule-pack = { version = "0.6.0", path = "../vox-rule-pack" }
+vox-telemetry = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+
+[[test]]
+name = "telemetry_emission_test"
+path = "tests/telemetry_emission_test.rs"
 
 [[test]]
 name = "t3_wave3_workspace_sweep"

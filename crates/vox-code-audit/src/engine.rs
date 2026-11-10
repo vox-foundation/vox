@@ -526,20 +526,26 @@ pub struct SeveritySummary {
 /// `None`, events are emitted without a repo label (P2.1c lands the threading,
 /// callers configure it).
 fn emit_lint_finding_telemetry(findings: &[Finding], repository_id: Option<&str>) {
+    use vox_telemetry::{LintFindingEvent, TelemetryEvent, record_event};
+
     for finding in findings {
-        tracing::debug!(
-            rule_id = %finding.rule_id,
-            diagnostic_id = ?finding.diagnostic_id,
-            severity = ?finding.severity,
-            file = %finding.file.display(),
-            line = finding.line,
-            repository_id = ?repository_id,
-            "lint finding"
-        );
+        let event = TelemetryEvent::LintFinding(LintFindingEvent {
+            rule_id: finding.rule_id.clone(),
+            diagnostic_id: finding.diagnostic_id.clone(),
+            severity: severity_label(finding.severity).to_string(),
+            relative_path: finding.file.to_string_lossy().into_owned(),
+            line: finding.line as u32,
+            // Autofix is "available" if the rule supplied either a suggestion
+            // string or alternative fix descriptors. The aggregator uses this
+            // bit to compute per-rule autofix-coverage rates.
+            autofix_available: finding.suggestion.is_some() || !finding.alternatives.is_empty(),
+            confidence: finding.confidence.map(|c| confidence_label(c).to_string()),
+            repository_id: repository_id.map(str::to_string),
+        });
+        record_event!(&event);
     }
 }
 
-#[allow(dead_code)]
 fn severity_label(s: Severity) -> &'static str {
     match s {
         Severity::Info => "info",
@@ -549,7 +555,6 @@ fn severity_label(s: Severity) -> &'static str {
     }
 }
 
-#[allow(dead_code)]
 fn confidence_label(c: crate::rules::FindingConfidence) -> &'static str {
     use crate::rules::FindingConfidence;
     match c {

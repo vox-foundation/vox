@@ -132,7 +132,7 @@ Phases A, B, C, D, E, F are independent and can land in parallel by separate ses
 
 - Compiler unit tests in `crates/vox-codegen-ts/src/hir_emit/compat.rs#tests` for each new directive's TSX output (snapshot tests).
 - Web IR validation tests for the new diagnostic codes.
-- Reactive smoke test ([crates/vox-compiler/tests/reactive_smoke_test.rs](../../../crates/vox-compiler/tests/reactive_smoke_test.rs)) extended to cover `bind:value` round-trip.
+- Reactive smoke test ([crates/vox-codegen/tests/reactive_smoke_test.rs](../../../crates/vox-codegen/tests/reactive_smoke_test.rs)) extended to cover `bind:value` round-trip.
 - New golden file passes `vox check` and produces stable TSX.
 
 ### Out of scope

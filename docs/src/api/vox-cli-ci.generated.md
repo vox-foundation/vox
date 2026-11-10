@@ -138,7 +138,10 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `fan_in_budget` | — |
 | `free_binary` | — |
 | `generate_plugin_catalog_docs` | — |
+| `gui_command_backends` | — |
+| `gui_coverage_exemptions` | — |
 | `gui_honesty` | — |
+| `gui_surface_coverage` | — |
 | `gui_version_sync` | — |
 | `gui_visual_review` | — |
 | `harness_trust_guard` | — |
@@ -173,8 +176,10 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `retirement_audit` | — |
 | `row_serde_lint` | — |
 | `safety_inventory` | — |
+| `sccache_workflow_guard` | — |
 | `scientia_heuristics_parity` | — |
 | `scientia_worthiness_contract` | — |
+| `status` | — |
 | `string_id_lint` | — |
 | `suppression_review_gate` | — |
 | `sync_ignore_files` | — |
@@ -190,11 +195,6 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `workflow_concurrency_guard` | — |
 | `workflow_permissions_guard` | — |
 | `workflow_policy_guard` | — |
-| `gui_command_backends` | — |
-| `gui_coverage_exemptions` | — |
-| `gui_surface_coverage` | — |
-| `sccache_workflow_guard` | — |
-| `status` | — |
 | `workspace_artifacts` | — |
 
 ### Traits

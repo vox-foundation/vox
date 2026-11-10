@@ -543,11 +543,11 @@ export function ChatExecutionRail({
             <span
               data-testid="execution-rail-cas-rev"
               title={`Task list version v${ledgerRev} (${pendingDeltasCount} recent edits synced with assistant)`}
-              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-brass"
+              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-brass"
             >
               Synced · v{ledgerRev}
             </span>
-            <span className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
+            <span className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
               {displayTasks.length === 0 ? 'IDLE · READY' : `${displayTasks.length} ACTIVE`}
             </span>
           </div>
@@ -557,7 +557,7 @@ export function ChatExecutionRail({
           role="tablist"
           aria-label="Session inspector sections"
           data-testid="execution-rail-segmented-tabs"
-          className="flex shrink-0 items-center justify-between gap-0.5 overflow-x-auto no-scrollbar border-b border-border-subtle bg-overlay-solid/90 px-0.5 pt-0.5 font-mono text-[10px]"
+          className="flex shrink-0 items-center justify-between gap-0.5 overflow-x-auto no-scrollbar border-b border-border-subtle bg-overlay-solid/90 px-0.5 pt-0.5 font-mono text-[11px]"
         >
           {(
             [

@@ -451,8 +451,8 @@ fn compute_zero_points(data: &[f32], block_size: usize, scales: &[f32]) -> Vec<f
 pub fn dequantize_nf4(quantized: &QuantizedTensor, device: &Device) -> Result<Tensor> {
     // GPU-resident path: avoids the GPU->CPU->GPU roundtrip of the scalar loop, which
     // otherwise runs on every forward pass and dominates training time. Falls back to
-    // the CPU loop for asymmetric (zero_point) quant — rare — and on non-CUDA devices.
-    if device.is_cuda() && quantized.zero_points.is_none() {
+    // the CPU loop for asymmetric (zero_point) quant — rare — and on non-accelerated devices.
+    if (device.is_cuda() || device.is_metal()) && quantized.zero_points.is_none() {
         match dequantize_nf4_gpu(quantized, device, candle_core::DType::F32) {
             Ok(t) => return Ok(t),
             // Be conservative: if any op is unsupported on this candle/device build,
@@ -628,9 +628,9 @@ pub fn dequantize_nf4_with_dtype(
     // Fast path: dequantize DIRECTLY in the target dtype on the GPU, so we never
     // materialize a full-size F32 intermediate. Critical for the resident weight cache
     // of multi-billion-param models — the F32-then-cast path accumulates F32 temps across
-    // hundreds of weights and OOMs at build. Falls back to F32-then-cast off-CUDA or for
+    // hundreds of weights and OOMs at build. Falls back to F32-then-cast off-GPU or for
     // asymmetric quant.
-    if device.is_cuda() && quantized.zero_points.is_none() {
+    if (device.is_cuda() || device.is_metal()) && quantized.zero_points.is_none() {
         if let Ok(t) = dequantize_nf4_gpu(quantized, device, dtype) {
             return Ok(t);
         }

@@ -52,8 +52,8 @@ export interface BottomStatusBarProps {
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
   if (tone === 'live') {
     return {
-      pill: 'border-[#1B6B3A]/55 bg-[#1B6B3A]/12 text-(--color-status-pass) font-semibold',
-      dot: 'bg-(--color-status-pass) ring-1 ring-[#D4AF37]/80',
+      pill: 'border-(--color-status-pass)/55 bg-(--color-status-pass)/12 text-(--color-status-pass) font-semibold',
+      dot: 'bg-(--color-status-pass) ring-1 ring-brass/80',
       label: 'Live',
       title: 'Live: receiving engine events',
     };

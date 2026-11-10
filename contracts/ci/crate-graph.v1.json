@@ -245,7 +245,8 @@
       "vox-bounded-fs",
       "vox-rule-pack",
       "vox-scaling-policy",
-      "vox-secrets"
+      "vox-secrets",
+      "vox-telemetry"
     ],
     "vox-codegen": [
       "vox-compiler",

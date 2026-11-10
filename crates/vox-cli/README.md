@@ -18,7 +18,7 @@ The binary surface and command-line entrypoint for the Vox programming language 
 
 ## Discoverability & Tolerant Routing
 
-Command discovery is clap-derived and backed by tolerant semantic routing ([`contracts/cli/semantic-aliases.v1.json`](../../contracts/cli/semantic-aliases.v1.json)):
+Command discovery is clap-derived and backed by the canonical CLI command registry ([`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml)) and capability index ([`contracts/capabilities/capability-index.v1.json`](../../contracts/capabilities/capability-index.v1.json)):
 
 ```bash
 vox commands --recommended
