@@ -1086,9 +1086,9 @@
     {
       "crate": "vox-telemetry",
       "compile_s": 2.3,
-      "dependents": 68,
-      "blast_s": 603.0,
-      "fan_in": 15,
+      "dependents": 70,
+      "blast_s": 611.0,
+      "fan_in": 16,
       "touches_90d": 15,
       "churn_compile_pain_score": 34.5
     },

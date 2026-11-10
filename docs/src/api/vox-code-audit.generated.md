@@ -46,6 +46,7 @@ own file where non-obvious heuristics exist.
 | [`vox-rule-pack`](./vox-rule-pack.generated.md) | Normal |
 | [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
+| [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
 
 ## Public API Surface
 
@@ -82,6 +83,8 @@ graph {
     vox_code_audit -> vox_scaling_policy
     node vox_secrets: "vox-secrets"
     vox_code_audit -> vox_secrets
+    node vox_telemetry: "vox-telemetry"
+    vox_code_audit -> vox_telemetry
     node vox_audit: "vox-audit"
     vox_audit -> vox_code_audit
     node vox_cli: "vox-cli"
