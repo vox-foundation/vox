@@ -1190,4 +1190,26 @@ mod tests {
         assert!(rendered.contains("extern \"vox build\" ["));
         assert!(rendered.contains("--help(-h)"));
     }
+
+    #[test]
+    fn every_compiled_clap_path_is_in_command_registry() {
+        let root = vox_repository::resolve_repo_root_for_ci();
+        let registered: std::collections::BTreeSet<String> =
+            vox_cli_ci::gui_surface_coverage::collect_command_paths(&root)
+                .expect("collect command paths")
+                .into_iter()
+                .map(|p| p.path)
+                .collect();
+        let missing: Vec<String> = build_catalog()
+            .entries
+            .into_iter()
+            .map(|e| e.path.join(" "))
+            .filter(|p| !registered.contains(p))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "clap paths missing from contracts/cli/command-registry.yaml (add them to \
+             contracts/operations/catalog.v1.yaml, then `vox ci operations-sync --target all --write`): {missing:?}"
+        );
+    }
 }

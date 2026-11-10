@@ -218,7 +218,7 @@ impl SequentialRule {
         } else {
             self.looks
                 .last()
-                .map_or(true, |&last_n| outcomes.len() >= last_n)
+                .is_none_or(|&last_n| outcomes.len() >= last_n)
         };
 
         SequentialVerdict {
@@ -304,15 +304,13 @@ impl SequentialRule {
             looks: acc_looks,
             stopped_at_look: acc_stopped,
             items_used,
-            complete: stopped_at_look.is_some()
-                || self.looks.last().map_or(true, |&l| min_len >= l),
+            complete: stopped_at_look.is_some() || self.looks.last().is_none_or(|&l| min_len >= l),
         };
         let think_verdict = SequentialVerdict {
             looks: think_looks,
             stopped_at_look: think_stopped,
             items_used,
-            complete: stopped_at_look.is_some()
-                || self.looks.last().map_or(true, |&l| min_len >= l),
+            complete: stopped_at_look.is_some() || self.looks.last().is_none_or(|&l| min_len >= l),
         };
 
         SequentialSliceVerdict {
@@ -326,6 +324,7 @@ impl SequentialRule {
 
     /// Exact worst-case false-fail probability (size) over every possible
     /// discordant-count path $(d_1 \le d_2 \le \dots \le d_K)$.
+    #[allow(clippy::needless_range_loop)]
     pub fn worst_case_size(&self) -> f64 {
         if self.looks.is_empty() {
             return 0.0;
@@ -400,7 +399,7 @@ impl SequentialRule {
                     let mut rej_e = 0.0f64;
                     for (i, &p_surv) in surv.iter().enumerate() {
                         if p_surv > 0.0 {
-                            let needed = if c > i { c - i } else { 0 };
+                            let needed = c.saturating_sub(i);
                             let tail_p = if needed <= e {
                                 binom_tail[e][needed]
                             } else {

@@ -16827,6 +16827,7 @@ dependencies = [
  "serde_yaml_ng",
  "serial_test",
  "sysinfo 0.39.3",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -16857,6 +16858,7 @@ dependencies = [
  "clap",
  "comfy-table",
  "data-encoding",
+ "deadpool",
  "dialoguer",
  "dirs",
  "futures",
@@ -16935,6 +16937,7 @@ dependencies = [
  "vox-telemetry",
  "walkdir",
  "which 8.0.4",
+ "wiremock",
  "workspace-hack",
  "zip 2.4.2",
 ]

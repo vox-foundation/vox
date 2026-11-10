@@ -265,12 +265,11 @@ fn worktree_last_touched(wt: &Path) -> SystemTime {
         true
     });
     for e in walker.filter_map(Result::ok) {
-        if let Ok(m) = e.metadata() {
-            if let Ok(t) = m.modified() {
-                if t > newest {
-                    newest = t;
-                }
-            }
+        if let Ok(m) = e.metadata()
+            && let Ok(t) = m.modified()
+            && t > newest
+        {
+            newest = t;
         }
     }
     newest
@@ -324,10 +323,10 @@ fn dir_bytes(path: &Path) -> u64 {
         if e.path_is_symlink() {
             continue;
         }
-        if let Ok(m) = e.metadata() {
-            if m.is_file() {
-                n = n.saturating_add(m.len());
-            }
+        if let Ok(m) = e.metadata()
+            && m.is_file()
+        {
+            n = n.saturating_add(m.len());
         }
     }
     n

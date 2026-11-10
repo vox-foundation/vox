@@ -88,16 +88,15 @@ pub fn regenerated_summary(
             }
         }
         for c in dst_crates {
-            if let Some(name) = c.get("crate").and_then(|v| v.as_str()) {
-                if let Some(src_c) = committed_by_name.get(name) {
-                    if let (Some(obj), Some(src_obj)) = (c.as_object_mut(), src_c.as_object()) {
-                        if let Some(t) = src_obj.get("touches_90d") {
-                            obj.insert("touches_90d".to_string(), t.clone());
-                        }
-                        if let Some(p) = src_obj.get("churn_compile_pain_score") {
-                            obj.insert("churn_compile_pain_score".to_string(), p.clone());
-                        }
-                    }
+            if let Some(name) = c.get("crate").and_then(|v| v.as_str())
+                && let Some(src_c) = committed_by_name.get(name)
+                && let (Some(obj), Some(src_obj)) = (c.as_object_mut(), src_c.as_object())
+            {
+                if let Some(t) = src_obj.get("touches_90d") {
+                    obj.insert("touches_90d".to_string(), t.clone());
+                }
+                if let Some(p) = src_obj.get("churn_compile_pain_score") {
+                    obj.insert("churn_compile_pain_score".to_string(), p.clone());
                 }
             }
         }

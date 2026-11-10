@@ -48,6 +48,7 @@ pub struct SlicePin {
 }
 
 impl SlicePin {
+    #[allow(dead_code)]
     pub fn verify(&self, slice_bytes: &[u8]) -> Result<(), String> {
         let digest = vox_crypto::hex_encode(&vox_crypto::secure_hash(slice_bytes));
         if digest != self.blake3 {

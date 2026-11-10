@@ -106,48 +106,47 @@ pub fn spoke_gate_rows(
 
     // 2. Domain profiles with an eval_gate
     let profiles_path = root.join("mens/config/domain-profiles.yaml");
-    if let Ok(raw) = std::fs::read_to_string(&profiles_path) {
-        if let Ok(file_val) = serde_yaml::from_str::<serde_json::Value>(&raw) {
-            if let Some(profiles_map) = file_val.get("profiles").and_then(|p| p.as_object()) {
-                let mut sorted_profiles: Vec<_> = profiles_map.iter().collect();
-                sorted_profiles.sort_by_key(|(k, _)| (*k).clone());
+    if let Ok(raw) = std::fs::read_to_string(&profiles_path)
+        && let Ok(file_val) = serde_yaml::from_str::<serde_json::Value>(&raw)
+        && let Some(profiles_map) = file_val.get("profiles").and_then(|p| p.as_object())
+    {
+        let mut sorted_profiles: Vec<_> = profiles_map.iter().collect();
+        sorted_profiles.sort_by_key(|(k, _)| (*k).clone());
 
-                for (name, prof) in sorted_profiles {
-                    if let Some(eval_gate_rel) = prof.get("eval_gate").and_then(|v| v.as_str()) {
-                        let prof_hash = policy_blake3(Some(root), eval_gate_rel)
-                            .unwrap_or_else(|_| "".to_string());
-                        let receipt_file = format!("gate_receipt.{name}.json");
-                        let receipt_path = run_dir.join(&receipt_file);
-                        let receipt_val: Option<serde_json::Value> = if receipt_path.is_file() {
-                            std::fs::read_to_string(&receipt_path)
-                                .ok()
-                                .and_then(|r| serde_json::from_str(&r).ok())
-                        } else {
-                            None
-                        };
+        for (name, prof) in sorted_profiles {
+            if let Some(eval_gate_rel) = prof.get("eval_gate").and_then(|v| v.as_str()) {
+                let prof_hash =
+                    policy_blake3(Some(root), eval_gate_rel).unwrap_or_else(|_| "".to_string());
+                let receipt_file = format!("gate_receipt.{name}.json");
+                let receipt_path = run_dir.join(&receipt_file);
+                let receipt_val: Option<serde_json::Value> = if receipt_path.is_file() {
+                    std::fs::read_to_string(&receipt_path)
+                        .ok()
+                        .and_then(|r| serde_json::from_str(&r).ok())
+                } else {
+                    None
+                };
 
-                        let current = vox_eval::gate_state::CurrentGate {
-                            policy_blake3: prof_hash.clone(),
-                            adapter_sha256: adapter_sha256.clone(),
-                        };
-                        let (state, reason) =
-                            vox_eval::gate_state::gate_state(receipt_val.as_ref(), &current);
+                let current = vox_eval::gate_state::CurrentGate {
+                    policy_blake3: prof_hash.clone(),
+                    adapter_sha256: adapter_sha256.clone(),
+                };
+                let (state, reason) =
+                    vox_eval::gate_state::gate_state(receipt_val.as_ref(), &current);
 
-                        rows.push(vox_eval::gate_state::SpokeGateRow {
-                            spoke: name.clone(),
-                            policy_file: eval_gate_rel.to_string(),
-                            policy_blake3: prof_hash,
-                            receipt_file: if receipt_val.is_some() {
-                                Some(receipt_file)
-                            } else {
-                                None
-                            },
-                            state,
-                            reason,
-                            applies: receipt_val.is_some(),
-                        });
-                    }
-                }
+                rows.push(vox_eval::gate_state::SpokeGateRow {
+                    spoke: name.clone(),
+                    policy_file: eval_gate_rel.to_string(),
+                    policy_blake3: prof_hash,
+                    receipt_file: if receipt_val.is_some() {
+                        Some(receipt_file)
+                    } else {
+                        None
+                    },
+                    state,
+                    reason,
+                    applies: receipt_val.is_some(),
+                });
             }
         }
     }

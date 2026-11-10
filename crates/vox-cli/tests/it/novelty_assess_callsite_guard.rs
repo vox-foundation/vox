@@ -14,6 +14,7 @@ fn workspace_root() -> PathBuf {
 
 const SCAN_ROOTS: &[&str] = &[
     "crates/vox-cli/src",
+    "crates/vox-cli-research/src",
     "crates/vox-gui/src",
     "crates/vox-orchestrator-mcp/src",
     "crates/vox-publisher/src",
@@ -23,8 +24,8 @@ const ALLOWED_SCORE_PATH_SUFFIXES: &[&str] =
     &["crates/vox-publisher/src/scientia_novelty_assess.rs"];
 
 const REQUIRED_ASSESS_PATH_SUFFIXES: &[&str] = &[
-    "crates/vox-cli/src/commands/db/publication/decision.rs",
-    "crates/vox-cli/src/commands/db/publication/discovery.rs",
+    "crates/vox-cli-research/src/db/publication/decision.rs",
+    "crates/vox-cli-research/src/db/publication/discovery.rs",
     // The GUI's `get_novelty_assessment` is a thin client of the daemon's
     // `GET /api/v2/scientia/publications/{id}/novelty` (8e383167a); that handler is the GUI seam.
     "crates/vox-orchestrator-mcp/src/gui_ops/scientia.rs",

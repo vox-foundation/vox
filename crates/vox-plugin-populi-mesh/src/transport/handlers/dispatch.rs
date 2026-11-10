@@ -420,6 +420,7 @@ pub(crate) async fn execute_on_worker(
 }
 
 /// One mesh placement of a measured `qwen3_code` QLoRA size.
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Qwen3MeshSelection {
     pub node_id: String,
@@ -431,6 +432,7 @@ pub(crate) struct Qwen3MeshSelection {
 }
 
 /// Why [`select_qwen3_mesh`] refused to name a node.
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub(crate) enum Qwen3MeshError {
     /// Every fresh `accelerator_free_mb` reading overflows the picker's `u32`.
@@ -456,6 +458,7 @@ pub(crate) enum Qwen3MeshError {
 // One call to `select_qwen3_code_qlora_for_free_mb` (which calls `pick_base`).
 // Total VRAM, system RAM, and `min_vram_mb` are not inputs.
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn effective_stale_window_ms(stale_window_ms: Option<u64>) -> u64 {
     match stale_window_ms {
         Some(window) if window > 0 => window,
@@ -463,6 +466,7 @@ fn effective_stale_window_ms(stale_window_ms: Option<u64>) -> u64 {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn select_qwen3_mesh(
     nodes: &[NodeRecord],
     req: &DispatchRequest,
@@ -519,6 +523,7 @@ pub(crate) fn select_qwen3_mesh(
     route_pick_to_holder(usable, pick)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn route_pick_to_holder(
     candidates: Vec<&NodeRecord>,
     pick: vox_populi::mens::tensor::spoke_base_resolver::Qwen3LivePick,
@@ -554,12 +559,14 @@ fn route_pick_to_holder(
 /// Mesh placement when a fresh reading exists. Otherwise the caller-supplied
 /// local reading: an explicit size is refused when it does not fit, and only
 /// the automatic pick steps down. This function does not probe the GPU.
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug)]
 pub(crate) enum Qwen3Placement {
     Mesh(Qwen3MeshSelection),
     Local(vox_populi::mens::tensor::spoke_base_resolver::Qwen3LivePick),
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn place_qwen3_code_qlora(
     nodes: &[NodeRecord],
     req: &DispatchRequest,
@@ -617,20 +624,20 @@ mod qwen3_mesh_tests {
     #[test]
     fn mesh_pick_routes_largest_floor_to_the_node_that_holds_it() {
         let nodes = vec![
-            node("wide", Some(70_000), Some(50.0)),
-            node("narrow", Some(25_000), Some(10.0)),
+            node("wide", Some(300_000), Some(50.0)),
+            node("narrow", Some(200_000), Some(10.0)),
         ];
         let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
             .expect("mesh pick");
         let local =
             vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
-                70_000,
+                300_000,
             )
             .expect("local pick");
         assert_eq!(got.node_id, "wide");
         assert_eq!(got.size_token, "32B");
         assert_eq!(got.preset, "qwen3_96g");
-        assert_eq!(got.floor_mb, 60_000);
+        assert_eq!(got.floor_mb, 295_822);
         assert_eq!(
             got.hf_id,
             "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
@@ -640,7 +647,7 @@ mod qwen3_mesh_tests {
         assert_eq!(got.floor_mb, local.floor_mb);
         assert_eq!(got.hf_id, local.hf_id);
         assert_ne!(got.node_id, "narrow");
-        assert_eq!(got.accelerator_free_mb, 70_000);
+        assert_eq!(got.accelerator_free_mb, 300_000);
 
         let missing: NodeRecord = serde_json::from_value(serde_json::json!({
             "id": "missing-free",
@@ -657,15 +664,15 @@ mod qwen3_mesh_tests {
     #[test]
     fn mesh_pick_tie_breaks_on_lowest_cpu() {
         let nodes = vec![
-            node("busy", Some(70_000), Some(80.0)),
-            node("idle", Some(70_000), Some(10.0)),
+            node("busy", Some(300_000), Some(80.0)),
+            node("idle", Some(300_000), Some(10.0)),
         ];
         let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
             .expect("tie pick");
         assert_eq!(got.node_id, "idle");
         assert_eq!(got.size_token, "32B");
         assert_eq!(got.preset, "qwen3_96g");
-        assert_eq!(got.floor_mb, 60_000);
+        assert_eq!(got.floor_mb, 295_822);
     }
 
     fn assert_narrow_14b(nodes: &[NodeRecord], req: &DispatchRequest) {
@@ -674,7 +681,7 @@ mod qwen3_mesh_tests {
         assert_eq!(got.node_id, "narrow");
         assert_eq!(got.size_token, "14B");
         assert_eq!(got.preset, "qwen3_24g");
-        assert_eq!(got.floor_mb, 20_000);
+        assert_eq!(got.floor_mb, 195_382);
     }
 
     fn empty_donation() -> vox_mesh_types::WorkerDonationPolicy {
@@ -694,19 +701,19 @@ mod qwen3_mesh_tests {
 
     #[test]
     fn mesh_pick_skips_quarantine_maintenance_labels_and_donation() {
-        let mut quarantined = node("wide", Some(70_000), Some(10.0));
+        let mut quarantined = node("wide", Some(300_000), Some(10.0));
         quarantined.quarantined = Some(true);
-        let narrow = node("narrow", Some(25_000), Some(90.0));
+        let narrow = node("narrow", Some(200_000), Some(90.0));
         assert_narrow_14b(&[quarantined, narrow], &plain_req());
 
-        let mut maintained = node("wide", Some(70_000), Some(10.0));
+        let mut maintained = node("wide", Some(300_000), Some(10.0));
         maintained.maintenance = Some(true);
         maintained.maintenance_until_unix_ms = Some(10_000_001);
-        let narrow = node("narrow", Some(25_000), Some(90.0));
+        let narrow = node("narrow", Some(200_000), Some(90.0));
         assert_narrow_14b(&[maintained, narrow], &plain_req());
 
-        let unlabeled = node("wide", Some(70_000), Some(10.0));
-        let mut labeled = node("narrow", Some(25_000), Some(90.0));
+        let unlabeled = node("wide", Some(300_000), Some(10.0));
+        let mut labeled = node("narrow", Some(200_000), Some(90.0));
         labeled
             .capabilities
             .labels
@@ -715,9 +722,9 @@ mod qwen3_mesh_tests {
         req.required_labels = Some(vec!["region=us-east".to_string()]);
         assert_narrow_14b(&[unlabeled, labeled], &req);
 
-        let mut closed = node("wide", Some(70_000), Some(10.0));
+        let mut closed = node("wide", Some(300_000), Some(10.0));
         closed.donation_policy = Some(empty_donation());
-        let open = node("narrow", Some(25_000), Some(90.0));
+        let open = node("narrow", Some(200_000), Some(90.0));
         let mut req = plain_req();
         req.task_kind = Some("text_infer".to_string());
         assert_narrow_14b(&[closed, open], &req);
@@ -729,25 +736,25 @@ mod qwen3_mesh_tests {
         rich.gpu_vram_total_mb = Some(80_000);
         rich.memory_free_bytes = Some(80u64 * 1024 * 1024 * 1024);
         rich.capabilities.min_vram_mb = Some(80_000);
-        let lean = node("lean", Some(25_000), Some(90.0));
+        let lean = node("lean", Some(200_000), Some(90.0));
         let mut req = plain_req();
-        req.min_vram_mb = Some(70_000);
+        req.min_vram_mb = Some(300_000);
         let got = select_qwen3_mesh(&[rich, lean], &req, 10_000_000, Some(3_600_000), None)
             .expect("lean pick");
         assert_eq!(got.node_id, "lean");
         assert_eq!(got.size_token, "14B");
         assert_eq!(got.preset, "qwen3_24g");
-        assert_eq!(got.floor_mb, 20_000);
+        assert_eq!(got.floor_mb, 195_382);
     }
 
     fn stale_trio(wide_last_seen: u64) -> Vec<NodeRecord> {
-        let mut wide = node("wide", Some(70_000), Some(1.0));
+        let mut wide = node("wide", Some(300_000), Some(1.0));
         wide.last_seen_unix_ms = wide_last_seen;
         let mut missing = node("missing", None, Some(1.0));
         missing.gpu_vram_total_mb = Some(80_000);
         missing.memory_free_bytes = Some(80u64 * 1024 * 1024 * 1024);
         missing.last_seen_unix_ms = 10_000_000;
-        let fresh = node("fresh", Some(25_000), Some(90.0));
+        let fresh = node("fresh", Some(200_000), Some(90.0));
         vec![wide, missing, fresh]
     }
 
@@ -759,7 +766,7 @@ mod qwen3_mesh_tests {
         assert_eq!(got.node_id, "fresh");
         assert_eq!(got.size_token, "14B");
         assert_eq!(got.preset, "qwen3_24g");
-        assert_eq!(got.floor_mb, 20_000);
+        assert_eq!(got.floor_mb, 195_382);
         let excluded = vec![nodes[0].clone(), nodes[1].clone()];
         assert_eq!(
             select_qwen3_mesh(&excluded, &plain_req(), 10_000_000, Some(3_600_000), None)
@@ -780,7 +787,7 @@ mod qwen3_mesh_tests {
             .expect("hour-old 32B");
         assert_eq!(got.node_id, "wide");
         assert_eq!(got.size_token, "32B");
-        assert_eq!(got.floor_mb, 60_000);
+        assert_eq!(got.floor_mb, 295_822);
         on_the_hour[0].last_seen_unix_ms = 6_400_000;
         let got = select_qwen3_mesh(&on_the_hour, &plain_req(), 10_000_000, Some(0), None)
             .expect("zero window uses the hour");
@@ -790,7 +797,7 @@ mod qwen3_mesh_tests {
 
     #[test]
     fn mesh_pick_explicit_size_that_no_node_holds_is_an_error() {
-        let nodes = vec![node("narrow", Some(25_000), Some(10.0))];
+        let nodes = vec![node("narrow", Some(200_000), Some(10.0))];
         let err = select_qwen3_mesh(
             &nodes,
             &plain_req(),
@@ -804,22 +811,22 @@ mod qwen3_mesh_tests {
             .expect("automatic step-down");
         assert_eq!(got.size_token, "14B");
         assert_eq!(got.preset, "qwen3_24g");
-        assert_eq!(got.floor_mb, 20_000);
+        assert_eq!(got.floor_mb, 195_382);
     }
 
     #[test]
     fn mesh_pick_drops_overflowing_free_memory_reading() {
         let nodes = vec![
             node("overflow", Some(u64::MAX), Some(1.0)),
-            node("usable", Some(25_000), Some(40.0)),
+            node("usable", Some(200_000), Some(40.0)),
         ];
         let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
             .expect("usable sibling");
         assert_eq!(got.node_id, "usable");
         assert_eq!(got.size_token, "14B");
         assert_eq!(got.preset, "qwen3_24g");
-        assert_eq!(got.floor_mb, 20_000);
-        assert_eq!(got.accelerator_free_mb, 25_000);
+        assert_eq!(got.floor_mb, 195_382);
+        assert_eq!(got.accelerator_free_mb, 200_000);
 
         let only_overflow = vec![node("overflow", Some(u64::MAX), Some(1.0))];
         let err = select_qwen3_mesh(
@@ -836,8 +843,8 @@ mod qwen3_mesh_tests {
     #[test]
     fn mesh_pick_explicit_size_routes_to_a_node_that_holds_it() {
         let nodes = vec![
-            node("wide", Some(70_000), Some(40.0)),
-            node("narrow", Some(25_000), Some(5.0)),
+            node("wide", Some(300_000), Some(40.0)),
+            node("narrow", Some(200_000), Some(5.0)),
         ];
         let got = select_qwen3_mesh(
             &nodes,
@@ -849,13 +856,13 @@ mod qwen3_mesh_tests {
         .expect("explicit 32B");
         assert_eq!(got.node_id, "wide");
         assert_eq!(got.size_token, "32B");
-        assert_eq!(got.floor_mb, 60_000);
+        assert_eq!(got.floor_mb, 295_822);
     }
 
     #[test]
     fn select_best_node_ignores_accelerator_free_mb() {
         let nodes = vec![
-            node("busy", Some(70_000), Some(90.0)),
+            node("busy", Some(300_000), Some(90.0)),
             node("idle", None, Some(10.0)),
         ];
         let best = select_best_node(&nodes, &plain_req()).expect("script dispatch");
@@ -874,14 +881,14 @@ mod qwen3_mesh_tests {
             10_000_000,
             Some(3_600_000),
             None,
-            Some(70_000),
+            Some(300_000),
         )
         .expect("local 32B");
         match got {
             Qwen3Placement::Local(pick) => {
                 assert_eq!(pick.size_token, "32B");
                 assert_eq!(pick.preset, "qwen3_96g");
-                assert_eq!(pick.floor_mb, 60_000);
+                assert_eq!(pick.floor_mb, 295_822);
             }
             Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
         }
@@ -896,14 +903,14 @@ mod qwen3_mesh_tests {
             10_000_000,
             Some(3_600_000),
             None,
-            Some(25_000),
+            Some(200_000),
         )
         .expect("local 14B");
         match got {
             Qwen3Placement::Local(pick) => {
                 assert_eq!(pick.size_token, "14B");
                 assert_eq!(pick.preset, "qwen3_24g");
-                assert_eq!(pick.floor_mb, 20_000);
+                assert_eq!(pick.floor_mb, 195_382);
             }
             Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
         }
@@ -919,21 +926,21 @@ mod qwen3_mesh_tests {
 
     #[test]
     fn place_qwen3_only_this_node_is_a_mesh_pick() {
-        let nodes = vec![node("local-1", Some(70_000), Some(10.0))];
+        let nodes = vec![node("local-1", Some(300_000), Some(10.0))];
         let got = place_qwen3_code_qlora(
             &nodes,
             &plain_req(),
             10_000_000,
             Some(3_600_000),
             None,
-            Some(25_000),
+            Some(200_000),
         )
         .expect("mesh pick of this node");
         match got {
             Qwen3Placement::Mesh(selection) => {
                 assert_eq!(selection.node_id, "local-1");
                 assert_eq!(selection.size_token, "32B");
-                assert_eq!(selection.floor_mb, 60_000);
+                assert_eq!(selection.floor_mb, 295_822);
             }
             Qwen3Placement::Local(pick) => panic!("local {}", pick.size_token),
         }
@@ -941,21 +948,21 @@ mod qwen3_mesh_tests {
 
     #[test]
     fn place_qwen3_explicit_miss_does_not_fall_back_local() {
-        let nodes = vec![node("narrow", Some(25_000), Some(5.0))];
+        let nodes = vec![node("narrow", Some(200_000), Some(5.0))];
         let err = place_qwen3_code_qlora(
             &nodes,
             &plain_req(),
             10_000_000,
             Some(3_600_000),
             Some("32B"),
-            Some(70_000),
+            Some(300_000),
         )
         .expect_err("explicit miss");
         assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
     }
 
     fn stale_or_missing_nodes() -> Vec<NodeRecord> {
-        let mut stale = node("stale", Some(70_000), Some(1.0));
+        let mut stale = node("stale", Some(300_000), Some(1.0));
         stale.last_seen_unix_ms = 1;
         let missing = node("missing", None, Some(1.0));
         vec![stale, missing]
@@ -969,9 +976,9 @@ mod qwen3_mesh_tests {
             10_000_000,
             Some(3_600_000),
             Some("32B"),
-            Some(25_000),
+            Some(200_000),
         )
-        .expect_err("explicit 32B does not fit 25000");
+        .expect_err("explicit 32B does not fit 200000");
         assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
     }
 
@@ -983,14 +990,14 @@ mod qwen3_mesh_tests {
             10_000_000,
             Some(3_600_000),
             Some("14B"),
-            Some(70_000),
+            Some(300_000),
         )
         .expect("explicit 14B");
         match got {
             Qwen3Placement::Local(pick) => {
                 assert_eq!(pick.size_token, "14B");
                 assert_eq!(pick.preset, "qwen3_24g");
-                assert_eq!(pick.floor_mb, 20_000);
+                assert_eq!(pick.floor_mb, 195_382);
             }
             Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
         }
@@ -1004,7 +1011,7 @@ mod qwen3_mesh_tests {
             10_000_000,
             Some(3_600_000),
             Some("32B"),
-            Some(25_000),
+            Some(200_000),
         )
         .expect_err("stale registry must not step an explicit size down");
         assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
@@ -1015,14 +1022,14 @@ mod qwen3_mesh_tests {
             10_000_000,
             Some(3_600_000),
             Some("14B"),
-            Some(70_000),
+            Some(300_000),
         )
         .expect("explicit 14B on the local reading");
         match got {
             Qwen3Placement::Local(pick) => {
                 assert_eq!(pick.size_token, "14B");
                 assert_eq!(pick.preset, "qwen3_24g");
-                assert_eq!(pick.floor_mb, 20_000);
+                assert_eq!(pick.floor_mb, 195_382);
             }
             Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
         }

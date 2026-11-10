@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unsafe_code)]
 //! Behavior tests for `#[derive(VoxConfig)]`. The test struct uses a *manual*
 //! Default (like OrchestratorConfig) so the divergence guard is meaningful.
 

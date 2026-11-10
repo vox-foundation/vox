@@ -298,11 +298,10 @@ fn brute_force_cross_check_equals_worst_case_size() {
                 }
             }
 
-            if mcnemar_one_sided_p(l1, g1) < rule.look_alpha()[0] {
-                rej_count += 1;
-            } else if mcnemar_one_sided_p(l2, g2) < rule.look_alpha()[1] {
-                rej_count += 1;
-            } else if mcnemar_one_sided_p(l3, g3) < rule.look_alpha()[2] {
+            if mcnemar_one_sided_p(l1, g1) < rule.look_alpha()[0]
+                || mcnemar_one_sided_p(l2, g2) < rule.look_alpha()[1]
+                || mcnemar_one_sided_p(l3, g3) < rule.look_alpha()[2]
+            {
                 rej_count += 1;
             }
         }

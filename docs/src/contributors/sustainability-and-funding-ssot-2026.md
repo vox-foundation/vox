@@ -46,15 +46,18 @@ Vox is a pre-1.0 open-source research language and AI development suite licensed
 Perform these steps in the Open Collective dashboard (`https://opencollective.com/dashboard/vox-foundation`):
 
 ### Step 1: Turn On Financial Contributions (0% Fee via Stripe)
+
 1. Go to **Dashboard → Settings → Fiscal Host** (or **Receiving Money**).
 2. Select **Manage our own funds (Independent / Organization — Discover \$0/mo plan)** and connect your Stripe account directly.
 3. Verify that `RECEIVE_FINANCIAL_CONTRIBUTIONS` flips to **Active** and the public **Contribute** button renders on `https://opencollective.com/vox-foundation`.
 
 ### Step 2: Fix Identity & Links
+
 1. **Admin Profile:** Log in with or invite your personal account (**Bertrand Reyna-Brainerd**, linking `https://github.com/brbrainerd` and `https://x.com/voxlang`) as Core Admin so grant reviewers see the real human researcher behind the project.
 2. **Website URL:** Under **Settings → Info**, set **Website** to `https://voxlang.org`.
 
 ### Step 3: Replace the "About" Description (Copy-Paste Ready)
+
 Replace the current generic enterprise blurb with this candid, reviewer-trusted description that matches `README.md`:
 
 > **About Vox & The Vox Foundation**
@@ -65,11 +68,13 @@ Replace the current generic enterprise blurb with this candid, reviewer-trusted 
 >
 > **How Funds Are Used:**
 > Every dollar in this Collective goes toward:
+>
 > 1. **Public Infrastructure (`$150/mo`):** Hosting the documentation book (`voxlang.org`), the deterministic browser playground (`eval.voxlang.org`), and cross-platform CI runners.
 > 2. **Open Empirical Benchmarks (`$500/mo`):** API and GPU compute budgets to run and publish reproducible, pre-registered multi-model trials (`vox model eval-compare`) measuring whether Vox's grammar and compiler diagnostics measurably improve LLM `pass@k` and multi-turn repair over TypeScript and Python.
 > 3. **Core Toolchain & Standalone Rust Crates:** Maintaining `vox-compiler`, `vox-arch-check`, `vox-secrets` (`Clavis`), and `vox-terminal-core`.
 
 ### Step 4: Replace the Broken `$0` Goal with Two Concrete Goals
+
 Delete `"The First Aqueduct ($0)"` under **Settings → Goals** and add:
 
 1. **Goal 1 — Public Playground & CI Infrastructure (`$150 / month`, recurring):**
@@ -78,7 +83,9 @@ Delete `"The First Aqueduct ($0)"` under **Settings → Goals** and add:
    - *Description:* "Funds seeded, multi-turn compiler-feedback evaluation runs (`vox model eval-compare` with McNemar, Holm-Bonferroni, and paired bootstrap tests) comparing `.vox` against TypeScript and Python across frontier and open-weights models, published openly with cryptographic provenance bundles."
 
 ### Step 5: Align Contribution Tiers with `README.md`
+
 Under **Settings → Tiers**:
+
 1. **Enable the Default Flexible Tier ("Custom Contribution"):** Allow one-time or monthly donations of any amount starting at `$5`.
 2. **Plebeian Supporter (`$5 / month`):** "Supports public playground hosting and CI infrastructure. Listed in the `Sponsors & Backing` section of `README.md`."
 3. **Centurion Sponsor (`$50 / month`):** "For indie teams and AI engineers backing verifiable agent tooling and standalone Rust crates (`vox-arch-check`, `vox-secrets`). Includes logo/link placement under `Centurion Sponsors` in `README.md`."
@@ -97,9 +104,11 @@ Pre-1.0 compilers and verification toolchains raise 10x more funding from R&D gr
 - **Recommended Proposal Title:** *Vox Safe-Exec & Provenance: Capability-Sandboxed Script Execution, Cryptographic Tool Receipts, and Retrieval Quarantine for Local-First Software*
 
 #### Copy-Paste NLnet Abstract (Proposal Form §Abstract)
+
 > Software developers increasingly rely on automated scripts, Model Context Protocol (MCP) tools, and external documentation indices, yet current toolchains execute glue scripts with ambient OS authority and ingest unverified web content directly into local databases without provenance boundaries.
 >
 > This project delivers three standalone, Apache-2.0 open-source components written in Rust from the Vox toolchain ecosystem:
+>
 > 1. **Capability-Sandboxed Deterministic Interpreter (`vox run --interp --caps`) & Shell Grammar Verifier (`vox-container-types::exec_grammar`):** A zero-ambient-authority execution tier for `.vox` automation scripts and shell pipelines that enforces fine-grained filesystem, network, process, and determinism capabilities at the language and AST boundary without requiring heavy container or microVM daemons.
 > 2. **Cryptographic Execution Receipts (`vox-crypto` / ADR-029):** A tamper-evident BLAKE3 + Ed25519/HMAC receipt ledger around local tool and terminal execution (`vox-terminal-core` & `vox-orchestrator-mcp`), ensuring every automated side effect produces an offline-verifiable cryptographic claim bundle.
 > 3. **Four-Tier Epistemic Quarantine (`vox-db` & `vox-kb-facets`):** A local-first SQLite/Turso (`libSQL`) storage and Tantivy search layer that enforces strict trust-tier separation (`SystemVerified`, `Trusted`, `Advisory`, `Untrusted`), quarantining unattested external inputs in a review inbox (`kb_findings`) with deterministic SKOS taxonomy validation (`vox-doc-pipeline`).
@@ -107,6 +116,7 @@ Pre-1.0 compilers and verification toolchains raise 10x more funding from R&D gr
 > All components will be published as standalone, documented Rust crates on `crates.io` (`vox-crypto`, `vox-bounded-fs`, `vox-secrets`, `vox-kb-facets`, `vox-arch-check`) alongside cross-platform binary releases (`voxup`) and reproducible verification suites.
 
 #### Proposed NLnet Milestone Breakdown (€35,000 Total)
+
 | Milestone | Deliverable | Verification Metric | Budget |
 | :--- | :--- | :--- | :--- |
 | **M1: Standalone Crate Extraction & Supply-Chain Provenance** | Publish `vox-crypto`, `vox-bounded-fs`, `vox-scaling-policy`, `vox-secrets` (`Clavis`), `vox-kb-facets`, and `vox-arch-check` to `crates.io` with CycloneDX SBOMs and SHA-256 release manifests (`CR-K1..K7`). | `cargo publish --dry-run` + `voxup install` smoke tests pass across Linux/macOS/Windows. | **€8,000** |

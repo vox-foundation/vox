@@ -23,10 +23,10 @@ struct CapabilityStatus {
 
 /// One `vox` command path, listed whether or not the running binary compiled it in.
 #[derive(Debug, Serialize)]
-struct CliCommandPath {
-    path: String,
+pub struct CliCommandPath {
+    pub path: String,
     /// Cargo feature expression from the registry (`null` = always available).
-    feature_gate: Option<String>,
+    pub feature_gate: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -267,7 +267,7 @@ fn enforce_policy(report: &SurfaceCoverageReport) -> Result<()> {
 /// `command-sync`), NOT the compiled clap tree: the tree varies with cargo features, so a
 /// feature-built CI binary and a default-built local binary would disagree on the committed
 /// report. Feature-gated commands are listed unconditionally, marked with their gate.
-fn collect_command_paths(repo_root: &Path) -> Result<Vec<CliCommandPath>> {
+pub fn collect_command_paths(repo_root: &Path) -> Result<Vec<CliCommandPath>> {
     use vox_cli_core::command_contract::merged_feature_gate_from_vox_cli_ops;
     use vox_cli_core::command_registry_model::RegistryFile;
 
@@ -365,29 +365,5 @@ mod tests {
             .find(|p| p.contains("\"mcp\""))
             .expect("`mcp` listed");
         assert!(mcp.contains("mcp-server"), "mcp must carry its gate: {mcp}");
-    }
-
-    /// Coverage guard: the registry is only a faithful feature-independent source if it lists
-    /// every command the clap tree compiles. One build cannot see other feature sets, so this
-    /// checks the running build; CI's feature build covers the feature-gated subtrees.
-    #[test]
-    fn every_compiled_clap_path_is_in_command_registry() {
-        let root = vox_repository::resolve_repo_root_for_ci();
-        let registered: BTreeSet<String> = collect_command_paths(&root)
-            .expect("collect command paths")
-            .into_iter()
-            .map(|p| p.path)
-            .collect();
-        let missing: Vec<String> = crate::command_catalog::build_catalog()
-            .entries
-            .into_iter()
-            .map(|e| e.path.join(" "))
-            .filter(|p| !registered.contains(p))
-            .collect();
-        assert!(
-            missing.is_empty(),
-            "clap paths missing from {COMMAND_REGISTRY} (add them to \
-             contracts/operations/catalog.v1.yaml, then `vox ci operations-sync --target all --write`): {missing:?}"
-        );
     }
 }

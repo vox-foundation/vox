@@ -172,29 +172,29 @@ fn verify_no_workspace_hack(crate_name: &str, cargo_toml_str: &str) -> Result<()
     let dep_sections = ["dependencies", "dev-dependencies", "build-dependencies"];
 
     for section in dep_sections {
-        if let Some(deps) = toml_val.get(section).and_then(|v| v.as_table()) {
-            if deps.contains_key("workspace-hack") {
-                bail!(
-                    "Crate '{}' has forbidden `workspace-hack` dependency in [{}]",
-                    crate_name,
-                    section
-                );
-            }
+        if let Some(deps) = toml_val.get(section).and_then(|v| v.as_table())
+            && deps.contains_key("workspace-hack")
+        {
+            bail!(
+                "Crate '{}' has forbidden `workspace-hack` dependency in [{}]",
+                crate_name,
+                section
+            );
         }
     }
 
     if let Some(targets) = toml_val.get("target").and_then(|v| v.as_table()) {
         for (target_cfg, target_val) in targets {
             for section in dep_sections {
-                if let Some(deps) = target_val.get(section).and_then(|v| v.as_table()) {
-                    if deps.contains_key("workspace-hack") {
-                        bail!(
-                            "Crate '{}' has forbidden `workspace-hack` dependency in [target.{}.{}]",
-                            crate_name,
-                            target_cfg,
-                            section
-                        );
-                    }
+                if let Some(deps) = target_val.get(section).and_then(|v| v.as_table())
+                    && deps.contains_key("workspace-hack")
+                {
+                    bail!(
+                        "Crate '{}' has forbidden `workspace-hack` dependency in [target.{}.{}]",
+                        crate_name,
+                        target_cfg,
+                        section
+                    );
                 }
             }
         }
@@ -249,4 +249,32 @@ fn topological_sort_crates(crates: &[PublicCrate]) -> Result<Vec<PublicCrate>> {
     }
 
     Ok(sorted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_no_workspace_hack_rejects_forbidden_dep() {
+        let bad = r#"
+[package]
+name = "vox-test"
+version = "0.6.0"
+
+[dependencies]
+workspace-hack = { version = "0.6" }
+"#;
+        assert!(verify_no_workspace_hack("vox-test", bad).is_err());
+
+        let good = r#"
+[package]
+name = "vox-test"
+version = "0.6.0"
+
+[dependencies]
+serde = "1.0"
+"#;
+        assert!(verify_no_workspace_hack("vox-test", good).is_ok());
+    }
 }

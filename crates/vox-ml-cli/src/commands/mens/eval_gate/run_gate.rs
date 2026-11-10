@@ -357,10 +357,10 @@ mod tests {
 
         // Deliberately invalid: state = "pass" instead of "passed"
         let mut invalid_val = val.clone();
-        if let Some(rows) = invalid_val.get_mut("rows").and_then(|r| r.as_array_mut()) {
-            if let Some(first) = rows.get_mut(0) {
-                first["state"] = serde_json::json!("pass");
-            }
+        if let Some(rows) = invalid_val.get_mut("rows").and_then(|r| r.as_array_mut())
+            && let Some(first) = rows.get_mut(0)
+        {
+            first["state"] = serde_json::json!("pass");
         }
         let bad_res =
             vox_jsonschema_util::validate(&invalid_val, &validator, "invalid spoke_gates.json");

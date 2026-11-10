@@ -1,6 +1,8 @@
 //! Dispatch for [`PopuliAction`](crate::commands::mens::PopuliAction).
 
-use anyhow::{Context, Result};
+#[cfg(feature = "gpu")]
+use anyhow::Context;
+use anyhow::Result;
 
 use super::PopuliAction;
 

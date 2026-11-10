@@ -92,15 +92,15 @@ pub fn default_ollama_url() -> String {
     {
         return secret;
     }
-    if let Ok(populi) = std::env::var("POPULI_URL") {
-        if !populi.is_empty() {
-            return populi;
-        }
+    if let Ok(populi) = std::env::var("POPULI_URL")
+        && !populi.is_empty()
+    {
+        return populi;
     }
-    if let Ok(ollama) = std::env::var("OLLAMA_URL") {
-        if !ollama.is_empty() {
-            return ollama;
-        }
+    if let Ok(ollama) = std::env::var("OLLAMA_URL")
+        && !ollama.is_empty()
+    {
+        return ollama;
     }
     "http://127.0.0.1:11434".to_string()
 }

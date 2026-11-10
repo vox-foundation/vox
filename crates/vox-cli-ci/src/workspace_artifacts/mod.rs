@@ -66,10 +66,10 @@ fn path_size_bytes(path: &Path) -> u64 {
         if e.path_is_symlink() {
             continue;
         }
-        if let Ok(mm) = e.metadata() {
-            if mm.is_file() {
-                n = n.saturating_add(mm.len());
-            }
+        if let Ok(mm) = e.metadata()
+            && mm.is_file()
+        {
+            n = n.saturating_add(mm.len());
         }
     }
     n
