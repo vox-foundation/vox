@@ -117,7 +117,7 @@ fn telemetry_task_category_and_strength_are_propagated() {
     // threads task_type/strength through into the returned LlmConfig.
     let s = spec("llama3", ProviderType::Ollama);
     let cfg = llm_config_for_spec(&s, TaskCategory::Research);
-    assert_eq!(cfg.telemetry_task_category.as_deref(), Some("Research"));
+    assert_eq!(cfg.telemetry_task_category.as_deref(), Some("research"));
     assert!(cfg.telemetry_strength_tag.is_some());
 }
 

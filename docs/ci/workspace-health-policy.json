@@ -30,7 +30,7 @@
     "vox-ml-cli": 61,
     "vox-orchestrator": 85,
     "vox-orchestrator-mcp": 101,
-    "vox-populi": 82,
+    "vox-populi": 83,
     "vox-secrets": 25
   },
   "regressions": {

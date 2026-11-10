@@ -950,12 +950,28 @@ mod registry_dispatch_tests {
 
     #[test]
     fn yaml_registry_tools_have_dispatch_match_arms() {
-        let src = include_str!("dispatch.rs");
+        let src = concat!(
+            include_str!("dispatch.rs"),
+            "\n",
+            include_str!("dispatch_domains/browser_gui_ops.rs"),
+            "\n",
+            include_str!("dispatch_domains/chat_session.rs"),
+            "\n",
+            include_str!("dispatch_domains/compiler_analysis.rs"),
+            "\n",
+            include_str!("dispatch_domains/mens_populi.rs"),
+            "\n",
+            include_str!("dispatch_domains/scientia_kb.rs"),
+            "\n",
+            include_str!("dispatch_domains/tasks_core.rs"),
+            "\n",
+            include_str!("dispatch_domains/vcs_jj.rs"),
+        );
         for e in TOOL_REGISTRY {
             let needle = format!("\"{}\" =>", e.name);
             assert!(
                 src.contains(&needle),
-                "TOOL_REGISTRY entry `{}` must have a `match` arm in dispatch.rs (SSOT: contracts/mcp/tool-registry.canonical.yaml)",
+                "TOOL_REGISTRY entry `{}` must have a `match` arm in dispatch.rs or dispatch_domains/*.rs (SSOT: contracts/mcp/tool-registry.canonical.yaml)",
                 e.name
             );
         }

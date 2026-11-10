@@ -12,9 +12,7 @@ const TASKS: [&str; 4] = ["g001", "g002", "s001", "g003"];
 /// The synthetic fixture's manifest, tasks and reference outputs, plus a template and two cards.
 fn dataset() -> tempfile::TempDir {
     let src = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
-        .join("eval_diagram_synthetic");
+        .join("../vox-cli/tests/fixtures/eval_diagram_synthetic");
     let dir = tempfile::tempdir().unwrap();
     for f in [
         "manifest.v1.yaml",

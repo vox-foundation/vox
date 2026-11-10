@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(cell.quality_source, "measured");
         assert_eq!(cell.bench_cases, 20);
         assert_eq!(cell.mode, "balanced");
-        assert_eq!(cell.category, "CodeGen");
+        assert_eq!(cell.category, "codegen");
     }
 
     /// Live bench 2026-10-08: a hosted free model with a public-index quality took every

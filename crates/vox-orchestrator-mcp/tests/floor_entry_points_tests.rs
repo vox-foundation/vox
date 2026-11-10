@@ -102,6 +102,7 @@ fn entry_point_callers_are_classified() {
         "vox-orchestrator-mcp/src/daemon_route.rs",
         "vox-cli/src/commands/dei.rs",
         "vox-cli/src/commands/daemon_tool.rs",
+        "vox-cli-research/src/daemon_tool.rs",
         "vox-gui/src/commands/mcp.rs",
         "vox-gui/src/commands/browser.rs",
         "vox-gui/src/commands/chat.rs",

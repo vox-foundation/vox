@@ -2138,6 +2138,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - cross-repo-parity
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - cuda-features
   status: active
   latin_ns: null
@@ -2452,6 +2464,18 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - federated-symbol-graph
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
   handler_rust: null
 - surface: vox-cli
   path:
@@ -3169,6 +3193,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - publish-dry-run
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - python-bridge-parity
   status: active
   latin_ns: null
@@ -3527,6 +3563,18 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - standalone-sovereignty
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
   handler_rust: null
 - surface: vox-cli
   path:

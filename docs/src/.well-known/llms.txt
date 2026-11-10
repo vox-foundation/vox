@@ -35,7 +35,7 @@
 - Secrets: 20 CLI commands, 0 MCP tools, 1 GUI surfaces
 - GUI: 15 CLI commands, 9 MCP tools, 13 GUI surfaces
 - Data & DB: 89 CLI commands, 18 MCP tools, 1 GUI surfaces
-- CI & governance: 229 CLI commands, 0 MCP tools, 1 GUI surfaces
+- CI & governance: 233 CLI commands, 0 MCP tools, 1 GUI surfaces
 - Plugins & skills: 317 CLI commands, 58 MCP tools, 2 GUI surfaces
 - VCS & repo: 28 CLI commands, 19 MCP tools, 1 GUI surfaces
 - Runtime & scripts: 15 CLI commands, 2 MCP tools, 0 GUI surfaces

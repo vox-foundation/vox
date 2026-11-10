@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 1034
+**schema_version:** `1` · **vox-cli operations:** 1038
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -196,6 +196,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci crate-budget` | active | — | ci | platform | — |
 | `vox ci crate-build-map-parity` | active | — | ci | platform | — |
 | `vox ci crate-edges` | active | — | ci | platform | — |
+| `vox ci cross-repo-parity` | active | — | ci | platform | — |
 | `vox ci cuda-features` | active | — | — | platform | — |
 | `vox ci cuda-release-build` | active | — | — | platform | — |
 | `vox ci data-ssot-guards` | active | — | — | platform | — |
@@ -222,6 +223,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci exec-policy-contract` | active | — | — | platform | — |
 | `vox ci fan-in-budget` | active | — | ci | platform | — |
 | `vox ci feature-matrix` | active | — | — | platform | — |
+| `vox ci federated-symbol-graph` | active | — | ci | platform | — |
 | `vox ci flake-budget` | active | — | — | platform | — |
 | `vox ci fmt-check` | active | — | ci | platform | — |
 | `vox ci free-binary` | active | — | ci | platform | — |
@@ -281,6 +283,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci pre-push` | active | — | — | platform | — |
 | `vox ci preview-trust-audit` | active | — | ci | platform | — |
 | `vox ci profile-parity` | active | — | ci | platform | — |
+| `vox ci publish-dry-run` | active | — | ci | platform | — |
 | `vox ci python-bridge-parity` | active | — | — | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
@@ -311,6 +314,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
 | `vox ci ssot-audit` | active | — | ci | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci standalone-sovereignty` | active | — | ci | platform | — |
 | `vox ci status` | active | — | — | platform | — |
 | `vox ci string-id-lint` | active | — | ci | platform | — |
 | `vox ci suppression-review-gate` | active | — | ci | platform | — |

@@ -699,7 +699,7 @@ mod tests {
     fn production_embedders_assign_caps_explicitly() {
         let patterns = [
             ("crates/vox-cli/src/commands/run.rs", "developer_default"),
-            ("crates/vox-cli/src/commands/repl.rs", "developer_default"),
+            ("crates/vox-cli-research/src/repl.rs", "developer_default"),
             ("crates/vox-cli/src/commands/play.rs", "developer_default"),
             (
                 "crates/vox-langtool/src/commands/run.rs",

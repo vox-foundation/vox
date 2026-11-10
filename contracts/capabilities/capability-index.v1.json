@@ -8367,6 +8367,54 @@
       }
     },
     {
+      "id": "cli.ci.cross-repo-parity",
+      "kind": "cli",
+      "title": "Ci Cross-repo-parity",
+      "summary": "CLI operation `vox ci cross-repo-parity`",
+      "op_id": "ci.cross-repo-parity",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "cross-repo-parity"
+        ],
+        "invocation": "vox ci cross-repo-parity",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.ci.cuda-features",
       "kind": "cli",
       "title": "Ci Cuda-features",
@@ -9618,6 +9666,54 @@
         "basis": "graph-key",
         "ambiguous": false,
         "reason": null
+      }
+    },
+    {
+      "id": "cli.ci.federated-symbol-graph",
+      "kind": "cli",
+      "title": "Ci Federated-symbol-graph",
+      "summary": "CLI operation `vox ci federated-symbol-graph`",
+      "op_id": "ci.federated-symbol-graph",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "federated-symbol-graph"
+        ],
+        "invocation": "vox ci federated-symbol-graph",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
       }
     },
     {
@@ -12458,6 +12554,54 @@
       }
     },
     {
+      "id": "cli.ci.publish-dry-run",
+      "kind": "cli",
+      "title": "Ci Publish-dry-run",
+      "summary": "CLI operation `vox ci publish-dry-run`",
+      "op_id": "ci.publish-dry-run",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "spawns_process",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "publish-dry-run"
+        ],
+        "invocation": "vox ci publish-dry-run",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.ci.python-bridge-parity",
       "kind": "cli",
       "title": "Ci Python-bridge-parity",
@@ -13897,6 +14041,54 @@
         "basis": "graph-key",
         "ambiguous": false,
         "reason": null
+      }
+    },
+    {
+      "id": "cli.ci.standalone-sovereignty",
+      "kind": "cli",
+      "title": "Ci Standalone-sovereignty",
+      "summary": "CLI operation `vox ci standalone-sovereignty`",
+      "op_id": "ci.standalone-sovereignty",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "standalone-sovereignty"
+        ],
+        "invocation": "vox ci standalone-sovereignty",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
       }
     },
     {

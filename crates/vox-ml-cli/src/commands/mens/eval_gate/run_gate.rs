@@ -335,6 +335,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
     fn spoke_gates_schema() {
         let dir = tempfile::tempdir().unwrap();
         let policy_path = dir.path().join("policy.yaml");

@@ -85,6 +85,7 @@ ci/crate-api-sync
 ci/crate-budget
 ci/crate-build-map-parity
 ci/crate-edges
+ci/cross-repo-parity
 ci/cuda-features
 ci/cuda-release-build
 ci/data-ssot-guards
@@ -111,6 +112,7 @@ ci/evidence-asset-ban
 ci/exec-policy-contract
 ci/fan-in-budget
 ci/feature-matrix
+ci/federated-symbol-graph
 ci/flake-budget
 ci/fmt-check
 ci/free-binary
@@ -170,6 +172,7 @@ ci/policy-smoke
 ci/pre-push
 ci/preview-trust-audit
 ci/profile-parity
+ci/publish-dry-run
 ci/python-bridge-parity
 ci/query-all-guard
 ci/release-build
@@ -200,6 +203,7 @@ ci/spoke-check
 ci/sql-surface-guard
 ci/ssot-audit
 ci/ssot-drift
+ci/standalone-sovereignty
 ci/status
 ci/string-id-lint
 ci/suppression-review-gate

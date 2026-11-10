@@ -136,7 +136,7 @@
       {
         "id": "ci",
         "label": "CI & governance",
-        "cli": 229,
+        "cli": 233,
         "mcp": 0,
         "surfaces": 1
       },

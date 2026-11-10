@@ -686,6 +686,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci cross-repo-parity",
+      "feature_gate": null
+    },
+    {
       "path": "ci cuda-features",
       "feature_gate": null
     },
@@ -787,6 +791,10 @@
     },
     {
       "path": "ci feature-matrix",
+      "feature_gate": null
+    },
+    {
+      "path": "ci federated-symbol-graph",
       "feature_gate": null
     },
     {
@@ -1026,6 +1034,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci publish-dry-run",
+      "feature_gate": null
+    },
+    {
       "path": "ci python-bridge-parity",
       "feature_gate": null
     },
@@ -1143,6 +1155,10 @@
     },
     {
       "path": "ci ssot-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci standalone-sovereignty",
       "feature_gate": null
     },
     {
@@ -4403,6 +4419,7 @@
     "ci.crate-budget",
     "ci.crate-build-map-parity",
     "ci.crate-edges",
+    "ci.cross-repo-parity",
     "ci.cuda-features",
     "ci.cuda-release-build",
     "ci.data-ssot-guards",
@@ -4429,6 +4446,7 @@
     "ci.exec-policy-contract",
     "ci.fan-in-budget",
     "ci.feature-matrix",
+    "ci.federated-symbol-graph",
     "ci.flake-budget",
     "ci.fmt-check",
     "ci.free-binary",
@@ -4488,6 +4506,7 @@
     "ci.pre-push",
     "ci.preview-trust-audit",
     "ci.profile-parity",
+    "ci.publish-dry-run",
     "ci.python-bridge-parity",
     "ci.query-all-guard",
     "ci.release-build",
@@ -4518,6 +4537,7 @@
     "ci.sql-surface-guard",
     "ci.ssot-audit",
     "ci.ssot-drift",
+    "ci.standalone-sovereignty",
     "ci.status",
     "ci.string-id-lint",
     "ci.suppression-review-gate",

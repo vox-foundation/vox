@@ -3162,6 +3162,24 @@ curated:
   - ci
   - crate-edges
   parameters: null
+- id: cli.ci.cross-repo-parity
+  title: Ci Cross-repo-parity
+  description_human: null
+  description_model: CLI operation `vox ci cross-repo-parity`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - cross-repo-parity
+  parameters: null
 - id: cli.ci.cuda-features
   title: Ci Cuda-features
   description_human: null
@@ -3635,6 +3653,24 @@ curated:
   cli_path:
   - ci
   - feature-matrix
+  parameters: null
+- id: cli.ci.federated-symbol-graph
+  title: Ci Federated-symbol-graph
+  description_human: null
+  description_model: CLI operation `vox ci federated-symbol-graph`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - federated-symbol-graph
   parameters: null
 - id: cli.ci.flake-budget
   title: Ci Flake-budget
@@ -4706,6 +4742,24 @@ curated:
   - ci
   - profile-parity
   parameters: null
+- id: cli.ci.publish-dry-run
+  title: Ci Publish-dry-run
+  description_human: null
+  description_model: CLI operation `vox ci publish-dry-run`
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - publish-dry-run
+  parameters: null
 - id: cli.ci.python-bridge-parity
   title: Ci Python-bridge-parity
   description_human: null
@@ -5247,6 +5301,24 @@ curated:
   cli_path:
   - ci
   - ssot-drift
+  parameters: null
+- id: cli.ci.standalone-sovereignty
+  title: Ci Standalone-sovereignty
+  description_human: null
+  description_model: CLI operation `vox ci standalone-sovereignty`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - standalone-sovereignty
   parameters: null
 - id: cli.ci.status
   title: Ci Status

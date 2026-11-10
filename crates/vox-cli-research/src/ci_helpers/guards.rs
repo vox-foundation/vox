@@ -1525,9 +1525,7 @@ mod sql_surface_tests {
     #[test]
     fn secret_dataflow_negative_fixtures_cover_each_category() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
-            .join("guard_negative");
+            .join("../vox-cli/tests/fixtures/guard_negative");
         let serialize = std::fs::read_to_string(root.join("serialize_secret_fixture.rs"))
             .expect("serialize fixture");
         let log = std::fs::read_to_string(root.join("log_secret_fixture.rs")).expect("log fixture");
@@ -1545,8 +1543,7 @@ mod sql_surface_tests {
 
     fn guard_fixture(rel: &str) -> String {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
+            .join("../vox-cli/tests/fixtures")
             .join(rel);
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
     }
