@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+#![allow(unused_imports, clippy::match_like_matches_macro)]
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
@@ -242,5 +242,17 @@ pub async fn dispatch(
         "vox_chat_stream_cancel" => Ok(crate::chat_tools::chat_stream_cancel(state, args).await),
         "vox_chat_queue_steer" => Ok(crate::chat_tools::chat_queue_steer(state, args).await),
         _ => Err(anyhow::anyhow!("unhandled tool in chat_session: {}", name)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handles_recognizes_chat_session_tools() {
+        assert!(handles("vox_chat_message"));
+        assert!(handles("vox_chat_history"));
+        assert!(!handles("vox_git_log"));
     }
 }

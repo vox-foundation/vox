@@ -108,10 +108,10 @@ fn modules_on_disk(dir: &Path) -> Result<BTreeSet<String>> {
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
             continue;
         }
-        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-            if stem != "mod" {
-                out.insert(stem.to_string());
-            }
+        if let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            && stem != "mod"
+        {
+            out.insert(stem.to_string());
         }
     }
     Ok(out)

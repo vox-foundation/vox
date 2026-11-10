@@ -395,10 +395,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 results.push(GateResult {
                     name: "collateral_damage".to_string(),
                     passed: false,
-                    message: format!(
-                        "collateral_damage_report.json missing — run `vox mens \
-                         eval-collateral-damage` (fail-fast default: gsm8k→math500→vox)"
-                    ),
+                    message: "collateral_damage_report.json missing — run `vox mens eval-collateral-damage` (fail-fast default: gsm8k→math500→vox)".to_string(),
                     block: cd.block || req_rep,
                 });
             } else {

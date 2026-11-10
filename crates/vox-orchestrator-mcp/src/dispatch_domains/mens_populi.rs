@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+#![allow(unused_imports, clippy::match_like_matches_macro)]
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
@@ -268,5 +268,17 @@ pub async fn dispatch(
             Ok(benchmark_tools::benchmark_record(state, serde_json::from_value(args)?).await)
         }
         _ => Err(anyhow::anyhow!("unhandled tool in mens_populi: {}", name)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handles_recognizes_mens_populi_tools() {
+        assert!(handles("vox_populi_local_status"));
+        assert!(handles("vox_plugin_list"));
+        assert!(!handles("vox_chat_message"));
     }
 }

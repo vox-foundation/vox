@@ -27,12 +27,11 @@ pub fn locate_workspace_root_from(start: &Path) -> Option<PathBuf> {
     while let Some(d) = dir {
         let manifest = d.join("Cargo.toml");
         let crates_vox_cli = d.join("crates").join("vox-cli");
-        if crates_vox_cli.is_dir() {
-            if let Ok(contents) = std::fs::read_to_string(&manifest) {
-                if contents.contains("[workspace]") {
-                    return Some(d.to_path_buf());
-                }
-            }
+        if crates_vox_cli.is_dir()
+            && let Ok(contents) = std::fs::read_to_string(&manifest)
+            && contents.contains("[workspace]")
+        {
+            return Some(d.to_path_buf());
         }
         dir = d.parent();
     }

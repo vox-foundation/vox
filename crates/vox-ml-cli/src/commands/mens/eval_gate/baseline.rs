@@ -39,6 +39,7 @@ pub struct BaselineReport {
 }
 
 /// Load a `BaselineReport` from a JSON file.
+#[allow(dead_code)]
 pub fn load_baseline(path: &Path) -> Result<BaselineReport> {
     let content = vox_bounded_fs::read_utf8_path_capped(path)?;
     let report: BaselineReport = serde_json::from_str(&content)?;

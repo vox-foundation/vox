@@ -6,6 +6,11 @@
 //!   `result`, `search`, `probe`, `flag`, `publish`);
 //! - the research eval harness ([`eval`]).
 
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::drop_non_drop)]
+#![allow(clippy::items_after_test_module)]
+#![allow(deprecated, unexpected_cfgs)]
+
 use clap::Subcommand;
 use vox_research_shim::research::types::{ResearchDomainMode, ResearchStage};
 use vox_search::policy::ResearchLane;

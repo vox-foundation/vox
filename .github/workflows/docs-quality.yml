@@ -86,6 +86,12 @@ jobs:
 
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: false
 
       - uses: pnpm/action-setup@v6
         with:
@@ -104,20 +110,20 @@ jobs:
       # Hard gate: invalid frontmatter (bad category/status/missing training_eligible)
       # blocks the PR.  Previously only in CI; now also in pre-push (see pre_push.rs).
       - name: Doc lint (frontmatter, code fences, training rationale)
-        run: cargo run -p vox-doc-pipeline -- --lint-only
+        run: ./target/debug/vox-doc-pipeline --lint-only
 
       # Hard gate: ```vox blocks in docs must compile via vox-compiler.
       - name: Doctest extraction and check (SSG-agnostic)
-        run: cargo run -p vox-cli ci doctest-md --strict
+        run: ./target/debug/vox ci doctest-md --strict
 
       # Hard gate: tutorials are executable docs-as-tests (TUT-02).
       - name: Tutorial test harness
-        run: cargo run -p vox-cli -- run --mode interp scripts/docs/tutorial-test-runner.vox -- --all
+        run: ./target/debug/vox run --mode interp scripts/docs/tutorial-test-runner.vox -- --all
 
       # Hard gate: deterministic drift gate blocks merges that introduce new broken mentions
       # on reader-facing status: current pages. Existing drift is grandfathered in baseline.
       - name: Documentation Drift Gate
-        run: cargo run -p vox-cli -- audit docs --check-drift
+        run: ./target/debug/vox audit docs --check-drift
 
       # Informative & Definition-of-Done: analyze PR impact on reader-facing docs and check contract DoD
       - name: Docs PR Impact and Definition-of-Done
@@ -126,11 +132,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p target
-          cargo run -p vox-cli -- audit docs pr-impact \
+          ./target/debug/vox audit docs pr-impact \
             --diff-base ${{ github.event.pull_request.base.sha }} \
             --diff-head ${{ github.event.pull_request.head.sha }} \
             --diff-out target/pr-impact.md || true
-          cargo run -p vox-cli -- audit docs dod \
+          ./target/debug/vox audit docs dod \
             --diff-base ${{ github.event.pull_request.base.sha }} \
             --diff-head ${{ github.event.pull_request.head.sha }} || true
           if [ -f target/pr-impact.md ] && [ -n "${{ github.event.pull_request.number }}" ]; then
@@ -145,17 +151,17 @@ jobs:
 
       # Hard gate: repo and contract link validation.
       - name: Internal Markdown link check
-        run: cargo run -p vox-cli ci check-links
+        run: ./target/debug/vox ci check-links
 
       - name: Canonical documentation map verify
-        run: cargo run -p vox-cli ci canonical-map-verify
+        run: ./target/debug/vox ci canonical-map-verify
 
       - name: Install docs-astro deps
         working-directory: docs-astro
         run: pnpm install --frozen-lockfile
 
       - name: Pre-render VoxDiagram fences
-        run: cargo run -p vox-doc-pipeline -- --render-diagrams
+        run: ./target/debug/vox-doc-pipeline --render-diagrams
 
       - name: Build Starlight
         id: starlight_build
@@ -234,12 +240,18 @@ jobs:
 
   generator-drift:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: false
 
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
@@ -249,8 +261,8 @@ jobs:
       # Hard gate: was continue-on-error.  Pre-commit hook regenerates + stages
       # these; CI verifies the result.  Silent drift is worse than a failed PR.
       - name: Check ignore-file sync
-        run: cargo run -p vox-cli --quiet ci sync-ignore-files --verify
+        run: ./target/debug/vox ci sync-ignore-files --verify
 
       # Hard gate: was continue-on-error. Plugin catalog drift runs in ci.yml ssot-drift.
       - name: Check CLI command surface
-        run: cargo run -p vox-cli --quiet ci command-sync
+        run: ./target/debug/vox ci command-sync

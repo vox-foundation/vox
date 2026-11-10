@@ -184,19 +184,19 @@ fn collect_contract_files(
         })
         .flatten()
     {
-        if entry.file_type().is_file() {
-            if let Ok(rel) = entry.path().strip_prefix(repo_root) {
-                let rel_str = rel.to_string_lossy().replace('\\', "/");
-                if let Ok(bytes) = std::fs::read(entry.path()) {
-                    let digest = blake3::hash(&bytes).to_hex().to_string();
-                    results.push((
-                        rel_str.clone(),
-                        ContractFileDigest {
-                            relative_path: rel_str,
-                            blake3_hex: digest,
-                        },
-                    ));
-                }
+        if entry.file_type().is_file()
+            && let Ok(rel) = entry.path().strip_prefix(repo_root)
+        {
+            let rel_str = rel.to_string_lossy().replace('\\', "/");
+            if let Ok(bytes) = std::fs::read(entry.path()) {
+                let digest = blake3::hash(&bytes).to_hex().to_string();
+                results.push((
+                    rel_str.clone(),
+                    ContractFileDigest {
+                        relative_path: rel_str,
+                        blake3_hex: digest,
+                    },
+                ));
             }
         }
     }
@@ -351,7 +351,7 @@ pub fn render_local_cargo_patch_block(
             let path_str = repo
                 .root_path
                 .as_deref()
-                .unwrap_or_else(|| repo.display_name.as_str());
+                .unwrap_or(repo.display_name.as_str());
             patch_entries.push((crate_name.clone(), path_str.to_string()));
         }
     }
@@ -428,59 +428,42 @@ pub fn refresh_federated_symbol_graph(
 
         // Index Rust crates
         let cargo_toml_path = root_path.join("Cargo.toml");
-        if cargo_toml_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&cargo_toml_path) {
-                if let Ok(parsed) = content.parse::<toml::Value>() {
-                    if let Some(pkg) = parsed.get("package") {
-                        if let Some(name) = pkg.get("name").and_then(|n| n.as_str()) {
-                            crate_nodes.push(FederatedCrateNode {
-                                name: name.to_string(),
-                                repository_id: repo_id.clone(),
-                                path: root_str.clone(),
-                                kind: "rust-crate".to_string(),
-                            });
-                        }
-                    }
-                    if let Some(ws) = parsed.get("workspace") {
-                        if let Some(members) = ws.get("members").and_then(|m| m.as_array()) {
-                            for m in members {
-                                if let Some(pattern) = m.as_str() {
-                                    let glob_pattern = root_path.join(pattern);
-                                    let pat_str = glob_pattern.to_string_lossy().to_string();
-                                    if let Ok(entries) = glob::glob(&pat_str) {
-                                        for entry in entries.flatten() {
-                                            let child_cargo = entry.join("Cargo.toml");
-                                            if child_cargo.exists() {
-                                                if let Ok(child_txt) =
-                                                    std::fs::read_to_string(&child_cargo)
-                                                {
-                                                    if let Ok(child_val) =
-                                                        child_txt.parse::<toml::Value>()
-                                                    {
-                                                        if let Some(p) = child_val.get("package") {
-                                                            if let Some(cname) = p
-                                                                .get("name")
-                                                                .and_then(|n| n.as_str())
-                                                            {
-                                                                crate_nodes.push(
-                                                                    FederatedCrateNode {
-                                                                        name: cname.to_string(),
-                                                                        repository_id: repo_id
-                                                                            .clone(),
-                                                                        path: entry
-                                                                            .to_string_lossy()
-                                                                            .to_string(),
-                                                                        kind: "rust-crate"
-                                                                            .to_string(),
-                                                                    },
-                                                                );
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+        if cargo_toml_path.exists()
+            && let Ok(content) = std::fs::read_to_string(&cargo_toml_path)
+            && let Ok(parsed) = content.parse::<toml::Value>()
+        {
+            if let Some(pkg) = parsed.get("package")
+                && let Some(name) = pkg.get("name").and_then(|n| n.as_str())
+            {
+                crate_nodes.push(FederatedCrateNode {
+                    name: name.to_string(),
+                    repository_id: repo_id.clone(),
+                    path: root_str.clone(),
+                    kind: "rust-crate".to_string(),
+                });
+            }
+            if let Some(ws) = parsed.get("workspace")
+                && let Some(members) = ws.get("members").and_then(|m| m.as_array())
+            {
+                for m in members {
+                    if let Some(pattern) = m.as_str() {
+                        let glob_pattern = root_path.join(pattern);
+                        let pat_str = glob_pattern.to_string_lossy().to_string();
+                        if let Ok(entries) = glob::glob(&pat_str) {
+                            for entry in entries.flatten() {
+                                let child_cargo = entry.join("Cargo.toml");
+                                if child_cargo.exists()
+                                    && let Ok(child_txt) = std::fs::read_to_string(&child_cargo)
+                                    && let Ok(child_val) = child_txt.parse::<toml::Value>()
+                                    && let Some(p) = child_val.get("package")
+                                    && let Some(cname) = p.get("name").and_then(|n| n.as_str())
+                                {
+                                    crate_nodes.push(FederatedCrateNode {
+                                        name: cname.to_string(),
+                                        repository_id: repo_id.clone(),
+                                        path: entry.to_string_lossy().to_string(),
+                                        kind: "rust-crate".to_string(),
+                                    });
                                 }
                             }
                         }
@@ -491,36 +474,32 @@ pub fn refresh_federated_symbol_graph(
 
         // Index Node/TypeScript packages
         let pkg_json_path = root_path.join("package.json");
-        if pkg_json_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&pkg_json_path) {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(name) = parsed.get("name").and_then(|n| n.as_str()) {
-                        crate_nodes.push(FederatedCrateNode {
-                            name: name.to_string(),
-                            repository_id: repo_id.clone(),
-                            path: root_str.clone(),
-                            kind: "node-package".to_string(),
-                        });
-                    }
-                }
-            }
+        if pkg_json_path.exists()
+            && let Ok(content) = std::fs::read_to_string(&pkg_json_path)
+            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Some(name) = parsed.get("name").and_then(|n| n.as_str())
+        {
+            crate_nodes.push(FederatedCrateNode {
+                name: name.to_string(),
+                repository_id: repo_id.clone(),
+                path: root_str.clone(),
+                kind: "node-package".to_string(),
+            });
         }
 
         // Also check nested GUI UI package if present
         let ui_pkg_json = root_path.join("ui").join("package.json");
-        if ui_pkg_json.exists() {
-            if let Ok(content) = std::fs::read_to_string(&ui_pkg_json) {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(name) = parsed.get("name").and_then(|n| n.as_str()) {
-                        crate_nodes.push(FederatedCrateNode {
-                            name: name.to_string(),
-                            repository_id: repo_id.clone(),
-                            path: root_path.join("ui").to_string_lossy().to_string(),
-                            kind: "node-package".to_string(),
-                        });
-                    }
-                }
-            }
+        if ui_pkg_json.exists()
+            && let Ok(content) = std::fs::read_to_string(&ui_pkg_json)
+            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Some(name) = parsed.get("name").and_then(|n| n.as_str())
+        {
+            crate_nodes.push(FederatedCrateNode {
+                name: name.to_string(),
+                repository_id: repo_id.clone(),
+                path: root_path.join("ui").to_string_lossy().to_string(),
+                kind: "node-package".to_string(),
+            });
         }
     }
 
@@ -618,14 +597,13 @@ pub fn verify_standalone_sovereignty(
                 root_cargo_has_no_ops_dep = true;
             }
 
-            if let Ok(parsed) = raw_cargo.parse::<toml::Value>() {
-                if let Some(ws) = parsed.get("workspace") {
-                    if let Some(dm) = ws.get("default-members").and_then(|v| v.as_array()) {
-                        for item in dm {
-                            if let Some(s) = item.as_str() {
-                                default_members.push(s.to_string());
-                            }
-                        }
+            if let Ok(parsed) = raw_cargo.parse::<toml::Value>()
+                && let Some(ws) = parsed.get("workspace")
+                && let Some(dm) = ws.get("default-members").and_then(|v| v.as_array())
+            {
+                for item in dm {
+                    if let Some(s) = item.as_str() {
+                        default_members.push(s.to_string());
                     }
                 }
             }
@@ -694,4 +672,27 @@ pub fn verify_standalone_sovereignty(
         docs_astro_manifest_ok,
         violations,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_federation_catalog_contains_four_repos() {
+        let cat = default_federation_catalog();
+        assert_eq!(cat.schema_version, 1);
+        assert_eq!(cat.repositories.len(), 4);
+    }
+
+    #[test]
+    fn render_local_cargo_patch_block_toggles_cleanly() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(tmp.path().join("Cargo.toml"), "[workspace]\nmembers = []\n")
+            .expect("write Cargo.toml");
+        let enabled = render_local_cargo_patch_block(tmp.path(), true, false).expect("enable");
+        assert!(enabled.contains("# BEGIN VOX FEDERATION LOCAL PATCH"));
+        let disabled = render_local_cargo_patch_block(tmp.path(), false, false).expect("disable");
+        assert!(!disabled.contains("# BEGIN VOX FEDERATION LOCAL PATCH"));
+    }
 }

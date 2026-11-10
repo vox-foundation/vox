@@ -5,7 +5,7 @@ fn publication_decision_modules_do_not_reference_gamify() {
     let roots = [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../vox-cli/src/commands/db/publication/decision.rs"
+            "/../vox-cli-research/src/db/publication/decision.rs"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),

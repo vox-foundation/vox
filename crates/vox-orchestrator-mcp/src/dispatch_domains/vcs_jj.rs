@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+#![allow(unused_imports, clippy::match_like_matches_macro)]
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
@@ -120,5 +120,17 @@ pub async fn dispatch(
             Ok(crate::affinity::transfer_file(state, serde_json::from_value(args)?).await)
         }
         _ => Err(anyhow::anyhow!("unhandled tool in vcs_jj: {}", name)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handles_recognizes_vcs_jj_tools() {
+        assert!(handles("vox_git_log"));
+        assert!(handles("vox_vcs_status"));
+        assert!(!handles("vox_chat_message"));
     }
 }

@@ -182,10 +182,10 @@ fn dir_total_bytes(path: &Path) -> u64 {
         if e.path_is_symlink() {
             continue;
         }
-        if let Ok(m) = e.metadata() {
-            if m.is_file() {
-                n = n.saturating_add(m.len());
-            }
+        if let Ok(m) = e.metadata()
+            && m.is_file()
+        {
+            n = n.saturating_add(m.len());
         }
     }
     n
@@ -240,12 +240,11 @@ pub(crate) fn plan_mens_run_deletions(
         let meta = fs::metadata(&p)?;
         let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
         let bytes = dir_total_bytes(&p);
-        if let Some(ref lc) = latest_canon {
-            if let Ok(c) = fs::canonicalize(&p) {
-                if c == *lc {
-                    continue;
-                }
-            }
+        if let Some(ref lc) = latest_canon
+            && let Ok(c) = fs::canonicalize(&p)
+            && c == *lc
+        {
+            continue;
         }
         rows.push(MensRunRow {
             path: p,
@@ -379,10 +378,29 @@ pub(crate) fn path_allowed_for_prune(path: &Path, root: &Path) -> bool {
     {
         return true;
     }
-    if let (Some(parent), Some(name)) = (path.parent(), path.file_name().and_then(|s| s.to_str())) {
-        if parent == root && is_scratch_root_file(name) {
-            return true;
-        }
+    if let (Some(parent), Some(name)) = (path.parent(), path.file_name().and_then(|s| s.to_str()))
+        && parent == root
+        && is_scratch_root_file(name)
+    {
+        return true;
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn embedded_defaults_parse_validly() {
+        let policy =
+            WorkspaceArtifactRetentionFile::embedded_defaults().expect("embedded defaults");
+        assert!(policy.version >= 1);
+    }
+
+    #[test]
+    fn scratch_root_file_recognizes_logs_and_spares_readme() {
+        assert!(is_scratch_root_file("build.log"));
+        assert!(!is_scratch_root_file("README.txt"));
+    }
 }

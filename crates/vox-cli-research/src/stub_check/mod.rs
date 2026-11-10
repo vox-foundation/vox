@@ -543,7 +543,7 @@ pub fn explain_diagnostic(id: &str) -> anyhow::Result<()> {
         // Attempt a fuzzy match to be helpful
         let similar: Vec<&&str> = ALL_KNOWN_IDS
             .iter()
-            .filter(|k| k.contains(id.split('/').last().unwrap_or(id)))
+            .filter(|k| k.contains(id.split('/').next_back().unwrap_or(id)))
             .collect();
         if similar.is_empty() {
             anyhow::bail!(

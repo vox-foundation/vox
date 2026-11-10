@@ -982,8 +982,7 @@ mod tests {
     const PAYLOAD: &[u8] = b"pretend this is a plugin zip";
 
     fn payload_hash() -> String {
-        use sha2::{Digest, Sha256};
-        hex::encode(Sha256::digest(PAYLOAD))
+        hex::encode(vox_crypto::interop_sha256(PAYLOAD))
     }
 
     #[test]

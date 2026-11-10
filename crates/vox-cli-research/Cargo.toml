@@ -107,6 +107,10 @@ vox-plugin-host = { workspace = true }
 vox-skills = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
+[dev-dependencies]
+wiremock = { workspace = true }
+deadpool = { workspace = true }
+
 [[test]]
 name = "eval_e2e_test"
 required-features = ["runtime"]

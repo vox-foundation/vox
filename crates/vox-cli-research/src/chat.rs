@@ -694,6 +694,10 @@ mod tests {
             Some(Ok(
                 vox_orchestrator::models::auto_select::AutoModelSelection {
                     selected_model_id: pin.to_string(),
+                    size: "14B".to_string(),
+                    free_mb: 25_000,
+                    floor_mb: 20_000,
+                    reason: "14B QLoRA floor_mb 20000 fits free_mb 25000".to_string(),
                     detected_vram_gb: 25_000_f64 / 1024.0,
                     tier_reason: "14B QLoRA floor_mb 20000 fits free_mb 25000".to_string(),
                 },

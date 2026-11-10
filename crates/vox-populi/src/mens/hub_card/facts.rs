@@ -117,10 +117,10 @@ fn read_telemetry_loss(path: &Path) -> (Vec<(u32, f32)>, Vec<(u32, f32)>) {
                 .as_u64()
                 .or_else(|| payload["optimizer_step"].as_u64());
             let loss = payload["loss"].as_f64();
-            if let (Some(s), Some(l)) = (step, loss) {
-                if l.is_finite() {
-                    raw_pts.push((s as u32, l as f32));
-                }
+            if let (Some(s), Some(l)) = (step, loss)
+                && l.is_finite()
+            {
+                raw_pts.push((s as u32, l as f32));
             }
         }
     }

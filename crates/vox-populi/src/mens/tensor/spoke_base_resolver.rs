@@ -325,6 +325,110 @@ pub fn resolve_base_model(
     Ok(pick_base(&overlay, base_model, vram_mb)?.hf_id.clone())
 }
 
+/// Largest `qwen3_code` QLoRA size that fits one free-memory reading.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Qwen3LivePick {
+    pub hf_id: String,
+    pub size_token: String,
+    pub preset: String,
+    pub floor_mb: u32,
+    pub free_mb: u32,
+}
+
+const QWEN3_SIZE_TOKENS: &[&str] = &["0.6B", "1.7B", "4B", "8B", "14B", "32B"];
+
+fn qwen3_size_token(size: &str) -> Option<&'static str> {
+    if let Some(token) = QWEN3_SIZE_TOKENS.iter().copied().find(|t| *t == size) {
+        return Some(token);
+    }
+    for prefix in ["Qwen3-", "Qwen/Qwen3-"] {
+        if let Some(rest) = size.strip_prefix(prefix)
+            && let Some(token) = QWEN3_SIZE_TOKENS.iter().copied().find(|t| *t == rest)
+        {
+            return Some(token);
+        }
+    }
+    None
+}
+
+fn pin_repo_id(hf_id: &str) -> &str {
+    hf_id.split_once('@').map_or(hf_id, |(repo, _)| repo)
+}
+
+fn preset_for_qwen3_size_token(token: &str) -> anyhow::Result<&'static str> {
+    match token {
+        "0.6B" => Ok("qwen3_dev_cpu"),
+        "1.7B" => Ok("qwen3_6g"),
+        "4B" => Ok("qwen3_12g"),
+        "8B" => Ok("qwen3_16g"),
+        "14B" => Ok("qwen3_24g"),
+        "32B" => Ok("qwen3_96g"),
+        other => anyhow::bail!("no qwen3_code QLoRA preset for size {other}"),
+    }
+}
+
+/// Largest `qwen3_code` QLoRA floor that fits `free_mb`, via `pick_base`.
+pub fn select_qwen3_code_qlora_for_free_mb(free_mb: u32) -> anyhow::Result<Qwen3LivePick> {
+    let overlay = load_embedded_overlay()?;
+    let rows: Vec<TrainBase> = overlay
+        .get("qwen3_code")
+        .into_iter()
+        .flatten()
+        .filter(|base| base.methods.iter().any(|method| method == "qlora"))
+        .cloned()
+        .collect();
+    let mut filtered = HashMap::new();
+    filtered.insert("qwen3_code".to_string(), rows);
+    let winner = pick_base(&filtered, "qwen3_code", free_mb)?;
+    let token = qwen3_size_token(pin_repo_id(&winner.hf_id)).ok_or_else(|| {
+        anyhow::anyhow!(
+            "winning qwen3_code qlora row '{}' is not a dense Qwen3 size",
+            winner.hf_id
+        )
+    })?;
+    Ok(Qwen3LivePick {
+        hf_id: winner.hf_id.clone(),
+        size_token: token.to_string(),
+        preset: preset_for_qwen3_size_token(token)?.to_string(),
+        floor_mb: winner.floor_mb,
+        free_mb,
+    })
+}
+
+/// Explicit Qwen3 size spelling (`0.6B`, `1.7B`, `4B`, `8B`, `14B`, `32B`, `Qwen3-<size>`, `Qwen/Qwen3-<size>`).
+/// Refuses when the QLoRA floor exceeds `free_mb`.
+pub fn explicit_qwen3_code_qlora_for_free_mb(
+    size: &str,
+    free_mb: u32,
+) -> anyhow::Result<Qwen3LivePick> {
+    let token = qwen3_size_token(size)
+        .ok_or_else(|| anyhow::anyhow!("unknown Qwen3 size spelling '{size}'"))?;
+    let repo = format!("Qwen/Qwen3-{token}");
+    let overlay = load_embedded_overlay()?;
+    let rows = overlay
+        .get("qwen3_code")
+        .ok_or_else(|| anyhow::anyhow!("train_bases has no qwen3_code tag"))?;
+    let row = rows
+        .iter()
+        .find(|base| {
+            base.methods.iter().any(|method| method == "qlora") && pin_repo_id(&base.hf_id) == repo
+        })
+        .ok_or_else(|| anyhow::anyhow!("no qwen3_code qlora row for '{repo}'"))?;
+    if row.floor_mb > free_mb {
+        anyhow::bail!(
+            "Qwen3 size '{size}' QLoRA floor {} MB exceeds free memory {free_mb} MB",
+            row.floor_mb
+        );
+    }
+    Ok(Qwen3LivePick {
+        hf_id: row.hf_id.clone(),
+        size_token: token.to_string(),
+        preset: preset_for_qwen3_size_token(token)?.to_string(),
+        floor_mb: row.floor_mb,
+        free_mb,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

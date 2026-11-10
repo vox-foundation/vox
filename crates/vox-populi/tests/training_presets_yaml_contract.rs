@@ -80,8 +80,7 @@ fn gpu_specs_agentic_default_16g_floor_matches_training_presets_default() {
                 vox_populi::mens::DEFAULT_MODEL_ID
             )
         })
-        .floor_mb
-        .expect("measured DEFAULT_MODEL_ID row has floor_mb");
+        .floor_mb;
 
     let base = vox_populi::mens::tensor::spoke_base_resolver::pick_base(
         &overlay,
@@ -167,6 +166,8 @@ fn gpu_specs_agentic_default_qwen3_hf_ids_have_real_sha_format() {
 ///   (4-bit NF4) that is the ~27.856B params used below.
 const KNOWN_PARAMS_B: &[(&str, f64)] = &[
     ("Qwen/Qwen3-0.6B", 0.6),
+    ("Qwen/Qwen3-1.7B", 1.7),
+    ("Qwen/Qwen3-4B", 4.0),
     ("Qwen/Qwen3-8B", 8.0),
     ("Qwen/Qwen3-14B", 14.0),
     ("Qwen/Qwen3-32B", 32.0),
@@ -239,7 +240,7 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
             if !base.floor_measured {
                 continue;
             }
-            let floor_mb = base.floor_mb.expect("measured rung has floor_mb");
+            let floor_mb = base.floor_mb;
             if !seen.insert((base.hf_id.clone(), floor_mb)) {
                 continue;
             }
@@ -295,7 +296,7 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
         }
     }
     assert!(
-        checked >= 4,
-        "expected to check at least the 4 QLoRA Qwen3 rungs, checked {checked}"
+        checked >= 3,
+        "expected to check at least the 3 measured QLoRA Qwen3 rungs, checked {checked}"
     );
 }

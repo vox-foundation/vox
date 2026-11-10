@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+#![allow(unused_imports, clippy::match_like_matches_macro)]
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
@@ -346,5 +346,17 @@ pub async fn dispatch(
             Ok(crate::a2a_tools::a2a_history(state, serde_json::from_value(args)?).await)
         }
         _ => Err(anyhow::anyhow!("unhandled tool in tasks_core: {}", name)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handles_recognizes_tasks_core_tools() {
+        assert!(handles("vox_submit_task"));
+        assert!(handles("vox_task_status"));
+        assert!(!handles("vox_git_log"));
     }
 }

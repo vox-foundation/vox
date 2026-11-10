@@ -15,9 +15,9 @@ fn workspace_root() -> PathBuf {
 }
 
 const EMBEDDER_GUARD_CALLSITES: &[&str] = &[
-    "crates/vox-cli/src/commands/db/publication/decision.rs",
-    "crates/vox-cli/src/commands/db/publication/discovery.rs",
-    "crates/vox-cli/src/commands/db/publication/discovery_watch.rs",
+    "crates/vox-cli-research/src/db/publication/decision.rs",
+    "crates/vox-cli-research/src/db/publication/discovery.rs",
+    "crates/vox-cli-research/src/db/publication/discovery_watch.rs",
 ];
 
 static ENV_TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -94,7 +94,7 @@ fn embedder_guard_wired_at_online_novelty_callsites() {
 #[test]
 fn discovery_watch_entrypoint_calls_embedder_guard_before_assessment() {
     let root = workspace_root();
-    let path = root.join("crates/vox-cli/src/commands/db/publication/discovery_watch.rs");
+    let path = root.join("crates/vox-cli-research/src/db/publication/discovery_watch.rs");
     let contents = std::fs::read_to_string(&path).expect("read discovery_watch source");
     let fn_start = contents
         .find("pub async fn discovery_watch")

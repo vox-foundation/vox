@@ -229,17 +229,17 @@ pub fn is_trivial_placeholder_output(source: &str) -> bool {
         return true;
     }
     // Declaration with an empty or ellipsis-only body: `fn f() { }` / `{ ... }`.
-    if let (Some(open), Some(close)) = (trimmed.find('{'), trimmed.rfind('}')) {
-        if close > open {
-            let body = trimmed[open + 1..close].trim();
-            let body_lines: Vec<&str> = body
-                .lines()
-                .map(str::trim)
-                .filter(|l| !l.is_empty() && !l.starts_with("//"))
-                .collect();
-            if body_lines.is_empty() || body_lines.iter().all(|l| is_hollow_stub_line(l)) {
-                return true;
-            }
+    if let (Some(open), Some(close)) = (trimmed.find('{'), trimmed.rfind('}'))
+        && close > open
+    {
+        let body = trimmed[open + 1..close].trim();
+        let body_lines: Vec<&str> = body
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with("//"))
+            .collect();
+        if body_lines.is_empty() || body_lines.iter().all(|l| is_hollow_stub_line(l)) {
+            return true;
         }
     }
     if code_lines.len() <= 1 {
@@ -282,91 +282,89 @@ pub enum AntiStubMetricsSource {
 
 #[must_use]
 pub fn anti_stub_metrics_from_eval_local_report(report: &serde_json::Value) -> AntiStubRunMetrics {
-    if let Some(results) = report.get("results").and_then(|v| v.as_array()) {
-        if !results.is_empty() {
-            let total = results.len() as f64;
-            let mut anti_pass = 0usize;
-            let mut ph_tasks = 0usize;
-            let mut triv_tasks = 0usize;
-            let mut rich_sum = 0.0_f64;
-            let mut rich_n = 0usize;
-            for task in results {
-                let samples = task
-                    .get("samples")
-                    .and_then(|s| s.as_array())
-                    .map(|a| a.as_slice())
-                    .unwrap_or(&[]);
-                let mut task_anti = false;
-                let mut task_ph = false;
-                let mut task_triv = false;
-                let mut best_parse_ok_richness: Option<f64> = None;
-                for sample in samples {
-                    let checks = sample.get("checks");
-                    let ph = checks
-                        .and_then(|c| c.get("placeholder_marker_hits"))
-                        .and_then(|x| x.as_u64())
-                        .unwrap_or(0) as usize;
-                    let triv = checks
-                        .and_then(|c| c.get("trivial_placeholder_output"))
-                        .and_then(|x| x.as_bool())
-                        .unwrap_or(false);
-                    if checks.is_some() {
-                        if anti_stub_pass_from_flags(ph, triv) {
-                            task_anti = true;
-                        }
-                    } else if sample
-                        .get("anti_stub_pass")
-                        .and_then(|x| x.as_bool())
-                        .unwrap_or(false)
-                    {
+    if let Some(results) = report.get("results").and_then(|v| v.as_array())
+        && !results.is_empty()
+    {
+        let total = results.len() as f64;
+        let mut anti_pass = 0usize;
+        let mut ph_tasks = 0usize;
+        let mut triv_tasks = 0usize;
+        let mut rich_sum = 0.0_f64;
+        let mut rich_n = 0usize;
+        for task in results {
+            let samples = task
+                .get("samples")
+                .and_then(|s| s.as_array())
+                .map(|a| a.as_slice())
+                .unwrap_or(&[]);
+            let mut task_anti = false;
+            let mut task_ph = false;
+            let mut task_triv = false;
+            let mut best_parse_ok_richness: Option<f64> = None;
+            for sample in samples {
+                let checks = sample.get("checks");
+                let ph = checks
+                    .and_then(|c| c.get("placeholder_marker_hits"))
+                    .and_then(|x| x.as_u64())
+                    .unwrap_or(0) as usize;
+                let triv = checks
+                    .and_then(|c| c.get("trivial_placeholder_output"))
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false);
+                if checks.is_some() {
+                    if anti_stub_pass_from_flags(ph, triv) {
                         task_anti = true;
                     }
-                    if ph > 0 {
-                        task_ph = true;
-                    }
-                    if triv {
-                        task_triv = true;
-                    }
-                    let parse_ok = checks
-                        .and_then(|c| c.get("parse_ok"))
-                        .and_then(|x| x.as_bool())
-                        .unwrap_or(false);
-                    if parse_ok {
-                        if let Some(r) = checks
-                            .and_then(|c| c.get("construct_richness_score"))
-                            .and_then(|x| x.as_f64())
-                        {
-                            best_parse_ok_richness =
-                                Some(best_parse_ok_richness.map_or(r, |b| b.max(r)));
-                        }
-                    }
+                } else if sample
+                    .get("anti_stub_pass")
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false)
+                {
+                    task_anti = true;
                 }
-                if task_anti {
-                    anti_pass += 1;
+                if ph > 0 {
+                    task_ph = true;
                 }
-                if task_ph {
-                    ph_tasks += 1;
+                if triv {
+                    task_triv = true;
                 }
-                if task_triv {
-                    triv_tasks += 1;
-                }
-                if let Some(r) = best_parse_ok_richness {
-                    rich_sum += r;
-                    rich_n += 1;
+                let parse_ok = checks
+                    .and_then(|c| c.get("parse_ok"))
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false);
+                if parse_ok
+                    && let Some(r) = checks
+                        .and_then(|c| c.get("construct_richness_score"))
+                        .and_then(|x| x.as_f64())
+                {
+                    best_parse_ok_richness = Some(best_parse_ok_richness.map_or(r, |b| b.max(r)));
                 }
             }
-            return AntiStubRunMetrics {
-                anti_stub_task_success: anti_pass as f64 / total,
-                placeholder_event_rate: ph_tasks as f64 / total,
-                trivial_placeholder_event_rate: triv_tasks as f64 / total,
-                construct_richness_mean: if rich_n > 0 {
-                    rich_sum / rich_n as f64
-                } else {
-                    0.0
-                },
-                source: AntiStubMetricsSource::RecomputedFromSamples,
-            };
+            if task_anti {
+                anti_pass += 1;
+            }
+            if task_ph {
+                ph_tasks += 1;
+            }
+            if task_triv {
+                triv_tasks += 1;
+            }
+            if let Some(r) = best_parse_ok_richness {
+                rich_sum += r;
+                rich_n += 1;
+            }
         }
+        return AntiStubRunMetrics {
+            anti_stub_task_success: anti_pass as f64 / total,
+            placeholder_event_rate: ph_tasks as f64 / total,
+            trivial_placeholder_event_rate: triv_tasks as f64 / total,
+            construct_richness_mean: if rich_n > 0 {
+                rich_sum / rich_n as f64
+            } else {
+                0.0
+            },
+            source: AntiStubMetricsSource::RecomputedFromSamples,
+        };
     }
     AntiStubRunMetrics {
         anti_stub_task_success: report

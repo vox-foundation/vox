@@ -405,8 +405,8 @@ mod tests {
 
     #[test]
     fn reporting_surfaces_share_explicit_reliability_axis_language() {
-        let scoreboard = include_str!("../../../vox-cli/src/commands/model/scoreboard.rs");
-        let explain = include_str!("../../../vox-cli/src/commands/model/explain.rs");
+        let scoreboard = include_str!("../../../vox-cli-research/src/model/scoreboard.rs");
+        let explain = include_str!("../../../vox-cli-research/src/model/explain.rs");
 
         assert!(
             scoreboard.contains("reliability, cost and latency"),

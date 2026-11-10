@@ -205,6 +205,7 @@ pub fn effective_axes(clutch: ClutchProfile, risk: RiskPosture) -> (u8, u8, u8) 
 #[cfg(test)]
 mod semcov_behavior_tests {
     use super::*;
+    use crate::config::CostPreference;
 
     // Catches: regression that maps Balanced (the default tier) to Performance,
     // silently routing the most common quality tier to paid models and breaking

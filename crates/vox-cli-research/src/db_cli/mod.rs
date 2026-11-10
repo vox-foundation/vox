@@ -505,28 +505,29 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
 mod tests {
     use super::{DbCli, DbCliCore};
     use crate::db::IntrospectEmit;
-    use crate::{Cli, VoxCliRoot};
     use clap::{CommandFactory, Parser};
+
+    #[derive(Parser)]
+    struct TestDbRoot {
+        #[command(subcommand)]
+        cmd: DbCli,
+    }
 
     #[test]
     fn introspect_emit_defaults_to_json_and_accepts_vox() {
-        let root = VoxCliRoot::try_parse_from(["vox", "db", "introspect"]).expect("default");
+        let root = TestDbRoot::try_parse_from(["db", "introspect"]).expect("default");
         match root.cmd {
-            Cli::Db {
-                cmd: DbCli::Core(DbCliCore::Introspect { emit, compact, url }),
-            } => {
+            DbCli::Core(DbCliCore::Introspect { emit, compact, url }) => {
                 assert_eq!(emit, IntrospectEmit::Json);
                 assert!(!compact);
                 assert!(url.is_none());
             }
             _ => panic!("expected introspect"),
         }
-        let root = VoxCliRoot::try_parse_from(["vox", "db", "introspect", "--emit", "vox"])
-            .expect("emit vox");
+        let root =
+            TestDbRoot::try_parse_from(["db", "introspect", "--emit", "vox"]).expect("emit vox");
         match root.cmd {
-            Cli::Db {
-                cmd: DbCli::Core(DbCliCore::Introspect { emit, .. }),
-            } => {
+            DbCli::Core(DbCliCore::Introspect { emit, .. }) => {
                 assert_eq!(emit, IntrospectEmit::Vox);
             }
             _ => panic!("expected introspect"),
@@ -535,8 +536,7 @@ mod tests {
 
     #[test]
     fn introspect_help_shows_emit_flag() {
-        let cmd = VoxCliRoot::command();
-        let db = cmd.find_subcommand("db").expect("db subcommand");
+        let db = TestDbRoot::command();
         let introspect = db
             .find_subcommand("introspect")
             .expect("introspect subcommand");
