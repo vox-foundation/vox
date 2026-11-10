@@ -43,6 +43,6 @@ collateral_damage:
       prefix_n: 32
       prefix_blake3: 395cec77793e3f3bed51005c497e7fbc6af4761357285281fdb20e7ce4669f07
     vox_think:
-      blake3: 21a201449c03a7fc02ddff45e7a65df537b4ec3f1733bbbaee39e84e378c6102
+      blake3: 73b4219a9becdb67e9753cabfcca099804d79a41e3f2e7035c40507612f0957c
       prefix_n: 32
       prefix_blake3: 63497695058a703f8b6598ce4cfb4b73e6fa29aae9cb77354f7e7a92c8097855
