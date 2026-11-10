@@ -1,40 +1,40 @@
 # vox-db
 
-High-level database facade for the Vox ecosystem. Wraps `vox-package::CodeStore` with connection management, retry logic, and transaction support.
+Unified SQLite / Turso persistence engine (`VoxDb`) for the Vox ecosystem, paired with `vox-db-types` (`L0`) at **`BASELINE_VERSION = 97`** ([`contracts/db/baseline-version-policy.yaml`](../../contracts/db/baseline-version-policy.yaml)).
+
+## Core Schema Domains (`BASELINE_VERSION = 97`)
+
+`VoxDb` consolidates runtime, knowledge base, workflow, and orchestrator state into a single versioned schema:
+
+- **`search_documents`**: Hybrid lexical/vector document store with explicit epistemic `trust_tier` classification (`SystemVerified`, `Trusted`, `Advisory`, `Untrusted`).
+- **`kb_findings`**: Quarantine inbox for unverified agent research and external findings awaiting promotion or pruning.
+- **`workflow_patch_log`**: Durable workflow replay and live code-patch journal (per [ADR-019 / ADR-041](../../docs/src/adr/index.md)).
+- **`hopper_inbox`**: SQLite-backed multi-agent task queue and `resource_id` lock table (per [ADR-025](../../docs/src/adr/index.md)).
+- **`model_benchmark_results`**: Empirical latency, cost, and quality benchmark records feeding `vox-orchestrator-models` Pareto/McNemar selection.
 
 ## Connection Modes
 
 | Mode | Feature Flag | Use Case |
 |------|-------------|----------|
-| Remote (Turso) | (default) | Production — cloud-hosted |
-| Local Turso | `local` | Development — file-based |
-| In-Memory | `local` | Testing — ephemeral |
-| Embedded Replica | `replication` | Hybrid — local + cloud sync |
-
-## Key APIs
-
-| Method | Description |
-|--------|-------------|
-| `VoxDb::connect(config)` | Connect with automatic retry (3× w/ backoff) |
-| `VoxDb::store()` | Access the underlying `CodeStore` |
-| `VoxDb::sync()` | Sync embedded replica with remote |
-| `VoxDb::schema_version()` | Get current schema version |
-| `VoxDb::transaction(f)` | Execute within BEGIN/COMMIT/ROLLBACK |
+| Local Turso / SQLite | `local` (default) | Local development and single-node agent execution |
+| In-Memory | `local` | Ephemeral unit and integration testing |
+| Remote Turso | default | Cloud-hosted libSQL / Turso deployment |
+| Embedded Replica | `replication` | Local embedded database with remote cloud sync |
 
 ## Usage
 
 ```rust
-use vox_db::{VoxDb, DbConfig};
+use vox_db::{DbConfig, VoxDb};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let db = VoxDb::connect(DbConfig::Remote {
-        url: "turso://my-db.turso.io".to_string(),
-        token: "my-token".to_string(),
-    }).await?;
-
-    let hash = db.store().store("fn", b"fn hello(): return 42").await?;
-    println!("Stored: {hash}");
+    let db = VoxDb::connect(DbConfig::Memory).await?;
+    assert_eq!(db.schema_version().await?, 97);
     Ok(())
 }
 ```
+
+## Canonical References
+
+- Baseline Version Policy: [`contracts/db/baseline-version-policy.yaml`](../../contracts/db/baseline-version-policy.yaml)
+- Architecture Lookup: [`docs/src/architecture/where-things-live.md`](../../docs/src/architecture/where-things-live.md)

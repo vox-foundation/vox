@@ -142,7 +142,7 @@ A typical web app restates one domain model in four places:
 Names and types can drift at each boundary. People and coding agents both spend time keeping the copies aligned.
 
 <div align="center">
-  <img src="./assets/schema-fragmentation.svg" alt="One field written four times: SQL completed_at, Rust Option DateTime, JSON completedAt null, and TypeScript isDone, beside one Vox table that emits done: bool to every layer" width="760" />
+  <img src="./assets/schema-fragmentation.webp" alt="One field written four times: SQL completed_at, Rust Option DateTime, JSON completedAt null, and TypeScript isDone, beside one Vox table that emits done: bool to every layer" width="760" />
   <p>
     <strong>One field, written four times</strong><br />
     <em>completed_at, completedAt, and isDone are the same fact. Each boundary renames it or changes its type. A Vox table states it once, and every layer keeps that name and type.</em>

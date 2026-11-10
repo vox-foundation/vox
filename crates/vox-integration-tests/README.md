@@ -9,7 +9,7 @@ End-to-end tests for the Vox compiler pipeline. Each test exercises the full pat
 | `pipeline.rs` | Full pipeline: parse → HIR → typeck → codegen for all language features |
 | `codegen_rust.rs` | Rust code generation specifics |
 | `typeck.rs` | Type checking edge cases |
-| `db_typeck.rs` | Database type checking (`@table`, `@index`) |
+| `db_typeck.rs` | Database type checking (table declarations, indexes, query/mutation handlers) |
 | `chatbot_integration.rs` | Full chatbot example compilation |
 | `workflow_integration.rs` | Workflow and activity compilation |
 | `agent_message.rs` | Agent and MCP tool compilation |

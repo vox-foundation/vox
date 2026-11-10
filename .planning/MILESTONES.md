@@ -1,15 +1,15 @@
 # Milestones
 
-## v6.8 Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits, `crates.io` Wave 2/3 (`33` Crates) & Multi-Repo Rich Visual READMEs / `vox-foundation` GitHub Federation (Shipped: 2026-11-10)
+## v6.8 Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits, `crates.io` Wave 2/3 (`33` Crates), Rich Roman Visual READMEs & Adversarial Cross-Repo README Audit (Shipped: 2026-11-10)
 
-**Phases completed:** 7 phases (`Phases 394–400`), 7 plans, 28/28 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`399-REVIEW.md`](phases/399-end-to-end-flywheel-scorecard-and-ssot/399-REVIEW.md))
+**Phases completed:** 8 phases (`Phases 394–401`), 8 plans, 32/32 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`399-REVIEW.md`](phases/399-end-to-end-flywheel-scorecard-and-ssot/399-REVIEW.md))
 **Archive:** [`milestones/v6.8-ROADMAP.md`](milestones/v6.8-ROADMAP.md) | [`milestones/v6.8-REQUIREMENTS.md`](milestones/v6.8-REQUIREMENTS.md) | [`contracts/reports/v68-defactoring-flywheel-scorecard.v1.json`](../contracts/reports/v68-defactoring-flywheel-scorecard.v1.json)
 
 **Key accomplishments:**
 - **Physical 4-Repository Federation (`Phases 394, 395, 398`):** Created and verified standalone sibling repositories `/Users/brbrainerd/dev/vox-ops` (private telemetry & cloud GPU ops), `/Users/brbrainerd/dev/vox-axis` (Tauri 2 operator GUI), and `/Users/brbrainerd/dev/voxlang.org` (Astro/Starlight docs + Coolify `/v1/eval` sandbox) alongside `/Users/brbrainerd/dev/vox`, with `4/4` present repositories passing `vox ci cross-repo-parity` (`55` shared contracts) and `vox ci federated-symbol-graph`.
 - **Next-Tier Keystone Splits & Compilation Firewalls (`Phase 396`):** Extracted `vox-repository-core`, `vox-search-core`, and `vox-scientia-core` and applied `#[inline(never)]` compilation boundaries across `vox-orchestrator`, `vox-compiler`, `vox-db`, `vox-populi`, `vox-publisher`, and `vox-scientia`, cutting warm incremental check times across leaf crates by `28%–89%` (`vox-orchestrator` `119.0s -> 11.53s`, `vox-compiler` `55.6s -> 1.65s`, `vox-db` `43.5s -> 1.78s`).
 - **Standalone `crates.io` Wave 2 & 3 Expansion (`15` → `33` Crates, `Phase 397`):** Prepared and verified 33 standalone publishable crates (`crates/_public.toml`), passing `vox ci publish-dry-run` (`33/33`).
-- **Rich Visual READMEs, 32-Screen Catalog, 7 Animated `.webp` Tours, 6 Generated Raster Diagrams & `vox-foundation` GitHub Federation (`Phase 400`):** Authored rich visual READMEs across `vox-axis`, `voxlang.org`, `vox-ops`, and `vox` with 46 real Playwright screenshots, every GUI screen explained, 7 animated `.webp` tours, 6 generated `.webp` architecture diagrams (zero SVGs), Coolify/Cloudflare bindings, cross-repo `AGENTS.md` sync rules, and public GitHub pushes under `vox-foundation/{vox,vox-axis,voxlang.org}`.
+- **Rich Visual READMEs, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Graphics, Adversarial 46-README Audit & Footnoted Prior-Art Attribution (`Phases 400–401`):** Replaced stale Sept 4 dark screenshots with 50 Nov 9 (`v6.6`) Sunlit Imperial Roman Carrara White & Gold Playwright captures (featuring the `VRBS ROMA` 3D/2.5D Simulator, `AQVAEDUCTUS` hydraulic cascade, Multi-Dock Chat, and 4-profile theme switcher), rebuilt all 7 animated `.webp` tours and all 7 Roman White/Gold `.webp` schematics (zero SVGs), audited and fixed all 8 stale sub-crate/app READMEs, added `README-SYNC-MAP` domain ownership, and added footnoted prior-art references (`[^1]`..`[^13]`).
 
 ---
 

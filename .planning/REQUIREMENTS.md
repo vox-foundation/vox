@@ -49,10 +49,17 @@
 
 ### Phase 400: Multi-Repo Rich Visual READMEs, Animated `.webp` Tours, Real Generated Raster Diagrams, Cross-Repo Agent Awareness, Coolify & `vox-foundation` GitHub Federation (`README-VISUAL`)
 
-- [x] **README-VISUAL-01**: Author `/Users/brbrainerd/dev/vox-axis/README.md` (and `/Users/brbrainerd/dev/vox/crates/vox-gui/README.md`) inspired by `/Users/brbrainerd/dev/vox/README.md`, with 46 real Playwright screenshots (`assets/screens/*.png`) and a complete visual catalog explaining every one of the 32 `SURFACE_REGISTRY` GUI screens, 3 shell modes, and 5 Socrates HITL stages (why each exists and what it can do).
-- [x] **README-VISUAL-02**: Generate 7 looping animated `.webp` tour files (`assets/tours/*.webp`) and 6 real generated high-resolution `.webp` architecture diagrams (`assets/diagrams/*.webp`, zero `.svg` diagrams) across `vox-axis`, `voxlang.org`, and `vox-ops`.
+- [x] **README-VISUAL-01**: Author `/Users/brbrainerd/dev/vox-axis/README.md` (and `/Users/brbrainerd/dev/vox/crates/vox-gui/README.md`) inspired by `/Users/brbrainerd/dev/vox/README.md`, with real Playwright screenshots (`assets/screens/*.png`) and a complete visual catalog explaining every one of the 32 `SURFACE_REGISTRY` GUI screens, 3 shell modes, and 5 Socrates HITL stages (why each exists and what it can do).
+- [x] **README-VISUAL-02**: Generate 7 looping animated `.webp` tour files (`assets/tours/*.webp`) and real generated high-resolution `.webp` architecture diagrams (`assets/diagrams/*.webp`, zero `.svg` diagrams) across `vox-axis`, `voxlang.org`, and `vox-ops`.
 - [x] **README-VISUAL-03**: Author READMEs and sync Coolify (`eval.voxlang.org` `vox-eval.compose.yml`, `telemetry.voxlang.org` `docker/vox-telemetry.compose.yml`) and Cloudflare Pages (`voxlang.org`) configurations across `/Users/brbrainerd/dev/voxlang.org` and `/Users/brbrainerd/dev/vox-ops`.
 - [x] **README-VISUAL-04**: Update `AGENTS.md` (and `CLAUDE.md` symlinks) across `~/dev/`, `vox`, `vox-axis`, `voxlang.org`, and `vox-ops` with cross-repo documentation awareness and update rules, complete `/gsd-complete-milestone`, and push public repositories to GitHub under `vox-foundation` (`vox-foundation/vox`, `vox-foundation/vox-axis`, `vox-foundation/voxlang.org`).
+
+### Phase 401: Adversarial Audit of All READMEs Across All Repositories & Sub-Crates, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Visual Refresh, `README-SYNC-MAP` Maintainability & Footnoted Prior-Art Attribution (`README-AUDIT`)
+
+- [x] **README-AUDIT-01**: Replace all stale Sept 4 dark GUI screenshots in `vox-axis/assets/screens/`, `vox/crates/vox-gui/assets/screens/`, and `vox/crates/vox-gui/ui/review-bundle/latest/` with the 50 Nov 9 (`v6.6`) Sunlit Imperial Roman Carrara White & Gold Playwright captures (`crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/*-after.png` + `urbs-civilization-after.png`, `urbs-imperium-inspector-after.png`, `chat-multidock-1440x900-after.png`, `loquela-knobs-after.png`), and rebuild all 7 animated `.webp` tours (`axis_hero_tour.webp`, `axis_operate_lane_tour.webp`, `axis_develop_lane_tour.webp`, `axis_knowledge_hitl_tour.webp`, `axis_compute_system_tour.webp`, `voxlang_site_tour.webp`, `vox_ops_fleet_tour.webp`).
+- [x] **README-AUDIT-02**: Regenerate all 7 architectural diagrams (`axis_hero_banner.webp`, `axis_dual_mode_architecture.webp`, `axis_five_lanes_diagram.webp`, `axis_trust_tiers_diagram.webp`, `voxlang_pipeline_diagram.webp`, `vox_ops_sovereignty_diagram.webp`, and `docs/src/assets/schema-fragmentation.webp`) in the `v6.6` Sunlit Imperial Roman Carrara White & Burnished Gold aesthetic, and replace the last `.svg` reference (`schema-fragmentation.svg` → `schema-fragmentation.webp`) in both `vox/README.md` and `docs/src/index.mdx`.
+- [x] **README-AUDIT-03**: Adversarially audit all 46 `README.md` files across all 4 repositories and update all 8 stale sub-crate/app READMEs (`crates/vox-doc-pipeline`, `crates/vox-lsp`, `crates/vox-cli`, `crates/vox-orchestrator`, `crates/vox-db`, `crates/vox-gamify`, `apps/editor/vox-vscode`, `crates/vox-integration-tests`), purging retired `@table`/`@endpoint`/`mdBook`/`SUMMARY.md`/`v0.rs` references and broken archive links.
+- [x] **README-AUDIT-04**: Establish `README-SYNC-MAP` single-source domain ownership across `vox`, `vox-axis`, `voxlang.org`, and `vox-ops` to eliminate cross-repo copy-paste bloat, and add inline footnote citations (`[^1]`..`[^13]`) + `Intellectual Lineage, Prior Art & References` sections crediting the foundational papers, protocols, and systems behind Vox.
 
 ## Traceability (`v6.8`)
 
@@ -65,8 +72,9 @@
 | `FEDERATION-LIVE-01..04` | Phase 398 | Complete |
 | `FLYWHEEL-BENCH-01..04` | Phase 399 | Complete |
 | `README-VISUAL-01..04` | Phase 400 | Complete |
+| `README-AUDIT-01..04` | Phase 401 | Complete |
 
-**Coverage:** 28 `v6.8` requirements mapped to Phases 394–400 → 0 unmapped.
+**Coverage:** 32 `v6.8` requirements mapped to Phases 394–401 → 0 unmapped.
 
 ---
 

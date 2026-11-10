@@ -1,15 +1,18 @@
 <!--
-  Maintaining this README:
-  - Status tables: when you verify a row, update its State, its "Checked" date, and its note.
-  - States are exactly: Working / Prototype / Research / Not started. Nothing goes above Working.
-  - The why_vox section in docs/src/index.mdx is lint-synced with vox-foundation/vox/README.md.
+  README-SYNC-MAP (Single Source of Ownership — do not duplicate across repos):
+  - Language, compiler, runtime, and suite architecture belong in `vox-foundation/vox/README.md`.
+  - GUI workbench & 32 surface inventory belong in `vox-foundation/vox-axis/README.md`.
+  - This file (`vox-foundation/voxlang.org/README.md` == `vox/docs-astro/README.md`) owns ONLY the
+    documentation build pipeline (`vox-doc-pipeline` + Astro/Starlight), taxonomy facets, and the
+    `eval.voxlang.org` browser sandbox.
+  - Status states are strictly: Working / Prototype / Research / Not started.
 -->
 <div align="center">
   <img src="assets/diagrams/vox_hero_banner.webp" alt="voxlang.org — Public Documentation, Compiler-Verified Doctests, and Live Browser Eval Sandbox" width="100%" />
 
   <p>
-    <strong>The public documentation site, curated knowledge base surface, and live browser playground for Vox</strong><br />
-    <em>Astro 7.4 + Starlight 0.42 · Compiler-verified <code>.vox</code> doctests · VoxDiagram pre-rendering · Coolify <code>eval.voxlang.org</code> sandbox</em>
+    <strong>The public documentation site, curated knowledge-base surface, and live browser playground for Vox</strong><br />
+    <em>Astro 7.4 + Starlight 0.42 · Compiler-verified <code>.vox</code> doctests · Diátaxis + W3C SKOS taxonomy · Coolify <code>eval.voxlang.org</code> sandbox</em>
   </p>
 
   <p>
@@ -31,7 +34,7 @@
 </div>
 
 > [!WARNING]
-> **Last reviewed: 2026-11-10.** `voxlang.org` is the public documentation and interactive playground surface for the Vox programming language (`0.6.0` workspace). All 900+ pages are authored under [`docs/src/`](https://github.com/vox-foundation/vox/tree/main/docs/src) in `vox-foundation/vox`, validated by `vox-doc-pipeline` (frontmatter taxonomy, `kb:summary` blocks, executable `.vox` doctests, and `why_vox` homepage sync), built with Astro 7.4.5 and Starlight 0.42.9, deployed to Cloudflare Pages (`voxlang.org`), and backed by the Coolify deterministic interpreter sandbox (`eval.voxlang.org`).
+> **Last reviewed: 2026-11-10 (`v6.8`).** `voxlang.org` is the public documentation and interactive playground surface for the [Vox programming language](https://github.com/vox-foundation/vox) (`0.6.0` workspace). All 900+ pages are authored under [`docs/src/`](https://github.com/vox-foundation/vox/tree/main/docs/src), validated by `vox-doc-pipeline` (frontmatter taxonomy, `kb:summary` blocks, executable `.vox` doctests, and `why_vox` homepage sync), built with Astro 7.4.5 and Starlight 0.42.9, deployed to Cloudflare Pages (`voxlang.org`), and backed by the Coolify deterministic interpreter sandbox (`eval.voxlang.org`).
 
 ---
 
@@ -41,7 +44,7 @@
   <img src="assets/tours/voxlang_site_tour.webp" alt="Animated visual tour of voxlang.org architecture, single-file full-stack model, and suite pillars" width="94%" />
   <p>
     <strong>voxlang.org Visual Tour (Animated WebP)</strong><br />
-    <em>Cycling through the Vox hero identity, single-file 3-layer projection model, 6 suite pillars, collaborative task example, and language pipeline.</em>
+    <em>Cycling through the Vox hero identity, single-file 3-layer projection model, 6 suite pillars, collaborative task example, and compiler-verified documentation pipeline.</em>
   </p>
 </div>
 
@@ -52,8 +55,8 @@
 <div align="center">
   <img src="assets/diagrams/voxlang_pipeline_diagram.webp" alt="voxlang.org Pipeline: vox-doc-pipeline to Astro Starlight to Cloudflare Pages and Coolify eval.voxlang.org" width="92%" />
   <p>
-    <strong>Compiler-Verified Documentation &amp; Live Eval Pipeline</strong><br />
-    <em>Every markdown page in <code>docs/src/</code> passes <code>vox-doc-pipeline</code> (taxonomy facets, <code>.vox</code> doctest compilation, VoxDiagram rendering) before Astro 7.4 + Starlight 0.42 builds static assets for Cloudflare Pages (<code>voxlang.org</code>) and connects interactive playground islands to Coolify (<code>eval.voxlang.org</code>).</em>
+    <strong>Compiler-Verified Documentation &amp; Live Eval Pipeline (Imperial Roman Carrara White &amp; Gold Schematic)</strong><br />
+    <em>Every markdown page in <code>docs/src/</code> passes <code>vox-doc-pipeline</code> (W3C SKOS taxonomy facets[^2], Nanopublication provenance[^3], <code>.vox</code> doctest compilation, VoxDiagram rendering) before Astro 7.4 + Starlight 0.42 builds static assets for Cloudflare Pages (<code>voxlang.org</code>) and connects interactive playground islands to Coolify (<code>eval.voxlang.org</code>)[^4].</em>
   </p>
 </div>
 
@@ -61,12 +64,20 @@
 
 ## What This Repository Coordinates
 
-| Subsystem | Plain-English Summary | Key Files / Commands |
+| Subsystem | Programmer Summary | Key Files / Commands |
 |:---|:---|:---|
-| **1. Astro 7.4 + Starlight 0.42 Site** | Builds 900+ documentation pages, tutorials, ADRs, reference tables, and `.well-known/llms.txt` with automatic frontmatter-driven sidebar generation (`sidebar.mjs`) and fatal internal-link validation (`starlight-links-validator`). | `docs-astro/astro.config.mjs`, `docs-astro/src/utils/sidebar.mjs`, `./scripts/build.sh` |
-| **2. Compiler-Verified Doctests (`vox-doc-pipeline`)** | Every fenced `vox` code block in documentation is type-checked by the Vox compiler (`vox check`) unless explicitly marked `// vox:skip <reason>`, preventing stale syntax examples. | `cargo run -p vox-doc-pipeline -- --lint-only` |
-| **3. Live Browser Eval Sandbox (`eval.voxlang.org`)** | Interactive `.vox` code blocks on `voxlang.org` execute against `https://eval.voxlang.org/v1/eval`, which runs `vox mcp` (`vox run --interp --caps deterministic`) inside an isolated Coolify container with zero keys and zero workspace state. | `vox-eval.compose.yml`, `.github/workflows/coolify-eval-sync.yml`, `vox ci coolify-eval` |
-| **4. Installer Bootstrap (`/voxup`, `/voxup.ps1`)** | Serves the cross-platform shell and PowerShell bootstrap scripts verified on every deploy by `docs-astro/tests/smoke.spec.ts`. | `docs-astro/public/voxup`, `docs-astro/tests/smoke.spec.ts` |
+| **1. Astro 7.4 + Starlight 0.42 Site** | Builds 900+ documentation pages organized by Daniele Procida's **Diátaxis** quadrants[^1] (Tutorials, How-To Guides, Reference, Architecture/Explanation) plus `.well-known/llms.txt`[^5], with frontmatter-driven sidebar generation (`sidebar.mjs`) and fatal internal-link checking (`starlight-links-validator`). | [`docs-astro/astro.config.mjs`](docs-astro/astro.config.mjs), [`docs-astro/src/utils/sidebar.mjs`](docs-astro/src/utils/sidebar.mjs), [`scripts/build.sh`](scripts/build.sh) |
+| **2. Compiler-Verified Doctests (`vox-doc-pipeline`)** | Every fenced `vox` code block is type-checked by `vox check` unless explicitly marked `// vox:skip <reason>`, preventing doc-rot. Also validates W3C SKOS `topic`/`domain` prefLabels[^2] and Nanopublication-style `authorship` provenance[^3]. | `cargo run -p vox-doc-pipeline -- --lint-only` |
+| **3. Live Browser Eval Sandbox (`eval.voxlang.org`)** | Interactive `.vox` code blocks execute against `https://eval.voxlang.org/v1/eval`, running `vox run --interp --caps deterministic` inside a capability-sandboxed Coolify container[^4] with zero ambient filesystem/network/secret access. | [`vox-eval.compose.yml`](vox-eval.compose.yml), [`.github/workflows/coolify-eval-sync.yml`](.github/workflows/coolify-eval-sync.yml), `vox ci coolify-eval` |
+| **4. Installer Bootstrap (`/voxup`, `/voxup.ps1`)** | Serves cross-platform POSIX and PowerShell bootstrap scripts verified on every deploy by Playwright smoke tests. | [`docs-astro/public/voxup`](docs-astro/public/voxup), [`docs-astro/tests/smoke.spec.ts`](docs-astro/tests/smoke.spec.ts) |
+
+---
+
+## Tradeoffs & Maintainability
+
+- **Single-source page authoring:** Do not duplicate language tutorials or GUI reference tables into this README. Edit the canonical Markdown under [`docs/src/`](https://github.com/vox-foundation/vox/tree/main/docs/src); `vox-doc-pipeline` and `sidebar.mjs` propagate changes automatically.
+- **No hand-edited generated reference pages:** `docs/src/reference/*.generated.md` are emitted from Rust source by `cargo run -p vox-cli -- ci command-sync` and `ci generate-plugin-catalog-docs`.
+- **Homepage `why_vox` sync:** The `<!-- ANCHOR: why_vox -->` block in `vox/README.md` and `{/* SYNC-FROM-README: why_vox */}` in `docs/src/index.mdx` are enforced byte-for-byte by `vox-doc-pipeline`.
 
 ---
 
@@ -76,8 +87,8 @@
 |:---|:---|:---|:---|
 | **Astro 7.4.5 / Starlight 0.42.9 build** | Working | 2026-11-10 | Builds 907+ pages cleanly; GitHub-style alerts render as native asides; broken internal links fail the build via `starlight-links-validator` 0.27.0. |
 | **`vox-doc-pipeline` frontmatter & doctest lint** | Working | 2026-11-10 | Enforces `title`, `description`, `category`, `topic`, `domain`, `authorship`, and `<!-- kb:summary -->` against `contracts/documentation/kb-taxonomy.v1.yaml`. |
-| **Cloudflare Pages deploy (`voxlang.org`)** | Working | 2026-11-10 | Deployed from `vox-foundation/vox` (`docs-deploy.yml`) via `wrangler pages deploy dist --project-name=vox-docs`, followed by live Playwright smoke verification (`tests/smoke.spec.ts`). |
-| **Coolify Eval Sandbox (`eval.voxlang.org`)** | Working | 2026-11-10 | Managed via `vox ci coolify-eval sync-compose --compose vox-eval.compose.yml --domains https://eval.voxlang.org` and `.github/workflows/deploy-hetzner.yml`. |
+| **Cloudflare Pages deploy (`voxlang.org`)** | Working | 2026-11-10 | Deployed via `wrangler pages deploy dist --project-name=vox-docs`, followed by live Playwright smoke verification (`tests/smoke.spec.ts`). |
+| **Coolify Eval Sandbox (`eval.voxlang.org`)** | Working | 2026-11-10 | Managed via `vox ci coolify-eval sync-compose --compose vox-eval.compose.yml --domains https://eval.voxlang.org`. |
 | **Ludus Leaderboard Arena (`VoxLeaderboardArena.astro`)** | Prototype | 2026-11-10 | Verifies Ed25519-signed `VerifiedLeaderboardSnapshotV1` payloads from `ops.voxlang.org`. |
 
 ---
@@ -91,16 +102,17 @@ cargo run -p vox-doc-pipeline --manifest-path /Users/brbrainerd/dev/vox/Cargo.to
 # 2. Build the Starlight site:
 ./scripts/build.sh
 
-# 3. Verify Coolify eval sandbox discovery / compose sync:
+# 3. Verify Coolify eval sandbox discovery & cross-repo parity:
 cargo run -p vox-cli --manifest-path /Users/brbrainerd/dev/vox/Cargo.toml -- ci coolify-eval discover
+cargo run -p vox-cli --manifest-path /Users/brbrainerd/dev/vox/Cargo.toml -- ci cross-repo-parity
 ```
 
 ---
 
-## Cross-Repo Agent & Documentation Rules
+## Intellectual Lineage, Prior Art & References
 
-Any agent working in `voxlang.org` or `vox-foundation/vox` MUST follow [`AGENTS.md`](AGENTS.md) and [`/Users/brbrainerd/dev/AGENTS.md`](file:///Users/brbrainerd/dev/AGENTS.md):
-
-1. **Never edit generated `docs/src/reference/*.generated.md` files by hand** — regenerate via `cargo run -p vox-cli -- ci command-sync` or let `ssot-autoregen` update them.
-2. **Keep `README.md` `why_vox` and `docs/src/index.mdx` synchronized** — enforced by `vox-doc-pipeline`.
-3. **Verify contract parity across all 4 repos** before pushing: `vox ci cross-repo-parity` and `vox ci federated-symbol-graph`.
+[^1]: **Diátaxis Documentation Architecture:** Information architecture separating Tutorials, How-To Guides, Reference, and Explanation follows Daniele Procida, *Diátaxis: A systematic approach to technical documentation authoring* ([diataxis.fr](https://diataxis.fr/)).
+[^2]: **SKOS Controlled Vocabulary (`kb-taxonomy.v1.yaml`):** Hierarchical `topic` and `domain` `prefLabel` / `broader` / `related` facets follow W3C *SKOS Simple Knowledge Organization System Reference* (Miles & Bechhofer, W3C Recommendation, 2009).
+[^3]: **Nanopublication Provenance (`authorship`, `origin`, `kb:summary`):** Attaching machine-verifiable assertion, provenance, and publication metadata to each knowledge artifact draws from Paul Groth, Andrew Gibson, & Jan Velterop, *"The Anatomy of a Nanopublication"*, *Information Services & Use* 30(1–2), 2010.
+[^4]: **Capability-Sandboxed Interpreter (`eval.voxlang.org`):** Executing untrusted browser snippets under `--caps deterministic` with zero ambient authority follows Dennis & Van Horn (1966) object-capability discipline and the [Bytecode Alliance WASI capability model](https://wasi.dev/).
+[^5]: **Machine-Readable LLM Discovery (`.well-known/llms.txt`):** Exposing a structured Markdown index of documentation for coding agents follows Jeremy Howard's [`llms.txt` proposal](https://llmstxt.org/) (Answer.AI, 2024).

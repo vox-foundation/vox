@@ -1,19 +1,21 @@
 <!--
-  Maintaining this README:
-  - Status tables: when you verify a row, update its State, its "Checked" date, and its note.
-    Leave rows you didn't check alone; a stale date is honest, a silently-edited row is not.
-  - States are exactly: Working / Prototype / Research / Not started. Nothing goes above Working.
-  - Every GUI screen in SURFACE_REGISTRY (crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts)
-    must have a real screenshot under assets/screens/<view>.png and an explanation below.
-  - Regenerate animated WebP tours when screen captures change (`vox ci gui-surface-registry --write`
-    + Playwright `screenshots.spec.ts` + `img2webp`).
+  README-SYNC-MAP (Maintainer Contract):
+  1. Canonical scope: This file owns the 32-surface GUI catalog, VRBS ROMA simulator, 4-profile theme contract,
+     and Local/Remote transport docs. Language grammar and compiler status live in vox-foundation/vox/README.md.
+  2. Mirror parity: Keep /Users/brbrainerd/dev/vox-axis/README.md and /Users/brbrainerd/dev/vox/crates/vox-gui/README.md
+     byte-identical (`cp /Users/brbrainerd/dev/vox-axis/README.md /Users/brbrainerd/dev/vox/crates/vox-gui/README.md`).
+  3. Updating screenshots & tours:
+     - Surface registry SSOT: `contracts/operations/catalog.v1.yaml` -> `vox ci gui-surface-registry --write`
+     - Capture v6.6 Roman Carrara White & Gold + Slate views: `pnpm --dir crates/vox-gui/ui exec playwright test e2e/review/cv-flywheel.spec.ts`
+     - Copy `artifacts/cv-flywheel/surfaces/*-after.png` -> `assets/screens/<view>.png` and rebuild `assets/tours/*.webp` via `img2webp`.
+  4. Graphics rule: Use real generated raster graphics (`.webp` / `.png`) and Playwright captures only — never hand-drawn `.svg` diagrams.
 -->
 <div align="center">
-  <img src="assets/diagrams/axis_hero_banner.webp" alt="Vox Axis — Desktop Operator Console for Multi-Agent Orchestration, Trust-Tiered RAG, and Native Rust ML" width="100%" />
+  <img src="assets/diagrams/axis_hero_banner.webp" alt="Vox Axis — Imperium Multi-Agent Console, VRBS ROMA Codebase Simulator, and MENS ML Studio" width="100%" />
 
   <p>
-    <strong>The desktop operator console for the Vox language, multi-agent harness, and MENS ML studio</strong><br />
-    <em>32 typed operational surfaces · Local Tauri 2 IPC &amp; Remote TOFU TLS daemon modes · Cryptographic tool receipts · Universal <code>⌘K</code> capability palette</em>
+    <strong>The desktop operator console and codebase simulator for the Vox language, multi-agent harness, and MENS ML studio</strong><br />
+    <em>32 catalog-generated surfaces · <code>VRBS ROMA</code> isometric codebase simulator · Local Tauri 2 IPC &amp; Remote TOFU TLS · 4 enforced theme profiles · Universal <code>⌘K</code> palette</em>
   </p>
 
   <p>
@@ -35,17 +37,17 @@
 </div>
 
 > [!WARNING]
-> **Last reviewed: 2026-11-10.** **Vox Axis** (`vox-gui`, invoked via `vox gui` or `vox axis`) is an active pre-1.0 research prototype (`0.6.0` workspace), not production software. Its 32 surfaces are generated from the canonical operations catalog (`contracts/operations/catalog.v1.yaml` → `SURFACE_REGISTRY`) and verified via Playwright multi-resolution visual audits (`1280×800`, `1440×900`, `1920×1080`, `axeViolations: 0`). Local Tauri IPC, Remote TOFU TLS certificate pinning, the `⌘K` universal capability palette, the 4-profile theme engine (`carrara`, `slate`, `void`, `high-contrast`), and the 6-tab MENS Crucible Studio work on primary paths; edge cases and live multi-node mesh telemetry remain under active iteration. Limits are documented in the [Status](#status) tables below.
+> **Last reviewed: 2026-11-10 (`v6.8` / `0.6.0` workspace).** **Vox Axis** (`vox-gui`, invoked via `vox gui` or `vox axis`) is an active pre-1.0 research prototype, not production software. All 32 views are generated from [`contracts/operations/catalog.v1.yaml`](https://github.com/vox-foundation/vox/blob/main/contracts/operations/catalog.v1.yaml) (`SURFACE_REGISTRY`) and verified at `1280×800`, `1440×900`, and `1920×1080` (`axeViolations: 0`) under the **4-Profile Theme Contract** (`arcane` Sunlit Imperial Carrara White & Gold default, `slate` Minimalist Grey-Blue Dark, `glacier` Travertine Daylight, and `high-contrast` WCAG AAA Obsidian & Gold). See [Status](#status) for per-lane maturity.
 
 ---
 
-## Animated Visual Tour (`axis_hero_tour.webp`)
+## Animated Flagship Tour (`axis_hero_tour.webp`)
 
 <div align="center">
-  <img src="assets/tours/axis_hero_tour.webp" alt="Animated tour of Vox Axis cycling through Dashboard, Chat, Universal Command Palette, Tasks, MENS Crucible Studio, Capability Explorer, SCIENTIA Findings, and Settings" width="96%" />
+  <img src="assets/tours/axis_hero_tour.webp" alt="Animated WebP tour of Vox Axis v6.6: VRBS ROMA Codebase Simulator, Imperium Blast-Radius Inspector, Mission Control Dashboard, Multi-Dock Chat + Aqueduct Cascade, MENS Corpus Studio, Needs You DAG, and Dual Theme Contract" width="96%" />
   <p>
-    <strong>Vox Axis Flagship Tour (Animated WebP)</strong><br />
-    <em>Real Playwright captures cycling through the Operator Dashboard, Multi-Dock Chat with Trust Chips, Universal <code>⌘K</code> Palette, Task Hopper Queue, MENS Crucible QLoRA Studio, Capability Explorer, SCIENTIA Findings Ledger, and Clavis Settings.</em>
+    <strong>Vox Axis <code>v6.6–v6.8</code> Flagship Tour (Animated WebP · Real Playwright Captures)</strong><br />
+    <em>Cycling through the <code>VRBS ROMA</code> Codebase Civilization Simulator, <code>Imperium Prefecture</code> Blast-Radius DAG Inspector, Mission Control Dashboard, Multi-Dock Chat Workbench, <code>AQVAEDUCTUS</code> 3-Tier Hydraulic Verification Cascade, MENS Corpus &amp; Pipeline Studio, <code>Needs You</code> Live Execution DAG, and the Enforced Theme Contract (<code>Imperial Carrara White &amp; Gold</code> vs. <code>Minimalist Grey-Blue Slate</code>).</em>
   </p>
 </div>
 
@@ -53,243 +55,253 @@
 
 ## Contents
 
-1. [Why Axis Exists](#why-axis-exists)
-2. [Architecture & Visual Diagrams](#architecture--visual-diagrams)
-3. [Complete Visual Tour: Every GUI Screen Explained (All 32 Surfaces)](#complete-visual-tour-every-gui-screen-explained-all-32-surfaces)
-   - [Shell & Navigation Modes (`⌘K` Palette, Sidebar Rail & Wide)](#shell--navigation-modes-k-palette-sidebar-rail--wide)
-   - [Lane 1: Operate (11 Screens — Multi-Agent Orchestration & Governance)](#lane-1-operate-11-screens--multi-agent-orchestration--governance)
-   - [Lane 2: Develop (8 Screens — Code, Terminals, Capabilities & Diagnostics)](#lane-2-develop-8-screens--code-terminals-capabilities--diagnostics)
-   - [Lane 3: Knowledge & 5-Stage Socrates HITL Gate (6 Screens + 5 HITL Stages)](#lane-3-knowledge--5-stage-socrates-hitl-gate-6-screens--5-hitl-stages)
-   - [Lane 4: Compute / MENS Native ML Studio (4 Screens)](#lane-4-compute--mens-native-ml-studio-4-screens)
-   - [Lane 5: System (3 Screens — Clavis Vault, Doctor Explorer & Ludus)](#lane-5-system-3-screens--clavis-vault-doctor-explorer--ludus)
-4. [Tradeoffs: What Axis Optimizes For (and What It Costs)](#tradeoffs-what-axis-optimizes-for-and-what-it-costs)
-5. [Status](#status)
-6. [Trying It (Local & Remote Modes)](#trying-it-local--remote-modes)
-7. [Cross-Repo Federation & Agent Awareness](#cross-repo-federation--agent-awareness)
+1. [Why Axis Exists (Engineering Problem & Solution)](#why-axis-exists-engineering-problem--solution)
+2. [Architecture & Generated Visual Schematics](#architecture--generated-visual-schematics)
+3. [Highlight Surfaces: `VRBS ROMA` Simulator, `AQVAEDUCTUS` Cascade & 4-Profile Theme Contract](#highlight-surfaces-vrbs-roma-simulator-aqvaeductus-cascade--4-profile-theme-contract)
+4. [Complete Visual Reference: All 32 `SURFACE_REGISTRY` Screens Explained](#complete-visual-reference-all-32-surface_registry-screens-explained)
+   - [Shell Chrome & Navigation (`⌘K` Palette, Wide Sidebar & Compact Rail)](#shell-chrome--navigation-k-palette-wide-sidebar--compact-rail)
+   - [Domain I: Operate (11 Views — Orchestration, Multi-Dock Chat & Governance)](#domain-i-operate-11-views--orchestration-multi-dock-chat--governance)
+   - [Domain II: Develop (8 Views — `AQVAEDUCTUS` Harness, PTY Console & Code)](#domain-ii-develop-8-views--aqvaeductus-harness-pty-console--code)
+   - [Domain III: Knowledge & Socrates Gate (6 Views — Hybrid RAG & SCIENTIA)](#domain-iii-knowledge--socrates-gate-6-views--hybrid-rag--scientia)
+   - [Domain IV: Compute / MENS (4 Views — Rust QLoRA Studio & Model Routing)](#domain-iv-compute--mens-4-views--rust-qlora-studio--model-routing)
+   - [Domain V: System & `VRBS ROMA` (3 Views — Clavis, Doctor & Simulator)](#domain-v-system--vrbs-roma-3-views--clavis-doctor--simulator)
+5. [Tradeoffs](#tradeoffs)
+6. [Status](#status)
+7. [Trying It & Maintaining This README](#trying-it--maintaining-this-readme)
+8. [Intellectual Lineage, Prior Art & References](#intellectual-lineage-prior-art--references)
 
 ---
 
-## Why Axis Exists
+## Why Axis Exists (Engineering Problem & Solution)
 
-When you coordinate multiple AI coding agents, a local RAG knowledge base, and a QLoRA fine-tuning loop over a terminal stream, four operational hazards stay invisible:
+Coordinating multiple AI coding agents, a local RAG knowledge base, and a QLoRA fine-tuning pipeline inside a scrolling terminal stream hides four failure modes:
 
-1. **Silent prompt pollution from untrusted retrieval.** A terminal chat log does not show whether a retrieved chunk came from a compiler-verified SSOT doc (`SystemVerified`) or an unverified web scrape (`Untrusted`).
-2. **Unverified tool execution and lock collisions.** When three subagents edit a repository concurrently, stdout scrolling hides which agent holds a resource lock in `hopper_inbox` and whether a tool call produced a valid cryptographic HMAC receipt.
-3. **Orphaned CLI and MCP capabilities.** As Vox grew to **1,056 CLI operations** and **376 MCP tools**, capabilities added in Rust were invisible unless you memorized subcommands.
-4. **Split local vs. remote workflows.** You edit code on a laptop, but run `vox-orchestrator-d` and `vox mens train` on a headless GPU box. Running a separate web app introduces a second auth/schema surface to maintain.
+1. **Silent prompt poisoning.** Terminal logs do not distinguish compiler-verified documentation (`SystemVerified`) from unverified web scrapes (`Untrusted`)[^1].
+2. **File-lock collisions and unverified tool claims.** Concurrent subagents overwrite working-tree files unless file-affinity locks (`hopper_inbox.resource_id`) and cryptographic tool-dispatch receipts (`HMAC-SHA256` / `BLAKE3`) are visible in real time[^2][^3].
+3. **Undiscoverable CLI/MCP surface area.** Vox exposes **1,056 CLI operations** and **376 MCP tools** (`contracts/operations/catalog.v1.yaml`). Without a schema-generated UI map, capabilities stay hidden behind subcommand flags.
+4. **Spatial blindness in large workspaces.** A 130+ crate workspace has topological layers (`L0`–`L5`), fan-in keystones, and active git churn that a flat file tree cannot convey[^4].
 
-**Vox Axis** solves these four problems in a single Tauri 2 + React 19 operator console:
+**How Axis solves them:**
 
-- **One capability registry generates the UI map.** `SURFACE_REGISTRY` is generated directly from `contracts/operations/catalog.v1.yaml` via `vox ci gui-surface-registry --write`. Every CLI command group and MCP tool namespace maps to one of **32 surfaces** or the **Universal `⌘K` Capability Palette** — enforced by CI (`gui-surface-coverage`).
-- **Retrieval trust tiers and HMAC tool receipts are first-class widgets.** Every chat turn and research trace displays color-coded trust chips (`SystemVerified` → `Trusted` → `Advisory` → `Untrusted`) and verifiable HMAC-SHA256 tool-call receipts.
-- **One transport layer supports both Local Tauri IPC and Remote TOFU TLS.** Flipping a single switch in Axis transitions every panel from in-process Tauri IPC (`window.__TAURI_INTERNALS__.invoke`) to a remote `vox-orchestrator-d` daemon over a **Trust-On-First-Use (TOFU) SPKI SHA-256 TLS-pinned** connection.
+- **Catalog-driven UI generation (`SURFACE_REGISTRY`).** `vox ci gui-surface-registry --write` compiles `contracts/operations/catalog.v1.yaml` into [`surfaceRegistry.generated.ts`](https://github.com/vox-foundation/vox/blob/main/crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts). Every CLI and MCP operation is bound to one of **32 views** or the **`⌘K` Universal Capability Palette** (enforced by `vox ci gui-surface-coverage`).
+- **Diegetic spatial telemetry (`VRBS ROMA` & `AQVAEDUCTUS`).** Inspired by Wettel & Lanza's *CodeCity*[^4] and classical Vitruvian cartography[^5], Axis maps crate layers (`L0`–`L5`), live git diffs (`+LoC / -LoC`), and active agent patrols onto an interactive isometric metropolis (`LudusSandbox.tsx`) and a 3-tier hydraulic verification cascade (`HarnessRiverPanel.tsx`).
+- **Dual-Mode Transport (`transport.ts`).** The same React 19 bundle runs **100% offline in Local Mode** over in-process Tauri 2 IPC (`window.__TAURI_INTERNALS__.invoke` → local `VoxDb` v97 & `Clavis` keyring) or connects in **Remote Mode** over **TOFU SPKI SHA-256 TLS pinning**[^6] to a headless `vox-orchestrator-d` and GPU mesh node.
 
 ---
 
-## Architecture & Visual Diagrams
+## Architecture & Generated Visual Schematics
 
-### 1. Dual-Mode Transport: Local Tauri 2 IPC vs. Remote TOFU TLS-Pinned Daemon
+### 1. Dual-Mode Transport: Local Tauri 2 IPC vs. Remote TOFU TLS Daemon
 
 <div align="center">
-  <img src="assets/diagrams/axis_dual_mode_architecture.webp" alt="Vox Axis Dual-Mode Transport Architecture: Local Tauri IPC and Remote TOFU TLS Daemon" width="92%" />
+  <img src="assets/diagrams/axis_dual_mode_architecture.webp" alt="Dual-Mode Transport Architecture: Local Tauri 2 IPC vs Remote TOFU SPKI-Pinned TLS Gateway" width="92%" />
   <p>
-    <strong>One Console, Two Transport Paths</strong><br />
-    <em>All 32 React 19 surfaces call a single typed transport facade (<code>transport.ts</code>). In Local Mode, calls route via Tauri 2 IPC to local <code>VoxDb</code> (schema v97) and <code>Clavis</code> with zero network dependency. In Remote Mode, calls route over a TOFU SPKI-pinned TLS WebSocket/HTTPS channel to a remote <code>vox-orchestrator-d</code> and GPU mesh host.</em>
+    <strong>Single Frontend Bundle, Two Transport Paths (<code>transport.ts</code>)</strong><br />
+    <em>Local Mode calls Rust commands in-process via Tauri 2 IPC against local <code>VoxDb</code> (schema v97) and <code>Clavis</code> with zero network dependency. Remote Mode connects over a Trust-On-First-Use (TOFU) SPKI SHA-256 pinned TLS session to <code>vox-orchestrator-d</code> (`vox serve --tls-cert/--tls-key`).</em>
   </p>
 </div>
 
-### 2. The 32-Surface Operational Taxonomy & `⌘K` Universal Palette
+### 2. The 5 Workbench Domains & `⌘K` Universal Capability Palette
 
 <div align="center">
-  <img src="assets/diagrams/axis_five_lanes_diagram.webp" alt="The 32 Surfaces of Vox Axis Organized Across 5 Operational Lanes around the Command+K Palette" width="92%" />
+  <img src="assets/diagrams/axis_five_lanes_diagram.webp" alt="Vox Axis 32 Surfaces Organized Across 5 Workbench Domains Around the Command+K Palette" width="92%" />
   <p>
-    <strong>5 Operational Lanes, 32 Surfaces, 1,056 Cataloged Operations</strong><br />
-    <em>Axis organizes every Vox capability into five cognitive lanes — <strong>Operate</strong> (11), <strong>Develop</strong> (8), <strong>Knowledge</strong> (6), <strong>Compute / MENS</strong> (4), and <strong>System</strong> (3) — unified by the <code>⌘K</code> Universal Capability Palette.</em>
+    <strong>5 Workbench Domains · 32 Registered Surfaces · 1,056 Cataloged Operations</strong><br />
+    <em>Defined in <a href="https://github.com/vox-foundation/vox/blob/main/crates/vox-gui/ui/src/lib/navigation.ts"><code>navigation.ts</code></a> and <a href="https://github.com/vox-foundation/vox/blob/main/crates/vox-gui/ui/src/lib/surfaceRegistry.ts"><code>surfaceRegistry.ts</code></a>: <strong>Operate</strong> (11), <strong>Develop</strong> (8), <strong>Knowledge</strong> (6), <strong>Compute / MENS</strong> (4), and <strong>System &amp; VRBS ROMA</strong> (3).</em>
   </p>
 </div>
 
-### 3. End-to-End Trust Boundary: Retrieval Trust Tiers, 5-Stage Socrates Gate & HMAC Receipts
+### 3. End-to-End Trust Pipeline: Retrieval Tiers, Socrates Gate & `AQVAEDUCTUS` Sluices
 
 <div align="center">
-  <img src="assets/diagrams/axis_trust_tiers_diagram.webp" alt="Four Retrieval Trust Tiers, 5-Stage Socrates HITL Gate, and HMAC-SHA256 Tool Receipts in Vox Axis" width="92%" />
+  <img src="assets/diagrams/axis_trust_tiers_diagram.webp" alt="Retrieval Trust Tiers, 5-Stage Socrates HITL Gate, and Cryptographic Execution Receipts" width="92%" />
   <p>
-    <strong>Inspectable Trust from Ingest to Execution</strong><br />
-    <em>Raw external scrapes are quarantined as <code>Untrusted</code> in <code>kb_findings</code> and must clear the 5-stage Socrates HITL verification stepper before entering trusted context. Every MCP tool dispatch returns a cryptographic HMAC-SHA256 receipt chip.</em>
+    <strong>Four Retrieval Trust Tiers &amp; Five Verification Gates</strong><br />
+    <em>External scrapes land in <code>kb_findings</code> as <code>Untrusted</code> and must pass the 5-stage Socrates HITL gate before promotion. Tool dispatches emit verifiable <code>BLAKE3</code> / <code>HMAC-SHA256</code> receipts (<a href="https://voxlang.org/adr/029-formal-intent/">ADR-029</a>).</em>
   </p>
 </div>
 
 ---
 
-## Complete Visual Tour: Every GUI Screen Explained (All 32 Surfaces)
+## Highlight Surfaces: `VRBS ROMA` Simulator, `AQVAEDUCTUS` Cascade & 4-Profile Theme Contract
 
-Every screenshot below is a **real automated Playwright capture** (`1440×900` Chromium against `SURFACE_REGISTRY` in [`screenshots.spec.ts`](file:///Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screenshots.spec.ts) and [`cv-flywheel.spec.ts`](file:///Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/review/cv-flywheel.spec.ts)).
+### 1. `VRBS ROMA` — Polyglot Codebase Civilization & Blast-Radius Simulator (`gamify`)
 
----
-
-### Shell & Navigation Modes (`⌘K` Palette, Sidebar Rail & Wide)
-
-Before diving into the 32 domain views, Axis provides three shell-level navigation mechanisms that stay accessible from every screen:
-
-| Shell Mode | Screenshot | Why It Exists & What It Can Do |
+| Simulator State | Real Playwright Capture (`1440×900`) | Engineering Mechanism & Controls |
 |:---|:---|:---|
-| **Universal `⌘K` Command Palette**<br/>(`_command-palette`) | <img src="assets/screens/_command-palette.png" alt="Universal Command+K Capability Palette" width="420" /> | **Why it exists:** With 32 GUI screens, 376 MCP tools, and 1,056 CLI operations, hunting through nested menus slows operators down.<br/>**What it does:** Pressing `⌘K` (or `Ctrl+K`) opens an instant hybrid lexical + RRF semantic search overlay over `capability-index.v1.json`, allowing you to jump to any view, execute a CLI/MCP operation, or submit a task directly from the keyboard. |
-| **Sidebar — Wide Mode (`_sidebar-wide`) & Compact Rail Mode (`_sidebar-rail`)** | <img src="assets/screens/_sidebar-wide.png" alt="Sidebar Wide Navigation Mode" width="420" /><br/><img src="assets/screens/_sidebar-rail.png" alt="Sidebar Compact Rail Mode" width="420" /> | **Why it exists:** Operators need labeled group hierarchy when learning the 5 lanes, and maximum horizontal canvas when tiling code, chat, and traces.<br/>**What it does:** Toggles seamlessly between full grouped labels (`Operate`, `Develop`, `Knowledge`, `Compute`, `System`) and a zero-occlusion icon rail while keeping the live bottom status bar (`Local`/`Remote` connection badge, active model, daemon lock health, and theme selector) pinned. |
+| **Isometric Metropolis & `Forma Urbis` 7-Tier Astrolabe Radar**<br/>(`urbs-civilization.png`) | <img src="assets/screens/urbs-civilization.png" alt="VRBS ROMA Workspace Civilization and Engineering Simulator" width="440" /> | `workspace_town.rs` scans any repository (Cargo `crates/*`, TS `packages/*`, Python, Go) and computes Kahn topological layers (`L0`–`L5`) + Tarjan SCCs (`topology.ts`)[^4]. Attention-weighted layout (`layout.ts`) inflates dirty/failing districts (`1.0×–3.2×`). Autonomous A* magistrate agents (`LEGIO-01..03`) patrol active crate roads while the bottom-right **`FORMA VRBIS` 7-Tier Astrolabe Radar** provides click-to-pan frustum navigation. |
+| **`Imperium Prefecture` Dock & Blast-Radius DAG Inspector**<br/>(`urbs-imperium-inspector.png`) | <img src="assets/screens/urbs-imperium-inspector.png" alt="Imperium Prefecture Dock and Dependency Blast-Radius DAG Inspector" width="440" /> | Clicking any monument (`COMPILER & TYPECHECK`, `AGENT ORCHESTRATOR`, `GUI & SURFACES`, `SECURITY & SECRETS`) opens `ImperiumInspector.tsx` (`bottom-[82px]` bounded so it never occludes toolbars), rendering upstream providers, downstream blast radius, per-file `+LoC / -LoC` diff slabs, and 1-click `[+ SPAWN]`, `[CHECK]`, `[✓ TEST]`, `[TEST IMPACTED]`, and `[FIX ERROR]` dispatch buttons. |
 
----
+### 2. Multi-Dock Responsive Chat Workbench & `AQVAEDUCTUS` 3-Tier Hydraulic Cascade
 
-### Lane 1: Operate (11 Screens — Multi-Agent Orchestration & Governance)
-
-<div align="center">
-  <img src="assets/tours/axis_operate_lane_tour.webp" alt="Animated tour of the 11 Operate Lane screens in Vox Axis" width="94%" />
-  <p><em>Animated Tour — Lane 1: Operate (`Dashboard` → `Chat` → `Tasks` → `Sub-Agents` → `Flow` → `Mesh` → `Runs` → `Needs You` → `Approvals` → `Policies` → `Mercatus`)</em></p>
-</div>
-
-| # | Screen (`viewKey`) | Real Screenshot | Why It Exists | What It Can Do & Backing Surface |
-|:---|:---|:---|:---|:---|
-| **1** | **Dashboard**<br/>(`dashboard`) | <img src="assets/screens/dashboard.png" alt="Axis Dashboard Screen" width="380" /> | Operators need a single at-a-glance cockpit showing whether the orchestrator daemon, active agents, task hopper, and model router are healthy before dispatching work. | Displays live agent count, hopper queue depth, recent turn traces, active model routing pins, and one-click quick actions into Chat, Tasks, and MENS Studio. (`vox status`, `vox-orchestrator-d`) |
-| **2** | **Chat Workbench**<br/>(`chat`) | <img src="assets/screens/chat.png" alt="Axis Chat Multi-Dock Screen" width="380" /> | Standard chat UIs hide retrieval provenance, model-routing choices, and tool-execution proofs. | Multi-dock 2D tiling chat workbench with session rail, per-turn retrieval **Trust Chips** (`SystemVerified`..`Untrusted`), **HMAC-SHA256 tool receipt chips**, `/skill-name` invocation, and live Orchestrator→Spoke routing badges. (`vox chat`, `vox_actor_runtime::llm`) |
-| **3** | **Tasks (Hopper Queue)**<br/>(`tasks`) | <img src="assets/screens/tasks.png" alt="Axis Tasks Hopper Screen" width="380" /> | Multi-agent runs deadlock or overwrite files without explicit task dependency ordering and resource lock visibility. | Inspects, submits, prioritizes (`Urgent`, `Normal`, `Background`), and cancels tasks in the `hopper_inbox` queue, showing `resource_id` lock owners per ADR-025. (`vox plan`, `vox_orchestrator::hopper`) |
-| **4** | **Sub-Agents**<br/>(`sub-agents`) | <img src="assets/screens/sub-agents.png" alt="Axis Sub-Agents Screen" width="380" /> | Parallel subagent waves require live visibility into each child agent's role, workspace mode (`inherit`/`branch`/`share`), and current step. | Visualizes the active parent→child subagent tree, live state (`running`, `idle`, `blocked`), conversation transcripts, and emergency kill controls. (`vox-orchestrator`, `mcp_agent_*`) |
-| **5** | **Flow (Durable Workflows)**<br/>(`flow`) | <img src="assets/screens/flow.png" alt="Axis Durable Workflow Flow Screen" width="380" /> | Long-running `.vox` `workflow` and `activity` declarations persist journal state in `VoxDb` (`workflow_patch_log`) and need visual replay inspection. | Renders the directed execution graph of durable workflows, showing completed steps, replay checkpoints, retries, and failure spans per ADR-019/041. (`vox workflow`, `vox-workflow-runtime`) |
-| **6** | **Mesh Topology**<br/>(`mesh`) | <img src="assets/screens/mesh.png" alt="Axis Mesh Topology Screen" width="380" /> | When orchestrating across local and remote nodes over Iroh QUIC transport (ADR-047), operators need to see peer reachability and latency. | Displays connected mesh peers, ALPN protocol negotiation status, relay vs. direct QUIC paths, and federated task-routing health. (`vox populi`, `vox-plugin-populi-mesh`) |
-| **7** | **Runs History**<br/>(`runs`) | <img src="assets/screens/runs.png" alt="Axis Runs Execution History Screen" width="380" /> | Past agent episodes, script executions, and workflow runs must be auditable after completion or failure. | Lists historical execution runs with duration, exit status, token consumption, linked commit SHA, and drill-down logs. (`vox-db` execution ledger) |
-| **8** | **Needs You (Attention Gate)**<br/>(`needs-you`) | <img src="assets/screens/needs-you.png" alt="Axis Needs You Attention Inbox Screen" width="380" /> | Agents interrupting the human on every trivial step cause alert fatigue; silent execution on high-risk steps (`deploy`, `publish`, `delete`) is dangerous. | Implements the information-theoretic **Attention Policy** (`attention_policy.rs`), surfacing only high-expected-gain / high-risk decisions that require human intervention. (`vox attention`) |
-| **9** | **Approvals & Secrets Gate**<br/>(`approvals`) | <img src="assets/screens/approvals.png" alt="Axis Approvals Screen" width="380" /> | High-privilege tool invocations, secret resolutions, and destructive shell commands require explicit operator sign-off with an audit trail. | Presents pending capability/tool approval requests with exact diff/command previews and records cryptographic approval receipts. (`vox secrets`, `vox-orchestrator-mcp`) |
-| **10** | **Policies**<br/>(`policies`) | <img src="assets/screens/policies.png" alt="Axis Policies Screen" width="380" /> | Terminal execution allowlists (`exec-policy.v1.yaml`), Socrates confidence thresholds, and scaling budgets must be inspectable without digging through YAML files. | Displays and validates active execution policies, capability classifications, and guardrail rules enforced across CLI, MCP, and GUI. (`vox policy`, `vox shell check`) |
-| **11** | **Mercatus (Token & Cost Market)**<br/>(`mercatus`) | <img src="assets/screens/mercatus.png" alt="Axis Mercatus Cost and Token Budget Screen" width="380" /> | Multi-model routing across OpenRouter frontier models and local MENS adapters requires real-time cost-per-token and budget tracking. | Tracks spend by provider, model family, and task category, comparing cloud inference cost against local MENS QLoRA execution savings. (`vox-orchestrator-models`) |
-
----
-
-### Lane 2: Develop (8 Screens — Code, Terminals, Capabilities & Diagnostics)
-
-<div align="center">
-  <img src="assets/tours/axis_develop_lane_tour.webp" alt="Animated tour of the 8 Develop Lane screens in Vox Axis" width="94%" />
-  <p><em>Animated Tour — Lane 2: Develop (`Console` → `Catalog` → `Capability Explorer` → `Skills` → `Harness` → `Harness Health` → `Repository` → `Browser` → `CodeRabbit`)</em></p>
-</div>
-
-| # | Screen (`viewKey`) | Real Screenshot | Why It Exists | What It Can Do & Backing Surface |
-|:---|:---|:---|:---|:---|
-| **12** | **Console (Daemon PTY Workbench)**<br/>(`console`) | <img src="assets/screens/console.png" alt="Axis Daemon Console Workbench Screen" width="380" /> | Terminal sessions started by an agent or operator should survive GUI restarts and work identically over remote TOFU connections. | Connects to daemon-hosted `term.*` PTY sessions (`vox-terminal-core`), supporting multi-tab persistent shells, command policy checks, and live output streaming. (`vox term`) |
-| **13** | **Capability Catalog & Explorer**<br/>(`catalog`) | <img src="assets/screens/capability-explorer-default.png" alt="Axis Capability Catalog Explorer Screen" width="380" /><br/><img src="assets/screens/capability-explorer-explain-drawer.png" alt="Axis Capability Explain Drawer" width="380" /> | Ensures zero hidden capabilities: every CLI subcommand, MCP tool, and GUI view in `contracts/operations/catalog.v1.yaml` is browsable and executable in one place. | Filters all **1,056 cataloged operations** by domain, surface parity badge (`CLI`, `MCP`, `GUI`), exemption status, and opens an interactive **Explain Drawer** (`vox explain`) with typed parameter forms. (`vox commands`, `vox features`) |
-| **14** | **Skills (`SKILL.md` Registry)**<br/>(`skills`) | <img src="assets/screens/skills.png" alt="Axis Skills Registry Screen" width="380" /> | Vox shares [agentskills.io](https://agentskills.io/specification) `SKILL.md` packages across 40+ harnesses (Claude Code, Cursor, Antigravity, Gemini CLI). Operators need to see which skills are discovered and active. | Searches (`vox-search` hybrid lexical+RRF), inspects frontmatter/permissions, and previews instructions for all workspace, user, and built-in Superpowers skills. (`vox skill list`, `vox skill search`) |
-| **15** | **Harness Evaluation**<br/>(`harness`) | <img src="assets/screens/harness.png" alt="Axis Harness Evaluation Screen" width="380" /> | Agent harness changes can silently degrade multi-turn tool selection or compiler-feedback recovery if not benchmarked against golden episodes. | Runs and inspects `vox harness eval` offline golden sets and multi-turn agent trajectories with pass/fail breakdowns. (`vox harness eval`) |
-| **16** | **Harness Health (`vox audit`)**<br/>(`harness-health`) | <img src="assets/screens/harness-health.png" alt="Axis Harness Health and Audit Screen" width="380" /> | Architectural layer violations (`vox-arch-check`), stub/magic-value drift (`toestub`), and crypto/LLM-boundary violations need a unified visual gate. | Surfaces live findings from `vox audit code`, `vox audit arch`, `vox audit retirement`, and `vox audit effort` with file/line deep links. (`vox audit`, `vox-code-audit`) |
-| **17** | **Repository & 4-Repo Federation**<br/>(`repository`) | <img src="assets/screens/repository.png" alt="Axis Multi-Repo Federation Screen" width="380" /> | After defactoring into `vox`, `vox-axis`, `voxlang.org`, and `vox-ops`, operators and LLMs need live visibility into cross-repo contract parity and symbol edges. | Displays the 4 registered repositories from `.vox/repositories.yaml`, BLAKE3 contract digest parity (`55/55` files), federated symbol graph nodes (`404` nodes), and Cargo `[patch]` link status. (`vox repo`, `vox ci cross-repo-parity`) |
-| **18** | **Browser Preview & DOM Inspector**<br/>(`browser`) | <img src="assets/screens/browser.png" alt="Axis Browser Preview Screen" width="380" /> | Full-stack `.vox` apps (`vox build` / `vox dev`) emit React/TSX frontends that agents and humans need to preview and visually audit inside the workbench. | Embeds a live preview frame with viewport responsiveness presets, console error capture, and DOM/accessibility inspection hooks. (`vox dev`) |
-| **19** | **CodeRabbit AI Review**<br/>(`coderabbit`) | <img src="assets/screens/coderabbit.png" alt="Axis CodeRabbit Review Screen" width="380" /> | Pre-merge diffs benefit from structured multi-axis AI code review (correctness, security, architecture, over-engineering) before hitting CI. | Runs `vox review` against working-tree or branch diffs, grouping findings by severity (`Critical`, `Warning`, `Info`) with one-click file navigation. (`vox review`, `vox-code-audit::review`) |
-
----
-
-### Lane 3: Knowledge & 5-Stage Socrates HITL Gate (6 Screens + 5 HITL Stages)
-
-<div align="center">
-  <img src="assets/tours/axis_knowledge_hitl_tour.webp" alt="Animated tour of the Knowledge Lane and 5-Stage Socrates HITL Pipeline in Vox Axis" width="94%" />
-  <p><em>Animated Tour — Lane 3: Knowledge &amp; Socrates HITL (`Search Index` → `Memory` → `Discovery` → `Research` → `SCIENTIA Findings` → `Publications` → `Stages 1–5 HITL Inspector`)</em></p>
-</div>
-
-| # | Screen (`viewKey`) | Real Screenshot | Why It Exists | What It Can Do & Backing Surface |
-|:---|:---|:---|:---|:---|
-| **20** | **Search Index (`vox-search`)**<br/>(`vox-search`) | <img src="assets/screens/vox-search.png" alt="Axis Hybrid Search Index Screen" width="380" /> | Operators need to query the curated KB Library (`vox kb`) and inspect Tantivy lexical + semantic RRF fusion scores and `trust_tier` tags directly. | Executes hybrid queries across `search_documents` (`VoxDb` v97), filtering by `SystemVerified`, `Trusted`, `Advisory`, or `Untrusted` tiers and KB taxonomy facets. (`vox kb`, `vox-search`) |
-| **21** | **Episodic Memory**<br/>(`memory`) | <img src="assets/screens/memory.png" alt="Axis Agent Memory Screen" width="380" /> | Long-horizon coding and research sessions accumulate facts, architectural decisions, and session summaries that persist across context resets. | Browses, searches, and prunes persistent agent memory entries and temporal knowledge-graph triples stored in `VoxDb`. (`vox memory`) |
-| **22** | **Discovery (`vox scientia scout`)**<br/>(`activity`) | <img src="assets/screens/activity.png" alt="Axis Discovery Scout Feed Screen" width="380" /> | Research signals from repositories, benchmarks, and literature feeds arrive continuously and need triage before full investigation. | Streams incoming Phase A/F signal producers (`vox-scientia-producers`) so operators can promote high-value signals into full research investigations. (`vox scientia scout`) |
-| **23** | **Deep Research & 5-Stage Socrates HITL Stepper**<br/>(`research`) | <img src="assets/screens/research.png" alt="Axis Deep Research Screen" width="380" /><br/><img src="assets/screens/stage-1-planning.png" alt="Stage 1 Planning" width="186" /> <img src="assets/screens/stage-2-retrieving.png" alt="Stage 2 Retrieving" width="186" /><br/><img src="assets/screens/stage-3-verifying-claims.png" alt="Stage 3 Verifying Claims" width="186" /> <img src="assets/screens/stage-4-judge-inspector.png" alt="Stage 4 Judge Inspector" width="186" /><br/><img src="assets/screens/stage-5-sentry-audit.png" alt="Stage 5 Sentry Audit" width="380" /> | Black-box "deep research" tools hallucinate citations or blend untrusted web scrapes into prose. Axis makes every stage of the research pipeline pauseable, inspectable, and human-steerable. | Walks through all **5 Socrates HITL stages**:<br/>1. **Stage 1 — Planning:** Query decomposition & source budget<br/>2. **Stage 2 — Retrieving:** Federated fetch across OpenAlex, arXiv, Wikipedia, SearXNG, Tavily & local KB<br/>3. **Stage 3 — Verifying Claims:** Per-sentence claim-span grounding<br/>4. **Stage 4 — Judge Inspector:** Contradiction & confidence scoring<br/>5. **Stage 5 — Sentry Audit:** Quarantine vs. promotion into trusted KB (`vox research`) |
-| **24** | **SCIENTIA Findings Ledger**<br/>(`scientia`) | <img src="assets/screens/scientia.png" alt="Axis SCIENTIA Findings Screen" width="380" /> | Verified empirical findings (`kb_findings`), replay receipts, and critic-gate scores need a structured ledger separate from raw notes. | Inspects verified research findings, statistical benchmark proofs (McNemar $p$-values), and nanopub attestation readiness. (`vox scientia`, `vox-scientia`) |
-| **25** | **Publications Studio**<br/>(`publications`) | <img src="assets/screens/publications.png" alt="Axis Publications Studio Screen" width="380" /> | Turning verified SCIENTIA findings and reproducible benchmarks into structured manuscripts or technical reports requires citation-locked scaffolding. | Scaffolds, previews, and exports citation-backed technical reports and manuscript sections via `vox-manuscript-scaffold` and `vox-findings-site`. (`vox scientia`) |
-
----
-
-### Lane 4: Compute / MENS Native ML Studio (4 Screens)
-
-<div align="center">
-  <img src="assets/tours/axis_compute_system_tour.webp" alt="Animated tour of the Compute (MENS) and System Lanes in Vox Axis" width="94%" />
-  <p><em>Animated Tour — Lanes 4 &amp; 5: Compute / MENS (`MENS Crucible Studio` → `Corpus Inspector` → `Models` → `Populi Nodes` → `Oratio Voice`) &amp; System (`Settings` → `Explorer` → `Gamify`)</em></p>
-</div>
-
-| # | Screen (`viewKey`) | Real Screenshot | Why It Exists | What It Can Do & Backing Surface |
-|:---|:---|:---|:---|:---|
-| **26** | **MENS Training & Crucible Studio**<br/>(`mens`) | <img src="assets/screens/mens-crucible-wide.png" alt="Axis MENS Crucible Studio Wide Screen" width="380" /><br/><img src="assets/screens/mens-corpus-inspector-wide.png" alt="Axis MENS Corpus Studio Inspector Screen" width="380" /> | Fine-tuning pure-Rust (Candle) QLoRA adapters across Qwen3 model sizes (`0.6B`, `1.7B`, `4B`, `8B`, `14B`, `32B`) and 8 domain spokes requires live loss/VRAM telemetry, synthetic topic-tree curation (`Kiln`), and statistical gate verification. | Provides the **6-tab MENS Crucible Studio**:<br/>• **Ladder & Hub Status:** Tracks trained vs. published adapters on Hugging Face<br/>• **Crucible Config:** Configures rank, alpha, learning rate, and backend (`Metal`, `CUDA`, `CPU`)<br/>• **Corpus Studio Inspector:** Inspects `SpokeTopicTreeV1` synthetic pairs and Oracle-Fail→DPO repairs<br/>• **Live Training Telemetry:** Loss curves, tokens/sec, and VRAM floor guardrails (`vox mens train`, `vox-populi`) |
-| **27** | **Models Router & Leaderboard**<br/>(`models`) | <img src="assets/screens/models.png" alt="Axis Models Router and Leaderboard Screen" width="380" /> | Vox routes every LLM call through `vox_actor_runtime::llm` using live OpenRouter `/api/v1/models` metadata alongside local Ollama and MENS revisions. | Inspects registered models, per-task-class scores (latency, cost, quality, locality), `~family-latest` role pins, `eval-compare` McNemar leaderboards, and interactive routing explainers. (`vox model`) |
-| **28** | **Populi Compute Nodes**<br/>(`populi`) | <img src="assets/screens/populi.png" alt="Axis Populi Compute Nodes Screen" width="380" /> | Selecting the largest Qwen3 QLoRA model that fits available VRAM across local Apple Silicon (`monitor_metal`) or remote CUDA nodes (`nvidia-smi`) requires live hardware telemetry. | Displays discovered local and mesh GPU nodes, `accelerator_free_mb` fit calculations, and active training/serving worker assignments. (`vox populi`) |
-| **29** | **Oratio (Voice / Speech-to-Code)**<br/>(`oratio`) | <img src="assets/screens/oratio.png" alt="Axis Oratio Voice Screen" width="380" /> | Dictating `.vox` declarations or agent instructions requires grammar-aware speech transcription tuned to Vox identifiers and keywords. | Provides audio capture controls, transcription confidence inspection, and speech-to-code dataset rubric labeling. (`vox speech` / `vox oratio`) |
-
----
-
-### Lane 5: System (3 Screens — Clavis Vault, Doctor Explorer & Ludus)
-
-| # | Screen (`viewKey`) | Real Screenshot | Why It Exists | What It Can Do & Backing Surface |
-|:---|:---|:---|:---|:---|
-| **30** | **Settings, Clavis Vault & Theme Engine**<br/>(`settings`) | <img src="assets/screens/settings.png" alt="Axis Settings and Clavis Vault Screen" width="380" /> | API keys (`OPENROUTER_API_KEY`, `HF_TOKEN`, `COOLIFY_TOKEN`), Local/Remote TOFU connection pins, and UI themes must be managed through `Clavis` (`vox-secrets`) rather than scattered `.env` files. | Configures **Clavis** secret sources, switches between **Local Tauri IPC** and **Remote TOFU Daemon** modes, manages spend caps, and selects between the 4 enforced theme profiles (`Carrara Marble`, `Slate`, `Void`, `High Contrast`). (`vox config`, `vox secrets`) |
-| **31** | **Explorer (`vox doctor` & DB Diagnostics)**<br/>(`explorer`) | <img src="assets/screens/explorer.png" alt="Axis Doctor and System Explorer Screen" width="380" /> | When a build tool, sccache wrapper, `VoxDb` schema migration, or secret key is misconfigured, operators need structured diagnostic probes with one-click remediation hints. | Runs `vox doctor` health checks across toolchain, `VoxDb` (schema baseline v97), Clavis secrets parity, and workspace build-broker state. (`vox doctor`, `vox diag`) |
-| **32** | **Gamify (`Ludus` Verified Quests)**<br/>(`gamify`) | <img src="assets/screens/gamify.png" alt="Axis Ludus Gamify Screen" width="380" /> | Turns verified engineering contributions (passing doctests, closing TOESTUB findings, running 5-spoke MENS evaluations) into cryptographically signed quests and leaderboard snapshots. | Displays active engineering quests, BLAKE3 hash-chained contribution receipts, and `VerifiedLeaderboardSnapshotV1` standings. (`vox gamify`, `extras-ludus`) |
-
----
-
-## Tradeoffs: What Axis Optimizes For (and What It Costs)
-
-| Design Choice | What You Gain (The Upside) | What It Costs (The Tradeoff) |
+| Workbench Surface | Real Playwright Capture (`1440×900`) | Engineering Mechanism & Controls |
 |:---|:---|:---|
-| **Catalog-generated 32-surface registry (`SURFACE_REGISTRY`)** | Zero drift between CLI, MCP, and GUI: adding an operation to `contracts/operations/catalog.v1.yaml` automatically requires a GUI surface mapping or explicit exemption (`vox ci gui-surface-coverage`). | **High surface count.** 32 distinct panels is a wide console; new users rely heavily on the `⌘K` Universal Palette and compact sidebar rail until they learn the 5-lane layout. |
-| **Tauri 2 native desktop shell + React 19 UI** | Native OS windowing, tiny memory footprint compared to Electron, direct in-process Rust IPC (`window.__TAURI_INTERNALS__`) in Local Mode, and zero separate local web server required. | **Platform WebView dependencies.** Building `vox-gui` from source on Linux requires system WebKitGTK (`libwebkit2gtk-4.1-dev`) headers, which is why `vox-gui` is excluded from default Cargo builds (`default-members = ["crates/vox-cli"]`). |
-| **Strict 4-profile CSS token contract (`carrara`, `slate`, `void`, `high-contrast`)** | Every screen passes automated contrast (`axeViolations: 0`) and zero-dark-hex-drift gates across both light (Carrara marble/gold) and dark/minimalist (Slate/Void) themes. | **Strict styling rules.** Ad-hoc hardcoded hex colors in `.tsx` or `.css` files are rejected by `index.css.test.ts` and `cv-flywheel.spec.ts`. |
-| **TOFU SPKI SHA-256 TLS pinning for Remote Mode** | Connects securely to headless GPU / daemon boxes without requiring public CA certificates or exposing unauthenticated ports. | **First-connect fingerprint ceremony.** Rotating a remote daemon's TLS key requires explicitly clearing or re-approving the pinned SPKI digest in Settings. |
+| **Multi-Dock Chat + Simulator + Cascade**<br/>(`chat-multidock.png`) | <img src="assets/screens/chat-multidock.png" alt="Multi-Dock Chat Workbench with URBS Civilization and Execution Pipeline Cascade" width="440" /> | `ChatSurface.tsx` supports `FOCUS`, `SPLIT CODE`, `MULTI-AGENT`, and `TACTICAL MAP ⌘M` layouts (auto-consolidating to 2 columns below `1560px`), pairing multi-model consensus (`CONSENSUS 2–4`), git LCA branch diffing (`COMPARE BRANCHES`), and the single-row `Loquela` posture bar (`Alt+1..4`)[^7] with live companion docks. |
+| **`AQVAEDUCTUS · CASTELLVM DIVISORIVM`**<br/>(`harness.png`) | <img src="assets/screens/harness.png" alt="Aquaeductus 3-Tier Hydraulic Verification Cascade and Parallel Agent Execution Braid" width="440" /> | `HarnessRiverPanel.tsx` visualizes live model routing and verification as a 3-tier Roman hydraulic sluice cascade (`CURSUS I · Fast Local MENS`, `CURSUS II · Balanced Hybrid`, `CURSUS III · Deep Frontier`) flowing through 4 verification gates (`AST PARSE` → `TYPECHECK` → `TOESTUB` → `TEST SUITE`) above the `Parallel Agent Execution Braid`. |
+
+### 3. Enforceable 4-Profile Theme Contract (`contracts/gui/theme-contract.v1.json`)
+
+Every `.tsx`, `.ts`, and `.css` file under `crates/vox-gui/ui/src/` is statically gated by `vox-code-audit` detector `vox/ui/theme-contract-drift` (`Severity::Error`) and Style-Dictionary token generation (`22/22` semantic CSS variables, WCAG 2.1 contrast $\ge 4.5:1$):
+
+| Default: `Imperial Carrara White & Gold` (`arcane`) | Dark Mode: `Minimalist Grey-Blue Slate` (`slate`) |
+|:---:|:---:|
+| <img src="assets/screens/theme-arcane.png" alt="Imperial Carrara White and Gold Default Theme" width="430" /> | <img src="assets/screens/theme-slate.png" alt="Minimalist Grey-Blue Slate Dark Theme" width="430" /> |
+| *Sunlit honed Carrara marble (`#FAF6EE`), burnished gold mouldings (`#C59B27`), deep espresso ink (`#1C140C`), Romanesque serif (`Cinzel` / `Palatino`), and emerald laurel working signets (`#1B6B3A`).* | *Distraction-free basalt/slate dark palette (`#0c0e10` / `#15191c` / `#1f262b`), steel-blue & emerald active indicators, crisp geometry, and zero marble textures.* |
+
+*(Also ships with **`Travertine Daylight` (`glacier`)** [`assets/screens/theme-glacier.png`](assets/screens/theme-glacier.png) and **`High Contrast Obsidian & Gold` (`high-contrast`, WCAG AAA)** [`assets/screens/theme-high-contrast.png`](assets/screens/theme-high-contrast.png).)*
+
+---
+
+## Complete Visual Reference: All 32 `SURFACE_REGISTRY` Screens Explained
+
+### Shell Chrome & Navigation (`⌘K` Palette, Wide Sidebar & Compact Rail)
+
+| Shell Mode | Real Playwright Capture | Purpose & Key Shortcuts |
+|:---|:---|:---|
+| **Universal `⌘K` Capability Palette**<br/>(`_command-palette.png`) | <img src="assets/screens/_command-palette.png" alt="Command+K Universal Capability Palette" width="360" /> | Hybrid Tantivy BM25 + RRF semantic search[^8] over all **1,056 CLI operations**, **376 MCP tools**, and **32 GUI views** (`contracts/capabilities/capability-index.v1.json`). Includes side-effect confirmation gates before running mutating commands. |
+| **Wide Grouped Sidebar & Hidden/Rail Mode**<br/>(`_sidebar-wide.png` / `_sidebar-rail.png`) | <img src="assets/screens/_sidebar-wide.png" alt="Wide Sidebar Mode" width="360" /><br/><img src="assets/screens/_sidebar-rail.png" alt="Sidebar Hidden Restore Pill Mode" width="360" /> | Switches between the 5-domain grouped sidebar (`OPERATE · CHAT`, `AGENTS & RUNS`, `KNOWLEDGE`, `WORKSPACE`, `COMPUTE & SYSTEM`) and collapsed full-canvas mode while pinning the interactive bottom status bar (`ENGINE`, `SPEND`, `MESH`, `ROUTING`, `NEEDS YOU`, `RESEARCH`, `CONFIGURE ▾`). |
+
+---
+
+### Domain I: Operate (11 Views — Orchestration, Multi-Dock Chat & Governance)
+
+<div align="center">
+  <img src="assets/tours/axis_operate_lane_tour.webp" alt="Animated WebP tour of all 11 Operate Domain screens in Vox Axis" width="94%" />
+</div>
+
+| # | `viewKey` & Title | Real Screenshot (`v6.6`) | Why It Exists & What It Does | Backing CLI / Crate |
+|:---|:---|:---|:---|:---|
+| **1** | `dashboard`<br/>**Mission Control** | <img src="assets/screens/dashboard.png" alt="Dashboard Screen" width="340" /> | At-a-glance health cockpit: 4 sparkline KPIs (`Active Agents`, `Queue Depth`, `Budget Spent`, `Mesh Peers`), embedded interactive `VRBS ROMA` architecture map (`260px`), active agent cards, and telemetry alerts. | `vox status`<br/>`vox-orchestrator-d` |
+| **2** | `chat`<br/>**Chat Workbench (`Loquela`)** | <img src="assets/screens/chat.png" alt="Chat Workbench Screen" width="340" /> | Multi-turn engineering chat with single-row progressive-disclosure posture controls (`Loquela.tsx`), BPE compaction receipts (`Goal Anchor: Kept`), retrieval trust chips, HMAC tool receipts, and multi-dock tiling. | `vox chat`<br/>`vox_actor_runtime::llm` |
+| **3** | `tasks`<br/>**Tasks (Hopper Queue)** | <img src="assets/screens/tasks.png" alt="Tasks Hopper Queue Screen" width="340" /> | Prevents concurrent file-write races by surfacing `hopper_inbox` task ordering, priority (`Urgent`/`Normal`/`Background`), and per-file `resource_id` lock ownership ([ADR-025](https://voxlang.org/adr/025-multi-agent-lock-coherence/)). | `vox plan`<br/>`vox_orchestrator::hopper` |
+| **4** | `sub-agents`<br/>**Sub-Agents Tree** | <img src="assets/screens/sub-agents.png" alt="Sub-Agents Screen" width="340" /> | Live parent→child subagent supervision tree showing workspace isolation (`inherit`, `branch`, `share`), role assignments, turn progress, and kill-switch controls. | `vox-orchestrator`<br/>`mcp_agent_*` |
+| **5** | `flow`<br/>**Durable Workflows** | <img src="assets/screens/flow.png" alt="Durable Workflow Flow Screen" width="340" /> | Visualizes event-sourced `.vox` `workflow` and `activity` replay journals (`workflow_patch_log`, activity ordinals, signal/timer parking per [ADR-019](https://voxlang.org/adr/019-durable-workflow-journal-contract-v1/))[^9]. | `vox workflow`<br/>`vox-workflow-runtime` |
+| **6** | `mesh`<br/>**Populi Mesh Topology** | <img src="assets/screens/mesh.png" alt="Mesh Topology Screen" width="340" /> | Displays Iroh QUIC peer-to-peer nodes ([ADR-047](https://voxlang.org/adr/047-iroh-transport/)), ALPN negotiation, direct vs. relay paths, and `donations.vox` worker quotas. | `vox populi`<br/>`vox-plugin-populi-mesh` |
+| **7** | `runs`<br/>**Execution Runs Ledger** | <img src="assets/screens/runs.png" alt="Runs History Screen" width="340" /> | Auditable ledger of past agent episodes, script runs, and workflow executions with duration, token cost, exit code, and commit SHA links. | `vox-db` execution store |
+| **8** | `needs-you`<br/>**Needs You (Attention Gate)** | <img src="assets/screens/needs-you.png" alt="Needs You Attention Gate Screen" width="340" /> | Filters out low-value agent interruptions using expected-information-gain scoring (`attention_policy.rs`), pairing pending approvals/doubts with the **Live Agent Topology & Execution DAG**. | `vox attention`<br/>`vox-orchestrator-mcp` |
+| **9** | `approvals`<br/>**Approvals & Diff Gate** | <img src="assets/screens/approvals.png" alt="Approvals Screen" width="340" /> | Human-in-the-loop sign-off queue for privileged shell commands, secret resolutions, and schema migrations with inline `Inspect Diff` previews. | `vox policy`<br/>`vox-orchestrator-mcp` |
+| **10** | `policies`<br/>**Execution & Safety Policies** | <img src="assets/screens/policies.png" alt="Policies Screen" width="340" /> | Inspects terminal allowlists (`contracts/terminal/exec-policy.v1.yaml`), scaling budgets (`contracts/scaling/policy.yaml`), and Socrates confidence thresholds. | `vox shell check`<br/>`vox-scaling-policy` |
+| **11** | `mercatus`<br/>**Mercatus (Token & Cost Market)** | <img src="assets/screens/mercatus.png" alt="Mercatus Cost Screen" width="340" /> | Tracks real-time token spend and battery units (`1 BU = $0.001`) across OpenRouter providers vs. local MENS QLoRA inference savings. | `vox model`<br/>`vox-orchestrator-models` |
+
+---
+
+### Domain II: Develop (8 Views — `AQVAEDUCTUS` Harness, PTY Console & Code)
+
+<div align="center">
+  <img src="assets/tours/axis_develop_lane_tour.webp" alt="Animated WebP tour of all 8 Develop Domain screens in Vox Axis" width="94%" />
+</div>
+
+| # | `viewKey` & Title | Real Screenshot (`v6.6`) | Why It Exists & What It Does | Backing CLI / Crate |
+|:---|:---|:---|:---|:---|
+| **12** | `console`<br/>**Daemon PTY Console** | <img src="assets/screens/console.png" alt="Console PTY Screen" width="340" /> | Persistent daemon-hosted terminal sessions (`SessionHost`, `term.*` RPCs with ring-buffer replay, `#641`) that survive GUI restarts and work over Remote Mode. | `vox term`<br/>`vox-terminal-core` |
+| **13** | `catalog`<br/>**Capability Catalog** | <img src="assets/screens/catalog.png" alt="Capability Catalog Screen" width="340" /> | Interactive browser and parameter form runner for all **1,056 cataloged operations** with single-line `[OPEN FORM]`, `[EXPLAIN CAPABILITY]`, and `[OPEN DOCS]` actions. | `vox commands`<br/>`vox explain` |
+| **14** | `skills`<br/>**Agent Skills Registry** | <img src="assets/screens/skills.png" alt="Skills Registry Screen" width="340" /> | Discovers and searches [agentskills.io](https://agentskills.io/specification) `SKILL.md` directories (`.vox/skills/`, `.agents/skills/`, Superpowers[^10]) via `vox-search`. | `vox skill list`<br/>`vox-skills` |
+| **15** | `harness`<br/>**`AQVAEDUCTUS` Pipeline Cascade** | <img src="assets/screens/harness.png" alt="Harness Aqueduct Cascade Screen" width="340" /> | 3-tier hydraulic sluice cascade (`Fast Local MENS`, `Balanced Hybrid`, `Deep Architecture`) + 4-stage verification gates (`AST Parse`, `Typecheck`, `TOESTUB`, `Test Suite`) + `Parallel Agent Execution Braid`. | `vox harness eval`<br/>`vox-orchestrator` |
+| **16** | `harness-health`<br/>**Harness Health (`vox audit`)** | <img src="assets/screens/harness-health.png" alt="Harness Health Audit Screen" width="340" /> | Aggregates static audit findings from `vox audit code` (`toestub`), `vox audit arch` (`layers.toml`), `vox audit retirement`, and `vox audit effort`. | `vox audit`<br/>`vox-code-audit` |
+| **17** | `repository`<br/>**4-Repo Federation** | <img src="assets/screens/repository.png" alt="Repository Federation Screen" width="340" /> | Displays `.vox/repositories.yaml` status across `vox`, `vox-axis`, `voxlang.org`, and `vox-ops`, verifying `55/55` shared contract digests and `404` federated symbol-graph nodes. | `vox repo`<br/>`vox-repository` |
+| **18** | `browser`<br/>**App Preview & DOM Inspector** | <img src="assets/screens/browser.png" alt="Browser Preview Screen" width="340" /> | Live preview frame for full-stack `.vox` apps (`vox dev` / `vox build`) with responsive viewport presets and console/DOM diagnostic capture. | `vox dev`<br/>`vox-codegen` |
+| **19** | `coderabbit`<br/>**AI Diff Review** | <img src="assets/screens/coderabbit.png" alt="CodeRabbit Review Screen" width="340" /> | Runs structured pre-merge diff reviews grouped by semantic domain (`contracts/review/coderabbit-semantic-groups.v1.yaml`) and severity. | `vox review`<br/>`vox-code-audit` |
+
+---
+
+### Domain III: Knowledge & Socrates Gate (6 Views — Hybrid RAG & SCIENTIA)
+
+<div align="center">
+  <img src="assets/tours/axis_knowledge_hitl_tour.webp" alt="Animated WebP tour of all 6 Knowledge Domain screens in Vox Axis" width="94%" />
+</div>
+
+| # | `viewKey` & Title | Real Screenshot (`v6.6`) | Why It Exists & What It Does | Backing CLI / Crate |
+|:---|:---|:---|:---|:---|
+| **20** | `vox-search`<br/>**Hybrid Search (`vox kb`)** | <img src="assets/screens/vox-search.png" alt="Hybrid Search Screen" width="340" /> | Queries the Tantivy 0.22 lexical + semantic RRF index[^8] (`search_documents`), filtering by trust tier (`SystemVerified` → `Untrusted`) and W3C SKOS facets (`kb-taxonomy.v1.yaml`)[^11]. | `vox kb search`<br/>`vox-search` |
+| **21** | `memory`<br/>**Episodic & Fact Memory** | <img src="assets/screens/memory.png" alt="Episodic Memory Screen" width="340" /> | Inspects and prunes persistent agent facts (`MemoryManager::persist_fact` / `lookup_fact_by_key`) and session handoff bundles stored in `VoxDb`. | `vox memory`<br/>`vox-orchestrator` |
+| **22** | `activity`<br/>**Discovery Scout Feed** | <img src="assets/screens/activity.png" alt="Discovery Scout Screen" width="340" /> | Triages incoming research signals from Phase A/F signal producers (`vox-scientia-producers`) before promoting them to full investigations. | `vox scientia scout`<br/>`vox-scientia` |
+| **23** | `research`<br/>**Deep Research & 5-Stage Socrates Gate** | <img src="assets/screens/research.png" alt="Deep Research and Socrates Gate Screen" width="340" /> | Steerable multi-source research (`OpenAlex`, `arXiv`, `Wikipedia`, `SearXNG`, `Tavily`) with per-provider RRF diversity caps and the 5-stage Socrates HITL stepper (`Planning` → `Retrieving` → `Verifying Claims` → `Judge Inspector` → `Sentry Audit`). | `vox research`<br/>`vox-scientia` |
+| **24** | `scientia`<br/>**SCIENTIA Findings Ledger** | <img src="assets/screens/scientia.png" alt="SCIENTIA Findings Screen" width="340" /> | Structured ledger of verified empirical findings (`kb_findings`), replay receipts, McNemar benchmark proofs, and nanopublication attestations[^11]. | `vox scientia`<br/>`vox-scientia-core` |
+| **25** | `publications`<br/>**Publications Studio** | <img src="assets/screens/publications.png" alt="Publications Studio Screen" width="340" /> | Scaffolds citation-locked technical reports and manuscript sections from verified SCIENTIA findings (`vox-manuscript-scaffold`). | `vox scientia`<br/>`vox-findings-site` |
+
+---
+
+### Domain IV: Compute / MENS (4 Views — Rust QLoRA Studio & Model Routing)
+
+<div align="center">
+  <img src="assets/tours/axis_compute_system_tour.webp" alt="Animated WebP tour of Compute (MENS), System, VRBS ROMA Simulator, and 4 Theme Profiles" width="94%" />
+</div>
+
+| # | `viewKey` & Title | Real Screenshot (`v6.6`) | Why It Exists & What It Does | Backing CLI / Crate |
+|:---|:---|:---|:---|:---|
+| **26** | `mens`<br/>**MENS Corpus & Pipeline Studio** | <img src="assets/screens/mens.png" alt="MENS Corpus and Pipeline Studio Screen" width="340" /> | Pure-Rust (Candle) QLoRA[^12] studio across Qwen3 (`0.6B`–`32B`) and 8 domain spokes: `Mix Sources & Auto-DAG`, `Live JSONL Record Inspector & AST Editor` (inline `vox_compiler::parser` verification), and `Ladder Checkpoints & McNemar α=0.05 Gate`[^13]. | `vox mens train`<br/>`vox-populi` |
+| **27** | `models`<br/>**Models Router & Leaderboard** | <img src="assets/screens/models.png" alt="Models Router Screen" width="340" /> | Inspects `vox-orchestrator-models` registry scores, OpenRouter `~family-latest` aliases, multi-benchmark priors (`SweBench`, `LiveBench`), and McNemar `eval-compare` leaderboards. | `vox model`<br/>`vox-orchestrator-models` |
+| **28** | `populi`<br/>**Populi Compute Nodes** | <img src="assets/screens/populi.png" alt="Populi Compute Nodes Screen" width="340" /> | Hardware-aware model selector (`select_mens_backend`) over Apple Silicon Metal (`monitor_metal`) and CUDA (`nvidia-smi` `accelerator_free_mb`) with VRAM floor guardrails. | `vox populi`<br/>`vox-populi` |
+| **29** | `oratio`<br/>**Oratio (Speech-to-Code)** | <img src="assets/screens/oratio.png" alt="Oratio Voice Screen" width="340" /> | Grammar-aware speech-to-code capture (`vox-tauri-stt` / `vox-speech`), ASR filler normalization, and spoken-operator lowering. | `vox speech`<br/>`vox-speech` |
+
+---
+
+### Domain V: System & `VRBS ROMA` (3 Views — Clavis, Doctor & Simulator)
+
+| # | `viewKey` & Title | Real Screenshot (`v6.6`) | Why It Exists & What It Does | Backing CLI / Crate |
+|:---|:---|:---|:---|:---|
+| **30** | `settings`<br/>**Settings, Clavis & Theme Contract** | <img src="assets/screens/settings.png" alt="Settings and Theme Contract Screen" width="340" /> | Manages **Clavis** secrets (`vox-secrets`), Local IPC vs. Remote TOFU TLS connection pins, orchestrator concurrency/budget caps, and the **4-Profile Theme Contract** with live DOM WCAG observability (`22/22 Verified`). | `vox secrets`<br/>`vox config` |
+| **31** | `explorer`<br/>**System Explorer (`vox doctor`)** | <img src="assets/screens/explorer.png" alt="Explorer Doctor Screen" width="340" /> | Runs diagnostic probes across toolchain, build-broker shim (`vox-cargo-shim`), `VoxDb` schema baseline (`v97`), and Clavis secret parity. | `vox doctor`<br/>`vox-cli-diagnostics` |
+| **32** | `gamify`<br/>**`VRBS ROMA` Simulator & Ludus Arena** | <img src="assets/screens/gamify.png" alt="VRBS ROMA Gamify Simulator Screen" width="340" /> | Combines the **`VRBS ROMA` Workspace Civilization & Engineering Simulator** (`WORKSPACE MAP`), `LIVE RIVER · PIPELINE`, `ARENA & QUESTS`, and `BLAKE3 + Ed25519` signed `LEADERBOARD` snapshots. | `vox ludus`<br/>`vox-gamify` |
+
+---
+
+## Tradeoffs
+
+| Design Choice | What You Gain | What It Costs |
+|:---|:---|:---|
+| **Catalog-generated 32-surface registry (`SURFACE_REGISTRY`)** | Zero drift between CLI, MCP, and GUI (`vox ci gui-surface-coverage`). | Wide surface area; operators rely on `⌘K` and progressive-disclosure tabs rather than memorizing 32 routes. |
+| **Tauri 2 native desktop shell + React 19** | Small memory footprint, in-process Rust IPC in Local Mode, and zero required local web server. | Building `vox-gui` on Linux requires `libwebkit2gtk-4.1-dev`, so `vox-gui` is excluded from default Cargo builds (`default-members = ["crates/vox-cli"]`). |
+| **Enforced 4-profile CSS token contract (`vox/ui/theme-contract-drift`)** | Every view passes WCAG contrast (`>= 4.5:1`) and `axeViolations: 0` across Carrara marble light and Slate dark themes. | Hardcoded dark hex colors (`bg-[#120E09]`) or banned monospace fallbacks (`Courier`, `Monaco`) fail `vox audit code` with `Severity::Error`. |
+| **TOFU SPKI SHA-256 TLS pinning (`Remote Mode`)** | Connects securely to headless GPU/daemon boxes without public CA setup. | Rotating a remote daemon's TLS key requires re-approving the pinned SPKI fingerprint in `Settings → Server`. |
 
 ---
 
 ## Status
 
-Every Axis surface is graded into one of four honest states (`Working`, `Prototype`, `Research`, `Not started`):
+Graded into four honest states (`Working`, `Prototype`, `Research`, `Not started`):
 
-| Surface Group | State | Checked | Notes |
+| Subsystem | State | Checked | Notes |
 |:---|:---|:---|:---|
-| **App Shell, 5-Lane Sidebar & `⌘K` Universal Palette** | Working | 2026-11-10 | Tested across `1280×800`, `1440×900`, and `1920×1080` in `screenshots.spec.ts` and `universal-palette.spec.ts`. Zero console or page errors across all 32 views. |
-| **4-Profile Theme Engine (`carrara`, `slate`, `void`, `high-contrast`)** | Working | 2026-11-10 | Enforced by `index.css.test.ts` and Playwright CV Flywheel (`axeViolations: 0`). |
-| **Dual Transport (`Local Tauri IPC` & `Remote TOFU TLS`)** | Prototype | 2026-11-10 | `transport.ts` and `ipcBoundaries.test.ts` verify boundary safety; Remote mode tested via `axis-remote.spec.ts` and `chat-remote.spec.ts`. Live multi-day remote reconnection under packet loss is still being hardened. |
-| **Operate Lane (`dashboard`, `chat`, `tasks`, `sub-agents`, `flow`, `mesh`, `runs`, `needs-you`, `approvals`, `policies`, `mercatus`)** | Prototype | 2026-11-10 | Multi-dock chat, trust chips, HMAC receipt chips, and hopper task submission work on primary paths. Live multi-node Iroh mesh visualization (`mesh`) remains experimental. |
-| **Develop Lane (`console`, `catalog`, `skills`, `harness`, `harness-health`, `repository`, `browser`, `coderabbit`)** | Working | 2026-11-10 | Capability Explorer (`catalog`) covers all 19 interaction states in `capability-explorer.spec.ts`; `repository` reflects live 4-repo federation (`vox`, `vox-axis`, `voxlang.org`, `vox-ops`). |
-| **Knowledge Lane & 5-Stage Socrates HITL (`vox-search`, `memory`, `activity`, `research`, `scientia`, `publications`)** | Prototype | 2026-11-10 | All 5 HITL stages (`Planning` → `Sentry Audit`) and trust-tier badges render and pass `stepper.spec.ts`. End-to-end manuscript export (`publications`) is prototype-grade. |
-| **Compute / MENS Studio (`mens`, `models`, `populi`, `oratio`)** | Prototype | 2026-11-10 | 6-tab MENS Crucible Studio (`mens`), Clavis `HF_TOKEN` deep-link, and model routing explainer (`models`) verified in Pass 8 CV Flywheel (`visualAfterScore: 0.9352`). `oratio` voice lane is research-grade. |
-| **System Lane (`settings`, `explorer`, `gamify`)** | Working | 2026-11-10 | `settings` (Clavis secret management + theme/remote toggles) and `explorer` (`vox doctor` checks) work reliably. `gamify` (`Ludus`) requires `--features extras-ludus`. |
+| **App Shell, 5-Domain Sidebar, Status Bar & `⌘K` Palette** | Working | 2026-11-10 | Verified across `1280×800`, `1440×900`, and `1920×1080` in `cv-flywheel.spec.ts` (`0` occlusions, `0` clipped controls). |
+| **4-Profile Theme Contract (`arcane`, `slate`, `glacier`, `high-contrast`)** | Working | 2026-11-10 | Enforced by Style-Dictionary, `themeContract.test.ts` (`37` views + `14` docks), and `vox/ui/theme-contract-drift` (`Severity::Error`). |
+| **`VRBS ROMA` Simulator (`LudusSandbox`) & `AQVAEDUCTUS` Cascade (`HarnessRiverPanel`)** | Working | 2026-11-10 | Synchronized panorama camera, `ImperiumInspector` blast-radius DAG, 7-tier `Forma Urbis` radar, and 3-tier hydraulic cascade verified in Phase 385–386. |
+| **Multi-Dock Chat (`ChatSurface`, `Loquela`, `ChatExecutionRail`)** | Prototype | 2026-11-10 | Responsive 2-column auto-consolidation (`< 1560px`), `432` posture combinations, BPE compaction receipts, and LCA branch comparison work on primary paths. |
+| **Dual Transport (`Local Tauri 2 IPC` & `Remote TOFU TLS`)** | Prototype | 2026-11-10 | `VoxDb` file-lock contention between `ModelRegistry` and `step_db` resolved (`Phase 385`). Multi-day remote packet-loss recovery is still being hardened. |
+| **MENS Corpus & Crucible Studio (`mens`, `models`, `populi`)** | Prototype | 2026-11-10 | Inline `vox_compiler::parser` AST verification of `<think>` JSONL rows and McNemar gate scorecards work; `oratio` voice dictation remains `Research`. |
 
 ---
 
-## Trying It (Local & Remote Modes)
-
-### 1. Run the UI Workbench & Playwright Visual Suite (Fastest)
+## Trying It & Maintaining This README
 
 ```bash
-# From the standalone vox-axis checkout (or crates/vox-gui in vox):
+# 1. Build UI tokens & verify TypeScript + Vitest theme/surface contracts:
 ./scripts/build.sh
 ./scripts/test.sh
 
-# Run the full 32-surface Playwright visual audit in Chromium:
-pnpm --dir /Users/brbrainerd/dev/vox/crates/vox-gui/ui exec playwright test screenshots.spec.ts --project=chromium
+# 2. Run the full multi-resolution Playwright CV Flywheel (1280x800, 1440x900, 1920x1080):
+pnpm --dir /Users/brbrainerd/dev/vox/crates/vox-gui/ui exec playwright test e2e/review/cv-flywheel.spec.ts --project=chromium
+
+# 3. Launch the native Tauri 2 desktop app from the vox workspace:
+cargo run -p vox-cli --manifest-path /Users/brbrainerd/dev/vox/Cargo.toml --features gui -- gui
 ```
 
-### 2. Launch the Native Tauri 2 Desktop App
-
-```bash
-# From the vox workspace root:
-cargo run -p vox-cli --features gui -- gui
-# (or alias: `vox axis`)
-```
+**Cross-Repo Sync Rule:** `vox-foundation/vox-axis` shares `contracts/gui/` and `contracts/telemetry/` with [`vox-foundation/vox`](https://github.com/vox-foundation/vox), [`vox-foundation/voxlang.org`](https://github.com/vox-foundation/voxlang.org), and private `vox-ops`. Always run `vox ci cross-repo-parity` and `vox ci federated-symbol-graph` after modifying shared contracts or GUI surfaces (see [`AGENTS.md`](AGENTS.md)).
 
 ---
 
-## Cross-Repo Federation & Agent Awareness
+## Intellectual Lineage, Prior Art & References
 
-`vox-foundation/vox-axis` is part of the 4-repository **Vox Foundation** federation:
-
-| Repository | Visibility | Role & Shared Contracts |
-|:---|:---|:---|
-| **[`vox-foundation/vox`](https://github.com/vox-foundation/vox)** | Public (`Apache-2.0`) | Sovereign core compiler, interpreter, orchestrator, `VoxDb`, CLI, and canonical `docs/src/` SSOT. Runs 100% offline (`VOX_OFFLINE=1`). |
-| **[`vox-foundation/vox-axis`](https://github.com/vox-foundation/vox-axis)** | Public (`Apache-2.0`) | Desktop Tauri 2 operator console (`vox-gui`). Synchronizes `contracts/gui/` and `contracts/telemetry/` via BLAKE3 digest parity. |
-| **[`vox-foundation/voxlang.org`](https://github.com/vox-foundation/voxlang.org)** | Public (`Apache-2.0`) | Astro 7.4 + Starlight 0.42 documentation site and Coolify `/v1/eval` browser playground client. Synchronizes `contracts/documentation/`. |
-| **`vox-foundation/vox-ops`** | Private (`Proprietary`) | Opt-in OTLP/ClickHouse telemetry ingest (`telemetry.voxlang.org`) and cloud GPU provider adapters (`RunPod`, `Vast.ai`, `Together`). Synchronizes `contracts/{wire,ipc,telemetry}/`. |
-
-### Mandatory Agent & Contributor Sync Rules
-
-Every coding agent working in `vox-axis` (read via [`AGENTS.md`](AGENTS.md) and [`/Users/brbrainerd/dev/AGENTS.md`](file:///Users/brbrainerd/dev/AGENTS.md)) is bound by three cross-repo invariants:
-
-1. **Contract Parity Gate:** Any edit to `contracts/gui/` or `contracts/telemetry/` MUST pass `vox ci cross-repo-parity` (`55/55` shared contract files verified by BLAKE3 digest across all 4 repos).
-2. **Surface Registry & Screenshot Sync:** Adding, renaming, or removing a GUI view or CLI/MCP operation requires running `vox ci gui-surface-registry --write`, re-running `playwright test screenshots.spec.ts`, and updating the corresponding screen row and animated `.webp` tour in this `README.md`.
-3. **Documentation & `voxlang.org` Context:** Architecture SSOTs live in `vox/docs/src/architecture/` and publish to [voxlang.org](https://voxlang.org). Consult `.vox/cache/federated-symbol-graph.v1.json` (`vox ci federated-symbol-graph`) for cross-repo symbol lookup.
+[^1]: **Retrieval Trust Tiers & Prompt-Injection Quarantine:** Indirect prompt injection defense follows Greshake et al., *"Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection"* ([arXiv:2302.12173](https://arxiv.org/abs/2302.12173), 2023), enforced in Vox via 4 database-level `search_documents.trust_tier` levels (`SystemVerified` → `Untrusted`) and the `kb_findings` quarantine inbox.
+[^2]: **Actor Supervision & File-Affinity Locks:** Multi-agent task routing and per-resource locking build on Carl Hewitt, Peter Bishop, and Richard Steiger, *"A Universal Modular ACTOR Formalism for Artificial Intelligence"* (IJCAI 1973), Erlang/OTP supervision trees (Joe Armstrong, 2003), and Vox [ADR-025: Multi-Agent Lock Coherence](https://voxlang.org/adr/025-multi-agent-lock-coherence/).
+[^3]: **Model Context Protocol (MCP) & Formal Intent Receipts:** Tool dispatch uses Anthropic's [Model Context Protocol](https://modelcontextprotocol.io/) augmented with HMAC-SHA256 / BLAKE3 execution receipts ([ADR-029: Formal Intent](https://voxlang.org/adr/029-formal-intent/)).
+[^4]: **Codebase Visualization (`VRBS ROMA`):** The mapping of software packages, LoC, and churn into an interactive 3D/isometric urban metaphor credits Richard Wettel and Michele Lanza, *"Visualizing Software Systems as Cities"* (*CodeCity*, VISSOFT 2007), combined with Kahn's topological layering (1962), Tarjan's strongly connected components (1972), and *Caesar III* (Impressions Games, 1998) civic telemetry walkers.
+[^5]: **Roman Cartography (`Forma Urbis Romae` & Vitruvian Proportions):** The 7-Regio astrolabe radar and architectural hierarchy draw from the Severan Marble Plan (*Forma Urbis Romae*, c. 203–211 CE) and Vitruvius, *De Architectura* (Book III symmetry and module proportions).
+[^6]: **Trust-On-First-Use (TOFU) & SPKI Pinning:** Remote daemon authentication adapts Dan Wendlandt, David G. Andersen, and Adrian Perrig, *"Perspectives: Improving SSH-style Host Authentication with Multi-Path Probing"* (USENIX ATC 2008) and RFC 7469 Subject Public Key Info (SPKI) SHA-256 fingerprinting.
+[^7]: **T3 Ecosystem Harness & Router Patterns:** Stream resumption (`ResumableTurnStreamBuffer`), multi-benchmark routing priors, and thin-transport static checks credit [`pingdotgg/t3code`](https://github.com/pingdotgg/t3code) and [`vibheksoni/t3router`](https://github.com/vibheksoni/t3router), documented in [`t3-vs-vox-harness-router-blueprint-2026.md`](https://github.com/vox-foundation/vox/blob/main/docs/src/architecture/t3-vs-vox-harness-router-blueprint-2026.md).
+[^8]: **Hybrid Search & Reciprocal Rank Fusion (RRF):** Lexical + semantic ranking combines [Tantivy](https://github.com/quickwit-oss/tantivy) BM25 with Gordon V. Cormack, Charles L. A. Clarke, and Stefan Büttcher, *"Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods"* (SIGIR 2009).
+[^9]: **Durable Execution Journals:** Deterministic workflow replay over non-deterministic activity logs follows [Temporal](https://temporal.io/) / Uber Cadence and Microsoft Azure Durable Functions ([ADR-019](https://voxlang.org/adr/019-durable-workflow-journal-contract-v1/), [ADR-041](https://voxlang.org/adr/041-durable-functions-completion-2026/)).
+[^10]: **Portable Agent Skills (`SKILL.md`):** Skill discovery implements the open [agentskills.io specification](https://agentskills.io/specification) and integrates Jesse Vincent's [*Superpowers*](https://github.com/obra/superpowers) workflow skill library.
+[^11]: **SKOS Taxonomies & Nanopublications:** Knowledge-base facets follow [W3C SKOS (Simple Knowledge Organization System)](https://www.w3.org/2004/02/skos/), and SCIENTIA finding attestations adapt Paul Groth, Andrew Gibson, and Jan Velterop, *"The Anatomy of a Nanopublication"* (*Information Services & Use*, 2010).
+[^12]: **QLoRA & Pure-Rust Tensor Compute:** Native ML fine-tuning builds on Tim Dettmers et al., *"QLoRA: Efficient Finetuning of Quantized LLMs"* ([arXiv:2305.14314](https://arxiv.org/abs/2305.14314), NeurIPS 2023), Hugging Face [`candle`](https://github.com/huggingface/candle), and Alibaba Cloud's [Qwen3](https://huggingface.co/Qwen) base models.
+[^13]: **Statistical Model Evaluation:** Paired code-generation benchmarks use Mark Chen et al., *"Evaluating Large Language Models Trained on Code"* (`pass@k`, [arXiv:2107.03374](https://arxiv.org/abs/2107.03374), 2021), Quinn McNemar's paired nominal test (*Psychometrika*, 1947), and Sture Holm's step-down multiple-testing correction (*Scandinavian Journal of Statistics*, 1979).

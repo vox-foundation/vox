@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v6.8
 milestone_name: Physical Multi-Repo Extraction (vox-ops, vox-axis, voxlang.org), Default Cargo Graph Pruning, Next-Tier Keystone Splits, crates.io Wave 2/3 (33 Crates) & Multi-Repo Rich Visual READMEs / vox-foundation Federation
-current_phase: 400
-current_phase_name: Multi-Repo Rich Visual READMEs, Animated WebP Tours, Real Generated Raster Diagrams, Cross-Repo Agent Awareness, Coolify & vox-foundation GitHub Federation (README-VISUAL-01..04)
+current_phase: 401
+current_phase_name: Adversarial Audit of All READMEs Across All Repositories & Sub-Crates, v6.6 Sunlit Imperial Roman Carrara White & Gold + VRBS ROMA Simulator Visual Refresh, README-SYNC-MAP Maintainability & Footnoted Prior-Art Attribution (README-AUDIT-01..04)
 status: complete
-stopped_at: Milestone v6.8 (Phases 394-400, 28/28 requirements) complete, reviewed (/gsd-code-review --fix), archived (/gsd-complete-milestone), and pushed to vox-foundation.
-last_updated: "2026-11-10T08:58:00.000Z"
+stopped_at: Milestone v6.8 (Phases 394-401, 32/32 requirements) complete, adversarially audited across all 46 READMEs, updated with v6.6 Roman White/Gold + VRBS ROMA Simulator graphics, and pushed to vox-foundation.
+last_updated: "2026-11-10T09:22:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: Completed Phase 400 & Milestone v6.8 (Phases 394-400, 28/28 requirements): authored rich visual READMEs across vox-axis, voxlang.org, vox-ops, and vox with 46 real Playwright screenshots, all 32 GUI screens explained, 7 animated .webp tours, 6 real generated .webp architecture diagrams (zero SVGs), Coolify/Cloudflare bindings, cross-repo AGENTS.md rules, and GitHub federation under vox-foundation.
+last_activity_desc: Completed Phase 401 (README-AUDIT-01..04): adversarially audited all 46 README.md files across vox, vox-axis, voxlang.org, and vox-ops; replaced stale Sept 4 dark screenshots with 50 v6.6 (Nov 9) Sunlit Imperial Roman Carrara White & Gold captures including the VRBS ROMA Simulator (urbs-civilization.png + urbs-imperium-inspector.png); regenerated all 7 animated .webp tours and 7 Roman White/Gold .webp diagrams (including schema-fragmentation.webp); fixed 8 sub-crate READMEs; added README-SYNC-MAP maintainability rules and footnoted prior-art citations ([^1]..[^13]).
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 7
-  completed_plans: 7
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 8
+  completed_plans: 8
   percent: 100
 ---
 
