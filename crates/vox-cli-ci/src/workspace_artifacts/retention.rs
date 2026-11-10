@@ -393,9 +393,8 @@ mod tests {
 
     #[test]
     fn embedded_defaults_parse_validly() {
-        let policy =
-            WorkspaceArtifactRetentionFile::embedded_defaults().expect("embedded defaults");
-        assert!(policy.version >= 1);
+        let policy = WorkspaceArtifactRetentionFile::embedded_defaults();
+        assert!(policy.schema_version >= 1);
     }
 
     #[test]

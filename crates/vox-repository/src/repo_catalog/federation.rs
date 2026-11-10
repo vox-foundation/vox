@@ -690,9 +690,9 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         std::fs::write(tmp.path().join("Cargo.toml"), "[workspace]\nmembers = []\n")
             .expect("write Cargo.toml");
-        let enabled = render_local_cargo_patch_block(tmp.path(), true, false).expect("enable");
-        assert!(enabled.contains("# BEGIN VOX FEDERATION LOCAL PATCH"));
-        let disabled = render_local_cargo_patch_block(tmp.path(), false, false).expect("disable");
-        assert!(!disabled.contains("# BEGIN VOX FEDERATION LOCAL PATCH"));
+        let enabled = render_local_cargo_patch_block(tmp.path(), true).expect("enable");
+        assert!(enabled.contains("AUTO-GENERATED: ENABLED"));
+        let disabled = render_local_cargo_patch_block(tmp.path(), false).expect("disable");
+        assert!(disabled.contains("AUTO-GENERATED: DISABLED"));
     }
 }

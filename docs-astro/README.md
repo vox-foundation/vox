@@ -29,7 +29,7 @@
   <p>
     <img src="https://img.shields.io/badge/status-research%20prototype-red?style=flat-square" alt="Status: research prototype" />&nbsp;
     <a href="https://github.com/vox-foundation/voxlang.org/commits/main"><img src="https://img.shields.io/github/last-commit/vox-foundation/voxlang.org?style=flat-square&label=updated" alt="Last Updated" /></a>&nbsp;
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License" /></a>
+    <a href="https://github.com/vox-foundation/vox/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License" /></a>
   </p>
 </div>
 
