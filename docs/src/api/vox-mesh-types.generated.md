@@ -60,6 +60,8 @@ graph {
     node vox_mesh_types: "vox-mesh-types"
     node vox_cli: "vox-cli"
     vox_cli -> vox_mesh_types
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_mesh_types
     node vox_db: "vox-db"
     vox_db -> vox_mesh_types
     node vox_gamify: "vox-gamify"
@@ -80,8 +82,6 @@ graph {
     vox_populi -> vox_mesh_types
     node vox_populi_types: "vox-populi-types"
     vox_populi_types -> vox_mesh_types
-    node vox_scaling_policy: "vox-scaling-policy"
-    vox_scaling_policy -> vox_mesh_types
 }
 ```
 
@@ -90,6 +90,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
 | [`vox-mesh-policy`](./vox-mesh-policy.generated.md) | Direct workspace dependent |

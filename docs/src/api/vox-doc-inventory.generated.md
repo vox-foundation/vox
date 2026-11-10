@@ -50,6 +50,8 @@ graph {
     vox_doc_inventory -> vox_repository
     node vox_cli: "vox-cli"
     vox_cli -> vox_doc_inventory
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_doc_inventory
 }
 ```
 
@@ -58,4 +60,5 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 

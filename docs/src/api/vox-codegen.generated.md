@@ -52,6 +52,7 @@ analysis-stage iteration.
 | [`vox-sql`](./vox-sql.generated.md) | Normal |
 | [`vox-tauri-codegen`](./vox-tauri-codegen.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Development |
+| [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Development |
 
 ## Public API Surface
 
@@ -87,6 +88,8 @@ graph {
     vox_codegen -> vox_db
     node vox_deploy_codegen: "vox-deploy-codegen"
     vox_codegen -> vox_deploy_codegen
+    node vox_jsonschema_util: "vox-jsonschema-util"
+    vox_codegen -> vox_jsonschema_util
     node vox_repository: "vox-repository"
     vox_codegen -> vox_repository
     node vox_secrets: "vox-secrets"
@@ -97,11 +100,12 @@ graph {
     vox_codegen -> vox_tauri_codegen
     node vox_cli: "vox-cli"
     vox_cli -> vox_codegen
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_codegen
     node vox_cli_tests: "vox-cli-tests"
     vox_cli_tests -> vox_codegen
     node vox_codegen_ts: "vox-codegen-ts"
     vox_codegen_ts -> vox_codegen
-    vox_compiler -> vox_codegen
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_codegen
     node vox_langtool: "vox-langtool"
@@ -120,9 +124,9 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-tests`](./vox-cli-tests.generated.md) | Direct workspace dependent |
 | [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
-| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
@@ -154,7 +158,7 @@ graph {
 | `fn` | `emission_profile::validate_web_module` | `pub fn validate_web_module(` | [`crates/vox-codegen/src/emission_profile.rs#L70`](../../../crates/vox-codegen/src/emission_profile.rs#L70) | Validate a standalone WebIR module (emitter path that has not yet assembled full bundle). |
 | `fn` | `emission_profile::web_ir_as_diagnostics` | `pub fn web_ir_as_diagnostics(` | [`crates/vox-codegen/src/emission_profile.rs#L82`](../../../crates/vox-codegen/src/emission_profile.rs#L82) | Return web-IR diagnostics converted into the unified [`Diagnostic`] envelope so that `vox check --for-llm` callers see web-IR failures alongside typeck errors.  Only the TypeScript / RustTauri targets produce WebIR; other targets return an empty vec. |
 | `fn` | `emission_profile::hard_profile_errors` | `pub fn hard_profile_errors(diags: &[ProfileDiagnostic]) -> Vec<ProfileDiagnostic>` | [`crates/vox-codegen/src/emission_profile.rs#L165-L171`](../../../crates/vox-codegen/src/emission_profile.rs#L165-L171) | Returns hard (non-advisory) profile diagnostics only. |
-| `fn` | `frontend_backend::emit_frontend` | `pub fn emit_frontend(` | [`crates/vox-codegen/src/frontend_backend.rs#L25`](../../../crates/vox-codegen/src/frontend_backend.rs#L25) | Emit the frontend for `target` from a lowered `hir`.  # Errors Returns `Err` if `target` is not a frontend emission target, or if the underlying emitter fails. |
+| `fn` | `frontend_backend::emit_frontend` | `pub fn emit_frontend(` | [`crates/vox-codegen/src/frontend_backend.rs#L26`](../../../crates/vox-codegen/src/frontend_backend.rs#L26) | Emit the frontend for `target` from a lowered `hir`.  # Errors Returns `Err` if `target` is not a frontend emission target, or if the underlying emitter fails. |
 | `struct` | `hir_export::VoxIrModule` | `pub struct VoxIrModule` | [`crates/vox-codegen/src/hir_export/mod.rs#L12-L16`](../../../crates/vox-codegen/src/hir_export/mod.rs#L12-L16) | The General Vox IR module structure, representing a machine-verifiable and platform-agnostic view of a Vox program. |
 | `struct` | `hir_export::VoxIrMetadata` | `pub struct VoxIrMetadata` | [`crates/vox-codegen/src/hir_export/mod.rs#L19-L23`](../../../crates/vox-codegen/src/hir_export/mod.rs#L19-L23) | — |
 | `struct` | `hir_export::VoxIrContent` | `pub struct VoxIrContent` | [`crates/vox-codegen/src/hir_export/mod.rs#L27-L43`](../../../crates/vox-codegen/src/hir_export/mod.rs#L27-L43) | The internal structure containing the lowered program logic. |

@@ -43,15 +43,9 @@ own file where non-obvious heuristics exist.
 | Dependency | Kind |
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
-| [`vox-config`](./vox-config.generated.md) | Normal |
-| [`vox-http-client`](./vox-http-client.generated.md) | Normal |
-| [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Normal |
-| [`vox-llm-egress`](./vox-llm-egress.generated.md) | Normal |
-| [`vox-orchestrator-types`](./vox-orchestrator-types.generated.md) | Normal |
 | [`vox-rule-pack`](./vox-rule-pack.generated.md) | Normal |
 | [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
 
 ## Public API Surface
 
@@ -82,30 +76,20 @@ graph {
     node vox_code_audit: "vox-code-audit"
     node vox_bounded_fs: "vox-bounded-fs"
     vox_code_audit -> vox_bounded_fs
-    node vox_config: "vox-config"
-    vox_code_audit -> vox_config
-    node vox_http_client: "vox-http-client"
-    vox_code_audit -> vox_http_client
-    node vox_jsonschema_util: "vox-jsonschema-util"
-    vox_code_audit -> vox_jsonschema_util
-    node vox_llm_egress: "vox-llm-egress"
-    vox_code_audit -> vox_llm_egress
-    node vox_orchestrator_types: "vox-orchestrator-types"
-    vox_code_audit -> vox_orchestrator_types
     node vox_rule_pack: "vox-rule-pack"
     vox_code_audit -> vox_rule_pack
     node vox_scaling_policy: "vox-scaling-policy"
     vox_code_audit -> vox_scaling_policy
     node vox_secrets: "vox-secrets"
     vox_code_audit -> vox_secrets
-    node vox_telemetry: "vox-telemetry"
-    vox_code_audit -> vox_telemetry
     node vox_audit: "vox-audit"
     vox_audit -> vox_code_audit
     node vox_cli: "vox-cli"
     vox_cli -> vox_code_audit
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_code_audit
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_code_audit
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_code_audit
     node vox_drift_check: "vox-drift-check"
@@ -124,6 +108,7 @@ graph {
 | [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
 | [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |

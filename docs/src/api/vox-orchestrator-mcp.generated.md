@@ -138,6 +138,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `db_tools` | Codex schema digest + sample row tools for `.vox` modules. |
 | `diagram_tools` | VoxDiagram validation (`vox_validate_diagram`). |
 | `dispatch` | — |
+| `dispatch_domains` | — |
 | `dispatch_timeout` | T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout` wrapping actual tool dispatch — independent of the HITL approval-wait). |
 | `exec_time_tools` | Execution time tracking tools. |
 | `git_exec` | Central `git` executor with banned-command denylist and `vox.vcs.exec` telemetry. |
@@ -252,6 +253,8 @@ graph {
     vox_cli -> vox_orchestrator_mcp
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_orchestrator_mcp
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_orchestrator_mcp
     node vox_gui: "vox-gui"
     vox_gui -> vox_orchestrator_mcp
     node vox_integration_tests: "vox-integration-tests"
@@ -267,6 +270,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |

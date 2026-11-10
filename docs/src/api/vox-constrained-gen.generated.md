@@ -69,8 +69,6 @@ graph {
     vox_cli -> vox_constrained_gen
     node vox_ml_cli: "vox-ml-cli"
     vox_ml_cli -> vox_constrained_gen
-    node vox_populi: "vox-populi"
-    vox_populi -> vox_constrained_gen
 }
 ```
 
@@ -80,7 +78,6 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
-| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 

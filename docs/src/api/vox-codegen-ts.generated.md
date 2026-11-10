@@ -72,7 +72,6 @@ graph {
     vox_codegen_ts -> vox_secrets
     node vox_sql: "vox-sql"
     vox_codegen_ts -> vox_sql
-    vox_compiler -> vox_codegen_ts
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
     vox_orchestrator_mcp -> vox_codegen_ts
 }
@@ -82,6 +81,5 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 

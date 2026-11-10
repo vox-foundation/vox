@@ -78,8 +78,8 @@ graph {
     vox_cli -> vox_telemetry
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_telemetry
-    node vox_code_audit: "vox-code-audit"
-    vox_code_audit -> vox_telemetry
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_telemetry
     node vox_compiler: "vox-compiler"
     vox_compiler -> vox_telemetry
     node vox_config: "vox-config"
@@ -105,7 +105,7 @@ graph {
 | [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
-| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
@@ -113,6 +113,7 @@ graph {
 | [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-models`](./vox-orchestrator-models.generated.md) | Direct workspace dependent |
 | [`vox-plugin-host`](./vox-plugin-host.generated.md) | Direct workspace dependent |
 | [`vox-telemetry-otlp`](./vox-telemetry-otlp.generated.md) | Direct workspace dependent |
 

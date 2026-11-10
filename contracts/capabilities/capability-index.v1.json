@@ -154,7 +154,7 @@
         "layer": 5,
         "rule": "group_table"
       },
-      "source_path": "crates/vox-cli/src/commands/diagnostics/tools/mod.rs",
+      "source_path": "crates/vox-cli/src/commands/diagnostics/tools.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -30454,7 +30454,7 @@
         "layer": 3,
         "rule": "crate_name_match"
       },
-      "source_path": "crates/vox-cli/src/commands/extras/ludus_cli.rs",
+      "source_path": "crates/vox-cli/src/commands/extras.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -31894,7 +31894,7 @@
         "layer": 3,
         "rule": "crate_name_match"
       },
-      "source_path": "crates/vox-cli/src/commands/extras/ludus_cli.rs",
+      "source_path": "crates/vox-cli/src/commands/extras.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -33816,7 +33816,7 @@
         "layer": 5,
         "rule": "crate_name_match"
       },
-      "source_path": "crates/vox-cli/src/commands/gui/mod.rs",
+      "source_path": "crates/vox-cli/src/commands/gui.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -33864,7 +33864,7 @@
         "layer": 5,
         "rule": "crate_name_match"
       },
-      "source_path": "crates/vox-cli/src/commands/gui/drive.rs",
+      "source_path": "crates/vox-cli/src/commands/gui.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37093,7 +37093,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/costs.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37189,7 +37189,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/discover.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37381,7 +37381,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/explain.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37429,7 +37429,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/list.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37526,7 +37526,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/preferences.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37575,7 +37575,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/preferences.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37672,7 +37672,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/pricing.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37721,7 +37721,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/pricing.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37770,7 +37770,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/pricing.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37819,7 +37819,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/pricing.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37867,7 +37867,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/rollup.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -37915,7 +37915,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/scoreboard.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -38011,7 +38011,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/model/show.rs",
+      "source_path": "crates/vox-cli/src/commands/model/mod.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -40333,7 +40333,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/policy/mod.rs",
+      "source_path": "crates/vox-cli/src/commands/policy.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -47522,7 +47522,7 @@
         "layer": 5,
         "rule": "crate_name_match"
       },
-      "source_path": "crates/vox-cli/src/commands/extras/share_cli.rs",
+      "source_path": "crates/vox-cli/src/commands/extras.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -47712,7 +47712,7 @@
         "layer": 5,
         "rule": "group_table"
       },
-      "source_path": "crates/vox-cli/src/commands/extras/skill_cmd.rs",
+      "source_path": "crates/vox-cli/src/commands/extras.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
@@ -48494,7 +48494,7 @@
         "layer": 5,
         "rule": "cli_module"
       },
-      "source_path": "crates/vox-cli/src/commands/extras/snippet_cli.rs",
+      "source_path": "crates/vox-cli/src/commands/extras.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",

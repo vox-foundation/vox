@@ -43,8 +43,6 @@ and diverging implementations across Rust, TypeScript, Vox source files, and the
 | Dependency | Kind |
 |---|---|
 | [`vox-code-audit`](./vox-code-audit.generated.md) | Normal |
-| [`vox-compiler`](./vox-compiler.generated.md) | Normal |
-| [`vox-config`](./vox-config.generated.md) | Normal |
 
 ## Public API Surface
 
@@ -71,10 +69,6 @@ graph {
     node vox_drift_check: "vox-drift-check"
     node vox_code_audit: "vox-code-audit"
     vox_drift_check -> vox_code_audit
-    node vox_compiler: "vox-compiler"
-    vox_drift_check -> vox_compiler
-    node vox_config: "vox-config"
-    vox_drift_check -> vox_config
     node vox_cli: "vox-cli"
     vox_cli -> vox_drift_check
 }
@@ -90,12 +84,12 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `cache::FeatureCache` | `pub struct FeatureCache` | [`crates/vox-drift-check/src/cache.rs#L6-L8`](../../../crates/vox-drift-check/src/cache.rs#L6-L8) | — |
-| `fn` | `cache::new` | `pub fn new(dir: PathBuf) -> Self` | [`crates/vox-drift-check/src/cache.rs#L11-L14`](../../../crates/vox-drift-check/src/cache.rs#L11-L14) | — |
-| `fn` | `cache::from_workspace` | `pub fn from_workspace(root: &std::path::Path) -> Self` | [`crates/vox-drift-check/src/cache.rs#L16-L26`](../../../crates/vox-drift-check/src/cache.rs#L16-L26) | — |
-| `fn` | `cache::hash_file` | `pub fn hash_file(content: &str) -> String` | [`crates/vox-drift-check/src/cache.rs#L28-L32`](../../../crates/vox-drift-check/src/cache.rs#L28-L32) | — |
-| `fn` | `cache::store` | `pub fn store(&self, key: &str, features: &ExtractedFeatures) -> Result<()>` | [`crates/vox-drift-check/src/cache.rs#L34-L42`](../../../crates/vox-drift-check/src/cache.rs#L34-L42) | — |
-| `fn` | `cache::load` | `pub fn load(&self, key: &str) -> Option<ExtractedFeatures>` | [`crates/vox-drift-check/src/cache.rs#L44-L64`](../../../crates/vox-drift-check/src/cache.rs#L44-L64) | — |
+| `struct` | `cache::FeatureCache` | `pub struct FeatureCache` | [`crates/vox-drift-check/src/cache.rs#L8-L10`](../../../crates/vox-drift-check/src/cache.rs#L8-L10) | — |
+| `fn` | `cache::new` | `pub fn new(dir: PathBuf) -> Self` | [`crates/vox-drift-check/src/cache.rs#L13-L16`](../../../crates/vox-drift-check/src/cache.rs#L13-L16) | — |
+| `fn` | `cache::from_workspace` | `pub fn from_workspace(root: &std::path::Path) -> Self` | [`crates/vox-drift-check/src/cache.rs#L18-L28`](../../../crates/vox-drift-check/src/cache.rs#L18-L28) | — |
+| `fn` | `cache::hash_file` | `pub fn hash_file(content: &str) -> String` | [`crates/vox-drift-check/src/cache.rs#L30-L34`](../../../crates/vox-drift-check/src/cache.rs#L30-L34) | — |
+| `fn` | `cache::store` | `pub fn store(&self, key: &str, features: &ExtractedFeatures) -> Result<()>` | [`crates/vox-drift-check/src/cache.rs#L36-L44`](../../../crates/vox-drift-check/src/cache.rs#L36-L44) | — |
+| `fn` | `cache::load` | `pub fn load(&self, key: &str) -> Option<ExtractedFeatures>` | [`crates/vox-drift-check/src/cache.rs#L46-L66`](../../../crates/vox-drift-check/src/cache.rs#L46-L66) | — |
 | `struct` | `config::ConfigMeta` | `pub struct ConfigMeta` | [`crates/vox-drift-check/src/config.rs#L24-L26`](../../../crates/vox-drift-check/src/config.rs#L24-L26) | — |
 | `struct` | `config::LiteralDedupConfig` | `pub struct LiteralDedupConfig` | [`crates/vox-drift-check/src/config.rs#L29-L38`](../../../crates/vox-drift-check/src/config.rs#L29-L38) | — |
 | `struct` | `config::NumericDedupConfig` | `pub struct NumericDedupConfig` | [`crates/vox-drift-check/src/config.rs#L41-L46`](../../../crates/vox-drift-check/src/config.rs#L41-L46) | — |
@@ -105,11 +99,11 @@ graph {
 | `struct` | `config::DriftConfig` | `pub struct DriftConfig` | [`crates/vox-drift-check/src/config.rs#L82-L94`](../../../crates/vox-drift-check/src/config.rs#L82-L94) | — |
 | `fn` | `config::load` | `pub fn load(root: &std::path::Path) -> Self` | [`crates/vox-drift-check/src/config.rs#L127-L133`](../../../crates/vox-drift-check/src/config.rs#L127-L133) | — |
 | `struct` | `engine::WorkspaceFeatures` | `pub struct WorkspaceFeatures` | [`crates/vox-drift-check/src/engine.rs#L13-L16`](../../../crates/vox-drift-check/src/engine.rs#L13-L16) | — |
-| `struct` | `engine::DriftEngine` | `pub struct DriftEngine` | [`crates/vox-drift-check/src/engine.rs#L18-L20`](../../../crates/vox-drift-check/src/engine.rs#L18-L20) | — |
-| `fn` | `engine::new` | `pub fn new(root: &Path) -> Self` | [`crates/vox-drift-check/src/engine.rs#L23-L27`](../../../crates/vox-drift-check/src/engine.rs#L23-L27) | — |
-| `fn` | `engine::extract_workspace` | `pub fn extract_workspace(&self) -> Result<WorkspaceFeatures>` | [`crates/vox-drift-check/src/engine.rs#L29-L63`](../../../crates/vox-drift-check/src/engine.rs#L29-L63) | — |
-| `fn` | `engine::run_all` | `pub fn run_all(&self) -> Result<Vec<vox_code_audit::rules::Finding>>` | [`crates/vox-drift-check/src/engine.rs#L65-L95`](../../../crates/vox-drift-check/src/engine.rs#L65-L95) | — |
-| `fn` | `engine::detect_language` | `pub fn detect_language(path: &Path) -> Language` | [`crates/vox-drift-check/src/engine.rs#L128-L135`](../../../crates/vox-drift-check/src/engine.rs#L128-L135) | — |
+| `struct` | `engine::DriftEngine` | `pub struct DriftEngine` | [`crates/vox-drift-check/src/engine.rs#L20-L22`](../../../crates/vox-drift-check/src/engine.rs#L20-L22) | — |
+| `fn` | `engine::new` | `pub fn new(root: &Path) -> Self` | [`crates/vox-drift-check/src/engine.rs#L25-L29`](../../../crates/vox-drift-check/src/engine.rs#L25-L29) | — |
+| `fn` | `engine::extract_workspace` | `pub fn extract_workspace(&self) -> Result<WorkspaceFeatures>` | [`crates/vox-drift-check/src/engine.rs#L31-L65`](../../../crates/vox-drift-check/src/engine.rs#L31-L65) | — |
+| `fn` | `engine::run_all` | `pub fn run_all(&self) -> Result<Vec<vox_code_audit::rules::Finding>>` | [`crates/vox-drift-check/src/engine.rs#L67-L97`](../../../crates/vox-drift-check/src/engine.rs#L67-L97) | — |
+| `fn` | `engine::detect_language` | `pub fn detect_language(path: &Path) -> Language` | [`crates/vox-drift-check/src/engine.rs#L130-L137`](../../../crates/vox-drift-check/src/engine.rs#L130-L137) | — |
 | `trait` | `extractor::LanguageExtractor` | `pub trait LanguageExtractor: Send + Sync` | [`crates/vox-drift-check/src/extractor.rs#L6-L8`](../../../crates/vox-drift-check/src/extractor.rs#L6-L8) | — |
 | `fn` | `extractor::crate_name_from_path` | `pub fn crate_name_from_path(path: &Path) -> Option<String>` | [`crates/vox-drift-check/src/extractor.rs#L11-L23`](../../../crates/vox-drift-check/src/extractor.rs#L11-L23) | Extract crate name from path like `crates/vox-foo/src/lib.rs` → `"vox-foo"`. |
 | `fn` | `extractor::parse_drift_allow_comments` | `pub fn parse_drift_allow_comments(content: &str) -> HashMap<String, HashSet<usize>>` | [`crates/vox-drift-check/src/extractor.rs#L47-L83`](../../../crates/vox-drift-check/src/extractor.rs#L47-L83) | Scan source text for `// drift-allow(rule-id[,rule-id…])` and the `//! drift-allow(...)` module-attribute variant. Returns a map keyed by rule-id whose values are the 1-indexed line numbers covered.  Each annotation covers the line it sits on AND the following line. That supports both trailing-comment style:  ```ignore Duration::from_secs(5);          // drift-allow(timeout-literal): rationale ```  and the comment-above style:  ```ignore // drift-allow(timeout-literal): rationale Duration::from_secs(5); ```  Rule IDs may be slash-segmented (`drift/timeout-literal`) or short-form (`timeout-literal`); both forms get stored verbatim. Rules accept either `self.id()` or its short suffix via [`ExtractedFeatures::is_allowed`] + [`short_rule_id`]. |

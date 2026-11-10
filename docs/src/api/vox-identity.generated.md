@@ -58,6 +58,8 @@ graph {
     vox_identity -> vox_crypto
     node vox_cli: "vox-cli"
     vox_cli -> vox_identity
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_identity
     node vox_gui: "vox-gui"
     vox_gui -> vox_identity
     node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
@@ -72,6 +74,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
 | [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |

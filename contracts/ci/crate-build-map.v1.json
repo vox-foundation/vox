@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "has_compile_times": true,
-  "crates_without_compile_times": 1,
+  "crates_without_compile_times": 0,
   "crates": [
     {
       "crate": "vox-actor-runtime",
       "compile_s": 5.3,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 13,
+      "dependents": 31,
+      "blast_s": 461.0,
+      "fan_in": 14,
       "touches_90d": 64,
       "churn_compile_pain_score": 339.2
     },
@@ -24,36 +24,36 @@
     {
       "crate": "vox-ast",
       "compile_s": 8.5,
-      "dependents": 53,
-      "blast_s": 595.0,
-      "fan_in": 3,
+      "dependents": 52,
+      "blast_s": 592.0,
+      "fan_in": 4,
       "touches_90d": 5,
       "churn_compile_pain_score": 42.5
     },
     {
       "crate": "vox-audit",
       "compile_s": 3.2,
-      "dependents": 4,
-      "blast_s": 54.0,
-      "fan_in": 1,
+      "dependents": 5,
+      "blast_s": 57.0,
+      "fan_in": 2,
       "touches_90d": 19,
       "churn_compile_pain_score": 60.8
     },
     {
       "crate": "vox-bounded-fs",
       "compile_s": 0.2,
-      "dependents": 74,
-      "blast_s": 614.0,
-      "fan_in": 25,
+      "dependents": 73,
+      "blast_s": 612.0,
+      "fan_in": 26,
       "touches_90d": 2,
       "churn_compile_pain_score": 0.4
     },
     {
       "crate": "vox-build-meta",
       "compile_s": 0.5,
-      "dependents": 5,
-      "blast_s": 52.0,
-      "fan_in": 3,
+      "dependents": 4,
+      "blast_s": 51.0,
+      "fan_in": 2,
       "touches_90d": 7,
       "churn_compile_pain_score": 3.5
     },
@@ -69,9 +69,9 @@
     {
       "crate": "vox-capability-registry",
       "compile_s": 0.9,
-      "dependents": 7,
-      "blast_s": 229.0,
-      "fan_in": 2,
+      "dependents": 8,
+      "blast_s": 232.0,
+      "fan_in": 4,
       "touches_90d": 26,
       "churn_compile_pain_score": 23.4
     },
@@ -87,27 +87,27 @@
     {
       "crate": "vox-cli-ci",
       "compile_s": 19.4,
-      "dependents": 4,
-      "blast_s": 70.0,
-      "fan_in": 1,
+      "dependents": 5,
+      "blast_s": 73.0,
+      "fan_in": 2,
       "touches_90d": 151,
       "churn_compile_pain_score": 2929.4
     },
     {
       "crate": "vox-cli-contracts",
       "compile_s": 0.9,
-      "dependents": 5,
-      "blast_s": 71.0,
-      "fan_in": 2,
+      "dependents": 6,
+      "blast_s": 74.0,
+      "fan_in": 3,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.9
     },
     {
       "crate": "vox-cli-core",
       "compile_s": 11.1,
-      "dependents": 9,
-      "blast_s": 239.0,
-      "fan_in": 6,
+      "dependents": 10,
+      "blast_s": 242.0,
+      "fan_in": 7,
       "touches_90d": 22,
       "churn_compile_pain_score": 244.2
     },
@@ -152,15 +152,15 @@
       "compile_s": 5.4,
       "dependents": 20,
       "blast_s": 385.0,
-      "fan_in": 5,
+      "fan_in": 6,
       "touches_90d": 59,
       "churn_compile_pain_score": 318.6
     },
     {
       "crate": "vox-codegen",
       "compile_s": 10.9,
-      "dependents": 52,
-      "blast_s": 586.0,
+      "dependents": 12,
+      "blast_s": 248.0,
       "fan_in": 9,
       "touches_90d": 397,
       "churn_compile_pain_score": 4327.3
@@ -168,35 +168,35 @@
     {
       "crate": "vox-codegen-ts",
       "compile_s": 4.5,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 2,
+      "dependents": 8,
+      "blast_s": 235.0,
+      "fan_in": 1,
       "touches_90d": 5,
       "churn_compile_pain_score": 22.5
     },
     {
       "crate": "vox-compiler",
       "compile_s": 25.4,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 24,
+      "dependents": 32,
+      "blast_s": 457.0,
+      "fan_in": 22,
       "touches_90d": 279,
       "churn_compile_pain_score": 7086.6
     },
     {
       "crate": "vox-config",
       "compile_s": 3.2,
-      "dependents": 69,
-      "blast_s": 610.0,
-      "fan_in": 45,
+      "dependents": 66,
+      "blast_s": 600.0,
+      "fan_in": 43,
       "touches_90d": 59,
       "churn_compile_pain_score": 188.8
     },
     {
       "crate": "vox-config-derive",
       "compile_s": 1.6,
-      "dependents": 69,
-      "blast_s": 610.0,
+      "dependents": 67,
+      "blast_s": 601.0,
       "fan_in": 1,
       "touches_90d": 1,
       "churn_compile_pain_score": 1.6
@@ -204,26 +204,26 @@
     {
       "crate": "vox-constrained-gen",
       "compile_s": 0.5,
-      "dependents": 53,
-      "blast_s": 587.0,
-      "fan_in": 3,
+      "dependents": 5,
+      "blast_s": 51.0,
+      "fan_in": 2,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.5
     },
     {
       "crate": "vox-container",
       "compile_s": 0.4,
-      "dependents": 54,
-      "blast_s": 587.0,
-      "fan_in": 4,
+      "dependents": 35,
+      "blast_s": 466.0,
+      "fan_in": 5,
       "touches_90d": 2,
       "churn_compile_pain_score": 0.8
     },
     {
       "crate": "vox-container-types",
       "compile_s": 0.8,
-      "dependents": 56,
-      "blast_s": 588.0,
+      "dependents": 40,
+      "blast_s": 485.0,
       "fan_in": 3,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.8
@@ -231,26 +231,26 @@
     {
       "crate": "vox-corpus",
       "compile_s": 8.6,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 6,
+      "dependents": 21,
+      "blast_s": 409.0,
+      "fan_in": 7,
       "touches_90d": 103,
       "churn_compile_pain_score": 885.8
     },
     {
       "crate": "vox-crypto",
       "compile_s": 0.3,
-      "dependents": 73,
-      "blast_s": 613.0,
-      "fan_in": 14,
+      "dependents": 72,
+      "blast_s": 611.0,
+      "fan_in": 16,
       "touches_90d": 5,
       "churn_compile_pain_score": 1.5
     },
     {
       "crate": "vox-db",
       "compile_s": 43.5,
-      "dependents": 52,
-      "blast_s": 586.0,
+      "dependents": 44,
+      "blast_s": 555.0,
       "fan_in": 28,
       "touches_90d": 259,
       "churn_compile_pain_score": 11266.5
@@ -258,17 +258,17 @@
     {
       "crate": "vox-db-types",
       "compile_s": 8.7,
-      "dependents": 53,
-      "blast_s": 595.0,
-      "fan_in": 2,
+      "dependents": 45,
+      "blast_s": 563.0,
+      "fan_in": 3,
       "touches_90d": 16,
       "churn_compile_pain_score": 139.2
     },
     {
       "crate": "vox-deploy-codegen",
       "compile_s": 0.7,
-      "dependents": 53,
-      "blast_s": 587.0,
+      "dependents": 14,
+      "blast_s": 252.0,
       "fan_in": 5,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.7
@@ -276,8 +276,8 @@
     {
       "crate": "vox-diagram",
       "compile_s": 0.0,
-      "dependents": 8,
-      "blast_s": 229.0,
+      "dependents": 9,
+      "blast_s": 232.0,
       "fan_in": 2,
       "touches_90d": 479,
       "churn_compile_pain_score": 0.0
@@ -285,18 +285,18 @@
     {
       "crate": "vox-doc-inventory",
       "compile_s": 1.2,
-      "dependents": 4,
-      "blast_s": 52.0,
-      "fan_in": 1,
+      "dependents": 6,
+      "blast_s": 74.0,
+      "fan_in": 2,
       "touches_90d": 2,
       "churn_compile_pain_score": 2.4
     },
     {
       "crate": "vox-doc-pipeline",
       "compile_s": 1.0,
-      "dependents": 5,
-      "blast_s": 71.0,
-      "fan_in": 2,
+      "dependents": 6,
+      "blast_s": 74.0,
+      "fan_in": 3,
       "touches_90d": 82,
       "churn_compile_pain_score": 82.0
     },
@@ -312,27 +312,27 @@
     {
       "crate": "vox-effort-audit",
       "compile_s": 3.4,
-      "dependents": 5,
-      "blast_s": 57.0,
-      "fan_in": 2,
+      "dependents": 6,
+      "blast_s": 60.0,
+      "fan_in": 3,
       "touches_90d": 4,
       "churn_compile_pain_score": 13.6
     },
     {
       "crate": "vox-effort-route",
       "compile_s": 2.9,
-      "dependents": 4,
-      "blast_s": 53.0,
-      "fan_in": 1,
+      "dependents": 5,
+      "blast_s": 56.0,
+      "fan_in": 2,
       "touches_90d": 8,
       "churn_compile_pain_score": 23.2
     },
     {
       "crate": "vox-eval",
       "compile_s": 0.4,
-      "dependents": 53,
-      "blast_s": 587.0,
-      "fan_in": 8,
+      "dependents": 34,
+      "blast_s": 458.0,
+      "fan_in": 9,
       "touches_90d": 51,
       "churn_compile_pain_score": 20.4
     },
@@ -348,8 +348,8 @@
     {
       "crate": "vox-foundation",
       "compile_s": 0.7,
-      "dependents": 54,
-      "blast_s": 587.0,
+      "dependents": 44,
+      "blast_s": 519.0,
       "fan_in": 15,
       "touches_90d": 11,
       "churn_compile_pain_score": 7.7
@@ -357,8 +357,8 @@
     {
       "crate": "vox-gamify",
       "compile_s": 9.6,
-      "dependents": 18,
-      "blast_s": 384.0,
+      "dependents": 17,
+      "blast_s": 383.0,
       "fan_in": 6,
       "touches_90d": 38,
       "churn_compile_pain_score": 364.8
@@ -366,27 +366,27 @@
     {
       "crate": "vox-git",
       "compile_s": 1.1,
-      "dependents": 70,
-      "blast_s": 611.0,
-      "fan_in": 8,
+      "dependents": 67,
+      "blast_s": 601.0,
+      "fan_in": 9,
       "touches_90d": 2,
       "churn_compile_pain_score": 2.2
     },
     {
       "crate": "vox-grammar-export",
       "compile_s": 0.8,
-      "dependents": 54,
-      "blast_s": 588.0,
-      "fan_in": 5,
+      "dependents": 34,
+      "blast_s": 459.0,
+      "fan_in": 6,
       "touches_90d": 9,
       "churn_compile_pain_score": 7.2
     },
     {
       "crate": "vox-graph-reader",
       "compile_s": 1.5,
-      "dependents": 8,
-      "blast_s": 229.0,
-      "fan_in": 4,
+      "dependents": 9,
+      "blast_s": 232.0,
+      "fan_in": 5,
       "touches_90d": 42,
       "churn_compile_pain_score": 63.0
     },
@@ -402,8 +402,8 @@
     {
       "crate": "vox-hf-layout",
       "compile_s": 0.5,
-      "dependents": 53,
-      "blast_s": 587.0,
+      "dependents": 23,
+      "blast_s": 400.0,
       "fan_in": 4,
       "touches_90d": 8,
       "churn_compile_pain_score": 4.0
@@ -411,8 +411,8 @@
     {
       "crate": "vox-http-client",
       "compile_s": 0.7,
-      "dependents": 74,
-      "blast_s": 620.0,
+      "dependents": 71,
+      "blast_s": 610.0,
       "fan_in": 24,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.7
@@ -420,9 +420,9 @@
     {
       "crate": "vox-identity",
       "compile_s": 0.4,
-      "dependents": 53,
-      "blast_s": 587.0,
-      "fan_in": 4,
+      "dependents": 20,
+      "blast_s": 400.0,
+      "fan_in": 5,
       "touches_90d": 3,
       "churn_compile_pain_score": 1.2
     },
@@ -438,8 +438,8 @@
     {
       "crate": "vox-journal",
       "compile_s": 0.9,
-      "dependents": 54,
-      "blast_s": 588.0,
+      "dependents": 9,
+      "blast_s": 56.0,
       "fan_in": 3,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.9
@@ -447,18 +447,18 @@
     {
       "crate": "vox-jsonschema-util",
       "compile_s": 0.4,
-      "dependents": 55,
-      "blast_s": 593.0,
-      "fan_in": 9,
+      "dependents": 36,
+      "blast_s": 478.0,
+      "fan_in": 10,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.4
     },
     {
       "crate": "vox-kb-facets",
       "compile_s": 0.0,
-      "dependents": 53,
-      "blast_s": 586.0,
-      "fan_in": 3,
+      "dependents": 27,
+      "blast_s": 449.0,
+      "fan_in": 4,
       "touches_90d": 14,
       "churn_compile_pain_score": 0.0
     },
@@ -474,8 +474,8 @@
     {
       "crate": "vox-language-surface",
       "compile_s": 0.1,
-      "dependents": 55,
-      "blast_s": 588.0,
+      "dependents": 35,
+      "blast_s": 459.0,
       "fan_in": 2,
       "touches_90d": 2,
       "churn_compile_pain_score": 0.2
@@ -483,8 +483,8 @@
     {
       "crate": "vox-llm-config",
       "compile_s": 0.2,
-      "dependents": 70,
-      "blast_s": 610.0,
+      "dependents": 67,
+      "blast_s": 600.0,
       "fan_in": 1,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.2
@@ -492,9 +492,9 @@
     {
       "crate": "vox-llm-egress",
       "compile_s": 0.9,
-      "dependents": 70,
-      "blast_s": 611.0,
-      "fan_in": 5,
+      "dependents": 67,
+      "blast_s": 601.0,
+      "fan_in": 4,
       "touches_90d": 22,
       "churn_compile_pain_score": 19.8
     },
@@ -510,9 +510,9 @@
     {
       "crate": "vox-mcp-registry",
       "compile_s": 1.5,
-      "dependents": 54,
-      "blast_s": 589.0,
-      "fan_in": 5,
+      "dependents": 23,
+      "blast_s": 411.0,
+      "fan_in": 7,
       "touches_90d": 27,
       "churn_compile_pain_score": 40.5
     },
@@ -528,8 +528,8 @@
     {
       "crate": "vox-mesh-transport",
       "compile_s": 0.0,
-      "dependents": 53,
-      "blast_s": 586.0,
+      "dependents": 2,
+      "blast_s": 0.0,
       "fan_in": 1,
       "touches_90d": 79,
       "churn_compile_pain_score": 0.0
@@ -537,9 +537,9 @@
     {
       "crate": "vox-mesh-types",
       "compile_s": 1.6,
-      "dependents": 78,
-      "blast_s": 617.0,
-      "fan_in": 12,
+      "dependents": 77,
+      "blast_s": 615.0,
+      "fan_in": 13,
       "touches_90d": 3,
       "churn_compile_pain_score": 4.8
     },
@@ -555,17 +555,17 @@
     {
       "crate": "vox-oauth-pkce",
       "compile_s": 0.9,
-      "dependents": 4,
-      "blast_s": 51.0,
-      "fan_in": 2,
+      "dependents": 5,
+      "blast_s": 54.0,
+      "fan_in": 3,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.8
     },
     {
       "crate": "vox-openai",
       "compile_s": 0.5,
-      "dependents": 71,
-      "blast_s": 611.0,
+      "dependents": 68,
+      "blast_s": 601.0,
       "fan_in": 4,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.0
@@ -573,9 +573,9 @@
     {
       "crate": "vox-openclaw-runtime",
       "compile_s": 5.4,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 3,
+      "dependents": 33,
+      "blast_s": 468.0,
+      "fan_in": 4,
       "touches_90d": 1,
       "churn_compile_pain_score": 5.4
     },
@@ -600,18 +600,18 @@
     {
       "crate": "vox-orchestrator-driver",
       "compile_s": 1.1,
-      "dependents": 10,
-      "blast_s": 240.0,
-      "fan_in": 3,
+      "dependents": 11,
+      "blast_s": 243.0,
+      "fan_in": 4,
       "touches_90d": 1,
       "churn_compile_pain_score": 1.1
     },
     {
       "crate": "vox-orchestrator-mcp",
       "compile_s": 157.9,
-      "dependents": 6,
-      "blast_s": 228.0,
-      "fan_in": 5,
+      "dependents": 7,
+      "blast_s": 231.0,
+      "fan_in": 6,
       "touches_90d": 619,
       "churn_compile_pain_score": 97740.1
     },
@@ -627,8 +627,8 @@
     {
       "crate": "vox-orchestrator-queue",
       "compile_s": 2.7,
-      "dependents": 52,
-      "blast_s": 586.0,
+      "dependents": 20,
+      "blast_s": 403.0,
       "fan_in": 2,
       "touches_90d": 5,
       "churn_compile_pain_score": 13.5
@@ -645,8 +645,8 @@
     {
       "crate": "vox-orchestrator-types",
       "compile_s": 3.6,
-      "dependents": 54,
-      "blast_s": 595.0,
+      "dependents": 45,
+      "blast_s": 558.0,
       "fan_in": 8,
       "touches_90d": 5,
       "churn_compile_pain_score": 18.0
@@ -654,17 +654,17 @@
     {
       "crate": "vox-package",
       "compile_s": 1.9,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 6,
+      "dependents": 34,
+      "blast_s": 468.0,
+      "fan_in": 7,
       "touches_90d": 4,
       "churn_compile_pain_score": 7.6
     },
     {
       "crate": "vox-package-types",
       "compile_s": 1.8,
-      "dependents": 54,
-      "blast_s": 589.0,
+      "dependents": 36,
+      "blast_s": 470.0,
       "fan_in": 3,
       "touches_90d": 4,
       "churn_compile_pain_score": 7.2
@@ -672,9 +672,9 @@
     {
       "crate": "vox-plugin-api",
       "compile_s": 3.3,
-      "dependents": 61,
-      "blast_s": 592.0,
-      "fan_in": 16,
+      "dependents": 42,
+      "blast_s": 474.0,
+      "fan_in": 17,
       "touches_90d": 9,
       "churn_compile_pain_score": 29.7
     },
@@ -690,18 +690,18 @@
     {
       "crate": "vox-plugin-catalog",
       "compile_s": 3.7,
-      "dependents": 8,
-      "blast_s": 232.0,
-      "fan_in": 4,
+      "dependents": 9,
+      "blast_s": 235.0,
+      "fan_in": 5,
       "touches_90d": 23,
       "churn_compile_pain_score": 85.1
     },
     {
       "crate": "vox-plugin-host",
       "compile_s": 1.8,
-      "dependents": 53,
-      "blast_s": 588.0,
-      "fan_in": 8,
+      "dependents": 34,
+      "blast_s": 470.0,
+      "fan_in": 9,
       "touches_90d": 20,
       "churn_compile_pain_score": 36.0
     },
@@ -780,9 +780,9 @@
     {
       "crate": "vox-plugin-sdk",
       "compile_s": 0.2,
-      "dependents": 2,
-      "blast_s": 1.0,
-      "fan_in": 2,
+      "dependents": 7,
+      "blast_s": 54.0,
+      "fan_in": 3,
       "touches_90d": 2,
       "churn_compile_pain_score": 0.4
     },
@@ -807,9 +807,9 @@
     {
       "crate": "vox-plugin-types",
       "compile_s": 0.9,
-      "dependents": 64,
-      "blast_s": 594.0,
-      "fan_in": 8,
+      "dependents": 56,
+      "blast_s": 562.0,
+      "fan_in": 9,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.8
     },
@@ -825,17 +825,17 @@
     {
       "crate": "vox-populi",
       "compile_s": 26.9,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 6,
+      "dependents": 19,
+      "blast_s": 400.0,
+      "fan_in": 7,
       "touches_90d": 221,
       "churn_compile_pain_score": 5944.9
     },
     {
       "crate": "vox-populi-types",
       "compile_s": 0.8,
-      "dependents": 53,
-      "blast_s": 587.0,
+      "dependents": 20,
+      "blast_s": 401.0,
       "fan_in": 1,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.6
@@ -843,8 +843,8 @@
     {
       "crate": "vox-project-scaffold",
       "compile_s": 0.9,
-      "dependents": 8,
-      "blast_s": 232.0,
+      "dependents": 9,
+      "blast_s": 235.0,
       "fan_in": 3,
       "touches_90d": 4,
       "churn_compile_pain_score": 3.6
@@ -861,8 +861,8 @@
     {
       "crate": "vox-python-bridge",
       "compile_s": 0.0,
-      "dependents": 53,
-      "blast_s": 586.0,
+      "dependents": 33,
+      "blast_s": 457.0,
       "fan_in": 1,
       "touches_90d": 14,
       "churn_compile_pain_score": 0.0
@@ -870,8 +870,8 @@
     {
       "crate": "vox-quantize",
       "compile_s": 0.6,
-      "dependents": 53,
-      "blast_s": 587.0,
+      "dependents": 20,
+      "blast_s": 401.0,
       "fan_in": 1,
       "touches_90d": 32,
       "churn_compile_pain_score": 19.2
@@ -879,8 +879,8 @@
     {
       "crate": "vox-redact",
       "compile_s": 0.2,
-      "dependents": 9,
-      "blast_s": 232.0,
+      "dependents": 10,
+      "blast_s": 235.0,
       "fan_in": 2,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.2
@@ -897,8 +897,8 @@
     {
       "crate": "vox-repository",
       "compile_s": 2.7,
-      "dependents": 56,
-      "blast_s": 592.0,
+      "dependents": 53,
+      "blast_s": 589.0,
       "fan_in": 20,
       "touches_90d": 6,
       "churn_compile_pain_score": 16.2
@@ -908,7 +908,7 @@
       "compile_s": 7.2,
       "dependents": 20,
       "blast_s": 414.0,
-      "fan_in": 6,
+      "fan_in": 7,
       "touches_90d": 0,
       "churn_compile_pain_score": 0.0
     },
@@ -942,8 +942,8 @@
     {
       "crate": "vox-runtime",
       "compile_s": 1.0,
-      "dependents": 55,
-      "blast_s": 589.0,
+      "dependents": 10,
+      "blast_s": 57.0,
       "fan_in": 3,
       "touches_90d": 2,
       "churn_compile_pain_score": 2.0
@@ -960,9 +960,9 @@
     {
       "crate": "vox-scaling-policy",
       "compile_s": 0.7,
-      "dependents": 75,
-      "blast_s": 615.0,
-      "fan_in": 6,
+      "dependents": 74,
+      "blast_s": 613.0,
+      "fan_in": 7,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.4
     },
@@ -971,7 +971,7 @@
       "compile_s": 14.7,
       "dependents": 19,
       "blast_s": 407.0,
-      "fan_in": 6,
+      "fan_in": 7,
       "touches_90d": 43,
       "churn_compile_pain_score": 632.1
     },
@@ -996,8 +996,8 @@
     {
       "crate": "vox-secrets",
       "compile_s": 1.8,
-      "dependents": 71,
-      "blast_s": 612.0,
+      "dependents": 70,
+      "blast_s": 610.0,
       "fan_in": 36,
       "touches_90d": 47,
       "churn_compile_pain_score": 84.6
@@ -1005,8 +1005,8 @@
     {
       "crate": "vox-shell-stdlib-types",
       "compile_s": 0.3,
-      "dependents": 53,
-      "blast_s": 587.0,
+      "dependents": 43,
+      "blast_s": 518.0,
       "fan_in": 2,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.3
@@ -1014,8 +1014,8 @@
     {
       "crate": "vox-similarity",
       "compile_s": 0.4,
-      "dependents": 8,
-      "blast_s": 229.0,
+      "dependents": 9,
+      "blast_s": 232.0,
       "fan_in": 2,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.4
@@ -1023,17 +1023,17 @@
     {
       "crate": "vox-skill-discovery",
       "compile_s": 0.6,
-      "dependents": 7,
-      "blast_s": 228.0,
-      "fan_in": 1,
+      "dependents": 8,
+      "blast_s": 231.0,
+      "fan_in": 2,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.6
     },
     {
       "crate": "vox-skill-runtime",
       "compile_s": 0.4,
-      "dependents": 55,
-      "blast_s": 587.0,
+      "dependents": 35,
+      "blast_s": 463.0,
       "fan_in": 4,
       "touches_90d": 5,
       "churn_compile_pain_score": 2.0
@@ -1041,9 +1041,9 @@
     {
       "crate": "vox-skills",
       "compile_s": 1.6,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 6,
+      "dependents": 32,
+      "blast_s": 462.0,
+      "fan_in": 7,
       "touches_90d": 4,
       "churn_compile_pain_score": 6.4
     },
@@ -1059,17 +1059,17 @@
     {
       "crate": "vox-sql",
       "compile_s": 9.8,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 3,
+      "dependents": 13,
+      "blast_s": 258.0,
+      "fan_in": 4,
       "touches_90d": 14,
       "churn_compile_pain_score": 137.2
     },
     {
       "crate": "vox-tauri-codegen",
       "compile_s": 0.8,
-      "dependents": 52,
-      "blast_s": 586.0,
+      "dependents": 13,
+      "blast_s": 249.0,
       "fan_in": 2,
       "touches_90d": 3,
       "churn_compile_pain_score": 2.4
@@ -1086,9 +1086,9 @@
     {
       "crate": "vox-telemetry",
       "compile_s": 2.3,
-      "dependents": 71,
-      "blast_s": 612.0,
-      "fan_in": 14,
+      "dependents": 68,
+      "blast_s": 603.0,
+      "fan_in": 15,
       "touches_90d": 15,
       "churn_compile_pain_score": 34.5
     },
@@ -1104,8 +1104,8 @@
     {
       "crate": "vox-tensor",
       "compile_s": 0.7,
-      "dependents": 52,
-      "blast_s": 586.0,
+      "dependents": 23,
+      "blast_s": 401.0,
       "fan_in": 4,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.4
@@ -1131,8 +1131,8 @@
     {
       "crate": "vox-test-harness",
       "compile_s": 0.0,
-      "dependents": 52,
-      "blast_s": 586.0,
+      "dependents": 51,
+      "blast_s": 584.0,
       "fan_in": 5,
       "touches_90d": 2,
       "churn_compile_pain_score": 0.0
@@ -1167,9 +1167,9 @@
     {
       "crate": "vox-workflow-runtime",
       "compile_s": 0.0,
-      "dependents": 52,
-      "blast_s": 586.0,
-      "fan_in": 2,
+      "dependents": 1,
+      "blast_s": 0.0,
+      "fan_in": 1,
       "touches_90d": 103,
       "churn_compile_pain_score": 0.0
     },
@@ -1185,9 +1185,9 @@
     {
       "crate": "workspace-hack",
       "compile_s": 0.6,
-      "dependents": 121,
-      "blast_s": 653.0,
-      "fan_in": 118,
+      "dependents": 100,
+      "blast_s": 626.0,
+      "fan_in": 95,
       "touches_90d": 8,
       "churn_compile_pain_score": 4.8
     }

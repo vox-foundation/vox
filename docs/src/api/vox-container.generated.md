@@ -74,6 +74,8 @@ graph {
     vox_audit -> vox_container
     node vox_cli: "vox-cli"
     vox_cli -> vox_container
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_container
     node vox_plugin_runtime_container: "vox-plugin-runtime-container"
     vox_plugin_runtime_container -> vox_container
     node vox_skills: "vox-skills"
@@ -87,6 +89,7 @@ graph {
 |---|---|
 | [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-plugin-runtime-container`](./vox-plugin-runtime-container.generated.md) | Direct workspace dependent |
 | [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
 

@@ -59,8 +59,6 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-shell-stdlib-types`](./vox-shell-stdlib-types.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`vox-codegen`](./vox-codegen.generated.md) | Development |
-| [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Development |
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Development |
 | [`vox-test-harness`](./vox-test-harness.generated.md) | Development |
 
@@ -98,7 +96,6 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | `serialization` | — |
 | `shell_projection` | — |
 | `target` | — |
-| `test_support` | — |
 | `tokens` | — |
 | `typeck` | — |
 | `web_prefixes` | — |
@@ -113,10 +110,6 @@ graph {
     vox_compiler -> vox_ast
     node vox_bounded_fs: "vox-bounded-fs"
     vox_compiler -> vox_bounded_fs
-    node vox_codegen: "vox-codegen"
-    vox_compiler -> vox_codegen
-    node vox_codegen_ts: "vox-codegen-ts"
-    vox_compiler -> vox_codegen_ts
     node vox_config: "vox-config"
     vox_compiler -> vox_config
     node vox_crypto: "vox-crypto"
@@ -133,22 +126,28 @@ graph {
     vox_compiler -> vox_language_surface
     node vox_python_bridge: "vox-python-bridge"
     vox_compiler -> vox_python_bridge
+    node vox_repository: "vox-repository"
+    vox_compiler -> vox_repository
+    node vox_secrets: "vox-secrets"
+    vox_compiler -> vox_secrets
     node vox_audit: "vox-audit"
     vox_audit -> vox_compiler
     node vox_cli: "vox-cli"
     vox_cli -> vox_compiler
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_compiler
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_compiler
     node vox_cli_tests: "vox-cli-tests"
     vox_cli_tests -> vox_compiler
+    node vox_codegen: "vox-codegen"
     vox_codegen -> vox_compiler
+    node vox_codegen_ts: "vox-codegen-ts"
     vox_codegen_ts -> vox_compiler
     node vox_corpus: "vox-corpus"
     vox_corpus -> vox_compiler
     node vox_doc_pipeline: "vox-doc-pipeline"
     vox_doc_pipeline -> vox_compiler
-    node vox_drift_check: "vox-drift-check"
-    vox_drift_check -> vox_compiler
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_compiler
     node vox_langtool: "vox-langtool"
@@ -165,12 +164,12 @@ graph {
 | [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-tests`](./vox-cli-tests.generated.md) | Direct workspace dependent |
 | [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
 | [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
 | [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
-| [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
 | [`vox-lsp`](./vox-lsp.generated.md) | Direct workspace dependent |

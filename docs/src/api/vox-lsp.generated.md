@@ -35,15 +35,15 @@ Shared validation helpers used by the LSP binary and MCP / orchestrator quality 
 
 | Feature | Default / Enables |
 |---|---|
-| `db` | dep:vox-db, dep:vox-gamify |
-| `default` | db |
+| `db` | — |
+| `default` | — |
+| `vox-gamify` | dep:vox-gamify |
 
 ## Workspace Dependencies
 
 | Dependency | Kind |
 |---|---|
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
-| [`vox-db`](./vox-db.generated.md) | Normal |
 | [`vox-foundation`](./vox-foundation.generated.md) | Normal |
 | [`vox-gamify`](./vox-gamify.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
@@ -82,8 +82,6 @@ graph {
     node vox_lsp: "vox-lsp"
     node vox_compiler: "vox-compiler"
     vox_lsp -> vox_compiler
-    node vox_db: "vox-db"
-    vox_lsp -> vox_db
     node vox_foundation: "vox-foundation"
     vox_lsp -> vox_foundation
     node vox_gamify: "vox-gamify"

@@ -87,6 +87,8 @@ graph {
     vox_actor_runtime -> vox_openclaw_runtime
     node vox_cli: "vox-cli"
     vox_cli -> vox_openclaw_runtime
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_openclaw_runtime
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
     vox_orchestrator_mcp -> vox_openclaw_runtime
     node vox_skills: "vox-skills"
@@ -100,6 +102,7 @@ graph {
 |---|---|
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 | [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
 

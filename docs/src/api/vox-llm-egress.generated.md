@@ -97,8 +97,6 @@ graph {
     vox_actor_runtime -> vox_llm_egress
     node vox_cli: "vox-cli"
     vox_cli -> vox_llm_egress
-    node vox_code_audit: "vox-code-audit"
-    vox_code_audit -> vox_llm_egress
     node vox_config: "vox-config"
     vox_config -> vox_llm_egress
     node vox_gamify: "vox-gamify"
@@ -112,7 +110,6 @@ graph {
 |---|---|
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
-| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
 | [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
 | [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
 

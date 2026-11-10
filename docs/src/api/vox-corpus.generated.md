@@ -94,6 +94,8 @@ graph {
     vox_corpus -> vox_repository
     node vox_cli: "vox-cli"
     vox_cli -> vox_corpus
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_corpus
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_corpus
     node vox_ml_cli: "vox-ml-cli"
@@ -112,6 +114,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
@@ -154,17 +157,17 @@ graph {
 | `struct` | `flywheel::FlywheelState` | `pub struct FlywheelState` | [`crates/vox-corpus/src/flywheel.rs#L74-L78`](../../../crates/vox-corpus/src/flywheel.rs#L74-L78) | — |
 | `fn` | `flywheel::new` | `pub fn new(config: FlywheelConfig) -> Self` | [`crates/vox-corpus/src/flywheel.rs#L81-L87`](../../../crates/vox-corpus/src/flywheel.rs#L81-L87) | — |
 | `fn` | `flywheel::check` | `pub fn check(&self, current_samples: usize, current_diversity: f64) -> FlywheelSignal` | [`crates/vox-corpus/src/flywheel.rs#L89-L103`](../../../crates/vox-corpus/src/flywheel.rs#L89-L103) | — |
-| `fn` | `flywheel::evaluate_readiness` | `pub fn evaluate_readiness(` | [`crates/vox-corpus/src/flywheel.rs#L106`](../../../crates/vox-corpus/src/flywheel.rs#L106) | — |
-| `struct` | `flywheel::LintFeedbackRecord` | `pub struct LintFeedbackRecord` | [`crates/vox-corpus/src/flywheel.rs#L159-L168`](../../../crates/vox-corpus/src/flywheel.rs#L159-L168) | Helper record for `vox.lint.*` telemetry outcomes feeding CR-L8 feedback. |
-| `struct` | `flywheel::RepairFeedbackRecord` | `pub struct RepairFeedbackRecord` | [`crates/vox-corpus/src/flywheel.rs#L172-L181`](../../../crates/vox-corpus/src/flywheel.rs#L172-L181) | Helper record for `vox.repair.*` telemetry outcomes feeding CR-L8 feedback. |
-| `fn` | `flywheel::record_lint_finding_event` | `pub fn record_lint_finding_event(` | [`crates/vox-corpus/src/flywheel.rs#L184`](../../../crates/vox-corpus/src/flywheel.rs#L184) | Atomically append a lint finding event to the corpus feedback events sink. |
-| `fn` | `flywheel::record_repair_outcome_event` | `pub fn record_repair_outcome_event(` | [`crates/vox-corpus/src/flywheel.rs#L211`](../../../crates/vox-corpus/src/flywheel.rs#L211) | Atomically append a repair outcome event to the corpus feedback events sink. |
-| `struct` | `flywheel::FlywheelCycleReceipt` | `pub struct FlywheelCycleReceipt` | [`crates/vox-corpus/src/flywheel.rs#L240-L259`](../../../crates/vox-corpus/src/flywheel.rs#L240-L259) | Receipt for one completed cycle (`Cycle 0`, `Cycle 1`, `Cycle 2`) of the Mens multi-spoke autonomous training & evaluation flywheel (`LOOP-01..03`). |
-| `struct` | `flywheel::MensFlywheelBurninReportV1` | `pub struct MensFlywheelBurninReportV1` | [`crates/vox-corpus/src/flywheel.rs#L263-L272`](../../../crates/vox-corpus/src/flywheel.rs#L263-L272) | Full 2-cycle autonomous burn-in report (`contracts/reports/mens-flywheel-burnin.v1.json`) (`LOOP-01..03`). |
-| `fn` | `flywheel::to_contract_summary_json` | `pub fn to_contract_summary_json(&self) -> serde_json::Value` | [`crates/vox-corpus/src/flywheel.rs#L281-L302`](../../../crates/vox-corpus/src/flywheel.rs#L281-L302) | Project the full report into the compact summary stored in `contracts/reports/mens-flywheel-burnin.v1.json`. |
-| `fn` | `flywheel::run_two_cycle_autonomous_burnin` | `pub fn run_two_cycle_autonomous_burnin() -> MensFlywheelBurninReportV1` | [`crates/vox-corpus/src/flywheel.rs#L307-L411`](../../../crates/vox-corpus/src/flywheel.rs#L307-L411) | Execute the closed-loop 2-cycle autonomous burn-in across all 5 spokes (`LOOP-01..03`). |
-| `fn` | `flywheel::persist_burnin_report_to_db` | `pub async fn persist_burnin_report_to_db(` | [`crates/vox-corpus/src/flywheel.rs#L415`](../../../crates/vox-corpus/src/flywheel.rs#L415) | Persist a [`MensFlywheelBurninReportV1`] into `VoxDb` CAS (`LOOP-02`). |
-| `fn` | `flywheel::load_burnin_report_from_db` | `pub async fn load_burnin_report_from_db(` | [`crates/vox-corpus/src/flywheel.rs#L428`](../../../crates/vox-corpus/src/flywheel.rs#L428) | Load a [`MensFlywheelBurninReportV1`] from `VoxDb` CAS by `run_id` (`LOOP-02`). |
-| `struct` | `flywheel::MensBeforeAfterSpokeDeltaV1` | `pub struct MensBeforeAfterSpokeDeltaV1` | [`crates/vox-corpus/src/flywheel.rs#L445-L482`](../../../crates/vox-corpus/src/flywheel.rs#L445-L482) | Per-spoke before/mid/after benchmark delta row (`MENS-PERF-02..03`). |
-| `struct` | `flywheel::MensBeforeAfterEvaluationV1` | `pub struct MensBeforeAfterEvaluationV1` | [`crates/vox-corpus/src/flywheel.rs#L486-L527`](../../../crates/vox-corpus/src/flywheel.rs#L486-L527) | Full 25-problem 5-spoke before/after evaluation report (`contracts/reports/mens-before-after-comparison.v1.json`) (`MENS-PERF-01..04`). |
+| `fn` | `flywheel::evaluate_readiness` | `pub fn evaluate_readiness(` | [`crates/vox-corpus/src/flywheel.rs#L107`](../../../crates/vox-corpus/src/flywheel.rs#L107) | — |
+| `struct` | `flywheel::LintFeedbackRecord` | `pub struct LintFeedbackRecord` | [`crates/vox-corpus/src/flywheel.rs#L160-L169`](../../../crates/vox-corpus/src/flywheel.rs#L160-L169) | Helper record for `vox.lint.*` telemetry outcomes feeding CR-L8 feedback. |
+| `struct` | `flywheel::RepairFeedbackRecord` | `pub struct RepairFeedbackRecord` | [`crates/vox-corpus/src/flywheel.rs#L173-L182`](../../../crates/vox-corpus/src/flywheel.rs#L173-L182) | Helper record for `vox.repair.*` telemetry outcomes feeding CR-L8 feedback. |
+| `fn` | `flywheel::record_lint_finding_event` | `pub fn record_lint_finding_event(` | [`crates/vox-corpus/src/flywheel.rs#L185`](../../../crates/vox-corpus/src/flywheel.rs#L185) | Atomically append a lint finding event to the corpus feedback events sink. |
+| `fn` | `flywheel::record_repair_outcome_event` | `pub fn record_repair_outcome_event(` | [`crates/vox-corpus/src/flywheel.rs#L212`](../../../crates/vox-corpus/src/flywheel.rs#L212) | Atomically append a repair outcome event to the corpus feedback events sink. |
+| `struct` | `flywheel::FlywheelCycleReceipt` | `pub struct FlywheelCycleReceipt` | [`crates/vox-corpus/src/flywheel.rs#L241-L260`](../../../crates/vox-corpus/src/flywheel.rs#L241-L260) | Receipt for one completed cycle (`Cycle 0`, `Cycle 1`, `Cycle 2`) of the Mens multi-spoke autonomous training & evaluation flywheel (`LOOP-01..03`). |
+| `struct` | `flywheel::MensFlywheelBurninReportV1` | `pub struct MensFlywheelBurninReportV1` | [`crates/vox-corpus/src/flywheel.rs#L264-L273`](../../../crates/vox-corpus/src/flywheel.rs#L264-L273) | Full 2-cycle autonomous burn-in report (`contracts/reports/mens-flywheel-burnin.v1.json`) (`LOOP-01..03`). |
+| `fn` | `flywheel::to_contract_summary_json` | `pub fn to_contract_summary_json(&self) -> serde_json::Value` | [`crates/vox-corpus/src/flywheel.rs#L282-L303`](../../../crates/vox-corpus/src/flywheel.rs#L282-L303) | Project the full report into the compact summary stored in `contracts/reports/mens-flywheel-burnin.v1.json`. |
+| `fn` | `flywheel::run_two_cycle_autonomous_burnin` | `pub fn run_two_cycle_autonomous_burnin() -> MensFlywheelBurninReportV1` | [`crates/vox-corpus/src/flywheel.rs#L309-L413`](../../../crates/vox-corpus/src/flywheel.rs#L309-L413) | Execute the closed-loop 2-cycle autonomous burn-in across all 5 spokes (`LOOP-01..03`). |
+| `fn` | `flywheel::persist_burnin_report_to_db` | `pub async fn persist_burnin_report_to_db(` | [`crates/vox-corpus/src/flywheel.rs#L417`](../../../crates/vox-corpus/src/flywheel.rs#L417) | Persist a [`MensFlywheelBurninReportV1`] into `VoxDb` CAS (`LOOP-02`). |
+| `fn` | `flywheel::load_burnin_report_from_db` | `pub async fn load_burnin_report_from_db(` | [`crates/vox-corpus/src/flywheel.rs#L430`](../../../crates/vox-corpus/src/flywheel.rs#L430) | Load a [`MensFlywheelBurninReportV1`] from `VoxDb` CAS by `run_id` (`LOOP-02`). |
+| `struct` | `flywheel::MensBeforeAfterSpokeDeltaV1` | `pub struct MensBeforeAfterSpokeDeltaV1` | [`crates/vox-corpus/src/flywheel.rs#L447-L484`](../../../crates/vox-corpus/src/flywheel.rs#L447-L484) | Per-spoke before/mid/after benchmark delta row (`MENS-PERF-02..03`). |
+| `struct` | `flywheel::MensBeforeAfterEvaluationV1` | `pub struct MensBeforeAfterEvaluationV1` | [`crates/vox-corpus/src/flywheel.rs#L488-L529`](../../../crates/vox-corpus/src/flywheel.rs#L488-L529) | Full 25-problem 5-spoke before/after evaluation report (`contracts/reports/mens-before-after-comparison.v1.json`) (`MENS-PERF-01..04`). |
 

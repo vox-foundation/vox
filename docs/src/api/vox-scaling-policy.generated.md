@@ -86,6 +86,8 @@ graph {
     vox_cli -> vox_scaling_policy
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_scaling_policy
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_scaling_policy
     node vox_code_audit: "vox-code-audit"
     vox_code_audit -> vox_scaling_policy
     node vox_integration_tests: "vox-integration-tests"
@@ -102,6 +104,7 @@ graph {
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
