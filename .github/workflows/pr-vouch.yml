@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
-      group: pr-vouch-${{ matrix.target.number }}
+      group: pr-vouch-label-${{ matrix.target.number }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
