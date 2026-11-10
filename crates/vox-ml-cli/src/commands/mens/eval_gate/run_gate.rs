@@ -165,6 +165,50 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
     #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
     {
         let root = vox_corpus::training::contract::find_workspace_root();
+        if let Some(ref root_dir) = root {
+            let vox_lang_policy = root_dir.join("mens/config/eval-gates.yaml");
+            if vox_lang_policy.is_file()
+                && run_dir.join("eval_local_report.json").is_file()
+                && run_dir.join("benchmark_passatk.json").is_file()
+                && let (Ok(spoke_results), Ok(spoke_policy_val)) = (
+                    check_run(&run_dir, &vox_lang_policy),
+                    super::policy::load_policy_value(&vox_lang_policy),
+                )
+            {
+                let spoke_passed = !spoke_results.iter().any(|r| !r.passed && r.block);
+                let spoke_hash_input = vox_eval::gate_state::policy_hash_input(&spoke_policy_val);
+                let spoke_policy_blake3 =
+                    vox_crypto::hex_encode(&vox_crypto::secure_hash(&spoke_hash_input));
+                let spoke_receipt = serde_json::json!({
+                    "schema": vox_eval::gate_state::RECEIPT_SCHEMA,
+                    "timestamp_unix": timestamp,
+                    "source_commit": env!("VOX_GIT_HASH"),
+                    "run_dir": run_dir.display().to_string(),
+                    "policy": "mens/config/eval-gates.yaml",
+                    "policy_blake3": spoke_policy_blake3,
+                    "spoke": "vox-lang",
+                    "overall_passed": spoke_passed,
+                    "gates": spoke_results.iter().map(|r| serde_json::json!({
+                        "name": r.name,
+                        "passed": r.passed,
+                        "block": r.block,
+                        "message": r.message,
+                    })).collect::<Vec<_>>(),
+                    "inputs": {
+                        "adapter_sha256": adapter_sha256,
+                        "base_pin": base_pin,
+                        "slice_blake3": slice_blake3,
+                        "grader": grader,
+                        "decode_blake3": decode_blake3,
+                        "suites": {},
+                        "datasets": []
+                    }
+                });
+                if let Ok(json) = serde_json::to_string_pretty(&spoke_receipt) {
+                    let _ = std::fs::write(run_dir.join("gate_receipt.vox-lang.json"), &json);
+                }
+            }
+        }
         let rows = vox_populi::mens::gate_policy::spoke_gate_rows(&run_dir, root.as_deref());
         let spoke_gates = vox_eval::gate_state::spoke_gates_json(
             adapter_sha256.as_deref(),

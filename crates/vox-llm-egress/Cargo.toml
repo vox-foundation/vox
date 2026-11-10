@@ -4,6 +4,10 @@ description = "Sanctioned low-layer LLM provider egress: chat_once/stream_once/e
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 reqwest = { workspace = true }
@@ -15,7 +19,6 @@ futures-util = { workspace = true }
 async-stream = { workspace = true }
 vox-http-client = { workspace = true }
 vox-openai = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 wiremock = { workspace = true }

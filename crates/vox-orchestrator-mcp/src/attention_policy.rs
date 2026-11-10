@@ -113,7 +113,6 @@ pub(crate) fn task_submit_signals(
         TaskPriority::Urgent => 0.22,
         TaskPriority::Normal => 0.16,
         TaskPriority::Background => 0.10,
-        _ => 0.16,
     };
     let write_cost = (write_file_count as f64 / 4.0).clamp(0.0, 1.0);
     InterruptionSignals {

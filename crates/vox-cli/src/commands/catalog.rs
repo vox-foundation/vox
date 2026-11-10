@@ -104,6 +104,7 @@ pub async fn run(cmd: CatalogCmd) -> Result<()> {
                 metadata: None,
                 provider: None,
                 remote: None,
+                ..Default::default()
             });
             save_catalog(&manifest, &catalog)?;
             println!("Added '{}' to repo catalog.", path);

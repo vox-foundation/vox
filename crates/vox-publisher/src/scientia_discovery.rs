@@ -174,6 +174,7 @@ pub fn evidence_completeness_score(
 /// Pass `novelty_overlap` only when a prior-art scan produced a blended overlap in \[0,1\].
 /// Pass `None` when no scan has run; a **0.5** overlap default is applied (not treated as perfect novelty).
 #[must_use]
+#[inline(never)]
 pub fn rank_candidate(
     publication_id: &str,
     source_ref: Option<&str>,
@@ -467,6 +468,7 @@ pub fn merge_field_provenance_from_metadata(
 
 /// Field completion + provenance hints (clerical; does not assert novelty).
 #[must_use]
+#[inline(never)]
 pub fn manifest_completion_report(manifest: &PublicationManifest) -> ManifestCompletionReport {
     let mut required_missing = Vec::new();
     let mut inferred_ok = Vec::new();
@@ -563,6 +565,7 @@ pub fn manifest_completion_report(manifest: &PublicationManifest) -> ManifestCom
 
 /// Loss map + preview payloads for scholarly/social destinations (non-authoritative).
 #[must_use]
+#[inline(never)]
 pub fn destination_transform_previews(
     manifest: &PublicationManifest,
     evidence: Option<&ScientiaEvidenceContext>,

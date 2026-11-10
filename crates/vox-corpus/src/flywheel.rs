@@ -103,6 +103,7 @@ impl FlywheelState {
     }
 }
 
+#[inline(never)]
 pub fn evaluate_readiness(
     corpus_path: &std::path::Path,
     domain: Option<&str>,
@@ -304,6 +305,7 @@ impl MensFlywheelBurninReportV1 {
 
 /// Execute the closed-loop 2-cycle autonomous burn-in across all 5 spokes (`LOOP-01..03`).
 #[must_use]
+#[inline(never)]
 pub fn run_two_cycle_autonomous_burnin() -> MensFlywheelBurninReportV1 {
     use crate::ast_mutator::mint_hard_negative_dpo_pair;
     use crate::dataset_snapshot::{SplitPolicy, build_trusty_snapshot};
@@ -640,6 +642,7 @@ impl MensBeforeAfterEvaluationV1 {
 /// and `Cycle 2 (After)` using real compiler, Rust AST/policy, structured shell, MCP tool, and
 /// `vox-dei` agent-harness verification oracles (`MENS-PERF-01..04`).
 #[must_use]
+#[inline(never)]
 pub fn run_before_after_five_spoke_evaluation() -> MensBeforeAfterEvaluationV1 {
     use crate::dataset_snapshot::{SplitPolicy, build_trusty_snapshot};
     use crate::training::curriculum::{

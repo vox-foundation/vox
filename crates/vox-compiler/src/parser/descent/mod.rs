@@ -25,6 +25,7 @@ pub(crate) const MAX_EXPR_NESTING: usize = 4096;
 /// Defaults to [`crate::module::FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
 /// path's classification (e.g., `.vox.ui`) needs to relax the grammar — see
 /// [ADR-032](../../../../../docs/src/adr/032-vox-ui-reactive-modules.md).
+#[inline(never)]
 pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     parse_with_kind(tokens, crate::module::FileKind::Source)
 }
@@ -32,6 +33,7 @@ pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
 /// Like [`parse`] but additionally tells the descent which [`crate::module::FileKind`] the source
 /// belongs to. Currently only [`crate::module::FileKind::ReactiveModule`] changes behavior — it
 /// permits module-scope reactive members per ADR-032.
+#[inline(never)]
 pub fn parse_with_kind(
     tokens: Vec<Spanned>,
     file_kind: crate::module::FileKind,
@@ -51,6 +53,7 @@ pub fn parse_with_kind(
 /// as-is and placed before the synthetic main.  A mixed file is valid.
 ///
 /// Returns `Err(errors)` if any parse errors were accumulated.
+#[inline(never)]
 pub fn parse_script(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     let mut p = Parser::new(tokens);
     p.parse_module_script()
@@ -72,6 +75,7 @@ pub fn parse_script(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
 /// entries — an Error-severity entry always forces the `Err` path, so the
 /// `Ok` tuple's diagnostics can never contain one. On failure, behaves
 /// exactly like `parse_with_kind`: `Err(all_accumulated_errors)`.
+#[inline(never)]
 pub fn parse_with_kind_and_warnings(
     tokens: Vec<Spanned>,
     file_kind: crate::module::FileKind,
@@ -86,6 +90,7 @@ pub fn parse_with_kind_and_warnings(
 
 /// Like [`parse`], but see [`parse_with_kind_and_warnings`] for why this
 /// sibling exists and what its `Ok` warnings vector contains.
+#[inline(never)]
 pub fn parse_and_warnings(
     tokens: Vec<Spanned>,
 ) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
@@ -94,6 +99,7 @@ pub fn parse_and_warnings(
 
 /// Like [`parse_script`], but see [`parse_with_kind_and_warnings`] for why
 /// this sibling exists and what its `Ok` warnings vector contains.
+#[inline(never)]
 pub fn parse_script_and_warnings(
     tokens: Vec<Spanned>,
 ) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {

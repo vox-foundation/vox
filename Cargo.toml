@@ -60,17 +60,17 @@ debug = 0
 
 [workspace.dependencies]
 vox-scientia = { path = "crates/vox-scientia" }
-vox-ast                   = { path = "crates/vox-ast" }
+vox-ast                   = { path = "crates/vox-ast", version = "0.6.0" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
-vox-redact                = { path = "crates/vox-redact" }
-vox-telemetry             = { path = "crates/vox-telemetry" }
+vox-redact                = { path = "crates/vox-redact", version = "0.6.0" }
+vox-telemetry             = { path = "crates/vox-telemetry", version = "0.6.0" }
 vox-telemetry-otlp        = { path = "crates/vox-telemetry-otlp" }
-vox-foundation            = { path = "crates/vox-foundation" }
+vox-foundation            = { path = "crates/vox-foundation", version = "0.6.0" }
 vox-llm-config            = { path = "crates/vox-llm-config" }
-vox-llm-egress            = { path = "crates/vox-llm-egress" }
-vox-oauth-pkce            = { path = "crates/vox-oauth-pkce" }
+vox-llm-egress            = { path = "crates/vox-llm-egress", version = "0.6.0" }
+vox-oauth-pkce            = { path = "crates/vox-oauth-pkce", version = "0.6.0" }
 
 
 vox-audit                 = { path = "crates/vox-audit" }
@@ -92,18 +92,18 @@ vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
 vox-python-bridge         = { path = "crates/vox-python-bridge" }
 
 
-vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
+vox-jsonschema-util       = { path = "crates/vox-jsonschema-util", version = "0.6.0" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-sql                   = { path = "crates/vox-sql" }
-vox-db-types              = { path = "crates/vox-db-types" }
-vox-kb-facets             = { path = "crates/vox-kb-facets" }
-vox-diagram               = { path = "crates/vox-diagram" }
+vox-db-types              = { path = "crates/vox-db-types", version = "0.6.0" }
+vox-kb-facets             = { path = "crates/vox-kb-facets", version = "0.6.0" }
+vox-diagram               = { path = "crates/vox-diagram", version = "0.6.0" }
 vox-eval                  = { path = "crates/vox-eval" }
 
 vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto", version = "0.6.0" }
-vox-identity              = { path = "crates/vox-identity" }
+vox-identity              = { path = "crates/vox-identity", version = "0.6.0" }
 
 vox-openclaw-runtime           = { path = "crates/vox-openclaw-runtime" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
@@ -111,9 +111,9 @@ vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
 
-vox-test-harness          = { path = "crates/vox-test-harness" }
+vox-test-harness          = { path = "crates/vox-test-harness", version = "0.6.0" }
 vox-plugin-test-harness   = { path = "crates/vox-plugin-test-harness" }
-vox-git                   = { path = "crates/vox-git" }
+vox-git                   = { path = "crates/vox-git", version = "0.6.0" }
 vox-vcs                   = { path = "crates/vox-vcs" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
@@ -121,11 +121,11 @@ vox-language-surface      = { path = "crates/vox-language-surface" }
 
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-gamify                 = { path = "crates/vox-gamify" }
-vox-hf-layout              = { path = "crates/vox-hf-layout" }
+vox-hf-layout              = { path = "crates/vox-hf-layout", version = "0.6.0" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
-vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
+vox-mesh-policy           = { path = "crates/vox-mesh-policy", version = "0.6.0" }
 vox-mesh-transport        = { path = "crates/vox-mesh-transport", version = "0.6.0" }
 vox-mesh-types            = { path = "crates/vox-mesh-types", version = "0.6.0" }
 
@@ -140,11 +140,11 @@ vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-driver   = { path = "crates/vox-orchestrator-driver" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
-vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
+vox-orchestrator-types    = { path = "crates/vox-orchestrator-types", version = "0.6.0" }
 vox-orchestrator-models   = { path = "crates/vox-orchestrator-models" }
 
 
-vox-openai             = { path = "crates/vox-openai" }
+vox-openai             = { path = "crates/vox-openai", version = "0.6.0" }
 vox-plugin-api            = { path = "crates/vox-plugin-api", version = "0.6.0" }
 vox-plugin-sdk            = { path = "crates/vox-plugin-sdk", version = "0.6.0" }
 vox-plugin-types          = { path = "crates/vox-plugin-types", version = "0.6.0" }
@@ -170,28 +170,28 @@ vox-cli-contracts         = { path = "crates/vox-cli-contracts" }
 
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
-vox-http-client        = { path = "crates/vox-http-client" }
+vox-http-client        = { path = "crates/vox-http-client", version = "0.6.0" }
 
 vox-research-events       = { path = "crates/vox-research-events" }
 
 
 
-vox-quantize             = { path = "crates/vox-quantize" }
+vox-quantize             = { path = "crates/vox-quantize", version = "0.6.0" }
 vox-rename-registry       = { path = "crates/vox-rename-registry" }
 vox-repository            = { path = "crates/vox-repository" }
 vox-shell-stdlib-types    = { path = "crates/vox-shell-stdlib-types" }
-vox-rule-pack             = { path = "crates/vox-rule-pack" }
+vox-rule-pack             = { path = "crates/vox-rule-pack", version = "0.6.0" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy", version = "0.6.0" }
 
 vox-skills                = { path = "crates/vox-skills" }
 
 vox-tensor                = { path = "crates/vox-tensor" }
-vox-code-audit               = { path = "crates/vox-code-audit" }
-vox-drift-check              = { path = "crates/vox-drift-check" }
+vox-code-audit               = { path = "crates/vox-code-audit", version = "0.6.0" }
+vox-drift-check              = { path = "crates/vox-drift-check", version = "0.6.0" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
-vox-similarity            = { path = "crates/vox-similarity" }
+vox-similarity            = { path = "crates/vox-similarity", version = "0.6.0" }
 vox-skill-discovery       = { path = "crates/vox-skill-discovery" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
 vox-tauri-stt             = { path = "crates/vox-tauri-stt" }

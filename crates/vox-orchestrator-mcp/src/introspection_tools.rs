@@ -218,7 +218,6 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
                 vox_orchestrator::types::TaskPriority::Background => "Background",
                 vox_orchestrator::types::TaskPriority::Normal => "Normal",
                 vox_orchestrator::types::TaskPriority::Urgent => "Urgent",
-                _ => "Unknown",
             };
 
             let agent_id = assignments

@@ -46,6 +46,25 @@ impl ModelRegistry {
         });
     }
 
+    /// Reconcile local model endpoints (Ollama and VoxLocal): drop unreachable local models
+    /// so routing cascades to keyed cloud providers (e.g. OpenRouter) instead of failing at dispatch.
+    pub fn reconcile_local_endpoints(
+        &mut self,
+        ollama_installed: Option<&[String]>,
+        vox_local_reachable: bool,
+    ) {
+        self.reconcile_ollama(ollama_installed);
+        if !vox_local_reachable {
+            self.models.retain(|_, m| {
+                !matches!(
+                    m.provider_type,
+                    ProviderType::VoxLocal | ProviderType::PopuliMesh
+                )
+            });
+        }
+        self.apply_routing_reference();
+    }
+
     /// The routing reference this registry scores against.
     #[must_use]
     pub fn routing_reference(&self) -> super::reference::RoutingReference {

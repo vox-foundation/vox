@@ -21,7 +21,7 @@ pub mod mesh_policy {
 }
 pub use donations_vox::{ParseError as DonationsVoxParseError, load_policy, pretty_print};
 
-const EMBEDDED_YAML: &str = include_str!("../../../contracts/scaling/policy.yaml");
+const EMBEDDED_YAML: &str = include_str!("../policy.yaml");
 
 /// Repo-root-relative path to the scaling policy YAML SSOT (for docs, CLI messages, and tooling).
 pub const SCALING_POLICY_YAML_REPO_PATH: &str = "contracts/scaling/policy.yaml";
@@ -179,6 +179,20 @@ mod tests {
         let p = ScalingPolicy::embedded();
         assert!(p.schema_version >= 1);
         assert!(!p.path_literals.mens_runs_variants.is_empty());
+    }
+
+    #[test]
+    fn embedded_matches_contracts_ssot_if_present() {
+        let repo_contracts_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/scaling/policy.yaml");
+        if repo_contracts_path.exists() {
+            let ssot = std::fs::read_to_string(&repo_contracts_path)
+                .expect("failed to read repo contracts scaling policy");
+            assert_eq!(
+                EMBEDDED_YAML, ssot,
+                "embedded policy.yaml must match contracts/scaling/policy.yaml"
+            );
+        }
     }
 }
 

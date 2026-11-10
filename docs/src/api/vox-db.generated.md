@@ -107,8 +107,6 @@ SHA3-512 Base32Hex hashing utilities.
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`vox-codegen`](./vox-codegen.generated.md) | Development |
-| [`vox-compiler`](./vox-compiler.generated.md) | Development |
 | [`vox-test-harness`](./vox-test-harness.generated.md) | Development |
 
 ## Public API Surface
@@ -217,10 +215,6 @@ graph {
     node vox_db: "vox-db"
     node vox_ast: "vox-ast"
     vox_db -> vox_ast
-    node vox_codegen: "vox-codegen"
-    vox_db -> vox_codegen
-    node vox_compiler: "vox-compiler"
-    vox_db -> vox_compiler
     node vox_config: "vox-config"
     vox_db -> vox_config
     node vox_db_types: "vox-db-types"
@@ -251,6 +245,8 @@ graph {
     vox_cli_research -> vox_db
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_db
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_db
     node vox_corpus: "vox-corpus"
     vox_corpus -> vox_db
     node vox_gamify: "vox-gamify"
@@ -261,8 +257,6 @@ graph {
     vox_lsp -> vox_db
     node vox_ml_cli: "vox-ml-cli"
     vox_ml_cli -> vox_db
-    node vox_openclaw_runtime: "vox-openclaw-runtime"
-    vox_openclaw_runtime -> vox_db
 }
 ```
 
@@ -276,6 +270,7 @@ graph {
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
 | [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |

@@ -30,6 +30,7 @@ impl SessionManager {
     }
 
     /// Create a new session for the given agent and optional tenant. Persists immediately.
+    #[inline(never)]
     pub fn create(
         &mut self,
         agent_id: AgentId,
@@ -78,6 +79,7 @@ impl SessionManager {
     }
 
     /// Add a turn to a session and persist the event.
+    #[inline(never)]
     pub fn add_turn(
         &mut self,
         session_id: &str,
@@ -114,6 +116,7 @@ impl SessionManager {
     }
 
     /// Set metadata on a session.
+    #[inline(never)]
     pub fn set_meta(
         &mut self,
         session_id: &str,
@@ -183,6 +186,7 @@ impl SessionManager {
     }
 
     /// Reset a session (clear history but keep metadata).
+    #[inline(never)]
     pub fn reset(&mut self, session_id: &str) -> Result<usize, SessionError> {
         let at = now_secs();
         let event = SessionEvent::Reset { at };
@@ -206,6 +210,7 @@ impl SessionManager {
     }
 
     /// Compact a session with a summary string.
+    #[inline(never)]
     pub fn compact(&mut self, session_id: &str, summary: &str) -> Result<usize, SessionError> {
         let session = self
             .sessions
@@ -285,6 +290,7 @@ impl SessionManager {
     /// surface to exist first — building one is out of scope for a T4.2
     /// follow-up. Tracked for a future task once such a surface lands.
     #[cfg(feature = "runtime")]
+    #[inline(never)]
     pub fn assemble_llm_messages(
         &mut self,
         session_id: &str,

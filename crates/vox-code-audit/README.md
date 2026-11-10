@@ -1,57 +1,69 @@
-# vox-toestub
+# vox-code-audit (`toestub`)
+
+AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, premature victory claims, and DRY violations.
 
 **T**odo, **O**mitted wiring, **E**mpty bodies, **S**tub functions, **T**oo-early victory, **U**nresolved references, **B**roken DRY — detector.
 
-TOESTUB mechanically detects AI coding anti-patterns that are banned by `AGENTS.md` but otherwise only caught during manual review.
-
-## Key Modules
-
-| Module | Purpose |
-|--------|---------|
-| `scanner.rs` | File system scanner — discovers source files |
-| `rules.rs` | `DetectionRule` definitions and `Finding` types |
-| `detectors/` | Individual detection implementations |
-| `engine.rs` | `ToestubEngine` — orchestrates scan + detection |
-| `report.rs` | Output formatting (terminal, JSON, Markdown) |
-| `ai_analyze.rs` | Optional AI-powered analysis for complex patterns |
-| `task_queue.rs` | Parallel task processing |
+`toestub` mechanically detects AI coding anti-patterns and subtle incomplete implementations that are common when using AI code generation tools.
 
 ## What It Detects
 
-| Anti-Pattern | Example |
-|-------------|---------|
-| `todo!()` / `unimplemented!()` | Stub implementations left in place |
-| Empty function bodies | `fn handle() {}` |
-| Hardcoded values | Magic numbers, hardcoded URLs |
-| DRY violations | Duplicated code blocks |
-| Unwrap in production | `.unwrap()` outside tests |
-| Stale comments | Comments that don't match code |
+| Anti-Pattern | Description |
+|-------------|-------------|
+| `todo!()` / `unimplemented!()` | Unimplemented stubs left in place across Rust, TypeScript, Python, and Vox |
+| Empty function bodies | Functions with no implementation body |
+| Hardcoded secrets & magic values | Hardcoded IP addresses, ports, connection strings, API tokens |
+| Premature victory claims | Comments like `// TODO: implement later` or `// done` masking incomplete work |
+| Heuristic unwrap/panic calls | `.unwrap()` or `panic!` calls outside tests in production code paths |
+| Stringly-typed enums | String fields documented with pipe-separated ad-hoc enum lists |
 
-## CLI
+## CLI Binary (`toestub`)
 
-**`vox stub-check`** (minimal `vox` binary): enable **`--features stub-check`**, then e.g.:
-
-```bash
-cargo build -p vox-cli --features stub-check
-vox stub-check                    # scan `.`
-vox stub-check src/               # positional root
-vox stub-check -p crates/         # or --path
-vox stub-check -f json            # JSON output
-vox stub-check -f markdown        # Markdown report
-```
-
-**This crate’s binary** (CI default):
+Run the standalone CLI binary on any codebase:
 
 ```bash
-cargo run -p vox-toestub --bin toestub -- crates/vox-repository
+cargo run -p vox-code-audit --bin toestub -- [OPTIONS] [ROOTS]...
 ```
 
-Library AI triage (`AiAnalyzer`) is separate from the current `vox` clap surface.
+### Options
 
-## Severity Levels
+```text
+Arguments:
+  [ROOTS]...  Root directories or files to scan [default: .]
 
-| Level | Meaning |
-|-------|---------|
-| `Critical` | Must fix before merge |
-| `Warning` | Should fix, may indicate incomplete work |
-| `Info` | Informational, style improvement |
+Options:
+  -f, --format <FORMAT>        Output format: terminal, json, markdown [default: terminal]
+  -s, --min-severity <LEVEL>   Minimum severity: info, warning, error, critical [default: info]
+  -l, --lang <LANG>            Filter by language: rust, typescript, python, gdscript, vox
+  -m, --mode <MODE>            Run mode: audit, fix, explain [default: audit]
+  -h, --help                   Print help
+  -V, --version                Print version
+```
+
+## Library Usage
+
+```rust
+use vox_code_audit::engine::{ToestubConfig, ToestubEngine, ToestubRunMode};
+use vox_code_audit::report::OutputFormat;
+use vox_code_audit::rules::Severity;
+use std::path::PathBuf;
+
+let config = ToestubConfig {
+    roots: vec![PathBuf::from(".")],
+    min_severity: Severity::Warning,
+    format: OutputFormat::Json,
+    run_mode: ToestubRunMode::Audit,
+    ..ToestubConfig::default()
+};
+
+let engine = ToestubEngine::new(config);
+let snapshot = engine.run();
+
+for finding in &snapshot.findings {
+    println!("{}:{}: [{}] {}", finding.file.display(), finding.line, finding.rule_id, finding.message);
+}
+```
+
+## License
+
+Licensed under the Apache License, Version 2.0.

@@ -74,16 +74,17 @@ fn load_suppression_schema_value(suppression_path: &Path) -> anyhow::Result<(Val
 
 fn validate_suppression_json_instance(raw: &str, suppression_path: &Path) -> anyhow::Result<()> {
     let (schema_val, schema_path) = load_suppression_schema_value(suppression_path)?;
-    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
-        .map_err(|e| anyhow::anyhow!("{e:#}"))?;
+    let validator = jsonschema::validator_for(&schema_val)
+        .map_err(|e| anyhow::anyhow!("compile JSON Schema ({}): {e:#}", schema_path.display()))?;
     let instance: Value =
         serde_json::from_str(raw).map_err(|e| anyhow::anyhow!("parse suppressions JSON: {e}"))?;
-    vox_jsonschema_util::validate(
-        &instance,
-        &validator,
-        format!("suppressions vs {}", schema_path.display()),
-    )
-    .map_err(|e| anyhow::anyhow!("{e:#}"))?;
+    if let Err(e) = validator.validate(&instance) {
+        return Err(anyhow::anyhow!(
+            "JSON Schema validation (suppressions vs {}): path {}: {e:#}",
+            schema_path.display(),
+            e.instance_path()
+        ));
+    }
     Ok(())
 }
 

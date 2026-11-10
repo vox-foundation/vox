@@ -495,6 +495,7 @@ impl WebSearchDispatcher {
         Self::search_core(query, lane, policy, registry, tavily, budget).await
     }
 
+    #[inline(never)]
     async fn search_core(
         query: &str,
         lane: ResearchLane,
@@ -936,6 +937,7 @@ impl WebSearchDispatcherExt for WebSearchDispatcher {
 ///
 /// arXiv: 1.20, OpenAlex: 1.10, Wikipedia: 1.00, others: 1.00.
 /// $k$ is clamped to at least 1.0.
+#[inline(never)]
 pub fn true_rrf_fuse(
     provider_lists: Vec<Vec<crate::searxng::SearxngResult>>,
     rrf_k: f64,

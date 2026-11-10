@@ -17,6 +17,7 @@ pub struct HirValidationError {
 /// Validate structural invariants of a [`HirModule`].
 /// Returns a list of validation errors (empty = no structural violations reported here).
 #[must_use]
+#[inline(never)]
 pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
     let mut errors = Vec::new();
 

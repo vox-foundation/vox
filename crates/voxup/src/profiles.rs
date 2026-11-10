@@ -4,7 +4,7 @@
 //! without needing access to the source repository.
 
 /// The distribution SSOT, embedded at compile time.
-pub const PROFILES_YAML: &str = include_str!("../../../contracts/distribution/profiles.v1.yaml");
+pub const PROFILES_YAML: &str = include_str!("../profiles.v1.yaml");
 
 use serde::Deserialize;
 
@@ -126,5 +126,19 @@ non_publishable: [vox-orchestrator-mcp]
         assert_eq!(p.rust_version, "1.98.1");
         assert!(p.tiers.contains_key("minimal"));
         assert!(!p.publish.enabled);
+    }
+
+    #[test]
+    fn embedded_profiles_matches_contracts_ssot_if_present() {
+        let repo_contracts_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/distribution/profiles.v1.yaml");
+        if repo_contracts_path.exists() {
+            let ssot = std::fs::read_to_string(&repo_contracts_path)
+                .expect("failed to read repo contracts distribution profiles");
+            assert_eq!(
+                PROFILES_YAML, ssot,
+                "embedded profiles.v1.yaml must match contracts/distribution/profiles.v1.yaml"
+            );
+        }
     }
 }

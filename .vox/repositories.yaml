@@ -1,0 +1,66 @@
+schema_version: 1
+primary_repository_id: vox
+repositories:
+  - repository_id: vox
+    display_name: vox
+    root_path: .
+    access_mode: local
+    role: core
+    optional: false
+    capabilities:
+      - read_file
+      - list_files
+      - text_search
+      - history_search
+    shared_contracts:
+      - contracts/wire/
+      - contracts/ipc/
+      - contracts/telemetry/
+    cargo_patch_crates: []
+
+  - repository_id: vox-ops
+    display_name: vox-ops
+    root_path: ../vox-ops
+    access_mode: local
+    role: private-ops
+    optional: true
+    capabilities:
+      - read_file
+      - list_files
+      - text_search
+      - history_search
+    shared_contracts:
+      - contracts/wire/
+      - contracts/ipc/
+      - contracts/telemetry/
+    cargo_patch_crates:
+      - vox-ops
+
+  - repository_id: vox-axis
+    display_name: vox-axis
+    root_path: crates/vox-gui
+    access_mode: local
+    role: gui-surface
+    optional: false
+    capabilities:
+      - read_file
+      - list_files
+      - text_search
+    shared_contracts:
+      - contracts/gui/
+      - contracts/telemetry/
+    cargo_patch_crates: []
+
+  - repository_id: voxlang.org
+    display_name: voxlang.org
+    root_path: docs-astro
+    access_mode: local
+    role: docs-site
+    optional: false
+    capabilities:
+      - read_file
+      - list_files
+      - text_search
+    shared_contracts:
+      - contracts/documentation/
+    cargo_patch_crates: []

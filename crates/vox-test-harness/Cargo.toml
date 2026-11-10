@@ -4,6 +4,10 @@ description = "Shared test fixtures and harness primitives."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 vox-config = { workspace = true }
@@ -11,11 +15,9 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tempfile = { workspace = true }
-vox-compiler = { workspace = true }
+vox-ast = { workspace = true }
 tokio = { workspace = true }
 vox-secrets = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true
-

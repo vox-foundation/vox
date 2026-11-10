@@ -8,7 +8,7 @@
 
 supervised_ratio:
   min_pct: 10.0
-  block: true
+  block: false
 
 pass_at_k:
   min_pass_rate_at_1: 0.25

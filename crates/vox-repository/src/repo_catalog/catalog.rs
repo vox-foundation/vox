@@ -120,13 +120,6 @@ fn detect_provider(origin_url: Option<&str>, existing: Option<&str>) -> Option<S
 
 fn resolve_descriptor_root(workspace_root: &Path, root_path: &str) -> Result<PathBuf, String> {
     let path = Path::new(root_path);
-    for component in path.components() {
-        if matches!(component, std::path::Component::ParentDir) {
-            return Err(format!(
-                "root_path '{root_path}' contains '..'; use an absolute path or a workspace-relative path without parent traversal"
-            ));
-        }
-    }
     let raw = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -165,6 +158,10 @@ fn resolved_local_descriptor(
         resolution_status: "resolved_local".to_string(),
         resolution_error: None,
         repository_id_mismatch: mismatch,
+        role: repo.role,
+        optional: repo.optional,
+        shared_contracts: repo.shared_contracts,
+        cargo_patch_crates: repo.cargo_patch_crates,
     }
 }
 
@@ -194,6 +191,42 @@ fn unresolved_local_descriptor(
         resolution_status: resolution_status.to_string(),
         resolution_error: Some(resolution_error),
         repository_id_mismatch: None,
+        role: repo.role,
+        optional: repo.optional,
+        shared_contracts: repo.shared_contracts,
+        cargo_patch_crates: repo.cargo_patch_crates,
+    }
+}
+
+fn skipped_absent_optional_descriptor(
+    repo: RepositoryDescriptor,
+    declared_id: Option<String>,
+    root_path: Option<String>,
+    capabilities: Vec<RepoCapability>,
+    provider: Option<String>,
+    reason: String,
+) -> ResolvedRepositoryDescriptor {
+    ResolvedRepositoryDescriptor {
+        repository_id: declared_id.clone(),
+        declared_repository_id: declared_id,
+        display_name: repo.display_name,
+        root_path,
+        resolved_root: None,
+        git_root: None,
+        origin_url: repo.origin_url,
+        provider,
+        default_ref: repo.default_ref,
+        access_mode: RepoAccessMode::Local,
+        capabilities,
+        remote: repo.remote,
+        metadata: repo.metadata,
+        resolution_status: "skipped_absent_optional".to_string(),
+        resolution_error: Some(reason),
+        repository_id_mismatch: None,
+        role: repo.role,
+        optional: repo.optional,
+        shared_contracts: repo.shared_contracts,
+        cargo_patch_crates: repo.cargo_patch_crates,
     }
 }
 
@@ -234,6 +267,10 @@ fn remote_descriptor(
         resolution_status: status.to_string(),
         resolution_error: error,
         repository_id_mismatch: None,
+        role: repo.role,
+        optional: repo.optional,
+        shared_contracts: repo.shared_contracts,
+        cargo_patch_crates: repo.cargo_patch_crates,
     }
 }
 
@@ -289,33 +326,84 @@ pub fn resolve_repo_catalog(repo_root: &Path) -> Result<ResolvedRepoCatalog, Rep
                     continue;
                 };
                 match resolve_descriptor_root(&workspace.root, &root_path) {
-                    Ok(root_candidate) => match crate::discover_repository(&root_candidate) {
-                        Ok(resolved) => repositories.push(resolved_local_descriptor(
-                            repo,
-                            declared_id,
-                            root_path,
-                            capabilities,
-                            resolved,
-                        )),
-                        Err(e) => repositories.push(unresolved_local_descriptor(
-                            repo,
-                            declared_id,
-                            Some(root_path),
-                            capabilities,
-                            provider,
-                            "local_resolution_failed",
-                            e.to_string(),
-                        )),
-                    },
-                    Err(e) => repositories.push(unresolved_local_descriptor(
-                        repo,
-                        declared_id,
-                        Some(root_path),
-                        capabilities,
-                        provider,
-                        "local_resolution_failed",
-                        e,
-                    )),
+                    Ok(root_candidate) => {
+                        if !root_candidate.exists() {
+                            if repo.optional {
+                                repositories.push(skipped_absent_optional_descriptor(
+                                    repo,
+                                    declared_id,
+                                    Some(root_path),
+                                    capabilities,
+                                    provider,
+                                    format!("optional repository path '{root_candidate:?}' does not exist on disk"),
+                                ));
+                            } else {
+                                repositories.push(unresolved_local_descriptor(
+                                    repo,
+                                    declared_id,
+                                    Some(root_path),
+                                    capabilities,
+                                    provider,
+                                    "local_resolution_failed",
+                                    format!("repository path '{root_candidate:?}' does not exist on disk"),
+                                ));
+                            }
+                        } else {
+                            match crate::discover_repository(&root_candidate) {
+                                Ok(resolved) => repositories.push(resolved_local_descriptor(
+                                    repo,
+                                    declared_id,
+                                    root_path,
+                                    capabilities,
+                                    resolved,
+                                )),
+                                Err(e) => {
+                                    if repo.optional {
+                                        repositories.push(skipped_absent_optional_descriptor(
+                                            repo,
+                                            declared_id,
+                                            Some(root_path),
+                                            capabilities,
+                                            provider,
+                                            e.to_string(),
+                                        ));
+                                    } else {
+                                        repositories.push(unresolved_local_descriptor(
+                                            repo,
+                                            declared_id,
+                                            Some(root_path),
+                                            capabilities,
+                                            provider,
+                                            "local_resolution_failed",
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        if repo.optional {
+                            repositories.push(skipped_absent_optional_descriptor(
+                                repo,
+                                declared_id,
+                                Some(root_path),
+                                capabilities,
+                                provider,
+                                e,
+                            ));
+                        } else {
+                            repositories.push(unresolved_local_descriptor(
+                                repo,
+                                declared_id,
+                                Some(root_path),
+                                capabilities,
+                                provider,
+                                "local_resolution_failed",
+                                e,
+                            ));
+                        }
+                    }
                 }
             }
             other_mode => repositories.push(remote_descriptor(

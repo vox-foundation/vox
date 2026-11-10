@@ -13,6 +13,7 @@ use super::super::dispatch_results_sweep;
 use super::super::{DispatchRequest, DispatchResponse, MeshQueueStats, PopuliTransportState};
 use super::nodes::ResponseErr;
 
+#[inline(never)]
 pub(crate) async fn dispatch_script(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -128,6 +129,7 @@ pub(crate) async fn dispatch_script(
     }
 }
 
+#[inline(never)]
 pub(crate) async fn dispatch_results_poll(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -215,6 +217,7 @@ fn select_best_node<'a>(nodes: &'a [NodeRecord], req: &DispatchRequest) -> Optio
     candidates.first().copied()
 }
 
+#[inline(never)]
 pub(crate) async fn queue_stats(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -246,6 +249,7 @@ pub(crate) async fn queue_stats(
     Ok(Json(stats))
 }
 
+#[inline(never)]
 pub(crate) async fn execute_on_worker(
     State(_st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,

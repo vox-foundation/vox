@@ -3,6 +3,7 @@ use owo_colors::OwoColorize;
 use std::collections::HashSet;
 use std::path::Path;
 
+#[inline(never)]
 pub fn run(root: &Path) -> Result<()> {
     println!("{}", "Checking model-routing.v1.yaml contract...".cyan());
 

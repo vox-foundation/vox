@@ -40,6 +40,7 @@ fn content_digest(claim: &str) -> String {
 ///
 /// On success the returned variant has passed [`validate_short_form`] (fits the
 /// platform char limit and carries a non-empty nanopub URI).
+#[inline(never)]
 pub fn syndicate(
     claim: &str,
     nanopub_uri: &str,

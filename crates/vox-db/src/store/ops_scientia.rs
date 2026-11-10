@@ -5,6 +5,7 @@ use turso::params;
 
 impl crate::VoxDb {
     /// Retrieve the current model scoreboard for a specific window.
+    #[inline(never)]
     pub async fn get_model_scoreboard(
         &self,
         window_days: i64,
@@ -58,6 +59,7 @@ impl crate::VoxDb {
     }
 
     /// Aggregate Thompson arm stats `(successes, failures)` per `model_id` for a window.
+    #[inline(never)]
     pub async fn list_model_arm_stats(
         &self,
         window_days: i64,
@@ -81,6 +83,7 @@ impl crate::VoxDb {
     }
 
     /// Upsert a model scoreboard entry.
+    #[inline(never)]
     pub async fn upsert_model_scoreboard(&self, row: ModelScoreboardRow) -> Result<(), StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -137,6 +140,7 @@ impl crate::VoxDb {
     }
 
     /// Perform a batch rollup of telemetry into the scoreboard for a specific window.
+    #[inline(never)]
     pub async fn rollup_model_scoreboard(&self, window_days: i64) -> Result<usize, StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -403,6 +407,7 @@ impl crate::VoxDb {
     }
 
     /// Retrieve the most recent trace_id for a given task category.
+    #[inline(never)]
     pub async fn get_last_interaction_trace_id(
         &self,
         task_category: &str,
@@ -438,6 +443,7 @@ impl crate::VoxDb {
     }
 
     /// Retrieve the current model pricing catalog (confident rows).
+    #[inline(never)]
     pub async fn get_pricing_catalog(
         &self,
     ) -> Result<Vec<crate::store::types::ModelPricingCatalogRow>, StoreError> {
@@ -485,6 +491,7 @@ impl crate::VoxDb {
     }
 
     /// Perform a batch rollup of telemetry into the pricing catalog.
+    #[inline(never)]
     pub async fn rollup_pricing_catalog(&self) -> Result<usize, StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();

@@ -33,12 +33,6 @@ and read through `vox_config::env_parse::resolve_config_*` (env → config.toml
 compile error directing it to `vox-secrets`.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`vox-config`](./vox-config.generated.md) | Development |
-
 ## Public API Surface
 
 ### Functions
@@ -54,7 +48,6 @@ graph {
     direction: right
     node vox_config_derive: "vox-config-derive"
     node vox_config: "vox-config"
-    vox_config_derive -> vox_config
     vox_config -> vox_config_derive
 }
 ```

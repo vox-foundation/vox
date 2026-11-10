@@ -46,7 +46,7 @@ Each trained cell holds the size's gate, defined in the [state legend]({{ f.docs
 
 ## Which model should I use
 
-Pick among the sizes whose gate is current by held-out adapter pass@1, and step down to the next smaller current size when the pick does not fit your memory. Each card's Why this size section says what work that size suits, the training peak is measured while training and is not a serving figure, and phase 340's selector will replace this rule.
+Pick among the sizes whose gate is current by held-out adapter pass@1, and step down to the next smaller current size when the pick does not fit your memory. Each card's Why this size section says what work that size suits, and the training peak is measured while training rather than during serving.
 {%- match f.pick %}
 {%- when Some with (p) %}
 

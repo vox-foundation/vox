@@ -98,6 +98,7 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | `serialization` | — |
 | `shell_projection` | — |
 | `target` | — |
+| `test_support` | — |
 | `tokens` | — |
 | `typeck` | — |
 | `web_prefixes` | — |
@@ -144,8 +145,6 @@ graph {
     vox_codegen_ts -> vox_compiler
     node vox_corpus: "vox-corpus"
     vox_corpus -> vox_compiler
-    node vox_db: "vox-db"
-    vox_db -> vox_compiler
     node vox_doc_pipeline: "vox-doc-pipeline"
     vox_doc_pipeline -> vox_compiler
     node vox_drift_check: "vox-drift-check"
@@ -154,6 +153,8 @@ graph {
     vox_integration_tests -> vox_compiler
     node vox_langtool: "vox-langtool"
     vox_langtool -> vox_compiler
+    node vox_lsp: "vox-lsp"
+    vox_lsp -> vox_compiler
 }
 ```
 
@@ -168,7 +169,6 @@ graph {
 | [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
 | [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
-| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
 | [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
@@ -183,7 +183,6 @@ graph {
 | [`vox-speech`](./vox-speech.generated.md) | Direct workspace dependent |
 | [`vox-tauri-codegen`](./vox-tauri-codegen.generated.md) | Direct workspace dependent |
 | [`vox-terminal-core`](./vox-terminal-core.generated.md) | Direct workspace dependent |
-| [`vox-test-harness`](./vox-test-harness.generated.md) | Direct workspace dependent |
 | [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)

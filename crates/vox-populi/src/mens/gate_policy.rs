@@ -144,7 +144,7 @@ pub fn spoke_gate_rows(
                             },
                             state,
                             reason,
-                            applies: false,
+                            applies: receipt_val.is_some(),
                         });
                     }
                 }

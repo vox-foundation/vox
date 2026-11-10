@@ -302,6 +302,7 @@ pub fn ensure_not_placeholder(resolved_hf_id: &str) -> anyhow::Result<()> {
 /// On None VRAM with a tag, returns Err (fail-closed) — callers that must NOT
 /// require a GPU (e.g. --skip-train dry-runs) should treat Err as "defer to the
 /// existing default-model path" rather than aborting (see Phase 2 / §E).
+#[inline(never)]
 pub fn resolve_base_model(
     root: &std::path::Path,
     base_model: &str,

@@ -9,7 +9,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
 ```
 
 Windows, source builds, and everything else:
-[Installing Vox](../../docs/src/reference/installation.md) — the canonical page.
+see the Vox documentation at https://voxlang.org.
 
 ## What `voxup install` does
 
@@ -31,5 +31,4 @@ Windows, source builds, and everything else:
 ## Related
 
 - `vox doctor` — post-install environment check
-- `contracts/channels/stable.toml` — stable channel manifest SSOT
-- `docs/src/architecture/voxup-omnibus-installer-spec-2026.md` — architecture spec
+- Stable channel manifest SSOT: `contracts/channels/stable.toml`

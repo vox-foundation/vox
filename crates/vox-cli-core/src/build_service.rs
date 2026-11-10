@@ -570,6 +570,21 @@ pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoC
     })
 }
 
+/// Build a Vox project (equivalent to `vox build <file> -o <out_dir>`) for workflow execution.
+pub async fn run_vox_build(file: &std::path::Path, out_dir: &std::path::Path) -> Result<()> {
+    let vox_bin = std::env::var("VOX_BIN")
+        .map(PathBuf::from)
+        .or_else(|_| which::which("vox"))
+        .unwrap_or_else(|_| PathBuf::from("vox"));
+    let mut cmd = tokio::process::Command::new(vox_bin);
+    cmd.arg("build").arg(file).arg("--out-dir").arg(out_dir);
+    let status = cmd.status().await.context("Failed to spawn vox build")?;
+    if !status.success() {
+        anyhow::bail!("vox build failed with status: {status}");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod semcov_wave3_tests {
     #![allow(unused_imports)]

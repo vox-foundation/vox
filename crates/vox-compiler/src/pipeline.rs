@@ -97,6 +97,7 @@ pub fn run_frontend_str(source: &str, file_path: &str) -> Result<FrontendResult>
     run_frontend_str_with_options(source, file_path, &PipelineOptions::default())
 }
 
+#[inline(never)]
 pub fn run_frontend_str_with_options(
     source: &str,
     file_path: &str,
@@ -277,6 +278,7 @@ pub fn format_diagnostics_json(result: &FrontendResult, file_path: &str) -> Stri
 }
 
 /// Run the full check pipeline and return machine-readable diagnostics even on parse failure.
+#[inline(never)]
 pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPayload> {
     let tokens = crate::lexer::lex(source);
 

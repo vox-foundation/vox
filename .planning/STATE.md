@@ -1,20 +1,19 @@
 ---
 gsd_state_version: "1.0"
-milestone: v6.6
-milestone_name: Chat Multi-Dock Responsive Architecture, Diegetic Uncropped Simulator & Aqueduct Panorama, Playwright Button-Click CV Flywheel, VoxDb Lock-Free Daemon Boot & Enforceable 4-Profile Theme Contract
-current_phase: 386
-current_phase_name: Enforceable & Self-Expanding GUI Theme Contract + Adversarial /gsd-review Entropy Hardening (/gsd-review)
+milestone: v6.8
+milestone_name: Physical Multi-Repo Extraction (vox-ops, vox-axis, voxlang.org), Default Cargo Graph Pruning, Next-Tier Keystone Splits, crates.io Wave 2/3 (33 Crates) & Multi-Repo Rich Visual READMEs / vox-foundation Federation
+current_phase: 400
+current_phase_name: Multi-Repo Rich Visual READMEs, Animated WebP Tours, Real Generated Raster Diagrams, Cross-Repo Agent Awareness, Coolify & vox-foundation GitHub Federation (README-VISUAL-01..04)
 status: complete
-stopped_at: Milestone v6.6 (Phases 383–386) and adversarial /gsd-review completed and verified across all 4 theme profiles (arcane, slate/void, glacier/travertine, high-contrast), 37 routed views, 14 Chat docks, and 3 resolutions (1280x800, 1440x900, 1920x1080).
-last_updated: "2026-11-09T08:50:00.000Z"
-last_activity: 2026-11-09
-last_activity_desc: Completed Phase 386 adversarial /gsd-review audit and entropy-prevention hardening: 4-profile Style Dictionary CSS generation (22/22 tokens each), programmatic WCAG 2.1 contrast verification (>= 4.5:1), general dark-hex/RGBA/font static enforcement (Severity::Error in vox-code-audit + Vitest), 42-component dark-hex purge, and 4-theme Playwright + Gemini CV verification.
-state_head: dc0226023a054e5e1f41a249505aa4c80455814b
+stopped_at: Milestone v6.8 (Phases 394-400, 28/28 requirements) complete, reviewed (/gsd-code-review --fix), archived (/gsd-complete-milestone), and pushed to vox-foundation.
+last_updated: "2026-11-10T08:58:00.000Z"
+last_activity: 2026-11-10
+last_activity_desc: Completed Phase 400 & Milestone v6.8 (Phases 394-400, 28/28 requirements): authored rich visual READMEs across vox-axis, voxlang.org, vox-ops, and vox with 46 real Playwright screenshots, all 32 GUI screens explained, 7 animated .webp tours, 6 real generated .webp architecture diagrams (zero SVGs), Coolify/Cloudflare bindings, cross-repo AGENTS.md rules, and GitHub federation under vox-foundation.
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 7
+  completed_plans: 7
   percent: 100
 ---
 
@@ -22,13 +21,16 @@ progress:
 
 ## Current Position
 
-Phase: 378–383 (Milestone v6.5: Complete 32-Surface White/Gold Carrara Marble Unification, Seamless Texture & Roman Emerald Signet Overhaul, Chat & Multi-Dock Workbench Reorganization, and User-Selectable Minimalist Grey-Blue (`slate`) Theme) — COMPLETE
-Plan: 378-01 .. 383-01 (`383-UI-SPEC.md`)
-Status: Complete (Phases 378–383 verified across 1280×800, 1440×900, and 1920×1080 in both Imperial Carrara White & Gold and Minimalist Grey-Blue Slate).
-Last activity: 2026-11-08 — Completed Phase 383 (`/gsd-ui-phase`) Chat Surfaces, Loquela Inline Posture Drawer, Execution Rail & 2D Multi-Panel Dock Tiling overhaul.
+Phase: 394–400 (Milestone v6.8: Physical Multi-Repo Extraction, Default Cargo Graph Pruning, Next-Tier Keystone Splits, `crates.io` Wave 2/3 (`33` Crates) & Multi-Repo Rich Visual READMEs / `vox-foundation` Federation)
+Plan: All 7 phases (`394–400`) and all 28 requirements (`VOX-OPS-REPO-01..04`, `WORKSPACE-PRUNE-01..04`, `KEYSTONE-V68-01..04`, `CRATES-IO-V68-01..04`, `FEDERATION-LIVE-01..04`, `FLYWHEEL-BENCH-01..04`, `README-VISUAL-01..04`) COMPLETE
+Status: Complete (`100%`)
+Last activity: 2026-11-10 — Completed Phase 400 & `/gsd-complete-milestone` for `v6.7` & `v6.8`: verified `33/33` `crates.io` packages via `vox ci publish-dry-run`, `4/4` physical repositories via `vox ci cross-repo-parity` & `vox ci federated-symbol-graph`, authored 32-screen visual tour + 7 animated `.webp` tours + 6 generated `.webp` raster diagrams, and pushed public repos to `vox-foundation/{vox,vox-axis,voxlang.org}`
 
 ## Milestone History (Recent)
 
+- ✅ **v6.8 (`Phases 394–400`, `7/7` — complete 2026-11-10):** Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits (`vox-orchestrator`, `vox-compiler`, `vox-db`, `vox-populi`, `vox-publisher`, `vox-scientia`), `crates.io` Wave 2/3 (`33` Crates) & Multi-Repo Rich Visual READMEs / `vox-foundation` GitHub Federation ([Roadmap](ROADMAP.md), [Requirements](REQUIREMENTS.md))
+- ✅ **v6.7 (`Phases 387–393`, `7/7` — complete 2026-11-10):** Monorepo Defactoring, Build-Time & Crate-Edge Disentanglement, Standalone `crates.io` Ecosystem, Zero-Split-Brain Cross-Repo LLM Federation, End-to-End CI/Nightly Remediation & Zero-Loss Worktree/Scratch Consolidation ([Roadmap](ROADMAP.md), [Requirements](REQUIREMENTS.md))
+- ✅ **v6.6 (`Phases 383–386`, `4/4` — complete 2026-11-09):** Chat Multi-Dock Responsive Architecture, Diegetic Uncropped Simulator & Aqueduct Panorama, Playwright Button-Click CV Flywheel, `VoxDb` Lock-Free Daemon Boot & Enforceable Theme Contract ([Roadmap](ROADMAP.md))
 - ✅ **v6.5 (`Phases 378–383`, `6/6` — complete 2026-11-08):** Complete 32-Surface White/Gold Carrara Marble Unification, Seamless Texture & Roman Emerald Signet Overhaul, Chat & Multi-Dock 2D Tiling Workbench (`383-UI-SPEC.md`), and User-Selectable Minimalist Grey-Blue (`slate`/`void`) Theme ([Roadmap](ROADMAP.md))
 
 - ✅ **v6.4 (`Phases 373–377`, `5/5` — complete 2026-11-08):** Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography ([Roadmap](ROADMAP.md))
@@ -62,6 +64,7 @@ Await operator `approved` for polars==2.1.0 on PyPI, then execute 327-05 (golden
 
 ### Roadmap Evolution
 
+- Phase 393 added & planned (2026-11-09): Zero-Loss Worktree, Scratch Folder & Master Directory Consolidation Across `vox` & `~/dev` (`SCRATCH-CONSOLIDATE-01..04`; forensic audit at `393-AUDIT.md`, plan at `393-01-PLAN.md`, `~176+ GB` reclaimable after salvaging `vox-mens-compare` `decode_attention.rs`, `gate-receipt.v2.schema.json`, `spoke-gate-state.v1.schema.json`, and Phase `337–345` plans/summaries plus sibling `~/dev` unmerged work).
 - Phase 322 audited 2026-10-28: pack feeds `build_selection_request` (not PreferFree); ChatARC composes existing catalogs; parallel to 317–321.
 - Phase 322 added: Calibrated turn decisions and dynamic action catalog (System One/RLCD + ChatARC; folds standalone Jev plan into v5.6 after Phase 321)
 - Phase 323 added and completed (2026-11-01): High-Value Starlight MDX Conversions and Ingest Parity (`vox-kb-facets` + `vox-search` + `vox-doc-pipeline` + `vox-corpus` MDX parity, plus `docs/src/index.mdx` and `docs/src/tutorials/tut-fullstack-walkthrough.mdx`)

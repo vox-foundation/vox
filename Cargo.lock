@@ -16522,7 +16522,6 @@ dependencies = [
  "sha2 0.11.0",
  "tempfile",
  "toml 0.8.23",
- "vox-build-meta",
  "vox-rename-registry",
  "vox-test-harness",
  "walkdir",
@@ -16533,7 +16532,6 @@ name = "vox-ast"
 version = "0.6.0"
 dependencies = [
  "serde",
- "workspace-hack",
 ]
 
 [[package]]
@@ -16574,7 +16572,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "vox-scaling-policy",
- "workspace-hack",
 ]
 
 [[package]]
@@ -16772,18 +16769,22 @@ dependencies = [
  "toml_edit 0.22.27",
  "tracing",
  "vox-bounded-fs",
+ "vox-capability-registry",
  "vox-cli-contracts",
  "vox-cli-core",
  "vox-code-audit",
  "vox-compiler",
  "vox-config",
+ "vox-crypto",
  "vox-db",
+ "vox-doc-inventory",
  "vox-doc-pipeline",
  "vox-git",
  "vox-grammar-export",
  "vox-graph-reader",
  "vox-http-client",
  "vox-jsonschema-util",
+ "vox-mcp-registry",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-plugin-api",
@@ -16848,23 +16849,94 @@ dependencies = [
 name = "vox-cli-research"
 version = "0.6.0"
 dependencies = [
+ "abi_stable",
  "anyhow",
+ "async-trait",
+ "cargo_metadata 0.23.1",
+ "chrono",
  "clap",
+ "comfy-table",
+ "data-encoding",
+ "dialoguer",
+ "dirs",
+ "futures",
+ "hex",
+ "keyring",
+ "libc",
+ "miette",
  "owo-colors 4.3.0",
+ "rand 0.8.6",
+ "regex",
  "reqwest 0.12.28",
+ "semver",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
+ "sha3",
+ "tempfile",
  "tokio",
+ "toml 0.8.23",
+ "toml_edit 0.22.27",
+ "tracing",
  "uuid",
+ "vox-actor-runtime",
+ "vox-audit",
+ "vox-bounded-fs",
+ "vox-capability-registry",
+ "vox-cli-ci",
+ "vox-cli-contracts",
+ "vox-cli-core",
+ "vox-code-audit",
+ "vox-codegen",
+ "vox-compiler",
+ "vox-config",
+ "vox-container",
+ "vox-corpus",
+ "vox-crypto",
  "vox-db",
+ "vox-doc-pipeline",
+ "vox-effort-audit",
+ "vox-effort-route",
+ "vox-eval",
  "vox-foundation",
+ "vox-gamify",
+ "vox-git",
+ "vox-grammar-export",
+ "vox-graph-reader",
+ "vox-http-client",
+ "vox-identity",
+ "vox-jsonschema-util",
+ "vox-kb-facets",
+ "vox-mcp-registry",
+ "vox-mesh-types",
+ "vox-oauth-pkce",
+ "vox-openclaw-runtime",
  "vox-orchestrator",
+ "vox-orchestrator-driver",
+ "vox-orchestrator-mcp",
+ "vox-package",
+ "vox-plugin-api",
+ "vox-plugin-catalog",
+ "vox-plugin-host",
+ "vox-plugin-sdk",
+ "vox-plugin-types",
+ "vox-populi",
  "vox-publisher",
  "vox-repository",
+ "vox-research-events",
  "vox-research-shim",
+ "vox-scaling-policy",
+ "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "vox-skill-discovery",
+ "vox-skills",
+ "vox-sql",
+ "vox-telemetry",
+ "walkdir",
+ "which 8.0.4",
  "workspace-hack",
+ "zip 2.4.2",
 ]
 
 [[package]]
@@ -16944,6 +17016,7 @@ dependencies = [
  "clap",
  "glob",
  "globset",
+ "jsonschema",
  "miette",
  "owo-colors 4.3.0",
  "proc-macro2",
@@ -16959,17 +17032,10 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "vox-bounded-fs",
- "vox-config",
- "vox-http-client",
- "vox-jsonschema-util",
- "vox-llm-egress",
- "vox-orchestrator-types",
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-secrets",
- "vox-telemetry",
  "walkdir",
- "workspace-hack",
 ]
 
 [[package]]
@@ -16979,28 +17045,31 @@ dependencies = [
  "anyhow",
  "bzip2 0.6.1",
  "chrono",
+ "criterion",
  "flate2",
  "hex",
  "insta",
+ "jsonschema",
  "miette",
  "prettyplease 0.2.37",
  "proptest",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "serial_test",
  "sha3",
  "syn 2.0.118",
  "tempfile",
- "tokio",
  "tracing",
  "vox-compiler",
  "vox-config",
+ "vox-db",
  "vox-deploy-codegen",
+ "vox-jsonschema-util",
  "vox-repository",
  "vox-secrets",
  "vox-sql",
  "vox-tauri-codegen",
- "vox-workflow-runtime",
  "walkdir",
  "workspace-hack",
  "zstd",
@@ -17063,8 +17132,6 @@ dependencies = [
  "tracing",
  "vox-ast",
  "vox-bounded-fs",
- "vox-codegen",
- "vox-codegen-ts",
  "vox-config",
  "vox-crypto",
  "vox-eval",
@@ -17097,6 +17164,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "trybuild",
  "vox-config-derive",
  "vox-git",
  "vox-llm-config",
@@ -17114,8 +17182,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.118",
- "trybuild",
- "vox-config",
  "workspace-hack",
 ]
 
@@ -17197,7 +17263,6 @@ dependencies = [
  "rand 0.8.6",
  "sha2 0.11.0",
  "sha3",
- "workspace-hack",
  "x25519-dalek",
  "xxhash-rust",
  "zeroize",
@@ -17229,8 +17294,6 @@ dependencies = [
  "turso",
  "uuid",
  "vox-ast",
- "vox-codegen",
- "vox-compiler",
  "vox-config",
  "vox-db-types",
  "vox-mesh-types",
@@ -17247,9 +17310,11 @@ name = "vox-db-types"
 version = "0.6.0"
 dependencies = [
  "chrono",
+ "data-encoding",
  "proptest",
  "serde",
  "serde_json",
+ "sha3",
 ]
 
 [[package]]
@@ -17279,7 +17344,6 @@ dependencies = [
  "serde_json",
  "strsim",
  "unicode-width 0.2.2",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17343,10 +17407,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "vox-code-audit",
- "vox-compiler",
- "vox-config",
  "walkdir",
- "workspace-hack",
  "xxhash-rust",
 ]
 
@@ -17498,7 +17559,6 @@ dependencies = [
  "tokio",
  "tracing",
  "vox-bounded-fs",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17610,7 +17670,6 @@ dependencies = [
  "serde_json",
  "tracing",
  "vox-bounded-fs",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17625,7 +17684,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17642,7 +17700,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "vox-crypto",
- "workspace-hack",
  "zeroize",
 ]
 
@@ -17711,7 +17768,6 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sha2 0.11.0",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17722,7 +17778,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17770,7 +17825,6 @@ dependencies = [
  "vox-http-client",
  "vox-openai",
  "wiremock",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17785,7 +17839,6 @@ dependencies = [
  "tower-lsp-server",
  "tracing",
  "vox-compiler",
- "vox-db",
  "vox-foundation",
  "vox-gamify",
  "vox-secrets",
@@ -17814,7 +17867,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "vox-mesh-types",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17889,7 +17941,6 @@ dependencies = [
  "uuid",
  "vox-actor-runtime",
  "vox-bounded-fs",
- "vox-cli",
  "vox-cli-core",
  "vox-compiler",
  "vox-config",
@@ -17938,7 +17989,6 @@ dependencies = [
  "urlencoding",
  "vox-http-client",
  "wiremock",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17949,7 +17999,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "workspace-hack",
 ]
 
 [[package]]
@@ -18219,7 +18268,9 @@ dependencies = [
  "vox-bounded-fs",
  "vox-config",
  "vox-db",
+ "vox-orchestrator-types",
  "vox-secrets",
+ "vox-telemetry",
 ]
 
 [[package]]
@@ -18286,6 +18337,7 @@ dependencies = [
  "turso",
  "vox-config",
  "vox-db",
+ "vox-db-types",
  "vox-http-client",
  "vox-package-types",
  "wiremock",
@@ -18709,7 +18761,6 @@ dependencies = [
  "uuid",
  "vox-bounded-fs",
  "vox-config",
- "vox-constrained-gen",
  "vox-corpus",
  "vox-crypto",
  "vox-db",
@@ -18837,7 +18888,6 @@ version = "0.6.0"
 dependencies = [
  "regex",
  "serde_json",
- "workspace-hack",
 ]
 
 [[package]]
@@ -18933,7 +18983,6 @@ dependencies = [
  "serde_yaml_ng",
  "tempfile",
  "thiserror 2.0.18",
- "workspace-hack",
 ]
 
 [[package]]
@@ -18973,7 +19022,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "vox-mesh-types",
- "workspace-hack",
 ]
 
 [[package]]
@@ -19094,7 +19142,6 @@ dependencies = [
  "turso",
  "vox-bounded-fs",
  "vox-crypto",
- "workspace-hack",
 ]
 
 [[package]]
@@ -19111,7 +19158,6 @@ version = "0.6.0"
 dependencies = [
  "blake3",
  "serde",
- "workspace-hack",
 ]
 
 [[package]]
@@ -19312,10 +19358,9 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "vox-compiler",
+ "vox-ast",
  "vox-config",
  "vox-secrets",
- "workspace-hack",
 ]
 
 [[package]]
@@ -19372,6 +19417,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "vox-codegen",
  "vox-compiler",
  "vox-config",
  "vox-db",
@@ -19408,7 +19454,6 @@ dependencies = [
  "vox-plugin-catalog",
  "vox-secrets",
  "windows-sys 0.59.0",
- "workspace-hack",
  "zip 2.4.2",
 ]
 

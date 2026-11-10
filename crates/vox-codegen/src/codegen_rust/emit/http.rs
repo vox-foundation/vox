@@ -373,6 +373,7 @@ fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) ->
     out
 }
 
+#[inline(never)]
 pub fn emit_main(
     module: &HirModule,
     package_name: &str,
@@ -992,6 +993,7 @@ fn emit_handler_param(name: &str, ty: Option<&vox_compiler::hir::HirType>) -> St
 
 /// Emit real-time Axum routes and handlers for `Stream[T]` (SSE + `Last-Event-ID` replay, `STREAM-01`),
 /// `Channel[Send, Recv]` (WebSocket upgrade, `STREAM-01`), and `db.Table.subscribe` (`STREAM-02`).
+#[inline(never)]
 pub fn emit_realtime_stream_and_channel_routes(module: &HirModule) -> String {
     let mut out = String::new();
     for sf in &module.endpoint_fns {

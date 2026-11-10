@@ -1,12 +1,12 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": "v5.7 — Vox ↔ Python Bridge & Tolerant CLI Ergonomics",
+  "milestone": "v6.7 — Monorepo Defactoring, Build-Time & Crate-Edge Disentanglement, Standalone `crates.io` Ecosystem, Zero-Split-Brain Cross-Repo LLM Federation & End-to-End CI/Nightly Remediation (`Phases 387–392`)",
   "phases": [],
   "next": {
-    "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 343 of 11 · 0% · executing"
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-11-08T05:07:44.086Z"
+  "updated_at": "2026-11-10T02:14:14.850Z"
 }

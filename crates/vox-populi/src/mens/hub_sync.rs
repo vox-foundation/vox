@@ -29,6 +29,10 @@ const OPTIONAL_BUNDLE_FILES: &[&str] = &[
     "adapter_card.json",
     "collateral_damage_report.json",
     "gate_receipt.json",
+    "gate_receipt.vox-lang.json",
+    "gate_receipt.rust.json",
+    "gate_receipt.tool-selection.json",
+    "gate_receipt.argument-generation.json",
     "spoke_gates.json",
     "eval_local_report.json",
     "eval_local_report.ckpt.jsonl",
@@ -268,6 +272,7 @@ fn sanitize_json_paths(val: &mut serde_json::Value) {
                 *s = s[idx..].to_string();
             } else if let Some(idx) = s.find("target/dogfood") {
                 *s = s[idx..].to_string();
+            // vox-arch-check: allow abs-path
             } else if (s.starts_with("/Users/") || s.starts_with("/home/"))
                 && let Some(base) = Path::new(s.as_str()).file_name().and_then(|n| n.to_str())
             {
@@ -292,6 +297,7 @@ fn sanitize_json_paths(val: &mut serde_json::Value) {
 ///
 /// A repo that already holds `hf_sync_manifest.json` or a README is left unchanged, so a
 /// finished adapter and a hand-written card are not replaced by the placeholder.
+#[inline(never)]
 pub async fn ensure_ladder_repos(
     workspace_root: Option<&Path>,
     namespace: Option<&str>,
@@ -417,6 +423,7 @@ fn json_evidence_is_empty(raw: &str) -> bool {
 }
 
 /// Stage the publishable adapter bundle from `run_dir` into `stage_dir` and return its [`HfSyncManifest`] (HFPUB-02, HFPUB-03).
+#[inline(never)]
 pub fn stage_publish_bundle(
     run_dir: &Path,
     stage_dir: &Path,
@@ -775,6 +782,7 @@ pub async fn fetch_remote_sync_manifest(repo_id: &str) -> Result<Option<HfSyncMa
 /// verifies gate receipts unless `force_ungated` (HFPUB-02), builds the model card and
 /// `hf_sync_manifest.json` (HFPUB-03), and skips the upload if the remote manifest already
 /// has identical file digests (HFPUB-04).
+#[inline(never)]
 pub async fn publish_adapter_run_dir(
     run_dir: &Path,
     namespace: Option<&str>,
@@ -852,6 +860,7 @@ pub async fn publish_adapter_run_dir(
 }
 
 /// Blocking wrapper around [`publish_adapter_run_dir`] for synchronous CLI / gate hooks.
+#[inline(never)]
 pub fn publish_adapter_run_dir_blocking(
     run_dir: &Path,
     namespace: Option<&str>,
@@ -881,6 +890,7 @@ pub fn publish_adapter_run_dir_blocking(
 /// Verify a downloaded adapter directory against the ladder's pinned base and gate receipts (HFPULL-02).
 ///
 /// On any failure, removes `dir` so an unverified or tampered adapter is never left on disk.
+#[inline(never)]
 pub fn verify_pulled_adapter_dir(
     dir: &Path,
     expected_size: &str,
@@ -1004,6 +1014,7 @@ pub async fn pull_adapter_if_missing(
 
 /// Like [`pull_adapter_if_missing`] but pinned to `revision` (a version tag such as `v2`, a branch,
 /// or a commit). With `None` it pulls the latest `v<N>` tag, or `main` for a repo with no tags (HFVER-02).
+#[inline(never)]
 pub async fn pull_adapter_revision(
     model_arg: &Path,
     workspace_root: Option<&Path>,
@@ -1304,6 +1315,7 @@ pub fn size_in_scope(size: &str, only: Option<&str>) -> bool {
 }
 
 /// Inspect local `mens/runs/qwen3-<size>` for all 6 ladder sizes without touching the network when `offline` is true.
+#[inline(never)]
 pub async fn sync_all_sizes(
     workspace_root: Option<&Path>,
     namespace: Option<&str>,
@@ -1469,6 +1481,7 @@ async fn upload_ladder_index(
 ///
 /// Train and eval-gate auto-publish go through [`publish_adapter_run_dir`], which
 /// updates one size repo and used to leave `vox-mens-index` stale.
+#[inline(never)]
 pub async fn refresh_ladder_index(
     workspace_root: Option<&Path>,
     namespace: Option<&str>,

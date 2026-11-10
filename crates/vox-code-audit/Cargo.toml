@@ -1,9 +1,14 @@
 [package]
 name = "vox-code-audit"
 description = "AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+autotests = false
 
 [dependencies]
 syn = { workspace = true, features = ["full", "visit", "parsing", "extra-traits"] }
@@ -21,25 +26,34 @@ similar = { workspace = true }
 globset = { workspace = true }
 glob = "0.3"
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
-vox-http-client = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+jsonschema = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-secrets = { workspace = true }
-vox-config = { workspace = true }
-vox-llm-egress = { workspace = true }
 vox-bounded-fs = { workspace = true }
-vox-orchestrator-types = { workspace = true }
-vox-jsonschema-util = { workspace = true }
-vox-rule-pack = { workspace = true }
-vox-telemetry = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
+vox-rule-pack = { version = "0.6.0", path = "../vox-rule-pack" }
 
 [dev-dependencies]
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 
+[[test]]
+name = "t3_wave3_workspace_sweep"
+path = "tests/t3_wave3_workspace_sweep.rs"
+
+[[test]]
+name = "victory_claim_parity"
+path = "tests/victory_claim_parity.rs"
+
+[[test]]
+name = "wave_b_parity"
+path = "tests/wave_b_parity.rs"
+
+[[test]]
+name = "wave_c_parity"
+path = "tests/wave_c_parity.rs"
+
 [lints]
 workspace = true
-

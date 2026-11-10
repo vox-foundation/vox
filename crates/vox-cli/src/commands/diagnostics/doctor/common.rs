@@ -1,48 +1,12 @@
 //! Shared helpers and [`Check`] for `vox doctor`.
 
 use serde::Deserialize;
-use serde::Serialize;
 use std::path::PathBuf;
 
 use vox_bounded_fs::read_utf8_path_capped_async;
 
 /// One environment check row for human or JSON output.
-#[derive(Debug, Serialize)]
-pub(crate) struct Check {
-    pub name: String,
-    pub pass: bool,
-    pub detail: String,
-}
-
-#[cfg_attr(not(feature = "codex"), allow(dead_code))]
-impl Check {
-    /// Create a passing check.
-    pub(crate) fn pass(name: impl Into<String>, detail: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            pass: true,
-            detail: detail.into(),
-        }
-    }
-
-    /// Create a failing check.
-    pub(crate) fn fail(name: impl Into<String>, detail: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            pass: false,
-            detail: detail.into(),
-        }
-    }
-
-    /// Create a check with an explicit pass/fail predicate.
-    pub(crate) fn new(name: impl Into<String>, pass: bool, detail: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            pass,
-            detail: detail.into(),
-        }
-    }
-}
+pub(crate) use vox_cli_core::diagnostics::DoctorCheck as Check;
 
 /// Delegates to [`crate::fs_utils::user_home_dir`] (`vox_config::paths::user_home_dir`).
 pub(crate) fn user_home_dir() -> Option<PathBuf> {

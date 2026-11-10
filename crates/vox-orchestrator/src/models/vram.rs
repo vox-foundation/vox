@@ -132,11 +132,7 @@ pub fn free_vram_mb_hint() -> Option<u64> {
 /// Both functions return the plugin's `HardwareProbe` JSON:
 /// `probe_summary_json` -> `{"devices":[{"vram_total_mb":..},..]}`,
 /// `device_metrics_json` -> `{"metrics":[{"memory_free_mb":..},..]}`.
-#[derive(Debug, Clone, Copy)]
-pub struct VramProbe {
-    pub probe_summary_json: fn() -> Result<String, String>,
-    pub device_metrics_json: fn() -> Result<String, String>,
-}
+pub use vox_orchestrator_models::VramProbe;
 
 #[cfg(not(test))]
 static VRAM_PROBE: RwLock<Option<VramProbe>> = RwLock::new(None);

@@ -13,6 +13,7 @@ impl SessionManager {
     ///
     /// When [`SessionManager`](super::SessionManager) has no [`VoxDb`](vox_db::VoxDb) handle, this
     /// returns [`SessionError::NotFound`]. There is no JSONL read path here; [`SessionConfig::sessions_dir`](super::super::config::SessionConfig::sessions_dir) is retained for legacy cleanup (e.g. removing stale files on archive).
+    #[inline(never)]
     pub async fn load(&mut self, session_id: &str) -> Result<(), SessionError> {
         if let Some(db) = &self.db {
             let db = db.clone();
@@ -138,6 +139,7 @@ impl SessionManager {
         }
     }
 
+    #[inline(never)]
     pub async fn load_all(&mut self) -> Result<usize, SessionError> {
         let _ = std::hint::black_box(self as *mut _ as usize);
         Ok(0)

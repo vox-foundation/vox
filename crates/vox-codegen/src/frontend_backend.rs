@@ -22,6 +22,7 @@ use crate::codegen_ts::{CodegenOptions, CodegenOutput, generate_with_options};
 /// # Errors
 /// Returns `Err` if `target` is not a frontend emission target, or if the
 /// underlying emitter fails.
+#[inline(never)]
 pub fn emit_frontend(
     target: Target,
     hir: &HirModule,

@@ -24,6 +24,7 @@ impl crate::VoxDb {
     }
 
     /// Cached PRAGMA snapshot (WAL, FK, compile options / FTS hints). Safe to call repeatedly.
+    #[inline(never)]
     pub async fn sqlite_capabilities_snapshot(
         &self,
     ) -> Result<crate::capabilities::SqliteProbeSnapshot, turso::Error> {
@@ -43,6 +44,7 @@ impl crate::VoxDb {
     }
 
     /// Alias for [`Self::sqlite_capabilities_snapshot`] (kept for call sites that name “probe”).
+    #[inline(never)]
     pub async fn probe_sqlite_capabilities(
         &self,
     ) -> Result<crate::capabilities::SqliteProbeSnapshot, turso::Error> {
@@ -61,6 +63,7 @@ impl crate::VoxDb {
     }
 
     /// Run SQLite `VACUUM` (compact / reclaim space).
+    #[inline(never)]
     pub async fn run_sqlite_vacuum(&self) -> Result<(), StoreError> {
         self.conn.execute("VACUUM", ()).await?;
         Ok(())

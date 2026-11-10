@@ -750,8 +750,23 @@ fn verify_derived_registry_artifacts(repo_root: &Path, catalog: &OperationsCatal
 
 fn verify_mcp_dispatch_coverage(repo_root: &Path, mcp_names: &BTreeSet<String>) -> Result<()> {
     let dispatch_path = repo_root.join("crates/vox-orchestrator-mcp/src/dispatch.rs");
-    let dispatch = read_utf8_path_capped(&dispatch_path)
+    let mut dispatch = read_utf8_path_capped(&dispatch_path)
         .with_context(|| format!("read {}", dispatch_path.display()))?;
+    let domains_dir = repo_root.join("crates/vox-orchestrator-mcp/src/dispatch_domains");
+    if domains_dir.is_dir() {
+        for entry in std::fs::read_dir(&domains_dir)
+            .with_context(|| format!("read_dir {}", domains_dir.display()))?
+        {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("rs") {
+                let s = read_utf8_path_capped(&path)
+                    .with_context(|| format!("read {}", path.display()))?;
+                dispatch.push('\n');
+                dispatch.push_str(&s);
+            }
+        }
+    }
     for name in mcp_names {
         let needle = format!("\"{name}\"");
         if !dispatch.contains(&needle) {

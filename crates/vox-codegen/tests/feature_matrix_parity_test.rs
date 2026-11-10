@@ -1,0 +1,183 @@
+//! Task 8 — empirical parity smoke tests.
+//!
+//! Drives real HIR nodes through the live emitters (interpreter, Rust codegen,
+//! TS codegen) and verifies that parity-matrix cells produce the stable
+//! diagnostic codes declared in `feature_matrix.rs`.
+//!
+//! Each test is a "does the *right channel* carry the *right code*?" assertion.
+//! No golden snapshots: these tests deliberately ignore incidental message text
+//! and only pin the stable codes from `codes::PARITY_*`.
+
+use vox_compiler::ast::span::Span;
+use vox_compiler::eval::expr::eval_expr;
+use vox_compiler::eval::value::VoxValue;
+use vox_compiler::eval::{EvalError, Interpreter};
+use vox_compiler::hir::{HirExpr, HirJsxElement, HirWorkflowVersion};
+use vox_compiler::typeck::diagnostics::codes;
+
+// ── helpers ─────────────────────────────────────────────────────────────────
+
+fn zero() -> Span {
+    Span::new(0, 0)
+}
+
+fn assert_assertion_failed_contains(result: Result<VoxValue, EvalError>, code: &str) {
+    match result {
+        Err(EvalError::AssertionFailed(msg)) => {
+            assert!(
+                msg.contains(code),
+                "expected parity code {code:?} in AssertionFailed message, got: {msg:?}"
+            );
+        }
+        other => panic!("expected EvalError::AssertionFailed containing {code:?}, got: {other:?}"),
+    }
+}
+
+// ── Test 1: JSX → interpreter returns PARITY_FRONTEND_ONLY ──────────────────
+
+#[test]
+fn jsx_interp_errors_with_frontend_only_code() {
+    let jsx = HirExpr::Jsx(HirJsxElement {
+        tag: "div".to_string(),
+        attributes: vec![],
+        children: vec![],
+        span: zero(),
+    });
+    let mut interp = Interpreter::new(1_000_000);
+    let result = eval_expr(&mut interp, &jsx);
+    assert_assertion_failed_contains(result, codes::PARITY_FRONTEND_ONLY);
+}
+
+// ── Test 2: Spawn → interpreter returns PARITY_BACKEND_ONLY ─────────────────
+
+#[test]
+fn spawn_interp_errors_with_backend_only_code() {
+    // Spawn(Box<HirExpr>, Span) — the inner expr is never evaluated because
+    // the parity gate fires before any sub-expression walk.
+    let spawn = HirExpr::Spawn(
+        Box::new(HirExpr::StringLit("actor".to_string(), zero())),
+        zero(),
+    );
+    let mut interp = Interpreter::new(1_000_000);
+    let result = eval_expr(&mut interp, &spawn);
+    assert_assertion_failed_contains(result, codes::PARITY_BACKEND_ONLY);
+}
+
+// ── Test 3: With → interpreter evaluates inner with options; TS emits PARITY_UNIMPLEMENTED ──
+
+#[test]
+fn with_interp_errors_with_unimplemented_code() {
+    use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
+    use vox_compiler::target::Target;
+
+    let lit = || Box::new(HirExpr::StringLit("x".to_string(), zero()));
+    let with_expr = HirExpr::With(lit(), lit(), zero());
+    let mut interp = Interpreter::new(1_000_000);
+    let result =
+        eval_expr(&mut interp, &with_expr).expect("ADR-021 interpreter backs HirExpr::With");
+    assert_eq!(result, VoxValue::Str("x".into()));
+
+    let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
+    assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
+}
+
+// ── Test 4: WorkflowVersion → Rust emits inert unit (ADR-021); JSX emits compile_error! ─────
+
+#[test]
+fn workflow_version_rust_emitter_produces_parity_code() {
+    use vox_codegen::codegen_rust::emit::emit_expr;
+
+    let wv = HirExpr::WorkflowVersion(HirWorkflowVersion {
+        change_id: "v1".to_string(),
+        min: 1,
+        max: 2,
+        span: zero(),
+    });
+    let output = emit_expr(&wv);
+    assert_eq!(
+        output.trim(),
+        "()",
+        "ADR-021: WorkflowVersion is backed by interpret_workflow_durable and emits inert () in Rust; got: {output:?}"
+    );
+
+    let jsx = HirExpr::Jsx(HirJsxElement {
+        tag: "div".to_string(),
+        attributes: vec![],
+        children: vec![],
+        span: zero(),
+    });
+    let jsx_out = emit_expr(&jsx);
+    assert!(
+        jsx_out.contains("compile_error!") && jsx_out.contains(codes::PARITY_FRONTEND_ONLY),
+        "Rust emitter must emit compile_error! with {:?} for JSX; got: {jsx_out:?}",
+        codes::PARITY_FRONTEND_ONLY
+    );
+}
+
+// ── Test 5: WorkflowVersion → TS codegen emits `satisfies never` type error ──
+
+#[test]
+fn workflow_version_ts_emitter_produces_parity_code() {
+    use std::collections::HashSet;
+    use vox_codegen::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr};
+
+    let wv = HirExpr::WorkflowVersion(HirWorkflowVersion {
+        change_id: "v1".to_string(),
+        min: 1,
+        max: 2,
+        span: zero(),
+    });
+    let state_names = HashSet::new();
+    let ctx = EmitCtx::new(&state_names);
+    let output = emit_hir_expr(&wv, &ctx);
+    // Must use `satisfies never` (a real TS compile error, TS2735) not `as never`.
+    assert!(
+        output.contains("satisfies never"),
+        "TS emitter must emit 'satisfies never' type error for WorkflowVersion; got: {output:?}"
+    );
+    assert!(
+        output.contains(codes::PARITY_UNIMPLEMENTED),
+        "TS emitter must carry parity code {:?}; got: {output:?}",
+        codes::PARITY_UNIMPLEMENTED
+    );
+}
+
+// ── Ladder-linked matrix promotion (canonical golden ladder SSOT) ─────────────
+
+fn ladder_proven_decorators_for_tag(
+    tag: &str,
+) -> Vec<vox_compiler::feature_matrix::DecoratorFeature> {
+    use vox_compiler::feature_matrix::DecoratorFeature::*;
+    match tag {
+        "query" => vec![Query],
+        "mutation" => vec![Mutation],
+        "server" => vec![Server],
+        "db_emit" | "table" => vec![Table],
+        "index" => vec![Index],
+        "component" => vec![Component],
+        "reactive" => vec![Reactive],
+        "scheduled" | "durable_boot" => vec![Scheduled],
+        "auth" => vec![Auth],
+        "mcp_tools" => vec![McpTool, Tool],
+        "json_as_typed" => vec![JsonAs],
+        "palette" => vec![Tokens],
+        "layer" => vec![Layer],
+        _ => vec![],
+    }
+}
+
+#[test]
+fn promote_from_ladder_marks_query_implemented_on_rust_script() {
+    let promoted = ladder_proven_decorators_for_tag("query");
+    assert!(promoted.contains(&vox_compiler::feature_matrix::DecoratorFeature::Query));
+    for decorator in promoted {
+        assert_eq!(
+            vox_compiler::feature_matrix::support(
+                vox_compiler::feature_matrix::Feature::Decorator(decorator),
+                vox_compiler::target::Target::RustAxum,
+            ),
+            vox_compiler::feature_matrix::Support::Implemented,
+            "{decorator:?} should be ladder-promoted"
+        );
+    }
+}

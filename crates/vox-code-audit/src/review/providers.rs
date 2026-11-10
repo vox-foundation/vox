@@ -62,7 +62,7 @@ pub enum ReviewProvider {
 /// Default OpenRouter model when `OPENROUTER_MODEL` is unset — contract role
 /// `code_review` (`contracts/orchestration/model-defaults.v1.yaml`).
 pub fn default_openrouter_model() -> String {
-    vox_config::model_defaults::CODE_REVIEW.to_string()
+    "~anthropic/claude-sonnet-latest".to_string()
 }
 /// `HTTP-Referer` value required by OpenRouter; embedded in serde defaults for configs.
 pub fn default_site_url() -> String {
@@ -71,7 +71,7 @@ pub fn default_site_url() -> String {
 /// Default OpenAI chat model when `OPENAI_MODEL` is unset — contract role
 /// `openai_direct`.
 pub fn default_openai_model() -> String {
-    vox_config::model_defaults::OPENAI_DIRECT.to_string()
+    "gpt-5-mini".to_string()
 }
 
 /// Default OpenAI API base (`https://api.openai.com/v1`) when `OPENAI_BASE_URL` is unset.
@@ -81,15 +81,29 @@ pub fn default_openai_base_url() -> String {
 /// Default Gemini model id when `GEMINI_MODEL` is unset — contract role
 /// `gemini_direct` (Google-native id).
 pub fn default_gemini_model() -> String {
-    vox_config::model_defaults::GEMINI_DIRECT.to_string()
+    "gemini-flash-latest".to_string()
 }
-/// Default Ollama listen URL. Re-exports the config SSOT resolver
-/// (`VOX_POPULI_LOCAL_OLLAMA_URL` -> `POPULI_URL` -> `OLLAMA_URL` -> default)
-/// so a self-hosted server can be targeted without a code change. A re-export
-/// rather than a wrapper fn: there is no body here that could drift back to a
-/// hardcoded literal, and the precedence is tested in `vox-config`
-/// (`local_base_prefers_populi_then_ollama`) without env races in this crate.
-pub use vox_config::inference::local_ollama_populi_base_url as default_ollama_url;
+/// Default Ollama listen URL. Resolves through `VOX_POPULI_LOCAL_OLLAMA_URL` -> `POPULI_URL` -> `OLLAMA_URL` -> default.
+pub fn default_ollama_url() -> String {
+    if let Some(secret) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliLocalOllamaUrl)
+            .expose()
+            .map(std::string::ToString::to_string)
+    {
+        return secret;
+    }
+    if let Ok(populi) = std::env::var("POPULI_URL") {
+        if !populi.is_empty() {
+            return populi;
+        }
+    }
+    if let Ok(ollama) = std::env::var("OLLAMA_URL") {
+        if !ollama.is_empty() {
+            return ollama;
+        }
+    }
+    "http://127.0.0.1:11434".to_string()
+}
 /// Default Ollama model tag when `OLLAMA_MODEL` is unset.
 pub fn default_ollama_model() -> String {
     "codellama".to_string()
@@ -220,7 +234,7 @@ mod tests {
         let ReviewProvider::Ollama { url, model } = p else {
             panic!("expected Ollama, got {p:?}");
         };
-        assert_eq!(url, vox_config::inference::local_ollama_populi_base_url());
+        assert_eq!(url, default_ollama_url());
         assert_eq!(model, default_ollama_model());
     }
 
@@ -230,10 +244,8 @@ mod tests {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: serialized via ENV_LOCK; the var is restored below.
         unsafe { std::env::set_var("OLLAMA_URL", "http://ssot-probe:1234") };
-        vox_config::snapshot::bump(&["OLLAMA_URL"]);
         let got = default_ollama_url();
         unsafe { std::env::remove_var("OLLAMA_URL") };
-        vox_config::snapshot::bump(&["OLLAMA_URL"]);
         assert_eq!(got, "http://ssot-probe:1234");
     }
 }

@@ -131,11 +131,12 @@ graph {
     vox_codegen -> vox_config
     node vox_compiler: "vox-compiler"
     vox_compiler -> vox_config
-    vox_config_derive -> vox_config
     node vox_db: "vox-db"
     vox_db -> vox_config
     node vox_deploy_codegen: "vox-deploy-codegen"
     vox_deploy_codegen -> vox_config
+    node vox_drift_check: "vox-drift-check"
+    vox_drift_check -> vox_config
 }
 ```
 
@@ -152,7 +153,6 @@ graph {
 | [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
 | [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
-| [`vox-config-derive`](./vox-config-derive.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-deploy-codegen`](./vox-deploy-codegen.generated.md) | Direct workspace dependent |
 | [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |

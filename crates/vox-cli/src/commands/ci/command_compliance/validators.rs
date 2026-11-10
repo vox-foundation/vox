@@ -739,6 +739,24 @@ pub(crate) fn check_dei(reg: &RegistryFile, dei: &str) -> Result<()> {
     Ok(())
 }
 
+fn cli_handler_search_roots(vox_cli_src: &Path) -> Vec<PathBuf> {
+    let mut roots = vec![vox_cli_src.to_path_buf()];
+    if let Some(crates_dir) = vox_cli_src.parent().and_then(|p| p.parent()) {
+        for sub in [
+            "vox-cli-ext/src",
+            "vox-cli-research/src",
+            "vox-cli-contracts/src",
+            "vox-cli-ci/src",
+        ] {
+            let dir = crates_dir.join(sub);
+            if dir.is_dir() {
+                roots.push(dir);
+            }
+        }
+    }
+    roots
+}
+
 /// Resolve `commands::<first_segment>::…` to the primary Rust module file for that segment.
 ///
 /// This tightens compliance vs substring-only matches (comments / unrelated mentions).
@@ -748,32 +766,37 @@ fn resolve_commands_handler_module_file(vox_cli_src: &Path, handler: &str) -> Op
     if first.is_empty() {
         return None;
     }
-    let commands_dir = vox_cli_src.join("commands");
-    let direct_rs = commands_dir.join(format!("{first}.rs"));
-    if direct_rs.is_file() {
-        return Some(direct_rs);
-    }
-    let nested_mod = commands_dir.join(first).join("mod.rs");
-    if nested_mod.is_file() {
-        return Some(nested_mod);
+    for root in cli_handler_search_roots(vox_cli_src) {
+        for commands_dir in [root.join("commands"), root] {
+            let direct_rs = commands_dir.join(format!("{first}.rs"));
+            if direct_rs.is_file() {
+                return Some(direct_rs);
+            }
+            let nested_mod = commands_dir.join(first).join("mod.rs");
+            if nested_mod.is_file() {
+                return Some(nested_mod);
+            }
+        }
     }
     None
 }
 
 fn vox_cli_src_contains_needle(root: &Path, needle: &str) -> Result<bool> {
     use anyhow::Context;
-    let mut found = false;
-    for entry in walkdir::WalkDir::new(root) {
-        let entry = entry.with_context(|| format!("read_dir under {}", root.display()))?;
-        let p = entry.path();
-        if entry.file_type().is_file() && p.extension().and_then(|s| s.to_str()) == Some("rs") {
-            let s = read_utf8_path_capped(p).with_context(|| format!("read {}", p.display()))?;
-            if s.contains(needle) {
-                found = true;
+    for scan_root in cli_handler_search_roots(root) {
+        for entry in walkdir::WalkDir::new(&scan_root) {
+            let entry = entry.with_context(|| format!("read_dir under {}", scan_root.display()))?;
+            let p = entry.path();
+            if entry.file_type().is_file() && p.extension().and_then(|s| s.to_str()) == Some("rs") {
+                let s =
+                    read_utf8_path_capped(p).with_context(|| format!("read {}", p.display()))?;
+                if s.contains(needle) {
+                    return Ok(true);
+                }
             }
         }
     }
-    Ok(found)
+    Ok(false)
 }
 
 pub(crate) fn check_registry_latin_and_handlers(

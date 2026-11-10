@@ -208,6 +208,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             quick,
             complete,
             full,
+            ci,
             dry_run,
             act,
             report_json,
@@ -222,6 +223,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 quick,
                 complete,
                 full,
+                ci,
                 dry_run,
                 act,
                 report_json,
@@ -933,6 +935,52 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             .await
         }
         CiCmd::ToolchainSsot => vox_cli_ci::toolchain_ssot::run(&root),
+        CiCmd::PublishDryRun => vox_cli_ci::publish_dry_run::run(&root),
+        CiCmd::StandaloneSovereignty => {
+            let report = vox_repository::verify_standalone_sovereignty(&root)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            if !report.is_sovereign {
+                anyhow::bail!(
+                    "standalone-sovereignty failed: {}",
+                    report.violations.join("; ")
+                );
+            }
+            println!(
+                "standalone-sovereignty OK (default-members={:?}, no vox-ops dep, offline-safe telemetry, self-contained vox-gui & docs-astro)",
+                report.default_members
+            );
+            Ok(())
+        }
+        CiCmd::CrossRepoParity => {
+            let report = vox_repository::verify_cross_repo_contract_parity(&root)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            if !report.in_parity {
+                anyhow::bail!(
+                    "cross-repo-parity failed: {} drift(s) detected",
+                    report.drifts.len()
+                );
+            }
+            println!(
+                "cross-repo-parity OK ({}/{} present repositories, {} shared contract file(s) verified, skipped optional: {:?})",
+                report.present_repositories,
+                report.total_repositories,
+                report.verified_contracts_count,
+                report.skipped_optional_repositories
+            );
+            Ok(())
+        }
+        CiCmd::FederatedSymbolGraph => {
+            let summary = vox_repository::refresh_federated_symbol_graph(&root)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            println!(
+                "federated-symbol-graph OK (indexed: {:?}, skipped optional: {:?}, nodes: {}, cross-repo edges: {})",
+                summary.repositories_indexed,
+                summary.skipped_repositories,
+                summary.total_nodes,
+                summary.total_edges
+            );
+            Ok(())
+        }
     };
 
     // Record the gate's pass/fail into the per-branch status store (best-effort:

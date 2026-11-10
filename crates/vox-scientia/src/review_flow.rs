@@ -159,6 +159,7 @@ pub async fn resolve_or_create_identity(
 /// # Errors
 /// Returns an error if the claim/verdict is missing, if no ORCID is available, if
 /// signing fails, if offline validation fails, or if any DB op fails.
+#[inline(never)]
 pub async fn nanopub_build(
     db: &VoxDb,
     publication_id: &str,
@@ -554,6 +555,7 @@ fn parse_session_id_hint(id_or_candidate: &str, confidence_json: Option<&str>) -
 
 /// Resolve a `publication_manifests` row by `publication_id` or `source_ref` (`finding-...`),
 /// auto-promoting a matching `scientia_finding_candidates` row if not yet promoted.
+#[inline(never)]
 pub async fn resolve_manifest_or_promote(
     db: &VoxDb,
     id: &str,
@@ -589,6 +591,7 @@ pub async fn resolve_manifest_or_promote(
 
 /// Promote a `scientia_finding_candidates` row, discovery inbox item, or research session
 /// into a canonical `publication_manifests` draft and seed its verified claims in `scientia_claims`.
+#[inline(never)]
 pub async fn promote_candidate_to_publication(
     db: &VoxDb,
     id_or_candidate: &str,
@@ -925,6 +928,7 @@ pub async fn promote_candidate_to_publication(
 
 /// Hydrate a [`crate::manuscript::scaffold::ScaffoldInput`] directly from `VoxDb`
 /// (`publication_manifests` + `scientia_claims` + `scientia_nanopubs`) with zero manual JSON files.
+#[inline(never)]
 pub async fn assemble_scaffold_from_db(
     db: &VoxDb,
     publication_id: &str,
@@ -1035,6 +1039,7 @@ pub async fn assemble_scaffold_from_db(
 }
 
 /// Hydrate a [`crate::findings_site::FindingPage`] directly from `VoxDb` with zero manual JSON files.
+#[inline(never)]
 pub async fn assemble_finding_page_from_db(
     db: &VoxDb,
     publication_id: &str,
@@ -1224,6 +1229,7 @@ fn manifest_confidence_and_class(row: &vox_db::PublicationManifestRow) -> (f64, 
 
 /// Assemble a unified [`crate::dashboard::QueueSnapshot`] from `publication_manifests`
 /// AND `scientia_finding_candidates`, with real confidence scores and reply-window tracking.
+#[inline(never)]
 pub async fn assemble_scientia_queue_from_db(
     db: &VoxDb,
 ) -> anyhow::Result<crate::dashboard::QueueSnapshot> {
@@ -1330,6 +1336,7 @@ pub async fn assemble_scientia_queue_from_db(
 }
 
 /// Assemble a [`crate::dashboard::cost::CostRollup`] from `VoxDb` for the current quarter.
+#[inline(never)]
 pub async fn assemble_scientia_cost_from_db(
     db: &VoxDb,
 ) -> anyhow::Result<crate::dashboard::cost::CostRollup> {

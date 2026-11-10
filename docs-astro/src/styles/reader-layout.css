@@ -163,7 +163,7 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   /* Keep the reopen chevron off the first letters of the article. */
   html[data-sidebar-state="hidden"] .main-frame,
   html[data-sidebar-state="collapsed"] .main-frame {
-    padding-inline-start: 2.25rem;
+    padding-inline-start: 1.5rem;
   }
 }
 
@@ -295,7 +295,7 @@ html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   }
 
   html[data-toc-state="hidden"] .main-frame {
-    padding-inline-end: 2.25rem;
+    padding-inline-end: 1.5rem;
   }
 }
 
@@ -324,14 +324,14 @@ body {
 
 /* Article Width Expansion and Breakout Rules */
 :root {
-  --sl-content-width: 50rem;
+  --sl-content-width: 100%;
 }
 
 @media (min-width: 50rem) {
   /* Outline is not docked yet, so the article can take the recovered sidebar. */
   html[data-sidebar-state="collapsed"],
   html[data-sidebar-state="hidden"] {
-    --sl-content-width: min(68rem, calc(100vw - 4.25rem));
+    --sl-content-width: calc(100vw - 4.5rem);
   }
 }
 
@@ -339,26 +339,26 @@ body {
   /* Both sidebars open: fill the center pane between 18.75rem left nav and 18.5rem right TOC. */
   :root {
     --__toc-width: 18.5rem;
-    --sl-content-width: min(50rem, calc(100vw - var(--sl-sidebar-width) - 21.5rem));
+    --sl-content-width: calc(100vw - var(--sl-sidebar-width) - 21.5rem);
   }
 
-  /* Left sidebar collapsed, right TOC open: recover the 16.5rem freed on the left. */
+  /* Left sidebar collapsed, right TOC open: recover the space freed on the left. */
   html[data-sidebar-state="collapsed"]:not([data-toc-state="hidden"]),
   html[data-sidebar-state="hidden"]:not([data-toc-state="hidden"]) {
-    --sl-content-width: min(66.5rem, calc(100vw - 23.75rem));
+    --sl-content-width: calc(100vw - 23rem);
   }
 
-  /* Right TOC collapsed, left sidebar open: recover the 16.25rem freed on the right. */
+  /* Right TOC collapsed, left sidebar open: recover the space freed on the right. */
   html[data-toc-state="hidden"]:not([data-sidebar-state="collapsed"]):not([data-sidebar-state="hidden"]) {
     --__toc-width: 0rem;
-    --sl-content-width: min(66.5rem, calc(100vw - var(--sl-sidebar-width) - 5.25rem));
+    --sl-content-width: calc(100vw - var(--sl-sidebar-width) - 4.5rem);
   }
 
   /* Both sidebars collapsed: recover horizontal space from both sides. */
   html[data-sidebar-state="collapsed"][data-toc-state="hidden"],
   html[data-sidebar-state="hidden"][data-toc-state="hidden"] {
     --__toc-width: 0rem;
-    --sl-content-width: min(84rem, calc(100vw - 7.5rem));
+    --sl-content-width: calc(100vw - 6rem);
   }
 }
 

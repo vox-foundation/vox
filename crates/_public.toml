@@ -14,18 +14,21 @@ license = "Apache-2.0"
 name = "vox-crypto"
 layer = 1
 tier = 1
+publish = true
 rationale = "Pure-Rust AEAD (ChaCha20-Poly1305), Ed25519, X25519, BLAKE3, and SHA3 primitives."
 
 [[crates]]
 name = "vox-mesh-types"
 layer = 0
 tier = 1
+publish = true
 rationale = "Zero-runtime mesh capability and worker registration types."
 
 [[crates]]
 name = "vox-scaling-policy"
 layer = 1
 tier = 1
+publish = true
 depends_on = ["vox-mesh-types"]
 rationale = "Bounded-resource scaling policy and threshold contracts."
 
@@ -33,6 +36,7 @@ rationale = "Bounded-resource scaling policy and threshold contracts."
 name = "vox-bounded-fs"
 layer = 1
 tier = 1
+publish = true
 depends_on = ["vox-scaling-policy"]
 rationale = "Capability-bounded filesystem operations for sandboxed execution."
 
@@ -40,6 +44,7 @@ rationale = "Capability-bounded filesystem operations for sandboxed execution."
 name = "vox-secrets"
 layer = 2
 tier = 1
+publish = true
 depends_on = ["vox-crypto", "vox-bounded-fs"]
 rationale = "Clavis: central secret resolution, OS-keyring integration, and encrypted local vault."
 
@@ -47,12 +52,14 @@ rationale = "Clavis: central secret resolution, OS-keyring integration, and encr
 name = "vox-kb-facets"
 layer = 0
 tier = 1
+publish = true
 rationale = "SKOS-lite documentation taxonomy, facet validators, and training-eligibility rules."
 
 [[crates]]
 name = "vox-arch-check"
 layer = 1
 tier = 1
+publish = true
 rationale = "Standalone Cargo workspace layered-architecture, fan-in, and forbidden-edge guard."
 
 # Tier 2: Plugin ABI trio (publish in dependency order: types -> api -> sdk)
@@ -62,12 +69,14 @@ rationale = "Standalone Cargo workspace layered-architecture, fan-in, and forbid
 name = "vox-plugin-types"
 layer = 1
 tier = 2
+publish = true
 rationale = "Pure-types leaf for the plugin ABI."
 
 [[crates]]
 name = "vox-plugin-api"
 layer = 1
 tier = 2
+publish = true
 depends_on = ["vox-plugin-types"]
 rationale = "Plugin trait and type surface."
 
@@ -75,6 +84,7 @@ rationale = "Plugin trait and type surface."
 name = "vox-plugin-sdk"
 layer = 1
 tier = 2
+publish = true
 depends_on = ["vox-plugin-api"]
 rationale = "Plugin authoring SDK: re-exports the API plus declare_plugin! glue."
 
@@ -82,4 +92,173 @@ rationale = "Plugin authoring SDK: re-exports the API plus declare_plugin! glue.
 name = "voxup"
 layer = 5
 tier = 2
+publish = true
 rationale = "Toolchain installer and updater."
+
+# Tier 3: Developer experience, diagramming, and static analysis tooling.
+[[crates]]
+name = "vox-rule-pack"
+layer = 1
+tier = 3
+publish = true
+rationale = "SSOT loader for detector patterns; zero heavy deps."
+
+[[crates]]
+name = "vox-diagram"
+layer = 2
+tier = 3
+publish = true
+rationale = "VoxDiagram core lexer/parser, resolved IR, and markdown fence scanner."
+
+[[crates]]
+name = "vox-similarity"
+layer = 2
+tier = 3
+publish = true
+rationale = "Pure SimHash/MinHash/LSH similarity metrics."
+
+[[crates]]
+name = "vox-code-audit"
+layer = 3
+tier = 3
+publish = true
+depends_on = ["vox-scaling-policy", "vox-secrets", "vox-bounded-fs", "vox-rule-pack"]
+rationale = "Static analysis engine and AST-level rule enforcement detectors."
+
+# Tier 4: Wave 2 standalone crates (Phase 397)
+[[crates]]
+name = "vox-ast"
+layer = 0
+tier = 4
+publish = true
+rationale = "Pure-data Vox AST: declarations, expressions, statements, patterns, type-syntax, and spans."
+
+[[crates]]
+name = "vox-redact"
+layer = 1
+tier = 4
+publish = true
+rationale = "Regex-based redaction of secrets, tokens, and PII from logs and JSON values."
+
+[[crates]]
+name = "vox-jsonschema-util"
+layer = 1
+tier = 4
+publish = true
+rationale = "Shared JSON Schema compile and validate helpers for CLI and contracts."
+
+[[crates]]
+name = "vox-http-client"
+layer = 1
+tier = 4
+publish = true
+rationale = "Shared reqwest ClientBuilder presets, middleware stacks, and JSON error envelopes."
+
+[[crates]]
+name = "vox-test-harness"
+layer = 3
+tier = 4
+publish = true
+depends_on = ["vox-secrets", "vox-ast"]
+rationale = "Shared test fixtures, temporary sandboxes, environment isolation, and harness primitives."
+
+[[crates]]
+name = "vox-drift-check"
+layer = 3
+tier = 4
+publish = true
+depends_on = ["vox-code-audit"]
+rationale = "Workspace-wide multi-language drift and pattern-repetition linter."
+
+# Tier 5: Wave 3 standalone crates (Phase 397-02)
+[[crates]]
+name = "vox-db-types"
+layer = 0
+tier = 5
+publish = true
+rationale = "Pure database, trial, and knowledge-base store wire types."
+
+[[crates]]
+name = "vox-orchestrator-types"
+layer = 0
+tier = 5
+publish = true
+rationale = "Pure orchestrator, task priority, clutch profile, and agent mode types."
+
+[[crates]]
+name = "vox-foundation"
+layer = 0
+tier = 5
+publish = true
+rationale = "Core foundation primitives, protocol envelopes, and tracing initialization."
+
+[[crates]]
+name = "vox-telemetry"
+layer = 0
+tier = 5
+publish = true
+rationale = "Strongly-typed telemetry event envelopes and research trial schemas."
+
+[[crates]]
+name = "vox-quantize"
+layer = 1
+tier = 5
+publish = true
+rationale = "Pure-Rust NF4/FP8/INT8 tensor quantization primitives."
+
+[[crates]]
+name = "vox-openai"
+layer = 1
+tier = 5
+publish = true
+rationale = "OpenAI-compatible chat/completions wire types and single-pass SSE stream parser."
+
+[[crates]]
+name = "vox-identity"
+layer = 1
+tier = 5
+publish = true
+depends_on = ["vox-crypto"]
+rationale = "Cryptographic node and agent identity envelopes backed by vox-crypto."
+
+[[crates]]
+name = "vox-git"
+layer = 1
+tier = 5
+publish = true
+depends_on = ["vox-bounded-fs"]
+rationale = "Bounded Git repository inspection and diff helpers."
+
+[[crates]]
+name = "vox-hf-layout"
+layer = 1
+tier = 5
+publish = true
+depends_on = ["vox-bounded-fs"]
+rationale = "Hugging Face model cache layout and safetensors shard resolution."
+
+[[crates]]
+name = "vox-mesh-policy"
+layer = 1
+tier = 5
+publish = true
+depends_on = ["vox-mesh-types"]
+rationale = "Mesh routing, admission control, and capability policy evaluation."
+
+[[crates]]
+name = "vox-oauth-pkce"
+layer = 1
+tier = 5
+publish = true
+depends_on = ["vox-http-client"]
+rationale = "OAuth 2.0 PKCE loopback and token exchange client."
+
+[[crates]]
+name = "vox-llm-egress"
+layer = 1
+tier = 5
+publish = true
+depends_on = ["vox-http-client", "vox-openai"]
+rationale = "Multi-provider LLM HTTP/SSE egress wire client and prompt-cache breakpoint injector."
+
+

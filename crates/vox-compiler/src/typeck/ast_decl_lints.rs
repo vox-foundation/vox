@@ -377,6 +377,7 @@ fn first_shallow_pure_violation_in_stmt(s: &Stmt) -> Option<crate::ast::span::Sp
 
 /// Run `@table` / `@index` / `@search_index` validation that stays on the AST surface.
 #[must_use]
+#[inline(never)]
 pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     let mut env = TypeEnv::new();

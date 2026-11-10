@@ -174,6 +174,42 @@ pub struct ServerState {
     pub quarantined_paths: Arc<PrRwLock<std::collections::BTreeSet<String>>>,
 }
 
+/// Core context accessors for MCP tool handlers.
+pub trait McpToolContext: Send + Sync {
+    fn orchestrator(&self) -> &Arc<Orchestrator>;
+    fn db(&self) -> Option<&Arc<vox_db::VoxDb>>;
+    fn repository(&self) -> &vox_repository::RepositoryContext;
+    fn workspace_root(&self) -> Option<&std::path::Path>;
+    fn config(&self) -> &OrchestratorConfig;
+    fn active_profile(&self) -> &crate::profiles::ActiveProfile;
+}
+
+impl McpToolContext for ServerState {
+    fn orchestrator(&self) -> &Arc<Orchestrator> {
+        &self.orchestrator
+    }
+
+    fn db(&self) -> Option<&Arc<vox_db::VoxDb>> {
+        self.db.as_ref()
+    }
+
+    fn repository(&self) -> &vox_repository::RepositoryContext {
+        &self.repository
+    }
+
+    fn workspace_root(&self) -> Option<&std::path::Path> {
+        self.workspace_root.as_deref()
+    }
+
+    fn config(&self) -> &OrchestratorConfig {
+        &self.orchestrator_config
+    }
+
+    fn active_profile(&self) -> &crate::profiles::ActiveProfile {
+        &self.active_profile
+    }
+}
+
 impl ServerState {
     pub fn feedback(&self) -> vox_orchestrator::feedback::FeedbackStore {
         self.feedback.clone()

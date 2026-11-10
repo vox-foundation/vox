@@ -26,6 +26,7 @@ pub struct LegacyVerification {
     pub is_legacy_schema_chain: bool,
 }
 
+#[inline(never)]
 async fn table_exists(store: &crate::VoxDb, name: &str) -> Result<bool, StoreError> {
     let mut rows: crate::GuardedRows = store
         .connection()
@@ -38,6 +39,7 @@ async fn table_exists(store: &crate::VoxDb, name: &str) -> Result<bool, StoreErr
 }
 
 /// Inspect a connected store for legacy import / migration workflows.
+#[inline(never)]
 pub async fn verify_legacy_store(store: &crate::VoxDb) -> Result<LegacyVerification, StoreError> {
     let schema_version = store.schema_version().await?;
     let mut has_codex_reactivity = true;
@@ -331,6 +333,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
 ];
 
 /// List user-defined table names (excludes `sqlite_%`), sorted by SQLite.
+#[inline(never)]
 pub async fn list_sqlite_user_tables(conn: &turso::Connection) -> Result<Vec<String>, StoreError> {
     let mut rows = conn
         .query(

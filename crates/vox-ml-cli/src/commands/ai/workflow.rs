@@ -291,22 +291,10 @@ pub async fn run_workflow(
         let _ = requested_run_id;
         // Build the project (same as vox run)
         let out_dir = std::path::PathBuf::from("dist");
-        vox_cli::commands::build::run(
-            file,
-            &out_dir,
-            None,
-            None,
-            false,
-            false,
-            vox_cli_core::cli_args::BuildMode::App,
-            vox_cli::RustAppShell::default(),
-            None,
-            None,
-        )
-        .await?;
+        vox_cli_core::build_service::run_vox_build(file, &out_dir).await?;
 
         let generated_dir = std::path::PathBuf::from("target").join("generated");
-        let shared_target = vox_cli::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));
+        let shared_target = vox_cli_core::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));
 
         // Run workflow: set env so generated binary executes workflow and exits
         let extra_env: Vec<(String, String)> = vec![

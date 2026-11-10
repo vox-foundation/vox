@@ -13,7 +13,7 @@
 use owo_colors::OwoColorize;
 
 pub use vox_cli_core::diagnostics::{
-    ColorChoice, set_color_choice, should_color_stderr, should_color_stdout,
+    ColorChoice, print_info, set_color_choice, should_color_stderr, should_color_stdout,
 };
 
 // ── Deprecation ───────────────────────────────────────────────────────────────
@@ -193,10 +193,6 @@ pub fn print_success_with_time(message: &str, duration: std::time::Duration) {
     }
 }
 
-/// Print a neutral info line to stdout (no color, plain).
-pub fn print_info(message: &str) {
-    println!("{message}");
-}
 
 // ── JSON-mode progress notes ─────────────────────────────────────────────────
 

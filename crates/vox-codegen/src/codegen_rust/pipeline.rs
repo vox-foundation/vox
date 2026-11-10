@@ -60,6 +60,7 @@ pub enum ScriptTarget {
 ///
 /// `runtime_path` should point to the vox-actor-runtime crate directory (e.g. workspace
 /// `crates/vox-actor-runtime`). If `None`, uses `VOX_RUNTIME_PATH` env or a fallback.
+#[inline(never)]
 pub fn generate_script(
     module: &HirModule,
     package_name: &str,
@@ -69,6 +70,7 @@ pub fn generate_script(
 }
 
 /// Generate a script project for the given target (native host only).
+#[inline(never)]
 pub fn generate_script_with_target(
     module: &HirModule,
     package_name: &str,

@@ -32,6 +32,7 @@ pub struct GrpoStepRow {
 
 impl crate::VoxDb {
     /// Insert an observer event into the Arca database.
+    #[inline(never)]
     pub async fn insert_observer_event(
         &self,
         session_id: &str,
@@ -76,6 +77,7 @@ impl crate::VoxDb {
     }
 
     /// Insert a testing decision for a task.
+    #[inline(never)]
     pub async fn insert_test_decision(
         &self,
         task_id: &str,
@@ -113,6 +115,7 @@ impl crate::VoxDb {
     }
 
     /// Insert a victory verdict for a task.
+    #[inline(never)]
     pub async fn insert_victory_verdict(
         &self,
         task_id: &str,
@@ -153,6 +156,7 @@ impl crate::VoxDb {
     }
 
     /// Upsert corpus quality metrics for a training pair.
+    #[inline(never)]
     pub async fn upsert_corpus_quality(
         &self,
         pair_hash: &str,
@@ -198,6 +202,7 @@ impl crate::VoxDb {
         }).await
     }
 
+    #[inline(never)]
     pub async fn upsert_corpus_pair(
         &self,
         source: &str,
@@ -239,6 +244,7 @@ impl crate::VoxDb {
     }
 
     /// Insert a MENS/GRPO training step.
+    #[inline(never)]
     pub async fn insert_grpo_step(
         &self,
         run_id: &str,
@@ -273,6 +279,7 @@ impl crate::VoxDb {
     }
 
     /// Return an aggregated summary of corpus quality across all tracked pairs.
+    #[inline(never)]
     pub async fn query_corpus_quality_summary(&self) -> Result<CorpusQualitySummary, StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -314,6 +321,7 @@ impl crate::VoxDb {
     }
 
     /// Return the most recent `limit` GRPO training steps, newest first.
+    #[inline(never)]
     pub async fn query_recent_grpo_steps(
         &self,
         run_id: Option<&str>,

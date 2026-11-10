@@ -8,15 +8,18 @@ pub mod artifact_policy;
 #[cfg(feature = "db")]
 pub mod benchmark_telemetry;
 pub mod build_service;
+pub mod catalog_tier;
 pub mod cli_actions;
 pub mod cli_args;
 pub mod command_contract;
 pub mod command_registry_model;
+pub mod contributor_mode;
 
 pub mod constants;
 pub mod daemon_ipc;
 pub mod db_types;
 pub mod diagnostics;
+pub use diagnostics::DoctorCheck;
 pub mod fs_utils;
 #[cfg(feature = "db")]
 pub mod gamify_shim;
@@ -51,6 +54,7 @@ pub fn init_tracing_for_cli() {
 }
 
 /// Apply global opts to the environment.
+#[inline(never)]
 pub fn apply_global_opts(opts: &GlobalOpts) {
     if let Some(color) = opts.color {
         crate::diagnostics::set_color_choice(color);

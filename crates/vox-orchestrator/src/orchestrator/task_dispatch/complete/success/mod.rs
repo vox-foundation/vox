@@ -66,10 +66,12 @@ pub(crate) fn bandit_credit_model_id(
 }
 
 impl Orchestrator {
+    #[inline(never)]
     pub async fn complete_task(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
         self.complete_task_with_attestation(task_id, None).await
     }
 
+    #[inline(never)]
     pub async fn complete_task_with_audit(
         &self,
         task_id: TaskId,
@@ -98,6 +100,7 @@ impl Orchestrator {
         self.complete_task_with_attestation(task_id, None).await
     }
 
+    #[inline(never)]
     pub async fn complete_task_with_attestation(
         &self,
         task_id: TaskId,

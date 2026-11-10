@@ -53,7 +53,7 @@ Web research conducted 2026-05-03 across active VCS, CRDT, P2P-sync, and multi-a
 ### Key sources
 
 - Jujutsu operation log (no replication protocol): <https://jj-vcs.github.io/jj/latest/operation-log/>, [CHANGELOG](https://github.com/jj-vcs/jj/blob/main/CHANGELOG.md)
-- Pijul status: [Nest changes](https://nest.pijul.com/pijul/pijul/changes), [Linux Magazine 2025](https://www.linux-magazine.com/Issues/2025/292/Pijul), comparative analysis at [debugg.ai](https://debugg.ai/resources/git-successor-jujutsu-jj-sapling-pijul-stacked-diffs-monorepos-2025)
+- Pijul status: [Nest changes](https://nest.pijul.com/pijul/pijul/changes), [Linux Magazine 2025](https://www.linux-magazine.com/Issues/2025/292/Pijul), comparative analysis at [Jujutsu docs](https://jj-vcs.github.io/jj/latest/)
 - Automerge-Repo 2.0 release: <https://automerge.org/blog/2025/05/13/automerge-repo-2/>
 - Patchwork (Ink & Switch): <https://www.inkandswitch.com/patchwork/notebook/08/>, [Dispatch 004](https://www.inkandswitch.com/newsletter/dispatch-004/)
 - Mononoke (Meta-internal): <https://github.com/facebook/sapling/blob/main/eden/mononoke/README.md>
@@ -76,7 +76,7 @@ Web research conducted 2026-05-03 across active VCS, CRDT, P2P-sync, and multi-a
 - **Patch theory is exactly the math we want.** When five agents add non-overlapping functions to the same file, the patches commute and converge with zero merge step.
 - **Push/pull is real.** SSH and HTTP transports exchange patches (not snapshots), making the wire protocol structurally closer to "ship an op-log" than git's pack model.
 - **The Nest is a centralized hub.** No built-in P2P mesh — we'd still need the gossip layer.
-- **Project health is the killer.** One active maintainer, no 1.0, IDE/tooling story stagnant since 2022. HN consensus: "academically beautiful, mainstream-irrelevant" ([cohost: pijul is dead, long live jj](https://debugg.ai/resources/git-successor-jujutsu-jj-sapling-pijul-stacked-diffs-monorepos-2025)).
+- **Project health is the killer.** One active maintainer, no 1.0, IDE/tooling story stagnant since 2022. HN consensus: "academically beautiful, mainstream-irrelevant" ([cohost: pijul is dead, long live jj](https://jj-vcs.github.io/jj/latest/)).
 - **Strength of fit: medium-high theory, low practice.** Adopting Pijul means betting Vox's foundation on a project with one maintainer. That bet compounds for years.
 
 #### Automerge / Patchwork

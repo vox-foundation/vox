@@ -5,6 +5,7 @@ use std::time::Duration;
 
 /// Autonomous observer daemon that watches for workflow blockages
 /// and orchestrates MENS anomaly reporting.
+#[inline(never)]
 pub async fn run_observer_loop(orch: Arc<Orchestrator>) {
     let cfg = orch.config.read().unwrap().clone();
     if !cfg.observer_enabled {

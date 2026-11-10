@@ -7,9 +7,10 @@ authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 description = "RFC 8252 loopback-server OAuth PKCE flow, used for in-app free-tier key provisioning."
+readme = "README.md"
 
 [dependencies]
-axum = { workspace = true, features = ["http1", "json", "tokio"] }
+axum = { workspace = true, features = ["http1", "json", "tokio", "query"] }
 base64 = { workspace = true }
 open = "5"
 rand = { workspace = true }
@@ -22,7 +23,6 @@ tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "time"] }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 vox-http-client = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "test-util"] }

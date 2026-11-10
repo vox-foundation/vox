@@ -57,6 +57,10 @@ serde_yaml = { workspace = true }
 walkdir = { workspace = true }
 vox-cli-core = { workspace = true }
 vox-cli-contracts = { workspace = true }
+vox-capability-registry = { workspace = true }
+vox-crypto = { workspace = true }
+vox-doc-inventory = { workspace = true }
+vox-mcp-registry = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]

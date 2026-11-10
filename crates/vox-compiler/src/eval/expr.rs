@@ -46,6 +46,7 @@ pub(crate) fn deny_declared_python(interp: &Interpreter, fn_name: &str) -> Resul
     Ok(())
 }
 
+#[inline(never)]
 pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
     match expr {

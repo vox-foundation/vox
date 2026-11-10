@@ -30,6 +30,7 @@ pub mod params;
 pub mod pending_approvals;
 pub mod profiles;
 pub mod server_state;
+pub use server_state::McpToolContext;
 pub mod skill_promotion;
 
 /// T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the
@@ -76,6 +77,7 @@ pub mod db_tools;
 /// VoxDiagram validation (`vox_validate_diagram`).
 pub mod diagram_tools;
 pub mod dispatch;
+pub mod dispatch_domains;
 /// T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout`
 /// wrapping actual tool dispatch — independent of the HITL approval-wait).
 pub mod dispatch_timeout;

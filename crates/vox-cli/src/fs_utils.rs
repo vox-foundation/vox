@@ -45,24 +45,7 @@ pub fn copy_dir_recursive(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Shared Cargo `target/` dir for a generated project under the Vox project root.
-///
-/// Anchors to the project root found by walking up for `.git` **or `Vox.toml`**
-/// ([`vox_config::paths::find_repo_root`]) from `start` (or the process CWD).
-/// A project scaffolded by `vox new` has `Vox.toml` but no `.git` until the
-/// user runs `git init` — anchoring on `.git` alone (the prior behavior, via
-/// [`vox_repository::discover_repository_or_fallback`]) silently fell back to
-/// `start` itself, scattering `target/generated/` next to the source file
-/// (e.g. under `src/`) instead of at the project root.
-pub fn run_target_dir_for_workspace(start: Option<&Path>) -> PathBuf {
-    let start = start
-        .map(Path::to_path_buf)
-        .or_else(|| std::env::current_dir().ok())
-        .unwrap_or_else(|| PathBuf::from("."));
-    let root = vox_config::paths::find_repo_root(&start)
-        .unwrap_or_else(|| vox_repository::discover_repository_or_fallback(&start).root);
-    root.join("target")
-}
+pub use vox_cli_core::fs_utils::run_target_dir_for_workspace;
 
 /// Open `url` in the system default browser (best-effort; logs on failure).
 pub async fn open_browser(url: &str) {
@@ -126,73 +109,7 @@ pub fn resolve_vox_runtime_path() -> Option<PathBuf> {
     None
 }
 
-fn dir_size_bytes(path: &Path) -> std::io::Result<u64> {
-    let meta = path.metadata()?;
-    if meta.is_file() {
-        return Ok(meta.len());
-    }
-    if !meta.is_dir() {
-        return Ok(0);
-    }
-    let mut total = 0u64;
-    for entry in std::fs::read_dir(path)? {
-        let entry = entry?;
-        total += dir_size_bytes(&entry.path()).unwrap_or(0);
-    }
-    Ok(total)
-}
-
-/// Trim `~/.vox/script-cache*` by entry count and total size (oldest first).
-pub fn gc_script_cache(max_entries: usize, max_size_mb: u64) -> Result<()> {
-    let max_bytes = max_size_mb.saturating_mul(1024 * 1024);
-    for wasi in [false, true] {
-        let root = vox_config::script_cache_dir(wasi);
-        if !root.is_dir() {
-            continue;
-        }
-        let mut entries: Vec<(PathBuf, std::time::SystemTime)> = Vec::new();
-        for e in std::fs::read_dir(&root)? {
-            let e = e?;
-            let p = e.path();
-            if p.is_dir() {
-                let mt = e
-                    .metadata()
-                    .and_then(|m| m.modified())
-                    .unwrap_or(std::time::UNIX_EPOCH);
-                entries.push((p, mt));
-            }
-        }
-        entries.sort_by_key(|a| a.1);
-        loop {
-            let count = entries.len();
-            let total: u64 = entries
-                .iter()
-                .map(|(p, _)| dir_size_bytes(p).unwrap_or(0))
-                .sum();
-            if count <= max_entries && total <= max_bytes {
-                break;
-            }
-            if entries.is_empty() {
-                break;
-            }
-            // Parallel `vox run` can create many cache dirs with identical coarse mtimes on Windows.
-            // Never delete entries touched in the last few minutes — another process may still be
-            // compiling into `target/` under that hash directory.
-            let protect_recent = vox_config::timeouts::D_120S;
-            let Some(idx) = entries.iter().position(|(_path, modified)| {
-                modified
-                    .elapsed()
-                    .map(|e| e >= protect_recent)
-                    .unwrap_or(false)
-            }) else {
-                break;
-            };
-            let (old, _) = entries.remove(idx);
-            let _ = std::fs::remove_dir_all(&old);
-        }
-    }
-    Ok(())
-}
+pub use vox_cli_core::fs_utils::{dir_size_bytes, gc_script_cache};
 
 fn open_browser_sync(url: &str) -> std::io::Result<()> {
     #[cfg(windows)]

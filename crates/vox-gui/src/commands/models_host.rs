@@ -63,6 +63,25 @@ pub async fn explain_model_selection(
         intent.complexity = c.clamp(1, 10);
     }
     let outcome = select_with_default_registry(&intent)
+        .or_else(|| {
+            let mut fallback_intent = intent.clone();
+            fallback_intent.allow_free_in_performance_mode = true;
+            select_with_default_registry(&fallback_intent)
+        })
+        .or_else(|| {
+            let reg = registry_from_cache();
+            let cost_pref = intent.axes.to_cost_preference();
+            let effective_axes = intent.axes.to_routing_priority(intent.prefer_local);
+            reg.best_for(intent.task, intent.complexity, cost_pref)
+                .or_else(|| reg.best_for(intent.task, intent.complexity, CostPreference::Economy))
+                .or_else(|| reg.list_models().into_iter().next())
+                .map(|spec| vox_orchestrator::models::SelectionOutcome {
+                    model_id: spec.id.clone(),
+                    model_spec: spec,
+                    reason: vox_orchestrator::models::SelectionReason::Scored,
+                    effective_axes,
+                })
+        })
         .ok_or_else(|| "no model matched selection intent".to_string())?;
     Ok(serde_json::json!({
         "model_id": outcome.model_id,
@@ -105,6 +124,10 @@ mod tests {
         let pin = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
         let ok = recommendation_from_selection(Ok(AutoModelSelection {
             selected_model_id: pin.to_string(),
+            size: "14B".to_string(),
+            free_mb: 25_000,
+            floor_mb: 20_000,
+            reason: "14B".to_string(),
             detected_vram_gb: 25_000_f64 / 1024.0,
             tier_reason: "14B".to_string(),
         }))
@@ -122,6 +145,9 @@ mod tests {
 
     #[tokio::test]
     async fn explain_model_selection_reports_model_and_axes() {
+        vox_orchestrator::models::key_guard::set_test_key_availability(Some(vec![
+            vox_orchestrator::models::ProviderType::OpenRouter,
+        ]));
         let v = explain_model_selection("codegen".into(), Some(42))
             .await
             .expect("bootstrap registry selects a model");

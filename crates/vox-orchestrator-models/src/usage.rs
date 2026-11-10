@@ -5,8 +5,10 @@
 //! - Cost tracking for paid models
 //! - Shared budget awareness across agents (via Turso sync)
 
+#[cfg(feature = "db")]
 use crate::usage_policy::resolve_provider_limits;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "db")]
 use serde_json::json;
 
 /// Default `retry_after_secs` when a provider row is marked rate-limited (`BudgetGate` in `vox-orchestrator`).
@@ -157,12 +159,14 @@ pub struct UnifiedCostSummary {
 }
 
 /// Tracks API usage per provider in VoxDB.
+#[cfg(feature = "db")]
 pub struct UsageTracker<'a> {
     db: &'a vox_db::VoxDb,
     /// Tenant key persisted with usage rows (`global` unless overridden).
     pub user_id: String,
 }
 
+#[cfg(feature = "db")]
 impl<'a> UsageTracker<'a> {
     /// Create a new tracker backed by a borrowed VoxDB instance.
     pub fn new_ref(db: &'a vox_db::VoxDb) -> Self {
@@ -724,6 +728,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "db")]
     fn today_returns_valid_date() {
         let date = UsageTracker::today();
         assert_eq!(date.len(), 10); // YYYY-MM-DD

@@ -3,8 +3,11 @@ name = "vox-orchestrator-types"
 description = "Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs."
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

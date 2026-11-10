@@ -213,6 +213,7 @@ impl Session {
     /// **Lossless:** every turn removed from the live `turns` list is appended
     /// to `archived_turns` first, so `compact()` never discards conversation
     /// content — it is always retrievable via [`Session::archived_turns`].
+    #[inline(never)]
     pub fn compact(&mut self, summary: &str) -> usize {
         let removed = self.turns.len().saturating_sub(1);
         let summary_tokens = crate::compaction::CompactionEngine::estimate_tokens(summary);
@@ -240,6 +241,7 @@ impl Session {
     /// makes it safe to call automatically from message-assembly code paths
     /// (e.g. immediately before an `llm_chat`/`llm_stream` call) rather than
     /// only from an explicit, human/agent-triggered MCP tool call.
+    #[inline(never)]
     pub fn compact_auto(
         &mut self,
         engine: &crate::compaction::CompactionEngine,

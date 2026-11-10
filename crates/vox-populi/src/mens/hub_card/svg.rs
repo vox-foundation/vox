@@ -41,6 +41,7 @@ fn escape_xml(s: &str) -> String {
 }
 
 /// Render the per-size model card SVG asset (`assets/scorecard.svg`).
+#[inline(never)]
 pub fn render_model_assets(cx: &CardContext, rec: &RunRecords) -> Vec<RenderedAsset> {
     let svg = render_scorecard_svg(cx, rec);
     vec![RenderedAsset {
@@ -50,6 +51,7 @@ pub fn render_model_assets(cx: &CardContext, rec: &RunRecords) -> Vec<RenderedAs
 }
 
 /// Render the per-size model card SVG string (`1200x320` 2-panel graphic strip).
+#[inline(never)]
 pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
     let gate_fact = gate_of(rec);
     let gate_state = gate_fact.state;
@@ -613,6 +615,7 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
 }
 
 /// Render the index overview SVG asset (`assets/overview.svg`).
+#[inline(never)]
 pub fn render_index_assets(
     namespace: &str,
     entries: &[(SizeSyncRow, RunRecords)],
@@ -625,6 +628,7 @@ pub fn render_index_assets(
 }
 
 /// Render the index overview SVG string (`1200x360` 2-panel graphic strip).
+#[inline(never)]
 pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords)]) -> String {
     let mut svg = String::with_capacity(20480);
     let _ = writeln!(

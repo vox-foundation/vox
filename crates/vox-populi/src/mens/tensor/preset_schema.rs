@@ -447,6 +447,7 @@ pub fn load_registry() -> Option<serde_yaml::Value> {
 /// Metal `"auto"` (including the omitted-preset default) fails closed when
 /// live-available memory is below 6 GiB or unknown — it does not silently
 /// fall through to `qwen3_dev_cpu`.
+#[inline(never)]
 pub fn resolve_effective_profile(
     preset: Option<&str>,
     device: DeviceProfile,

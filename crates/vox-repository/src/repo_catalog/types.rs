@@ -55,6 +55,10 @@ pub struct RepositoryDescriptor {
     pub capabilities: Vec<RepoCapability>,
     pub remote: Option<RemoteAdapterHints>,
     pub metadata: Option<serde_json::Value>,
+    pub role: Option<String>,
+    pub optional: bool,
+    pub shared_contracts: Vec<String>,
+    pub cargo_patch_crates: Vec<String>,
 }
 
 impl Default for RepositoryDescriptor {
@@ -70,6 +74,10 @@ impl Default for RepositoryDescriptor {
             capabilities: Vec::new(),
             remote: None,
             metadata: None,
+            role: None,
+            optional: false,
+            shared_contracts: Vec::new(),
+            cargo_patch_crates: Vec::new(),
         }
     }
 }
@@ -104,6 +112,14 @@ pub struct ResolvedRepositoryDescriptor {
     pub resolution_status: String,
     pub resolution_error: Option<String>,
     pub repository_id_mismatch: Option<bool>,
+    #[serde(default)]
+    pub role: Option<String>,
+    #[serde(default)]
+    pub optional: bool,
+    #[serde(default)]
+    pub shared_contracts: Vec<String>,
+    #[serde(default)]
+    pub cargo_patch_crates: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

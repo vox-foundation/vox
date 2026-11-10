@@ -4,6 +4,10 @@ description = "Parses and pretty-prints donations.vox mesh policy files; defines
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 vox-mesh-types = { workspace = true }
@@ -12,7 +16,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

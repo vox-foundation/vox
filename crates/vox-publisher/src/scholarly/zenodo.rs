@@ -127,6 +127,7 @@ impl ZenodoHttpClient {
         })
     }
 
+    #[inline(never)]
     pub(super) async fn create_deposition_draft(
         &self,
         body: &ZenodoDepositionCreateBody,
@@ -162,6 +163,7 @@ impl ZenodoHttpClient {
         })
     }
 
+    #[inline(never)]
     pub(super) async fn get_deposition(
         &self,
         deposition_id: &str,
@@ -226,6 +228,7 @@ impl ZenodoHttpClient {
         Ok(())
     }
 
+    #[inline(never)]
     pub(super) async fn put_bucket_object(
         &self,
         bucket_url: &str,
@@ -270,6 +273,7 @@ impl ZenodoHttpClient {
         })
     }
 
+    #[inline(never)]
     pub(super) async fn publish_deposition(
         &self,
         deposition_id: &str,
@@ -399,6 +403,7 @@ fn zenodo_relpaths_to_upload(root: &Path) -> Result<Vec<String>, ScholarlyError>
     Ok(out)
 }
 
+#[inline(never)]
 async fn zenodo_upload_staging_files(
     client: &ZenodoHttpClient,
     bucket: &str,

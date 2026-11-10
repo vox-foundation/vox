@@ -57,6 +57,9 @@ pub struct PrePushOpts {
     pub quick: bool,
     pub complete: bool,
     pub full: bool,
+    /// When true, run full workspace verification (36-stage ssot-drift, whole-tree docs, all gates).
+    /// Default on CI runners (GITHUB_ACTIONS=true / VOX_PRE_PUSH_CI=1); opt-in locally.
+    pub ci: bool,
     pub dry_run: bool,
     pub act: bool,
     pub report_json: Option<PathBuf>,
@@ -100,6 +103,12 @@ fn profile_name(opts: &PrePushOpts) -> &'static str {
 
 fn run_complete_static(opts: &PrePushOpts) -> bool {
     (opts.complete || opts.full) && !opts.skip_complete
+}
+
+pub(crate) fn is_ci_active(opts: &PrePushOpts) -> bool {
+    opts.ci
+        || std::env::var_os("VOX_PRE_PUSH_CI").is_some()
+        || std::env::var_os("GITHUB_ACTIONS").is_some()
 }
 
 /// Workflows that run on `ubuntu-latest` (GH-hosted exceptions).
@@ -206,7 +215,11 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
     }
     // Surface GitHub CI failures/timeouts and open nightly-failure issues to
     // whoever is pushing — agents see this in the push output without asking.
-    super::status::print_live_for_push();
+    // In local fast mode, skip this unless explicitly requested via VOX_PRE_PUSH_LIVE_STATUS=1
+    // or --ci to save 2-10s of gh network calls before Step 1.
+    if is_ci_active(&opts) || std::env::var_os("VOX_PRE_PUSH_LIVE_STATUS").is_some() {
+        super::status::print_live_for_push();
+    }
     const WARN_AT_SECS: u64 = 20 * 60;
     const FAIL_AT_SECS: u64 = 25 * 60;
     let total = Instant::now();
@@ -469,79 +482,273 @@ fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> R
 }
 
 fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
-    let mut v: Vec<OwnedStep> = vec![
-        OwnedStep {
+    let changed_files = all_changed_relative_paths(root)?;
+    let is_ci = is_ci_active(opts);
+    let is_heavy = is_ci || opts.complete || opts.full;
+
+    let mut v: Vec<OwnedStep> = Vec::new();
+
+    if is_heavy {
+        v.push(OwnedStep {
             label: "rustfmt --check (workspace, chunked)".into(),
             scope: None,
             run: Box::new(step_fmt),
-        },
-        OwnedStep {
-            label: "vox ci line-endings".into(),
+        });
+    } else {
+        let changed_rs: Vec<PathBuf> = changed_files
+            .iter()
+            .filter(|f| f.ends_with(".rs"))
+            .map(|f| root.join(f))
+            .filter(|p| p.is_file())
+            .collect();
+        let cargo_toml_changed = changed_files.iter().any(|f| f.ends_with("Cargo.toml"));
+        let n_rs = changed_rs.len();
+        let label = if n_rs == 0 {
+            "rustfmt --check (scoped — skip: no changed .rs)".to_string()
+        } else {
+            format!("rustfmt --check (scoped: {n_rs} changed .rs)")
+        };
+        let changed_rs_arc = Arc::new(changed_rs);
+        v.push(OwnedStep {
+            label,
             scope: None,
-            run: Box::new(step_line_endings),
-        },
-        OwnedStep {
+            run: Box::new(move |r| step_fmt_scoped(r, &changed_rs_arc, cargo_toml_changed)),
+        });
+    }
+
+    v.push(OwnedStep {
+        label: "vox ci line-endings".into(),
+        scope: None,
+        run: Box::new(step_line_endings),
+    });
+
+    let ssot_relevant = changed_files.iter().any(|f| {
+        f.starts_with("contracts/")
+            || f.starts_with("crates/vox-cli/")
+            || f.starts_with("crates/vox-cli-ci/")
+            || f == ".voxignore"
+            || f == "lefthook.yml"
+    });
+    if is_heavy {
+        v.push(OwnedStep {
             label: "vox ci ssot-drift".into(),
             scope: None,
             run: Box::new(step_ssot_drift),
-        },
-        OwnedStep {
+        });
+    } else if ssot_relevant {
+        v.push(OwnedStep {
+            label: "vox ci ssot-drift (scoped: contracts/cli touched)".into(),
+            scope: None,
+            run: Box::new(step_ssot_drift),
+        });
+    } else {
+        v.push(OwnedStep {
+            label: "vox ci ssot-drift (deferred to --ci / --complete; no contracts/cli touched)"
+                .into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!(
+                    "    (no contracts or cli tools touched — skipping ssot-drift in fast mode)"
+                );
+                Ok(())
+            }),
+        });
+    }
+
+    let spoke_relevant = changed_files.iter().any(|f| {
+        f.starts_with("mens/") || f.starts_with("contracts/") || f.starts_with("crates/vox-populi/")
+    });
+    if is_heavy || spoke_relevant {
+        v.push(OwnedStep {
             label: "vox ci spoke-check".into(),
             scope: None,
             run: Box::new(step_spoke_check),
-        },
-        OwnedStep {
+        });
+    } else {
+        v.push(OwnedStep {
+            label: "vox ci spoke-check (scoped — skip: no mens/contracts/populi touched)".into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (no mens, contracts, or vox-populi touched — skipping spoke-check)");
+                Ok(())
+            }),
+        });
+    }
+
+    let wf_relevant = changed_files.iter().any(|f| {
+        f.starts_with(".github/workflows/")
+            || f == "lefthook.yml"
+            || f.starts_with("crates/vox-cli/")
+            || f.starts_with("crates/vox-cli-ci/")
+    });
+    if is_heavy || wf_relevant {
+        v.push(OwnedStep {
             label: "vox ci workflow-concurrency-guard".into(),
             scope: None,
             run: Box::new(step_workflow_concurrency_guard),
-        },
-        OwnedStep {
+        });
+        v.push(OwnedStep {
             label: "vox ci workflow-permissions-guard".into(),
             scope: None,
             run: Box::new(step_workflow_permissions_guard),
-        },
-        OwnedStep {
+        });
+        v.push(OwnedStep {
             label: "vox ci dev-loop-guard".into(),
             scope: None,
             run: Box::new(step_dev_loop_guard),
-        },
-        OwnedStep {
+        });
+    } else {
+        v.push(OwnedStep {
+            label: "vox ci workflow-concurrency-guard (scoped — skip: no workflows/cli touched)"
+                .into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (no workflows, lefthook, or cli touched — skipping)");
+                Ok(())
+            }),
+        });
+        v.push(OwnedStep {
+            label: "vox ci workflow-permissions-guard (scoped — skip: no workflows/cli touched)"
+                .into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (no workflows, lefthook, or cli touched — skipping)");
+                Ok(())
+            }),
+        });
+        v.push(OwnedStep {
+            label: "vox ci dev-loop-guard (scoped — skip: no workflows/cli touched)".into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (no workflows, lefthook, or cli touched — skipping)");
+                Ok(())
+            }),
+        });
+    }
+
+    if is_heavy {
+        v.push(OwnedStep {
             label: "vox ci check-links".into(),
             scope: None,
             run: Box::new(step_check_links),
-        },
-        OwnedStep {
+        });
+    } else {
+        let changed_md: Vec<PathBuf> = changed_files
+            .iter()
+            .filter(|f| f.ends_with(".md"))
+            .map(|f| root.join(f))
+            .filter(|p| p.is_file())
+            .collect();
+        let md_count = changed_md.len();
+        let md_arc = Arc::new(changed_md);
+        let label = if md_count == 0 {
+            "vox ci check-links (scoped — skip: no changed .md)".to_string()
+        } else {
+            format!("vox ci check-links (scoped: {md_count} changed .md)")
+        };
+        v.push(OwnedStep {
+            label,
+            scope: None,
+            run: Box::new(move |r| step_check_links_scoped(r, &md_arc)),
+        });
+    }
+
+    if is_heavy {
+        v.push(OwnedStep {
             label: "vox ci retired-symbol-check".into(),
             scope: None,
             run: Box::new(step_retired_symbol_check),
-        },
-        OwnedStep {
+        });
+        v.push(OwnedStep {
             label: "vox ci canonical-map-verify".into(),
             scope: None,
             run: Box::new(step_canonical_map_verify),
-        },
-        OwnedStep {
+        });
+        v.push(OwnedStep {
             label: "vox kb eval --gate".into(),
             scope: None,
             run: Box::new(step_kb_eval_gate),
-        },
-        OwnedStep {
+        });
+    } else {
+        v.push(OwnedStep {
+            label: "vox ci retired-symbol-check (deferred to --ci / --complete)".into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (deferred to --ci / --complete)");
+                Ok(())
+            }),
+        });
+        v.push(OwnedStep {
+            label: "vox ci canonical-map-verify (deferred to --ci / --complete)".into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (deferred to --ci / --complete)");
+                Ok(())
+            }),
+        });
+        v.push(OwnedStep {
+            label: "vox kb eval --gate (deferred to --ci / --complete)".into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (deferred to --ci / --complete)");
+                Ok(())
+            }),
+        });
+    }
+
+    let docs_relevant = changed_files
+        .iter()
+        .any(|f| f.starts_with("docs/src/") || f.starts_with("contracts/documentation/"));
+    if is_heavy || docs_relevant {
+        v.push(OwnedStep {
             label: "vox-doc-pipeline facet backlog (tighten-only vs base)".into(),
             scope: None,
             run: Box::new(step_facet_backlog_gate),
-        },
-        OwnedStep {
+        });
+        v.push(OwnedStep {
             label: "vox-doc-pipeline legacy-Mermaid baseline (shrink-only vs base)".into(),
             scope: None,
             run: Box::new(step_mermaid_baseline_gate),
-        },
-        // Whole tree, any changed extension: the scoped lint below skips when no `.md` changed.
-        OwnedStep {
+        });
+    } else {
+        v.push(OwnedStep {
+            label:
+                "vox-doc-pipeline facet backlog (scoped — skip: no docs/src or contracts/doc touched)"
+                    .into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (no docs or doc contracts touched — skipping facet backlog gate)");
+                Ok(())
+            }),
+        });
+        v.push(OwnedStep {
+            label:
+                "vox-doc-pipeline legacy-Mermaid baseline (scoped — skip: no docs/src or contracts/doc touched)"
+                    .into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (no docs or doc contracts touched — skipping mermaid baseline gate)");
+                Ok(())
+            }),
+        });
+    }
+
+    if is_heavy {
+        v.push(OwnedStep {
             label: "vox-doc-pipeline legacy-Mermaid ratchet (whole docs/src)".into(),
             scope: None,
             run: Box::new(step_mermaid_lint),
-        },
-    ];
+        });
+    } else {
+        v.push(OwnedStep {
+            label: "vox-doc-pipeline legacy-Mermaid ratchet (deferred to --ci / --complete)".into(),
+            scope: None,
+            run: Box::new(|_| {
+                println!("    (deferred to --ci / --complete; scoped doc lint active)");
+                Ok(())
+            }),
+        });
+    }
 
     if run_complete_static(opts) {
         v.push(OwnedStep {
@@ -555,7 +762,7 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             run: Box::new(step_doctest_md_full),
         });
     } else {
-        let rel = Arc::new(changed_docs_md_rel_paths(root)?);
+        let rel = Arc::new(changed_docs_md_rel_paths_from_set(root, &changed_files));
         let n = rel.len();
         let label = if n == 0 {
             "vox-doc-pipeline --lint-only (scoped — skip: no changed .md outside archive)"
@@ -585,11 +792,27 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
         });
     }
 
-    v.push(OwnedStep {
-        label: "vox-drift-check workspace".into(),
-        scope: None,
-        run: Box::new(step_drift_check),
-    });
+    if is_heavy {
+        v.push(OwnedStep {
+            label: "vox-drift-check workspace".into(),
+            scope: None,
+            run: Box::new(step_drift_check),
+        });
+    } else {
+        let changed_crates = changed_dirs_under_crates_from_set(&changed_files);
+        let n_crates = changed_crates.len();
+        let label = if n_crates == 0 {
+            "vox-drift-check (scoped — skip: no crates touched)".to_string()
+        } else {
+            format!("vox-drift-check (scoped: {n_crates} changed crate(s))")
+        };
+        let changed_crates_arc = Arc::new(changed_crates);
+        v.push(OwnedStep {
+            label,
+            scope: None,
+            run: Box::new(move |r| step_drift_check_scoped(r, &changed_crates_arc)),
+        });
+    }
 
     if run_complete_static(opts) {
         let toestub_roots = changed_dirs_under_crates(root)
@@ -913,19 +1136,58 @@ fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
     }
 }
 
-/// Repo-relative paths under `docs/src/` (no `docs/src/` prefix), excluding
-/// `archive/` and paths deleted in the diff (the diff includes deletions,
-/// but `vox-doc-pipeline --paths=` errors loudly on a path that no longer
-/// exists on disk).
-fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
-    let raw = git_diff_name_only_for_prepush(root)?;
+fn all_changed_relative_paths(root: &Path) -> Result<BTreeSet<String>> {
+    let mut files = BTreeSet::new();
+    let base_diff = git_diff_name_only_for_prepush(root).unwrap_or_default();
+    for line in base_diff.lines() {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            files.insert(trimmed.replace('\\', "/"));
+        }
+    }
+    if let Ok(out) = Command::new("git")
+        .args(["diff", "--name-only", "HEAD"])
+        .current_dir(root)
+        .output()
+    {
+        if out.status.success() {
+            let s = String::from_utf8_lossy(&out.stdout);
+            for line in s.lines() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    files.insert(trimmed.replace('\\', "/"));
+                }
+            }
+        }
+    }
+    if let Ok(out) = Command::new("git")
+        .args(["ls-files", "--others", "--exclude-standard"])
+        .current_dir(root)
+        .output()
+    {
+        if out.status.success() {
+            let s = String::from_utf8_lossy(&out.stdout);
+            for line in s.lines() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    files.insert(trimmed.replace('\\', "/"));
+                }
+            }
+        }
+    }
+    Ok(files)
+}
+
+fn changed_docs_md_rel_paths_from_set(
+    root: &Path,
+    changed_files: &BTreeSet<String>,
+) -> Vec<String> {
     let mut seen = BTreeSet::new();
-    for line in raw.lines() {
-        let line = line.trim();
-        if !line.ends_with(".md") {
+    for file in changed_files {
+        if !file.ends_with(".md") {
             continue;
         }
-        if let Some(rest) = line.strip_prefix("docs/src/") {
+        if let Some(rest) = file.strip_prefix("docs/src/") {
             if rest.starts_with("archive/") {
                 continue;
             }
@@ -935,7 +1197,83 @@ fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
             seen.insert(rest.to_string());
         }
     }
-    Ok(seen.into_iter().collect())
+    seen.into_iter().collect()
+}
+
+fn changed_dirs_under_crates_from_set(changed_files: &BTreeSet<String>) -> Vec<PathBuf> {
+    let mut seen = BTreeSet::new();
+    for file in changed_files {
+        let parts: Vec<&str> = file.splitn(3, '/').collect();
+        if parts.len() >= 2 && parts[0] == "crates" {
+            seen.insert(PathBuf::from("crates").join(parts[1]));
+        }
+    }
+    seen.into_iter().collect()
+}
+
+fn step_fmt_scoped(root: &Path, changed_rs: &[PathBuf], cargo_toml_changed: bool) -> Result<()> {
+    if cargo_toml_changed {
+        check_edition_alignment(root)?;
+    }
+    if changed_rs.is_empty() {
+        println!("    (no changed .rs files — skipping rustfmt)");
+        return Ok(());
+    }
+    const CHUNK: usize = 50;
+    let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
+    let mut unformatted = false;
+    for chunk in changed_rs.chunks(CHUNK) {
+        let status = Command::new("rustfmt")
+            .arg("--edition")
+            .arg("2024")
+            .arg("--check")
+            .arg("--config-path")
+            .arg(root)
+            .args(chunk)
+            .current_dir(root)
+            .status()
+            .context("spawn rustfmt --check")?;
+        if !status.success() {
+            if auto_heal {
+                eprintln!(
+                    "    [auto-heal] rustfmt --check detected unformatted files; running rustfmt in-place..."
+                );
+                let fix_status = Command::new("rustfmt")
+                    .arg("--edition")
+                    .arg("2024")
+                    .arg("--config-path")
+                    .arg(root)
+                    .args(chunk)
+                    .current_dir(root)
+                    .status()
+                    .context("spawn rustfmt auto-heal")?;
+                if fix_status.success() {
+                    let recheck = Command::new("rustfmt")
+                        .arg("--edition")
+                        .arg("2024")
+                        .arg("--check")
+                        .arg("--config-path")
+                        .arg(root)
+                        .args(chunk)
+                        .current_dir(root)
+                        .status()
+                        .context("spawn rustfmt --check after auto-heal")?;
+                    if recheck.success() {
+                        eprintln!("    [auto-heal] chunk formatted and verified OK.");
+                        continue;
+                    }
+                }
+            }
+            unformatted = true;
+        }
+    }
+    if unformatted {
+        bail!(
+            "rustfmt --check found unformatted files (diffs above). \
+             Run `rustfmt --edition 2024 <file>` or `vox run scripts/fmt.vox` to fix."
+        );
+    }
+    Ok(())
 }
 
 fn step_fmt(root: &Path) -> Result<()> {
@@ -1115,7 +1453,7 @@ fn step_line_endings(root: &Path) -> Result<()> {
         Ok(()) => Ok(()),
         Err(e) if auto_heal => {
             eprintln!("    [auto-heal] line-endings check failed ({e}); running --autofix...");
-            vox_cli_ci::line_endings::run(root, true, None, false)?;
+            vox_cli_ci::line_endings::run(root, false, None, true)?;
             vox_cli_ci::line_endings::run(root, false, None, false)
         }
         Err(e) => Err(e),
@@ -1149,6 +1487,17 @@ fn step_dev_loop_guard(root: &Path) -> Result<()> {
 fn step_check_links(root: &Path) -> Result<()> {
     // In-process — avoids Windows nested `current_exe()` spawning a stale sibling `vox.exe`.
     vox_cli_ci::check_links::run(root, None)
+}
+
+fn step_check_links_scoped(root: &Path, changed_md: &[PathBuf]) -> Result<()> {
+    if changed_md.is_empty() {
+        println!("    (no changed markdown — skipping check-links)");
+        return Ok(());
+    }
+    for p in changed_md {
+        vox_cli_ci::check_links::run(root, Some(p))?;
+    }
+    Ok(())
 }
 
 fn step_retired_symbol_check(root: &Path) -> Result<()> {
@@ -1293,6 +1642,44 @@ fn step_drift_check(root: &Path) -> Result<()> {
         .context("spawn vox-drift-check")?;
     if !status.success() {
         bail!("vox-drift-check exited with {:?}", status.code());
+    }
+    Ok(())
+}
+
+fn step_drift_check_scoped(root: &Path, changed_crates: &[PathBuf]) -> Result<()> {
+    if changed_crates.is_empty() {
+        println!("    (no crates changed — skipping vox-drift-check)");
+        return Ok(());
+    }
+    let bin = match vox_cli_ci::installed_tool("vox-drift-check") {
+        vox_cli_ci::ToolPath::Found(p) => p,
+        vox_cli_ci::ToolPath::SkipLocal => {
+            println!("    vox-drift-check not installed: skipped locally (hosted CI runs it)");
+            return Ok(());
+        }
+        vox_cli_ci::ToolPath::MissingOnCi => {
+            bail!("vox-drift-check is not on PATH; the CI job must build it before the fast tier")
+        }
+    };
+    for crate_dir in changed_crates {
+        let status = Command::new(&bin)
+            .args([
+                crate_dir.to_str().unwrap_or("."),
+                "--severity",
+                "warning",
+                "--fail-on",
+                "error",
+            ])
+            .current_dir(root)
+            .status()
+            .with_context(|| format!("spawn vox-drift-check on {}", crate_dir.display()))?;
+        if !status.success() {
+            bail!(
+                "vox-drift-check on {} exited with {:?}",
+                crate_dir.display(),
+                status.code()
+            );
+        }
     }
     Ok(())
 }
@@ -1759,6 +2146,7 @@ mod tests {
             quick: false,
             complete: false,
             full: true,
+            ci: false,
             dry_run: false,
             act: false,
             report_json: None,
@@ -1779,10 +2167,36 @@ mod tests {
         let complete = PrePushOpts {
             complete: true,
             full: false,
+            ci: false,
             skip_complete: false,
             ..full_only
         };
         assert!(run_complete_static(&complete));
+    }
+
+    #[test]
+    fn ci_active_detection() {
+        let default_opts = PrePushOpts {
+            quick: false,
+            complete: false,
+            full: false,
+            ci: false,
+            dry_run: false,
+            act: false,
+            report_json: None,
+            include_slow: false,
+            with_coverage: false,
+            since: None,
+            enforce_budgets: false,
+            skip_complete: false,
+        };
+        assert!(!default_opts.ci);
+
+        let ci_opts = PrePushOpts {
+            ci: true,
+            ..default_opts
+        };
+        assert!(is_ci_active(&ci_opts));
     }
 
     #[test]

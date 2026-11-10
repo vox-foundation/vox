@@ -166,7 +166,25 @@ pub(crate) fn pick_size(rows: &[IndexRow]) -> Option<Pick> {
     best
 }
 
-fn grid_cell(row: &IndexRow, s: &SpokeEntry) -> GridCell {
+fn grid_cell(row: &IndexRow, rec: &RunRecords, s: &SpokeEntry) -> GridCell {
+    if row.trained {
+        if row.spoke_id.as_deref() == Some(s.id.as_str()) {
+            return GridCell::Gate(row.gate);
+        }
+        if let Some(sg) = rec
+            .spoke_gates
+            .iter()
+            .find(|g| g.spoke == s.id && g.state != vox_eval::gate_state::GateState::NotRun)
+        {
+            let mapped = match sg.state {
+                vox_eval::gate_state::GateState::Passed => GateState::Passed,
+                vox_eval::gate_state::GateState::NeedsReGate => GateState::NeedsReGate,
+                vox_eval::gate_state::GateState::Failed => GateState::Failed,
+                vox_eval::gate_state::GateState::NotRun => GateState::NotEvaluated,
+            };
+            return GridCell::Gate(mapped);
+        }
+    }
     match s.status {
         SpokeStatus::Planned => GridCell::Planned {
             link: s
@@ -174,9 +192,6 @@ fn grid_cell(row: &IndexRow, s: &SpokeEntry) -> GridCell {
                 .clone()
                 .unwrap_or_else(|| format!("{DOCS}#hub-and-spoke")),
         },
-        SpokeStatus::Trained if row.trained && row.spoke_id.as_deref() == Some(s.id.as_str()) => {
-            GridCell::Gate(row.gate)
-        }
         SpokeStatus::Trained => GridCell::NotTrained,
     }
 }
@@ -245,7 +260,7 @@ pub(crate) fn index_facts(namespace: &str, entries: &[(SizeSyncRow, RunRecords)]
             heldout,
             cells: Vec::new(),
         };
-        row.cells = spokes.iter().map(|s| grid_cell(&row, s)).collect();
+        row.cells = spokes.iter().map(|s| grid_cell(&row, rec, s)).collect();
         rows.push(row);
     }
     let comparison = rows
@@ -260,7 +275,17 @@ pub(crate) fn index_facts(namespace: &str, entries: &[(SizeSyncRow, RunRecords)]
         spoke_source,
         planned_spokes: spokes
             .iter()
-            .filter(|s| s.status == SpokeStatus::Planned)
+            .filter(|s| {
+                s.status == SpokeStatus::Planned
+                    && !rows
+                        .iter()
+                        .any(|r| r.trained && r.spoke_id.as_deref() == Some(s.id.as_str()))
+                    && !entries.iter().any(|(_, rec)| {
+                        rec.spoke_gates.iter().any(|g| {
+                            g.spoke == s.id && g.state != vox_eval::gate_state::GateState::NotRun
+                        })
+                    })
+            })
             .cloned()
             .collect(),
         pick: pick_size(&rows),

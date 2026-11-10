@@ -177,6 +177,7 @@ fn mesh_worker_node_id() -> String {
     }
 }
 
+#[inline(never)]
 fn run_dispatched_source(
     source_b64: &str,
     expected_blake3_hex: Option<&str>,
@@ -284,6 +285,7 @@ fn parts_from_output(output: std::io::Result<std::process::Output>) -> Dispatche
     }
 }
 
+#[inline(never)]
 async fn process_one_envelope(
     orchestrator: &crate::orchestrator::Orchestrator,
     client: &vox_populi::http_client::PopuliHttpClient,
@@ -600,6 +602,7 @@ async fn process_one_envelope(
     .await;
 }
 
+#[inline(never)]
 async fn run_remote_worker_tick(
     orchestrator: &crate::orchestrator::Orchestrator,
     client: &vox_populi::http_client::PopuliHttpClient,
@@ -651,6 +654,7 @@ async fn run_remote_worker_tick(
 }
 
 /// Spawn a periodic worker poll loop that consumes `remote_task_envelope` rows.
+#[inline(never)]
 pub fn spawn_populi_remote_worker_poller(
     orchestrator: Arc<crate::orchestrator::Orchestrator>,
     join_slot: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
@@ -715,6 +719,7 @@ pub fn spawn_populi_remote_worker_poller(
 }
 
 /// One-shot remote worker tick using current orchestrator config.
+#[inline(never)]
 pub async fn populi_remote_worker_tick_once(orchestrator: &crate::orchestrator::Orchestrator) {
     let cfg = crate::sync_lock::rw_read(&*orchestrator.config).clone();
     if !cfg.populi_remote_execute_experimental || cfg.populi_remote_worker_poll_interval_secs == 0 {

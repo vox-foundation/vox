@@ -1350,6 +1350,7 @@ impl AgentFleet {
 
     /// Watch the orchestrator state and ensure an actor exists for every
     /// agent registered in the orchestrator. Also stops processes for retired agents.
+    #[inline(never)]
     pub async fn sync_fleet(&self) {
         let agent_info: Vec<(AgentId, String)> = {
             let ids = self.orchestrator.agent_ids();
@@ -1442,6 +1443,7 @@ impl AgentFleet {
     /// `check_scaling`/`sync_fleet`/rebalance) by up to
     /// `N_agents * send-timeout`. Concurrent dispatch bounds this to one
     /// timeout window regardless of how many agents are nudged this tick.
+    #[inline(never)]
     pub async fn nudge_queued_agents(&self) {
         let candidates: Vec<AgentId> = self
             .orchestrator
@@ -1493,6 +1495,7 @@ impl AgentFleet {
     }
 
     /// Check if agents need to be spawned or retired using ScalingService and profile limits.
+    #[inline(never)]
     pub async fn check_scaling(&self) {
         // Reset spawn counter at the start of each scaling cycle so each tick
         // gets a clean budget — avoids stale carry-over from concurrent paths.
@@ -1618,6 +1621,7 @@ impl AgentFleet {
     }
 
     /// Start the main orchestrator loop: rebalancing, maintenance, and fleet syncing.
+    #[inline(never)]
     pub async fn run(&self) {
         loop {
             // 1. Scaling checks

@@ -137,6 +137,7 @@ pub enum Selection {
 }
 
 /// Pick a size. `explicit` is `--model`, `--base` or `VOX_MENS_DEFAULT_MODEL`.
+#[inline(never)]
 pub fn select_size(
     overlay: &HashMap<String, Vec<TrainBase>>,
     free: Option<&FreeMemory>,
@@ -226,6 +227,7 @@ pub fn recheck_before_load(
 /// (`Qwen/Qwen3-8B`) resolves to the single distinct pinned `hf_id` across all
 /// `train_bases` tags. Unknown or ambiguous input is an error that lists the
 /// known sizes: it is an operator typo, and there is no fallback revision.
+#[inline(never)]
 pub fn resolve_base_pin(
     requested: &str,
     overlay: &HashMap<String, Vec<TrainBase>>,

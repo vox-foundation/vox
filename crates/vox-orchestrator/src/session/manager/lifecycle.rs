@@ -22,6 +22,7 @@ impl SessionManager {
     /// Archive idle sessions.
     ///
     /// Returns number of sessions archived.
+    #[inline(never)]
     pub fn tick_lifecycle(&mut self) -> usize {
         let idle_timeout = self.config.idle_timeout_secs;
         let archive_timeout = self.config.archive_timeout_secs;
@@ -50,6 +51,7 @@ impl SessionManager {
     /// Remove all archived sessions from memory and disk.
     ///
     /// Returns the number of sessions removed.
+    #[inline(never)]
     pub fn cleanup(&mut self) -> Result<usize, SessionError> {
         let archived: Vec<String> = self
             .sessions

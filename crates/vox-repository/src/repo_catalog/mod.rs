@@ -5,6 +5,7 @@
 //! chooses a remote backend.
 
 mod catalog;
+pub mod federation;
 mod query;
 #[cfg(test)]
 mod tests;
@@ -15,6 +16,12 @@ mod voxignore;
 pub use catalog::{
     RepoCatalogError, load_repo_catalog_from_repo, refresh_repo_catalog,
     repo_catalog_manifest_path, resolve_repo_catalog,
+};
+pub use federation::{
+    ContractDrift, ContractFileDigest, CrossRepoParityReport, FederatedCrateNode, FederatedEdge,
+    FederatedGraphSummary, RepoContractStatus, StandaloneSovereigntyReport,
+    default_federation_catalog, refresh_federated_symbol_graph, render_local_cargo_patch_block,
+    verify_cross_repo_contract_parity, verify_standalone_sovereignty,
 };
 pub use query::{repo_query_file, repo_query_history, repo_query_text};
 pub use types::{

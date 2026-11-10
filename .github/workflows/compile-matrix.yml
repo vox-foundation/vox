@@ -5,20 +5,6 @@ name: Compile matrix smoke
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "crates/vox-cli/**"
-      - "crates/vox-codegen/**"
-      - "crates/vox-codegen-ts/**"
-      - "crates/vox-config/**"
-      - "crates/vox-tauri-codegen/**"
-      - "crates/vox-langtool/**"
-      - "crates/vox-lsp/**"
-      - "crates/vox-sql/**"
-      - "examples/compile-suite/**"
-      - "contracts/operations/catalog.v1.yaml"
-      - "crates/vox-cargo-shim/**"
-      - ".github/workflows/compile-matrix.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

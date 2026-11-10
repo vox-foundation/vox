@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://voxlang.org/contracts/mens/gate-receipt.v2.schema.json",
+  "title": "Mens gate receipt schema v2",
+  "description": "Gate receipt schema version 2 consumed by phase 339 (model cards v2) and phase 340 (local model selector).",
+  "type": "object",
+  "required": [
+    "schema",
+    "source_commit",
+    "policy",
+    "policy_blake3",
+    "spoke",
+    "overall_passed",
+    "gates",
+    "inputs"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "vox_mens_gate_receipt_v2"
+    },
+    "timestamp_unix": {
+      "type": "integer"
+    },
+    "source_commit": {
+      "type": "string"
+    },
+    "run_dir": {
+      "type": "string"
+    },
+    "policy": {
+      "type": "string"
+    },
+    "policy_blake3": {
+      "type": "string"
+    },
+    "spoke": {
+      "type": ["string", "null"]
+    },
+    "overall_passed": {
+      "type": "boolean"
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "passed",
+          "block",
+          "message"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "block": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "discriminating": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "adapter_sha256",
+        "base_pin",
+        "slice_blake3",
+        "grader",
+        "decode_blake3",
+        "suites",
+        "datasets"
+      ],
+      "properties": {
+        "adapter_sha256": {
+          "type": ["string", "null"]
+        },
+        "base_pin": {
+          "type": ["string", "null"]
+        },
+        "slice_blake3": {
+          "type": "object"
+        },
+        "grader": {
+          "type": "string"
+        },
+        "decode_blake3": {
+          "type": ["string", "null"]
+        },
+        "suites": {
+          "type": "object"
+        },
+        "datasets": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

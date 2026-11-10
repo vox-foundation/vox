@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://voxlang.org/contracts/mens/spoke-gate-state.v1.schema.json",
+  "title": "Mens spoke gate state contract",
+  "description": "Per-spoke gate state contract consumed by phase 339 (model cards v2) and phase 340 (local model selector).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "adapter_sha256",
+    "base_pin",
+    "rows"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "vox_mens_spoke_gates_v1"
+    },
+    "adapter_sha256": {
+      "type": ["string", "null"]
+    },
+    "base_pin": {
+      "type": ["string", "null"]
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "spoke",
+          "policy_file",
+          "policy_blake3",
+          "receipt_file",
+          "state",
+          "reason",
+          "applies"
+        ],
+        "properties": {
+          "spoke": {
+            "type": "string"
+          },
+          "policy_file": {
+            "type": "string"
+          },
+          "policy_blake3": {
+            "type": "string"
+          },
+          "receipt_file": {
+            "type": ["string", "null"]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "needs_re_gate",
+              "not_run"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "applies": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

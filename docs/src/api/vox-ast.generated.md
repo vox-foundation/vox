@@ -76,6 +76,8 @@ graph {
     vox_db -> vox_ast
     node vox_sql: "vox-sql"
     vox_sql -> vox_ast
+    node vox_test_harness: "vox-test-harness"
+    vox_test_harness -> vox_ast
 }
 ```
 
@@ -86,6 +88,7 @@ graph {
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-sql`](./vox-sql.generated.md) | Direct workspace dependent |
+| [`vox-test-harness`](./vox-test-harness.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 

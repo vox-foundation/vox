@@ -70,6 +70,7 @@ pub use ty::ty_display;
 ///   via [`rayon`], then merged in deterministic declaration order. The wall-clock time for
 ///   phase 2 is reduced from O(N·lint_count) to O(max(lint_time)) on multi-core machines.
 #[must_use]
+#[inline(never)]
 pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic> {
     typecheck_hir_module_with_path(source, hir, None)
 }
@@ -86,6 +87,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
 ///
 /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
 #[must_use]
+#[inline(never)]
 pub fn typecheck_hir_module_with_path(
     source: &str,
     hir: &mut HirModule,
@@ -668,6 +670,7 @@ fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUi
 
 /// Lower `module` to HIR and run the type Checker (replacement for the removed AST-only path).
 #[must_use]
+#[inline(never)]
 pub fn typecheck_ast_module(source: &str, module: &Module) -> Vec<Diagnostic> {
     let mut diags = ast_decl_lints::lint_ast_declarations(module, source);
     let mut hir = lower_module(module);
@@ -679,6 +682,7 @@ pub fn typecheck_ast_module(source: &str, module: &Module) -> Vec<Diagnostic> {
 ///
 /// This is the stable name used by the CLI, LSP, and integration tests; it delegates to the HIR pipeline.
 #[must_use]
+#[inline(never)]
 pub fn typecheck_module(module: &Module, source: &str) -> Vec<Diagnostic> {
     typecheck_ast_module(source, module)
 }

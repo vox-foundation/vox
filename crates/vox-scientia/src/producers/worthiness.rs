@@ -83,6 +83,7 @@ pub fn soft_gate_peer_review_signal(
 /// which is out of scope for this task (see
 /// docs/src/architecture/deep-research-trust-novelty-scoring-landscape-2026-08-01.md §5
 /// for that follow-up).
+#[inline(never)]
 pub fn build_worthiness_signals(
     version: &str,
     is_retracted: bool,

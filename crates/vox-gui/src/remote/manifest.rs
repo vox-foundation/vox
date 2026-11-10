@@ -14,6 +14,7 @@ const SURFACE_REGISTRY_YAML: &str =
 pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "activity",
     "chat",
+    "chat_arena_branch",
     "chat_turn",
     "console_a2a",
     "context_budget",
@@ -359,14 +360,30 @@ mod tests {
     #[test]
     fn remote_gate_fixture_matches_real_gate() {
         let served = strings(&["mesh", "console"]);
+        let mut got_surfaces =
+            surface_availability(command_backends(), registry_surfaces(), Some(&served));
+        got_surfaces.sort_by(|a, b| a.surface.cmp(&b.surface));
         let got = serde_json::json!({
             "axis_surfaces": served,
-            "surfaces": surface_availability(command_backends(), registry_surfaces(), Some(&served)),
+            "surfaces": got_surfaces,
         });
-        let want: serde_json::Value = serde_json::from_str(include_str!(
+        let mut want: serde_json::Value = serde_json::from_str(include_str!(
             "../../ui/e2e/fixtures/remote-gate-mesh-console.json"
         ))
         .expect("fixture json");
+        if let Some(arr) = want.get_mut("surfaces").and_then(|v| v.as_array_mut()) {
+            arr.sort_by(|a, b| {
+                let sa = a
+                    .get("surface")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or_default();
+                let sb = b
+                    .get("surface")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or_default();
+                sa.cmp(sb)
+            });
+        }
         assert_eq!(got, want);
     }
 }

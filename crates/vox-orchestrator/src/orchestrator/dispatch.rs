@@ -39,6 +39,7 @@ pub fn intake_to_task(item: &IntakeItem) -> AgentTask {
 /// from any production call site — and durably record `HopperAssign`
 /// alongside it. `oplog` is optional so existing unit tests that construct
 /// `run_dispatcher` without a durable log keep working unchanged.
+#[inline(never)]
 pub async fn run_dispatcher(
     rx: tokio::sync::broadcast::Receiver<crate::events::AgentEvent>,
     hopper: Arc<dyn crate::hopper::store::HopperIntake>,
@@ -54,6 +55,7 @@ pub async fn run_dispatcher(
 /// existing tests (which don't) share one implementation.
 ///
 /// `gate: None` keeps the pre-Phase-5 behaviour.
+#[inline(never)]
 pub async fn run_dispatcher_with_oplog(
     mut rx: tokio::sync::broadcast::Receiver<crate::events::AgentEvent>,
     hopper: Arc<dyn crate::hopper::store::HopperIntake>,
@@ -127,6 +129,7 @@ pub async fn run_dispatcher_with_oplog(
 // ponytail: check-then-acquire (park then hold) is race-free because this dispatcher
 // loop is the only resource-lock acquirer and handles events sequentially. Move the acquire
 // inside the enqueue closure if a second acquirer is ever added.
+#[inline(never)]
 async fn dispatch_item(
     item: IntakeItem,
     hopper: &Arc<dyn crate::hopper::store::HopperIntake>,
@@ -219,6 +222,7 @@ fn record_hopper_op(
 /// Runs the priority/cancel cascade loop:
 /// - HopperItemOverridden: updates the task's priority on agent queue.
 /// - HopperItemCancelled: cancels the task on agent queue.
+#[inline(never)]
 pub async fn run_cascade(
     mut rx: tokio::sync::broadcast::Receiver<crate::events::AgentEvent>,
     on_reprioritize: impl Fn(TaskId, TaskPriority) + Send + 'static,

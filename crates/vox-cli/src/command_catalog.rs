@@ -12,13 +12,7 @@ pub enum CatalogFormat {
     Json,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CatalogTier {
-    Recommended,
-    Advanced,
-    FeatureGated,
-}
+pub use vox_cli_core::catalog_tier::{CatalogTier, tier_for_path};
 
 /// Typed argument kind for GUI form generation, derived from the clap action.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -457,22 +451,6 @@ fn collect_aliases(cmd: &Command) -> Vec<String> {
     aliases.sort();
     aliases.dedup();
     aliases
-}
-
-pub(crate) fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
-    if feature_gated {
-        return CatalogTier::FeatureGated;
-    }
-    let top = path.first().map(String::as_str).unwrap_or_default();
-    if path.len() == 1
-        && matches!(
-            top,
-            "build" | "check" | "run" | "test" | "bundle" | "dev" | "doctor" | "completions"
-        )
-    {
-        return CatalogTier::Recommended;
-    }
-    CatalogTier::Advanced
 }
 
 fn sanitize_about(about: &str) -> String {

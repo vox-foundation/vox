@@ -6,13 +6,19 @@
 // AUTO-GENERATED parts included below.
 
 pub mod agent_types;
+pub mod clutch;
 pub mod merge_outcome;
+pub mod pricing;
 pub mod routing_values;
 pub mod socrates_policy;
+pub mod task_priority;
 pub mod trust;
 pub mod vcs_capability;
 
+pub use clutch::{BudgetAggressiveness, ClutchProfile, QualityLevel, ResolvedClutch};
+pub use pricing::PricingSource;
 pub use routing_values::{CostPreference, RoutingProfile};
+pub use task_priority::TaskPriority;
 pub use vcs_capability::{
     BranchCreate, BranchName, BranchNameError, RemoteId, WorkingTreeWrite, WorkspaceId,
 };

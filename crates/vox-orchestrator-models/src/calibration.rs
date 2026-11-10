@@ -223,7 +223,7 @@ pub struct CalibrationRunEvent {
 impl CalibrationRunEvent {
     pub fn new(outcome: &CalibrationOutcome, session_id: Option<String>) -> Self {
         Self {
-            metric_type: vox_db::research_metrics_contract::METRIC_TYPE_CALIBRATION_RUN,
+            metric_type: vox_telemetry::METRIC_TYPE_CALIBRATION_RUN,
             z_score: outcome.z_score,
             observation_count: outcome.observation_count,
             session_id,
@@ -242,7 +242,7 @@ pub struct DriftAlertEvent {
 impl DriftAlertEvent {
     pub fn new(z_score: f64, session_id: Option<String>) -> Self {
         Self {
-            metric_type: vox_db::research_metrics_contract::METRIC_TYPE_DRIFT_ALERT,
+            metric_type: vox_telemetry::METRIC_TYPE_DRIFT_ALERT,
             z_score,
             session_id,
         }
@@ -262,7 +262,7 @@ pub struct BanditUpdateEvent {
 impl BanditUpdateEvent {
     pub fn new(arm: &BanditArm, success: bool, session_id: Option<String>) -> Self {
         Self {
-            metric_type: vox_db::research_metrics_contract::METRIC_TYPE_BANDIT_UPDATE,
+            metric_type: vox_telemetry::METRIC_TYPE_BANDIT_UPDATE,
             model_id: arm.model_id.clone(),
             success,
             expected_reward: arm.expected_reward(),

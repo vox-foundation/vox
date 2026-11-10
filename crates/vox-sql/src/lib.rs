@@ -217,6 +217,7 @@ impl AnySqlBackend {
         }
     }
 
+    #[inline(never)]
     pub async fn connect_from_url(url: &str) -> Result<Self, SqlBackendError> {
         match BackendKind::from_url(url)? {
             BackendKind::Libsql => Ok(Self::Libsql(LibsqlBackend::connect(url).await?)),
@@ -227,6 +228,7 @@ impl AnySqlBackend {
         }
     }
 
+    #[inline(never)]
     pub async fn connect_from_app_env() -> Result<Self, SqlBackendError> {
         let app_url = vox_secrets::resolve_secret(SecretId::VoxAppDbUrl)
             .expose()
@@ -255,6 +257,7 @@ impl AnySqlBackend {
         }
     }
 
+    #[inline(never)]
     pub async fn query(
         &self,
         sql: &str,
@@ -269,6 +272,7 @@ impl AnySqlBackend {
         }
     }
 
+    #[inline(never)]
     pub async fn execute(&self, sql: &str, params: &[SqlValue]) -> Result<u64, SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.execute(sql, params).await,
@@ -279,6 +283,7 @@ impl AnySqlBackend {
         }
     }
 
+    #[inline(never)]
     pub async fn begin_transaction(&self) -> Result<(), SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.begin_transaction().await,
@@ -289,6 +294,7 @@ impl AnySqlBackend {
         }
     }
 
+    #[inline(never)]
     pub async fn commit_transaction(&self) -> Result<(), SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.commit_transaction().await,

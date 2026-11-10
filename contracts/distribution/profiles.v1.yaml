@@ -61,6 +61,12 @@ publish:
     - vox-plugin-api
     - vox-plugin-sdk
     - voxup
+    - vox-ast
+    - vox-redact
+    - vox-jsonschema-util
+    - vox-http-client
+    - vox-test-harness
+    - vox-drift-check
 
 # Crates that MUST NOT be published or appear on the install/build path as a
 # hard dependency carrier for `agy`. The parity test asserts none of these are

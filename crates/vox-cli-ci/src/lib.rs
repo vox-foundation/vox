@@ -47,6 +47,7 @@ pub use helpers::{
     resolve_tool,
 };
 pub mod affected_cmd;
+pub use vox_cli_core::artifact_policy;
 pub mod agentskills_compliance;
 pub mod ai_fixtures_coverage;
 pub mod attention_ledger_parity;
@@ -111,6 +112,7 @@ pub mod pm_provenance;
 pub mod pre_push_refs;
 pub mod preview_trust_audit;
 pub mod profile_parity;
+pub mod publish_dry_run;
 pub mod release_draft_guard;
 pub mod required_context_guard;
 pub mod retirement_audit;
@@ -133,3 +135,9 @@ pub mod vouched_parse;
 pub mod workflow_concurrency_guard;
 pub mod workflow_permissions_guard;
 pub mod workflow_policy_guard;
+pub mod gui_command_backends;
+pub mod gui_coverage_exemptions;
+pub mod gui_surface_coverage;
+pub mod sccache_workflow_guard;
+pub mod status;
+pub mod workspace_artifacts;

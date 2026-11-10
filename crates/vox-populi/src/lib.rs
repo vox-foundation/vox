@@ -428,6 +428,7 @@ mod normalize_http_control_base_tests {
     }
 }
 
+#[cfg(feature = "mens")]
 #[allow(missing_docs)]
 pub mod distributed_training;
 /// MENS Mn-T2 inference backends (Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama).

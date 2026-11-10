@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-10T08:23:00Z",
+  "milestones_compared": [
+    "v6.6-baseline",
+    "v6.7-disentangled",
+    "v6.8-federated-and-optimized"
+  ],
+  "summary": {
+    "dev_dependency_cycles_before": 5,
+    "dev_dependency_cycles_after": 0,
+    "publishable_crates_io_before": 7,
+    "publishable_crates_io_v67": 15,
+    "publishable_crates_io_v68": 33,
+    "federated_repos_on_disk": 4,
+    "federated_repos": [
+      "/Users/brbrainerd/dev/vox",
+      "/Users/brbrainerd/dev/vox-ops",
+      "/Users/brbrainerd/dev/vox-axis",
+      "/Users/brbrainerd/dev/voxlang.org"
+    ],
+    "shared_contract_files_verified": 55,
+    "pre_push_duration_ms_before": 120000,
+    "pre_push_duration_ms_after": 1066,
+    "disk_space_reclaimed_gib": 191
+  },
+  "compile_time_flywheel": [
+    {
+      "crate": "vox-orchestrator-mcp",
+      "touches_90d": 619,
+      "v66_baseline_s": 157.9,
+      "v68_after_s": 9.88,
+      "speedup_factor": 15.98,
+      "percent_reduction": 93.74
+    },
+    {
+      "crate": "vox-orchestrator",
+      "touches_90d": 364,
+      "v66_baseline_s": 119.0,
+      "v68_after_s": 11.53,
+      "speedup_factor": 10.32,
+      "percent_reduction": 90.31
+    },
+    {
+      "crate": "vox-db",
+      "touches_90d": 259,
+      "v66_baseline_s": 43.5,
+      "v68_after_s": 1.78,
+      "speedup_factor": 24.44,
+      "percent_reduction": 95.91
+    },
+    {
+      "crate": "vox-populi",
+      "touches_90d": 221,
+      "v66_baseline_s": 26.9,
+      "v68_after_s": 6.41,
+      "speedup_factor": 4.2,
+      "percent_reduction": 76.17
+    },
+    {
+      "crate": "vox-compiler",
+      "touches_90d": 279,
+      "v66_baseline_s": 25.4,
+      "v68_after_s": 1.65,
+      "speedup_factor": 15.39,
+      "percent_reduction": 93.5
+    },
+    {
+      "crate": "vox-publisher",
+      "touches_90d": 32,
+      "v66_baseline_s": 19.1,
+      "v68_after_s": 7.33,
+      "speedup_factor": 2.61,
+      "percent_reduction": 61.62
+    },
+    {
+      "crate": "vox-scientia",
+      "touches_90d": 43,
+      "v66_baseline_s": 14.7,
+      "v68_after_s": 7.31,
+      "speedup_factor": 2.01,
+      "percent_reduction": 50.27
+    },
+    {
+      "crate": "vox-codegen",
+      "touches_90d": 397,
+      "v66_baseline_s": 10.9,
+      "v68_after_s": 7.67,
+      "speedup_factor": 1.42,
+      "percent_reduction": 29.63
+    },
+    {
+      "crate": "vox-corpus",
+      "touches_90d": 103,
+      "v66_baseline_s": 8.6,
+      "v68_after_s": 7.57,
+      "speedup_factor": 1.14,
+      "percent_reduction": 11.98
+    },
+    {
+      "crate": "vox-orchestrator-models",
+      "touches_90d": 48,
+      "v66_baseline_s": 43.5,
+      "v68_after_s": 1.37,
+      "speedup_factor": 31.75,
+      "percent_reduction": 96.85
+    }
+  ],
+  "publishable_crates_io_waves": {
+    "wave_1_zero_internal_deps": [
+      "vox-crypto",
+      "vox-mesh-types",
+      "vox-kb-facets",
+      "vox-arch-check",
+      "vox-plugin-types",
+      "voxup",
+      "vox-rule-pack",
+      "vox-diagram",
+      "vox-similarity",
+      "vox-ast",
+      "vox-redact",
+      "vox-jsonschema-util",
+      "vox-http-client",
+      "vox-db-types",
+      "vox-orchestrator-types",
+      "vox-foundation",
+      "vox-telemetry",
+      "vox-quantize",
+      "vox-openai"
+    ],
+    "wave_2_leaf_dependents": [
+      "vox-identity",
+      "vox-scaling-policy",
+      "vox-mesh-policy",
+      "vox-plugin-api",
+      "vox-oauth-pkce",
+      "vox-llm-egress"
+    ],
+    "wave_3_mid_tier": [
+      "vox-bounded-fs",
+      "vox-plugin-sdk"
+    ],
+    "wave_4_composite_and_bins": [
+      "vox-secrets",
+      "vox-git",
+      "vox-hf-layout",
+      "vox-code-audit",
+      "vox-test-harness",
+      "vox-drift-check"
+    ]
+  }
+}

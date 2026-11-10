@@ -212,6 +212,7 @@ pub struct MixRunReport {
 }
 
 /// Rewrite one JSONL line for mixing. Pass-through unless `record_format` requests transformation.
+#[inline(never)]
 pub fn normalize_training_jsonl_line(
     line: &str,
     record_format: Option<&str>,
@@ -632,6 +633,7 @@ pub fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
 /// Same as [`run_mix_with_options`] with [`MixRunOptions::default`] (lenient; writes report).
 ///
 /// Resolves relative `output` / source paths in the YAML against [`std::env::current_dir`].
+#[inline(never)]
 pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
     run_mix_with_options(config_path, None, MixRunOptions::default())
 }
@@ -640,6 +642,7 @@ pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
 ///
 /// Relative paths in the mix YAML are resolved against `path_base` when set (e.g. Cargo workspace root),
 /// otherwise against [`std::env::current_dir`].
+#[inline(never)]
 pub fn run_mix_with_options(
     config_path: &Path,
     path_base: Option<&Path>,

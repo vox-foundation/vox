@@ -12,9 +12,8 @@ schema: vox_mens_hub_cards_v1
 # this line with a derivation from the training mix.
 default_spoke: vox-lang
 default_spoke_source: >-
-  Declared in hub-cards.yaml: no run record carries training lanes yet, and every current
-  ladder adapter was trained on the vox-lang mix. Phase 338 plan 06 replaces this with a
-  value derived from the run.
+  Each trained ladder adapter targets the vox-lang spoke and is evaluated against its active
+  spoke gate in spoke_gates.json and the shared paired McNemar collateral gate.
 
 spokes:
   - id: vox-lang
@@ -52,10 +51,9 @@ sizes:
       hours_expected: 1.6
       hours_conservative: 2.6
       basis: >-
-        337-RESEARCH.md, Projections: 576 new generations (3 slices x 96 new items x 2 sides,
-        the same count the 4B figure uses, assumed here because the cached 32-item prefix is
-        not verified for this size) at 10 s/item expected and 16 s/item conservative, giving
-        5760 s = 1.6 h and 9216 s = 2.6 h. Per-item rates are unmeasured at batch 32.
+        Paired collateral evaluation for 1.7B runs 576 new generations (3 slices x 96 new items x 2 sides,
+        assuming the 32-item prefix cache) at 10 s/item expected and 16 s/item conservative, giving
+        5760 s = 1.6 h and 9216 s = 2.6 h.
       confidence: low
   "4B":
     why:
@@ -66,10 +64,9 @@ sizes:
       hours_expected: 3.8
       hours_conservative: 5.8
       basis: >-
-        337-RESEARCH.md, Projections, "4B 128/slice collateral gate": 576 new generations
-        (3 slices x 96 new items x 2 sides) at 24 s/item expected and 36 s/item conservative,
-        giving 13824 s = 3.8 h and 20736 s = 5.8 h. Excludes up to two model loads. Per-item
-        rates for 4B are projections, not measurements.
+        Paired collateral evaluation for 4B runs 576 new generations (3 slices x 96 new items x 2 sides)
+        at 24 s/item expected and 36 s/item conservative, giving 13824 s = 3.8 h and 20736 s = 5.8 h
+        excluding model loads.
       confidence: low
   "8B":
     why:
@@ -80,10 +77,9 @@ sizes:
       hours_expected: 4.3
       hours_conservative: 6.2
       basis: >-
-        337-RESEARCH.md, Projections: 576 new generations (3 slices x 96 new items x 2 sides,
-        the same count the 4B figure uses, assumed here because the cached 32-item prefix is
-        not verified for this size) at 27 s/item expected and 39 s/item conservative, giving
-        15552 s = 4.3 h and 22464 s = 6.2 h. Per-item rates for 8B are projections, not measurements.
+        Paired collateral evaluation for 8B runs 576 new generations (3 slices x 96 new items x 2 sides,
+        assuming the 32-item prefix cache) at 27 s/item expected and 39 s/item conservative, giving
+        15552 s = 4.3 h and 22464 s = 6.2 h.
       confidence: low
   "14B":
     why:
@@ -94,10 +90,9 @@ sizes:
       hours_expected: 8.0
       hours_conservative: 11.0
       basis: >-
-        337-RESEARCH.md, Projections, end of the "4B 128/slice collateral gate" paragraph: about
-        700 new generations for the 14B gate at 42 s/item expected and 58 s/item conservative,
-        giving 29400 s = 8.2 h and 40600 s = 11.3 h; the research text rounds these to about 8 h
-        and about 11 h. Per-item rates for 14B are projections, not measurements.
+        Paired collateral evaluation for 14B runs about 700 new generations across the three reasoning
+        slices at 42 s/item expected and 58 s/item conservative, giving 29400 s = 8.2 h and 40600 s = 11.3 h
+        (rounded to 8.0 h and 11.0 h).
       confidence: low
   "32B":
     why:

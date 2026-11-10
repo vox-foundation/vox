@@ -276,10 +276,9 @@ mod tests {
 
     #[test]
     fn contract_schema_matches_allowlist() {
-        let schema: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../contracts/telemetry/research-trial.v1.schema.json"
-        ))
-        .expect("schema parses");
+        let schema: serde_json::Value =
+            serde_json::from_str(include_str!("fixtures/research-trial.v1.schema.json"))
+                .expect("schema parses");
         let defs = schema["$defs"].as_object().expect("$defs object");
         assert_eq!(defs.len(), RESEARCH_TRIAL_ALLOWLIST.len());
         for (metric_type, keys) in RESEARCH_TRIAL_ALLOWLIST {
@@ -307,6 +306,21 @@ mod tests {
             let mut expected: Vec<&str> = keys.iter().chain(IDENTITY_KEYS).copied().collect();
             expected.sort_unstable();
             assert_eq!(props, expected, "schema drift for {metric_type}");
+        }
+    }
+
+    #[test]
+    fn vendored_schema_matches_workspace_contract() {
+        let workspace_contract = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/telemetry/research-trial.v1.schema.json");
+        if workspace_contract.exists() {
+            let live = std::fs::read_to_string(&workspace_contract)
+                .expect("read workspace contracts/telemetry/research-trial.v1.schema.json");
+            let vendored = include_str!("fixtures/research-trial.v1.schema.json");
+            assert_eq!(
+                vendored, live,
+                "vendored fixtures/research-trial.v1.schema.json must match workspace contract"
+            );
         }
     }
 }

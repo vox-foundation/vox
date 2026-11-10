@@ -162,6 +162,25 @@ Vox started as a compiler, but testing an AI-native language required building t
 
 *Note: Several subsystems (`mcp-server`, `ars` skills, `oratio` speech, `dei` visual review, and GPU training plugins) are feature-gated or loadable plugins so the default CLI stays lean. Each row in the [Status](#status) tables notes when a feature flag or plugin is required.*
 
+### Multi-Repository Federation (`vox-foundation`)
+
+To keep incremental builds fast, isolate Node/Playwright/Astro toolchains, and separate private fleet operations while preserving single-binary sovereignty (`vox` runs 100% standalone offline with zero required server), the Vox ecosystem is organized into four repositories under [**`vox-foundation`**](https://github.com/vox-foundation):
+
+| Repository | Visibility | Role & Deployment Target | Documentation & Visual Tour |
+|:---|:---|:---|:---|
+| [**`vox-foundation/vox`**](https://github.com/vox-foundation/vox) | Public (`Apache-2.0`) | Core compiler (`vox-compiler`), script interpreter (`vox run`), CLI (`vox`), MCP server (`vox-orchestrator-mcp`), local database (`vox-db`), MENS ML lane (`vox-populi`), and 33 `crates.io`-publishable foundation crates. | This README · [`docs/src/`](docs/src/) · [Flywheel & Multi-Repo SSOT](docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md) |
+| [**`vox-foundation/vox-axis`**](https://github.com/vox-foundation/vox-axis) | Public (`Apache-2.0`) | **Vox Axis** — Desktop Tauri 2 operator console (`vox-gui`) covering 32 registered views across 5 workflow lanes, 3 shell modes, and the 5-stage Socrates HITL review queue. | [`crates/vox-gui/README.md`](crates/vox-gui/README.md) (46 real screenshots, 5 animated `.webp` tours, real generated `.webp` architecture diagrams) |
+| [**`vox-foundation/voxlang.org`**](https://github.com/vox-foundation/voxlang.org) | Public (`Apache-2.0`) | Public Astro 5 + Starlight documentation site deployed to **Cloudflare Pages** ([voxlang.org](https://voxlang.org)) and the **Coolify** `/v1/eval` browser sandbox (`eval.voxlang.org`, `vox-eval.compose.yml`). | [`docs-astro/README.md`](docs-astro/README.md) (animated `.webp` site tour + pipeline diagram) |
+| **`vox-foundation/vox-ops`** | Private (Proprietary) | Private telemetry ingestion (`vox-ops-telemetry-ingest`), fleet orchestration, and **Coolify** `telemetry.voxlang.org` deployment (`docker/vox-telemetry.compose.yml`). | Enforced via `vox ci standalone-sovereignty` (`vox` never depends on `vox-ops`) |
+
+<div align="center">
+  <img src="crates/vox-gui/assets/tours/axis_hero_tour.webp" alt="Vox Axis animated tour across the 5 workflow lanes" width="880" />
+  <p>
+    <strong>Vox Axis Desktop Operator Console (<code>vox-foundation/vox-axis</code>)</strong><br />
+    <em>Animated WebP tour of the Tauri 2 operator console. Every one of the 32 registered screens is documented with real Playwright captures and generated architecture graphics in <a href="crates/vox-gui/README.md"><code>crates/vox-gui/README.md</code></a>.</em>
+  </p>
+</div>
+
 ---
 
 ## Tradeoffs: What Vox Optimizes For (and What It Costs)
@@ -300,6 +319,7 @@ Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release
 
 Newest first.
 
+- **2026-11-10**: Completed Milestones `v6.7` & `v6.8` (`Phases 387–400`, [Flywheel & Multi-Repo SSOT](docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md)): federated the workspace across `vox-foundation/vox`, `vox-foundation/vox-axis`, `vox-foundation/voxlang.org`, and private `vox-ops`; extracted `vox-cli-core`, `vox-mcp-Dispatch`, `vox-repository-core`, `vox-search-core`, and `vox-scientia-core` (cutting warm incremental leaf check/test times by 28%–89%); expanded `crates.io` dry-run verified crates from 2 to 33 (`vox ci publish-dry-run`); and authored the full visual tour of all 32 **Vox Axis** screens with animated `.webp` tours and real generated `.webp` diagrams ([`crates/vox-gui/README.md`](crates/vox-gui/README.md)).
 - **2026-11-02**: Why Vox now states the reason and the benefit for each language choice (one declaration, `Option`/`Result`, `Id[T]`, keywords versus decorators, `vox run` versus `vox build`, and `tool` as a function). The same text is on the voxlang.org homepage.
 - **2026-11-02**: Re-checked Language & compiler and every status table below it against `main`. Named `vox` commands are still registered, including `vox diagram`. The MCP registry lists 376 tools. Chat ranks offered tools before the cap (`#686`). The docs site uses one chevron per sidebar edge (`#687`).
 - **2026-11-02**: Re-checked this README against `main`. Published adapters are public on Hugging Face ([0.6B](https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b), [1.7B](https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b), [4B](https://huggingface.co/brbrainerd/vox-mens-qwen3-4b), [index](https://huggingface.co/brbrainerd/vox-mens-index)); current `VoxDb` baseline is 97; OpenRouter defaults are `~family-latest` aliases. No stable release tag.

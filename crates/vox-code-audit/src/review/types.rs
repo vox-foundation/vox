@@ -192,3 +192,38 @@ impl fmt::Display for ReviewCategory {
         }
     }
 }
+
+/// Numeric policy for confidence, abstention, and review filtering.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ConfidencePolicy {
+    /// TOESTUB structured review: minimum `ReviewFinding.confidence` (0–100).
+    pub min_review_finding_confidence: u8,
+    /// Prompt text should instruct the model to report only at or above this (0–100).
+    pub min_prompt_report_confidence: u8,
+    pub abstain_threshold: f64,
+    pub ask_for_help_threshold: f64,
+    pub max_contradiction_ratio_for_answer: f64,
+    pub min_persist_confidence: f64,
+    pub min_training_pair_confidence: f64,
+}
+
+impl Default for ConfidencePolicy {
+    fn default() -> Self {
+        Self {
+            min_review_finding_confidence: 80,
+            min_prompt_report_confidence: 80,
+            abstain_threshold: 0.35,
+            ask_for_help_threshold: 0.55,
+            max_contradiction_ratio_for_answer: 0.40,
+            min_persist_confidence: 0.60,
+            min_training_pair_confidence: 0.75,
+        }
+    }
+}
+
+impl ConfidencePolicy {
+    #[must_use]
+    pub fn workspace_default() -> Self {
+        Self::default()
+    }
+}

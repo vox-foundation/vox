@@ -66,6 +66,7 @@ fn stamp_populi_feature_header<B>(res: &mut Response<B>) {
 }
 
 /// Inner control-plane router (no auth layer). Prefer [`populi_http_app`] for serving.
+#[inline(never)]
 pub fn router(state: PopuliTransportState) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -104,6 +105,7 @@ pub fn router(state: PopuliTransportState) -> Router {
 /// Same as [`populi_http_app`] but with an explicit auth mode (avoids process-global env in tests).
 ///
 /// The expected bearer value is **captured at build time** (not re-read on every request).
+#[inline(never)]
 pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAuth) -> Router {
     let mesh_replay = Arc::clone(&state.mesh_replay);
     let trust_verifier = state.node_trust_verifier.clone();
@@ -234,6 +236,7 @@ pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), 
 /// Useful for tests that need a fixed-port-zero listener — bind first, read the
 /// OS-assigned address, then pass the listener here so the port is never reused
 /// between the bind and the accept loop.
+#[inline(never)]
 pub async fn serve_with_listener(
     listener: tokio::net::TcpListener,
     state: PopuliTransportState,

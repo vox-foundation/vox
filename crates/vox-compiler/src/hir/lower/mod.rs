@@ -69,11 +69,13 @@ pub struct LowerConfig {
 }
 
 /// Lower an AST Module to a HirModule.
+#[inline(never)]
 pub fn lower_module(module: &Module) -> HirModule {
     lower_module_with_config(module, &LowerConfig::default())
 }
 
 /// Lower an AST Module to a HirModule with explicit configuration.
+#[inline(never)]
 pub fn lower_module_with_config(module: &Module, config: &LowerConfig) -> HirModule {
     let mut ctx = LowerCtx::new(config.clone());
     ctx.lower(module)

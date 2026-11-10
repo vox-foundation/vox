@@ -81,6 +81,7 @@ impl Orchestrator {
     /// 2. Route the task to an existing agent or spawn a new one
     /// 3. Acquire file locks
     /// 4. Enqueue the task
+    #[inline(never)]
     pub async fn submit_task(
         &self,
         description: impl Into<String>,
@@ -103,6 +104,7 @@ impl Orchestrator {
     }
 
     /// Submit a new task to the orchestrator, potentially targeting a specific agent name (async).
+    #[inline(never)]
     pub async fn submit_task_with_agent(
         &self,
         description: impl Into<String>,
@@ -192,6 +194,7 @@ impl Orchestrator {
     }
 
     /// Re-submit an existing task to the orchestrator (e.g. after agent retirement).
+    #[inline(never)]
     pub async fn submit_existing_task(
         &self,
         mut task: AgentTask,
@@ -219,6 +222,7 @@ impl Orchestrator {
         Ok(task_id)
     }
 
+    #[inline(never)]
     pub async fn process_task_submission_logic(
         &self,
         task: &mut AgentTask,
@@ -1183,6 +1187,7 @@ impl Orchestrator {
     }
 
     /// Submit a task with planning metadata attached.
+    #[inline(never)]
     pub async fn submit_task_with_agent_planned(
         &self,
         description: impl Into<String>,
@@ -1219,6 +1224,7 @@ impl Orchestrator {
     }
 
     /// Attach Socrates evidence context to an already submitted task.
+    #[inline(never)]
     pub fn attach_socrates_context(
         &self,
         task_id: TaskId,

@@ -31,6 +31,7 @@ fn render_or_marker(t: &impl Template) -> String {
 }
 
 /// Render the `README.md` / `MODEL_CARD.md` for one ladder size from its records.
+#[inline(never)]
 pub fn render_model_card(cx: &CardContext, rec: &RunRecords) -> String {
     render_or_marker(&ModelCardTemplate {
         f: &card_facts(cx, rec),
@@ -38,6 +39,7 @@ pub fn render_model_card(cx: &CardContext, rec: &RunRecords) -> String {
 }
 
 /// `README.md` for `<namespace>/vox-mens-index`, one grid row per ladder size.
+#[inline(never)]
 pub fn render_index_readme(namespace: &str, entries: &[(SizeSyncRow, RunRecords)]) -> String {
     render_or_marker(&IndexTemplate {
         f: &index_facts(namespace, entries),

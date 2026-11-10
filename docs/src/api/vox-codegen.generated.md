@@ -51,7 +51,7 @@ analysis-stage iteration.
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-sql`](./vox-sql.generated.md) | Normal |
 | [`vox-tauri-codegen`](./vox-tauri-codegen.generated.md) | Normal |
-| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Development |
+| [`vox-db`](./vox-db.generated.md) | Development |
 
 ## Public API Surface
 
@@ -83,6 +83,8 @@ graph {
     vox_codegen -> vox_compiler
     node vox_config: "vox-config"
     vox_codegen -> vox_config
+    node vox_db: "vox-db"
+    vox_codegen -> vox_db
     node vox_deploy_codegen: "vox-deploy-codegen"
     vox_codegen -> vox_deploy_codegen
     node vox_repository: "vox-repository"
@@ -93,8 +95,6 @@ graph {
     vox_codegen -> vox_sql
     node vox_tauri_codegen: "vox-tauri-codegen"
     vox_codegen -> vox_tauri_codegen
-    node vox_workflow_runtime: "vox-workflow-runtime"
-    vox_codegen -> vox_workflow_runtime
     node vox_cli: "vox-cli"
     vox_cli -> vox_codegen
     node vox_cli_tests: "vox-cli-tests"
@@ -102,8 +102,6 @@ graph {
     node vox_codegen_ts: "vox-codegen-ts"
     vox_codegen_ts -> vox_codegen
     vox_compiler -> vox_codegen
-    node vox_db: "vox-db"
-    vox_db -> vox_codegen
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_codegen
     node vox_langtool: "vox-langtool"
@@ -112,6 +110,8 @@ graph {
     vox_orchestrator_mcp -> vox_codegen
     node vox_rn_codegen: "vox-rn-codegen"
     vox_rn_codegen -> vox_codegen
+    node vox_workflow_runtime: "vox-workflow-runtime"
+    vox_workflow_runtime -> vox_codegen
 }
 ```
 
@@ -123,11 +123,11 @@ graph {
 | [`vox-cli-tests`](./vox-cli-tests.generated.md) | Direct workspace dependent |
 | [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
-| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 | [`vox-rn-codegen`](./vox-rn-codegen.generated.md) | Direct workspace dependent |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 

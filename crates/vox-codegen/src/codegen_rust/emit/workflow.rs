@@ -7,6 +7,7 @@ use super::tables::{collect_table_select_projections, emit_table_struct};
 use super::types::emit_type;
 
 /// Script-mode lib.rs: optional Codex prelude + emit_lib under script DB emit mode.
+#[inline(never)]
 pub fn emit_script_lib(module: &HirModule) -> String {
     script_db::refresh_script_async_metadata(module);
     let mut out = String::new();
@@ -34,6 +35,7 @@ pub fn emit_script_lib(module: &HirModule) -> String {
     out
 }
 
+#[inline(never)]
 pub fn emit_lib(module: &HirModule) -> String {
     // Register typedefs so `@ai(structured_output = T)` emission can embed T's
     // full JSON Schema (guard restores prior state on drop; covers the whole
@@ -296,6 +298,7 @@ fn from_json_struct_hint(func: &HirFn) -> Option<String> {
 }
 
 /// Emit a single HIR function (or test) as Rust source.
+#[inline(never)]
 pub fn emit_fn(
     func: &HirFn,
     inferred_types: Option<&HashMap<Span, HirType>>,

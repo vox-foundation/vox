@@ -117,6 +117,7 @@ fn claim_policy_allows_worker(
     }
 }
 
+#[inline(never)]
 pub(crate) async fn deliver_a2a(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -290,6 +291,7 @@ pub(crate) async fn deliver_a2a(
     }))
 }
 
+#[inline(never)]
 pub(crate) async fn admin_quarantine(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -317,6 +319,7 @@ pub(crate) async fn admin_quarantine(
     }
 }
 
+#[inline(never)]
 pub(crate) async fn admin_maintenance(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -362,6 +365,7 @@ pub(crate) async fn admin_maintenance(
     }
 }
 
+#[inline(never)]
 pub(crate) async fn a2a_lease_renew(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -428,6 +432,7 @@ pub(crate) async fn a2a_lease_renew(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[inline(never)]
 pub(crate) async fn a2a_inbox(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -564,6 +569,7 @@ pub(crate) async fn a2a_inbox(
     Ok(Json(A2AInboxResponse { messages: one }))
 }
 
+#[inline(never)]
 pub(crate) async fn a2a_ack(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
