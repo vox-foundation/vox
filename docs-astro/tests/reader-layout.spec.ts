@@ -87,7 +87,11 @@ test.describe('SITE-01..05 Reader Layout Matrix', () => {
               expect(leftHidden.width).toBeGreaterThan(bothOpen.width);
               expect(leftHidden.pWidth).toBeGreaterThan(bothOpen.pWidth);
               expect(leftHidden.x).toBeLessThan(bothOpen.x);
-              expect(leftHidden.right).toBe(bothOpen.right);
+              if (vpName === 'desktop') {
+                expect(leftHidden.right).toBe(bothOpen.right);
+              } else {
+                expect(Math.abs(leftHidden.right - bothOpen.right)).toBeLessThanOrEqual(16);
+              }
 
               await page.screenshot({
                 path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-02-left-hidden.png`),

@@ -169,7 +169,7 @@ for (const route of ROUTES) {
         expect(f.natural, `${f.id} has a numeric --vd-w`).toBeGreaterThan(0);
         expect(f.rendered, `${f.id} wider than its viewBox`).toBeLessThanOrEqual(f.natural + 1);
         expect(f.rendered, `${f.id} below the 0.6 scale floor`).toBeGreaterThanOrEqual(f.natural * 0.6 - 1);
-        expect(f.scrolls, `${f.id} wider than its figure must scroll inside it`).toBe(f.rendered > f.clientWidth + 1);
+        expect(f.scrolls, `${f.id} wider than its figure must scroll inside it`).toBe(Math.round(f.rendered) > f.clientWidth + 1);
         // WR-03: only a figure that scrolls is a tab stop and a (named) region landmark.
         expect(f.focusable, `${f.id} is a tab stop exactly when it scrolls`).toBe(f.scrolls);
         expect(f.region, `${f.id} is a region landmark exactly when it scrolls`).toBe(f.scrolls);
