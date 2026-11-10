@@ -47,6 +47,10 @@ graph {
     vox_actor_runtime -> vox_crypto
     node vox_cli: "vox-cli"
     vox_cli -> vox_crypto
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_crypto
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_crypto
     node vox_compiler: "vox-compiler"
     vox_compiler -> vox_crypto
     node vox_gui: "vox-gui"
@@ -63,10 +67,6 @@ graph {
     vox_orchestrator_queue -> vox_crypto
     node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
     vox_plugin_populi_mesh -> vox_crypto
-    node vox_populi: "vox-populi"
-    vox_populi -> vox_crypto
-    node vox_scientia: "vox-scientia"
-    vox_scientia -> vox_crypto
 }
 ```
 
@@ -76,6 +76,8 @@ graph {
 |---|---|
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-identity`](./vox-identity.generated.md) | Direct workspace dependent |

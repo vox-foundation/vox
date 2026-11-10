@@ -76,6 +76,8 @@ graph {
     vox_cli_contracts -> vox_bounded_fs
     node vox_cli_core: "vox-cli-core"
     vox_cli_core -> vox_bounded_fs
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_bounded_fs
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_bounded_fs
     node vox_code_audit: "vox-code-audit"
@@ -88,8 +90,6 @@ graph {
     vox_doc_inventory -> vox_bounded_fs
     node vox_doc_pipeline: "vox-doc-pipeline"
     vox_doc_pipeline -> vox_bounded_fs
-    node vox_gamify: "vox-gamify"
-    vox_gamify -> vox_bounded_fs
 }
 ```
 
@@ -102,6 +102,7 @@ graph {
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-cli-contracts`](./vox-cli-contracts.generated.md) | Direct workspace dependent |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
 | [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |

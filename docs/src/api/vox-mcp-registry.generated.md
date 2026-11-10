@@ -61,6 +61,10 @@ graph {
     node vox_mcp_registry: "vox-mcp-registry"
     node vox_cli: "vox-cli"
     vox_cli -> vox_mcp_registry
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_mcp_registry
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_mcp_registry
     node vox_corpus: "vox-corpus"
     vox_corpus -> vox_mcp_registry
     node vox_orchestrator: "vox-orchestrator"
@@ -77,6 +81,8 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |

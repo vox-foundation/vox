@@ -17035,6 +17035,7 @@ dependencies = [
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-secrets",
+ "vox-telemetry",
  "walkdir",
 ]
 

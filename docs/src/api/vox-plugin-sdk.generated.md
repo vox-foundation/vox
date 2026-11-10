@@ -93,6 +93,8 @@ graph {
     node vox_plugin_sdk: "vox-plugin-sdk"
     node vox_plugin_api: "vox-plugin-api"
     vox_plugin_sdk -> vox_plugin_api
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_plugin_sdk
     node vox_plugin_nvml_probe: "vox-plugin-nvml-probe"
     vox_plugin_nvml_probe -> vox_plugin_sdk
     node vox_plugin_speech: "vox-plugin-speech"
@@ -104,6 +106,7 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-plugin-nvml-probe`](./vox-plugin-nvml-probe.generated.md) | Direct workspace dependent |
 | [`vox-plugin-speech`](./vox-plugin-speech.generated.md) | Direct workspace dependent |
 

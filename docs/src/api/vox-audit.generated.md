@@ -148,6 +148,8 @@ graph {
     vox_audit -> vox_telemetry
     node vox_cli: "vox-cli"
     vox_cli -> vox_audit
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_audit
 }
 ```
 
@@ -156,6 +158,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 

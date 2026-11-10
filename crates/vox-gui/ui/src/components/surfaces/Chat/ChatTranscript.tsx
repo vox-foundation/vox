@@ -80,9 +80,9 @@ export function MessageBubble({
   const streaming = message.status === 'streaming' || message.status === 'pending';
   const failed = message.status === 'failed';
   const [editing, setEditing] = useState(false);
-  const [draftText, setDraftText] = useState(message.text);
+  const [draftText, setDraftText] = useState(message.text ?? '');
   const [editedText, setEditedText] = useState<string | null>(null);
-  const displayContent = editedText ?? message.text;
+  const displayContent = editedText ?? message.text ?? '';
 
   const tone = isSystem
     ? 'self-center border-(--color-status-warn)/20 bg-(--color-status-warn)/6 text-(--color-status-warn)/90 text-center max-w-full'
@@ -156,13 +156,13 @@ export function MessageBubble({
         </div>
       ) : displayContent.startsWith('LLM error:') ? (
         <div className="my-1 rounded-lg border border-brass/45 bg-bg-base/80 px-2.5 py-2 text-[11px] text-text-primary">
-          <div className="mb-1 flex items-center justify-between gap-2 font-display text-[10px] font-bold uppercase tracking-wider text-brass">
+          <div className="mb-1 flex items-center justify-between gap-2 font-display text-[11px] font-bold uppercase tracking-[0.13em] text-brass">
             <span>⚡ Local Inference Endpoint Offline</span>
             {onRegenerateTurn && (
               <button
                 type="button"
                 onClick={() => onRegenerateTurn(message)}
-                className="rounded border border-brass/55 bg-brass/15 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/25"
+                className="rounded border border-brass/55 bg-brass/15 px-2 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/25"
               >
                 ↻ Retry on Auto Router
               </button>

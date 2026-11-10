@@ -55,6 +55,8 @@ graph {
     vox_oauth_pkce -> vox_http_client
     node vox_cli: "vox-cli"
     vox_cli -> vox_oauth_pkce
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_oauth_pkce
     node vox_gui: "vox-gui"
     vox_gui -> vox_oauth_pkce
 }
@@ -65,6 +67,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)

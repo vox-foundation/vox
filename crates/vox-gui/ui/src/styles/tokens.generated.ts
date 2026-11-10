@@ -60,7 +60,7 @@ export const tokens = {
     },
     "terracotta": {
       "400": "#d98b6a",
-      "600": "#B86B11"
+      "600": "#8F4B0A"
     },
     "oxblood": {
       "600": "#9E2B25",
@@ -69,8 +69,8 @@ export const tokens = {
     "status": {
       "pass": "#1B6B3A",
       "fail": "#9E2B25",
-      "warn": "#B86B11",
-      "info": "#8B6914"
+      "warn": "#8F4B0A",
+      "info": "#7A5910"
     },
     "bg": {
       "base": "#FAF6EE",
@@ -87,7 +87,7 @@ export const tokens = {
       "strong": "rgba(184, 134, 11, 0.62)"
     },
     "accent": {
-      "default": "#B8860B",
+      "default": "#7d5f20",
       "secondary": "#1B6B3A"
     },
     "overlay": {

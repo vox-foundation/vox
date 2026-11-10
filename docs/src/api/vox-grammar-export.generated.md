@@ -84,6 +84,8 @@ graph {
     vox_cli -> vox_grammar_export
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_grammar_export
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_grammar_export
     node vox_compiler: "vox-compiler"
     vox_compiler -> vox_grammar_export
     node vox_constrained_gen: "vox-constrained-gen"
@@ -99,6 +101,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-constrained-gen`](./vox-constrained-gen.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |

@@ -125,7 +125,7 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `RepositoryContext` | `pub struct RepositoryContext` | [`crates/vox-repository/src/lib.rs#L138-L153`](../../../crates/vox-repository/src/lib.rs#L138-L153) | Fully resolved repository context for tooling (MCP, sessions, affinity). |
+| `struct` | `RepositoryContext` | `pub struct RepositoryContext` | [`crates/vox-repository/src/lib.rs#L141-L156`](../../../crates/vox-repository/src/lib.rs#L141-L156) | Fully resolved repository context for tooling (MCP, sessions, affinity). |
 | `struct` | `gpu_inventory::GpuInventorySnapshot` | `pub struct GpuInventorySnapshot` | [`crates/vox-repository/src/gpu_inventory.rs#L10-L19`](../../../crates/vox-repository/src/gpu_inventory.rs#L10-L19) | Driver-visible NVIDIA inventory snapshot (Layer A — probe-backed). |
 | `fn` | `gpu_inventory::probe_nvidia_gpu_inventory_best_effort` | `pub fn probe_nvidia_gpu_inventory_best_effort() -> Option<GpuInventorySnapshot>` | [`crates/vox-repository/src/gpu_inventory.rs#L27-L29`](../../../crates/vox-repository/src/gpu_inventory.rs#L27-L29) | Probe NVIDIA GPUs via NVML.  NVML probing has moved to `vox-plugin-nvml-probe`. This stub always returns `None`. Callers should migrate to plugin-host dispatch via `VoxPlugin::as_hardware_probe()` to get live GPU inventory. |
 | `struct` | `populi_toml::VoxMeshTransport` | `pub struct VoxMeshTransport` | [`crates/vox-repository/src/populi_toml.rs#L13-L24`](../../../crates/vox-repository/src/populi_toml.rs#L13-L24) | Mesh transport options (TLS, WireGuard hints). |

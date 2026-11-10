@@ -29,6 +29,13 @@ Model selection, calibration, usage accounting, and provider catalogs for vox-or
 Model calibration, usage accounting, and budget policy types for the Vox orchestrator.
 
 
+## Features
+
+| Feature | Default / Enables |
+|---|---|
+| `db` | dep:vox-db |
+| `default` | db |
+
 ## Workspace Dependencies
 
 | Dependency | Kind |
@@ -36,7 +43,9 @@ Model calibration, usage accounting, and budget policy types for the Vox orchest
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
+| [`vox-orchestrator-types`](./vox-orchestrator-types.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
+| [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
 
 ## Public API Surface
 
@@ -45,8 +54,10 @@ Model calibration, usage accounting, and budget policy types for the Vox orchest
 | Module | Description |
 |---|---|
 | `calibration` | — |
+| `routing_task` | — |
 | `usage` | — |
 | `usage_policy` | — |
+| `vram_probe` | — |
 
 ## Dependency Topology
 
@@ -60,8 +71,12 @@ graph {
     vox_orchestrator_models -> vox_config
     node vox_db: "vox-db"
     vox_orchestrator_models -> vox_db
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    vox_orchestrator_models -> vox_orchestrator_types
     node vox_secrets: "vox-secrets"
     vox_orchestrator_models -> vox_secrets
+    node vox_telemetry: "vox-telemetry"
+    vox_orchestrator_models -> vox_telemetry
     node vox_orchestrator: "vox-orchestrator"
     vox_orchestrator -> vox_orchestrator_models
 }
@@ -104,22 +119,22 @@ graph {
 | `fn` | `calibration::new` | `pub fn new(z_score: f64, session_id: Option<String>) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L243-L249`](../../../crates/vox-orchestrator-models/src/calibration.rs#L243-L249) | — |
 | `struct` | `calibration::BanditUpdateEvent` | `pub struct BanditUpdateEvent` | [`crates/vox-orchestrator-models/src/calibration.rs#L254-L260`](../../../crates/vox-orchestrator-models/src/calibration.rs#L254-L260) | Serialize-only — see `CalibrationRunEvent` for rationale. |
 | `fn` | `calibration::new` | `pub fn new(arm: &BanditArm, success: bool, session_id: Option<String>) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L263-L271`](../../../crates/vox-orchestrator-models/src/calibration.rs#L263-L271) | — |
-| `struct` | `usage::LlmUsageKey` | `pub struct LlmUsageKey` | [`crates/vox-orchestrator-models/src/usage.rs#L17-L22`](../../../crates/vox-orchestrator-models/src/usage.rs#L17-L22) | Keys rows in `provider_usage` / `LIMITS` for gating and accounting (not the API model slug). |
-| `struct` | `usage::UsageRecord` | `pub struct UsageRecord` | [`crates/vox-orchestrator-models/src/usage.rs#L26-L62`](../../../crates/vox-orchestrator-models/src/usage.rs#L26-L62) | A single day's usage record for a provider+model pair. |
-| `struct` | `usage::RemainingBudget` | `pub struct RemainingBudget` | [`crates/vox-orchestrator-models/src/usage.rs#L66-L81`](../../../crates/vox-orchestrator-models/src/usage.rs#L66-L81) | Remaining budget for a provider. |
-| `struct` | `usage::ProviderRecommendation` | `pub struct ProviderRecommendation` | [`crates/vox-orchestrator-models/src/usage.rs#L85-L94`](../../../crates/vox-orchestrator-models/src/usage.rs#L85-L94) | Provider recommendation with reasoning. |
-| `struct` | `usage::CostSummary` | `pub struct CostSummary` | [`crates/vox-orchestrator-models/src/usage.rs#L98-L105`](../../../crates/vox-orchestrator-models/src/usage.rs#L98-L105) | Cost summary over a time period. |
-| `struct` | `usage::ProviderCost` | `pub struct ProviderCost` | [`crates/vox-orchestrator-models/src/usage.rs#L109-L116`](../../../crates/vox-orchestrator-models/src/usage.rs#L109-L116) | One row in [`CostSummary::by_provider`]. |
-| `struct` | `usage::ModelCost` | `pub struct ModelCost` | [`crates/vox-orchestrator-models/src/usage.rs#L120-L131`](../../../crates/vox-orchestrator-models/src/usage.rs#L120-L131) | Per-model cost breakdown row. |
-| `struct` | `usage::CategoryCost` | `pub struct CategoryCost` | [`crates/vox-orchestrator-models/src/usage.rs#L135-L142`](../../../crates/vox-orchestrator-models/src/usage.rs#L135-L142) | Per-task-category cost breakdown row. |
-| `struct` | `usage::UnifiedCostSummary` | `pub struct UnifiedCostSummary` | [`crates/vox-orchestrator-models/src/usage.rs#L146-L157`](../../../crates/vox-orchestrator-models/src/usage.rs#L146-L157) | Unified cost summary merging cloud and local inference spend. |
-| `struct` | `usage::UsageTracker` | `pub struct UsageTracker<'a>` | [`crates/vox-orchestrator-models/src/usage.rs#L160-L164`](../../../crates/vox-orchestrator-models/src/usage.rs#L160-L164) | Tracks API usage per provider in VoxDB. |
-| `fn` | `usage::new_ref` | `pub fn new_ref(db: &'a vox_db::VoxDb) -> Self` | [`crates/vox-orchestrator-models/src/usage.rs#L168-L173`](../../../crates/vox-orchestrator-models/src/usage.rs#L168-L173) | Create a new tracker backed by a borrowed VoxDB instance. |
-| `fn` | `usage::with_user` | `pub fn with_user(db: &'a vox_db::VoxDb, user_id: &str) -> Self` | [`crates/vox-orchestrator-models/src/usage.rs#L176-L181`](../../../crates/vox-orchestrator-models/src/usage.rs#L176-L181) | Same as [`Self::new_ref`] but scopes persisted rows to `user_id`. |
-| `fn` | `usage::record_call` | `pub async fn record_call(` | [`crates/vox-orchestrator-models/src/usage.rs#L203`](../../../crates/vox-orchestrator-models/src/usage.rs#L203) | Record a successful API call. |
-| `fn` | `usage::record_call_detailed` | `pub async fn record_call_detailed(` | [`crates/vox-orchestrator-models/src/usage.rs#L230`](../../../crates/vox-orchestrator-models/src/usage.rs#L230) | Record a successful API call with detailed reconciliation metadata. |
-| `fn` | `usage::mark_rate_limited` | `pub async fn mark_rate_limited(` | [`crates/vox-orchestrator-models/src/usage.rs#L310`](../../../crates/vox-orchestrator-models/src/usage.rs#L310) | Mark a provider as rate-limited right now. |
-| `fn` | `usage::get_calls_today` | `pub async fn get_calls_today(` | [`crates/vox-orchestrator-models/src/usage.rs#L354`](../../../crates/vox-orchestrator-models/src/usage.rs#L354) | Get calls made today for a specific provider. |
-| `fn` | `usage::remaining_all` | `pub async fn remaining_all(` | [`crates/vox-orchestrator-models/src/usage.rs#L381`](../../../crates/vox-orchestrator-models/src/usage.rs#L381) | Get remaining budget for all known providers today. |
-| `fn` | `usage::best_available_provider` | `pub async fn best_available_provider(` | [`crates/vox-orchestrator-models/src/usage.rs#L436`](../../../crates/vox-orchestrator-models/src/usage.rs#L436) | Pick the best provider that still has free budget. |
+| `struct` | `routing_task::RoutingTask` | `pub struct RoutingTask` | [`crates/vox-orchestrator-models/src/routing_task.rs#L5-L12`](../../../crates/vox-orchestrator-models/src/routing_task.rs#L5-L12) | Narrow view of a task used for model routing and selection. |
+| `fn` | `routing_task::estimated_token_count` | `pub fn estimated_token_count(&self) -> u64` | [`crates/vox-orchestrator-models/src/routing_task.rs#L17-L26`](../../../crates/vox-orchestrator-models/src/routing_task.rs#L17-L26) | Predict the number of tokens this task will consume based on its complexity and category. |
+| `struct` | `usage::LlmUsageKey` | `pub struct LlmUsageKey` | [`crates/vox-orchestrator-models/src/usage.rs#L19-L24`](../../../crates/vox-orchestrator-models/src/usage.rs#L19-L24) | Keys rows in `provider_usage` / `LIMITS` for gating and accounting (not the API model slug). |
+| `struct` | `usage::UsageRecord` | `pub struct UsageRecord` | [`crates/vox-orchestrator-models/src/usage.rs#L28-L64`](../../../crates/vox-orchestrator-models/src/usage.rs#L28-L64) | A single day's usage record for a provider+model pair. |
+| `struct` | `usage::RemainingBudget` | `pub struct RemainingBudget` | [`crates/vox-orchestrator-models/src/usage.rs#L68-L83`](../../../crates/vox-orchestrator-models/src/usage.rs#L68-L83) | Remaining budget for a provider. |
+| `struct` | `usage::ProviderRecommendation` | `pub struct ProviderRecommendation` | [`crates/vox-orchestrator-models/src/usage.rs#L87-L96`](../../../crates/vox-orchestrator-models/src/usage.rs#L87-L96) | Provider recommendation with reasoning. |
+| `struct` | `usage::CostSummary` | `pub struct CostSummary` | [`crates/vox-orchestrator-models/src/usage.rs#L100-L107`](../../../crates/vox-orchestrator-models/src/usage.rs#L100-L107) | Cost summary over a time period. |
+| `struct` | `usage::ProviderCost` | `pub struct ProviderCost` | [`crates/vox-orchestrator-models/src/usage.rs#L111-L118`](../../../crates/vox-orchestrator-models/src/usage.rs#L111-L118) | One row in [`CostSummary::by_provider`]. |
+| `struct` | `usage::ModelCost` | `pub struct ModelCost` | [`crates/vox-orchestrator-models/src/usage.rs#L122-L133`](../../../crates/vox-orchestrator-models/src/usage.rs#L122-L133) | Per-model cost breakdown row. |
+| `struct` | `usage::CategoryCost` | `pub struct CategoryCost` | [`crates/vox-orchestrator-models/src/usage.rs#L137-L144`](../../../crates/vox-orchestrator-models/src/usage.rs#L137-L144) | Per-task-category cost breakdown row. |
+| `struct` | `usage::UnifiedCostSummary` | `pub struct UnifiedCostSummary` | [`crates/vox-orchestrator-models/src/usage.rs#L148-L159`](../../../crates/vox-orchestrator-models/src/usage.rs#L148-L159) | Unified cost summary merging cloud and local inference spend. |
+| `struct` | `usage::UsageTracker` | `pub struct UsageTracker<'a>` | [`crates/vox-orchestrator-models/src/usage.rs#L163-L167`](../../../crates/vox-orchestrator-models/src/usage.rs#L163-L167) | Tracks API usage per provider in VoxDB. |
+| `fn` | `usage::new_ref` | `pub fn new_ref(db: &'a vox_db::VoxDb) -> Self` | [`crates/vox-orchestrator-models/src/usage.rs#L172-L177`](../../../crates/vox-orchestrator-models/src/usage.rs#L172-L177) | Create a new tracker backed by a borrowed VoxDB instance. |
+| `fn` | `usage::with_user` | `pub fn with_user(db: &'a vox_db::VoxDb, user_id: &str) -> Self` | [`crates/vox-orchestrator-models/src/usage.rs#L180-L185`](../../../crates/vox-orchestrator-models/src/usage.rs#L180-L185) | Same as [`Self::new_ref`] but scopes persisted rows to `user_id`. |
+| `fn` | `usage::record_call` | `pub async fn record_call(` | [`crates/vox-orchestrator-models/src/usage.rs#L207`](../../../crates/vox-orchestrator-models/src/usage.rs#L207) | Record a successful API call. |
+| `fn` | `usage::record_call_detailed` | `pub async fn record_call_detailed(` | [`crates/vox-orchestrator-models/src/usage.rs#L234`](../../../crates/vox-orchestrator-models/src/usage.rs#L234) | Record a successful API call with detailed reconciliation metadata. |
+| `fn` | `usage::mark_rate_limited` | `pub async fn mark_rate_limited(` | [`crates/vox-orchestrator-models/src/usage.rs#L314`](../../../crates/vox-orchestrator-models/src/usage.rs#L314) | Mark a provider as rate-limited right now. |
+| `fn` | `usage::get_calls_today` | `pub async fn get_calls_today(` | [`crates/vox-orchestrator-models/src/usage.rs#L358`](../../../crates/vox-orchestrator-models/src/usage.rs#L358) | Get calls made today for a specific provider. |
 

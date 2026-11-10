@@ -193,7 +193,6 @@ pub fn print_success_with_time(message: &str, duration: std::time::Duration) {
     }
 }
 
-
 // ── JSON-mode progress notes ─────────────────────────────────────────────────
 
 /// Print a human progress note: stdout normally, **stderr** when `json` is

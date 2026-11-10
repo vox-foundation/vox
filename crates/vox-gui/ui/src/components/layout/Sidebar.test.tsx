@@ -122,7 +122,7 @@ describe('Sidebar orchestrator freshness dot', () => {
     vi.spyOn(Date, 'now').mockReturnValue(10_000);
     renderSidebar({ lastOrchEventAt: 9_500, orchUsesPolling: false, liveFreshMs: 1_000 });
     const dot = screen.getByTestId('sidebar-orch-freshness-dot');
-    expect(dot.className).toMatch(/bg-accent-secondary/);
+    expect(dot.className).toMatch(/bg-\(--color-status-pass\)/);
     expect(dot.className).not.toMatch(/bg-text-muted/);
   });
 
@@ -131,7 +131,7 @@ describe('Sidebar orchestrator freshness dot', () => {
     renderSidebar({ lastOrchEventAt: 5_000, orchUsesPolling: false, liveFreshMs: 1_000 });
     const dot = screen.getByTestId('sidebar-orch-freshness-dot');
     expect(dot.className).toMatch(/bg-text-muted/);
-    expect(dot.className).not.toMatch(/bg-accent-secondary/);
+    expect(dot.className).not.toMatch(/bg-\(--color-status-pass\)/);
   });
 });
 

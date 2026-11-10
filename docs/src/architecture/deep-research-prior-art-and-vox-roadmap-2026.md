@@ -48,7 +48,7 @@ Voice transcription often yields “Claw” without specifying the product. Thre
 | **B. SearchClaw / ScienceClaw / ClawHub “Academic Deep Research”** | Research harnesses with explicit quality gates (citation counts, source diversity), many literature APIs, checkpointed workflows. | Long runs, academic citation styles. | **Partial:** diagnostics exist in `run_research` (`RetrievalDiagnostics`); **not built:** minimum citation diversity enforcement, APA tooling, 77-database integrations. |
 | **C. Anthropic Claude Research mode** | Hosted Claude capability for web research with inline citations (consumer + API surfaces). | Sync/async report with citations. | **Not orchestrated by Vox:** we may call Anthropic as an LLM backend for synthesis/judge ([`stages.rs`](../../../crates/vox-research-shim/src/research/orchestrator/stages.rs)) but do not invoke Claude’s hosted “Research” product as a black box. |
 
-OpenClaw **docs refresh** for operators already exists on the CLI path ([`db_research/refresh.rs`](../../../crates/vox-cli/src/commands/db_research/refresh.rs) — `OPENCLAW_REFRESH_URLS`).
+OpenClaw **docs refresh** for operators already exists on the CLI path ([`db_research/refresh.rs`](../../../crates/vox-cli-research/src/db_research/refresh.rs) — `OPENCLAW_REFRESH_URLS`).
 
 ---
 

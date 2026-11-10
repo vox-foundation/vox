@@ -635,7 +635,7 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     } else {
         let changed_md: Vec<PathBuf> = changed_files
             .iter()
-            .filter(|f| f.ends_with(".md"))
+            .filter(|f| f.ends_with(".md") && (f.starts_with("docs/") || !f.contains('/')))
             .map(|f| root.join(f))
             .filter(|p| p.is_file())
             .collect();
@@ -2236,5 +2236,20 @@ mod tests {
     #[test]
     fn chunk_packages_empty_is_empty() {
         assert!(chunk_packages(&[], 10).is_empty());
+    }
+
+    #[test]
+    fn check_links_scoped_filters_to_docs_and_root_guides() {
+        let paths = [
+            "README.md",
+            "docs/src/index.md",
+            ".planning/ROADMAP.md",
+            "crates/vox-populi/templates/hub/index.md",
+        ];
+        let filtered: Vec<&str> = paths
+            .into_iter()
+            .filter(|f| f.ends_with(".md") && (f.starts_with("docs/") || !f.contains('/')))
+            .collect();
+        assert_eq!(filtered, vec!["README.md", "docs/src/index.md"]);
     }
 }

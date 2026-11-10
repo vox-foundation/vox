@@ -40,7 +40,6 @@ CR-META criteria-format lint.
 |---|---|
 | [`vox-rename-registry`](./vox-rename-registry.generated.md) | Development |
 | [`vox-test-harness`](./vox-test-harness.generated.md) | Development |
-| [`vox-build-meta`](./vox-build-meta.generated.md) | Build |
 
 ## Public API Surface
 
@@ -56,8 +55,6 @@ CR-META criteria-format lint.
 graph {
     direction: right
     node vox_arch_check: "vox-arch-check"
-    node vox_build_meta: "vox-build-meta"
-    vox_arch_check -> vox_build_meta
     node vox_rename_registry: "vox-rename-registry"
     vox_arch_check -> vox_rename_registry
     node vox_test_harness: "vox-test-harness"

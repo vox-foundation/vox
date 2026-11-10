@@ -76,6 +76,8 @@ graph {
     vox_cli -> vox_plugin_api
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_plugin_api
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_plugin_api
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_plugin_api
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
@@ -94,8 +96,6 @@ graph {
     vox_plugin_populi_mesh -> vox_plugin_api
     node vox_plugin_publication: "vox-plugin-publication"
     vox_plugin_publication -> vox_plugin_api
-    node vox_plugin_runtime_container: "vox-plugin-runtime-container"
-    vox_plugin_runtime_container -> vox_plugin_api
 }
 ```
 
@@ -105,6 +105,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 | [`vox-plugin-browser`](./vox-plugin-browser.generated.md) | Direct workspace dependent |

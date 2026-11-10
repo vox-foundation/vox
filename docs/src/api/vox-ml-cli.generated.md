@@ -47,7 +47,7 @@ Vox ML, AI, and Telemetry command-line interface.
 | `mens-base` | dep:vox-populi, vox-populi/mens-train, vox-bounded-fs/async, database, execution-api |
 | `mens-candle-cuda` | gpu, vox-populi/mens-candle-qlora-cuda |
 | `mens-candle-metal` | gpu, vox-populi/mens-candle-qlora-metal |
-| `mens-dei` | dep:vox-tensor, dep:vox-orchestrator, dep:vox-cli |
+| `mens-dei` | dep:vox-tensor, dep:vox-orchestrator |
 | `mens-hf-hub` | mens-base, vox-populi/mens-hf-hub |
 | `mens-qlora` | gpu |
 | `oratio` | mens-base, dep:vox-speech, vox-speech/serve, vox-speech/audio-decode, dep:vox-plugin-host |
@@ -62,7 +62,6 @@ Vox ML, AI, and Telemetry command-line interface.
 |---|---|
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Normal |
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
-| [`vox-cli`](./vox-cli.generated.md) | Normal |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
@@ -113,8 +112,6 @@ graph {
     vox_ml_cli -> vox_actor_runtime
     node vox_bounded_fs: "vox-bounded-fs"
     vox_ml_cli -> vox_bounded_fs
-    node vox_cli: "vox-cli"
-    vox_ml_cli -> vox_cli
     node vox_cli_core: "vox-cli-core"
     vox_ml_cli -> vox_cli_core
     node vox_compiler: "vox-compiler"
@@ -133,6 +130,8 @@ graph {
     vox_ml_cli -> vox_eval
     node vox_foundation: "vox-foundation"
     vox_ml_cli -> vox_foundation
+    node vox_git: "vox-git"
+    vox_ml_cli -> vox_git
     node vox_gui: "vox-gui"
     vox_gui -> vox_ml_cli
 }

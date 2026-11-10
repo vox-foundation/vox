@@ -65,6 +65,8 @@ graph {
     vox_cli -> vox_doc_pipeline
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_doc_pipeline
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_doc_pipeline
 }
 ```
 
@@ -74,6 +76,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 

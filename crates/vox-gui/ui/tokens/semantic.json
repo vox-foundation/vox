@@ -3,8 +3,8 @@
     "bg":     { "base": { "value": "{color.carrara.50}" }, "surface": { "value": "{color.carrara.100}" }, "elevated": { "value": "{color.carrara.200}" } },
     "text":   { "primary": { "value": "{color.carrara.ink}" }, "secondary": { "value": "{color.carrara.ink-soft}" }, "muted": { "value": "{color.carrara.ink-muted}" } },
     "border": { "subtle": { "value": "rgba(184, 134, 11, 0.34)" }, "strong": { "value": "rgba(184, 134, 11, 0.62)" } },
-    "accent": { "default": { "value": "{color.gold.600}" }, "secondary": { "value": "{color.emerald.600}" } },
-    "status": { "pass": { "value": "{color.emerald.600}" }, "fail": { "value": "{color.oxblood.600}" }, "warn": { "value": "{color.terracotta.600}" }, "info": { "value": "#8B6914" } },
+    "accent": { "default": { "value": "{color.gold.700}" }, "secondary": { "value": "{color.emerald.600}" } },
+    "status": { "pass": { "value": "{color.emerald.600}" }, "fail": { "value": "{color.oxblood.600}" }, "warn": { "value": "{color.terracotta.600}" }, "info": { "value": "#7A5910" } },
     "overlay": { "subtle": { "value": "rgba(184, 134, 11, 0.08)" }, "hover": { "value": "rgba(184, 134, 11, 0.14)" }, "solid": { "value": "{color.carrara.50}" } }
   }
 }

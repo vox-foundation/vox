@@ -41,7 +41,7 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 | `gamify` | dep:vox-gamify |
 | `hw-probe-live-test` | — |
 | `inference` | mens-candle-qlora |
-| `mens` | dep:anyhow, dep:serde_yaml, dep:ctrlc, dep:chrono, dep:dirs, dep:sysinfo, dep:rand, dep:vox-tensor, dep:vox-corpus, dep:vox-db, dep:vox-bounded-fs, dep:vox-hf-layout, dep:objc2-metal |
+| `mens` | dep:anyhow, dep:serde_yaml, dep:ctrlc, dep:chrono, dep:dirs, dep:sysinfo, dep:rand, dep:vox-tensor, dep:vox-corpus, dep:vox-db, dep:vox-bounded-fs, dep:vox-hf-layout, dep:objc2-metal, dep:vox-package, dep:vox-orchestrator-queue, dep:sha3 |
 | `mens-candle-qlora` | mens, dep:candle-core, dep:candle-nn, dep:safetensors, dep:tokenizers, dep:qlora-rs, dep:reqwest, dep:vox-quantize |
 | `mens-candle-qlora-cuda` | mens-candle-qlora, candle-core/cuda, candle-nn/cuda |
 | `mens-candle-qlora-metal` | mens-candle-qlora, candle-core/metal, candle-nn/metal |
@@ -59,7 +59,6 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
-| [`vox-constrained-gen`](./vox-constrained-gen.generated.md) | Normal |
 | [`vox-corpus`](./vox-corpus.generated.md) | Normal |
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
@@ -130,8 +129,6 @@ graph {
     vox_populi -> vox_bounded_fs
     node vox_config: "vox-config"
     vox_populi -> vox_config
-    node vox_constrained_gen: "vox-constrained-gen"
-    vox_populi -> vox_constrained_gen
     node vox_corpus: "vox-corpus"
     vox_populi -> vox_corpus
     node vox_crypto: "vox-crypto"
@@ -150,8 +147,12 @@ graph {
     vox_populi -> vox_http_client
     node vox_identity: "vox-identity"
     vox_populi -> vox_identity
+    node vox_mesh_types: "vox-mesh-types"
+    vox_populi -> vox_mesh_types
     node vox_cli: "vox-cli"
     vox_cli -> vox_populi
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_populi
     node vox_ml_cli: "vox-ml-cli"
     vox_ml_cli -> vox_populi
     node vox_orchestrator: "vox-orchestrator"
@@ -172,6 +173,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |

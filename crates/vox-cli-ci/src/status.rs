@@ -16,10 +16,10 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
-use anyhow::{Context, Result, anyhow};
-use serde::{Deserialize, Serialize};
 use crate::constants::REPO_SLUG;
 use crate::job_timings::run_seconds;
+use anyhow::{Context, Result, anyhow};
+use serde::{Deserialize, Serialize};
 
 const CACHE_FRESH_SECS: i64 = 120;
 /// Bound on the live fetch in pre-push so an offline push never stalls.

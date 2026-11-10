@@ -61,10 +61,12 @@ Shared library for CLI primitives.
 | `artifact_policy` | — |
 | `benchmark_telemetry` | — |
 | `build_service` | — |
+| `catalog_tier` | — |
 | `cli_actions` | — |
 | `cli_args` | — |
 | `command_contract` | — |
 | `command_registry_model` | — |
+| `contributor_mode` | — |
 | `constants` | — |
 | `daemon_ipc` | — |
 | `db_types` | — |
@@ -120,6 +122,8 @@ graph {
     vox_cli -> vox_cli_core
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_cli_core
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_cli_core
     node vox_gui: "vox-gui"
     vox_gui -> vox_cli_core
     node vox_langtool: "vox-langtool"
@@ -137,6 +141,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
@@ -146,9 +151,9 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `GlobalOpts` | `pub struct GlobalOpts` | [`crates/vox-cli-core/src/lib.rs#L33-L46`](../../../crates/vox-cli-core/src/lib.rs#L33-L46) | Global flags available before every subcommand. |
-| `fn` | `init_tracing_for_cli` | `pub fn init_tracing_for_cli()` | [`crates/vox-cli-core/src/lib.rs#L49-L51`](../../../crates/vox-cli-core/src/lib.rs#L49-L51) | Initialize [`tracing`] for CLI tools. |
-| `fn` | `apply_global_opts` | `pub fn apply_global_opts(opts: &GlobalOpts)` | [`crates/vox-cli-core/src/lib.rs#L54-L58`](../../../crates/vox-cli-core/src/lib.rs#L54-L58) | Apply global opts to the environment. |
+| `struct` | `GlobalOpts` | `pub struct GlobalOpts` | [`crates/vox-cli-core/src/lib.rs#L36-L49`](../../../crates/vox-cli-core/src/lib.rs#L36-L49) | Global flags available before every subcommand. |
+| `fn` | `init_tracing_for_cli` | `pub fn init_tracing_for_cli()` | [`crates/vox-cli-core/src/lib.rs#L52-L54`](../../../crates/vox-cli-core/src/lib.rs#L52-L54) | Initialize [`tracing`] for CLI tools. |
+| `fn` | `apply_global_opts` | `pub fn apply_global_opts(opts: &GlobalOpts)` | [`crates/vox-cli-core/src/lib.rs#L58-L62`](../../../crates/vox-cli-core/src/lib.rs#L58-L62) | Apply global opts to the environment. |
 | `enum` | `artifact_policy::ArtifactClass` | `pub enum ArtifactClass` | [`crates/vox-cli-core/src/artifact_policy.rs#L5-L13`](../../../crates/vox-cli-core/src/artifact_policy.rs#L5-L13) | — |
 | `enum` | `artifact_policy::TargetLane` | `pub enum TargetLane` | [`crates/vox-cli-core/src/artifact_policy.rs#L16-L22`](../../../crates/vox-cli-core/src/artifact_policy.rs#L16-L22) | — |
 | `fn` | `artifact_policy::canonical_workspace_target` | `pub fn canonical_workspace_target(root: &Path) -> PathBuf` | [`crates/vox-cli-core/src/artifact_policy.rs#L24-L28`](../../../crates/vox-cli-core/src/artifact_policy.rs#L24-L28) | — |
@@ -178,6 +183,9 @@ graph {
 | `fn` | `build_service::kill` | `pub async fn kill(&mut self) -> std::io::Result<()>` | [`crates/vox-cli-core/src/build_service.rs#L442-L460`](../../../crates/vox-cli-core/src/build_service.rs#L442-L460) | Kill the child, wait for exit, and log completion. |
 | `fn` | `build_service::wait` | `pub async fn wait(&mut self) -> Result<std::process::ExitStatus>` | [`crates/vox-cli-core/src/build_service.rs#L463-L481`](../../../crates/vox-cli-core/src/build_service.rs#L463-L481) | Wait for the child and log completion. |
 | `fn` | `build_service::run_cargo_spawn_async` | `pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoChild>` | [`crates/vox-cli-core/src/build_service.rs#L511-L571`](../../../crates/vox-cli-core/src/build_service.rs#L511-L571) | Spawn cargo and return monitored tokio child (async, for dev/watch). Logs completion on exit (Wave 3). |
+| `fn` | `build_service::run_vox_build` | `pub async fn run_vox_build(file: &std::path::Path, out_dir: &std::path::Path) -> Result<()>` | [`crates/vox-cli-core/src/build_service.rs#L574-L586`](../../../crates/vox-cli-core/src/build_service.rs#L574-L586) | Build a Vox project (equivalent to `vox build <file> -o <out_dir>`) for workflow execution. |
+| `enum` | `catalog_tier::CatalogTier` | `pub enum CatalogTier` | [`crates/vox-cli-core/src/catalog_tier.rs#L5-L9`](../../../crates/vox-cli-core/src/catalog_tier.rs#L5-L9) | — |
+| `fn` | `catalog_tier::tier_for_path` | `pub fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier` | [`crates/vox-cli-core/src/catalog_tier.rs#L11-L25`](../../../crates/vox-cli-core/src/catalog_tier.rs#L11-L25) | — |
 | `enum` | `cli_actions::ArchitectAction` | `pub enum ArchitectAction` | [`crates/vox-cli-core/src/cli_actions.rs#L6-L19`](../../../crates/vox-cli-core/src/cli_actions.rs#L6-L19) | — |
 | `enum` | `cli_actions::WorkflowAction` | `pub enum WorkflowAction` | [`crates/vox-cli-core/src/cli_actions.rs#L22-L53`](../../../crates/vox-cli-core/src/cli_actions.rs#L22-L53) | — |
 | `enum` | `cli_args::BuildMode` | `pub enum BuildMode` | [`crates/vox-cli-core/src/cli_args.rs#L8-L14`](../../../crates/vox-cli-core/src/cli_args.rs#L8-L14) | Build mode (`app` or `library`). |
@@ -188,7 +196,4 @@ graph {
 | `fn` | `command_contract::merged_feature_gate` | `pub fn merged_feature_gate(path: &[String]) -> Option<String>` | [`crates/vox-cli-core/src/command_contract.rs#L64-L66`](../../../crates/vox-cli-core/src/command_contract.rs#L64-L66) | Merge `feature_gate` from all registry rows sharing this path (stable dedupe). |
 | `fn` | `command_contract::catalog_source_group` | `pub fn catalog_source_group(path: &[String]) -> String` | [`crates/vox-cli-core/src/command_contract.rs#L126-L134`](../../../crates/vox-cli-core/src/command_contract.rs#L126-L134) | `source_group` for `vox commands` JSON/text (registry-first, then heuristic). |
 | `fn` | `command_contract::fallback_source_group` | `pub fn fallback_source_group(path: &[String]) -> String` | [`crates/vox-cli-core/src/command_contract.rs#L150-L177`](../../../crates/vox-cli-core/src/command_contract.rs#L150-L177) | When no registry row matches this exact path (e.g. `fabrica build` shim), infer lane from the first segment. |
-| `struct` | `command_registry_model::RegistryFile` | `pub struct RegistryFile` | [`crates/vox-cli-core/src/command_registry_model.rs#L7-L14`](../../../crates/vox-cli-core/src/command_registry_model.rs#L7-L14) | — |
-| `struct` | `command_registry_model::RegistryOperation` | `pub struct RegistryOperation` | [`crates/vox-cli-core/src/command_registry_model.rs#L17-L39`](../../../crates/vox-cli-core/src/command_registry_model.rs#L17-L39) | — |
-| `struct` | `command_registry_model::ScriptDual` | `pub struct ScriptDual` | [`crates/vox-cli-core/src/command_registry_model.rs#L42-L45`](../../../crates/vox-cli-core/src/command_registry_model.rs#L42-L45) | — |
 

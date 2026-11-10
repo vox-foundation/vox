@@ -84,6 +84,8 @@ graph {
     vox_cli -> vox_git
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_git
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_git
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_git
     node vox_config: "vox-config"
@@ -105,6 +107,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
 | [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
 | [`vox-effort-audit`](./vox-effort-audit.generated.md) | Direct workspace dependent |

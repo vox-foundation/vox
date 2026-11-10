@@ -87,6 +87,8 @@ graph {
     node vox_eval: "vox-eval"
     node vox_cli: "vox-cli"
     vox_cli -> vox_eval
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_eval
     node vox_compiler: "vox-compiler"
     vox_compiler -> vox_eval
     node vox_corpus: "vox-corpus"
@@ -109,6 +111,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |

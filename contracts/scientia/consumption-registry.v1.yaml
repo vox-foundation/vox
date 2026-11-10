@@ -29,7 +29,7 @@ entries:
     consumption_required: true
     consumer_paths:
       - crates/vox-publisher/src/scientia_contracts.rs
-      - crates/vox-cli/src/commands/db_cli/publication_subcommands.rs
+      - crates/vox-cli-research/src/db_cli/publication_subcommands.rs
     test_targets:
       - cargo test -p vox-publisher scientia_contracts_roundtrip_and_schema
 

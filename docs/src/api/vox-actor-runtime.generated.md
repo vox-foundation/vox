@@ -127,6 +127,8 @@ graph {
     vox_actor_runtime -> vox_secrets
     node vox_cli: "vox-cli"
     vox_cli -> vox_actor_runtime
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_actor_runtime
     node vox_effort_audit: "vox-effort-audit"
     vox_effort_audit -> vox_actor_runtime
     node vox_effort_route: "vox-effort-route"
@@ -147,8 +149,6 @@ graph {
     vox_research_shim -> vox_actor_runtime
     node vox_scientia: "vox-scientia"
     vox_scientia -> vox_actor_runtime
-    node vox_search: "vox-search"
-    vox_search -> vox_actor_runtime
 }
 ```
 
@@ -157,6 +157,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-effort-audit`](./vox-effort-audit.generated.md) | Direct workspace dependent |
 | [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
 | [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |

@@ -61,8 +61,10 @@ graph {
     vox_cli_contracts -> vox_jsonschema_util
     node vox_cli_core: "vox-cli-core"
     vox_cli_core -> vox_jsonschema_util
-    node vox_code_audit: "vox-code-audit"
-    vox_code_audit -> vox_jsonschema_util
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_jsonschema_util
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_jsonschema_util
     node vox_compiler: "vox-compiler"
     vox_compiler -> vox_jsonschema_util
     node vox_ml_cli: "vox-ml-cli"
@@ -82,7 +84,8 @@ graph {
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-cli-contracts`](./vox-cli-contracts.generated.md) | Direct workspace dependent |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
-| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |

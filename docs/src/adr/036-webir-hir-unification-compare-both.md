@@ -40,7 +40,7 @@ schema_type: "TechArticle"
 ### Option B — Core + projection (chosen)
 
 - **Definition:** Keep **`HirModule` as semantic core**; keep **`WebIrModule` as the web UI projection** with `validate_web_ir` gates; add/extend **contract-driven** projections for Tauri/mobile (e.g. [`runtime-capabilities.v1.yaml`](../../../contracts/capability/runtime-capabilities.v1.yaml)) so packaging does not fork from `@uses` metadata.
-- **Pros:** Preserves separation of concerns; matches shipped **triplet parity** tests ([`projection_parity_test.rs`](../../../crates/vox-compiler/tests/projection_parity_test.rs)) including a fixture with **`@back_button`**; allows GUI-any-platform emitters without polluting HIR with DOM-only invariants.
+- **Pros:** Preserves separation of concerns; matches shipped **triplet parity** tests ([`projection_parity_test.rs`](../../../crates/vox-codegen/tests/projection_parity_test.rs)) including a fixture with **`@back_button`**; allows GUI-any-platform emitters without polluting HIR with DOM-only invariants.
 - **Cons:** Requires discipline: **no second “shadow” UI IR**; retire legacy string emitters as WebIR coverage reaches parity (M3 in lowering doc).
 
 ## Scoring rubric (1 = worst, 5 = best)

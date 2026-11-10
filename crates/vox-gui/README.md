@@ -286,7 +286,7 @@ pnpm --dir /Users/brbrainerd/dev/vox/crates/vox-gui/ui exec playwright test e2e/
 cargo run -p vox-cli --manifest-path /Users/brbrainerd/dev/vox/Cargo.toml --features gui -- gui
 ```
 
-**Cross-Repo Sync Rule:** `vox-foundation/vox-axis` shares `contracts/gui/` and `contracts/telemetry/` with [`vox-foundation/vox`](https://github.com/vox-foundation/vox), [`vox-foundation/voxlang.org`](https://github.com/vox-foundation/voxlang.org), and private `vox-ops`. Always run `vox ci cross-repo-parity` and `vox ci federated-symbol-graph` after modifying shared contracts or GUI surfaces (see [`AGENTS.md`](AGENTS.md)).
+**Cross-Repo Sync Rule:** `vox-foundation/vox-axis` shares `contracts/gui/` and `contracts/telemetry/` with [`vox-foundation/vox`](https://github.com/vox-foundation/vox), [`vox-foundation/voxlang.org`](https://github.com/vox-foundation/voxlang.org), and private `vox-ops`. Always run `vox ci cross-repo-parity` and `vox ci federated-symbol-graph` after modifying shared contracts or GUI surfaces (see [`AGENTS.md`](https://github.com/vox-foundation/vox/blob/main/AGENTS.md)).
 
 ---
 

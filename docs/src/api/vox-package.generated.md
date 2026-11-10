@@ -46,6 +46,7 @@ Application code should use **`vox_db::Codex`** / `VoxDb` as the public facade (
 |---|---|
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
+| [`vox-db-types`](./vox-db-types.generated.md) | Normal |
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-package-types`](./vox-package-types.generated.md) | Normal |
 
@@ -71,6 +72,8 @@ graph {
     vox_package -> vox_config
     node vox_db: "vox-db"
     vox_package -> vox_db
+    node vox_db_types: "vox-db-types"
+    vox_package -> vox_db_types
     node vox_http_client: "vox-http-client"
     vox_package -> vox_http_client
     node vox_package_types: "vox-package-types"
@@ -79,6 +82,8 @@ graph {
     vox_audit -> vox_package
     node vox_cli: "vox-cli"
     vox_cli -> vox_package
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_package
     node vox_orchestrator: "vox-orchestrator"
     vox_orchestrator -> vox_package
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
@@ -96,6 +101,7 @@ graph {
 |---|---|
 | [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 | [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |

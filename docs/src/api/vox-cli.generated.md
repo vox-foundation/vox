@@ -232,8 +232,6 @@ graph {
     vox_gui -> vox_cli
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_cli
-    node vox_ml_cli: "vox-ml-cli"
-    vox_ml_cli -> vox_cli
 }
 ```
 
@@ -244,7 +242,6 @@ graph {
 | [`vox-cli-tests`](./vox-cli-tests.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
-| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 
@@ -271,28 +268,28 @@ graph {
 | `struct` | `cli_args::CompileArgs` | `pub struct CompileArgs` | [`crates/vox-cli/src/cli_args.rs#L266-L286`](../../../crates/vox-cli/src/cli_args.rs#L266-L286) | `vox compile` / `vox fabrica compile` |
 | `struct` | `cli_args::FmtArgs` | `pub struct FmtArgs` | [`crates/vox-cli/src/cli_args.rs#L323-L329`](../../../crates/vox-cli/src/cli_args.rs#L323-L329) | `vox fmt` / `vox fabrica fmt` |
 | `struct` | `cli_args::PlayArgs` | `pub struct PlayArgs` | [`crates/vox-cli/src/cli_args.rs#L333-L339`](../../../crates/vox-cli/src/cli_args.rs#L333-L339) | `vox play` / `vox fabrica play` |
-| `struct` | `cli_args::RepairArgs` | `pub struct RepairArgs` | [`crates/vox-cli/src/cli_args.rs#L343-L357`](../../../crates/vox-cli/src/cli_args.rs#L343-L357) | `vox repair` |
-| `struct` | `cli_args::DoctorArgs` | `pub struct DoctorArgs` | [`crates/vox-cli/src/cli_args.rs#L361-L396`](../../../crates/vox-cli/src/cli_args.rs#L361-L396) | `vox doctor` / `vox mens doctor` |
-| `struct` | `cli_args::StubCheckArgs` | `pub struct StubCheckArgs` | [`crates/vox-cli/src/cli_args.rs#L401-L453`](../../../crates/vox-cli/src/cli_args.rs#L401-L453) | `vox stub-check` / `vox mens stub-check` |
-| `struct` | `cli_args::AddDependencyArgs` | `pub struct AddDependencyArgs` | [`crates/vox-cli/src/cli_args.rs#L457-L467`](../../../crates/vox-cli/src/cli_args.rs#L457-L467) | `vox add` — manifest dependency declaration. |
-| `struct` | `cli_args::RemoveDependencyArgs` | `pub struct RemoveDependencyArgs` | [`crates/vox-cli/src/cli_args.rs#L471-L474`](../../../crates/vox-cli/src/cli_args.rs#L471-L474) | `vox remove` |
-| `struct` | `cli_args::LockArgs` | `pub struct LockArgs` | [`crates/vox-cli/src/cli_args.rs#L478-L482`](../../../crates/vox-cli/src/cli_args.rs#L478-L482) | `vox lock` |
-| `struct` | `cli_args::SyncArgs` | `pub struct SyncArgs` | [`crates/vox-cli/src/cli_args.rs#L486-L492`](../../../crates/vox-cli/src/cli_args.rs#L486-L492) | `vox sync` |
-| `struct` | `cli_args::DeployArgs` | `pub struct DeployArgs` | [`crates/vox-cli/src/cli_args.rs#L496-L515`](../../../crates/vox-cli/src/cli_args.rs#L496-L515) | `vox deploy` — apply `Vox.toml` `[deploy]` via container / compose / Kubernetes / bare-metal. |
-| `enum` | `cli_args::UpgradeReleaseProvider` | `pub enum UpgradeReleaseProvider` | [`crates/vox-cli/src/cli_args.rs#L519-L527`](../../../crates/vox-cli/src/cli_args.rs#L519-L527) | Binary release host for `vox upgrade --source release` (`VOX_UPGRADE_PROVIDER`). |
-| `struct` | `cli_args::UpgradeToolchainArgs` | `pub struct UpgradeToolchainArgs` | [`crates/vox-cli/src/cli_args.rs#L531-L580`](../../../crates/vox-cli/src/cli_args.rs#L531-L580) | `vox upgrade` — toolchain only (never `Vox.toml` / `vox.lock`). |
-| `struct` | `cli_args::GenerateArgs` | `pub struct GenerateArgs` | [`crates/vox-cli/src/cli_args.rs#L584-L604`](../../../crates/vox-cli/src/cli_args.rs#L584-L604) | `vox generate` — generate Vox code from a natural-language prompt. |
-| `struct` | `cli_args::GuiArgs` | `pub struct GuiArgs` | [`crates/vox-cli/src/cli_args.rs#L607-L617`](../../../crates/vox-cli/src/cli_args.rs#L607-L617) | — |
-| `enum` | `cli_args::GuiCmd` | `pub enum GuiCmd` | [`crates/vox-cli/src/cli_args.rs#L620-L623`](../../../crates/vox-cli/src/cli_args.rs#L620-L623) | — |
-| `struct` | `cli_args::DriveArgs` | `pub struct DriveArgs` | [`crates/vox-cli/src/cli_args.rs#L626-L629`](../../../crates/vox-cli/src/cli_args.rs#L626-L629) | — |
-| `enum` | `cli_args::DriveCmd` | `pub enum DriveCmd` | [`crates/vox-cli/src/cli_args.rs#L632-L649`](../../../crates/vox-cli/src/cli_args.rs#L632-L649) | — |
-| `struct` | `cli_args::DriveStartArgs` | `pub struct DriveStartArgs` | [`crates/vox-cli/src/cli_args.rs#L652-L657`](../../../crates/vox-cli/src/cli_args.rs#L652-L657) | — |
-| `struct` | `cli_args::DriveSetArgs` | `pub struct DriveSetArgs` | [`crates/vox-cli/src/cli_args.rs#L660-L663`](../../../crates/vox-cli/src/cli_args.rs#L660-L663) | — |
-| `struct` | `cli_args::DriveSendArgs` | `pub struct DriveSendArgs` | [`crates/vox-cli/src/cli_args.rs#L666-L669`](../../../crates/vox-cli/src/cli_args.rs#L666-L669) | — |
-| `struct` | `cli_args::DriveWaitArgs` | `pub struct DriveWaitArgs` | [`crates/vox-cli/src/cli_args.rs#L672-L677`](../../../crates/vox-cli/src/cli_args.rs#L672-L677) | — |
-| `struct` | `cli_args::DriveHeadlessArgs` | `pub struct DriveHeadlessArgs` | [`crates/vox-cli/src/cli_args.rs#L680-L683`](../../../crates/vox-cli/src/cli_args.rs#L680-L683) | — |
-| `enum` | `cli_args::DriveHeadlessCmd` | `pub enum DriveHeadlessCmd` | [`crates/vox-cli/src/cli_args.rs#L686-L693`](../../../crates/vox-cli/src/cli_args.rs#L686-L693) | — |
+| `struct` | `cli_args::DoctorArgs` | `pub struct DoctorArgs` | [`crates/vox-cli/src/cli_args.rs#L345-L380`](../../../crates/vox-cli/src/cli_args.rs#L345-L380) | `vox doctor` / `vox mens doctor` |
+| `struct` | `cli_args::StubCheckArgs` | `pub struct StubCheckArgs` | [`crates/vox-cli/src/cli_args.rs#L385-L437`](../../../crates/vox-cli/src/cli_args.rs#L385-L437) | `vox stub-check` / `vox mens stub-check` |
+| `struct` | `cli_args::AddDependencyArgs` | `pub struct AddDependencyArgs` | [`crates/vox-cli/src/cli_args.rs#L441-L451`](../../../crates/vox-cli/src/cli_args.rs#L441-L451) | `vox add` — manifest dependency declaration. |
+| `struct` | `cli_args::RemoveDependencyArgs` | `pub struct RemoveDependencyArgs` | [`crates/vox-cli/src/cli_args.rs#L455-L458`](../../../crates/vox-cli/src/cli_args.rs#L455-L458) | `vox remove` |
+| `struct` | `cli_args::LockArgs` | `pub struct LockArgs` | [`crates/vox-cli/src/cli_args.rs#L462-L466`](../../../crates/vox-cli/src/cli_args.rs#L462-L466) | `vox lock` |
+| `struct` | `cli_args::SyncArgs` | `pub struct SyncArgs` | [`crates/vox-cli/src/cli_args.rs#L470-L476`](../../../crates/vox-cli/src/cli_args.rs#L470-L476) | `vox sync` |
+| `struct` | `cli_args::DeployArgs` | `pub struct DeployArgs` | [`crates/vox-cli/src/cli_args.rs#L480-L499`](../../../crates/vox-cli/src/cli_args.rs#L480-L499) | `vox deploy` — apply `Vox.toml` `[deploy]` via container / compose / Kubernetes / bare-metal. |
+| `enum` | `cli_args::UpgradeReleaseProvider` | `pub enum UpgradeReleaseProvider` | [`crates/vox-cli/src/cli_args.rs#L503-L511`](../../../crates/vox-cli/src/cli_args.rs#L503-L511) | Binary release host for `vox upgrade --source release` (`VOX_UPGRADE_PROVIDER`). |
+| `struct` | `cli_args::UpgradeToolchainArgs` | `pub struct UpgradeToolchainArgs` | [`crates/vox-cli/src/cli_args.rs#L515-L564`](../../../crates/vox-cli/src/cli_args.rs#L515-L564) | `vox upgrade` — toolchain only (never `Vox.toml` / `vox.lock`). |
+| `struct` | `cli_args::GenerateArgs` | `pub struct GenerateArgs` | [`crates/vox-cli/src/cli_args.rs#L568-L588`](../../../crates/vox-cli/src/cli_args.rs#L568-L588) | `vox generate` — generate Vox code from a natural-language prompt. |
 | `enum` | `command_catalog::CatalogFormat` | `pub enum CatalogFormat` | [`crates/vox-cli/src/command_catalog.rs#L10-L13`](../../../crates/vox-cli/src/command_catalog.rs#L10-L13) | — |
-| `enum` | `command_catalog::CatalogTier` | `pub enum CatalogTier` | [`crates/vox-cli/src/command_catalog.rs#L17-L21`](../../../crates/vox-cli/src/command_catalog.rs#L17-L21) | — |
-| `enum` | `command_catalog::ArgValueKind` | `pub enum ArgValueKind` | [`crates/vox-cli/src/command_catalog.rs#L26-L33`](../../../crates/vox-cli/src/command_catalog.rs#L26-L33) | Typed argument kind for GUI form generation, derived from the clap action. |
+| `enum` | `command_catalog::ArgValueKind` | `pub enum ArgValueKind` | [`crates/vox-cli/src/command_catalog.rs#L20-L27`](../../../crates/vox-cli/src/command_catalog.rs#L20-L27) | Typed argument kind for GUI form generation, derived from the clap action. |
+| `struct` | `command_catalog::CommandCatalogArgument` | `pub struct CommandCatalogArgument` | [`crates/vox-cli/src/command_catalog.rs#L30-L45`](../../../crates/vox-cli/src/command_catalog.rs#L30-L45) | — |
+| `struct` | `command_catalog::CommandCatalogEntry` | `pub struct CommandCatalogEntry` | [`crates/vox-cli/src/command_catalog.rs#L48-L63`](../../../crates/vox-cli/src/command_catalog.rs#L48-L63) | — |
+| `struct` | `command_catalog::CommandCatalog` | `pub struct CommandCatalog` | [`crates/vox-cli/src/command_catalog.rs#L66-L69`](../../../crates/vox-cli/src/command_catalog.rs#L66-L69) | — |
+| `fn` | `command_catalog::feature_gated_group_names` | `pub fn feature_gated_group_names() -> Vec<(&'static str, &'static str)>` | [`crates/vox-cli/src/command_catalog.rs#L82-L94`](../../../crates/vox-cli/src/command_catalog.rs#L82-L94) | Top-level command groups that exist only behind a compile-time feature gate and are therefore absent from a default (non-`dei`) binary's clap command tree.  `build_catalog()` reflects over `VoxCliRoot::command()`, which is built at compile time, so `#[cfg(feature = "dei")]` clap variants (`crates/vox-cli/src/lib.rs`) are invisible to any consumer derived from the catalog (e.g. the GUI surface-registry gate). Callers that must reason about the *full* command surface — not just what this build compiled in — should union these `(group, feature)` pairs with the compiled groups.  Returns `(group_name, feature_flag)` pairs. The names are the clap-derived (lowercased) top-level command names. |
+| `fn` | `command_catalog::build_catalog` | `pub fn build_catalog() -> CommandCatalog` | [`crates/vox-cli/src/command_catalog.rs#L96-L124`](../../../crates/vox-cli/src/command_catalog.rs#L96-L124) | — |
+| `fn` | `command_catalog::render_text` | `pub fn render_text(entries: &[CommandCatalogEntry]) -> String` | [`crates/vox-cli/src/command_catalog.rs#L144-L163`](../../../crates/vox-cli/src/command_catalog.rs#L144-L163) | — |
+| `fn` | `command_catalog::render_nushell_completions` | `pub fn render_nushell_completions(catalog: &CommandCatalog) -> String` | [`crates/vox-cli/src/command_catalog.rs#L166-L226`](../../../crates/vox-cli/src/command_catalog.rs#L166-L226) | Renders dynamic Nushell completion signatures (`extern "vox" [...]` and `extern "vox <subcommand>" [...]`). |
+| `fn` | `command_catalog::select_entries` | `pub fn select_entries(` | [`crates/vox-cli/src/command_catalog.rs#L228`](../../../crates/vox-cli/src/command_catalog.rs#L228) | — |
+| `fn` | `command_catalog::search_entries` | `pub fn search_entries(` | [`crates/vox-cli/src/command_catalog.rs#L267`](../../../crates/vox-cli/src/command_catalog.rs#L267) | Filter and rank `entries` by fuzzy match against `pattern`.  Candidates are built from `command`, all `aliases`, and `about` so that alias-only matches (e.g. `"fab"` → `vox fabrica`) are surfaced. Returns entries sorted by descending score; zero-score entries excluded.  Falls back to case-insensitive substring filter when `fuzzy-search` is disabled. |
+| `struct` | `command_catalog::SearchResult` | `pub struct SearchResult` | [`crates/vox-cli/src/command_catalog.rs#L283-L291`](../../../crates/vox-cli/src/command_catalog.rs#L283-L291) | A search hit carrying both the matched entry and its match score.  `score` is non-zero when the `fuzzy-search` feature is enabled (nucleo score; higher = better match) and `0` for the substring-fallback path (where ordering is preserved from the input). |
+| `fn` | `command_catalog::search_entries_scored` | `pub fn search_entries_scored(` | [`crates/vox-cli/src/command_catalog.rs#L295`](../../../crates/vox-cli/src/command_catalog.rs#L295) | Same as [`search_entries`] but returns scores and match attribution for JSON output and richer rendering. |
+| `struct` | `command_catalog::SearchOutput` | `pub struct SearchOutput` | [`crates/vox-cli/src/command_catalog.rs#L356-L361`](../../../crates/vox-cli/src/command_catalog.rs#L356-L361) | JSON wrapper for search-mode output (richer than [`CommandCatalog`]). |
 

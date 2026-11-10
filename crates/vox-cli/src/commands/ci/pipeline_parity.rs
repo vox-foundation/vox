@@ -17,7 +17,7 @@ pub async fn run(root: &Path) -> Result<()> {
         &[
             "test",
             "-p",
-            "vox-compiler",
+            "vox-codegen",
             "--test",
             "emission_ladder_test",
             "--",
@@ -32,7 +32,7 @@ pub async fn run(root: &Path) -> Result<()> {
         &[
             "test",
             "-p",
-            "vox-compiler",
+            "vox-codegen",
             "--test",
             "feature_matrix_parity_test",
             "--",
@@ -86,4 +86,16 @@ fn print_matrix_coverage() {
         pct(unverified),
         pct(unsupported)
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn matrix_coverage_runs_without_panicking() {
+        print_matrix_coverage();
+        assert!(!Feature::all().is_empty());
+        assert!(!Target::ALL.is_empty());
+    }
 }
