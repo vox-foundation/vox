@@ -22,6 +22,7 @@ pub(crate) use cuda_release_build::run_cuda_release_build;
 pub(crate) use data_ssot_guards::run_data_ssot_guards;
 pub(crate) use docs::{check_codex_ssot, check_docs_ssot, run_manifest, run_ssot_drift};
 pub(crate) use grammar::{run_grammar_drift, run_grammar_export_check};
+#[allow(unused_imports)]
 pub(crate) use guards::{
     TURSO_BUILTIN_CRATES, run_operator_env_guard, run_query_all_guard, run_repo_guards,
     run_secret_env_guard, run_secrets_cutover_audit, run_secrets_cutover_gates, run_secrets_parity,

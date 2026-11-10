@@ -228,7 +228,21 @@ impl InferenceEngine {
 
         let mut qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
         qlora_cfg.quantization.compute_dtype = compute_dtype_for_device(&_device);
-        qlora_cfg.cache_dequantized = true;
+        let explicit_cache = std::env::var("VOX_MENS_WEIGHT_CACHE")
+            .ok()
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+        let explicit_no_cache = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_some()
+            || std::env::var("VOX_MENS_WEIGHT_CACHE")
+                .is_ok_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
+        let is_large = model_dir
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .contains("14b")
+            || model_dir
+                .to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("32b");
+        qlora_cfg.cache_dequantized = explicit_cache.unwrap_or(!explicit_no_cache && !is_large);
 
         // Helper to find a non-linear tensor (layernorm, embedding, bias) in any map
         let get_tensor = |key: &str| -> Result<Tensor> {

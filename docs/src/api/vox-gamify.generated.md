@@ -129,6 +129,8 @@ graph {
     vox_cli -> vox_gamify
     node vox_cli_core: "vox-cli-core"
     vox_cli_core -> vox_gamify
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_gamify
     node vox_gui: "vox-gui"
     vox_gui -> vox_gamify
     node vox_lsp: "vox-lsp"
@@ -150,6 +152,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-lsp`](./vox-lsp.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |

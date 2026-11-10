@@ -125,6 +125,7 @@ populi/data/*.jsonl
 .vox/policy-status/
 # Antigravity delegation worktrees (ephemeral, per-delegation)
 /.vox/agy-worktrees/
+/.vox/salvage/
 **/.vox/policy-status/
 # Crate-local `.vox/` state (orchestrator memory, etc.)
 crates/*/.vox/

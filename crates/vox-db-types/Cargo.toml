@@ -4,17 +4,20 @@ description = "Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors.
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+sha3 = { workspace = true }
+data-encoding = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
 
 [lints]
 workspace = true
-
-[package.metadata.cargo-shear]
-ignored = ["workspace-hack"]

@@ -49,6 +49,7 @@ impl crate::VoxDb {
 
     /// Drop every user-defined table (not `sqlite_%`). Caller usually follows with `Self::migrate`.
     #[cfg(feature = "local")]
+    #[inline(never)]
     pub async fn drop_all_user_tables(conn: &turso::Connection) -> Result<(), StoreError> {
         conn.execute("PRAGMA foreign_keys = OFF", ())
             .await
@@ -77,6 +78,7 @@ impl crate::VoxDb {
 
     /// Open a local file, wipe all user tables, and apply baseline + cutover (same as fresh migrate).
     #[cfg(feature = "local")]
+    #[inline(never)]
     pub async fn open_local_reset_to_baseline(path: &str) -> Result<Self, StoreError> {
         let db = turso::Builder::new_local(path).build().await?;
         let conn = db.connect()?;
@@ -459,6 +461,7 @@ impl crate::VoxDb {
 
     /// Open local file **without** running `migrate` (export tools only — reads legacy multi-version DBs).
     #[cfg(feature = "local")]
+    #[inline(never)]
     pub async fn open_local_legacy_export(path: &str) -> Result<Self, StoreError> {
         let db = turso::Builder::new_local(path).build().await?;
         let conn = db.connect()?;
@@ -468,6 +471,7 @@ impl crate::VoxDb {
 
     /// Open or create a local database file (requires `local` feature on `vox-db`).
     #[cfg(feature = "local")]
+    #[inline(never)]
     pub async fn open(path: &str) -> Result<Self, StoreError> {
         let db = turso::Builder::new_local(path).build().await?;
         let conn = db.connect()?;
@@ -478,6 +482,7 @@ impl crate::VoxDb {
 
     /// In-memory store (requires `local` feature on `vox-db`).
     #[cfg(feature = "local")]
+    #[inline(never)]
     pub async fn open_memory() -> Result<Self, StoreError> {
         Self::open(":memory:").await
     }
@@ -493,6 +498,7 @@ impl crate::VoxDb {
     }
 
     /// Remote Turso / libSQL (sync client).
+    #[inline(never)]
     pub async fn open_remote(url: &str, auth_token: &str) -> Result<Self, StoreError> {
         let db = turso::sync::Builder::new_remote(":memory:")
             .with_remote_url(url)
@@ -525,6 +531,7 @@ impl crate::VoxDb {
 
     /// Default local project store at [`super::DEFAULT_PROJECT_STORE_PATH`].
     #[cfg(feature = "local")]
+    #[inline(never)]
     pub async fn open_default() -> Result<Self, StoreError> {
         let path = super::DEFAULT_PROJECT_STORE_PATH;
         if let Some(parent) = std::path::Path::new(path).parent() {
@@ -534,6 +541,7 @@ impl crate::VoxDb {
     }
 
     /// Pull remote changes when using a sync-backed store; no-op for pure local files.
+    #[inline(never)]
     pub async fn sync(&self) -> Result<(), StoreError> {
         if let Some(db) = &self.sync_db {
             let _ = db.pull().await?;
@@ -542,6 +550,7 @@ impl crate::VoxDb {
     }
 
     /// Explicit read boundary for replica-backed handles (see [`crate::ReadConsistency`]).
+    #[inline(never)]
     pub async fn sync_for(&self, consistency: crate::ReadConsistency) -> Result<(), StoreError> {
         match consistency {
             crate::ReadConsistency::Local => Ok(()),

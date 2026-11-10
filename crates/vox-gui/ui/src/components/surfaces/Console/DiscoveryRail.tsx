@@ -161,7 +161,7 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
             aria-expanded={true}
             title="Collapse discovery rail"
             onClick={() => setCollapsed(true)}
-            className="rounded-md border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 text-[#F3E5AB] transition hover:border-[#D4AF37] hover:text-white"
+            className="rounded-md border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 text-text-primary transition hover:border-[#D4AF37]"
           >
             <span className="font-mono text-xs" aria-hidden="true">
               «
@@ -172,7 +172,7 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
         {!help ? (
           <div className="space-y-2.5">
             <p className="font-serif text-[11.5px] font-medium text-[#3B2E1E]">
-              Start typing a <code className="rounded bg-[#251C0E] px-1 py-0.5 text-[10px] text-[#F3E5AB]">vox</code> command to see live help and idioms.
+              Start typing a <code className="rounded bg-bg-elevated px-1 py-0.5 text-[10px] text-text-primary">vox</code> command to see live help and idioms.
             </p>
             <div className="space-y-1.5 pt-1">
               <div className="font-display text-[9px] font-bold uppercase tracking-widest text-[#6B4C12]">
@@ -181,10 +181,10 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
               {Object.values(LOCAL_ACTION_HELP).slice(0, 4).map((item) => (
                 <div
                   key={item.action_id}
-                  className="rounded-lg border border-[#9E7B2F]/65 bg-[#241B11] p-2 text-[#F6F0E4]"
+                  className="rounded-lg border border-[#9E7B2F]/65 bg-bg-surface p-2 text-text-primary"
                 >
-                  <div className="font-mono text-[10.5px] font-semibold text-[#F3E5AB]">{item.example}</div>
-                  <div className="mt-0.5 text-[10px] text-[#D8C7A8] line-clamp-2">{item.about}</div>
+                  <div className="font-mono text-[10.5px] font-semibold text-text-primary">{item.example}</div>
+                  <div className="mt-0.5 text-[10px] text-text-secondary line-clamp-2">{item.about}</div>
                 </div>
               ))}
             </div>
@@ -207,7 +207,7 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
               type="button"
               onClick={handleUse}
               aria-label={`Use suggested action ${help.example}`}
-              className="mt-2 self-start rounded-lg border border-[#8C6825] bg-[#251C0E] px-2.5 py-1.5 text-[11px] font-semibold text-[#F3E5AB] transition hover:border-[#D4AF37] hover:text-white"
+              className="mt-2 self-start rounded-lg border border-[#8C6825] bg-bg-elevated px-2.5 py-1.5 text-[11px] font-semibold text-text-primary transition hover:border-[#D4AF37]"
             >
               Use
             </button>

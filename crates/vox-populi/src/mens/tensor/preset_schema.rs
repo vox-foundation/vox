@@ -65,7 +65,8 @@ pub const DEFAULT_PRESET: &str = "4080";
 /// are unaffected.
 pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 
-/// Size classes on the REAL Qwen3 dense ladder (0.6/8/14/32B).
+/// Size classes on the REAL Qwen3 dense ladder (0.6/1.7/4/8/14/32B). 1.7B and 4B
+/// got their classes with their presets in Phase 318 (SIZE-02).
 ///
 /// The previous classes matched 0.8b/2b/4b/9b — NONE of which exist on the real
 /// ladder, so the OOM safety clamps in [`apply_qwen_size_ladder_policy`] never fired.
@@ -74,6 +75,10 @@ pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 enum QwenSizeClass {
     /// ~0.6B — CPU / dev smoke tier.
     S0p6,
+    /// ~1.7B — 6 GB class.
+    S1p7,
+    /// ~4B — 10-12 GB class.
+    S4,
     /// ~8B — 16 GB tier (RTX 4080 Super).
     S8,
     /// ~14B — 24/48 GB tier.
@@ -84,25 +89,33 @@ enum QwenSizeClass {
 }
 
 fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
-    let m = model_hint?.to_ascii_lowercase();
-    if !m.contains("qwen") {
-        return None;
-    }
-    // Order matters: match the larger, more specific tokens first so "14b" is not
-    // shadowed by a substring match, and so "0.6b" is not mistaken for "6b".
-    if m.contains("32b") {
-        return Some(QwenSizeClass::S32);
-    }
-    if m.contains("14b") {
-        return Some(QwenSizeClass::S14);
-    }
-    if m.contains("0.6b") {
-        return Some(QwenSizeClass::S0p6);
-    }
-    if m.contains("8b") {
-        return Some(QwenSizeClass::S8);
-    }
-    Some(QwenSizeClass::Other)
+    let hint = model_hint?;
+    // Classify on the model name only. A revision's hex can contain 8b/14b/32b
+    // (the 1.7B and 4B pins both contain 8b), whether it follows `@` or is an
+    // HF-cache `models--Org--Name/snapshots/<rev>` path segment. Hex never
+    // contains "qwen", so the last segment naming qwen is the model name; strip
+    // `@rev` from that segment only, since a parent directory may contain `@`.
+    let segment = hint
+        .rsplit(['/', '\\'])
+        .find(|s| s.to_ascii_lowercase().contains("qwen"))?;
+    let name = segment.split_once('@').map_or(segment, |(name, _)| name);
+    let params = crate::mens::tensor::memory_budget::params_b_from_model_hint(name);
+    let near = |b: f64| params.is_some_and(|p| (p - b).abs() < 0.05);
+    Some(if near(32.0) {
+        QwenSizeClass::S32
+    } else if near(14.0) {
+        QwenSizeClass::S14
+    } else if near(8.0) {
+        QwenSizeClass::S8
+    } else if near(4.0) {
+        QwenSizeClass::S4
+    } else if near(1.7) {
+        QwenSizeClass::S1p7
+    } else if near(0.6) {
+        QwenSizeClass::S0p6
+    } else {
+        QwenSizeClass::Other
+    })
 }
 
 fn apply_qwen_size_ladder_policy(
@@ -127,7 +140,7 @@ fn apply_qwen_size_ladder_policy(
             }
             p.grad_accum = p.grad_accum.max(4);
         }
-        QwenSizeClass::S8 => {
+        QwenSizeClass::S1p7 | QwenSizeClass::S4 | QwenSizeClass::S8 => {
             // 16 GB-tier default rung: keep current 4080-class defaults; enforce safe floors.
             p.batch_size = p.batch_size.max(1);
             p.grad_accum = p.grad_accum.max(8);
@@ -360,7 +373,7 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             warmup: 10,
             lr: 1e-4,
         },
-        "qwen3_16g" => TrainPresetProfile {
+        "qwen3_6g" | "qwen3_12g" | "qwen3_16g" => TrainPresetProfile {
             rank: 16,
             alpha: 32.0,
             seq_len: 512,
@@ -434,6 +447,7 @@ pub fn load_registry() -> Option<serde_yaml::Value> {
 /// Metal `"auto"` (including the omitted-preset default) fails closed when
 /// live-available memory is below 6 GiB or unknown — it does not silently
 /// fall through to `qwen3_dev_cpu`.
+#[inline(never)]
 pub fn resolve_effective_profile(
     preset: Option<&str>,
     device: DeviceProfile,
@@ -451,6 +465,7 @@ pub fn resolve_effective_profile(
         DEFAULT_PRESET
     };
     let name = normalize_preset_name(preset.or(env_p).unwrap_or(default_for_device));
+    let preset_named = preset.or(env_p).is_some() && name != "auto";
 
     let mut p = if name == "auto" {
         if kind == AcceleratorKind::Metal {
@@ -552,6 +567,7 @@ pub fn resolve_effective_profile(
     }
 
     if let Some(class) = detect_qwen_size_class(model_hint) {
+        let preset_shape = (p.batch_size, p.grad_accum);
         p = apply_qwen_size_ladder_policy(
             p,
             class,
@@ -559,6 +575,11 @@ pub fn resolve_effective_profile(
             model_hint,
             overrides.batch_size,
         );
+        // The 0.6B rung only raises batch/accum; a named preset (CLI, env, or the
+        // size pick's own rung preset) already carries the shape it wants.
+        if class == QwenSizeClass::S0p6 && preset_named {
+            (p.batch_size, p.grad_accum) = preset_shape;
+        }
         // The ladder's seq_len/grad_accum floors are defaults for the unset
         // case (same rule as batch_size): an explicit flag wins.
         if let Some(s) = overrides.seq_len {
@@ -733,6 +754,38 @@ mod preset_tests {
         );
     }
 
+    /// S2: the size pick adopted `qwen3_dev_cpu` (batch 1, accum 1) for 0.6B and the
+    /// 0.6B ladder rung raised it to batch 2 / accum 4. A named preset keeps its own.
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn a_named_preset_keeps_its_batch_and_accum_on_the_0_6b_rung() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var(
+                "VOX_BASE_MODEL",
+                "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+            );
+        }
+        let dev = DeviceProfile::from_gpu_info("Apple M4 Max", 110_101, "apple");
+        let overrides = CliOverrides {
+            seq_len: Some(3072),
+            ..CliOverrides::default()
+        };
+        let named = resolve_effective_profile(Some("qwen3_dev_cpu"), dev.clone(), None, overrides);
+        let auto = resolve_effective_profile(Some("auto"), dev, None, CliOverrides::default());
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+        let named = named.expect("profile");
+        assert_eq!(
+            (named.batch_size, named.grad_accum, named.seq_len),
+            (1, 1, 3072)
+        );
+        // "auto" still gets the rung's raises (qwen3_16g's accum 8 already >= 4).
+        assert_eq!(auto.expect("profile").batch_size, 2);
+    }
+
     #[test]
     #[serial(vox_base_model_env)]
     fn test_prosumer_16g_preset_resolves() {
@@ -748,10 +801,9 @@ mod preset_tests {
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default())
                 .expect("profile");
         assert_eq!(profile.seq_len, 384);
-        // The 0.6B rung raises the *default* micro-batch to >= 2
-        // (`apply_qwen_size_ladder_policy`, QwenSizeClass::S0p6); only an explicit
-        // `--batch-size` keeps the preset's 1.
-        assert_eq!(profile.batch_size, 2);
+        // A named preset keeps its own batch/accum: the 0.6B rung's raises
+        // (`apply_qwen_size_ladder_policy`, QwenSizeClass::S0p6) apply to "auto" only.
+        assert_eq!(profile.batch_size, 1);
         assert_eq!(profile.grad_accum, 8);
         #[allow(unsafe_code)]
         unsafe {
@@ -812,6 +864,8 @@ mod qwen3_preset_tests {
     fn known_presets_contains_all_qwen3_tiers() {
         for name in &[
             "qwen3_dev_cpu",
+            "qwen3_6g",
+            "qwen3_12g",
             "qwen3_16g",
             "qwen3_24g",
             "qwen3_48g",
@@ -823,6 +877,12 @@ mod qwen3_preset_tests {
                 name
             );
         }
+    }
+
+    #[test]
+    fn new_ladder_presets_share_the_16g_profile() {
+        assert_eq!(base_for_name("qwen3_6g"), base_for_name("qwen3_16g"));
+        assert_eq!(base_for_name("qwen3_12g"), base_for_name("qwen3_16g"));
     }
 
     #[test]
@@ -840,13 +900,21 @@ mod qwen3_preset_tests {
     #[test]
     fn each_real_rung_maps_to_a_size_class() {
         // DEFAULTS F2: the size-class matcher must recognize every rung on the REAL
-        // dense ladder (0.6/8/14/32B). Previously it matched 0.8b/2b/4b/9b — none on
-        // the ladder — so the OOM safety clamps never fired.
+        // dense ladder (0.6/1.7/4/8/14/32B). Previously it matched 0.8b/2b/4b/9b —
+        // none on the ladder — so the OOM safety clamps never fired.
         use super::QwenSizeClass;
         let cases = [
             (
                 "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
                 QwenSizeClass::S0p6,
+            ),
+            (
+                "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+                QwenSizeClass::S1p7,
+            ),
+            (
+                "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+                QwenSizeClass::S4,
             ),
             (
                 "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
@@ -867,6 +935,57 @@ mod qwen3_preset_tests {
                 got,
                 Some(expected),
                 "real rung {id} must map to {expected:?}, got {got:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn size_class_ignores_the_pinned_revision_text() {
+        use super::QwenSizeClass;
+        for (id, expected) in [
+            (
+                "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+                QwenSizeClass::S1p7,
+            ),
+            (
+                "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+                QwenSizeClass::S4,
+            ),
+            (
+                "Qwen/Qwen3-0.6B@32b0000000000000000000000000000000000000",
+                QwenSizeClass::S0p6,
+            ),
+            // HF-cache snapshot paths: the revision is a path segment, and both
+            // real pins contain `8b`.
+            (
+                "/hf/hub/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+                QwenSizeClass::S1p7,
+            ),
+            (
+                "/hf/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c",
+                QwenSizeClass::S4,
+            ),
+            (
+                "/hf/hub/models--Qwen--Qwen3-8B/snapshots/14b32b0000000000000000000000000000000000",
+                QwenSizeClass::S8,
+            ),
+            (
+                r"C:\hf\hub\models--Qwen--Qwen3-14B\snapshots\8b00000000000000000000000000000000000000",
+                QwenSizeClass::S14,
+            ),
+            (
+                "/models/qwen3-0.6b-finetune/checkpoint-32b",
+                QwenSizeClass::S0p6,
+            ),
+            (
+                "/home/a@b/hf/models--Qwen--Qwen3-14B/snapshots/8b00000000000000000000000000000000000000",
+                QwenSizeClass::S14,
+            ),
+        ] {
+            assert_eq!(
+                super::detect_qwen_size_class(Some(id)),
+                Some(expected),
+                "{id}"
             );
         }
     }

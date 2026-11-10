@@ -342,7 +342,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         data-testid="approvals-security-deck"
         className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
       >
-        <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
+        <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
           <div className="flex items-center justify-between">
             <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Active Gate Mode</span>
             <RomanWaxSealBadge label={permissionMode.replace(/_/g, ' ')} tone="gold" />
@@ -352,7 +352,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
           </p>
         </div>
 
-        <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
+        <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
           <div className="flex items-center justify-between">
             <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Authenticated Wire</span>
             <RomanWaxSealBadge label="DispatchRequest" tone="emerald" />
@@ -362,7 +362,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
           </p>
         </div>
 
-        <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
+        <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
           <div className="flex items-center justify-between">
             <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Allowlist Guard</span>
             <RomanWaxSealBadge label={`${approvals.length} queued`} tone={approvals.length > 0 ? 'crimson' : 'emerald'} />
@@ -373,43 +373,43 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         </div>
       </div>
 
-      <div className="rounded-xl border border-[#D4AF37]/35 bg-[#16120C] p-3.5">
+      <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
         <div className="mb-2.5 flex items-center justify-between">
-          <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">
+          <span className="font-display text-[10px] tracking-widest text-brass uppercase">
             Tool Capability Risk Classification Matrix
           </span>
-          <span className="rounded border border-[#D4AF37]/25 bg-[#1F170F] px-2 py-0.5 font-mono text-[10px] text-[#D6CEBF]">
+          <span className="rounded border border-[#D4AF37]/25 bg-bg-elevated px-2 py-0.5 font-mono text-[10px] text-text-secondary">
             contracts/terminal/exec-policy.v1.yaml
           </span>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-4 text-[11px]">
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-emerald-300">read_only</span>
-              <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[9px] text-emerald-300">AUTO</span>
+              <span className="font-mono text-[10px] text-emerald-600">read_only</span>
+              <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[9px] text-emerald-600">AUTO</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_search_query, vox_skill_list</div>
+            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_search_query, vox_skill_list</div>
           </div>
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-[#F3E5AB]">writes_files</span>
-              <span className="rounded border border-[#D4AF37]/40 bg-[#78350F]/20 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">ACCEPT EDITS</span>
+              <span className="font-mono text-[10px] text-text-primary">writes_files</span>
+              <span className="rounded border border-[#D4AF37]/40 bg-[#78350F]/20 px-1.5 py-0.5 font-mono text-[9px] text-text-primary">ACCEPT EDITS</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_patch, vox_plan_resume</div>
+            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_patch, vox_plan_resume</div>
           </div>
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-amber-300">shell_exec</span>
-              <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[9px] text-amber-300">ASK GATE</span>
+              <span className="font-mono text-[10px] text-amber-600">shell_exec</span>
+              <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[9px] text-amber-600">ASK GATE</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_run_shell, vox_mesh_dispatch</div>
+            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_run_shell, vox_mesh_dispatch</div>
           </div>
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-[#1F170F] p-2.5">
+          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-rose-300">policy_mutation</span>
-              <span className="rounded border border-rose-400/30 bg-rose-400/10 px-1.5 py-0.5 font-mono text-[9px] text-rose-300">ALWAYS HITL</span>
+              <span className="font-mono text-[10px] text-rose-600">policy_mutation</span>
+              <span className="rounded border border-rose-400/30 bg-rose-400/10 px-1.5 py-0.5 font-mono text-[9px] text-rose-600">ALWAYS HITL</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-[#D6CEBF]">vox_add_approval_allowlist_entry</div>
+            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_add_approval_allowlist_entry</div>
           </div>
         </div>
       </div>

@@ -3,6 +3,8 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
+pub const REPO_DRIFT_CACHE_DIR: &str = ".vox/cache/drift";
+
 pub struct FeatureCache {
     dir: PathBuf,
 }
@@ -22,7 +24,7 @@ impl FeatureCache {
         } else {
             root
         };
-        Self::new(workspace_root.join(vox_config::paths::REPO_DRIFT_CACHE_DIR))
+        Self::new(workspace_root.join(REPO_DRIFT_CACHE_DIR))
     }
 
     pub fn hash_file(content: &str) -> String {

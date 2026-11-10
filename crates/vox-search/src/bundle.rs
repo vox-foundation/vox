@@ -23,6 +23,7 @@ pub enum RetrievalTriggerMode {
 ///
 /// `AutoChatPreamble` always excludes Untrusted hits (D-03, WR-08), whatever policy the caller
 /// passed; the Tavily CRAG leg does not fire under that exclusion (CR-01).
+#[inline(never)]
 pub async fn run_search_with_verification(
     ctx: &SearchRuntimeContext,
     query: &str,

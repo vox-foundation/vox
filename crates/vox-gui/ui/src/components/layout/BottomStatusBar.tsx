@@ -52,15 +52,15 @@ export interface BottomStatusBarProps {
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
   if (tone === 'live') {
     return {
-      pill: 'border-(--color-status-pass)/20 bg-(--color-status-pass)/4 text-(--color-status-pass)',
-      dot: 'bg-(--color-status-pass)',
+      pill: 'border-(--color-status-pass)/55 bg-(--color-status-pass)/12 text-(--color-status-pass) font-semibold',
+      dot: 'bg-(--color-status-pass) ring-1 ring-brass/80',
       label: 'Live',
       title: 'Live: receiving engine events',
     };
   }
   if (tone === 'poll') {
     return {
-      pill: 'border-(--color-status-warn)/20 bg-(--color-status-warn)/4 text-(--color-status-warn)',
+      pill: 'border-(--color-status-warn)/35 bg-(--color-status-warn)/10 text-(--color-status-warn) font-semibold',
       dot: 'bg-(--color-status-warn)',
       label: 'Poll',
       title: 'Polling: no event stream, refreshing on a timer',

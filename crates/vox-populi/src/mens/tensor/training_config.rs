@@ -182,6 +182,10 @@ pub struct LoraTrainingConfig {
     /// `VOX_MENS_GC_SEGMENTS`.
     #[serde(default)]
     pub gradient_checkpointing: bool,
+    /// Local run cap in seconds, measured from the first training step; checked at
+    /// optimizer-step boundaries. Metal only; the CUDA plugin ignores it.
+    #[serde(default)]
+    pub max_runtime_secs: Option<u64>,
 }
 
 impl Default for LoraTrainingConfig {
@@ -238,6 +242,7 @@ impl Default for LoraTrainingConfig {
             reward_hook: None,
             launch_argv: Vec::new(),
             gradient_checkpointing: false,
+            max_runtime_secs: None,
         }
     }
 }
@@ -467,6 +472,13 @@ mod semcov_wave26_tests {
             back.chatml.role_user, "human",
             "chatml must survive serde roundtrip"
         );
+    }
+
+    #[test]
+    fn default_config_serializes_max_runtime_secs() {
+        // The plugin reads the cap by this wire name; an uncapped run sends null.
+        let v = serde_json::to_value(LoraTrainingConfig::default()).unwrap();
+        assert_eq!(v.get("max_runtime_secs"), Some(&serde_json::Value::Null));
     }
 
     // ── CurriculumSchedule ───────────────────────────────────────────────────

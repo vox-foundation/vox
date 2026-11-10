@@ -69,13 +69,13 @@ function SessionRow({
     <div role="tab" aria-selected={isActive}
          onClick={() => onSessionChange(s.session_id)}
          onDoubleClick={() => setEditing(true)}
-         className={`flex items-center justify-between rounded-md px-2 py-1 text-[11px] cursor-pointer transition group ${
+         className={`flex items-start justify-between gap-1.5 rounded-md px-2 py-1.5 text-[11px] leading-snug cursor-pointer transition group ${
            isActive
-             ? 'border-l-2 border-brass bg-brass/12 text-brass font-medium'
+             ? 'border-l-2 border-brass bg-brass/12 text-brass font-medium shadow-2xs'
              : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
          }`}>
-      <span title={s.title} className="line-clamp-2 wrap-break-word">{s.title}</span>
-      <span className="flex items-center gap-1 shrink-0">
+      <span title={s.title} className="min-w-0 flex-1 line-clamp-2 wrap-break-word">{s.title}</span>
+      <span className="mt-0.5 flex items-center gap-1 shrink-0">
         {hasPendingIssue && (
           <span
             data-testid={`session-issue-badge-${s.session_id}`}

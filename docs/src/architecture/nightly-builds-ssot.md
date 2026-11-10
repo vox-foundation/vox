@@ -1,6 +1,6 @@
 ---
 title: "Nightly Builds"
-description: "How the nightly release-pipeline exercise runs, and why the repo has no automatic public nightly release."
+description: "How the nightly release-pipeline exercise and three-tier CI/CD nightly verification suites run, and why the repo has no automatic public nightly release."
 category: "Architecture SSOTs"
 status: "current"
 ---
@@ -26,6 +26,18 @@ published`, so `bundle-release.yml` cannot fan out from it, and — because a
 draft release does not create the underlying git tag ref until published —
 no tag-push event fires either. Nothing in the workflow calls `gh release
 edit`/`publish`, deletes a release, or pushes a tag.
+
+## Three-Tier CI/CD & Scheduled Nightly Architecture
+
+Vox separates repository verification into three tiers so inner-loop developer feedback stays under 15 seconds while scheduled nightly workflows run exhaustive cross-OS, feature-matrix, and mutation suites:
+
+| Tier | Surface | Entrypoint | Target Budget | Scope |
+|---|---|---|---|---|
+| **Tier 1: Local Inner-Loop Gate** | Git `pre-push` hook | `vox ci pre-push` | `< 15s` (measured `~1.1s`) | Path-scoped to `git diff` against merge-base (`origin/main`). Runs dirty-only `rustfmt --check`, read-only `line-endings` (`autofix = false`), conditional `ssot-drift`, workflow guards, dirty-only `vox-doc-pipeline --lint-only`, dirty-only `doctest-md`, and affected-crate `vox-drift-check`. |
+| **Tier 2: Pull Request Merge Gate** | `.github/workflows/ci.yml` | `vox ci pre-push --ci` | `< 10m` | Full workspace static verification (`retired-symbol-check`, `canonical-map-verify`, `vox kb eval --gate`, `legacy-Mermaid` ratchet, workspace `rustfmt`), affected-crate tests (`vox ci affected-crates`), and Linux build check. Redundant `pull_request:` triggers were removed from `compile-matrix.yml`. |
+| **Tier 3: Scheduled Nightly Suites** | `.github/workflows/*nightly*.yml` & `local-ci` | `local-ci nightly` | Scheduled (02:00–06:00 UTC) | Exhaustive multi-OS compilation (`cross-platform-check.yml`), feature-powerset checks (`nightly.yml`), strict rustdoc, Miri, Cargo Deny, Semver checks on `crates/_public.toml`, GUI cross-OS tests (`gui-cross-build.yml`), live/offline harness eval (`harness-eval-nightly.yml`), mutation testing (`mutation-nightly.yml`), link checking (`link_checker.yml`), and multi-target release artifact builds (`nightly-artifacts.yml`). |
+
+Machine-readable end-to-end remediation and verification proof for all seven scheduled nightly workflows is recorded in `contracts/reports/nightly-e2e-run-proof.v1.json`.
 
 ## History: the removed `nightly-tag.yml`
 

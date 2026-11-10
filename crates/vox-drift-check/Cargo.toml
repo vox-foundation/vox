@@ -1,9 +1,13 @@
 [package]
 name = "vox-drift-check"
+description = "Workspace-wide multi-language drift and pattern-repetition linter"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Workspace-wide multi-language drift and pattern-repetition linter"
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [[bin]]
 name = "vox-drift-check"
@@ -12,8 +16,6 @@ path = "src/bin/vox_drift_check.rs"
 [dependencies]
 hex = { workspace = true }
 vox-code-audit   = { workspace = true }
-vox-compiler     = { workspace = true }
-vox-config       = { workspace = true }
 syn              = { workspace = true, features = ["full", "visit", "extra-traits"] }
 proc-macro2      = { workspace = true, features = ["span-locations"] }
 rayon            = { workspace = true }
@@ -33,7 +35,6 @@ swc_ecma_parser  = { workspace = true, optional = true }
 swc_ecma_ast     = { workspace = true, optional = true }
 swc_ecma_visit   = { workspace = true, optional = true }
 swc_common       = { workspace = true, optional = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [features]
 drift-typescript = ["dep:swc_ecma_parser", "dep:swc_ecma_ast", "dep:swc_ecma_visit", "dep:swc_common"]

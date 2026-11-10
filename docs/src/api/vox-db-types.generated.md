@@ -45,6 +45,7 @@ resolves the same as `vox_db_types::SaveSnippetParams`.
 | `circuit` | Circuit-breaker state enum (`CircuitState`) for `vox_db::circuit_breaker`. |
 | `workspace_journey` | Workspace-journey store mode enum (`WorkspaceJourneyStoreMode`). |
 | `exec_time` | Execution time telemetry types (`ExecOutcome`, `ExecTimeRecord`, `ToolLatencyProfile`). |
+| `hash` | Hashing utilities (`content_hash`). |
 | `eval_params` | Parameters for [`crate::EvalRunParams`] (RLHF / dogfood eval-run recording). |
 | `store_types` | Request parameters, row shapes, and MENS observation/training types (formerly `vox_db::store::types::*`). |
 | `research` | SCIENTIA / research-session row DTOs. |
@@ -66,6 +67,8 @@ graph {
     node vox_db_types: "vox-db-types"
     node vox_db: "vox-db"
     vox_db -> vox_db_types
+    node vox_package: "vox-package"
+    vox_package -> vox_db_types
     node vox_scientia: "vox-scientia"
     vox_scientia -> vox_db_types
 }
@@ -76,19 +79,21 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-package`](./vox-package.generated.md) | Direct workspace dependent |
 | [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `type` | `MemoryParams` | `pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>` | [`crates/vox-db-types/src/lib.rs#L44`](../../../crates/vox-db-types/src/lib.rs#L44) | Alias kept for back-compat (`vox_db::MemoryParams`). |
+| `type` | `MemoryParams` | `pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>` | [`crates/vox-db-types/src/lib.rs#L48`](../../../crates/vox-db-types/src/lib.rs#L48) | Alias kept for back-compat (`vox_db::MemoryParams`). |
 | `enum` | `circuit::CircuitState` | `pub enum CircuitState` | [`crates/vox-db-types/src/circuit.rs#L12-L19`](../../../crates/vox-db-types/src/circuit.rs#L12-L19) | Three states a circuit breaker can be in. |
 | `struct` | `eval_params::EvalRunParams` | `pub struct EvalRunParams<'a>` | [`crates/vox-db-types/src/eval_params.rs#L5-L22`](../../../crates/vox-db-types/src/eval_params.rs#L5-L22) | Parameters for `vox_db::VoxDb::record_eval_run`. |
 | `struct` | `exec_time::ExecTimeRecord` | `pub struct ExecTimeRecord<'a>` | [`crates/vox-db-types/src/exec_time.rs#L9-L21`](../../../crates/vox-db-types/src/exec_time.rs#L9-L21) | Write-path record for one execution observation. |
 | `enum` | `exec_time::ExecOutcome` | `pub enum ExecOutcome` | [`crates/vox-db-types/src/exec_time.rs#L24-L28`](../../../crates/vox-db-types/src/exec_time.rs#L24-L28) | — |
 | `fn` | `exec_time::as_str` | `pub fn as_str(self) -> &'static str` | [`crates/vox-db-types/src/exec_time.rs#L31-L37`](../../../crates/vox-db-types/src/exec_time.rs#L31-L37) | — |
 | `struct` | `exec_time::ToolLatencyProfile` | `pub struct ToolLatencyProfile` | [`crates/vox-db-types/src/exec_time.rs#L42-L54`](../../../crates/vox-db-types/src/exec_time.rs#L42-L54) | Historical latency profile returned by `vox_db::VoxDb::query_tool_latency`. |
+| `fn` | `hash::content_hash` | `pub fn content_hash(data: &[u8]) -> String` | [`crates/vox-db-types/src/hash.rs#L6-L11`](../../../crates/vox-db-types/src/hash.rs#L6-L11) | Compute a SHA3-512 hash of the given data, returning Base32Hex-encoded string. |
 | `struct` | `ids::$name` | `pub struct $name(pub String)` | [`crates/vox-db-types/src/ids.rs#L14`](../../../crates/vox-db-types/src/ids.rs#L14) | — |
 | `fn` | `ids::new` | `pub fn new(s: impl Into<String>) -> Self` | [`crates/vox-db-types/src/ids.rs#L17`](../../../crates/vox-db-types/src/ids.rs#L17) | — |
 | `fn` | `ids::as_str` | `pub fn as_str(&self) -> &str` | [`crates/vox-db-types/src/ids.rs#L18`](../../../crates/vox-db-types/src/ids.rs#L18) | — |
@@ -126,5 +131,4 @@ graph {
 | `enum` | `retrieval::RetrievalMode` | `pub enum RetrievalMode` | [`crates/vox-db-types/src/retrieval.rs#L42-L49`](../../../crates/vox-db-types/src/retrieval.rs#L42-L49) | How a [`RetrievalQuery`] should be interpreted upstream. |
 | `struct` | `retrieval::RetrievalQuery` | `pub struct RetrievalQuery` | [`crates/vox-db-types/src/retrieval.rs#L53-L62`](../../../crates/vox-db-types/src/retrieval.rs#L53-L62) | Inputs for a retrieval request (caller maps to concrete SQL or RPC). |
 | `enum` | `retrieval::SearchIntent` | `pub enum SearchIntent` | [`crates/vox-db-types/src/retrieval.rs#L78-L90`](../../../crates/vox-db-types/src/retrieval.rs#L78-L90) | What kind of information need is being served by the current search. |
-| `enum` | `retrieval::SearchCorpus` | `pub enum SearchCorpus` | [`crates/vox-db-types/src/retrieval.rs#L95-L105`](../../../crates/vox-db-types/src/retrieval.rs#L95-L105) | Logical corpora that the search planner can target. |
 

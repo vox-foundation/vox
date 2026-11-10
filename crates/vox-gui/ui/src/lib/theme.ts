@@ -8,13 +8,31 @@
 // `arcane` is the default look and must stay byte-identical to the historical
 // fixed gold (#d4af37).
 
-export type ThemeId = 'arcane' | 'void' | 'glacier' | 'high-contrast';
+export type ThemeId = 'arcane' | 'slate' | 'void' | 'glacier' | 'travertine' | 'high-contrast';
 
-const KNOWN: ReadonlySet<string> = new Set(['arcane', 'void', 'glacier', 'high-contrast']);
+const KNOWN: ReadonlySet<string> = new Set([
+  'arcane',
+  'slate',
+  'void',
+  'glacier',
+  'travertine',
+  'high-contrast',
+]);
 
 /** Normalize an arbitrary preference value to a known theme id, defaulting to 'arcane'. */
 export function normalizeTheme(theme: string | null | undefined): ThemeId {
   return theme && KNOWN.has(theme) ? (theme as ThemeId) : 'arcane';
+}
+
+/** True when the active theme is a dark / minimalist mode ('slate', 'void', or 'high-contrast'). */
+export function isMinimalistDarkTheme(theme: string | null | undefined): boolean {
+  const id = normalizeTheme(theme);
+  return id === 'slate' || id === 'void' || id === 'high-contrast';
+}
+
+/** True when the active theme uses a dark background palette. */
+export function isDarkTheme(theme: string | null | undefined): boolean {
+  return isMinimalistDarkTheme(theme);
 }
 
 /**

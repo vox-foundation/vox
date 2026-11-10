@@ -6,6 +6,7 @@ use vox_forge::GitForgeProvider;
 use vox_forge::github::GitHubProvider;
 use vox_forge::types::{NewDiscussionOrIssue, NewRelease};
 
+#[inline(never)]
 pub async fn post(
     publisher_cfg: &PublisherConfig,
     token: &str,

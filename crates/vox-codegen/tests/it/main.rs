@@ -2,14 +2,19 @@
 //! Test names keep their file as a module prefix: it::<file>::<test>.
 mod ai_fixture_ts_diagnostic;
 mod back_button_test;
+mod bug_a_match_arms_repro;
+mod bug_d_imports_repro;
 mod component_registry_sync;
 mod const_emit_test;
 mod db_app_lib_emit;
 mod deep_link_test;
 mod deprecated_emit_test;
 mod emit_unsupported_expr_test;
+mod forbidden_corpus_test;
 mod frontend_backend;
 mod frontend_coverage_ledger;
+mod golden_props_test;
+mod golden_vox_examples_test;
 mod if_expr_emit_test;
 mod jsx_conditional_emit;
 mod list_hof_emit_test;
@@ -21,6 +26,7 @@ mod property_tests;
 mod push_test;
 mod rate_limit_emit_test;
 mod regex_string_literal_emit;
+mod scaffold_idempotent_test;
 mod spawn_workflow_emit_test;
 mod tauri_endpoint_client_parity_test;
 mod traced_fn_emit;

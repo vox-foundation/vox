@@ -27,8 +27,7 @@ use vox_config::AutoRoutingPriority;
 use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
 
 pub use super::auto_select::{
-    AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
-    select_optimal_local_model_for_host,
+    AutoModelSelection, select_for_free_memory, select_optimal_local_model_for_host,
 };
 
 // ─── Canonical request/response (SSOT API) ─────────────────────────────────
@@ -116,6 +115,7 @@ impl ModelSelectionRequest {
 
 /// Canonical selector entry point with structured decision envelope.
 #[must_use]
+#[inline(never)]
 pub fn decide(
     request: &ModelSelectionRequest,
     registry: &ModelRegistry,
@@ -844,6 +844,7 @@ pub fn select(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<Sele
 /// directly rather than via the process global — and by tests). Falls through
 /// to the pre-existing cascade when the policy yields nothing.
 #[must_use]
+#[inline(never)]
 pub fn select_with_policy(
     intent: &SelectionIntent,
     registry: &ModelRegistry,

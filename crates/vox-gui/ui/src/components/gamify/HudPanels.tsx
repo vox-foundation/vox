@@ -86,7 +86,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
     return (
       <div
         data-testid="urbs-hud-embedded"
-        className="flex items-center gap-2 rounded-lg border border-[#D4AF37]/50 bg-linear-to-r from-[#18130D]/95 via-[#1F1810]/95 to-[#18130D]/95 px-2.5 py-1 text-[10px] text-[#F3E5AB] pointer-events-auto select-none shadow-[0_6px_18px_rgba(0,0,0,0.75)]"
+        className="vox-marble-tablet flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar rounded-lg border border-[#C59B27]/85 bg-linear-to-r from-[#FAF6EE]/96 via-[#F3ECE0]/96 to-[#EAE0CC]/96 px-2 py-0.5 text-[9px] text-[#1C140C] pointer-events-auto select-none shadow-[0_4px_12px_rgba(28,20,12,0.22),inset_0_1px_0_rgba(255,255,255,0.92)]"
       >
         <RomanTooltip
           title="Session Budget Spend"
@@ -96,11 +96,11 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
           <button
             type="button"
             onClick={() => onNavigate?.('vox-cost-analytics')}
-            className="flex items-center gap-1.5 border-r border-[#D4AF37]/25 pr-2 hover:text-white transition"
+            className="flex shrink-0 items-center gap-1 border-r border-[#C59B27]/45 pr-1.5 hover:text-[#78520E] transition"
           >
-            <Icon.denariusCoin className="size-3 text-[#D4AF37]" aria-hidden="true" />
-            <span className="text-[#C8B99E] font-display text-[9px] uppercase tracking-wider">Budget</span>
-            <span data-testid="hud-value" className="text-[#DCE7B6] font-bold font-mono text-[10.5px]">
+            <Icon.denariusCoin className="size-2.5 text-[#8C6825]" aria-hidden="true" />
+            <span className="text-[#4A3718] font-display text-[8px] font-bold uppercase tracking-wider">Budget</span>
+            <span data-testid="hud-value" className="text-[#1B6B3A] font-bold font-mono text-[9.5px]">
               {spendText}
             </span>
           </button>
@@ -114,41 +114,38 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
           <button
             type="button"
             onClick={() => onNavigate?.('vox-Ludus-view')}
-            className="flex items-center gap-1.5 border-r border-[#D4AF37]/25 pr-2 hover:text-white transition"
+            className="flex shrink-0 items-center gap-1 border-r border-[#C59B27]/45 pr-1.5 hover:text-[#78520E] transition"
           >
-            <Icon.brazierTorch className="size-3 text-amber-400" aria-hidden="true" />
-            <span className="text-[#C8B99E] font-display text-[9px] uppercase tracking-wider">Energy</span>
-            <span data-testid="hud-energy" className="text-[#F3E5AB] font-bold font-mono text-[10.5px]">
+            <Icon.brazierTorch className="size-2.5 text-[#92400E]" aria-hidden="true" />
+            <span className="text-[#4A3718] font-display text-[8px] font-bold uppercase tracking-wider">Energy</span>
+            <span data-testid="hud-energy" className="text-[#1C140C] font-bold font-mono text-[9.5px]">
               {energy}/{maxEnergy}
             </span>
           </button>
         </RomanTooltip>
 
-        <div className="flex items-center gap-1">
-          <span className="text-[#C8B99E] font-display text-[9px] uppercase tracking-wider">Speed</span>
-          <div className="flex items-center gap-0.5">
-            {[0, 1, 3].map((s) => (
-              <RomanTooltip
-                key={s}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {[0, 1, 3].map((s) => (
+            <RomanTooltip
+              key={s}
+              title={s === 0 ? 'Pause simulation' : `${s}x speed`}
+              purpose={s === 0 ? 'Pause map animations and particle flow.' : `Run workspace map activity animations at ${s}x speed.`}
+              actionHint={`Click to set animation speed to ${s}x`}
+            >
+              <button
+                type="button"
                 title={s === 0 ? 'Pause simulation' : `${s}x speed`}
-                purpose={s === 0 ? 'Pause map animations and particle flow.' : `Run workspace map activity animations at ${s}x speed.`}
-                actionHint={`Click to set animation speed to ${s}x`}
+                onClick={() => onSetSpeed(s)}
+                className={`px-1 py-0.5 rounded font-mono text-[8.5px] transition-colors ${
+                  currentSpeed === s
+                    ? 'border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C] font-bold'
+                    : 'border border-[#C59B27]/55 bg-[#FAF6EE] text-[#3B2A18] hover:border-[#8C6825] hover:bg-[#EFE6D5]'
+                }`}
               >
-                <button
-                  type="button"
-                  title={s === 0 ? 'Pause simulation' : `${s}x speed`}
-                  onClick={() => onSetSpeed(s)}
-                  className={`px-1.5 py-0.5 rounded font-mono text-[9.5px] transition-colors ${
-                    currentSpeed === s
-                      ? 'border border-[#D4AF37] bg-[#3A2C14] text-[#F3E5AB] font-semibold'
-                      : 'border border-[#3A3022] bg-[#120E09] text-[#B8A88A] hover:border-[#D4AF37]/50 hover:text-[#F3E5AB]'
-                  }`}
-                >
-                  {s}x
-                </button>
-              </RomanTooltip>
-            ))}
-          </div>
+                {s}x
+              </button>
+            </RomanTooltip>
+          ))}
         </div>
       </div>
     );
@@ -159,11 +156,11 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
       data-testid="urbs-stone-telemetry-console"
       style={{
         backgroundImage:
-          'linear-gradient(180deg, rgba(28,22,14,0.96) 0%, rgba(14,11,7,0.98) 100%), url(/assets/romanesque/marble-frieze-banner.jpg)',
+          'linear-gradient(180deg, rgba(250,246,238,0.96) 0%, rgba(238,228,210,0.96) 100%), url(/assets/romanesque/carrara-acanthus-header-band.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
-      className="flex flex-nowrap items-center gap-1.5 rounded-xl border-2 border-[#D4AF37]/65 px-2 py-0.5 text-xs text-[#F3E5AB] pointer-events-auto select-none whitespace-nowrap shadow-[0_12px_32px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(243,229,171,0.3)]"
+      className="vox-marble-tablet flex flex-nowrap items-center gap-1.5 rounded-xl border-2 border-[#C59B27] px-2 py-0.5 text-xs text-[#1C140C] pointer-events-auto select-none whitespace-nowrap shadow-[0_8px_22px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.92)]"
     >
       {/* Gauge 1: Budget Spend */}
       <div className="relative">
@@ -191,12 +188,12 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
       {/* Column divider I: subtle carved stone pillar with Roman numeral I */}
       <div
         data-testid="stone-column-divider-1"
-        className="flex flex-col items-center justify-center px-1.5 py-0.5 border-x border-[#D4AF37]/30 bg-gradient-to-b from-[#241E15]/70 to-[#120F0A]/70 rounded-xs select-none"
+        className="flex flex-col items-center justify-center px-1.5 py-0.5 border-x border-[#C59B27]/55 bg-gradient-to-b from-[#FAF6EE] to-[#E8DEC8] rounded-xs select-none"
         aria-hidden="true"
       >
-        <span className="font-serif text-[6.5px] text-[#8C7A5E]">▲</span>
-        <span className="font-display text-[9px] font-bold text-[#D4AF37]/70 tracking-widest">I</span>
-        <span className="font-serif text-[6.5px] text-[#8C7A5E]">▼</span>
+        <span className="font-serif text-[6.5px] text-[#78520E]">▲</span>
+        <span className="font-display text-[9px] font-bold text-[#1C140C] tracking-widest">I</span>
+        <span className="font-serif text-[6.5px] text-[#78520E]">▼</span>
       </div>
 
       {/* Gauge 2: Energy Capacity */}
@@ -226,12 +223,12 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
       {/* Column divider III: subtle carved stone pillar with Roman numeral III */}
       <div
         data-testid="stone-column-divider-3"
-        className="flex flex-col items-center justify-center px-1.5 py-0.5 border-x border-[#D4AF37]/30 bg-gradient-to-b from-[#241E15]/70 to-[#120F0A]/70 rounded-xs select-none"
+        className="flex flex-col items-center justify-center px-1.5 py-0.5 border-x border-[#C59B27]/55 bg-gradient-to-b from-[#FAF6EE] to-[#E8DEC8] rounded-xs select-none"
         aria-hidden="true"
       >
-        <span className="font-serif text-[6.5px] text-[#8C7A5E]">▲</span>
-        <span className="font-display text-[9px] font-bold text-[#D4AF37]/70 tracking-widest">III</span>
-        <span className="font-serif text-[6.5px] text-[#8C7A5E]">▼</span>
+        <span className="font-serif text-[6.5px] text-[#78520E]">▲</span>
+        <span className="font-display text-[9px] font-bold text-[#1C140C] tracking-widest">III</span>
+        <span className="font-serif text-[6.5px] text-[#78520E]">▼</span>
       </div>
 
       {/* Gauge 3: Speed dial with compact 0x, 1x, 3x buttons */}
@@ -252,7 +249,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
           </div>
         </RomanTooltip>
         <div className="flex flex-col gap-0.5">
-          <span className="font-display text-[7.5px] uppercase tracking-wider text-[#A89878]">Clock</span>
+          <span className="font-display text-[7.5px] font-bold uppercase tracking-wider text-[#4A3718]">Clock</span>
           <div className="flex items-center gap-1">
             {[0, 1, 3].map((s) => (
               <RomanTooltip
@@ -267,8 +264,8 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
                   onClick={() => onSetSpeed(s)}
                   className={`px-1.5 py-0.5 rounded font-mono text-[9.5px] transition-all ${
                     currentSpeed === s
-                      ? 'border border-[#F3E5AB] bg-linear-to-b from-[#4A3818] to-[#241B0B] text-[#F3E5AB] font-bold shadow-[0_0_8px_rgba(212,175,55,0.4)]'
-                      : 'border border-[#3A3022] bg-[#120E09] text-[#B8A88A] hover:border-[#D4AF37]/50 hover:text-[#F3E5AB]'
+                      ? 'border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C] font-bold shadow-[0_0_8px_rgba(212,175,55,0.35)]'
+                      : 'border border-[#C59B27]/55 bg-[#FAF6EE] text-[#3B2A18] hover:border-[#8C6825] hover:bg-[#EFE6D5]'
                   }`}
                 >
                   {s}x

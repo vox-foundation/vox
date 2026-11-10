@@ -95,13 +95,14 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
   return (
     <nav
       aria-label="Breadcrumb"
+      data-roman-breadcrumb="true"
       style={{
         backgroundImage:
-          'linear-gradient(90deg, rgba(245,239,227,0.94) 0%, rgba(235,225,207,0.90) 50%, rgba(245,239,227,0.94) 100%), url(/assets/romanesque/carrara-marble-pillar-slab.jpg)',
+          'linear-gradient(90deg, rgba(250,246,238,0.95) 0%, rgba(242,233,218,0.92) 50%, rgba(250,246,238,0.95) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
-      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-[#C59B27] px-3 py-1.5 shadow-[0_4px_14px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+      className="vox-marble-tablet flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-[#C59B27] px-3 py-1.5 shadow-[0_4px_14px_rgba(28,20,12,0.2),inset_0_1px_0_rgba(255,255,255,0.92)]"
     >
       <div className="flex items-center gap-2 min-w-0">
         {segments.map((seg, i) => (
@@ -152,8 +153,8 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
                   }}
                   className={`rounded-md px-2.5 py-1 font-display text-[10px] uppercase tracking-wider transition whitespace-nowrap ${
                     isCurrent
-                      ? 'border border-[#8C6825] bg-linear-to-b from-[#2E2212] to-[#161008] text-[#F3E5AB] font-bold shadow-[0_2px_6px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(243,229,171,0.35)]'
-                      : 'border border-[#9E7B2F]/45 bg-[#FFFDF9]/80 text-[#23190E] font-semibold hover:border-[#8C6825] hover:bg-[#231B12] hover:text-[#F3E5AB]'
+                      ? 'border-1.5 border-[#9A7014] bg-linear-to-b from-[#F3E5AB] via-[#DFC878] to-[#C9A642] text-[#1C140C] font-bold shadow-[0_2px_6px_rgba(28,20,12,0.22),inset_0_1px_0_rgba(255,255,255,0.88)]'
+                      : 'border border-[#9E7B2F]/55 bg-[#FAF6EE]/95 text-[#2B1E10] font-semibold hover:border-[#8C6825] hover:bg-[#EFE6D5] hover:text-[#1C140C]'
                   }`}
                 >
                   {subLabel}

@@ -17,6 +17,7 @@ pub struct Spanned {
 /// the original file (whitespace, comments, newlines).
 ///
 /// A final [`Token::Eof`] sentinel is always appended.
+#[inline(never)]
 pub fn lex_preserving(source: &str) -> Vec<Spanned> {
     let mut result: Vec<Spanned> = Token::lexer(source)
         .spanned()
@@ -51,6 +52,7 @@ pub fn lex_preserving(source: &str) -> Vec<Spanned> {
 /// Block structure is delimited by `{` / `}` tokens — **no** synthetic
 /// `Indent`/`Dedent` tokens are emitted. Comments are stripped. A final
 /// [`Token::Eof`] sentinel is always appended.
+#[inline(never)]
 pub fn lex(source: &str) -> Vec<Spanned> {
     // Seam S: BOM-free, LF-only source so string-literal values and spans are
     // platform-independent. `lex_preserving` stays raw (formatter byte contract).

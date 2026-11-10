@@ -17,4 +17,6 @@ pub use client::ReviewClient;
 pub use formatters::{format_markdown, format_sarif, format_terminal, parse_review_response};
 pub use prompts::{build_diff_review_prompt, build_review_prompt, review_system_prompt};
 pub use providers::{ReviewProvider, auto_discover_providers};
-pub use types::{ReviewCategory, ReviewConfig, ReviewFinding, ReviewOutputFormat, ReviewResult};
+pub use types::{
+    ConfidencePolicy, ReviewCategory, ReviewConfig, ReviewFinding, ReviewOutputFormat, ReviewResult,
+};

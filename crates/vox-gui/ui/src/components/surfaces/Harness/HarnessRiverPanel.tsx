@@ -16,6 +16,7 @@ import { WaveformTierStrip } from './WaveformTierStrip';
 import { AgentTrajectoryBraid } from './AgentTrajectoryBraid';
 import { VerificationFunnelFooter } from './VerificationFunnelFooter';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
+import { EmbeddedSurfaceProvider } from '../../dashboard/EmbeddedSurfaceContext';
 import type { HarnessTierId } from './riverTypes';
 import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
 import { Icon } from '../../ui/Icons';
@@ -206,11 +207,11 @@ export function HarnessRiverPanel({
       {/* Plate 2 Luminous White Carrara Marble Frieze Header */}
       <div
         data-roman-frieze="true"
-        className="vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-3.5 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.65),inset_0_2px_0_rgba(255,255,255,0.92)]"
+        className="vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-3.5 py-1.5 shadow-[0_6px_18px_rgba(28,20,12,0.22),inset_0_2px_0_rgba(255,255,255,0.92)]"
         style={{
-          backgroundImage: `linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(246,240,229,0.88) 0%, rgba(238,229,212,0.74) 48%, rgba(246,240,229,0.88) 100%), url('/assets/romanesque/white-marble-frieze-banner.jpg')`,
+          backgroundImage: `linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(250,246,238,0.92) 0%, rgba(242,233,218,0.82) 48%, rgba(250,246,238,0.92) 100%), url('/assets/romanesque/carrara-acanthus-header-band.jpg')`,
           backgroundSize: '240% 100%, 100% 100%, cover',
-          backgroundPosition: 'center',
+          backgroundPosition: 'center, center, center',
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -241,7 +242,7 @@ export function HarnessRiverPanel({
               <button
                 type="button"
                 onClick={() => handleJump('operations')}
-                className="flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-[#241A0B] px-2 py-1 font-mono text-[10px] font-semibold text-[#F3E5AB] hover:border-[#F3E5AB] transition"
+                className="flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-bg-elevated px-2 py-1 font-mono text-[10px] font-semibold text-text-primary hover:border-[#D4AF37] transition"
               >
                 <span>Operations Hub ↗</span>
               </button>
@@ -255,7 +256,7 @@ export function HarnessRiverPanel({
               <button
                 type="button"
                 onClick={() => handleJump('mens')}
-                className="flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-[#241A0B] px-2 py-1 font-mono text-[10px] font-semibold text-[#F3E5AB] hover:border-[#F3E5AB] transition"
+                className="flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-bg-elevated px-2 py-1 font-mono text-[10px] font-semibold text-text-primary hover:border-[#D4AF37] transition"
               >
                 <span>MENS Studio ↗</span>
               </button>
@@ -266,7 +267,7 @@ export function HarnessRiverPanel({
               <div
                 role="group"
                 aria-label="Harness visualization mode"
-                className="flex items-center rounded-lg border border-[#382F20] bg-[#0E0B07] p-0.5"
+                className="flex items-center rounded-lg border border-border-subtle bg-bg-surface p-0.5"
               >
                 {(
                   [
@@ -288,8 +289,8 @@ export function HarnessRiverPanel({
                       onClick={() => setViewMode(m.id)}
                       className={`rounded px-2 py-0.5 font-mono text-[10px] font-semibold transition ${
                         viewMode === m.id
-                          ? 'border border-[#F3E5AB] bg-gradient-to-b from-[#4A3818] to-[#241A0B] text-[#F3E5AB]'
-                          : 'text-[#9E9079] hover:text-[#E6DCB8]'
+                          ? 'border border-[#D4AF37] bg-bg-elevated text-text-primary'
+                          : 'text-text-secondary hover:text-text-primary'
                       }`}
                     >
                       {m.label}
@@ -308,7 +309,7 @@ export function HarnessRiverPanel({
                 <button
                   type="button"
                   onClick={onOpenRouting}
-                  className="rounded-md border border-[#382F20] bg-[#140F0A] px-2 py-1 font-mono text-[10px] font-semibold text-[#D4AF37] hover:border-[#D4AF37] transition"
+                  className="rounded-md border border-border-subtle bg-bg-elevated px-2 py-1 font-mono text-[10px] font-semibold text-brass hover:border-[#D4AF37] transition"
                 >
                   Routing &amp; Tiers
                 </button>
@@ -324,7 +325,7 @@ export function HarnessRiverPanel({
                 <button
                   type="button"
                   onClick={onFocusComposer}
-                  className="rounded-md border border-[#382F20] bg-[#140F0A] px-2 py-1 font-mono text-[10px] text-[#C4B69C] hover:border-[#D4AF37] transition"
+                  className="rounded-md border border-border-subtle bg-bg-elevated px-2 py-1 font-mono text-[10px] text-text-secondary hover:border-[#D4AF37] transition"
                 >
                   Focus composer
                 </button>
@@ -341,59 +342,66 @@ export function HarnessRiverPanel({
         onSelectTier={canNavigateTier ? handleSelectTier : undefined}
       />
 
-      {/* Controls Bar: Compact Progressive-Disclosure Window Select & Verification Gate */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#382F20] bg-[#110D09] px-3 py-1 text-[10px]">
-        <div className="flex items-center gap-2">
-          <label htmlFor="river-time-window-select" className="font-serif uppercase tracking-wider text-[#A89878]">
-            Window:
-          </label>
-          <select
-            id="river-time-window-select"
-            aria-label="Time Window"
-            data-unified-knob="true"
-            value={timeWindow}
-            onChange={(e) => setTimeWindow(e.target.value as '15m' | '1h' | '24h' | 'session')}
-            className="appearance-none rounded border border-[#D4AF37]/40 bg-[#17120C] px-2 py-0.5 text-[10px] font-semibold text-[#F3E5AB]"
-          >
-            <option value="15m">Last 15m</option>
-            <option value="1h">Last 1h</option>
-            <option value="24h">Last 24h</option>
-            <option value="session">Current Session</option>
-          </select>
-        </div>
-
-        <RomanTooltip
-          title="Deterministic Interceptor Gate"
-          purpose="Enforces strict verification gating before letting generated code execute on the file tree."
-          statusBadge={interceptorArmed ? 'ARMED' : 'BYPASS'}
-          actionHint="Click to toggle interceptor arm state"
-        >
-          <button
-            type="button"
-            onClick={() => setInterceptorArmed((a) => !a)}
-            className="flex items-center gap-1.5 rounded-full border border-[#7B8C32]/55 bg-[#4D5D1E]/25 px-2.5 py-0.5 font-semibold text-[#DCE7B6] hover:border-[#8FA339] transition"
-          >
-            <Icon.gladiusShield className="size-3 text-[#8FA339]" />
-            <span>Verification Gate: {interceptorArmed ? 'Armed · Zero-Cascade' : 'Standby'}</span>
-          </button>
-        </RomanTooltip>
-      </div>
-
-      {/* Zone B: Center Alluvial Particle Bundle / Urbs Civilization with Aqueduct Backdrop */}
+      {/* Zone B: Center Alluvial Particle Bundle / Urbs Civilization with Uncropped 3-Tier Aqueduct Panorama */}
       <div className={viewMode === 'split' ? 'grid grid-cols-1 gap-2 lg:grid-cols-2' : 'block'}>
         {viewMode !== 'urbs' && (
-          <div className="relative overflow-hidden rounded-xl border-2 border-[#D4AF37]/55 bg-[#0A0805] shadow-[0_12px_32px_rgba(0,0,0,0.75)]">
-            {/* High-Resolution Romanesque Aqueduct & Castellum Divisorium Sluice Cascade Backdrop */}
+          <div className="relative overflow-hidden rounded-xl border-2 border-[#C59B27]/75 bg-[#F5EFE2] shadow-[0_10px_28px_rgba(28,20,12,0.28)]">
+            {/* Phase 384 Uncropped 3-Tier Romanesque Aqueduct & Castellum Divisorium Sluice Cascade Panorama */}
             <div
-              className="absolute inset-0 pointer-events-none opacity-85 bg-center bg-cover"
+              className="absolute inset-0 pointer-events-none opacity-98 bg-center bg-[length:100%_100%]"
               style={{ backgroundImage: `url('/assets/romanesque/aqueduct-sluice-cascade-bg.jpg')` }}
             />
-            <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-[#D4AF37]/40 bg-[#140F0A]/92 px-3 py-1 font-display text-[9px] uppercase tracking-wider text-[#E6DCB8]">
-              <span>AQUAE CAPUT · 8-SPOKE SOURCE ARCHES</span>
-              <span className="font-bold text-[#F3E5AB]">CASTELLUM DIVISORIUM · 3-TIER HYDRAULIC CASCADE</span>
-              <span>CLAUSURAE · 4 BRASS SLUICE GATES</span>
+            <div
+              style={{
+                backgroundImage:
+                  'linear-gradient(90deg, rgba(250,246,238,0.95) 0%, rgba(242,233,218,0.92) 50%, rgba(250,246,238,0.95) 100%)',
+              }}
+              className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-[#C59B27]/65 px-3 py-1 font-display text-[9px] uppercase tracking-wider text-[#1C140C]"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-[#5C4318]">AQUAE CAPUT · 8-SPOKE ARCHES</span>
+                <span className="text-[#8C6214]" aria-hidden="true">·</span>
+                <span className="font-bold text-[#1C140C]">CASTELLUM DIVISORIUM · 3-TIER HYDRAULIC CASCADE</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 font-sans text-[9.5px] normal-case tracking-normal">
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="river-time-window-select" className="font-display text-[8.5px] font-bold uppercase tracking-wider text-[#5C4318]">
+                    Window:
+                  </label>
+                  <select
+                    id="river-time-window-select"
+                    aria-label="Time Window"
+                    data-unified-knob="true"
+                    value={timeWindow}
+                    onChange={(e) => setTimeWindow(e.target.value as '15m' | '1h' | '24h' | 'session')}
+                    className="appearance-none rounded border border-[#C59B27]/65 bg-[#FAF6EE] px-2 py-0.5 font-mono text-[9.5px] font-semibold text-[#1C140C]"
+                  >
+                    <option value="15m">Last 15m</option>
+                    <option value="1h">Last 1h</option>
+                    <option value="24h">Last 24h</option>
+                    <option value="session">Current Session</option>
+                  </select>
+                </div>
+
+                <RomanTooltip
+                  title="Deterministic Interceptor Gate"
+                  purpose="Enforces strict verification gating before letting generated code execute on the file tree."
+                  statusBadge={interceptorArmed ? 'ARMED' : 'BYPASS'}
+                  actionHint="Click to toggle interceptor arm state"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setInterceptorArmed((a) => !a)}
+                    className="flex items-center gap-1.5 rounded-full border border-[#059669]/65 bg-[#ECFDF5] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#065F46] hover:border-[#047857] transition"
+                  >
+                    <Icon.gladiusShield className="size-3 text-[#059669]" />
+                    <span>Verification Gate: {interceptorArmed ? 'Armed · Zero-Cascade' : 'Standby'}</span>
+                  </button>
+                </RomanTooltip>
+              </div>
             </div>
-            <div className={condensed ? 'relative z-10 h-[150px] w-full' : 'relative z-10 h-[164px] xl:h-[215px] w-full'}>
+            <div className={condensed ? 'relative z-10 h-[170px] w-full' : 'relative z-10 h-[210px] xl:h-[250px] w-full'}>
               <canvas
                 ref={canvasRef}
                 data-testid="harness-river-canvas"
@@ -407,7 +415,7 @@ export function HarnessRiverPanel({
               data-testid="aqueduct-developer-control-bar"
               style={{
                 backgroundImage:
-                  'linear-gradient(180deg, rgba(244,238,225,0.95) 0%, rgba(229,218,198,0.95) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+                  'linear-gradient(180deg, rgba(250,246,238,0.96) 0%, rgba(239,230,213,0.95) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
@@ -439,7 +447,7 @@ export function HarnessRiverPanel({
                       }}
                       className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider transition ${
                         open
-                          ? 'border-[#8C6214] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB] shadow-sm'
+                          ? 'border-[#8C6214] bg-bg-elevated text-text-primary shadow-sm'
                           : 'border-amber-700/70 bg-amber-950/90 text-amber-200'
                       }`}
                     >
@@ -462,7 +470,7 @@ export function HarnessRiverPanel({
                     onFocusComposer?.();
                     setAqueductReceipt('⚔ Dispatched new task into Cursus II Balanced Hybrid channel');
                   }}
-                  className="rounded-md border border-[#8C6214]/85 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   [Dispatch Task]
                 </button>
@@ -473,7 +481,7 @@ export function HarnessRiverPanel({
                     setSluiceGates({ ast: true, typeck: true, toestub: true, tests: true });
                     setAqueductReceipt('🌊 Flushed all 4 Aqueduct Sluice Gates — zero-cascade stream verified');
                   }}
-                  className="rounded-md border border-[#8C6214]/85 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   [Flush Sluice Gate]
                 </button>
@@ -484,7 +492,7 @@ export function HarnessRiverPanel({
                     onOpenRouting?.();
                     setAqueductReceipt('⚖ Rerouted active LLM stream across 3-Tier Castellum Divisorium');
                   }}
-                  className="rounded-md border border-[#8C6214]/85 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   [Reroute Tier]
                 </button>
@@ -494,7 +502,7 @@ export function HarnessRiverPanel({
                   onClick={() => {
                     setAqueductReceipt('🏺 Compacted Context Reservoir (64% → 38% occupancy)');
                   }}
-                  className="rounded-md border border-[#8C6214]/85 bg-linear-to-b from-[#261D11] to-[#140F08] px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#D4AF37]"
+                  className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
                   [Compact Context]
                 </button>
@@ -514,7 +522,7 @@ export function HarnessRiverPanel({
               {aqueductReceipt && (
                 <span
                   data-testid="aqueduct-dev-receipt"
-                  className="rounded border border-[#8C6214]/50 bg-[#1B140B] px-2 py-0.5 font-mono text-[8.5px] text-[#F3E5AB]"
+                  className="rounded border border-[#8C6214]/50 bg-bg-elevated px-2 py-0.5 font-mono text-[8.5px] text-text-primary"
                 >
                   {aqueductReceipt}
                 </span>
@@ -525,9 +533,11 @@ export function HarnessRiverPanel({
         {viewMode !== 'river' && (
           <div
             data-testid="harness-urbs-embed"
-            className={condensed ? 'h-[240px] w-full' : 'h-[300px] w-full'}
+            className={condensed ? 'h-[240px] w-full' : 'h-[320px] w-full'}
           >
-            <LudusSandbox energy={80} maxEnergy={100} />
+            <EmbeddedSurfaceProvider value={viewMode === 'split'}>
+              <LudusSandbox energy={80} maxEnergy={100} />
+            </EmbeddedSurfaceProvider>
           </div>
         )}
       </div>

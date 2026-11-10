@@ -5,6 +5,7 @@ use std::fs;
 use std::io::ErrorKind;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[inline(never)]
 pub async fn update_feed(item: &UnifiedNewsItem, site: &NewsSiteConfig) -> Result<()> {
     let feed_path = site.rss_feed_path.clone();
     let _lock = acquire_feed_lock(&feed_path)?;

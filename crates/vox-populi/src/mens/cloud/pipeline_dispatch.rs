@@ -26,6 +26,7 @@ use super::{
 /// 4. Record the job in the ledger via [`BudgetLedger::open_job`].
 ///
 /// The provider is called **only if** the budget gate passes.
+#[inline(never)]
 pub async fn dispatch_training(
     provider: &dyn CloudProvider,
     offer: &GpuOffer,
@@ -82,6 +83,7 @@ pub async fn dispatch_training(
 ///
 /// In production this sleeps between polls; in unit tests call the synchronous
 /// wrapper [`poll_until_done_sync`] to avoid Tokio runtime dependencies.
+#[inline(never)]
 pub async fn poll_until_done(
     provider: &dyn CloudProvider,
     handle: &JobHandle,
@@ -182,6 +184,7 @@ fn append_log(path: &Path, text: &str) -> anyhow::Result<()> {
 /// In a real implementation this would copy files from the provider's network
 /// volume; here we record the checkpoint URI in a manifest file so the path
 /// is machine-readable for resume.
+#[inline(never)]
 pub async fn sync_checkpoint_down(
     _provider: &dyn CloudProvider,
     handle: &JobHandle,
@@ -304,6 +307,7 @@ impl Drop for TerminateOnDrop {
 ///   `state_dir`, re-uses the existing checkpoint URI rather than provisioning again.
 /// - Wraps the handle in [`TerminateOnDrop`] so the pod is cleaned up on error.
 /// - Records cumulative spend including retries.
+#[inline(never)]
 pub async fn dispatch_with_guard(
     provider: Arc<dyn CloudProvider>,
     offer: &GpuOffer,
@@ -498,6 +502,7 @@ pub fn check_spend_gate(dry_run: bool) -> Option<CloudOrchestrationOutcome> {
 ///
 /// Only called when the eval gate passes. Returns the domain + adapter path
 /// for the caller to record.
+#[inline(never)]
 pub fn register_challenger(
     router: &mut crate::mens::tensor::domain_router::DomainRouter,
     domain: &str,
@@ -545,8 +550,6 @@ fn card_from_manifest(
         training_manifest_digest: String::new(),
         training_syntax_fingerprint: String::new(),
         syntax_fingerprint_kind: String::new(),
-        loaded_size: String::new(),
-        loaded_preset: String::new(),
     };
     card.validate()?;
     // write_sidecar expects a file path and writes adapter_card.json next to it.
@@ -563,6 +566,7 @@ fn card_from_manifest(
 /// Full post-training flow: eval gate → register or skip.
 ///
 /// `eval_outcome` is injected for testability (no real inference call here).
+#[inline(never)]
 pub fn post_training_flow(
     eval_outcome: EvalGateOutcome,
     router: &mut crate::mens::tensor::domain_router::DomainRouter,

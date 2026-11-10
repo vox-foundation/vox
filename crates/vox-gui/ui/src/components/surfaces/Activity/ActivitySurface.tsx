@@ -110,9 +110,9 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
       case 'ConflictDetected':
         return 'border-amber-500/40 bg-amber-950/25 text-amber-200';
       case 'CostIncurred':
-        return 'border-[#D4AF37]/45 bg-[#1B150E]/90 text-[#F3E5AB]';
+        return 'border-[#C59B27]/45 bg-bg-elevated text-text-primary';
       default:
-        return 'border-[#D4AF37]/30 bg-[#16120C]/90 text-[#D8CEB8]';
+        return 'border-[#C59B27]/30 bg-bg-surface text-text-secondary';
     }
   };
 
@@ -305,18 +305,18 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
   const uniqueKinds = Array.from(new Set(rows.map((r) => r.kind))).sort();
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4 text-[#F3E5AB] rounded-xl border border-[#D4AF37]/35 bg-linear-to-b from-[#1B150E] to-[#110D08]">
+    <div className="flex flex-col h-full gap-4 p-4 text-text-primary rounded-xl border border-[#D4AF37]/35 bg-bg-surface">
       <div className="flex flex-col gap-1">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-[#F3E5AB] flex items-center gap-2">
-          <Icon.bolt className="text-[#D4AF37] size-4" />
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-text-primary flex items-center gap-2">
+          <Icon.bolt className="text-brass size-4" />
           Agent Activity Timeline
         </h2>
-        <p className="text-xs text-[#C8B99E]">
+        <p className="text-xs text-text-secondary">
           Durable log of high-signal events emitted across agent orchestrations.
         </p>
       </div>
 
-      <Glass className="flex items-center gap-3 p-3 flex-wrap border-[#D4AF37]/35 bg-[#16120C]/90">
+      <Glass className="flex items-center gap-3 p-3 flex-wrap border-[#C59B27]/35 bg-bg-surface">
         <div className="flex flex-col gap-1 min-w-[120px]">
           <label className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
             Agent

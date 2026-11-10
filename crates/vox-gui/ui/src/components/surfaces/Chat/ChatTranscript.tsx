@@ -80,9 +80,9 @@ export function MessageBubble({
   const streaming = message.status === 'streaming' || message.status === 'pending';
   const failed = message.status === 'failed';
   const [editing, setEditing] = useState(false);
-  const [draftText, setDraftText] = useState(message.text);
+  const [draftText, setDraftText] = useState(message.text ?? '');
   const [editedText, setEditedText] = useState<string | null>(null);
-  const displayContent = editedText ?? message.text;
+  const displayContent = editedText ?? message.text ?? '';
 
   const tone = isSystem
     ? 'self-center border-(--color-status-warn)/20 bg-(--color-status-warn)/6 text-(--color-status-warn)/90 text-center max-w-full'
@@ -93,7 +93,7 @@ export function MessageBubble({
   return (
     <div
       id={`msg-${message.id}`}
-      className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap wrap-break-word ${tone}`}
+      className={`max-w-[92%] sm:max-w-[85%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap wrap-break-word ${tone}`}
     >
       {!isSystem && isUser && (
         <div className="sr-only mb-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
@@ -154,6 +154,24 @@ export function MessageBubble({
             </button>
           </div>
         </div>
+      ) : displayContent.startsWith('LLM error:') ? (
+        <div className="my-1 rounded-lg border border-brass/45 bg-bg-base/80 px-2.5 py-2 text-[11px] text-text-primary">
+          <div className="mb-1 flex items-center justify-between gap-2 font-display text-[11px] font-bold uppercase tracking-[0.13em] text-brass">
+            <span>⚡ Local Inference Endpoint Offline</span>
+            {onRegenerateTurn && (
+              <button
+                type="button"
+                onClick={() => onRegenerateTurn(message)}
+                className="rounded border border-brass/55 bg-brass/15 px-2 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/25"
+              >
+                ↻ Retry on Auto Router
+              </button>
+            )}
+          </div>
+          <div className="text-[11px] text-text-secondary">
+            {renderStructuredMessageText(displayContent)}
+          </div>
+        </div>
       ) : (
         renderStructuredMessageText(displayContent)
       )}
@@ -186,7 +204,7 @@ export function MessageBubble({
           />
         )}
       {!isSystem && (onForkTurn || onRewindTurn || onEditInPlace || onRegenerateTurn || onCompactUpTo) && (
-        <div className="mt-1.5 flex items-center justify-end gap-1.5 border-t border-border-subtle/50 pt-1">
+        <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 border-t border-border-subtle/50 pt-1">
           {onEditInPlace && (
             <button
               type="button"
@@ -469,6 +487,12 @@ export function ChatTranscript({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !pinnedToBottom) return;
+    const scroller = el.parentElement ?? el;
+    if (typeof scroller.scrollTo === 'function') {
+      scroller.scrollTo({ top: scroller.scrollHeight });
+    } else {
+      scroller.scrollTop = scroller.scrollHeight;
+    }
     if (typeof el.scrollTo === 'function') {
       el.scrollTo({ top: el.scrollHeight });
     } else {
@@ -530,17 +554,18 @@ export function ChatTranscript({
       aria-live="polite"
       aria-relevant="additions text"
       aria-label="Chat transcript"
-      className="relative mb-3 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-3 pb-6"
+      onScroll={handleScroll}
+      className="relative mb-2 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-2.5 pb-4"
     >
       <div
         ref={scrollRef}
         onScroll={handleScroll}
         data-persist-eligible={String(persistEligible)}
-        className="mx-auto flex w-full max-w-[900px] flex-col gap-2.5"
+        className="mx-auto flex w-full max-w-[900px] flex-col gap-2 pb-3"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ChatVerbosityControl value={verbosity} onChange={setVerbosity} />
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             {branchBanner && (
               <span
                 data-testid="chat-session-branch-badge"

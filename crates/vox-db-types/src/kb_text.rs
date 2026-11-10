@@ -1,7 +1,7 @@
 //! KB-text sanitizer and provenance newtypes (TRUST-05).
 //!
 //! One sanitizer for text that enters or leaves the knowledge base. Untrusted
-//! strings become [`SanitizedText`] only through [`sanitize`].
+//! strings become `SanitizedText` only through `sanitize`.
 
 use serde::Serialize;
 use std::fmt;
@@ -609,7 +609,21 @@ mod tests {
         assert_eq!(all.len(), 10);
     }
 
-    const REDTEAM: &str = include_str!("../../../contracts/kb/redteam/cases.v1.jsonl");
+    const REDTEAM: &str = include_str!("fixtures/cases.v1.json");
+
+    #[test]
+    fn redteam_cases_match_workspace_contract() {
+        let workspace_contract = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/kb/redteam/cases.v1.jsonl");
+        if workspace_contract.exists() {
+            let live = std::fs::read_to_string(&workspace_contract)
+                .expect("read workspace contracts/kb/redteam/cases.v1.jsonl");
+            assert_eq!(
+                REDTEAM, live,
+                "vendored src/fixtures/cases.v1.json must match workspace contract"
+            );
+        }
+    }
 
     #[test]
     fn redteam_cases_file_is_ascii() {

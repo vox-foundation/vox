@@ -10,6 +10,7 @@ impl crate::VoxDb {
     ///
     /// Uses `unixepoch` for second-precision elapsed time (not julianday which
     /// accumulates float errors for sub-hour durations).
+    #[inline(never)]
     pub async fn cloud_accrued_cost_usd(&self) -> Result<f64, StoreError> {
         let mut rows = self
             .conn
@@ -32,6 +33,7 @@ impl crate::VoxDb {
 
     /// Insert a new running job into `cloud_dispatch_log`.
     #[allow(clippy::too_many_arguments)]
+    #[inline(never)]
     pub async fn cloud_open_job(
         &self,
         job_id: &str,
@@ -75,6 +77,7 @@ impl crate::VoxDb {
     }
 
     /// Mark a job complete, record actual cost and termination reason for audit.
+    #[inline(never)]
     pub async fn cloud_close_job(
         &self,
         job_id: &str,
@@ -103,6 +106,7 @@ impl crate::VoxDb {
     }
 
     /// Update phase timing metadata for a running job (called by the container via sidecar).
+    #[inline(never)]
     pub async fn cloud_update_phase(
         &self,
         job_id: &str,
@@ -151,6 +155,7 @@ impl crate::VoxDb {
     /// Load all measured training throughput profiles.
     ///
     /// Returns `(gpu_name, seq_len, batch_size, ms_per_step)` tuples.
+    #[inline(never)]
     pub async fn cloud_load_throughput_profiles(
         &self,
     ) -> Result<Vec<(String, usize, usize, f64)>, StoreError> {
@@ -175,6 +180,7 @@ impl crate::VoxDb {
     }
 
     /// Upsert a measured training throughput profile using EMA smoothing (α=0.3).
+    #[inline(never)]
     pub async fn cloud_upsert_throughput_profile(
         &self,
         gpu_name: &str,
@@ -209,6 +215,7 @@ impl crate::VoxDb {
     }
 
     /// Record a local GPU training run (4080 Super etc.) for cost/efficiency parity.
+    #[inline(never)]
     pub async fn local_log_train_run(
         &self,
         gpu_name: &str,
@@ -254,6 +261,7 @@ impl crate::VoxDb {
     }
 
     /// Summarize completed cloud and local jobs for `vox mens status --cloud`.
+    #[inline(never)]
     pub async fn cloud_cost_summary(&self) -> Result<CloudCostSummary, StoreError> {
         let mut rows = self.conn.query(
             "SELECT

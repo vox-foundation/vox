@@ -45,13 +45,12 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
       style={{
         width: 396,
         maxWidth: 'calc(100vw - 32px)',
-        background:
-          'linear-gradient(180deg, rgba(19, 16, 12, 0.97) 0%, rgba(12, 10, 8, 0.98) 100%)',
-        border: '1.5px solid rgba(212, 175, 55, 0.72)',
+        background: 'var(--color-bg-surface)',
+        border: '1.5px solid var(--color-border-strong)',
         borderRadius: 10,
         boxShadow:
-          '0 18px 42px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 232, 163, 0.28)',
-        color: '#F5EFE0',
+          '0 18px 42px rgba(28, 20, 12, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
+        color: 'var(--color-text-primary)',
         padding: '10px 12px',
         fontFamily: 'var(--font-sans, Inter, system-ui, sans-serif)',
         backdropFilter: 'blur(12px)',
@@ -65,7 +64,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 8,
-          borderBottom: '1px solid rgba(212, 175, 55, 0.28)',
+          borderBottom: '1px solid var(--color-border-subtle)',
           paddingBottom: 6,
           marginBottom: 8,
         }}
@@ -76,9 +75,9 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
               fontSize: 10,
               fontWeight: 800,
               letterSpacing: '0.09em',
-              color: '#E6C259',
-              background: 'rgba(212, 175, 55, 0.16)',
-              border: '1px solid rgba(212, 175, 55, 0.45)',
+              color: 'var(--color-accent-default)',
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-strong)',
               borderRadius: 4,
               padding: '2px 6px',
               whiteSpace: 'nowrap',
@@ -90,7 +89,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             <span
               style={{
                 fontSize: 10,
-                color: '#B5A88F',
+                color: 'var(--color-text-secondary)',
                 fontWeight: 600,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -110,9 +109,9 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
               fontWeight: 700,
               padding: '1px 6px',
               borderRadius: 4,
-              background: 'rgba(212, 175, 55, 0.18)',
-              border: '1px solid rgba(212, 175, 55, 0.52)',
-              color: '#F3E5AB',
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-subtle)',
+              color: 'var(--color-text-primary)',
             }}
           >
             +{diffData.added_lines} / -{diffData.deleted_lines}
@@ -124,8 +123,8 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
                 fontWeight: 700,
                 padding: '1px 5px',
                 borderRadius: 4,
-                background: 'rgba(59, 130, 246, 0.2)',
-                color: '#93C5FD',
+                background: 'var(--color-bg-elevated)',
+                color: 'var(--color-status-info)',
               }}
             >
               STAGED
@@ -137,9 +136,9 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             onClick={onClose}
             aria-label="Close Speculum Loupe"
             style={{
-              background: 'transparent',
-              border: '1px solid rgba(212, 175, 55, 0.35)',
-              color: '#D6CEBF',
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-subtle)',
+              color: 'var(--color-text-primary)',
               borderRadius: 4,
               width: 20,
               height: 20,
@@ -159,7 +158,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
         style={{
           fontSize: 11,
           fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
-          color: '#F3E5AB',
+          color: 'var(--color-text-primary)',
           marginBottom: 6,
           wordBreak: 'break-all',
         }}
@@ -172,8 +171,8 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
         <div
           data-testid="urbs-loupe-diagnostics-box"
           style={{
-            background: 'rgba(185, 28, 28, 0.22)',
-            border: '1px solid rgba(248, 113, 113, 0.6)',
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-status-fail)',
             borderRadius: 6,
             padding: '5px 8px',
             marginBottom: 7,
@@ -185,11 +184,11 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
               style={{
                 fontSize: 10.5,
                 fontFamily: "var(--font-sans, 'Palatino', Georgia, serif)",
-                color: '#FECACA',
+                color: 'var(--color-text-primary)',
                 lineHeight: 1.35,
               }}
             >
-              <strong style={{ color: '#F87171' }}>
+              <strong style={{ color: 'var(--color-status-fail)' }}>
                 [{d.code ?? d.severity.toUpperCase()} {d.line}:{d.column}]
               </strong>{' '}
               {d.message}
@@ -202,8 +201,8 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
       <div
         data-testid="urbs-loupe-diff-hunk"
         style={{
-          background: 'rgba(6, 7, 9, 0.92)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: 'var(--color-bg-elevated)',
+          border: '1px solid var(--color-border-subtle)',
           borderRadius: 6,
           padding: '6px 8px',
           maxHeight: 132,
@@ -227,19 +226,19 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
                 padding: '0 4px',
                 borderRadius: 2,
                 background: isAdd
-                  ? 'rgba(16, 185, 129, 0.16)'
+                  ? 'rgba(27, 107, 58, 0.14)'
                   : isDel
-                    ? 'rgba(239, 68, 68, 0.18)'
+                    ? 'rgba(158, 43, 37, 0.14)'
                     : isHdr
-                      ? 'rgba(59, 130, 246, 0.14)'
+                      ? 'var(--color-overlay-subtle)'
                       : 'transparent',
                 color: isAdd
-                  ? '#6EE7B7'
+                  ? 'var(--color-status-pass)'
                   : isDel
-                    ? '#FCA5A5'
+                    ? 'var(--color-status-fail)'
                     : isHdr
-                      ? '#93C5FD'
-                      : '#D6CEBF',
+                      ? 'var(--color-accent-default)'
+                      : 'var(--color-text-primary)',
               }}
             >
               {line}
@@ -253,7 +252,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
           data-testid="urbs-loupe-status-banner"
           style={{
             fontSize: 10,
-            color: '#6EE7B7',
+            color: 'var(--color-status-pass)',
             marginBottom: 6,
             fontWeight: 600,
           }}
@@ -283,9 +282,9 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             fontWeight: 700,
             borderRadius: 5,
             cursor: 'pointer',
-            background: 'rgba(16, 185, 129, 0.2)',
-            border: '1px solid rgba(16, 185, 129, 0.6)',
-            color: '#A7F3D0',
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-status-pass)',
+            color: 'var(--color-status-pass)',
             whiteSpace: 'nowrap',
           }}
         >
@@ -303,9 +302,9 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             fontWeight: 700,
             borderRadius: 5,
             cursor: 'pointer',
-            background: 'rgba(239, 68, 68, 0.18)',
-            border: '1px solid rgba(239, 68, 68, 0.55)',
-            color: '#FECACA',
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-status-fail)',
+            color: 'var(--color-status-fail)',
             whiteSpace: 'nowrap',
           }}
         >
@@ -325,9 +324,9 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             fontWeight: 700,
             borderRadius: 5,
             cursor: 'pointer',
-            background: 'rgba(212, 175, 55, 0.22)',
-            border: '1px solid rgba(212, 175, 55, 0.72)',
-            color: '#FDE68A',
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-border-strong)',
+            color: 'var(--color-text-primary)',
             whiteSpace: 'nowrap',
           }}
         >

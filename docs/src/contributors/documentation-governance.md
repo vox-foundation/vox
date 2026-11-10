@@ -122,6 +122,7 @@ To support deterministic drift detection without LLM dependencies (DRIFT-02, DRI
 - `code_anchors`: list of code paths or symbol spans the document relies on (e.g. `crates/vox-cli/src/main.rs`, `crates/vox-compiler/src/parser/mod.rs#Parser`).
 
 **Forbidden Keys in Authored Frontmatter:**
+
 - `last_updated`: derived automatically from Git history. Hand-authoring is a hard lint error (`hand-authored-last-updated`).
 - `last_verified` / `last_verified_commit`: managed exclusively by the Freshness Ledger (`contracts/reports/docs-freshness/ledger.v1.json`). Hand-authoring is a hard lint error (`hand-authored-last-verified`).
 

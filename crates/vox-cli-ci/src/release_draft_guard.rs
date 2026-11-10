@@ -157,6 +157,7 @@ fn check_doc(doc: &serde_yaml::Value, file: &str, out: &mut Vec<Violation>) {
     }
 }
 
+#[inline(never)]
 pub fn run(repo_root: &Path) -> Result<()> {
     let wf_dir = repo_root.join(".github").join("workflows");
     let mut entries: Vec<_> = std::fs::read_dir(&wf_dir)

@@ -1,5 +1,5 @@
+use super::types::ConfidencePolicy;
 use crate::rules::{Finding, Language, SourceFile};
-use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
 /// System message prepended to every review request: Vox idioms, safety rules, and output contract for the model.
 ///

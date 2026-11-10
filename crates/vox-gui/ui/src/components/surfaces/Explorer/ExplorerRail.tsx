@@ -131,7 +131,7 @@ export function ExplorerRail({
               className={cn(
                 'flex h-9 w-full flex-col justify-center gap-0.5 rounded-lg px-2.5 text-left transition-colors',
                 isSelected
-                  ? 'border border-[#8C6825] bg-[#251C0E] text-[#F3E5AB]'
+                  ? 'border border-[#8C6825] bg-bg-elevated text-text-primary'
                   : isZero
                     ? 'text-text-muted hover:bg-[#DFD2BC]/70'
                     : 'text-[#1E150C] hover:bg-[#DFD2BC]/85',

@@ -71,10 +71,10 @@ jobs:
         run: cargo check --workspace --exclude vox-gui --target ${{ matrix.target }}
 
       # Cheap test signal: only the platform-sensitive crates.
-      - name: Install cargo-nextest
+      - name: Install cargo-nextest and uv
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-nextest
+          tool: cargo-nextest,uv
 
       - name: nextest (platform-sensitive crates)
         run: |
@@ -86,6 +86,19 @@ jobs:
       # Full depth: the weekly Win/macOS/Ubuntu sweep this workflow exists for.
       - name: clippy (workspace, -D warnings)
         run: cargo clippy --workspace --exclude vox-gui --target ${{ matrix.target }} -- -D warnings
+
+      # vox-compiler's Python-worker tests fail closed without a real worker: they
+      # need numpy+pyarrow under python3, uv (for `vox py sync` on CPython 3.12),
+      # and the target/debug/vox binary.
+      - name: Python worker prerequisites (vox-compiler)
+        shell: bash
+        run: |
+          uv python install 3.12
+          uv pip install --system numpy pyarrow || python3 -m pip install --user --break-system-packages numpy pyarrow || python -m pip install --user numpy pyarrow
+          cargo build --locked -p vox-cli --bin vox
+          if [ -f target/debug/vox.exe ] && [ ! -f target/debug/vox ]; then
+            cp target/debug/vox.exe target/debug/vox
+          fi
 
       - name: nextest (workspace)
         run: cargo nextest run --workspace --exclude vox-gui

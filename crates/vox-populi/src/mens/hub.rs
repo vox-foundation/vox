@@ -9,7 +9,7 @@
 
 use std::path::PathBuf;
 
-use hf_hub::{HFClient, RepoTypeModel, split_id};
+use hf_hub::{HFClient, RepoTypeModel, RepoTypeSpace, split_id};
 
 /// Env var name: when set to a truthy value, [`download_model`] refuses to
 /// download and returns an error instead, so a user or CI job can guarantee
@@ -48,6 +48,22 @@ fn repo_name_without_revision(repo_id: &str) -> &str {
 /// The `<sha>` in `owner/name@<sha>`, if present.
 fn repo_revision(repo_id: &str) -> Option<&str> {
     repo_id.rsplit_once('@').map(|(_, rev)| rev)
+}
+
+/// True iff `entries` (`(repo id, cached commit hashes)` from the local cache)
+/// hold `repo_id`: a pinned `owner/name@<sha>` needs that revision itself; an
+/// unpinned id matches any cached revision.
+fn cache_has_revision(entries: &[(String, Vec<String>)], repo_id: &str) -> bool {
+    let name = repo_name_without_revision(repo_id);
+    entries.iter().any(|(repo, revisions)| {
+        if repo != name {
+            return false;
+        }
+        if let Some(rev) = repo_revision(repo_id) {
+            return revisions.iter().any(|r| r.trim() == rev.trim());
+        }
+        !revisions.is_empty()
+    })
 }
 
 /// True iff `repo_id` names the same repo as [`super::DEFAULT_MODEL_ID`],
@@ -439,6 +455,54 @@ pub async fn upload_model_folder(
         .unwrap_or_else(|| "unknown".to_string()))
 }
 
+/// Upload a local Static Space directory (`README.md`, `index.html`) to Hugging Face Spaces (`sdk: static`).
+pub async fn upload_space_folder(
+    repo_id: &str,
+    folder_path: &std::path::Path,
+    private: bool,
+    commit_message: Option<&str>,
+) -> anyhow::Result<String> {
+    if !folder_path.is_dir() {
+        anyhow::bail!("Space folder path {folder_path:?} does not exist or is not a directory");
+    }
+
+    normalize_hf_token_env();
+
+    let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
+    let clean_id = repo_name_without_revision(repo_id);
+    let (owner, name) = split_id(clean_id);
+
+    tracing::info!(
+        repo_id = clean_id,
+        "Checking or creating Hugging Face Space repository"
+    );
+    let _ = client
+        .create_repository()
+        .repo_id(clean_id)
+        .repo_type(RepoTypeSpace)
+        .space_sdk("static")
+        .private(private)
+        .exist_ok(true)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("create or check HF Space {clean_id}: {e}"))?;
+
+    let repo = client.space(owner, name);
+    let message = commit_message.unwrap_or("Update VoxMens interactive playground Space");
+
+    let commit_info = repo
+        .upload_folder()
+        .folder_path(folder_path)
+        .commit_message(message)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("upload Space folder {folder_path:?} to {clean_id}: {e}"))?;
+
+    Ok(commit_info
+        .commit_oid
+        .unwrap_or_else(|| "unknown".to_string()))
+}
+
 /// Synchronously block on [`upload_model_folder`] using a dedicated thread runtime.
 pub fn upload_model_folder_blocking(
     repo_id: &str,
@@ -467,13 +531,14 @@ pub fn upload_model_folder_blocking(
         .map_err(|_| anyhow::anyhow!("HF upload thread exited without sending result"))?
 }
 
-/// True iff `repo_id` (its pin-stripped name; see `repo_name_without_revision`)
-/// already has at least one cached revision on disk — a purely local
+/// True iff `repo_id` is already cached on disk: a pinned `owner/name@<sha>`
+/// needs that revision itself, an unpinned id any cached revision (see
+/// `cache_has_revision`). A purely local
 /// filesystem scan (`HFClient::scan_cache`), no network call. Lets a caller
 /// (e.g. `vox mens probe --detailed --model <repo>`) decide whether checking
 /// this model's fit would trigger a fresh multi-GB download before doing so.
 pub fn is_model_cached(repo_id: &str) -> anyhow::Result<bool> {
-    let repo_id = repo_name_without_revision(repo_id).to_string();
+    let repo_id = repo_id.to_string();
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let result = tokio::runtime::Runtime::new()
@@ -487,7 +552,15 @@ pub fn is_model_cached(repo_id: &str) -> anyhow::Result<bool> {
                         .send()
                         .await
                         .map_err(|e| anyhow::anyhow!("hf-hub scan_cache: {e}"))?;
-                    Ok(info.repos.iter().any(|r| r.repo_id == repo_id))
+                    let entries: Vec<(String, Vec<String>)> = info
+                        .repos
+                        .iter()
+                        .map(|r| {
+                            let revs = r.revisions.iter().map(|v| v.commit_hash.clone());
+                            (r.repo_id.clone(), revs.collect())
+                        })
+                        .collect();
+                    Ok(cache_has_revision(&entries, &repo_id))
                 })
             });
         let _ = tx.send(result);
@@ -592,10 +665,8 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            std::env::var_os("HUGGING_FACE_HUB_TOKEN")
-                .and_then(|v| v.into_string().ok())
-                .as_deref(),
-            Some("from-hf-only")
+            std::env::var("HUGGING_FACE_HUB_TOKEN").as_deref(),
+            Ok("from-hf-only")
         );
         unsafe {
             std::env::remove_var("HF_TOKEN");
@@ -612,12 +683,7 @@ mod tests {
             std::env::set_var("HUGGING_FACE_HUB_TOKEN", "from-hub-only");
         }
         super::normalize_hf_token_env();
-        assert_eq!(
-            std::env::var_os("HF_TOKEN")
-                .and_then(|v| v.into_string().ok())
-                .as_deref(),
-            Some("from-hub-only")
-        );
+        assert_eq!(std::env::var("HF_TOKEN").as_deref(), Ok("from-hub-only"));
         unsafe {
             std::env::remove_var("HF_TOKEN");
             std::env::remove_var("HUGGING_FACE_HUB_TOKEN");
@@ -849,5 +915,32 @@ mod tests {
         let cached = super::is_model_cached("vox-test-org/never-real-vox-mens-fixture-repo:main")
             .expect("a local cache scan must not fail for a pinned, never-downloaded repo");
         assert!(!cached);
+    }
+
+    fn cache_entries() -> Vec<(String, Vec<String>)> {
+        vec![("Qwen/Qwen3-0.6B".to_string(), vec!["aaa".to_string()])]
+    }
+
+    #[test]
+    fn pinned_id_needs_its_own_revision_in_cache() {
+        let e = cache_entries();
+        assert!(!super::cache_has_revision(&e, "Qwen/Qwen3-0.6B@bbb"));
+        assert!(super::cache_has_revision(&e, "Qwen/Qwen3-0.6B@aaa"));
+    }
+
+    #[test]
+    fn unpinned_id_matches_any_cached_revision() {
+        assert!(super::cache_has_revision(
+            &cache_entries(),
+            "Qwen/Qwen3-0.6B"
+        ));
+    }
+
+    #[test]
+    fn other_repo_never_matches() {
+        assert!(!super::cache_has_revision(
+            &cache_entries(),
+            "Qwen/Qwen3-8B@aaa"
+        ));
     }
 }

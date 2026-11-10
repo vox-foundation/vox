@@ -1,0 +1,240 @@
+{
+  "schema_version": "dev_worktree_consolidation_receipt_v1",
+  "generated_at": "2026-11-09T19:34:00-07:00",
+  "phase": "393-zero-loss-worktree-scratch-folder-master-directory-consolida",
+  "plan": "393-01-PLAN.md",
+  "requirements": [
+    "SCRATCH-CONSOLIDATE-01",
+    "SCRATCH-CONSOLIDATE-02",
+    "SCRATCH-CONSOLIDATE-03",
+    "SCRATCH-CONSOLIDATE-04"
+  ],
+  "disk_reclamation": {
+    "filesystem": "/dev/disk3s5",
+    "mounted_on": "/System/Volumes/Data",
+    "before_available": "91Gi",
+    "after_available": "283Gi",
+    "total_reclaimed_gb": 192,
+    "before_capacity_percent": 96,
+    "after_capacity_percent": 85
+  },
+  "protected_directories": [
+    "/Users/brbrainerd/dev/memory",
+    "/Users/brbrainerd/dev/antigravity-skill-packs"
+  ],
+  "salvaged_artifacts": {
+    "vox": {
+      "salvage_directory": "/Users/brbrainerd/dev/vox/.vox/salvage/vox-mens-compare/",
+      "master_destination": "/Users/brbrainerd/dev/vox/",
+      "preserved_branches": [
+        {
+          "name": "gsd/mens-compare-316",
+          "sha": "4ad5670efa503cf5ef75f1cc76568bdf456410db"
+        }
+      ],
+      "copied_to_master": [
+        "crates/vox-plugin-mens-candle-metal/src/decode_attention.rs",
+        "contracts/mens/gate-receipt.v2.schema.json",
+        "contracts/mens/spoke-gate-state.v1.schema.json",
+        ".planning/phases/337-eval-throughput/",
+        ".planning/phases/340-multi-spoke-hub-repo-layout-and-model-selector/",
+        ".planning/phases/341-harness-and-agent-spokes/",
+        ".planning/phases/342-rust-spoke/",
+        ".planning/phases/343-ladder-wide-re-gating-and-multi-spoke-promotion/",
+        ".planning/phases/344-mens-debt-sweep/",
+        ".planning/phases/345-mens-regression-root-cause-fixes/"
+      ],
+      "salvaged_runs": {
+        "source": [
+          "/Users/brbrainerd/dev/_scratch/p335",
+          "/Users/brbrainerd/dev/_scratch/p339_cards"
+        ],
+        "destination": "/Users/brbrainerd/dev/vox/mens/runs/salvage_p335_p339/"
+      },
+      "salvage_archive_details": {
+        "working_tree_patch": ".vox/salvage/vox-mens-compare/working-tree.patch (708 KB)",
+        "lib_rs_patch": ".vox/salvage/vox-mens-compare/lib.rs.patch",
+        "lib_rs_copy": ".vox/salvage/vox-mens-compare/lib.rs.vox-mens-compare",
+        "untracked_files_count": 127
+      }
+    },
+    "velocicode": {
+      "salvage_directory": "/Users/brbrainerd/dev/velocicode/.salvage/",
+      "preserved_branches": [
+        {
+          "name": "fix/declare-numpy",
+          "sha": "9fe792f41b2862f7e668b209bd20c801c3f2e805"
+        }
+      ],
+      "salvaged_patch": "/Users/brbrainerd/dev/velocicode/.salvage/0001-Declare-numpy-as-a-runtime-dependency.patch"
+    },
+    "brFinancier": {
+      "notes": "Worktree brFinancier-subdup was clean duplicate of main (21a153d); removed safely."
+    },
+    "Resonance": {
+      "salvage_directory": "/Users/brbrainerd/dev/Resonance/.salvage/Resonance-ci-fix-forward/",
+      "preserved_branches": [
+        {
+          "name": "fix/ci-python-environment",
+          "sha": "d34e41255fb6eaf65dd65aa85091fabd4e346c74"
+        }
+      ],
+      "salvaged_dirty_patch": "/Users/brbrainerd/dev/Resonance/.salvage/Resonance-ci-fix-forward/dirty.patch",
+      "untracked_non_venv_files_blocks": 11704
+    },
+    "gigme": {
+      "salvage_directory": "/Users/brbrainerd/dev/gigme/.salvage/",
+      "preserved_branches": [
+        {
+          "name": "fix/master-ci-red",
+          "sha": "009c8dc593016b33d8f550256befa20e42410032"
+        },
+        {
+          "name": "claude/keen-hopper-55b467",
+          "sha": "2e2e8f0a3450d864d9abc458f5be2f261a886539"
+        },
+        {
+          "name": "claude/test-fast-shared-workers-e45ccc",
+          "sha": "dabc07863e8f2f41ba875f1aa3085a79bd47978c"
+        },
+        {
+          "name": "fix/narrow-nav-review",
+          "sha": "5bbdafd59c20c07dc91beeb813cec39f2ee955ac"
+        }
+      ],
+      "salvaged_scratch": "/Users/brbrainerd/dev/gigme/.salvage/gigme-phase179"
+    },
+    "ramada": {
+      "salvage_directory": "/Users/brbrainerd/dev/ramada/.salvage/",
+      "preserved_branches": [
+        {
+          "name": "claude/v4.5-unified-filters",
+          "sha": "e15ca11f30b58808336b8c35e7db34cb8b992b38"
+        },
+        {
+          "name": "v1.5-milestone",
+          "sha": "56095cdeda3880a848391f4ddafb7f663c1e341d"
+        },
+        {
+          "name": "docs/revoke-connect-ramada-test",
+          "sha": "9a807698c5a6e487b49f650a1e5f42d6a5ef5929"
+        }
+      ],
+      "salvaged_release_reports": "/Users/brbrainerd/dev/ramada/.salvage/ramada-release-reports-20261027"
+    },
+    "mudlet-dragonball-evolution": {
+      "salvage_directory": "/Users/brbrainerd/dev/mudlet-dragonball-evolution/.salvage/wip-backups",
+      "salvaged_patch": "wip-20261105-161304.patch"
+    },
+    "fableforge": {
+      "salvage_directory": "/Users/brbrainerd/dev/fableforge/.salvage/",
+      "preserved_branches": [
+        "wt/112-backend-convo",
+        "wt/112-backend-persist",
+        "wt/112-legacy-specs",
+        "wt/112-sfx",
+        "fix/replicate-model-slugs",
+        "docs/runner-deploy-path",
+        "docs/canonical-www-ingress",
+        "chore/gating-followups",
+        "fix/convex-module-load-timeout",
+        "fix/settings-memory-auth",
+        "fix/preexisting-test-failures",
+        "fix/compliance-site",
+        "fix/neutral-public-copy",
+        "fix/server-gate-gaps",
+        "feat/generation-auth",
+        "legal-pages-deploy",
+        "fix/clerk-sync-route",
+        "mature-gating-plan-2",
+        "fix/getbyclerkid-idor",
+        "fix/userid-idor",
+        "milestone/v4.1-economy",
+        "phase/120.1-age-gate",
+        "merge/main-into-120.1"
+      ]
+    }
+  },
+  "removed_worktrees_and_directories": [
+    "/Users/brbrainerd/dev/vox-mens-compare",
+    "/Users/brbrainerd/dev/vox-voxdiagram",
+    "/Users/brbrainerd/dev/vox/.worktrees/pr-669",
+    "/Users/brbrainerd/dev/vox-readme-main",
+    "/Users/brbrainerd/dev/vox/.worktrees/docs-sidebar-chevrons",
+    "/Users/brbrainerd/dev/vox-mens-compare-p335-clean",
+    "/Users/brbrainerd/dev/vox/.worktrees/finalize-chat-loop",
+    "/Users/brbrainerd/dev/vox/.claude/worktrees/research-detection-chat-gui-05d826",
+    "/Users/brbrainerd/dev/vox/.worktrees",
+    "/Users/brbrainerd/dev/vox/.claude/worktrees",
+    "/Users/brbrainerd/dev/vox-integration",
+    "/Users/brbrainerd/dev/velocicode-numpy",
+    "/Users/brbrainerd/dev/brFinancier-subdup",
+    "/Users/brbrainerd/dev/Resonance-ci-fix-forward",
+    "/private/tmp/resonance-runtime-prev-base",
+    "/Users/brbrainerd/dev/gigme/.claude/worktrees/e2e-hydration",
+    "/Users/brbrainerd/dev/gigme/.claude/worktrees/keen-hopper-55b467",
+    "/Users/brbrainerd/dev/gigme/.claude/worktrees/test-fast-shared-workers-e45ccc",
+    "/Users/brbrainerd/dev/gigme/.claude/worktrees/work-history-fields",
+    "/Users/brbrainerd/dev/gigme/.worktrees/narrow-nav-review",
+    "/Users/brbrainerd/dev/gigme/.claude/worktrees",
+    "/Users/brbrainerd/dev/gigme/.worktrees",
+    "/Users/brbrainerd/dev/ramada/.claude/worktrees/event-discovery-v1-1",
+    "/Users/brbrainerd/dev/ramada/.claude/worktrees/revoke-connect-ramada-test",
+    "/Users/brbrainerd/dev/ramada/.claude/worktrees/v1.5-milestone",
+    "/Users/brbrainerd/dev/ramada/.worktrees/before-v49",
+    "/Users/brbrainerd/dev/ramada/.claude/worktrees",
+    "/Users/brbrainerd/dev/ramada/.worktrees",
+    "/Users/brbrainerd/dev/.worktrees",
+    "/Users/brbrainerd/dev/_wt",
+    "/Users/brbrainerd/dev/_scratch/p335",
+    "/Users/brbrainerd/dev/_scratch/p339_cards",
+    "/Users/brbrainerd/dev/_scratch/gigme-phase179",
+    "/Users/brbrainerd/dev/_scratch/wip-backups",
+    "/Users/brbrainerd/dev/fableforge-infra-pr",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/v4.1-economy/.wt/120.1-age-gate",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/v4.1-economy/.wt/120.1-merge-main",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/agent-a0bd043b5ac24a24e",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/agent-a2f2456239ccdf2e4",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/agent-a8f4bf6f656fe5b48",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/agent-ac1e6510c6e96ea9d",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/agent-ac5d04418f3c8151a",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/fix-neutral-public-copy",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/fix-server-gate-gaps",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/generation-auth",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/legal-pages-deploy",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/mature-gating-plan-1",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/mature-gating-plan-2-4b2f79",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/sad-napier-2055ec",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/strange-davinci-1073cd",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees/v4.1-economy",
+    "/Users/brbrainerd/dev/fableforge/.claude/worktrees",
+    "/Users/brbrainerd/dev/_wt/ff-backend-convo",
+    "/Users/brbrainerd/dev/_wt/ff-backend-persist",
+    "/Users/brbrainerd/dev/_wt/ff-legacy-specs",
+    "/Users/brbrainerd/dev/_wt/ff-replicate-slugs",
+    "/Users/brbrainerd/dev/_wt/ff-runner-doc",
+    "/Users/brbrainerd/dev/_wt/ff-sfx"
+  ],
+  "removed_stale_root_logs": [
+    "/Users/brbrainerd/dev/flip-lint.log",
+    "/Users/brbrainerd/dev/p2-add.log",
+    "/Users/brbrainerd/dev/p2-install.log",
+    "/Users/brbrainerd/dev/t16-add.log",
+    "/Users/brbrainerd/dev/t16-install.log",
+    "/Users/brbrainerd/dev/t16-lint.log",
+    "/Users/brbrainerd/dev/wA-lint.log",
+    "/Users/brbrainerd/dev/wB-lint.log",
+    "/Users/brbrainerd/dev/wC-lint.log",
+    "/Users/brbrainerd/dev/wD-lint.log"
+  ],
+  "canonical_master_worktree_status": {
+    "vox": "/Users/brbrainerd/dev/vox cb059eeac [main]",
+    "velocicode": "/Users/brbrainerd/dev/velocicode eda4061 [main]",
+    "brFinancier": "/Users/brbrainerd/dev/brFinancier f60b158 [planning/gsd-init]",
+    "Resonance": "/Users/brbrainerd/dev/Resonance 2047bbb3 [milestone/v9.2-concept-to-prop]",
+    "gigme": "/Users/brbrainerd/dev/gigme 042f0fd9 [master]",
+    "ramada": "/Users/brbrainerd/dev/ramada cf5f949e [main]",
+    "fableforge": "/Users/brbrainerd/dev/fableforge e976a554 [milestone/v4.0-village-vn]"
+  },
+  "status": "COMPLETED_ZERO_LOSS"
+}

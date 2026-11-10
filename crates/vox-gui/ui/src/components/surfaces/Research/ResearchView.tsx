@@ -480,7 +480,7 @@ export function ResearchView({
         actions={
           <div className="flex items-center gap-2">
             <span className="sr-only">{useLabel('research')}</span>
-            <div role="tablist" aria-label="Research Lane" className="flex items-center rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-0.5 text-xs">
+            <div role="tablist" aria-label="Research Lane" className="flex items-center rounded-lg border border-[#C59B27]/35 bg-bg-elevated p-0.5 text-xs">
               <button
                 type="button"
                 role="tab"

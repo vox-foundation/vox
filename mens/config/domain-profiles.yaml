@@ -33,6 +33,9 @@ defaults:
 
 profiles:
   # ── v1 fine-tuned spokes (4 total, each has base: + method: qlora) ──────────
+  # base.model and base.preset are validated by spoke-check and used for cloud
+  # sizing; local training picks size and preset from live free memory
+  # (Phase 318, SIZE-02).
 
   vox-lang:
     description: "Vox language code generation — syntax, constructs, idioms"

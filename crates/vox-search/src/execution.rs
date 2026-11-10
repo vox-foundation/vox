@@ -263,6 +263,7 @@ pub fn repo_path_search(
 }
 
 /// Execute a concrete [`SearchPlan`] against `VoxDb` (when attached) + local memory paths.
+#[inline(never)]
 pub async fn execute_search_plan(
     ctx: &SearchRuntimeContext,
     query: &str,

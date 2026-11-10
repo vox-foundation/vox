@@ -297,6 +297,7 @@ fn resample_candidates(
 /// has exactly one entry per input claim in the same order, and
 /// `verified_count` is how many of them actually went through the LLM cascade
 /// this call (the rest were capped out and marked `Unverified`).
+#[inline(never)]
 pub async fn verify_claims_with_config(
     claims: &[Claim],
     query: &str,
@@ -699,6 +700,7 @@ pub fn lexical_containment_score(claim_text: &str, evidence_text: &str) -> (f64,
 /// Fast deterministic lexical/n-gram containment verifier.
 /// Short-circuits as `Verdict::Supported` when at least one hit has `score >= 0.82` with zero
 /// negation/numeric conflict and no hit exhibits a high-overlap conflict (`score >= 0.65 && conflict`).
+#[inline(never)]
 pub fn try_fast_lexical_verify(claim: &Claim, hits: &[ResearchHit]) -> Option<ClaimVerdict> {
     let mut supporting_spans = Vec::new();
     let mut max_score = 0.0_f64;

@@ -58,6 +58,8 @@ graph {
     vox_cli -> vox_plugin_types
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_plugin_types
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_plugin_types
     node vox_db: "vox-db"
     vox_db -> vox_plugin_types
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
@@ -79,6 +81,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Direct workspace dependent |

@@ -4,6 +4,10 @@ description = "Pure-Rust Git bridge for Vox — bidirectional sync using gix (no
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [features]
 default = []
@@ -25,7 +29,6 @@ gix = { workspace = true, default-features = false, features = [
     "revision",
     "sha1",
 ] }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -33,4 +36,3 @@ tempfile = { workspace = true }
 
 [lints]
 workspace = true
-

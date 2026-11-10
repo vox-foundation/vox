@@ -65,7 +65,7 @@ fn default_ollama_model() -> String {
 
 fn default_gemini_model() -> String {
     // Contract role `gemini_direct` (model-defaults.v1.yaml).
-    vox_config::model_defaults::GEMINI_DIRECT.to_string()
+    "gemini-flash-latest".to_string()
 }
 
 fn default_pollinations_model() -> String {

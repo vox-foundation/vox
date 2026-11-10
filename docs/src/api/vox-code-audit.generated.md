@@ -43,11 +43,6 @@ own file where non-obvious heuristics exist.
 | Dependency | Kind |
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
-| [`vox-config`](./vox-config.generated.md) | Normal |
-| [`vox-http-client`](./vox-http-client.generated.md) | Normal |
-| [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Normal |
-| [`vox-llm-egress`](./vox-llm-egress.generated.md) | Normal |
-| [`vox-orchestrator-types`](./vox-orchestrator-types.generated.md) | Normal |
 | [`vox-rule-pack`](./vox-rule-pack.generated.md) | Normal |
 | [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
@@ -82,16 +77,6 @@ graph {
     node vox_code_audit: "vox-code-audit"
     node vox_bounded_fs: "vox-bounded-fs"
     vox_code_audit -> vox_bounded_fs
-    node vox_config: "vox-config"
-    vox_code_audit -> vox_config
-    node vox_http_client: "vox-http-client"
-    vox_code_audit -> vox_http_client
-    node vox_jsonschema_util: "vox-jsonschema-util"
-    vox_code_audit -> vox_jsonschema_util
-    node vox_llm_egress: "vox-llm-egress"
-    vox_code_audit -> vox_llm_egress
-    node vox_orchestrator_types: "vox-orchestrator-types"
-    vox_code_audit -> vox_orchestrator_types
     node vox_rule_pack: "vox-rule-pack"
     vox_code_audit -> vox_rule_pack
     node vox_scaling_policy: "vox-scaling-policy"
@@ -106,6 +91,8 @@ graph {
     vox_cli -> vox_code_audit
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_code_audit
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_code_audit
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_code_audit
     node vox_drift_check: "vox-drift-check"
@@ -124,6 +111,7 @@ graph {
 | [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
 | [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
@@ -143,8 +131,8 @@ graph {
 | `fn` | `ai_analyze::gemini_request_body` | `pub fn gemini_request_body(prompt: &str) -> String` | [`crates/vox-code-audit/src/ai_analyze.rs#L218-L231`](../../../crates/vox-code-audit/src/ai_analyze.rs#L218-L231) | Generate the request body for Gemini API. |
 | `fn` | `ai_analyze::endpoint_url` | `pub fn endpoint_url(&self) -> Option<String>` | [`crates/vox-code-audit/src/ai_analyze.rs#L234-L266`](../../../crates/vox-code-audit/src/ai_analyze.rs#L234-L266) | Get the API endpoint URL for the configured provider. |
 | `fn` | `ai_analyze::provider_name` | `pub fn provider_name(&self) -> &str` | [`crates/vox-code-audit/src/ai_analyze.rs#L269-L276`](../../../crates/vox-code-audit/src/ai_analyze.rs#L269-L276) | Get the provider description for display purposes. |
-| `fn` | `detectors::all_rules` | `pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn DetectionRule>>` | [`crates/vox-code-audit/src/detectors/mod.rs#L168-L244`](../../../crates/vox-code-audit/src/detectors/mod.rs#L168-L244) | Returns all built-in detectors. |
-| `fn` | `detectors::rule_count` | `pub fn rule_count() -> usize` | [`crates/vox-code-audit/src/detectors/mod.rs#L247-L249`](../../../crates/vox-code-audit/src/detectors/mod.rs#L247-L249) | Returns the number of built-in rules. |
+| `fn` | `detectors::all_rules` | `pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn DetectionRule>>` | [`crates/vox-code-audit/src/detectors/mod.rs#L169-L246`](../../../crates/vox-code-audit/src/detectors/mod.rs#L169-L246) | Returns all built-in detectors. |
+| `fn` | `detectors::rule_count` | `pub fn rule_count() -> usize` | [`crates/vox-code-audit/src/detectors/mod.rs#L249-L251`](../../../crates/vox-code-audit/src/detectors/mod.rs#L249-L251) | Returns the number of built-in rules. |
 | `enum` | `engine::ToestubRunMode` | `pub enum ToestubRunMode` | [`crates/vox-code-audit/src/engine.rs#L17-L27`](../../../crates/vox-code-audit/src/engine.rs#L17-L27) | How CI / CLI should treat findings for exit status. |
 | `struct` | `engine::ToestubConfig` | `pub struct ToestubConfig` | [`crates/vox-code-audit/src/engine.rs#L31-L67`](../../../crates/vox-code-audit/src/engine.rs#L31-L67) | Configuration for a TOESTUB analysis run. |
 | `struct` | `engine::ToestubEngine` | `pub struct ToestubEngine` | [`crates/vox-code-audit/src/engine.rs#L180-L183`](../../../crates/vox-code-audit/src/engine.rs#L180-L183) | The main analysis engine. |

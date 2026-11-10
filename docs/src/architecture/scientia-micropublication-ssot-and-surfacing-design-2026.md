@@ -479,7 +479,7 @@ the evidence the review surface shows). **P5** depends on P1 (URI) + P2 (gate).
   [arXiv:1507.01697](https://arxiv.org/pdf/1507.01697).
 - [Nanopublication Guidelines (working draft)](https://nanopub.net/guidelines/working_draft/).
 - [`Nanopublication/nanopub-testsuite`](https://github.com/Nanopublication/nanopub-testsuite) — cross-language conformance vectors.
-- Rust `nanopub` crate — [docs.rs/nanopub](https://docs.rs/nanopub/latest/nanopub/) · [nanopub-rs toolkit](https://vemonet.github.io/nanopub-rs/).
+- Rust `nanopub` crate — [docs.rs/nanopub](https://docs.rs/nanopub/latest/nanopub/) · [nanopub-rs toolkit](https://github.com/vemonet/nanopub-rs).
 - [Nanopub Registry](https://github.com/knowledgepixels/nanopub-registry) (production lookup/publish; test instances available).
 - nanopub-py publishing & test server — [publish guide](https://nanopublication.github.io/nanopub-py/publishing/publish-nanopublications/).
 

@@ -62,7 +62,7 @@ jobs:
           echo "$PWD/target/debug" >> "$GITHUB_PATH"
 
       - name: Fast tier (same checks as local `vox ci pre-push`)
-        run: ./target/debug/vox ci pre-push
+        run: ./target/debug/vox ci pre-push --ci
 
       - name: Job-matrix change flags (ci-changes)
         id: ci_changes

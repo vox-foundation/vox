@@ -40,28 +40,28 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
   return (
     <div
       data-testid="harness-agent-braid"
-      className="rounded-lg border border-[#D4AF37]/30 bg-linear-to-b from-[#17130D]/95 to-[#100D09]/95 shadow-[0_1px_0_rgba(243,229,171,0.1)_inset] p-2 font-mono text-[10px]"
+      className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface shadow-[0_1px_0_rgba(243,229,171,0.1)_inset] p-2 font-mono text-[10px]"
     >
       <RomanTooltip
         title="Parallel Agent Execution Braid"
         purpose="Visualizes real-time and historical execution paths across roles (Intercept, Fan-out, Verify, Sandbox) for each active agent."
         actionHint="Inspect role transitions across active and completed tool trajectories"
       >
-        <div className="mb-1.5 flex items-center justify-between border-b border-[#D4AF37]/20 pb-1 text-[9px] uppercase tracking-wider text-[#C8B99E]">
+        <div className="mb-1.5 flex items-center justify-between border-b border-[#D4AF37]/20 pb-1 text-[9px] uppercase tracking-wider text-text-secondary">
           <div className="flex items-center gap-2">
             <RomanMedallion active size="sm" {...({ icon: 'romanArch', tone: 'gold' } as any)}>
               <span className="inline-block size-3.5 rounded-t-full border-2 border-current border-b-0" aria-hidden="true" />
             </RomanMedallion>
             <div>
-              <div className="font-display text-[11px] font-semibold tracking-wider text-[#F3E5AB] normal-case">
+              <div className="font-display text-[11px] font-semibold tracking-wider text-text-primary normal-case">
                 Parallel Agent Execution Braid
               </div>
-              <span className="text-[8.5px] tracking-widest text-[#A89F91]">
+              <span className="text-[8.5px] tracking-widest text-text-muted">
                 AGENT ROLE TRAJECTORY FLOW — LAST 8 SLICES
               </span>
             </div>
           </div>
-          <span className="hidden sm:inline font-mono text-[9px] text-[#A89F91]">
+          <span className="hidden sm:inline font-mono text-[9px] text-text-muted">
             INTERCEPT · FAN-OUT · VERIFY · SANDBOX
           </span>
         </div>
@@ -81,7 +81,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
                 <span className="truncate" style={{ color: LANE_COLORS[idx % LANE_COLORS.length] }}>
                   {row.label}
                 </span>
-                <span className="rounded border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-1 text-[8px] text-[#F3E5AB]">
+                <span className="rounded border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-1 text-[8px] text-text-primary">
                   {row.activeLane}
                 </span>
               </div>
@@ -91,7 +91,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
 
         <svg
           viewBox={`0 0 ${svgW} ${svgH}`}
-          className="h-14 xl:h-18 flex-1 overflow-visible rounded border border-[#D4AF37]/20 bg-[#0B0906]/90 shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)]"
+          className="h-14 xl:h-18 flex-1 overflow-visible rounded border border-[#D4AF37]/20 bg-bg-elevated shadow-inner"
           role="img"
           aria-label="Agent role trajectory braid"
         >

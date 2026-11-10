@@ -1,0 +1,101 @@
+# Per-size wording and spoke data for the MENS Hub cards (phase 339, spec section 4.3).
+#
+# Embedded at compile time (crates/vox-populi/src/mens/hub_card/config.rs): edit this file,
+# then rebuild. It is validated on load: every ladder size needs a blurb of two or three
+# sentences, and no blurb or purpose may contain a digit. Numbers on a card come from run
+# records, never from this file; the one exception is `regate_eta`, which is labelled an
+# estimate wherever it is shown. Shared explanation lives on the docs page
+# docs/src/reference/mens-models.md.
+schema: vox_mens_hub_cards_v1
+
+# Declared here because no run record carries training lanes yet. Phase 338 plan 06 replaces
+# this line with a derivation from the training mix.
+default_spoke: vox-lang
+default_spoke_source: >-
+  Each trained ladder adapter targets the vox-lang spoke and is evaluated against its active
+  spoke gate in spoke_gates.json and the shared paired McNemar collateral gate.
+
+spokes:
+  - id: vox-lang
+    label: vox-lang
+    status: trained
+    purpose: Writes and edits Vox code and answers questions about the language.
+  - id: tool-selection
+    label: "harness: tool-selection"
+    status: planned
+    purpose: Chooses which harness tool to call next.
+    link: https://voxlang.org/reference/mens-models/#hub-and-spoke
+  - id: argument-generation
+    label: "harness: argument-generation"
+    status: planned
+    purpose: Fills in the arguments for a chosen harness tool call.
+    link: https://voxlang.org/reference/mens-models/#hub-and-spoke
+  - id: rust
+    label: rust
+    status: planned
+    purpose: Writes and edits Rust code for the same workflows.
+    link: https://voxlang.org/reference/mens-models/#hub-and-spoke
+
+sizes:
+  "0.6B":
+    why:
+      - The smallest rung, aimed at machines with very little memory, including CPU-only boxes.
+      - It suits quick completions and short single-function edits where reply time matters more than depth.
+      - Step up when it loses the thread of a multi-step task; there is no smaller size to step down to.
+  "1.7B":
+    why:
+      - A small rung for ordinary laptops and desktop GPUs with a modest memory budget.
+      - It handles single-file generation and one-pass fixes for compiler diagnostics.
+      - Drop to the smallest size when latency is the limit, or climb to the middle size when an answer needs reasoning across functions.
+    regate_eta:
+      hours_expected: 1.6
+      hours_conservative: 2.6
+      basis: >-
+        Paired collateral evaluation for 1.7B runs 576 new generations (3 slices x 96 new items x 2 sides,
+        assuming the 32-item prefix cache) at 10 s/item expected and 16 s/item conservative, giving
+        5760 s = 1.6 h and 9216 s = 2.6 h.
+      confidence: low
+  "4B":
+    why:
+      - The middle rung, sized for a workstation or a laptop with a generous unified memory budget.
+      - It is the everyday choice for writing and editing several related functions in one pass.
+      - Climb when a change spans files, or drop down when memory runs tight.
+    regate_eta:
+      hours_expected: 3.8
+      hours_conservative: 5.8
+      basis: >-
+        Paired collateral evaluation for 4B runs 576 new generations (3 slices x 96 new items x 2 sides)
+        at 24 s/item expected and 36 s/item conservative, giving 13824 s = 3.8 h and 20736 s = 5.8 h
+        excluding model loads.
+      confidence: low
+  "8B":
+    why:
+      - A larger rung for machines with plenty of memory, such as a high-end laptop or a workstation.
+      - It suits edits that touch several files and designs that need a longer chain of reasoning about types.
+      - Back off to the middle size when memory is short; there is one bigger rung above it for the hardest work.
+    regate_eta:
+      hours_expected: 4.3
+      hours_conservative: 6.2
+      basis: >-
+        Paired collateral evaluation for 8B runs 576 new generations (3 slices x 96 new items x 2 sides,
+        assuming the 32-item prefix cache) at 27 s/item expected and 39 s/item conservative, giving
+        15552 s = 4.3 h and 22464 s = 6.2 h.
+      confidence: low
+  "14B":
+    why:
+      - A large rung that only the biggest single machines can train or serve, so read the memory figure beside this text before trying it.
+      - It targets the hardest edits one model can take on without a cluster.
+      - Fall back to the next smaller size whenever the memory does not fit.
+    regate_eta:
+      hours_expected: 8.0
+      hours_conservative: 11.0
+      basis: >-
+        Paired collateral evaluation for 14B runs about 700 new generations across the three reasoning
+        slices at 42 s/item expected and 58 s/item conservative, giving 29400 s = 8.2 h and 40600 s = 11.3 h
+        (rounded to 8.0 h and 11.0 h).
+      confidence: low
+  "32B":
+    why:
+      - The largest rung, planned for machines at the top of the memory range and not available yet.
+      - It is meant for the hardest cross-file work once a smaller size shows the approach holds.
+      - Until it ships, pick a smaller size.

@@ -143,7 +143,7 @@ component Counter() {
 }
 ```
 
-### VoxLang Automation (`vox run scripts/*.vox`)
+### VoxScript Automation (`vox run scripts/*.vox`)
 ```vox
 import fs
 import process

@@ -26,18 +26,16 @@ Shared test fixtures and harness primitives.
 
 ## Crate Overview
 
-Shared test infrastructure for the Vox compiler and tooling pipelines.
+Shared test infrastructure for Vox tooling and integration tests.
 
-Provides shared builders, assertions, and helpers so no test file needs to
-define `dummy_span()`, `minimal_module()`, or pipeline helpers locally.
+Provides shared test fixtures and harness primitives.
 
 # Usage
 
 ```rust,ignore
 use vox_test_harness::spans::dummy_span;
-use vox_test_harness::hir_builders::minimal_hir_module;
-use vox_test_harness::assertions::{has_error, error_messages};
-use vox_test_harness::pipeline::{parse_str_unwrap, typecheck_str};
+use vox_test_harness::barriers::TestBarrier;
+use vox_test_harness::env_scratch::EnvScratch;
 ```
 
 
@@ -45,7 +43,7 @@ use vox_test_harness::pipeline::{parse_str_unwrap, typecheck_str};
 
 | Dependency | Kind |
 |---|---|
-| [`vox-compiler`](./vox-compiler.generated.md) | Normal |
+| [`vox-ast`](./vox-ast.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 
@@ -55,12 +53,9 @@ use vox_test_harness::pipeline::{parse_str_unwrap, typecheck_str};
 
 | Module | Description |
 |---|---|
-| `assertions` | — |
 | `barriers` | — |
 | `diagnosis` | — |
 | `env_scratch` | — |
-| `hir_builders` | — |
-| `pipeline` | — |
 | `portpicker` | — |
 | `spans` | — |
 | `synthetic_workspace` | — |
@@ -73,14 +68,15 @@ use vox_test_harness::pipeline::{parse_str_unwrap, typecheck_str};
 graph {
     direction: right
     node vox_test_harness: "vox-test-harness"
-    node vox_compiler: "vox-compiler"
-    vox_test_harness -> vox_compiler
+    node vox_ast: "vox-ast"
+    vox_test_harness -> vox_ast
     node vox_config: "vox-config"
     vox_test_harness -> vox_config
     node vox_secrets: "vox-secrets"
     vox_test_harness -> vox_secrets
     node vox_arch_check: "vox-arch-check"
     vox_arch_check -> vox_test_harness
+    node vox_compiler: "vox-compiler"
     vox_compiler -> vox_test_harness
     node vox_db: "vox-db"
     vox_db -> vox_test_harness
@@ -105,15 +101,11 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `fn` | `assertions::has_error` | `pub fn has_error(diags: &[Diagnostic]) -> bool` | [`crates/vox-test-harness/src/assertions.rs#L9-L11`](../../../crates/vox-test-harness/src/assertions.rs#L9-L11) | Returns `true` if `diags` contains at least one error-severity diagnostic. |
-| `fn` | `assertions::error_messages` | `pub fn error_messages(diags: &[Diagnostic]) -> Vec<String>` | [`crates/vox-test-harness/src/assertions.rs#L14-L20`](../../../crates/vox-test-harness/src/assertions.rs#L14-L20) | Returns the `message` field of every error-severity diagnostic in `diags`. |
-| `fn` | `assertions::warning_messages` | `pub fn warning_messages(diags: &[Diagnostic]) -> Vec<String>` | [`crates/vox-test-harness/src/assertions.rs#L23-L29`](../../../crates/vox-test-harness/src/assertions.rs#L23-L29) | Returns the `message` field of every warning-severity diagnostic in `diags`. |
-| `fn` | `assertions::assert_no_errors` | `pub fn assert_no_errors(diags: &[Diagnostic])` | [`crates/vox-test-harness/src/assertions.rs#L35-L42`](../../../crates/vox-test-harness/src/assertions.rs#L35-L42) | Asserts that `diags` contains zero error-severity diagnostics.  Prints all error messages on failure. |
-| `struct` | `barriers::TestBarrier` | `pub struct TestBarrier` | [`crates/vox-test-harness/src/barriers.rs#L9-L11`](../../../crates/vox-test-harness/src/barriers.rs#L9-L11) | A simple waitable barrier to replace `sleep` in tests. |
-| `fn` | `barriers::new` | `pub fn new() -> Self` | [`crates/vox-test-harness/src/barriers.rs#L14-L16`](../../../crates/vox-test-harness/src/barriers.rs#L14-L16) | — |
-| `fn` | `barriers::signal` | `pub fn signal(&self)` | [`crates/vox-test-harness/src/barriers.rs#L19-L21`](../../../crates/vox-test-harness/src/barriers.rs#L19-L21) | Signals that an event occurred. |
-| `fn` | `barriers::wait` | `pub async fn wait(&self) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L25-L27`](../../../crates/vox-test-harness/src/barriers.rs#L25-L27) | Waits for a signal, with a default 5-second timeout to prevent tests from hanging indefinitely in CI. |
-| `fn` | `barriers::wait_with_timeout` | `pub async fn wait_with_timeout(&self, dur: Duration) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L30-L32`](../../../crates/vox-test-harness/src/barriers.rs#L30-L32) | Waits for a signal with a specific timeout. |
+| `struct` | `barriers::TestBarrier` | `pub struct TestBarrier` | [`crates/vox-test-harness/src/barriers.rs#L7-L9`](../../../crates/vox-test-harness/src/barriers.rs#L7-L9) | A simple waitable barrier to replace `sleep` in tests. |
+| `fn` | `barriers::new` | `pub fn new() -> Self` | [`crates/vox-test-harness/src/barriers.rs#L12-L14`](../../../crates/vox-test-harness/src/barriers.rs#L12-L14) | — |
+| `fn` | `barriers::signal` | `pub fn signal(&self)` | [`crates/vox-test-harness/src/barriers.rs#L17-L19`](../../../crates/vox-test-harness/src/barriers.rs#L17-L19) | Signals that an event occurred. |
+| `fn` | `barriers::wait` | `pub async fn wait(&self) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L23-L25`](../../../crates/vox-test-harness/src/barriers.rs#L23-L25) | Waits for a signal, with a default 5-second timeout to prevent tests from hanging indefinitely in CI. |
+| `fn` | `barriers::wait_with_timeout` | `pub async fn wait_with_timeout(&self, dur: Duration) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L28-L30`](../../../crates/vox-test-harness/src/barriers.rs#L28-L30) | Waits for a signal with a specific timeout. |
 | `struct` | `diagnosis::TestDiagnosis` | `pub struct TestDiagnosis` | [`crates/vox-test-harness/src/diagnosis.rs#L11-L32`](../../../crates/vox-test-harness/src/diagnosis.rs#L11-L32) | Structured failure record emitted to stdout for CI and doctor tooling. |
 | `enum` | `diagnosis::TestCategory` | `pub enum TestCategory` | [`crates/vox-test-harness/src/diagnosis.rs#L37-L56`](../../../crates/vox-test-harness/src/diagnosis.rs#L37-L56) | Compiler / tooling stage associated with a failure. |
 | `fn` | `diagnosis::new` | `pub fn new(` | [`crates/vox-test-harness/src/diagnosis.rs#L60`](../../../crates/vox-test-harness/src/diagnosis.rs#L60) | Build a diagnosis with required fields; diff and related metadata start empty. |
@@ -125,9 +117,6 @@ graph {
 | `fn` | `env_scratch::empty` | `pub fn empty() -> Self` | [`crates/vox-test-harness/src/env_scratch.rs#L15-L19`](../../../crates/vox-test-harness/src/env_scratch.rs#L15-L19) | — |
 | `fn` | `env_scratch::set` | `pub fn set(mut self, key: impl AsRef<str>, val: impl AsRef<str>) -> Self` | [`crates/vox-test-harness/src/env_scratch.rs#L28-L37`](../../../crates/vox-test-harness/src/env_scratch.rs#L28-L37) | — |
 | `fn` | `env_scratch::remove` | `pub fn remove(mut self, key: impl AsRef<str>) -> Self` | [`crates/vox-test-harness/src/env_scratch.rs#L39-L46`](../../../crates/vox-test-harness/src/env_scratch.rs#L39-L46) | — |
-| `fn` | `hir_builders::minimal_hir_module` | `pub fn minimal_hir_module() -> HirModule` | [`crates/vox-test-harness/src/hir_builders.rs#L14-L18`](../../../crates/vox-test-harness/src/hir_builders.rs#L14-L18) | An empty [`HirModule`] with no declarations — the minimal starting point for codegen tests that build up a module incrementally.  Prefer this over defining `fn minimal_module()` locally in test files. |
-| `fn` | `hir_builders::hir_fn` | `pub fn hir_fn(name: impl Into<String>) -> HirFn` | [`crates/vox-test-harness/src/hir_builders.rs#L23-L60`](../../../crates/vox-test-harness/src/hir_builders.rs#L23-L60) | Build a minimal [`HirFn`] with the given name and no body.  Defaults: sync, not pub, not `@mobile.native`, no params, no return type. |
-| `fn` | `hir_builders::hir_table` | `pub fn hir_table(name: impl Into<String>) -> HirTable` | [`crates/vox-test-harness/src/hir_builders.rs#L63-L76`](../../../crates/vox-test-harness/src/hir_builders.rs#L63-L76) | Build a minimal [`HirTable`] with the given name and no fields. |
 | `fn` | `portpicker::pick_unused_port` | `pub fn pick_unused_port() -> Option<u16>` | [`crates/vox-test-harness/src/portpicker.rs#L7-L14`](../../../crates/vox-test-harness/src/portpicker.rs#L7-L14) | Picks an available TCP port for testing.  Note: There is a small race condition between picking and using, but it is usually sufficient for local integration tests. |
 | `fn` | `spans::dummy_span` | `pub fn dummy_span() -> Span` | [`crates/vox-test-harness/src/spans.rs#L10-L12`](../../../crates/vox-test-harness/src/spans.rs#L10-L12) | A zero-width span at position 0, suitable for test AST/HIR nodes.  Use this in place of constructing `Span { start: 0, end: 0 }` inline. |
 | `enum` | `synthetic_workspace::MemberKind` | `pub enum MemberKind` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L38-L43`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L38-L43) | — |
@@ -150,4 +139,7 @@ graph {
 | `struct` | `temp_root::TempRoot` | `pub struct TempRoot` | [`crates/vox-test-harness/src/temp_root.rs#L9-L11`](../../../crates/vox-test-harness/src/temp_root.rs#L9-L11) | — |
 | `fn` | `temp_root::new` | `pub fn new() -> anyhow::Result<Self>` | [`crates/vox-test-harness/src/temp_root.rs#L14-L18`](../../../crates/vox-test-harness/src/temp_root.rs#L14-L18) | — |
 | `fn` | `temp_root::path` | `pub fn path(&self) -> &Path` | [`crates/vox-test-harness/src/temp_root.rs#L20-L22`](../../../crates/vox-test-harness/src/temp_root.rs#L20-L22) | — |
+| `fn` | `temp_root::persist` | `pub fn persist(self) -> std::path::PathBuf` | [`crates/vox-test-harness/src/temp_root.rs#L25-L27`](../../../crates/vox-test-harness/src/temp_root.rs#L25-L27) | Persists the directory after this helper is dropped (no automatic cleanup). |
+| `fn` | `workspace_paths::find_workspace_root` | `pub fn find_workspace_root(start: impl AsRef<Path>) -> Option<PathBuf>` | [`crates/vox-test-harness/src/workspace_paths.rs#L9-L24`](../../../crates/vox-test-harness/src/workspace_paths.rs#L9-L24) | Walk parents from `start` until a `Cargo.toml` containing a `[workspace]` table is found. |
+| `fn` | `workspace_paths::repo_root_for_tests` | `pub fn repo_root_for_tests(start: impl AsRef<Path>) -> PathBuf` | [`crates/vox-test-harness/src/workspace_paths.rs#L27-L42`](../../../crates/vox-test-harness/src/workspace_paths.rs#L27-L42) | Prefer [`vox_secrets::SecretId::VoxRepositoryRoot`] (`VOX_REPO_ROOT`) when it points at a checkout root; otherwise walk up from `start`. |
 

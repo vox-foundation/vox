@@ -1,10 +1,7 @@
 //! Flags `env::var("NAME")` reads of LLM/AI-shaped, **non-secret** env vars that are
-//! not declared in the `vox-llm-config` SSOT. Secret-shaped names (`*_API_KEY`,
+//! not declared in the LLM config SSOT. Secret-shaped names (`*_API_KEY`,
 //! `*_TOKEN`, `*_SECRET`) are intentionally left to `EnvSecretShapeDetector` so the
 //! two detectors do not double-flag.
-//!
-//! The registered set is read live from `vox_config::vox_llm_config::LLM_CONFIG_KEYS`
-//! (vox-code-audit already depends on vox-config), so it cannot drift from the SSOT.
 
 use crate::rules::{DetectionRule, Finding, FindingConfidence, Language, Severity, SourceFile};
 use regex::Regex;
@@ -14,7 +11,7 @@ pub struct UnregisteredLlmEnvDetector {
     env_call: Regex,
     llm_shape: Regex,
     /// Names that count as "registered" somewhere in the SSOT planes: the
-    /// `vox-llm-config` display registry OR the `vox-secrets` managed-secret set
+    /// LLM config keys OR the `vox-secrets` managed-secret set
     /// (canonical + aliases). Built once so per-line checks are O(1).
     known: HashSet<&'static str>,
 }
@@ -26,11 +23,71 @@ impl Default for UnregisteredLlmEnvDetector {
 }
 
 impl UnregisteredLlmEnvDetector {
+    const STATIC_LLM_CONFIG_KEYS: &'static [&'static str] = &[
+        "OPENROUTER_BASE_URL",
+        "VOX_OPENAI_BASE_URL",
+        "POPULI_URL",
+        "OLLAMA_URL",
+        "OLLAMA_HOST",
+        "HF_DEDICATED_CHAT_URL",
+        "VOX_HF_ROUTER_CHAT_COMPLETIONS_URL",
+        "VOX_GROQ_CHAT_COMPLETIONS_URL",
+        "VOX_CEREBRAS_CHAT_COMPLETIONS_URL",
+        "VOX_MISTRAL_CHAT_COMPLETIONS_URL",
+        "VOX_DEEPSEEK_CHAT_COMPLETIONS_URL",
+        "VOX_SAMBANOVA_CHAT_COMPLETIONS_URL",
+        "VOX_ANTHROPIC_CHAT_COMPLETIONS_URL",
+        "vox_populi::inference_PROFILE",
+        "OPENROUTER_CHAT_MODEL",
+        "OPENROUTER_MODEL",
+        "HF_CHAT_MODEL",
+        "HF_DEDICATED_CHAT_MODEL",
+        "OLLAMA_MODEL",
+        "TOGETHER_FINETUNE_MODEL",
+        "OPENROUTER_HTTP_REFERER",
+        "OPENROUTER_APP_TITLE",
+        "OPENROUTER_ROUTE_HINT",
+        "OLLAMA_TUNING_TEMPERATURE",
+        "OLLAMA_TUNING_TOP_P",
+        "OLLAMA_TUNING_NUM_CTX",
+        "OPENAI_TUNING_TEMPERATURE",
+        "OPENAI_TUNING_TOP_P",
+        "ANTHROPIC_TUNING_TEMPERATURE",
+        "ANTHROPIC_TUNING_TOP_P",
+        "GEMINI_TUNING_TEMPERATURE",
+        "GEMINI_TUNING_TOP_P",
+        "TOGETHER_TUNING_TEMPERATURE",
+        "TOGETHER_TUNING_TOP_P",
+        "VOX_AGY_GCP_PROJECT",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GEMINI_API_KEY",
+        "GROQ_API_KEY",
+        "MISTRAL_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "SAMBANOVA_API_KEY",
+        "CEREBRAS_API_KEY",
+        "TOGETHER_API_KEY",
+        "RUNPOD_API_KEY",
+        "VAST_API_KEY",
+        "CUSTOM_OPENAI_API_KEY",
+        "OPENCLAW_API_KEY",
+        "OPENCLAW_TOKEN",
+        "HF_TOKEN",
+        "model",
+        "daily_budget_usd",
+        "per_session_budget_usd",
+        "budget_warn_threshold_pct",
+        "data_dir",
+        "db_url",
+        "train_epochs",
+        "train_batch_size",
+    ];
+
     pub fn new() -> Self {
-        let mut known: HashSet<&'static str> = vox_config::vox_llm_config::LLM_CONFIG_KEYS
-            .iter()
-            .map(|k| k.env)
-            .collect();
+        let mut known: HashSet<&'static str> =
+            Self::STATIC_LLM_CONFIG_KEYS.iter().copied().collect();
         // Keys declared in the vox-secrets registry (incl. Band-B routing keys still
         // resolved through the secret plane) are registered — do not flag them.
         known.extend(vox_secrets::spec::managed_secret_env_names());

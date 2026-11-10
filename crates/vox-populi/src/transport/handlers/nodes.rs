@@ -92,6 +92,7 @@ pub(crate) async fn registry_sweep_maintenance(st: &PopuliTransportState) {
     dispatch_results_sweep(&st.dispatch_results, now);
 }
 
+#[inline(never)]
 pub(crate) async fn list_nodes(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -120,6 +121,7 @@ pub(crate) async fn list_nodes(
     Ok(Json(g))
 }
 
+#[inline(never)]
 pub(crate) async fn join_node(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -219,6 +221,7 @@ fn merge_optional_node_fields(target: &mut NodeRecord, src: &NodeRecord) {
     }
 }
 
+#[inline(never)]
 pub(crate) async fn heartbeat(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -266,6 +269,7 @@ impl IntoResponse for ResponseErr {
     }
 }
 
+#[inline(never)]
 pub(crate) async fn leave_node(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
@@ -288,6 +292,7 @@ pub(crate) async fn leave_node(
     }
 }
 
+#[inline(never)]
 pub(crate) async fn bootstrap_exchange(
     State(st): State<PopuliTransportState>,
     Json(req): Json<BootstrapExchangeRequest>,
@@ -500,6 +505,7 @@ pub(crate) fn aggregate_resources(nodes: &[NodeRecord]) -> MeshResourceSummary {
     summary
 }
 
+#[inline(never)]
 pub(crate) async fn resources_summary(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,

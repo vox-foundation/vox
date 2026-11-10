@@ -1,0 +1,8 @@
+# Generation decode identity and batch bounds for reasoning evaluation.
+#
+# The f32 width defines the widest batch width proven byte-identical
+# to batch=1 for the protocol on this device. This width may only be raised
+# with new R2-style empirical evidence recorded under evidence.
+f32:
+  verified_batch_width: 64
+  evidence: "337-08 R2: CPU and Metal bitwise greedy identity proven across sizes up to width 64; KV allocator power-of-two bound holds."

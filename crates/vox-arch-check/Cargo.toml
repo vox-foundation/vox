@@ -31,8 +31,6 @@ vox-rename-registry = { path = "../vox-rename-registry" }
 vox-test-harness = { workspace = true }
 tempfile = { workspace = true }
 
-[build-dependencies]
-vox-build-meta = { workspace = true }
 
 [lints]
 workspace = true

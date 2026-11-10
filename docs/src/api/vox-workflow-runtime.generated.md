@@ -67,6 +67,7 @@ This crate is the MVP engine behind `vox mens workflow run` when `vox-cli` is bu
 | [`vox-mesh-transport`](./vox-mesh-transport.generated.md) | Normal |
 | [`vox-populi`](./vox-populi.generated.md) | Normal |
 | [`vox-runtime`](./vox-runtime.generated.md) | Normal |
+| [`vox-codegen`](./vox-codegen.generated.md) | Development |
 | [`vox-compiler`](./vox-compiler.generated.md) | Development |
 
 ## Public API Surface
@@ -88,6 +89,8 @@ This crate is the MVP engine behind `vox mens workflow run` when `vox-cli` is bu
 graph {
     direction: right
     node vox_workflow_runtime: "vox-workflow-runtime"
+    node vox_codegen: "vox-codegen"
+    vox_workflow_runtime -> vox_codegen
     node vox_compiler: "vox-compiler"
     vox_workflow_runtime -> vox_compiler
     node vox_config: "vox-config"
@@ -104,8 +107,6 @@ graph {
     vox_workflow_runtime -> vox_runtime
     node vox_cli: "vox-cli"
     vox_cli -> vox_workflow_runtime
-    node vox_codegen: "vox-codegen"
-    vox_codegen -> vox_workflow_runtime
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_workflow_runtime
     node vox_ml_cli: "vox-ml-cli"
@@ -118,7 +119,6 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
-| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 

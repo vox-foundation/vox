@@ -99,10 +99,10 @@ function HitCard({
 
   return (
     <div
-      className={`group flex items-start gap-3 rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3 hover:border-[#D4AF37]/60 transition ${isOpenable ? 'cursor-pointer' : ''}`}
+      className={`group flex items-start gap-3 rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3 hover:border-[#D4AF37]/60 transition ${isOpenable ? 'cursor-pointer' : ''}`}
       onClick={isOpenable ? onOpen : undefined}
     >
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-[#2A2011] text-[#D4AF37]">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-bg-elevated text-[#D4AF37]">
         {kindIcon[hit.kind] ?? <Icon.file className="size-3.5" />}
       </div>
       <div className="flex-1 min-w-0">
@@ -124,7 +124,7 @@ function HitCard({
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[#2A2011]">
+        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-bg-elevated">
           <div
             className="h-full bg-linear-to-r from-[#B45309] via-[#D4AF37] to-[#F3E5AB]"
             style={{ width: `${hit.score * 100}%` }}
@@ -135,7 +135,7 @@ function HitCard({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onOpen(); }}
-              className="rounded-sm border border-[#D4AF37]/30 bg-[#2A2011]/80 px-1.5 py-0.5 font-mono text-[9px] text-[#D6CEBF] hover:bg-[#78350F]/40 hover:text-[#F3E5AB]"
+              className="rounded-sm border border-[#D4AF37]/30 bg-bg-elevated/80 px-1.5 py-0.5 font-mono text-[9px] text-[#D6CEBF] hover:bg-[#78350F]/40 hover:text-[#F3E5AB]"
             >
               <Icon.link aria-hidden="true" className="size-2.5 inline mr-0.5" />open
             </button>
@@ -143,7 +143,7 @@ function HitCard({
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onPin(); }}
-            className="rounded-sm border border-[#D4AF37]/30 bg-[#2A2011]/80 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB] hover:bg-[#78350F]/40"
+            className="rounded-sm border border-[#D4AF37]/30 bg-bg-elevated/80 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB] hover:bg-[#78350F]/40"
           >
             <Icon.pin aria-hidden="true" className="size-2.5 inline mr-0.5" />pin
           </button>
@@ -486,7 +486,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[10px] transition ${
                 recallOn
                   ? 'border-[#D4AF37]/60 bg-[#78350F]/40 text-[#FEF3C7]'
-                  : 'border-[#D4AF37]/25 bg-[#16120C]/80 text-[#D6CEBF] hover:text-[#F3E5AB]'
+                  : 'border-[#D4AF37]/25 bg-bg-surface/80 text-[#D6CEBF] hover:text-[#F3E5AB]'
               }`}
             >
               <Icon.eye aria-hidden="true" className="size-3" /> Auto-recall
@@ -498,7 +498,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                   .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex', cause: 'backend-ok' }))
                   .catch((err) => pushToast({ tone: 'error', title: 'Reindex failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
               }
-              className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/25 bg-[#16120C]/80 px-2 py-1.5 font-mono text-[10px] text-[#D6CEBF] hover:text-[#F3E5AB]"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/25 bg-bg-surface/80 px-2 py-1.5 font-mono text-[10px] text-[#D6CEBF] hover:text-[#F3E5AB]"
             >
               <Icon.refresh aria-hidden="true" className="size-3" /> Reindex
             </button>
@@ -507,7 +507,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       />
 
       {/* Navigation Tabs + Search Query Container */}
-      <Glass className="col-span-12 p-5 border-[#D4AF37]/25 bg-[#16120C]/90">
+      <Glass className="col-span-12 p-5 border-[#D4AF37]/25 bg-bg-surface/90">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4AF37]/20 pb-3">
           <div className="flex items-center gap-2">
             <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-[#F3E5AB]">
@@ -537,7 +537,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               onClick={() => setActiveTab(tab)}
               className={`rounded-md px-3 py-1 font-display text-xs font-bold uppercase tracking-wider transition ${
                 activeTab === tab
-                  ? 'border border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB] shadow-xs'
+                  ? 'border border-[#8C6825] bg-bg-elevated text-text-primary shadow-xs'
                   : 'text-[#4A381D] hover:bg-white/60 hover:text-[#1C140C]'
               }`}
             >
@@ -580,7 +580,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 disabled={!query.trim() || recalling}
                 className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] font-bold uppercase tracking-widest transition ${
                   query.trim()
-                    ? 'border-[#8C6825] bg-linear-to-b from-[#2A1F12] to-[#161009] text-[#F3E5AB]'
+                    ? 'border-[#8C6825] bg-bg-elevated text-text-primary'
                     : 'border-[#A67C1E]/60 bg-[#E6DBC4] text-[#6B5125] cursor-not-allowed'
                 }`}
               >

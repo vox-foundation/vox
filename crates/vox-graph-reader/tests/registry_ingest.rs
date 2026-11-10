@@ -98,9 +98,18 @@ fn real_files_yield_sane_counts() {
         "under-extracted surfaces: {}",
         surfaces.len()
     );
-    let dispatch_src =
+    let mut dispatch_src =
         std::fs::read_to_string(root.join("crates/vox-orchestrator-mcp/src/dispatch.rs"))
             .expect("read dispatch.rs");
+    for entry in std::fs::read_dir(root.join("crates/vox-orchestrator-mcp/src/dispatch_domains"))
+        .expect("read dispatch_domains")
+    {
+        let path = entry.expect("dir entry").path();
+        if path.extension().and_then(|s| s.to_str()) == Some("rs") {
+            dispatch_src.push('\n');
+            dispatch_src.push_str(&std::fs::read_to_string(&path).expect("read domain dispatch"));
+        }
+    }
     let tools = mcp_tool_nodes(&dispatch_src);
     assert!(tools.len() >= 30, "under-extracted tools: {}", tools.len());
 }

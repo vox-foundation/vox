@@ -18,9 +18,9 @@ export function BackendStatusPill({ collapsed = false }: { collapsed?: boolean }
       role="status"
       aria-label={label}
       title={label}
-      className={`flex items-center ${collapsed ? 'justify-center' : 'gap-1.5 px-2'} rounded-md border border-accent-secondary/30 bg-accent-secondary/8 py-1 font-mono text-[10px] text-text-secondary`}
+      className={`flex items-center ${collapsed ? 'justify-center' : 'gap-1.5 px-2'} rounded-md border border-(--color-status-pass)/40 bg-(--color-status-pass)/10 py-1 font-mono text-[10px] font-semibold text-text-secondary`}
     >
-      <span className="size-1.5 shrink-0 rounded-full bg-accent-secondary" aria-hidden="true" />
+      <span className="size-1.5 shrink-0 rounded-full bg-(--color-status-pass) ring-1 ring-[#D4AF37]/80" aria-hidden="true" />
       {!collapsed && <span className="truncate">{host}</span>}
       {!collapsed && profiles && <span className="truncate text-text-muted">· {profiles}</span>}
     </div>

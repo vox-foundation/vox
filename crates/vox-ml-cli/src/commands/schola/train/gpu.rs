@@ -6,12 +6,13 @@ use std::path::PathBuf;
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run_gpu_training(
     train_backend: vox_populi::mens::PopuliTrainBackend,
-    model: Option<String>,
+    mut model: Option<String>,
     device: String,
     data_dir: PathBuf,
     output_dir: PathBuf,
     resume: Option<PathBuf>,
-    preset: Option<String>,
+    mut preset: Option<String>,
+    size_pick: Option<vox_populi::mens::tensor::size_select::SizePick>,
     device_profile: vox_populi::mens::DeviceProfile,
     cli_overrides: vox_populi::mens::CliOverrides,
     gpu_info: vox_populi::mens::GpuInfo,
@@ -48,8 +49,11 @@ pub(super) async fn run_gpu_training(
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
-) -> Result<()> {
+    opts: super::TrainRunOpts,
+) -> Result<Option<vox_populi::mens::tensor::size_select::SizePick>> {
     use owo_colors::OwoColorize;
+    use vox_corpus::training::preflight::check_heldout_contamination;
+    use vox_populi::mens::tensor::spoke_base_resolver::floor_notes;
 
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
     let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
@@ -88,6 +92,27 @@ pub(super) async fn run_gpu_training(
         workspace_root.as_deref(),
     )?;
     tracing::debug!(path = %resolved.path.display(), source = ?resolved.source, "Preflight resolved train input");
+    let heldout = check_heldout_contamination(&resolved.path, workspace_root.as_deref())?;
+    eprintln!("  {} held-out check: {heldout}", "ℹ".cyan());
+
+    // One re-read right before the download (D-05); the post-download `plan_for`
+    // refusal below remains the backstop. An explicit `--preset` still wins.
+    // The final pick goes back to the caller for the adapter card (CR-03).
+    let mut final_pick = None;
+    let mut reading = None;
+    if let Some(pick) = size_pick {
+        let (pick, live) =
+            super::run_train::recheck_size_pick(pick, workspace_root.as_deref(), device_kind)?;
+        reading = live;
+        adopt_size_pick(&pick, &mut model, &mut preset);
+        // The profile's size-ladder floors read VOX_BASE_MODEL (set by run_train).
+        // SAFETY: CLI process; set before any training thread starts.
+        #[allow(unsafe_code)]
+        if let Some(m) = &model {
+            unsafe { std::env::set_var("VOX_BASE_MODEL", m) };
+        }
+        final_pick = Some(pick);
+    }
 
     // The old VRAM-tiered `auto_preset` lookup that used to pick `final_preset`
     // here was deleted (Task 8: it had no 27B rung and silently handed a 27B
@@ -161,10 +186,6 @@ pub(super) async fn run_gpu_training(
         anyhow::bail!("--trajectory-quality-floor must be between 1 and 5 (got {q})");
     }
 
-    // Activation/gradient checkpointing default policy:
-    //   * explicit `--gradient-checkpointing` (→ env var) always wins;
-    //   * otherwise auto-enable for ~3B models, which OOM the single-backward peak
-    //     on a 16GB GPU without it (1.5B fits fine without checkpointing).
     // Computed here (rather than after download, where it used to live) so the
     // auto-sizing sweep below — which needs a `CalKey` including this flag —
     // can use the same value the final `LoraTrainingConfig` uses.
@@ -172,19 +193,54 @@ pub(super) async fn run_gpu_training(
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    let gc_auto_large = model
-        .as_deref()
-        .and_then(vox_populi::mens::tensor::memory_budget::params_b_from_model_hint)
-        .map(|b| b >= 2.9)
-        .unwrap_or(false);
-    let gradient_checkpointing = gc_explicit || gc_auto_large;
+    let gradient_checkpointing =
+        wants_gradient_checkpointing(gc_explicit, model.as_deref(), device_kind);
     if gradient_checkpointing {
         tracing::info!(
             explicit = gc_explicit,
-            auto_large = gc_auto_large,
             "activation/gradient checkpointing ENABLED for this run"
         );
     }
+
+    // Resolve license_class from the base's `gpu-specs.yaml` `train_bases` entry;
+    // `--license-class` (already collected as `license_class` above) is an
+    // override, not the only source. Hard error (never a silent apache-2.0
+    // fallback) when neither the base nor an override provides one.
+    let (license_class, attribution_required) =
+        vox_populi::mens::tensor::spoke_base_resolver::resolve_license_class(
+            workspace_root.as_deref(),
+            model.as_deref(),
+            license_class,
+        )
+        .map(|(lic, attr)| (Some(lic), attr || attribution_required))?;
+    if let Some(id) = model.as_deref() {
+        for note in floor_notes(workspace_root.as_deref(), id)? {
+            eprintln!("  {} base {id}: {note}", "ℹ".cyan());
+        }
+    }
+
+    if opts.plan_only {
+        let plan = super::plan_only::TrainPlan::new(
+            model.as_deref(),
+            final_pick.as_ref(),
+            reading.or_else(|| super::run_train::live_free_memory(device_kind)),
+            &device,
+            preset.as_deref(),
+            &profile,
+            &resolved,
+            license_class.clone(),
+            workspace_root.as_deref(),
+            heldout,
+        )?;
+        println!("{}", plan.render(opts.json));
+        return Ok(final_pick);
+    }
+
+    refuse_resume_onto_another_base(
+        resume.as_deref().unwrap_or(&output_dir),
+        model.as_deref(),
+        force_restart,
+    )?;
 
     let mut base_model_paths = None::<(Vec<std::path::PathBuf>, std::path::PathBuf)>;
     let mut tokenizer_path = None::<std::path::PathBuf>;
@@ -248,7 +304,12 @@ pub(super) async fn run_gpu_training(
         };
         match auto_size_outcome {
             Ok(outcome) => {
-                match apply_auto_size_outcome(outcome, force_train_env(), batch_size, seq_len)? {
+                match apply_auto_size_outcome(
+                    outcome,
+                    super::run_train::force_train_env(),
+                    batch_size,
+                    seq_len,
+                )? {
                     SizingDecision::Sized {
                         batch_size: b,
                         seq_len: s,
@@ -347,15 +408,15 @@ pub(super) async fn run_gpu_training(
                 train_backend,
                 vox_populi::mens::PopuliTrainBackend::CandleQlora
             ) {
-                // `batch_size`/`seq_len` here (not `profile.*`) so this estimate
-                // reflects the post-sweep sizing when auto-sizing ran above.
+                // `seq_len` here (not `profile.*`) so this estimate reflects the
+                // post-sweep sizing when auto-sizing ran above.
                 vox_populi::mens::estimate_training_vram_mb_qlora(
                     cfg.n_embd,
                     cfg.n_head,
                     cfg.n_layer,
                     cfg.vocab_size,
-                    batch_size,
                     seq_len,
+                    gradient_checkpointing,
                 )
             } else {
                 vox_populi::mens::estimate_training_vram_mb(
@@ -367,6 +428,24 @@ pub(super) async fn run_gpu_training(
                     seq_len,
                 )
             };
+            // Metal has no calibrated plan_for lane (NoMeasurement above), so
+            // this estimate is its fit check: refuse past live free memory
+            // rather than let the OS kill the run mid-step (320 S2).
+            let metal = device_kind == vox_populi::mens::DeviceKind::Metal
+                || (device_kind == vox_populi::mens::DeviceKind::Best && cfg!(target_os = "macos"));
+            if metal
+                && let Some(free) = super::run_train::live_free_memory(device_kind)
+                && est_mb > free.mb
+                && !super::run_train::force_train_env()
+            {
+                anyhow::bail!(
+                    "estimated peak {est_mb} MB (every row at --seq-len {seq_len}, gradient \
+                     checkpointing {gradient_checkpointing}) exceeds {} MB free ({}); lower \
+                     --seq-len or free memory, or set VOX_MENS_FORCE_TRAIN=1 to try anyway",
+                    free.mb,
+                    free.source
+                );
+            }
             if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
                 eprintln!(
                     "  {} VRAM risk: est. {} MB > 85% of {} MB. Try --batch-size 2 --seq-len 256 or VOX_TRAIN_PROFILE=safe",
@@ -406,6 +485,9 @@ pub(super) async fn run_gpu_training(
             skip_mix,
             &resolved.path,
         )?;
+    if train_file_path != resolved.path {
+        check_heldout_contamination(&train_file_path, workspace_root.as_deref())?;
+    }
 
     let run_id = vox_corpus::training::timestamp_string();
     let git_sha = option_env!("VOX_GIT_HASH").unwrap_or("unknown").to_string();
@@ -414,18 +496,6 @@ pub(super) async fn run_gpu_training(
     } else {
         gpu_info.model_name.clone()
     };
-
-    // Resolve license_class from the base's `gpu-specs.yaml` `train_bases` entry;
-    // `--license-class` (already collected as `license_class` above) is an
-    // override, not the only source. Hard error (never a silent apache-2.0
-    // fallback) when neither the base nor an override provides one.
-    let (license_class, attribution_required) =
-        vox_populi::mens::tensor::spoke_base_resolver::resolve_license_class(
-            workspace_root.as_deref(),
-            model.as_deref(),
-            license_class,
-        )
-        .map(|(lic, attr)| (Some(lic), attr || attribution_required))?;
 
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,
@@ -479,6 +549,7 @@ pub(super) async fn run_gpu_training(
         reward_hook: None,
         launch_argv: std::env::args().collect(),
         gradient_checkpointing,
+        max_runtime_secs: opts.max_runtime_secs,
     };
     let model_name_for_stats = config
         .base_model
@@ -511,7 +582,73 @@ pub(super) async fn run_gpu_training(
             .await;
     }
 
-    Ok(())
+    Ok(final_pick)
+}
+
+/// The resume base invariant, checked before the base download and memory
+/// estimate: a checkpoint in `checkpoint_root` trained on another base would be
+/// refused by the trainer anyway (`apply_checkpoint_resume`), after both.
+fn refuse_resume_onto_another_base(
+    checkpoint_root: &std::path::Path,
+    base: Option<&str>,
+    force_restart: bool,
+) -> Result<()> {
+    if force_restart {
+        return Ok(());
+    }
+    let path =
+        checkpoint_root.join(vox_populi::mens::tensor::checkpoint_state::CHECKPOINT_FILENAME);
+    let Ok(raw) = std::fs::read_to_string(&path) else {
+        return Ok(());
+    };
+    let state: serde_json::Value = serde_json::from_str(&raw)
+        .map_err(|e| anyhow::anyhow!("{} is not valid JSON: {e}", path.display()))?;
+    let Some(was) = state.get("base_model").and_then(|v| v.as_str()) else {
+        return Ok(()); // predates the recorded base; the trainer warns
+    };
+    if base == Some(was) {
+        return Ok(());
+    }
+    let now = base.unwrap_or("(none)");
+    anyhow::bail!(
+        "Checkpoint in {} was trained on base {was}, but this run's base is {now}. \
+         Resuming would attach that adapter to a different base model. Pass --model {was} \
+         to keep training it, or --force-restart to discard the checkpoint and start fresh \
+         on {now}.",
+        checkpoint_root.display()
+    )
+}
+
+/// Activation/gradient checkpointing policy. An explicit
+/// `VOX_MENS_GRADIENT_CHECKPOINTING` always wins; otherwise on for ~3B+ models,
+/// which OOM the single-backward peak on a 16 GB GPU without it, and always on
+/// Metal, where an eager 0.6B row already needs ~41 GB at 512 tokens (320 S2).
+fn wants_gradient_checkpointing(
+    explicit: bool,
+    model: Option<&str>,
+    device_kind: vox_populi::mens::DeviceKind,
+) -> bool {
+    use vox_populi::mens::DeviceKind;
+    explicit
+        || device_kind == DeviceKind::Metal
+        || (device_kind == DeviceKind::Best && cfg!(target_os = "macos"))
+        || model
+            .and_then(vox_populi::mens::tensor::memory_budget::params_b_from_model_hint)
+            .is_some_and(|b| b >= 2.9)
+}
+
+/// Point the run at a re-checked size pick (D-05): its pin becomes the model
+/// (and `VOX_BASE_MODEL`), and its preset fills an unset `--preset`; an explicit
+/// `--preset` still wins.
+fn adopt_size_pick(
+    pick: &vox_populi::mens::tensor::size_select::SizePick,
+    model: &mut Option<String>,
+    preset: &mut Option<String>,
+) {
+    *model = Some(pick.rung.hf_id.clone());
+    if preset.is_none() {
+        *preset = Some(pick.rung.preset.to_string());
+    }
 }
 
 /// Outcome of attempting to auto-size against the real per-host memory
@@ -713,24 +850,6 @@ fn verify_request_with_budget(
     })
 }
 
-/// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override
-/// meaning "proceed past a failing gate", including the VRAM-fit refusal
-/// above. Restores exactly the escape hatch `train_arm.rs`'s deleted
-/// `budget_gate`/`force_train_env` used to provide for the params_b-only
-/// ladder's `ModelPlan.over_budget`, now applied to the real measured
-/// `plan_for`/`sweep` verdict instead — including `budget_gate`'s own
-/// unconditional coverage: it ran for every CUDA run regardless of how
-/// sizing was chosen, and (fix round 2) so does this, via both
-/// `auto_size_from_model_dir` (no explicit sizing) and
-/// `verify_request_from_model_dir` (explicit `--seq-len`/`--batch-size` or a
-/// domain-profile pin).
-fn force_train_env() -> bool {
-    std::env::var("VOX_MENS_FORCE_TRAIN")
-        .ok()
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
-}
-
 /// What to do with an [`AutoSizeOutcome`] once it's known — the ONE
 /// decision every call site (auto-sizing and explicit-sizing alike) must
 /// make identically, and the safety-critical branch fix round 2 exists to
@@ -798,10 +917,103 @@ fn apply_auto_size_outcome(
 }
 
 #[cfg(test)]
+mod checkpointing_policy_tests {
+    use super::wants_gradient_checkpointing as gc;
+    use vox_populi::mens::DeviceKind::{Cuda, Metal};
+
+    const Q06: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+
+    /// S2: a 0.6B Metal run at seq_len 3072 ran eager and one 2333-token row
+    /// reached ~374 GB of Metal memory; eager 0.6B already needs ~41 GB at 512
+    /// tokens. Metal always checkpoints; CUDA keeps its size rule.
+    #[test]
+    fn metal_always_checkpoints() {
+        assert!(gc(false, Some(Q06), Metal));
+        assert!(!gc(false, Some(Q06), Cuda));
+        assert!(gc(false, Some("Qwen/Qwen3-4B"), Cuda));
+        assert!(gc(true, Some(Q06), Cuda));
+    }
+}
+
+#[cfg(test)]
+mod size_pick_tests {
+    use super::adopt_size_pick;
+    use vox_populi::mens::tensor::size_select::{self, FreeMemory, Selection, SizePick};
+
+    fn overlay() -> std::collections::HashMap<
+        String,
+        Vec<vox_populi::mens::tensor::spoke_base_resolver::TrainBase>,
+    > {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        size_select::load_ladder_overlay(Some(&root)).expect("overlay")
+    }
+
+    fn free(mb: u64) -> FreeMemory {
+        FreeMemory { mb, source: "test" }
+    }
+
+    fn qlora_floor(repo: &str) -> u32 {
+        let overlay = overlay();
+        overlay
+            .get("qwen3_code")
+            .and_then(|rungs| {
+                rungs
+                    .iter()
+                    .find(|b| b.hf_id.starts_with(repo) && b.methods.iter().any(|m| m == "qlora"))
+            })
+            .map(|b| b.floor_mb)
+            .unwrap_or_else(|| panic!("QLoRA rung {repo}"))
+    }
+
+    /// An auto 14B pick re-checked with less free memory: steps down to 8B.
+    fn stepped_down() -> (SizePick, SizePick) {
+        let overlay = overlay();
+        let free_14b = u64::from(qlora_floor("Qwen/Qwen3-14B@")) + 1_000;
+        let free_8b = u64::from(qlora_floor("Qwen/Qwen3-8B@")) + 1_000;
+        let Selection::Size(first) =
+            size_select::select_size(&overlay, Some(&free(free_14b)), None, false).expect("pick")
+        else {
+            panic!("an auto pick is a size");
+        };
+        let down =
+            size_select::recheck_before_load(first.clone(), &overlay, Some(&free(free_8b)), false)
+                .expect("8B still fits");
+        (first, down)
+    }
+
+    /// WR-05: after a step-down the run must train (and download) the smaller
+    /// size with the smaller size's preset, not the original size.
+    #[test]
+    fn a_stepped_down_pick_replaces_the_model_and_fills_the_preset() {
+        let (first, down) = stepped_down();
+        assert_eq!(
+            (first.rung.size.as_str(), down.rung.size.as_str()),
+            ("14B", "8B")
+        );
+        let mut model = Some(first.rung.hf_id.clone());
+        let mut preset = None;
+        adopt_size_pick(&down, &mut model, &mut preset);
+        assert_eq!(model.as_deref(), Some(down.rung.hf_id.as_str()));
+        assert!(model.as_deref().unwrap().starts_with("Qwen/Qwen3-8B@"));
+        assert_eq!(preset.as_deref(), Some("qwen3_16g"));
+    }
+
+    #[test]
+    fn an_explicit_preset_survives_the_pick() {
+        let (_, down) = stepped_down();
+        let mut model = None;
+        let mut preset = Some("qwen3_24g".to_string());
+        adopt_size_pick(&down, &mut model, &mut preset);
+        assert_eq!(model.as_deref(), Some(down.rung.hf_id.as_str()));
+        assert_eq!(preset.as_deref(), Some("qwen3_24g"));
+    }
+}
+
+#[cfg(test)]
 mod auto_size_tests {
     use super::{
         AutoSizeOutcome, SizingDecision, accel_budget_and_lane, apply_auto_size_outcome,
-        auto_size_with_budget, force_train_env, verify_request_with_budget,
+        auto_size_with_budget, verify_request_with_budget,
     };
     use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane, MemoryModels};
 
@@ -938,31 +1150,6 @@ lanes:
             other => panic!(
                 "expected a measured Refused for a 1 KiB budget on a calibrated lane, got {other:?}"
             ),
-        }
-    }
-
-    #[test]
-    #[allow(unsafe_code)]
-    fn force_train_env_parses_truthy_and_falsy_values() {
-        // Guards concurrent mutation of the process-global env var — no
-        // other test in this binary reads or writes VOX_MENS_FORCE_TRAIN.
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let prior = std::env::var("VOX_MENS_FORCE_TRAIN").ok();
-
-        // SAFETY: single-threaded section guarded by LOCK above.
-        unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") };
-        assert!(!force_train_env(), "unset -> false");
-        for on in ["1", "true", "TRUE"] {
-            unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", on) };
-            assert!(force_train_env(), "{on} -> true");
-        }
-        unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", "0") };
-        assert!(!force_train_env(), "0 -> false");
-
-        match prior {
-            Some(v) => unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", v) },
-            None => unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") },
         }
     }
 
@@ -1138,5 +1325,36 @@ lanes:
                 reason: "won't fit".into()
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod resume_base_tests {
+    use super::refuse_resume_onto_another_base;
+
+    const OLD: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+    const NEW: &str = "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e";
+
+    fn dir_with_checkpoint(base: Option<&str>) -> tempfile::TempDir {
+        let d = tempfile::tempdir().unwrap();
+        let state = serde_json::json!({ "schema": "vox_mens_checkpoint_v1", "base_model": base });
+        std::fs::write(d.path().join("checkpoint_state.json"), state.to_string()).unwrap();
+        d
+    }
+
+    /// 320 S2: a re-run onto another base downloaded 4 GB and ran the memory
+    /// estimate before the plugin refused the resume. It must refuse first.
+    #[test]
+    fn a_checkpoint_from_another_base_is_refused_before_the_download() {
+        let d = dir_with_checkpoint(Some(OLD));
+        let err = refuse_resume_onto_another_base(d.path(), Some(NEW), false).unwrap_err();
+        assert!(err.to_string().contains(OLD) && err.to_string().contains("--force-restart"));
+        refuse_resume_onto_another_base(d.path(), Some(OLD), false).unwrap();
+        refuse_resume_onto_another_base(d.path(), Some(NEW), true).unwrap();
+        // No checkpoint, or one that predates the recorded base: nothing to refuse.
+        refuse_resume_onto_another_base(tempfile::tempdir().unwrap().path(), Some(NEW), false)
+            .unwrap();
+        refuse_resume_onto_another_base(dir_with_checkpoint(None).path(), Some(NEW), false)
+            .unwrap();
     }
 }

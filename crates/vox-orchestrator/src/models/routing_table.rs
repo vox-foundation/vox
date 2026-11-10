@@ -1,6 +1,7 @@
 //! SSOT for task category to model routing semantics
 
-use super::generated::{ModelTier, StrengthTag, TaskCategory};
+use super::TaskCategory;
+use super::generated::{ModelTier, StrengthTag};
 
 /// A routing rule defining how a task category maps to model capabilities.
 #[derive(Debug, Clone)]

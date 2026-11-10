@@ -72,6 +72,8 @@ graph {
     vox_effort_audit -> vox_telemetry
     node vox_cli: "vox-cli"
     vox_cli -> vox_effort_audit
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_effort_audit
     node vox_effort_route: "vox-effort-route"
     vox_effort_route -> vox_effort_audit
 }
@@ -82,6 +84,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)

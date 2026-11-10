@@ -12,25 +12,104 @@ publish = false
 [features]
 ## Live LLM inference in the research pipeline (forwards to vox-research-shim/runtime).
 runtime = ["vox-research-shim/runtime"]
+stub-check = []
+completion-toestub = []
+ludus-hud = []
+vox-gamify = ["vox-research-shim/gamify"]
 
 [dependencies]
+abi_stable = { workspace = true }
 anyhow = { workspace = true }
+async-trait = { workspace = true }
+cargo_metadata = { workspace = true }
+data-encoding = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+comfy-table = { workspace = true }
+dialoguer = { workspace = true }
+dirs = { workspace = true }
+futures = { workspace = true }
+keyring = { workspace = true }
+libc = { workspace = true }
+miette = { workspace = true }
 owo-colors = { workspace = true }
 reqwest = { workspace = true }
+rand = { workspace = true }
+sha3 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
 uuid = { workspace = true, features = ["v4"] }
-vox-db = { workspace = true }
+vox-actor-runtime = { workspace = true }
+vox-audit = { workspace = true }
+vox-bounded-fs = { workspace = true, features = ["async"] }
+vox-capability-registry = { workspace = true }
+vox-cli-ci = { workspace = true }
+vox-cli-contracts = { workspace = true }
+vox-cli-core = { workspace = true }
+vox-code-audit = { workspace = true }
+vox-codegen = { workspace = true }
+vox-compiler = { workspace = true }
+vox-config = { workspace = true }
+vox-container = { workspace = true }
+vox-corpus = { workspace = true }
+vox-crypto = { workspace = true }
+vox-db = { workspace = true, features = ["legacy-import", "local"] }
+vox-doc-pipeline = { workspace = true }
+vox-effort-audit = { workspace = true }
+vox-effort-route = { workspace = true }
+vox-eval = { workspace = true }
 vox-foundation = { workspace = true }
+vox-gamify = { workspace = true }
+vox-git = { workspace = true }
+vox-grammar-export = { workspace = true }
+vox-identity = { workspace = true }
+vox-jsonschema-util = { workspace = true }
+vox-kb-facets = { workspace = true }
+vox-mcp-registry = { workspace = true }
+vox-mesh-types = { workspace = true }
+vox-oauth-pkce = { workspace = true }
 vox-orchestrator = { workspace = true }
+vox-orchestrator-driver = { workspace = true }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "eval-gate"] }
+vox-package = { workspace = true }
+vox-populi = { workspace = true }
 vox-publisher = { workspace = true }
 vox-repository = { workspace = true }
+vox-research-events = { workspace = true }
 vox-research-shim = { workspace = true }
+vox-scaling-policy = { workspace = true }
+vox-scientia = { workspace = true }
 vox-search = { workspace = true }
 vox-secrets = { workspace = true }
+vox-sql = { workspace = true, features = ["postgres", "mysql"] }
+vox-telemetry = { workspace = true }
+vox-openclaw-runtime = { workspace = true }
+vox-skill-discovery = { workspace = true }
+vox-graph-reader = { workspace = true }
+vox-plugin-api = { workspace = true }
+vox-plugin-sdk = { workspace = true }
+vox-plugin-catalog = { workspace = true }
+vox-plugin-types = { workspace = true }
+semver = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+toml = { workspace = true }
+toml_edit = { workspace = true }
+walkdir = { workspace = true }
+which = { workspace = true }
+zip = { workspace = true }
+hex = { workspace = true }
+serde_yaml = { workspace = true }
+tempfile = { workspace = true }
+vox-http-client = { workspace = true }
+vox-plugin-host = { workspace = true }
+vox-skills = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
+
+[dev-dependencies]
+wiremock = { workspace = true }
+deadpool = { workspace = true }
 
 [[test]]
 name = "eval_e2e_test"

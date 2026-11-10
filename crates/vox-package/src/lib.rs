@@ -32,5 +32,5 @@ pub use registry::{
     DownloadResponse, PublishDependency, PublishRequest, RegistryClient, RegistryPackageInfo,
     SearchResult,
 };
-pub use vox_db::hash::content_hash;
+pub use vox_db_types::hash::content_hash;
 pub use workspace::VoxWorkspace;

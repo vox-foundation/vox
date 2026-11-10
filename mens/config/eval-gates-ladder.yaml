@@ -1,0 +1,48 @@
+# Ladder re-gate policy — heldout-focused quality gates.
+#
+# Use after `eval-local` (and optionally collateral) when promoting a size:
+#   vox-ml-cli mens eval-gate --run-dir mens/runs/qwen3-<size> \
+#     --policy mens/config/eval-gates-ladder.yaml
+
+pass_at_k:
+  min_pass_rate_at_1: 0.25
+  # With k=1 smoke runs the checker collapses this to min_pass_rate_at_1.
+  min_pass_rate_at_k: 0.50
+  max_regression_drop: 0.03
+  metrics_file: benchmark_passatk.json
+  baseline_file: baseline_passatk.json
+  block: true
+
+anti_stub:
+  min_pass_rate: 0.92
+  max_placeholder_event_rate: 0.08
+  max_trivial_placeholder_event_rate: 0.08
+  min_construct_richness_mean: 0.125
+  block: true
+
+supervised_ratio:
+  min_pct: 10.0
+  block: false
+
+# Collateral forgetting report (written by mens eval-collateral-damage).
+# block: true so ladder receipts match Hub publish requirements.
+collateral_damage:
+  block: true
+  alpha: 0.05
+  rule: fixed_n
+  sequential:
+    looks_fraction: [0.25, 0.5, 0.75, 1.0]
+    look_alpha: [0.0005, 0.002, 0.005, 0.04795]
+  slices:
+    gsm8k_think:
+      blake3: 8425aff2fe6078b4ee8ee879fdaa2bfbc74df8fab96311800a6586748f383a5e
+      prefix_n: 32
+      prefix_blake3: 399bb86cf2ae30a66396dd099bc696c9a4c332b2cdaff1e6f5862a747e52ba33
+    math500_think:
+      blake3: 277b1ce69176891d1ed81ef0195b2616dcba3a695d9c5a386061a0d2a80719ed
+      prefix_n: 32
+      prefix_blake3: 395cec77793e3f3bed51005c497e7fbc6af4761357285281fdb20e7ce4669f07
+    vox_think:
+      blake3: 73b4219a9becdb67e9753cabfcca099804d79a41e3f2e7035c40507612f0957c
+      prefix_n: 32
+      prefix_blake3: 63497695058a703f8b6598ce4cfb4b73e6fa29aae9cb77354f7e7a92c8097855

@@ -10,12 +10,12 @@ training_rationale: "Provides documentation for the VS Code extension, including
 
 > Syntax highlighting, LSP integration, and build commands for [Vox](https://github.com/vox-foundation/vox) — the AI-native, full-stack programming language.
 
-**Frontend output (2026):** `vox build` emits **`routes.manifest.ts`** and **`vox-client.ts`**; generated **`App.tsx` / `VoxTanStackRouter.tsx` / `serverFns.ts`** are retired. Use **`vox build --scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) to seed a user-owned `app/App.tsx` + Vite shell that imports the manifest. Extension docs, snippets, and path assumptions should align with manifest-first adapters (see [`react-interop-hybrid-adapter-cookbook.md`](../../../docs/src/archive/research-2026-q1/react-interop-hybrid-adapter-cookbook.md)).
+**Frontend output (`v0.6`):** `vox build` emits **`routes.manifest.ts`** and **`vox-client.ts`**; generated **`App.tsx` / `VoxTanStackRouter.tsx` / `serverFns.ts`** are retired. Use **`vox build --scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) to seed a user-owned `app/App.tsx` + Vite shell that imports the manifest. Extension docs, snippets, and path assumptions align with [`docs/src/reference/ref-syntax.md`](../../../docs/src/reference/ref-syntax.md).
 
 ## Features
 
-- **Syntax Highlighting** — Full TextMate grammar for `.vox` files covering keywords, decorators (`@table`, `@endpoint`, `@agent_def`, `@skill`, `@mcp.tool`, etc.), bare declarations (`component Name() {}`, `state_machine Name {}`), types, JSX tags, strings, and comments.
-- **Language Server Protocol** — Real-time diagnostics, hover information, and completions via `vox-lsp`.
+- **Syntax Highlighting** — Full TextMate grammar for `.vox` files covering bare declaration keywords (`table`, `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `actor`, `tool`, `resource`), active decorators (`@auth`, `@pure`, `@durable`, `@scheduled`, `@uses`, `@ai`), types, JSX tags, strings, and comments.
+- **Language Server Protocol** — Real-time diagnostics, hover information, completions, semantic tokens, and code actions via `vox-lsp`.
 - **Build Commands** — "Vox: Build Current File" and "Vox: Run Current Project" from the command palette.
 - **Visual Editor** — "Vox: Open Visual Editor" opens a webview preview (`dist/index.html` when present, otherwise a localhost dev iframe).
 - **MCP + Oratio** — With `vox mcp` connected (`vox.mcp.serverPath`), run any contributed **Vox:** command (or open **Vox Workspace**) to activate even in folders without `.vox` files; use **Vox: Oratio —** or **Explorer** right-click on audio (case-insensitive extension match). In-workspace files use a relative MCP path; external picks copy into `.vox/tmp/`. Voice capture writes mono WAV under `.vox/tmp/` then calls the same MCP tools. See [`docs/src/reference/speech-capture-architecture.md`](../../../docs/src/reference/speech-capture-architecture.md) in this workspace.
@@ -66,7 +66,7 @@ npm run compile
 
 ## Privacy and telemetry
 
-- **Vox product telemetry SSOT** (trust boundaries, naming, and debug flags): [`docs/src/architecture/telemetry-trust-ssot.md`](../../../docs/src/architecture/telemetry-trust-ssot.md), [`docs/src/archive/research-2026-q1/telemetry-client-disclosure-ssot.md`](../../../docs/src/archive/research-2026-q1/telemetry-client-disclosure-ssot.md).
+- **Vox product telemetry SSOT** (trust boundaries, naming, and debug flags): [`docs/src/architecture/telemetry-trust-ssot.md`](../../../docs/src/architecture/telemetry-trust-ssot.md) and [`docs/src/adr/023-optional-telemetry-remote-upload.md`](../../../docs/src/adr/023-optional-telemetry-remote-upload.md).
 - **MCP debug payloads** (`vox.mcp.debugPayloads`): see [`docs/src/reference/vscode-mcp-compat.md`](../../../docs/src/reference/vscode-mcp-compat.md) — high-sensitivity diagnostic, not anonymous usage data.
 - The webview may expose a **local** “telemetry” or insights tab for **on-machine** stats; it is not a separate remote analytics product unless documented otherwise in the SSOT above.
 
@@ -83,15 +83,13 @@ npm run compile
 | `Vox: Oratio — Voice capture → transcribe` | Webview mic → WAV → `vox_oratio_transcribe` |
 | `Vox: Oratio — Voice capture → speech to code` | Webview mic → WAV → `vox_speech_to_code` |
 
-## Supported Syntax
+## Supported Syntax (`v0.6`)
 
-The extension highlights all Vox language constructs:
+The extension highlights all current Vox language constructs (see [`docs/src/reference/ref-syntax.md`](../../../docs/src/reference/ref-syntax.md)):
 
-- **Keywords**: `fn`, `let`, `mut`, `return`, `if`, `else`, `for`, `while`, `match`, `type`, `import`
-- **Decorators**: `@table`, `@endpoint`, `@test`, `@action`, `@skill`, `@agent_def`, `@mcp.tool`, `@v0`, `@pure`, `@deprecated`, `@require`, `@index`, `@storage`
-- **Bare declarations**: `component Name() {}`, `state_machine Name {}`, `routes {}`
+- **Declaration Keywords**: `table`, `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `actor`, `tool`, `resource`, `state_machine`, `routes`, `fn`, `type`, `import`
+- **Control & Binding Keywords**: `let`, `mut`, `return`, `if`, `else`, `for`, `while`, `match`
+- **Active Decorators**: `@auth`, `@pure`, `@durable`, `@scheduled`, `@uses`, `@ai`, `@test`, `@deprecated`
 - **Types**: `int`, `str`, `bool`, `Unit`, `Element`, `List`, `Map`, `Set`, `Result`, `Option`, `Id`
-- **Comments**: `#` line comments
+- **Comments**: `//` and `#` line comments
 - **JSX**: Inline JSX tags within `component` blocks
-
-

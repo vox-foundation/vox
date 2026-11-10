@@ -304,13 +304,13 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
   ];
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-3" data-testid="console-root">
+    <div className="flex h-full min-h-0 flex-col gap-2 rounded-xl border border-[#D4AF37]/40 bg-bg-surface p-3" data-testid="console-root">
       <RomanSurfaceHeader
         domainTag="WORKSPACE · CONSOLE"
         title="Warp Console & Terminal Bridge"
         subtitle="Interactive Warp-style block stream, multi-agent terminal tabs, and capability execution."
         waxSealBadge="CONSOLE READY"
-        icon={<Icon.terminal className="size-5 text-[#F3E5AB]" />}
+        icon={<Icon.terminal className="size-5 text-text-primary" />}
         gauges={consoleGauges}
       />
       <div className="flex shrink-0 items-center justify-between">
@@ -356,7 +356,7 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
             onClick={() => setActiveSessionId(s.id)}
             className={`h-6 px-2 py-0.5 text-[11px] ${
               activeSessionId === s.id
-                ? 'border border-[#8C6825] bg-[#251C0E] text-[#F3E5AB] font-semibold'
+                ? 'border border-[#8C6825] bg-bg-elevated text-text-primary font-semibold'
                 : 'border border-[#9E7B2F]/60 bg-[#FAF6EE] text-[#1C140C]'
             }`}
           >
@@ -366,7 +366,7 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
         <Button
           data-testid="term-new-session"
           onClick={() => void handleNewSession()}
-          className="h-6 border border-[#8C6825] bg-[#251C0E] px-2 py-0.5 text-[11px] text-[#F3E5AB]"
+          className="h-6 border border-[#8C6825] bg-bg-elevated px-2 py-0.5 text-[11px] text-text-primary"
         >
           + new session
         </Button>
@@ -376,7 +376,7 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
             aria-label="Terminal security level"
             value={securityLevel}
             onChange={(e) => setSecurityLevel(e.target.value as TermSecurityLevelId)}
-            className="h-6 rounded border border-[#8C6825] bg-[#251C0E] px-1.5 py-0.5 text-[10px] text-[#F3E5AB] outline-none"
+            className="h-6 rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-primary outline-none"
           >
             <option value="l1_read_only">L1 Read-Only</option>
             <option value="l2_safe_exec">L2 Safe Exec</option>
@@ -390,10 +390,10 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
             onClick={cycleControlMode}
             className={`h-6 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition ${
               controlMode === 'autopilot'
-                ? 'border-[#8C6825] bg-[#364116] text-[#F3E5AB]'
+                ? 'border-emerald-600/60 bg-emerald-500/15 text-emerald-700'
                 : controlMode === 'co_pilot'
-                  ? 'border-[#8C6825] bg-[#251C0E] text-[#F3E5AB]'
-                  : 'border-[#8C6825] bg-[#251C0E] text-[#F3E5AB]'
+                  ? 'border-[#8C6825] bg-bg-elevated text-text-primary'
+                  : 'border-[#8C6825] bg-bg-elevated text-text-primary'
             }`}
           >
             {controlMode === 'autopilot'

@@ -83,7 +83,7 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
           <button
             type="button"
             onClick={reload}
-            className="rounded-lg border border-[#D4AF37]/40 bg-[#2A2011] px-3 py-1 font-display text-[10px] uppercase tracking-wider text-[#F3E5AB] hover:bg-[#D4AF37]/20 transition-colors shadow-sm"
+            className="rounded-lg border border-[#C59B27]/40 bg-bg-elevated px-3 py-1 font-display text-[10px] uppercase tracking-wider text-text-primary hover:bg-[#D4AF37]/20 transition-colors shadow-sm"
           >
             {state === 'loading' ? 'loading…' : 'refresh'}
           </button>
@@ -97,7 +97,7 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
       )}
 
       {state === 'ok' && !cfg && (
-        <div className="rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-6 text-center text-xs text-[#A69B89]">
+        <div className="rounded-xl border border-[#C59B27]/35 bg-bg-surface p-6 text-center text-xs text-text-muted">
           No price-watch watchlist configured in this workspace yet.
         </div>
       )}
@@ -105,10 +105,10 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
       {state === 'ok' && cfg && (
         <>
           {/* Coverage matrix */}
-          <div className="overflow-x-auto rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
+          <div className="overflow-x-auto rounded-xl border border-[#C59B27]/35 bg-bg-surface shadow-sm">
             <table className="w-full border-collapse text-[11px]">
               <thead>
-                <tr className="border-b border-[#D4AF37]/25 bg-[#2A2011]/60">
+                <tr className="border-b border-[#C59B27]/25 bg-bg-elevated/80">
                   <th className="px-3 py-2 text-left font-display text-[10px] uppercase tracking-widest text-[#D4AF37]">
                     Part
                   </th>
@@ -134,14 +134,14 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
                     <tr
                       key={part.id}
                       className={`border-b border-[#D4AF37]/15 last:border-0 hover:bg-[#D4AF37]/5 transition-colors ${
-                        i % 2 === 0 ? '' : 'bg-[#16110B]/50'
+                        i % 2 === 0 ? '' : 'bg-bg-elevated/40'
                       }`}
                     >
-                      <td className="px-3 py-1.5 font-mono text-[11px] text-[#F3E5AB] font-medium">
+                      <td className="px-3 py-1.5 font-mono text-[11px] text-text-primary font-medium">
                         {part.model || part.id}
                       </td>
-                      <td className="px-3 py-1.5 text-[#C5BCAC]">{part.role}</td>
-                      <td className="px-3 py-1.5 font-mono text-[#D6CEBF]">
+                      <td className="px-3 py-1.5 text-text-secondary">{part.role}</td>
+                      <td className="px-3 py-1.5 font-mono text-text-primary">
                         {part.target_usd != null ? `$${part.target_usd}` : '—'}
                       </td>
                       {allSourceKeys.map((src) => {
@@ -182,26 +182,26 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
           </div>
 
           {/* Source cost table */}
-          <details open className="rounded-xl border border-[#D4AF37]/35 bg-gradient-to-b from-[#1B150E] to-[#110D08] shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
-            <summary className="cursor-pointer px-4 py-2.5 font-display text-[10px] uppercase tracking-widest text-[#D4AF37] hover:text-[#F3E5AB]">
+          <details open className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface shadow-[0_4px_16px_rgba(0,0,0,0.2)]">
+            <summary className="cursor-pointer px-4 py-2.5 font-display text-[10px] uppercase tracking-widest text-brass hover:text-text-primary">
               Source registry ({Object.keys(sources).length})
             </summary>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
-                  <tr className="border-b border-[#D4AF37]/25 bg-[#2A2011]/60">
+                  <tr className="border-b border-[#C59B27]/25 bg-bg-elevated/80">
                     {['Source', 'Tier', 'Cost/run', 'Cadence', 'Enabled'].map(h => (
-                      <th key={h} className="px-3 py-1.5 text-left font-display text-[10px] uppercase tracking-widest text-[#D4AF37]">{h}</th>
+                      <th key={h} className="px-3 py-1.5 text-left font-display text-[10px] uppercase tracking-widest text-brass">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {Object.entries(sources).map(([src, meta]) => (
                     <tr key={src} className="border-b border-[#D4AF37]/15 last:border-0 hover:bg-[#D4AF37]/5 transition-colors">
-                      <td className="px-3 py-1.5 font-mono text-[#F3E5AB] font-medium">{src}</td>
-                      <td className="px-3 py-1.5 text-[#C5BCAC]">{meta.tier}</td>
-                      <td className="px-3 py-1.5 font-mono text-[#D6CEBF]">${meta.costUsd.toFixed(3)}</td>
-                      <td className="px-3 py-1.5 text-[#C5BCAC]">{meta.cadenceHours}h</td>
+                      <td className="px-3 py-1.5 font-mono text-text-primary font-medium">{src}</td>
+                      <td className="px-3 py-1.5 text-text-secondary">{meta.tier}</td>
+                      <td className="px-3 py-1.5 font-mono text-text-primary">${meta.costUsd.toFixed(3)}</td>
+                      <td className="px-3 py-1.5 text-text-secondary">{meta.cadenceHours}h</td>
                       <td className="px-3 py-1.5">
                         {meta.enabled ? (
                           <RomanWaxSealBadge label="ENABLED" tone="emerald" className="text-[8px] py-0 px-1.5" />
@@ -251,7 +251,7 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
                 <RomanWaxSealBadge label="Live Sync" tone="gold" />
               </div>
               <p className="mt-2 text-[11px] font-medium leading-relaxed text-[#2B2013]">
-                Feeds OpenRouter &amp; frontier provider price-per-million shifts directly into <code className="rounded bg-[#251C0E] px-1 py-0.5 text-[#F3E5AB]">vox-orchestrator</code> model routing.
+                Feeds OpenRouter &amp; frontier provider price-per-million shifts directly into <code className="rounded bg-bg-elevated px-1 py-0.5 text-text-primary">vox-orchestrator</code> model routing.
               </p>
             </div>
             <div
@@ -289,21 +289,21 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
               <RomanWaxSealBadge label="TREASURY GUARD" tone="gold" />
             </div>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-                <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Cache Hit Savings</div>
-                <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">Up to 90% Off</div>
+              <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+                <div className="font-display text-[9px] uppercase tracking-widest text-brass">Cache Hit Savings</div>
+                <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">Up to 90% Off</div>
               </div>
-              <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-                <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Local MENS Cost</div>
-                <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">$0.00 / 1M Tok</div>
+              <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+                <div className="font-display text-[9px] uppercase tracking-widest text-brass">Local MENS Cost</div>
+                <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">$0.00 / 1M Tok</div>
               </div>
-              <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-                <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Budget Enforcement</div>
-                <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">Hard Cap + Toast</div>
+              <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+                <div className="font-display text-[9px] uppercase tracking-widest text-brass">Budget Enforcement</div>
+                <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">Hard Cap + Toast</div>
               </div>
-              <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-                <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Settlement Currency</div>
-                <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">USD · Denarius</div>
+              <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+                <div className="font-display text-[9px] uppercase tracking-widest text-brass">Settlement Currency</div>
+                <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">USD · Denarius</div>
               </div>
             </div>
           </div>

@@ -1392,6 +1392,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.cross-repo-parity
+  domain: ci-gate
+  title: Ci Cross-repo-parity
+  group: CI Gates / cross
+  description: CLI operation `vox ci cross-repo-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.cross-repo-parity
+    detail: vox ci cross-repo-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.cuda-features
   domain: ci-gate
   title: Ci Cuda-features
@@ -1805,6 +1821,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.feature-matrix
     detail: vox ci feature-matrix
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.federated-symbol-graph
+  domain: ci-gate
+  title: Ci Federated-symbol-graph
+  group: CI Gates / federated
+  description: CLI operation `vox ci federated-symbol-graph`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.federated-symbol-graph
+    detail: vox ci federated-symbol-graph
   default_enabled: true
   protected: false
   origin: builtin
@@ -2752,6 +2784,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.publish-dry-run
+  domain: ci-gate
+  title: Ci Publish-dry-run
+  group: CI Gates / publish
+  description: CLI operation `vox ci publish-dry-run`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.publish-dry-run
+    detail: vox ci publish-dry-run
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.python-bridge-parity
   domain: ci-gate
   title: Ci Python-bridge-parity
@@ -3229,6 +3277,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.ssot-drift
     detail: vox ci ssot-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.standalone-sovereignty
+  domain: ci-gate
+  title: Ci Standalone-sovereignty
+  group: CI Gates / standalone
+  description: CLI operation `vox ci standalone-sovereignty`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.standalone-sovereignty
+    detail: vox ci standalone-sovereignty
   default_enabled: true
   protected: false
   origin: builtin

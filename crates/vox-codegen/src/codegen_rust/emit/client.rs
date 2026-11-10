@@ -1,6 +1,7 @@
 use vox_compiler::ast::scalar_mapping::VoxScalar;
 use vox_compiler::hir::{HirModule, HirType};
 
+#[inline(never)]
 pub fn emit_api_client(module: &HirModule) -> String {
     if module.endpoint_fns.is_empty() {
         return String::new();
@@ -208,6 +209,7 @@ fn mcp_coerce_param_expr(name: &str, type_ann: Option<&HirType>) -> String {
 /// **Scope:** per-generated-crate tools from `@mcp.tool` and resources from `@mcp.resource` only.
 /// The shipped `vox-mcp` binary uses [`contracts/mcp/tool-registry.canonical.yaml`](../../../../contracts/mcp/tool-registry.canonical.yaml).
 /// Architecture SSOT: `docs/src/architecture/mcp-vox-language-exposure.md`.
+#[inline(never)]
 pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     let crate_name = package_name.replace('-', "_");
     let mut out = String::new();
@@ -508,6 +510,7 @@ pub struct PolyglotToolBundle {
 
 /// Emit the 6-layer polyglot surface (`CLI/Nushell`, `JSON Schema 2020-12 + uiSchema`, `OpenAPI 3.1`, and `MCP/RPC`)
 /// from a module's `@tool` and `@form` declarations (`POLYTOOL-01..03`).
+#[inline(never)]
 pub fn emit_tool_polyglot_artifacts(module: &HirModule, package_name: &str) -> PolyglotToolBundle {
     use serde_json::{Map, Value, json};
     use vox_compiler::hir::nodes::form::HirFieldConstraint;

@@ -12,7 +12,7 @@ use std::path::Path;
 use crate::qwen_reasoning::ReasoningScore;
 
 /// Number of items in every held-out slice.
-pub const SLICE_SIZE: usize = 32;
+pub const SLICE_SIZE: usize = 128;
 
 /// Directory names under `mens/data/` that hold the three slices.
 pub const SLICE_NAMES: [&str; 3] = ["gsm8k_think", "math500_think", "vox_think"];
@@ -153,55 +153,54 @@ impl BenchOutcome {
     }
 }
 
-/// Schema of the before/after reasoning report. Not a serve-gate input.
+/// Schema tag of the before/after comparison report (BENCH-01). The report is an
+/// operator record only: it is never a serve-gate or collateral-pass input.
 pub const BEFORE_AFTER_SCHEMA: &str = "reasoning_before_after.v1";
 
-/// The base the caller asked for: repo id plus an optional 40-hex revision.
+/// The base a comparison was asked for, split from a `repo_id@revision` pin.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaseLabel {
-    /// The pin string this label was parsed from.
+    /// The pin exactly as requested.
     pub requested: String,
-    /// Hub repo id (`owner/name`), the text before the last `@`.
+    /// Part before the last `@` (or the whole input).
     pub repo_id: String,
-    /// Pinned revision when it is exactly 40 lowercase hex characters.
+    /// The revision, only when it is exactly 40 lowercase hex characters.
     pub revision: Option<String>,
 }
 
 impl BaseLabel {
-    /// Split `pin` on the last `@`. `revision` is kept only for 40 lowercase hex chars.
+    /// Split `pin` on its last `@`. Anything that is not a 40-hex commit sha
+    /// (a branch, a tag, a short sha) leaves `revision` as `None`.
     #[must_use]
     pub fn from_pin(pin: &str) -> BaseLabel {
-        let (repo_id, revision) = match pin.rfind('@') {
-            Some(at) => {
-                let repo = pin[..at].to_string();
-                let rev = &pin[at + 1..];
-                let pinned = rev.len() == 40
-                    && rev
-                        .bytes()
-                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
-                (repo, pinned.then(|| rev.to_string()))
-            }
-            None => (pin.to_string(), None),
+        let (repo_id, rev) = match pin.rsplit_once('@') {
+            Some((repo, rev)) => (repo, Some(rev)),
+            None => (pin, None),
         };
+        let revision = rev
+            .filter(|r| {
+                r.len() == 40
+                    && r.bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            })
+            .map(str::to_string);
         BaseLabel {
             requested: pin.to_string(),
-            repo_id,
+            repo_id: repo_id.to_string(),
             revision,
         }
     }
 
-    /// `<size>-<first 12 hex>.json`, or `<size>-unpinned.json`. Path-safe.
+    /// One path-safe file name per base: `<last repo segment>-<rev12>.json`, or
+    /// `-unpinned.json` without a revision. Every character outside
+    /// `[A-Za-z0-9._-]` and a leading `.` become `_`, so the name is one plain segment.
     #[must_use]
     pub fn report_file_name(&self) -> String {
-        let segment = self
-            .repo_id
-            .rsplit('/')
-            .next()
-            .unwrap_or(self.repo_id.as_str());
-        let mut name: String = segment
+        let last = self.repo_id.rsplit('/').next().unwrap_or_default();
+        let mut name: String = last
             .chars()
             .map(|c| {
-                if c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') {
                     c
                 } else {
                     '_'
@@ -211,78 +210,71 @@ impl BaseLabel {
         if name.starts_with('.') {
             name.replace_range(..1, "_");
         }
-        let stem = match self.revision.as_deref() {
-            Some(rev) => format!("{name}-{}", &rev[..12]),
-            None => format!("{name}-unpinned"),
-        };
-        format!("{stem}.json")
-    }
-}
-
-/// Why a before/after comparison was not scored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AbsenceReason {
-    /// The exact pinned snapshot directory is not on disk.
-    BaseSnapshotAbsent,
-    /// The snapshot directory exists but weights or tokenizer files are incomplete.
-    BaseSnapshotIncomplete,
-    /// The requested pin has no single 40-hex revision to check.
-    PinUnverifiable,
-    /// No adapter directory, or neither adapter file, was given.
-    AdapterAbsent,
-    /// The adapter pair is incomplete, the manifest cannot be read, or a
-    /// matching run dir is missing `tokenizer.json` or `config.json`.
-    AdapterIncomplete,
-    /// The manifest `base_model` is not the detected pinned snapshot.
-    AdapterBaseNotPinnedSnapshot,
-}
-
-impl AbsenceReason {
-    /// Stable snake-case token stored in the absence record.
-    #[must_use]
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::BaseSnapshotAbsent => "base_snapshot_absent",
-            Self::BaseSnapshotIncomplete => "base_snapshot_incomplete",
-            Self::PinUnverifiable => "pin_unverifiable",
-            Self::AdapterAbsent => "adapter_absent",
-            Self::AdapterIncomplete => "adapter_incomplete",
-            Self::AdapterBaseNotPinnedSnapshot => "adapter_base_not_pinned_snapshot",
+        match &self.revision {
+            Some(rev) => format!("{name}-{}.json", &rev[..12]),
+            None => format!("{name}-unpinned.json"),
         }
     }
 }
 
-/// Record written when the pinned snapshot or a matching adapter is not on disk.
-///
-/// This is not a serve-gate input. It carries no accuracy and no think-initiation.
+/// Why a before/after comparison was not run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AbsenceReason {
+    /// The pinned snapshot directory is not in the Hugging Face cache.
+    BaseSnapshotAbsent,
+    /// The pinned snapshot exists but lacks config, tokenizer, or a weight shard.
+    BaseSnapshotIncomplete,
+    /// The requested base has no 40-hex revision, so no exact snapshot can be checked.
+    PinUnverifiable,
+    /// No adapter was given, or neither adapter file is present.
+    AdapterAbsent,
+    /// Only one of the two adapter files is present, or the manifest is unreadable.
+    AdapterIncomplete,
+    /// The adapter manifest `base_model` is not the pinned snapshot directory.
+    AdapterBaseNotPinnedSnapshot,
+}
+
+impl AbsenceReason {
+    /// Stable snake_case tag written to the record.
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AbsenceReason::BaseSnapshotAbsent => "base_snapshot_absent",
+            AbsenceReason::BaseSnapshotIncomplete => "base_snapshot_incomplete",
+            AbsenceReason::PinUnverifiable => "pin_unverifiable",
+            AbsenceReason::AdapterAbsent => "adapter_absent",
+            AbsenceReason::AdapterIncomplete => "adapter_incomplete",
+            AbsenceReason::AdapterBaseNotPinnedSnapshot => "adapter_base_not_pinned_snapshot",
+        }
+    }
+}
+
+/// A comparison that did not run. It carries no score of any kind and is not a
+/// serve-gate input (`gate_input` is always false).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AbsenceRecord {
-    /// Base the caller asked for.
+    /// The requested base.
     pub base: BaseLabel,
-    /// Why nothing was scored.
+    /// Why nothing was compared.
     pub reason: AbsenceReason,
-    /// Snapshot path that was checked, when detection looked for one.
+    /// The snapshot directory that was checked, when the pin had a revision.
     pub searched: Option<String>,
-    /// Whether the caller passed an adapter path.
+    /// Whether `--adapter` was passed.
     pub adapter_given: bool,
-    /// Whether both adapter files were present as files.
+    /// Whether both adapter files are present.
     pub adapter_on_disk: bool,
 }
 
 impl AbsenceRecord {
-    /// JSON body of a `not_compared` report. No score keys, no `n`, not a gate input.
+    /// The `not_compared` record. No `n`, no score key, no verdict.
     #[must_use]
     pub fn to_json(&self) -> serde_json::Value {
-        // BaseSnapshotIncomplete is returned only after the snapshot directory
-        // exists. Absent and unverifiable pins were never found on disk.
         let snapshot_on_disk = matches!(
             self.reason,
-            AbsenceReason::BaseSnapshotIncomplete
-                | AbsenceReason::AdapterAbsent
+            AbsenceReason::AdapterAbsent
                 | AbsenceReason::AdapterIncomplete
                 | AbsenceReason::AdapterBaseNotPinnedSnapshot
         );
-        let revision = self.base.revision.as_deref().unwrap_or("unpinned");
         serde_json::json!({
             "schema": BEFORE_AFTER_SCHEMA,
             "status": "not_compared",
@@ -298,7 +290,7 @@ impl AbsenceRecord {
             },
             "slices": SLICE_NAMES,
             "detail": format!(
-                "{} ({revision}) was not compared ({}); nothing was scored",
+                "{} was not compared ({}); nothing was scored",
                 self.base.repo_id,
                 self.reason.as_str()
             ),
@@ -307,36 +299,35 @@ impl AbsenceRecord {
     }
 }
 
-/// Compared report for one base. `compared` is true only when every slice name
-/// appears once and both sides are `Scored`. Not a serve-gate input.
+/// The before/after report for `(slice, base outcome, adapter outcome)` rows, and
+/// whether it is `compared`: every slice in [`SLICE_NAMES`] present exactly once
+/// with both sides `Scored`. Anything else is `incomplete`. Each entry is
+/// [`BenchOutcome::to_json`] verbatim, so accuracy and think-initiation stay
+/// separate keys. `adapter_dir` is recorded as `adapter.dir` so the "after"
+/// side names what it scored. No delta, verdict, or threshold; not a
+/// serve-gate input.
 #[must_use]
 pub fn compared_report_json(
     base: &BaseLabel,
+    adapter_dir: &Path,
     slices: &[(&str, BenchOutcome, BenchOutcome)],
 ) -> (serde_json::Value, bool) {
-    let mut counts: HashMap<&str, usize> = HashMap::new();
-    for (name, _, _) in slices {
-        *counts.entry(*name).or_default() += 1;
-    }
-    let compared = SLICE_NAMES.iter().all(|name| {
-        counts.get(*name).copied() == Some(1)
-            && slices.iter().any(|(got, base_out, adapter_out)| {
-                got == name
-                    && matches!(base_out, BenchOutcome::Scored(_))
-                    && matches!(adapter_out, BenchOutcome::Scored(_))
-            })
-    });
-    let mut slice_map = serde_json::Map::new();
-    for (name, base_out, adapter_out) in slices {
-        slice_map.insert(
-            (*name).to_string(),
-            serde_json::json!({
-                "base": base_out.to_json(),
-                "adapter": adapter_out.to_json(),
-            }),
-        );
-    }
-    let value = serde_json::json!({
+    let scored = |o: &BenchOutcome| matches!(o, BenchOutcome::Scored(_));
+    let compared = slices.len() == SLICE_NAMES.len()
+        && SLICE_NAMES
+            .iter()
+            .all(|n| slices.iter().filter(|(s, _, _)| s == n).count() == 1)
+        && slices.iter().all(|(_, b, a)| scored(b) && scored(a));
+    let entries: serde_json::Map<String, serde_json::Value> = slices
+        .iter()
+        .map(|(name, b, a)| {
+            (
+                (*name).to_string(),
+                serde_json::json!({ "base": b.to_json(), "adapter": a.to_json() }),
+            )
+        })
+        .collect();
+    let report = serde_json::json!({
         "schema": BEFORE_AFTER_SCHEMA,
         "status": if compared { "compared" } else { "incomplete" },
         "scope_note": crate::reasoning_slice::REASONING_SLICE_SCOPE_NOTE,
@@ -344,10 +335,11 @@ pub fn compared_report_json(
         "base_requested": base.requested,
         "base_model": base.repo_id,
         "base_revision": base.revision,
+        "adapter": { "dir": adapter_dir.display().to_string() },
         "gate_input": false,
-        "slices": slice_map,
+        "slices": entries,
     });
-    (value, compared)
+    (report, compared)
 }
 
 #[cfg(test)]
@@ -382,20 +374,25 @@ mod tests {
     // ---- Task 1: checked-in slices ----
 
     #[test]
-    fn checked_in_gsm8k_and_math500_slices_have_32_pinned_rows() {
+    fn checked_in_gsm8k_and_math500_slices_have_128_rows_in_source_order() {
         let g = load_slice(&repo_slice("gsm8k_think"), SLICE_SIZE).expect("gsm8k loads");
-        assert_eq!(g.len(), 32);
-        assert_eq!(g.first().map(|i| i.id.as_str()), Some("gsm8k-test-0000"));
-        assert_eq!(g.last().map(|i| i.id.as_str()), Some("gsm8k-test-0031"));
+        assert_eq!(g.len(), 128);
+        for (i, item) in g.iter().enumerate() {
+            assert_eq!(item.id, format!("gsm8k-test-{i:04}"));
+        }
         let m = load_slice(&repo_slice("math500_think"), SLICE_SIZE).expect("math500 loads");
-        assert_eq!(m.len(), 32);
+        assert_eq!(m.len(), 128);
         assert_eq!(
             m.first().map(|i| i.id.as_str()),
             Some("test/precalculus/807.json")
         );
         assert_eq!(
-            m.last().map(|i| i.id.as_str()),
+            m.get(31).map(|i| i.id.as_str()),
             Some("test/prealgebra/1302.json")
+        );
+        assert_eq!(
+            m.last().map(|i| i.id.as_str()),
+            Some("test/number_theory/847.json")
         );
     }
 
@@ -422,21 +419,25 @@ mod tests {
 
     #[test]
     fn wrong_count_is_refused() {
-        for n in [31usize, 33] {
+        for n in [32, SLICE_SIZE - 1, SLICE_SIZE + 1] {
             let (_d, p) = write_tmp(rows(n).as_bytes());
             let err = load_slice(&p, SLICE_SIZE).expect_err("wrong count must fail");
             assert!(
-                err.contains(&format!("found {n}")) && err.contains("expected 32"),
+                err.contains(&format!("found {n}"))
+                    && err.contains(&format!("expected {SLICE_SIZE}")),
                 "{err}"
             );
         }
-        let (_d, p) = write_tmp(rows(32).as_bytes());
-        assert_eq!(load_slice(&p, SLICE_SIZE).expect("32 ok").len(), 32);
+        let (_d, p) = write_tmp(rows(SLICE_SIZE).as_bytes());
+        assert_eq!(
+            load_slice(&p, SLICE_SIZE).expect("full ok").len(),
+            SLICE_SIZE
+        );
     }
 
     #[test]
     fn duplicate_id_is_refused() {
-        let mut s = rows(31);
+        let mut s = rows(SLICE_SIZE - 1);
         s.push_str("{\"id\":\"t-0000\",\"question\":\"q\",\"answer\":\"1\"}\n");
         let (_d, p) = write_tmp(s.as_bytes());
         let err = load_slice(&p, SLICE_SIZE).expect_err("duplicate id must fail");
@@ -457,30 +458,33 @@ mod tests {
             let (_d, p) = write_tmp(content.as_bytes());
             assert!(load_slice(&p, 1).is_err(), "case {i} should be refused");
         }
-        // empty file with expected_n 32 is also refused (count mismatch)
+        // an empty file is also refused (count mismatch)
         let (_d, p) = write_tmp(b"");
         assert!(load_slice(&p, SLICE_SIZE).is_err());
     }
 
     #[test]
     fn blank_lines_are_skipped() {
-        let s: String = rows(32).lines().map(|l| format!("{l}\n\n   \n")).collect();
+        let s: String = rows(SLICE_SIZE)
+            .lines()
+            .map(|l| format!("{l}\n\n   \n"))
+            .collect();
         let (_d, p) = write_tmp(s.as_bytes());
         assert_eq!(
             load_slice(&p, SLICE_SIZE).expect("blank lines ok").len(),
-            32
+            SLICE_SIZE
         );
     }
 
     #[test]
     fn items_come_back_in_file_order() {
-        let (_d, p) = write_tmp(rows(32).as_bytes());
+        let (_d, p) = write_tmp(rows(SLICE_SIZE).as_bytes());
         let ids: Vec<String> = load_slice(&p, SLICE_SIZE)
             .expect("loads")
             .into_iter()
             .map(|i| i.id)
             .collect();
-        let want: Vec<String> = (0..32).map(|i| format!("t-{i:04}")).collect();
+        let want: Vec<String> = (0..SLICE_SIZE).map(|i| format!("t-{i:04}")).collect();
         assert_eq!(ids, want);
     }
 
@@ -501,7 +505,7 @@ mod tests {
         let (_d, p) = write_tmp(&over);
         let err = load_slice(&p, SLICE_SIZE).expect_err("oversize must fail");
         assert!(err.contains("size cap"), "{err}");
-        let (_d2, ok) = write_tmp(rows(32).as_bytes());
+        let (_d2, ok) = write_tmp(rows(SLICE_SIZE).as_bytes());
         assert!(load_slice(&ok, SLICE_SIZE).is_ok());
     }
 
@@ -526,7 +530,7 @@ mod tests {
     fn vox_think_shape() {
         let items = load_slice(&repo_slice("vox_think"), SLICE_SIZE).expect("vox_think loads");
         let raw = raw_rows("vox_think");
-        assert_eq!(items.len(), 32);
+        assert_eq!(items.len(), SLICE_SIZE);
         let mut kinds: HashMap<String, usize> = HashMap::new();
         for (i, (item, row)) in items.iter().zip(&raw).enumerate() {
             assert_eq!(item.id, format!("vox-think-{i:04}"));
@@ -542,7 +546,14 @@ mod tests {
                 "{}: gold not i64",
                 item.id
             );
-            assert_eq!(row["source"].as_str(), Some("hand-authored"), "{}", item.id);
+            // The first 32 were hand-authored; every later gold came from the
+            // interpreter oracle (vox_think_oracle_test.rs), never by hand.
+            let source = if i < 32 {
+                "hand-authored"
+            } else {
+                "authored-oracle-2026-11"
+            };
+            assert_eq!(row["source"].as_str(), Some(source), "{}", item.id);
             assert!(
                 row["program"]
                     .as_str()
@@ -555,7 +566,7 @@ mod tests {
         }
         for k in ["trace", "debug", "plan-check"] {
             assert!(
-                kinds.get(k).copied().unwrap_or(0) >= 8,
+                kinds.get(k).copied().unwrap_or(0) >= 32,
                 "kind {k}: {kinds:?}"
             );
         }
@@ -631,7 +642,7 @@ mod tests {
         let v = o.to_json();
         assert_eq!(v["status"], "not_scored");
         assert_eq!(v["n"], 0);
-        assert_eq!(v["n_requested"], 32);
+        assert_eq!(v["n_requested"], SLICE_SIZE);
         assert_eq!(v["reason"], "load failed");
         let obj = v.as_object().expect("object");
         assert!(!obj.contains_key("accuracy"), "accuracy key must be absent");
@@ -732,29 +743,55 @@ mod tests {
                 );
             }
         }
-        assert_eq!(total, 96);
+        assert_eq!(total, 3 * SLICE_SIZE);
     }
 
-    fn collect_keys(
-        value: &serde_json::Value,
+    // ---- 316-01: before/after comparison record ----
+
+    const PIN_8B: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+    const PIN_0_6B: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+
+    const ALL_REASONS: [AbsenceReason; 6] = [
+        AbsenceReason::BaseSnapshotAbsent,
+        AbsenceReason::BaseSnapshotIncomplete,
+        AbsenceReason::PinUnverifiable,
+        AbsenceReason::AdapterAbsent,
+        AbsenceReason::AdapterIncomplete,
+        AbsenceReason::AdapterBaseNotPinnedSnapshot,
+    ];
+
+    fn record(pin: &str, reason: AbsenceReason) -> serde_json::Value {
+        AbsenceRecord {
+            base: BaseLabel::from_pin(pin),
+            reason,
+            searched: Some("/hub/x".to_string()),
+            adapter_given: true,
+            adapter_on_disk: false,
+        }
+        .to_json()
+    }
+
+    /// Every object key anywhere in `v`, plus every string value under a `status` key.
+    fn keys_and_statuses(
+        v: &serde_json::Value,
         keys: &mut Vec<String>,
-        status_values: &mut Vec<String>,
+        statuses: &mut Vec<String>,
     ) {
-        match value {
+        match v {
             serde_json::Value::Object(map) => {
-                for (key, child) in map {
-                    keys.push(key.clone());
-                    if key == "status"
-                        && let Some(text) = child.as_str()
+                for (k, child) in map {
+                    keys.push(k.clone());
+                    if k == "status"
+                        && let Some(s) = child.as_str()
                     {
-                        status_values.push(text.to_string());
+                        statuses.push(s.to_string());
                     }
-                    collect_keys(child, keys, status_values);
+                    keys_and_statuses(child, keys, statuses);
                 }
             }
             serde_json::Value::Array(items) => {
                 for child in items {
-                    collect_keys(child, keys, status_values);
+                    keys_and_statuses(child, keys, statuses);
                 }
             }
             _ => {}
@@ -763,187 +800,170 @@ mod tests {
 
     #[test]
     fn absence_record_names_the_requested_pin() {
-        let record = AbsenceRecord {
-            base: BaseLabel::from_pin(vox_populi_default_pin()),
-            reason: AbsenceReason::BaseSnapshotAbsent,
-            searched: None,
-            adapter_given: false,
-            adapter_on_disk: false,
-        };
-        let body = record.to_json();
-        assert_eq!(body["schema"], BEFORE_AFTER_SCHEMA);
-        assert_eq!(body["status"], "not_compared");
-        assert_eq!(body["reason"], "base_snapshot_absent");
-        assert_eq!(body["base_model"], "Qwen/Qwen3-8B");
+        let v = record(PIN_8B, AbsenceReason::BaseSnapshotAbsent);
+        assert_eq!(v["schema"], "reasoning_before_after.v1");
+        assert_eq!(v["schema"], BEFORE_AFTER_SCHEMA);
+        assert_eq!(v["status"], "not_compared");
+        assert_eq!(v["reason"], "base_snapshot_absent");
+        assert_eq!(v["base_requested"], PIN_8B);
+        assert_eq!(v["base_model"], "Qwen/Qwen3-8B");
         assert_eq!(
-            body["base_revision"],
+            v["base_revision"],
             "b968826d9c46dd6066d109eabc6255188de91218"
         );
-        assert_eq!(body["snapshot_on_disk"], false);
-        assert_eq!(body["gate_input"], false);
-        assert_eq!(body["slices"], serde_json::json!(SLICE_NAMES));
-    }
-
-    #[test]
-    fn incomplete_snapshot_is_reported_on_disk() {
-        let base = BaseLabel::from_pin(vox_populi_default_pin());
-        let on_disk = |reason: AbsenceReason| {
-            AbsenceRecord {
-                base: base.clone(),
-                reason,
-                searched: Some("searched".to_string()),
-                adapter_given: false,
-                adapter_on_disk: false,
-            }
-            .to_json()["snapshot_on_disk"]
-                .as_bool()
-                .expect("bool")
-        };
-        assert!(!on_disk(AbsenceReason::BaseSnapshotAbsent));
-        assert!(!on_disk(AbsenceReason::PinUnverifiable));
-        assert!(on_disk(AbsenceReason::BaseSnapshotIncomplete));
-        assert!(on_disk(AbsenceReason::AdapterAbsent));
-        assert!(on_disk(AbsenceReason::AdapterIncomplete));
-        assert!(on_disk(AbsenceReason::AdapterBaseNotPinnedSnapshot));
-    }
-
-    fn vox_populi_default_pin() -> &'static str {
-        "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+        assert_eq!(v["snapshot_on_disk"], false);
+        assert_eq!(v["gate_input"], false);
+        assert_eq!(v["slices"], serde_json::json!(SLICE_NAMES));
+        let detail = v["detail"].as_str().expect("detail");
+        assert!(detail.contains("Qwen/Qwen3-8B"), "{detail}");
+        assert!(detail.ends_with("nothing was scored"), "{detail}");
     }
 
     #[test]
     fn absence_record_has_no_score_keys_anywhere() {
-        let base = BaseLabel::from_pin(vox_populi_default_pin());
-        for reason in [
-            AbsenceReason::BaseSnapshotAbsent,
-            AbsenceReason::BaseSnapshotIncomplete,
-            AbsenceReason::PinUnverifiable,
-            AbsenceReason::AdapterAbsent,
-            AbsenceReason::AdapterIncomplete,
-            AbsenceReason::AdapterBaseNotPinnedSnapshot,
-        ] {
-            let body = AbsenceRecord {
-                base: base.clone(),
-                reason,
-                searched: Some("searched".to_string()),
-                adapter_given: true,
-                adapter_on_disk: true,
-            }
-            .to_json();
-            let mut keys = Vec::new();
-            let mut status_values = Vec::new();
-            collect_keys(&body, &mut keys, &mut status_values);
+        for reason in ALL_REASONS {
+            let v = record(PIN_8B, reason);
+            let (mut keys, mut statuses) = (Vec::new(), Vec::new());
+            keys_and_statuses(&v, &mut keys, &mut statuses);
             for banned in ["accuracy", "think_initiation_rate", "n"] {
-                assert!(!keys.iter().any(|k| k == banned), "{reason:?} has {banned}");
+                assert!(
+                    !keys.iter().any(|k| k == banned),
+                    "{reason:?}: key {banned} present"
+                );
             }
             assert!(
-                status_values.iter().all(|v| v != "scored"),
-                "{reason:?} status values {status_values:?}"
+                !statuses.iter().any(|s| s == "scored"),
+                "{reason:?}: a scored status"
+            );
+            assert_eq!(v["reason"], reason.as_str());
+            assert_eq!(
+                v["snapshot_on_disk"],
+                matches!(
+                    reason,
+                    AbsenceReason::AdapterAbsent
+                        | AbsenceReason::AdapterIncomplete
+                        | AbsenceReason::AdapterBaseNotPinnedSnapshot
+                )
             );
         }
     }
 
     #[test]
     fn absence_record_for_another_size_names_that_size() {
-        let record = AbsenceRecord {
-            base: BaseLabel::from_pin("Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"),
-            reason: AbsenceReason::BaseSnapshotAbsent,
-            searched: None,
-            adapter_given: false,
-            adapter_on_disk: false,
-        };
-        let body = record.to_json();
-        assert_eq!(body["base_model"], "Qwen/Qwen3-0.6B");
+        let v = record(PIN_0_6B, AbsenceReason::BaseSnapshotAbsent);
+        assert_eq!(v["base_model"], "Qwen/Qwen3-0.6B");
         assert_eq!(
-            body["base_revision"],
+            v["base_revision"],
             "c1899de289a04d12100db370d81485cdf75e47ca"
         );
+        let unpinned = record("Qwen/Qwen3-8B@main", AbsenceReason::PinUnverifiable);
+        assert_eq!(unpinned["base_model"], "Qwen/Qwen3-8B");
+        assert!(unpinned["base_revision"].is_null());
     }
 
-    #[test]
-    fn report_file_name_is_per_base_and_path_safe() {
-        let eight = BaseLabel::from_pin(vox_populi_default_pin());
-        assert_eq!(eight.report_file_name(), "Qwen3-8B-b968826d9c46.json");
-        let small = BaseLabel::from_pin("Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca");
-        assert_eq!(small.report_file_name(), "Qwen3-0.6B-c1899de289a0.json");
-        let evil = BaseLabel::from_pin("../evil@main");
-        let name = evil.report_file_name();
-        assert!(!name.contains('/'), "{name}");
-        assert!(
-            std::path::Path::new(&name)
-                .components()
-                .all(|c| c.as_os_str() != ".."),
-            "{name}"
-        );
-        assert!(name.ends_with("-unpinned.json"), "{name}");
-    }
-
-    fn scored_outcome(accuracy: f64, think: f64, n: usize) -> BenchOutcome {
-        BenchOutcome::Scored(crate::qwen_reasoning::ReasoningScore {
+    fn scored(accuracy: f64) -> BenchOutcome {
+        BenchOutcome::Scored(ReasoningScore {
             accuracy,
-            think_initiation_rate: think,
-            n,
+            think_initiation_rate: 0.5,
+            n: SLICE_SIZE,
         })
     }
 
     #[test]
     fn compared_report_has_separate_keys_per_slice_and_side() {
-        let base = BaseLabel::from_pin(vox_populi_default_pin());
         let rows: Vec<(&str, BenchOutcome, BenchOutcome)> = SLICE_NAMES
             .iter()
-            .map(|name| {
-                (
-                    *name,
-                    scored_outcome(1.0, 1.0, 32),
-                    scored_outcome(0.5, 0.25, 32),
-                )
-            })
+            .map(|n| (*n, scored(0.25), scored(0.75)))
             .collect();
-        let (body, compared) = compared_report_json(&base, &rows);
+        let (v, compared) =
+            compared_report_json(&BaseLabel::from_pin(PIN_8B), Path::new("/runs/v1"), &rows);
         assert!(compared);
-        assert_eq!(body["status"], "compared");
+        assert_eq!(v["schema"], BEFORE_AFTER_SCHEMA);
+        assert_eq!(v["status"], "compared");
         assert_eq!(
-            body["scope_note"],
+            v["scope_note"],
             crate::reasoning_slice::REASONING_SLICE_SCOPE_NOTE
         );
-        assert_eq!(body["slice_size"], 32);
-        assert_eq!(body["gate_input"], false);
-        assert_eq!(body["base_model"], "Qwen/Qwen3-8B");
+        assert_eq!(v["slice_size"], SLICE_SIZE);
+        assert_eq!(v["gate_input"], false);
+        assert_eq!(v["base_model"], "Qwen/Qwen3-8B");
+        assert_eq!(v["adapter"]["dir"], "/runs/v1");
         for name in SLICE_NAMES {
-            for side in ["base", "adapter"] {
-                let entry = &body["slices"][name][side];
-                assert!(entry.get("accuracy").is_some(), "{name} {side}");
-                assert!(
-                    entry.get("think_initiation_rate").is_some(),
+            for (side, acc) in [("base", 0.25), ("adapter", 0.75)] {
+                let e = &v["slices"][name][side];
+                assert_eq!(e["accuracy"].as_f64(), Some(acc), "{name} {side}");
+                assert_eq!(
+                    e["think_initiation_rate"].as_f64(),
+                    Some(0.5),
                     "{name} {side}"
                 );
+                assert_eq!(e["status"], "scored");
             }
+        }
+        let obj = v.as_object().expect("object");
+        for banned in ["benchmarks", "delta", "verdict", "max_tokens"] {
+            assert!(!obj.contains_key(banned), "{banned}");
         }
     }
 
     #[test]
     fn one_not_scored_entry_makes_the_report_incomplete() {
-        let base = BaseLabel::from_pin(vox_populi_default_pin());
         let mut rows: Vec<(&str, BenchOutcome, BenchOutcome)> = SLICE_NAMES
             .iter()
-            .map(|name| {
-                (
-                    *name,
-                    scored_outcome(1.0, 1.0, 32),
-                    scored_outcome(1.0, 1.0, 32),
-                )
-            })
+            .map(|n| (*n, scored(0.25), scored(0.75)))
             .collect();
         rows[1].2 = BenchOutcome::NotScored {
-            reason: "adapter failed".to_string(),
+            reason: "model went away".to_string(),
             n_requested: 32,
         };
-        let (body, compared) = compared_report_json(&base, &rows);
+        let (v, compared) =
+            compared_report_json(&BaseLabel::from_pin(PIN_8B), Path::new("/runs/v1"), &rows);
         assert!(!compared);
-        assert_eq!(body["status"], "incomplete");
-        let entry = &body["slices"]["math500_think"]["adapter"];
-        assert_eq!(entry["status"], "not_scored");
-        assert!(entry.get("accuracy").is_none());
-        assert!(entry.get("think_initiation_rate").is_none());
+        assert_eq!(v["status"], "incomplete");
+        let e = v["slices"]["math500_think"]["adapter"]
+            .as_object()
+            .expect("entry");
+        assert_eq!(e["status"], "not_scored");
+        assert!(!e.contains_key("accuracy") && !e.contains_key("think_initiation_rate"));
+        // A missing slice is incomplete too.
+        let (v, compared) = compared_report_json(
+            &BaseLabel::from_pin(PIN_8B),
+            Path::new("/runs/v1"),
+            &rows[..1],
+        );
+        assert!(!compared);
+        assert_eq!(v["status"], "incomplete");
+    }
+
+    #[test]
+    fn report_file_name_is_per_base_and_path_safe() {
+        assert_eq!(
+            BaseLabel::from_pin(PIN_8B).report_file_name(),
+            "Qwen3-8B-b968826d9c46.json"
+        );
+        assert_eq!(
+            BaseLabel::from_pin(PIN_0_6B).report_file_name(),
+            "Qwen3-0.6B-c1899de289a0.json"
+        );
+        for hostile in [
+            "../evil@main",
+            "..@main",
+            "a/..@main",
+            "x/.hidden",
+            "a\\..\\b",
+        ] {
+            let name = BaseLabel::from_pin(hostile).report_file_name();
+            assert!(
+                !name.contains('/') && !name.contains('\\'),
+                "{hostile}: {name}"
+            );
+            let parts: Vec<_> = Path::new(&name).components().collect();
+            assert!(
+                matches!(parts.as_slice(), [std::path::Component::Normal(_)]),
+                "{hostile}: {name} is not one plain segment"
+            );
+            assert!(!name.starts_with('.'), "{hostile}: {name}");
+            assert!(name.ends_with("-unpinned.json"), "{hostile}: {name}");
+        }
     }
 }

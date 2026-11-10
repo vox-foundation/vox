@@ -229,7 +229,11 @@ export async function extractChromaticSpatialVisionSignals(
         friezeHeaderCount > 0 ||
           Array.from(document.querySelectorAll<HTMLElement>('main header, main div')).some((el) => {
             const st = el.getAttribute('style') || '';
-            return st.includes('white-marble-frieze-banner.jpg') || st.includes('marble-frieze-banner.jpg');
+            return (
+              st.includes('carrara-acanthus-header-band.jpg') ||
+              st.includes('white-marble-frieze-banner.jpg') ||
+              st.includes('marble-frieze-banner.jpg')
+            );
           }),
       );
 

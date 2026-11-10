@@ -15,6 +15,8 @@ pub struct WorkspaceFeatures {
     pub workspace_version: String,
 }
 
+const REPO_DOT_VOX_CACHE_DIR: &str = ".vox-cache";
+
 pub struct DriftEngine {
     root: PathBuf,
 }
@@ -102,7 +104,7 @@ impl DriftEngine {
                 !matches!(
                     name.as_ref(),
                     "target" | "node_modules" | ".git" | "archive" | ".claude" | ".worktrees"
-                ) && name != vox_config::paths::REPO_DOT_VOX_CACHE_DIR
+                ) && name != REPO_DOT_VOX_CACHE_DIR
             })
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())

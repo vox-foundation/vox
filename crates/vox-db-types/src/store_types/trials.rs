@@ -245,7 +245,7 @@ pub struct TrialSampleRow {
     pub recorded_at_ms: i64,
 }
 
-/// Atomic batch written by [`vox_db::VoxDb::record_trial_run_batch`] (`STORE-02`).
+/// Atomic batch written by `vox_db::VoxDb::record_trial_run_batch` (`STORE-02`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrialRunBatch {
     pub run: TrialRunRecord,

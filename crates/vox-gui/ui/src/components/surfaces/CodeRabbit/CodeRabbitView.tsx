@@ -147,13 +147,13 @@ export function CodeRabbitView({ pushToast }: CodeRabbitViewProps): React.ReactE
   ];
 
   return (
-    <div className="max-w-4xl space-y-4 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-5">
+    <div className="max-w-4xl space-y-4 rounded-xl border border-[#D4AF37]/40 bg-bg-surface p-5">
       <RomanSurfaceHeader
         domainTag="WORKSPACE · CODERABBIT"
         title="CodeRabbit Code Review Sweep"
         subtitle="Batch repository slices into 150-file review PRs paced to respect CodeRabbit Pro hourly quotas."
         waxSealBadge="SWEEP READY"
-        icon={<Icon.shield className="size-5 text-[#F3E5AB]" />}
+        icon={<Icon.shield className="size-5 text-text-primary" />}
         gauges={coderabbitGauges}
       />
       <div className="mb-4 flex items-center gap-2.5">

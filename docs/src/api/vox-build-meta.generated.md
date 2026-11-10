@@ -57,8 +57,6 @@ This crate has no runtime dependencies — it must only be used as a
 graph {
     direction: right
     node vox_build_meta: "vox-build-meta"
-    node vox_arch_check: "vox-arch-check"
-    vox_arch_check -> vox_build_meta
     node vox_cli: "vox-cli"
     vox_cli -> vox_build_meta
     node vox_gui: "vox-gui"
@@ -70,7 +68,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-arch-check`](./vox-arch-check.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 

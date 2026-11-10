@@ -40,6 +40,13 @@ pub use schema::{
 };
 
 use anyhow::Result;
+#[cfg(feature = "execution-api")]
+use std::collections::HashMap;
+#[cfg(feature = "execution-api")]
+use vox_populi::mens::tensor::{
+    size_select::{self, Selection},
+    spoke_base_resolver::TrainBase,
+};
 
 /// Run the inference server using Axum (`execution-api` feature).
 ///
@@ -113,6 +120,23 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .system_prompt
         .clone()
         .unwrap_or_else(vox_corpus::training::generate_training_system_prompt);
+    // One fresh reading right before the worker thread loads the model (D-05);
+    // the run's base is an explicit size, judged by its floor_mb (D-07).
+    let base = vox_populi::mens::tensor::manifest::load_manifest(run_dir)
+        .ok()
+        .flatten()
+        .and_then(|m| m.base_model);
+    let root = vox_corpus::training::contract::find_workspace_root();
+    let overlay = size_select::load_ladder_overlay(root.as_deref())?;
+    let free = size_select::read_free_memory();
+    if let Some(note) = serve_fit_note(
+        base.as_deref(),
+        &overlay,
+        free.as_ref(),
+        crate::commands::schola::train::force_train_env(),
+    )? {
+        eprintln!("  size: {note}");
+    }
     let (tx, ready) = worker::spawn_inference_worker(config, &model_name, &system_prompt);
 
     let state = handlers::AppState {
@@ -170,6 +194,30 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
          POST /v1/chat/completions"
     );
     Ok(())
+}
+
+/// Whether the run's recorded base still fits free memory. A base off the
+/// ladder, or none recorded, has no floor to check (`Ok(None)`). `force` is
+/// training's `VOX_MENS_FORCE_TRAIN` override (D-04); serve never steps the
+/// run's explicit size down (D-05).
+#[cfg(feature = "execution-api")]
+fn serve_fit_note(
+    base_model: Option<&str>,
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    free: Option<&size_select::FreeMemory>,
+    force: bool,
+) -> Result<Option<String>> {
+    let Some(base) = base_model else {
+        return Ok(None);
+    };
+    // A name the ladder cannot resolve (`custom-base`) is not a size either.
+    if size_select::resolve_base_pin(base, overlay).is_err() {
+        return Ok(None);
+    }
+    match size_select::select_size(overlay, free, Some(base), force)? {
+        Selection::Size(pick) => Ok(Some(pick.note)),
+        Selection::PassThrough(_) => Ok(None),
+    }
 }
 
 #[cfg(all(test, feature = "execution-api"))]
@@ -239,6 +287,81 @@ mod prompt_tests {
             Some("jsonl_records"),
             Some(&schema)
         ));
+    }
+
+    const PIN_8B: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+    const FREE: size_select::FreeMemory = size_select::FreeMemory {
+        mb: 13_000,
+        source: "test",
+    };
+
+    fn overlay() -> HashMap<String, Vec<TrainBase>> {
+        size_select::load_ladder_overlay(None).expect("embedded gpu-specs")
+    }
+
+    /// The ladder's QLoRA floor for `pin`, so these tests follow gpu-specs.yaml.
+    fn qlora_floor(pin: &str) -> u32 {
+        overlay()["qwen3_code"]
+            .iter()
+            .find(|b| b.hf_id == pin && b.methods.iter().any(|m| m == "qlora"))
+            .unwrap_or_else(|| panic!("QLoRA rung {pin}"))
+            .floor_mb
+    }
+
+    #[test]
+    fn serve_fit_note_refuses_a_ladder_base_that_does_not_fit() {
+        let base = "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137";
+        let err = serve_fit_note(Some(base), &overlay(), Some(&FREE), false)
+            .expect_err("32B does not fit 13000 MB")
+            .to_string();
+        for want in ["32B", &qlora_floor(base).to_string(), "refusing"] {
+            assert!(err.contains(want), "{want} missing: {err}");
+        }
+    }
+
+    /// WR-04: training's force override also lets serve load a base whose
+    /// training floor does not fit (the floor overstates inference, D-07).
+    #[test]
+    fn serve_fit_note_forced_serves_a_base_that_does_not_fit() {
+        let base = "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137";
+        let note = serve_fit_note(Some(base), &overlay(), Some(&FREE), true)
+            .expect("forced")
+            .expect("a ladder base has a note");
+        assert!(note.contains("32B") && note.contains("forced"), "{note}");
+    }
+
+    #[test]
+    fn serve_fit_note_reports_a_ladder_base_that_fits() {
+        let free = size_select::FreeMemory {
+            mb: u64::from(qlora_floor(PIN_8B)),
+            source: "test",
+        };
+        let note = serve_fit_note(Some(PIN_8B), &overlay(), Some(&free), false).expect("8B fits");
+        assert!(note.is_some_and(|n| n.contains("8B")));
+    }
+
+    #[test]
+    fn serve_fit_note_without_a_reading_keeps_an_explicit_base() {
+        let note = serve_fit_note(Some(PIN_8B), &overlay(), None, false).expect("kept");
+        assert!(note.is_some_and(|n| n.contains("fit not checked")));
+    }
+
+    #[test]
+    fn serve_fit_note_passes_unknown_and_missing_bases() {
+        let ov = overlay();
+        assert!(
+            serve_fit_note(None, &ov, Some(&FREE), false)
+                .unwrap()
+                .is_none()
+        );
+        for base in ["org/model", "/models/snapshots/qwen3", "custom-base"] {
+            assert!(
+                serve_fit_note(Some(base), &ov, Some(&FREE), false)
+                    .unwrap()
+                    .is_none(),
+                "{base}"
+            );
+        }
     }
 }
 

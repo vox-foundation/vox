@@ -38,41 +38,7 @@ pub struct TaskTurn {
     pub timestamp_ms: u64,
 }
 
-/// Priority level for a task. Higher priority tasks are dequeued first.
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum TaskPriority {
-    /// Background work — lowest priority.
-    Background = 0,
-    /// Normal priority — default.
-    Normal = 1,
-    /// Urgent — preempts normal tasks.
-    Urgent = 2,
-}
-
-impl TaskPriority {
-    /// Map a wire `u8` (e.g. the `priority` field of a `HopperSync` op) to a
-    /// `TaskPriority`. Matches the enum's `repr` (0/1/2); any out-of-range value
-    /// falls back to `Normal` rather than failing — replication should degrade
-    /// gracefully, not drop an admission.
-    pub fn from_u8(v: u8) -> Self {
-        match v {
-            0 => Self::Background,
-            2 => Self::Urgent,
-            _ => Self::Normal,
-        }
-    }
-}
-
-impl fmt::Display for TaskPriority {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Background => write!(f, "background"),
-            Self::Normal => write!(f, "normal"),
-            Self::Urgent => write!(f, "urgent"),
-        }
-    }
-}
+pub use vox_orchestrator_types::TaskPriority;
 
 /// Current execution status of a task.
 #[non_exhaustive]
@@ -205,7 +171,7 @@ impl FileAffinity {
     }
 }
 
-pub use crate::models::generated::TaskCategory;
+pub use vox_orchestrator_types::TaskCategory;
 
 /// Populi mesh holds execution authority for this task; local actors must not dequeue it.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

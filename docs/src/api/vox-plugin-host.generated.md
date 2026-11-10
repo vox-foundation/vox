@@ -99,6 +99,8 @@ graph {
     vox_cli -> vox_plugin_host
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_plugin_host
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_plugin_host
     node vox_gui: "vox-gui"
     vox_gui -> vox_plugin_host
     node vox_ml_cli: "vox-ml-cli"
@@ -121,6 +123,7 @@ graph {
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 | [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Direct workspace dependent |

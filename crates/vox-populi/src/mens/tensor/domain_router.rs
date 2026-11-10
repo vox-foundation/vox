@@ -207,6 +207,7 @@ impl DomainRouter {
     ///
     /// The current champion is saved for rollback. Returns Err if there is no
     /// challenger registered for the domain.
+    #[inline(never)]
     pub fn promote_challenger(&mut self, domain: &str) -> Result<()> {
         let slot = self
             .slots
@@ -229,6 +230,7 @@ impl DomainRouter {
     /// Rollback the champion to the previous champion (set before the last `promote_challenger`).
     ///
     /// Returns Err if there is no previous champion to roll back to.
+    #[inline(never)]
     pub fn rollback(&mut self, domain: &str) -> Result<()> {
         let slot = self
             .slots
@@ -682,6 +684,7 @@ use crate::mens::tensor::domain_profiles::DomainProfilesFile;
 /// Note: Substring matching also means `.rs` matches things like `foo.rsync`,
 /// which is acceptable for v1.
 #[cfg(feature = "mens-train")]
+#[inline(never)]
 pub fn route_by_signal(file: &DomainProfilesFile, signal: &str) -> Option<String> {
     let mut best: Option<(i32, &str)> = None;
     for (name, p) in &file.profiles {

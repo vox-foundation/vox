@@ -1543,7 +1543,7 @@ mod task_dispatch_tests {
             .iter()
             .find(|t| t["id"].as_u64() == Some(task_id))
             .unwrap();
-        assert_eq!(t["category"].as_str(), Some("Chat"));
+        assert_eq!(t["category"].as_str(), Some("chat"));
     }
 
     #[tokio::test]

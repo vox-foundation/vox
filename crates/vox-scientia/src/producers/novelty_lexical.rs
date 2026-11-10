@@ -9,6 +9,7 @@ use vox_search::novelty::shingle_hashes;
 
 /// Jaccard similarity between two texts' 4-gram character shingle sets.
 /// 1.0 = identical shingle sets, 0.0 = no overlap.
+#[inline(never)]
 pub fn lexical_similarity(a: &str, b: &str) -> f64 {
     let sa: HashSet<u64> = shingle_hashes(a, 4).into_iter().collect();
     let sb: HashSet<u64> = shingle_hashes(b, 4).into_iter().collect();

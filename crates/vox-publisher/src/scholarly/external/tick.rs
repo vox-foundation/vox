@@ -8,6 +8,7 @@ use anyhow::{Result, anyhow};
 use serde_json::Value;
 use vox_db::{ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, StoreError, VoxDb};
 
+#[inline(never)]
 pub async fn run_external_submit_jobs_tick(
     db: &VoxDb,
     limit: i64,
@@ -145,6 +146,7 @@ pub async fn run_external_submit_jobs_tick(
     })
 }
 
+#[inline(never)]
 pub async fn run_external_submit_jobs_tick_loop(
     db: &VoxDb,
     limit: i64,

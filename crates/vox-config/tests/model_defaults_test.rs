@@ -119,8 +119,9 @@ const PENDING_14B_14C: &[&str] = &[
     "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
     "crates/vox-orchestrator-mcp/src/llm_bridge/providers/gemini.rs",
     // 14c
-    "crates/vox-cli/src/commands/chat.rs",
+    "crates/vox-cli-research/src/chat.rs",
     "crates/vox-cli/src/commands/status.rs",
+    "crates/vox-code-audit/src/review/providers.rs",
     "crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs",
     "crates/vox-gamify/src/ai/client/transport.rs",
     "crates/vox-gamify/src/ai/constants.rs",

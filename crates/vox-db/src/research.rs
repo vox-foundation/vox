@@ -42,6 +42,7 @@ impl VoxDb {
     /// Persist a fetched document: metadata JSON in `knowledge_nodes`, text chunks in `snippets`.
     ///
     /// Overwrites [`ResearchIngestRequest::packet`].`content_hash` from `body`. Mutates `req` in place.
+    #[inline(never)]
     pub async fn ingest_research_document_async(
         &self,
         req: &mut ResearchIngestRequest,
@@ -179,6 +180,7 @@ impl VoxDb {
     }
 
     /// Same as [`Self::ingest_research_document_async`] but blocks on the store’s internal runtime.
+    #[inline(never)]
     pub fn ingest_research_document(
         &self,
         req: &mut ResearchIngestRequest,
@@ -187,6 +189,7 @@ impl VoxDb {
     }
 
     /// Deserialize recent `external_research` rows from `knowledge_nodes` (optional vendor/topic filter).
+    #[inline(never)]
     pub fn list_research_packets(
         &self,
         vendor: Option<&str>,
@@ -255,6 +258,7 @@ impl VoxDb {
     }
 
     /// Insert one row into `codex_capability_map` (ensures table exists). Returns SQLite rowid.
+    #[inline(never)]
     pub fn store_capability_map_record(
         &self,
         rec: &CapabilityMapRecord,
@@ -378,6 +382,7 @@ impl VoxDb {
     }
 
     /// Persist a consolidated research evaluation run record.
+    #[inline(never)]
     pub async fn record_research_eval_run(
         &self,
         rec: &ResearchEvalRunRecord,
@@ -418,6 +423,7 @@ impl VoxDb {
     }
 
     /// Persist a single research evaluation sample.
+    #[inline(never)]
     pub async fn record_research_eval_sample(
         &self,
         rec: &ResearchEvalSampleRecord,
@@ -503,6 +509,7 @@ pub struct RetrievalDiagnostics {
 }
 
 /// Cheap `COUNT(*)` snapshots over retrieval-related tables.
+#[inline(never)]
 pub fn retrieval_diagnostics(store: &crate::VoxDb) -> Result<RetrievalDiagnostics, StoreError> {
     store.block_on(async {
         let mut r1 = store

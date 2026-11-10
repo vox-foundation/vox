@@ -104,6 +104,7 @@ impl BaseReward {
 }
 
 /// Look up the base reward for a known event type.
+#[inline(never)]
 pub fn base_reward(event_type: &str) -> BaseReward {
     match event_type {
         // Task lifecycle
@@ -360,6 +361,7 @@ pub struct PolicyReward {
 /// - `mode_multiplier`: from active `GamifyMode`
 /// - `streak_days`: current user streak (adds up to 50% bonus)
 /// - `session`: mutable session state for anti-grind and novelty
+#[inline(never)]
 pub fn apply_policy(
     base: &BaseReward,
     mode_multiplier: f64,
@@ -390,6 +392,7 @@ pub fn apply_policy(
 /// legacy [`apply_policy`] (the defaults mirror the constants in this module),
 /// so the migration is behavior-preserving for the shipped contract.
 #[allow(clippy::too_many_arguments)]
+#[inline(never)]
 pub fn apply_policy_cfg(
     cfg: &crate::economy::EconomyConfig,
     base: &BaseReward,
@@ -504,6 +507,7 @@ impl EventConfigOverrides {
 }
 
 /// Apply the full policy stack with optional runtime overrides.
+#[inline(never)]
 pub fn apply_policy_with_overrides(
     overrides: &EventConfigOverrides,
     mode_multiplier: f64,

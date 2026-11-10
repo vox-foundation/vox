@@ -342,19 +342,19 @@ export function PoliciesView({
               </section>
 
               <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+                <div className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">CLI Invocation</div>
                   <div className="mt-1 font-mono text-[11px] text-[#F3E5AB]">vox audit code</div>
                   <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">--rule {detail.id}</div>
                 </div>
-                <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+                <div className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">Severity Tier</div>
                   <div className="mt-1 font-mono text-[11px] uppercase text-[#F3E5AB]">{detail.severity ?? 'info'}</div>
                   <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">
                     {detail.blocking ? 'Blocks CI merge' : 'Advisory warning'}
                   </div>
                 </div>
-                <div className="rounded-lg border border-[#D4AF37]/30 bg-[#16120C] p-2.5">
+                <div className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">Detector Ref</div>
                   <div className="mt-1 truncate font-mono text-[11px] text-emerald-300">{detail.sourceRef}</div>
                   <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">{detail.sourceKind}</div>
@@ -365,7 +365,7 @@ export function PoliciesView({
                 data-testid="policy-enforcement-deck"
                 className="mt-auto grid grid-cols-1 gap-3 border-t border-[#D4AF37]/25 pt-4 sm:grid-cols-2"
               >
-                <div className="rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3">
+                <div className="rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3">
                   <div className="flex items-center justify-between">
                     <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Enforcement Gate</span>
                     <RomanWaxSealBadge
@@ -377,7 +377,7 @@ export function PoliciesView({
                     Evaluated by <code className="text-[#F3E5AB]">vox audit code</code> and <code className="text-[#F3E5AB]">vox ci pre-push</code> across selected worktree branches.
                   </p>
                 </div>
-                <div className="rounded-lg border border-[#D4AF37]/35 bg-[#16120C] p-3">
+                <div className="rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3">
                   <div className="flex items-center justify-between">
                     <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Rule Provenance</span>
                     <RomanWaxSealBadge label={detail.origin} tone="emerald" />

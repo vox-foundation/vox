@@ -7,6 +7,7 @@
 
 use std::collections::BTreeMap;
 
+#[inline(never)]
 pub fn cycles(adj: &BTreeMap<String, Vec<String>>) -> Vec<Vec<String>> {
     let mut index_counter = 0usize;
     let mut indices: BTreeMap<String, usize> = BTreeMap::new();
@@ -70,6 +71,7 @@ pub fn cycles(adj: &BTreeMap<String, Vec<String>>) -> Vec<Vec<String>> {
 
 use serde_json::Value;
 
+#[inline(never)]
 pub fn adjacency_from_metadata(
     meta: &Value,
     include_nonlink: bool,
@@ -165,6 +167,7 @@ fn cargo_metadata(root: &Path) -> Result<Value> {
     serde_json::from_slice(&out.stdout).context("parse cargo metadata")
 }
 
+#[inline(never)]
 pub fn run_dep_cycles(root: &Path, deny_new: bool, allowlist_path: Option<&Path>) -> Result<()> {
     let meta = cargo_metadata(root)?;
     let link_time = adjacency_from_metadata(&meta, false);
@@ -333,6 +336,16 @@ mod deny_new_tests {
         let new = new_advisory_cycles(&current, &allowed());
         assert_eq!(new.len(), 1);
         assert_eq!(new[0], &vec!["x".to_string(), "y".to_string()]);
+    }
+
+    #[test]
+    fn empty_allowlist_passes_when_no_cycles() {
+        let allowed = AllowedCycles {
+            schema_version: 1,
+            allowed_cycles: vec![],
+        };
+        let current: Vec<Vec<String>> = vec![];
+        assert!(new_advisory_cycles(&current, &allowed).is_empty());
     }
 
     #[test]

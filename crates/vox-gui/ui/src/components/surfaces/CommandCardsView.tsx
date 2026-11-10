@@ -116,7 +116,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
         actions={
           <button
             type="button"
-            className="rounded-lg border border-[#D4AF37]/55 bg-linear-to-b from-[#332613] to-[#1A1309] px-3 py-1.5 font-display text-xs font-semibold uppercase tracking-wider text-[#F3E5AB] shadow-sm hover:border-[#F3E5AB] disabled:opacity-40"
+            className="rounded-lg border border-[#D4AF37]/55 bg-bg-elevated px-3 py-1.5 font-display text-xs font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37] disabled:opacity-40"
             disabled={loading}
             onClick={refresh}
           >
@@ -147,7 +147,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
                     {card.title}
                   </span>
                 </div>
-                <span className="rounded border border-[#8C6825] bg-[#251C0E] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#F3E5AB]">
+                <span className="rounded border border-[#8C6825] bg-bg-elevated px-2 py-0.5 font-mono text-[10px] font-semibold text-text-primary">
                   vox {card.path.join(' ')}
                 </span>
               </div>
@@ -171,7 +171,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
                       tone={r.out.exit_code === 0 ? 'emerald' : 'crimson'}
                     />
                   </div>
-                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border-2 border-[#9E7B2F] bg-[#18120B] p-3 font-mono text-[11px] text-[#F5F0E6] shadow-inner">
+                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border-2 border-[#9E7B2F] bg-bg-surface p-3 font-mono text-[11px] text-text-primary shadow-inner">
                     {[r.out.stdout, r.out.stderr].filter(Boolean).join('\n').trim() || '(no output)'}
                   </pre>
                 </>
@@ -200,7 +200,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
             <RomanWaxSealBadge label="Tier-3 CLI" tone="gold" />
           </div>
           <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-[#2B2013]">
-            Routes read-only diagnostics through <code className="rounded bg-[#251C0E] px-1 py-0.5 text-[#F3E5AB]">execute_command</code> with zero background daemon polling overhead.
+            Routes read-only diagnostics through <code className="rounded bg-bg-elevated px-1 py-0.5 text-text-primary">execute_command</code> with zero background daemon polling overhead.
           </p>
         </div>
         <div
@@ -238,7 +238,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
             <RomanWaxSealBadge label="SSOT Sync" />
           </div>
           <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-[#2B2013]">
-            Need additional flags or interactive parameters? Open the full Command Catalog (<code className="rounded bg-[#251C0E] px-1 py-0.5 text-[#F3E5AB]">⌘K</code>) to configure arguments.
+            Need additional flags or interactive parameters? Open the full Command Catalog (<code className="rounded bg-bg-elevated px-1 py-0.5 text-text-primary">⌘K</code>) to configure arguments.
           </p>
         </div>
       </div>
@@ -268,21 +268,21 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
           <RomanWaxSealBadge label="QUIC MESH · ED25519" tone="gold" />
         </div>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-            <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Transport Protocol</div>
-            <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">QUIC + TLS 1.3</div>
+          <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+            <div className="font-display text-[9px] uppercase tracking-widest text-brass">Transport Protocol</div>
+            <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">QUIC + TLS 1.3</div>
           </div>
-          <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-            <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Peer Attestation</div>
-            <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">Ed25519 Signed</div>
+          <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+            <div className="font-display text-[9px] uppercase tracking-widest text-brass">Peer Attestation</div>
+            <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">Ed25519 Signed</div>
           </div>
-          <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-            <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Spoke Dispatch</div>
-            <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">8-Way QLoRA</div>
+          <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+            <div className="font-display text-[9px] uppercase tracking-widest text-brass">Spoke Dispatch</div>
+            <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">8-Way QLoRA</div>
           </div>
-          <div className="rounded-lg border border-[#9E7B2F] bg-[#241B11] px-3 py-2 text-[#F6F0E4]">
-            <div className="font-display text-[9px] uppercase tracking-widest text-[#D4AF37]">Sandbox Boundary</div>
-            <div className="mt-0.5 font-mono text-xs font-semibold text-[#F3E5AB]">Clavis Guarded</div>
+          <div className="rounded-lg border border-[#9E7B2F] bg-bg-surface px-3 py-2 text-text-primary">
+            <div className="font-display text-[9px] uppercase tracking-widest text-brass">Sandbox Boundary</div>
+            <div className="mt-0.5 font-mono text-xs font-semibold text-text-primary">Clavis Guarded</div>
           </div>
         </div>
       </div>

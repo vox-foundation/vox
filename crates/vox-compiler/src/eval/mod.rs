@@ -495,6 +495,7 @@ impl Interpreter {
         }
     }
 
+    #[inline(never)]
     pub fn run_module(&mut self, module: &HirModule) -> Result<(), EvalError> {
         self.seed_rng_from_caps();
         // Seed built-in Option/Result constructors so scripts can write
@@ -802,6 +803,7 @@ impl Interpreter {
         self.source_path = Some(path.into());
     }
 
+    #[inline(never)]
     pub fn call(&mut self, name: &str, args: Vec<VoxValue>) -> Result<VoxValue, EvalError> {
         self.seed_rng_from_caps();
         let val = self

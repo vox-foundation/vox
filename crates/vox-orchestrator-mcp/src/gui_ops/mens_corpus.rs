@@ -266,10 +266,10 @@ fn compute_supervised_metrics(
     };
 
     let Some(path) = target_path else {
-        return (0, 74.2, sys_tokens);
+        return (0, 0.0, sys_tokens);
     };
     let Ok(raw) = std::fs::read_to_string(&path) else {
-        return (0, 74.2, sys_tokens);
+        return (0, 0.0, sys_tokens);
     };
 
     let mut total_rows = 0usize;
@@ -301,7 +301,7 @@ fn compute_supervised_metrics(
     let denom = (prompt_context_chars + completion_chars).max(1) as f64;
     let ratio = ((completion_chars as f64 / denom) * 1000.0).round() / 10.0;
     let clamped_ratio = if total_rows == 0 {
-        74.2
+        0.0
     } else {
         ratio.clamp(15.0, 96.0)
     };
@@ -309,10 +309,12 @@ fn compute_supervised_metrics(
 }
 
 fn read_ladder_checkpoint_statuses(workspace_root: &Path) -> Vec<MensLadderCheckpointStatusDto> {
-    let candidate_roots = [
-        workspace_root.join("mens").join("runs"),
-        PathBuf::from("/Users/brbrainerd/dev/vox-mens-compare/mens/runs"),
-    ];
+    let mut candidate_roots = vec![workspace_root.join("mens").join("runs")];
+    if let Ok(env_root) = std::env::var("VOX_MENS_RUNS_ROOT")
+        && !env_root.trim().is_empty()
+    {
+        candidate_roots.push(PathBuf::from(env_root.trim()));
+    }
     let runs_root = candidate_roots
         .iter()
         .find(|p| p.join("qwen3-0.6b").is_dir() || p.join("reasoning_compare").is_dir())
@@ -448,16 +450,29 @@ fn read_ladder_checkpoint_statuses(workspace_root: &Path) -> Vec<MensLadderCheck
             }
         }
 
-        // For 4B live checkpoint inspection
+        // Live checkpoint inspection across reasoning_compare/checkpoints/*
         if size == "4B" && gsm_done < 128 {
-            let ckpt_4b = rc_dir
-                .join("checkpoints")
-                .join("85455a3adf2cd230")
-                .join("gsm8k_think-38f63d006f1bcd8d.jsonl");
-            if ckpt_4b.is_file() {
-                let (lines, _, _) = count_non_empty_lines(&ckpt_4b);
-                if lines > 0 {
-                    gsm_done = lines.saturating_sub(1).min(128);
+            let ckpts_root = rc_dir.join("checkpoints");
+            if let Ok(subdirs) = std::fs::read_dir(&ckpts_root) {
+                for sub in subdirs.flatten() {
+                    let sub_path = sub.path();
+                    if sub_path.is_dir()
+                        && let Ok(files) = std::fs::read_dir(&sub_path)
+                    {
+                        for f in files.flatten() {
+                            let fp = f.path();
+                            if let Some(fname) = fp.file_name().and_then(|n| n.to_str())
+                                && fname.starts_with("gsm8k_think-")
+                                && fname.ends_with(".jsonl")
+                                && fp.is_file()
+                            {
+                                let (lines, _, _) = count_non_empty_lines(&fp);
+                                if lines > 0 {
+                                    gsm_done = gsm_done.max(lines.saturating_sub(1).min(128));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

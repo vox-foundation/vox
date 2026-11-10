@@ -12,13 +12,7 @@ pub enum CatalogFormat {
     Json,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CatalogTier {
-    Recommended,
-    Advanced,
-    FeatureGated,
-}
+pub use vox_cli_core::catalog_tier::{CatalogTier, tier_for_path};
 
 /// Typed argument kind for GUI form generation, derived from the clap action.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -457,22 +451,6 @@ fn collect_aliases(cmd: &Command) -> Vec<String> {
     aliases.sort();
     aliases.dedup();
     aliases
-}
-
-pub(crate) fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
-    if feature_gated {
-        return CatalogTier::FeatureGated;
-    }
-    let top = path.first().map(String::as_str).unwrap_or_default();
-    if path.len() == 1
-        && matches!(
-            top,
-            "build" | "check" | "run" | "test" | "bundle" | "dev" | "doctor" | "completions"
-        )
-    {
-        return CatalogTier::Recommended;
-    }
-    CatalogTier::Advanced
 }
 
 fn sanitize_about(about: &str) -> String {
@@ -1211,5 +1189,27 @@ mod tests {
         assert!(rendered.contains("extern \"vox run\" ["));
         assert!(rendered.contains("extern \"vox build\" ["));
         assert!(rendered.contains("--help(-h)"));
+    }
+
+    #[test]
+    fn every_compiled_clap_path_is_in_command_registry() {
+        let root = vox_repository::resolve_repo_root_for_ci();
+        let registered: std::collections::BTreeSet<String> =
+            vox_cli_ci::gui_surface_coverage::collect_command_paths(&root)
+                .expect("collect command paths")
+                .into_iter()
+                .map(|p| p.path)
+                .collect();
+        let missing: Vec<String> = build_catalog()
+            .entries
+            .into_iter()
+            .map(|e| e.path.join(" "))
+            .filter(|p| !registered.contains(p))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "clap paths missing from contracts/cli/command-registry.yaml (add them to \
+             contracts/operations/catalog.v1.yaml, then `vox ci operations-sync --target all --write`): {missing:?}"
+        );
     }
 }

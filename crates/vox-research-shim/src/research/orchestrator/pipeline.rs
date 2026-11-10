@@ -29,6 +29,7 @@ use super::web_gather::{gather_local_hits_for_plan, gather_web_hits_for_plan};
 
 /// Run the full research pipeline for `query`. Returns a `ResearchResult` with
 /// a cited answer, sources, citations, and telemetry metadata.
+#[inline(never)]
 pub async fn run_research(
     query: ResearchQuery,
     db: Option<&Codex>,
@@ -48,6 +49,7 @@ pub async fn run_research_with_context(
 }
 
 /// Run research using a pre-created session id, for async job submission paths.
+#[inline(never)]
 pub async fn run_research_with_context_and_session(
     query: ResearchQuery,
     search_ctx: Option<&SearchRuntimeContext>,
@@ -65,6 +67,7 @@ pub async fn run_research_with_context_and_session(
     .await
 }
 
+#[inline(never)]
 async fn run_research_metered(
     mut query: ResearchQuery,
     search_ctx: Option<&SearchRuntimeContext>,
@@ -1302,6 +1305,7 @@ fn emit_research_event(config: &ResearchConfig, db: Option<&Codex>, event: Resea
     }
 }
 
+#[inline(never)]
 pub async fn resolved_search_policy_for_research_run(
     db: Option<&Codex>,
     config: &ResearchConfig,

@@ -328,7 +328,7 @@ mod tests {
     fn turn_decision_pack_rejects_model_id_fields() {
         let raw_with_model_id = r#"{
             "schema_version": "turn_decision_pack.v1",
-            "task": "CodeGen",
+            "task": "code_gen",
             "complexity": 6,
             "confidence": 0.91,
             "model_id": "anthropic/claude-sonnet-4"
@@ -339,7 +339,7 @@ mod tests {
 
         let valid_raw = r#"{
             "schema_version": "turn_decision_pack.v1",
-            "task": "Debugging",
+            "task": "debugging",
             "complexity": 8,
             "prefer_local": true,
             "allow_free_in_performance_mode": true,

@@ -4,7 +4,10 @@ description = "Identity primitives: signing keys, trust ledger entries."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 vox-crypto = { workspace = true }
@@ -17,7 +20,9 @@ rand = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
 hex = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+[lints]
+workspace = true

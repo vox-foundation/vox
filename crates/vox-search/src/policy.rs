@@ -431,6 +431,7 @@ impl Default for SearchPolicy {
 impl SearchPolicy {
     /// Environment overrides merged onto [`Default::default`].
     #[must_use]
+    #[inline(never)]
     pub fn from_env() -> Self {
         let mut p = Self::default();
         // Task 8e: test-hermeticity kill switch. `run_retrieval_bundle`'s

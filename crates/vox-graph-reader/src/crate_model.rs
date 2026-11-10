@@ -186,6 +186,21 @@ pub fn build_crate_map(crate_graph: &Value, audit: &Value) -> Value {
     json!({ "nodes": nodes_val, "links": links_val })
 }
 
+/// Summary record for a single crate in `contracts/ci/crate-build-map.v1.json`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CrateSummary {
+    #[serde(rename = "crate")]
+    pub name: String,
+    pub compile_s: f64,
+    pub dependents: usize,
+    pub blast_s: f64,
+    pub fan_in: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub touches_90d: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub churn_compile_pain_score: Option<f64>,
+}
+
 /// Build the small, committed crate-build SSOT (`contracts/ci/crate-build-map.v1.json`).
 ///
 /// `crate_graph` is the `{crates:{name:[deps]}}` shape from `crate-graph.v1.json`.

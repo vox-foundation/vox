@@ -4,13 +4,16 @@ description = "OpenAI-compatible chat completions JSON types (wire and SSE strea
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 bytes = { workspace = true }
 thiserror = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 serde_json = { workspace = true }

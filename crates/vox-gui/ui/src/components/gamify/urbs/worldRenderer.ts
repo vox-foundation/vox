@@ -46,8 +46,6 @@ import {
   drawWaterCausticsAndSpray,
 } from './lightingAndFx';
 import {
-  drawAnimatedHydraulicActivityFlows,
-  drawRomanHydraulicInfrastructure,
   drawScreenSpaceHydraulicOverlay,
 } from './hydraulicNetwork';
 
@@ -2686,9 +2684,9 @@ function paintFullBleedRomanLandscape(ctx: CanvasRenderingContext2D, layout: Tow
     const seaCx = w * 0.52;
     const seaCy = h * 0.50;
     const seaGrad = ctx.createRadialGradient(seaCx, seaCy, Math.min(w, h) * 0.08, seaCx, seaCy, Math.max(w, h) * 0.68);
-    seaGrad.addColorStop(0, 'rgba(42, 31, 18, 0.08)');
-    seaGrad.addColorStop(0.50, 'rgba(24, 18, 11, 0.14)');
-    seaGrad.addColorStop(1, 'rgba(10, 8, 5, 0.28)');
+    seaGrad.addColorStop(0, 'rgba(250, 246, 238, 0.04)');
+    seaGrad.addColorStop(0.50, 'rgba(245, 239, 226, 0.06)');
+    seaGrad.addColorStop(1, 'rgba(212, 175, 55, 0.08)');
     ctx.fillStyle = seaGrad;
     ctx.fillRect(0, 0, w, h);
   }
@@ -3341,8 +3339,9 @@ export class WorldRenderer {
       }
     });
 
-    // Phase 293 (`URBS-CONDUIT-ANIM-01..04`): Multi-Channel Color + Shape Animated Hydraulic Activity Flows
-    drawAnimatedHydraulicActivityFlows(ctx, s, timeMs, worldPx, districtElevationPx);
+    // Phase 384 (`URBS-DIEGETIC-ENV-02`): Diegetic watercourses & crowds are rendered in panorama space
+    // (`diegeticEnvironment.ts`) aligned to the painted Aqueduct, Nymphaeum, and Grand Canal rather than
+    // drawing straight grid-to-grid lines across rooftops.
 
     if (harness.mcp && harness.mcp.length > 0) {
       const { px, py } = worldPx(layout, L.aqvae.x, L.aqvae.y);
@@ -3425,13 +3424,10 @@ export class WorldRenderer {
     const { layout } = s;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    // Phase 374 (`URBS-MONUMENT-ART-01`): No procedural 2D polygon building models (`drawIsoFileBuilding`,
-    // `drawDistrictCurtainWall`, `paintDistrictWonder`, `paintFullBleedRomanLandscape`) are painted over the
-    // high-resolution generated White/Gold Roman Acropolis diorama artwork (`urbs-white-gold-citadel-bg.jpg`).
-    // Instead, the canvas renders golden hydraulic aqueduct conduits, subtle astrolabe district rings,
-    // worksite light pools, and quarantine perimeters that layer cleanly over the painted monuments.
+    // Phase 384 (`URBS-DIEGETIC-ENV-01`): No procedural 2D polygon building models or straight rooftop
+    // grid-to-grid plumbing lines (`drawRomanHydraulicInfrastructure`) are painted over the high-resolution
+    // generated White/Gold Roman Metropolis artwork (`urbs-white-gold-citadel-bg.jpg`).
     drawAdditiveLightPools(ctx, layout, s.buildings, s.agentTasks, worldPx, districtElevationPx);
-    drawRomanHydraulicInfrastructure(ctx, layout, s.buildings, s.agentTasks, worldPx, districtElevationPx);
 
     const sortedDistricts = [...layout.districts].sort(
       (a, b) => (a.x0 + a.x1 + a.y0 + a.y1) - (b.x0 + b.x1 + b.y0 + b.y1),
@@ -3447,26 +3443,20 @@ export class WorldRenderer {
       const hasError = d.buildings.some((b) => (s.buildings[b.path]?.errors ?? 0) > 0);
       const isSelected = s.selectedDistrict === d.name;
 
-      // Subtle engraved golden astrolabe ring on the marble terrace beneath each painted monument
-      ctx.save();
-      ctx.strokeStyle = hasError
-        ? 'rgba(185, 28, 28, 0.75)'
-        : isSelected || hasActiveTask
-          ? 'rgba(212, 175, 55, 0.72)'
-          : 'rgba(197, 155, 39, 0.28)';
-      ctx.lineWidth = isSelected || hasActiveTask ? 2.0 : 1.1;
-      ctx.beginPath();
-      ctx.ellipse(rawCenter.px, rawCenter.py - elev + 6, 48, 24, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      if (isSelected || hasActiveTask) {
+      // Subtle engraved golden astrolabe ring only on selected or error district
+      if (isSelected || hasError || hasActiveTask) {
+        ctx.save();
+        ctx.strokeStyle = hasError
+          ? 'rgba(185, 28, 28, 0.55)'
+          : 'rgba(212, 175, 55, 0.55)';
+        ctx.lineWidth = isSelected ? 1.8 : 1.1;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.ellipse(rawCenter.px, rawCenter.py - elev + 6, 58, 29, 0, 0, Math.PI * 2);
+        ctx.ellipse(rawCenter.px, rawCenter.py - elev + 6, 44, 22, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.restore();
       }
-      ctx.restore();
 
       // Wrought-Iron Perimeter Portcullis & Bronze Padlocks when district is quarantined (`URBS-QUARANTINE-03`)
       if (s.quarantinedDistricts?.includes(d.name)) {

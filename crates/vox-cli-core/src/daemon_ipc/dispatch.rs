@@ -35,6 +35,7 @@ fn configure_stdio_daemon_command(daemon: &str, daemon_path: &std::path::Path) -
     cmd
 }
 
+#[inline(never)]
 pub async fn call_daemon(
     daemon: &str,
     method: &str,
@@ -140,6 +141,7 @@ pub async fn call_daemon(
     Ok(final_result)
 }
 
+#[inline(never)]
 pub async fn call_daemon_streaming(
     daemon: &str,
     method: &str,
@@ -244,6 +246,7 @@ pub async fn call_daemon_streaming(
 /// events into a channel instead of printing to stdout. Returns `Ok(())` once the
 /// loop exits and the child process has been terminated.
 // toestub-ignore(skeleton/untested-pub-api) — spawns and streams from a child daemon process; covered by integration tests
+#[inline(never)]
 pub async fn subscribe_daemon(
     daemon: &str,
     method: &str,

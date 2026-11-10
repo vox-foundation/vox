@@ -128,6 +128,7 @@ fn emit_insert_bind_expr(field: &vox_compiler::hir::HirTableField, is_json: bool
     }
 }
 
+#[inline(never)]
 pub fn emit_schema_drift_verify(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("    // Boot-time schema drift validation (table/column/type parity).\n");
@@ -276,6 +277,7 @@ fn emit_select_projection_helpers(
 /// Generate a Rust struct for a table w/ methods (tests and tooling).
 ///
 /// `projections` lists extra `SELECT _id, …` column sets referenced by `.select(...)` in the module.
+#[inline(never)]
 pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> String {
     let mut out = String::new();
     out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
@@ -692,6 +694,7 @@ fn hir_type_needs_json_serialization(ty: &HirType) -> bool {
 }
 
 /// Generate `CREATE TABLE IF NOT EXISTS` DDL for a @table.
+#[inline(never)]
 pub fn emit_table_ddl(table: &HirTable) -> String {
     let table_name = table_live_name(table);
     let mut cols = vec!["_id INTEGER PRIMARY KEY AUTOINCREMENT".to_string()];
@@ -757,6 +760,7 @@ pub fn emit_vector_index_ddl(vec_idx: &vox_compiler::hir::HirVectorIndex) -> Str
 /// Generate the DB initialization code for `main()` (Turso / libSQL).
 ///
 /// Opens **Codex** via `vox_db::DbConfig::resolve_canonical` (VOX_DB_*, legacy TURSO_*, or local file).
+#[inline(never)]
 pub fn emit_db_setup(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("    // ── Database setup (Codex / vox_db) ──\n");

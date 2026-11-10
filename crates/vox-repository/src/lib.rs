@@ -37,14 +37,17 @@ pub use populi_toml::{
     MeshToml, MeshTomlError, VoxMeshToml, VoxMeshTomlError, read_vox_populi_toml,
 };
 pub use repo_catalog::{
-    CrossRepoQueryTrace, QueryFileParams, QueryHistoryParams, QueryTextParams,
-    REPO_CATALOG_SCHEMA_VERSION, RemoteAdapterHints, RepoAccessMode, RepoCapability, RepoCatalog,
-    RepoCatalogError, RepoCatalogRefreshResult, RepoFileRead, RepoFileReadResponse,
-    RepoHistoryEntry, RepoHistoryResponse, RepoQuerySkippedRepository, RepoTextMatch,
-    RepoTextSearchResponse, RepositoryDescriptor, ResolvedRepoCatalog,
-    ResolvedRepositoryDescriptor, load_repo_catalog_from_repo, refresh_repo_catalog,
-    repo_catalog_manifest_path, repo_query_file, repo_query_history, repo_query_text,
-    resolve_repo_catalog,
+    ContractDrift, ContractFileDigest, CrossRepoParityReport, CrossRepoQueryTrace,
+    FederatedCrateNode, FederatedEdge, FederatedGraphSummary, QueryFileParams, QueryHistoryParams,
+    QueryTextParams, REPO_CATALOG_SCHEMA_VERSION, RemoteAdapterHints, RepoAccessMode,
+    RepoCapability, RepoCatalog, RepoCatalogError, RepoCatalogRefreshResult, RepoContractStatus,
+    RepoFileRead, RepoFileReadResponse, RepoHistoryEntry, RepoHistoryResponse,
+    RepoQuerySkippedRepository, RepoTextMatch, RepoTextSearchResponse, RepositoryDescriptor,
+    ResolvedRepoCatalog, ResolvedRepositoryDescriptor, StandaloneSovereigntyReport,
+    default_federation_catalog, load_repo_catalog_from_repo, refresh_federated_symbol_graph,
+    refresh_repo_catalog, render_local_cargo_patch_block, repo_catalog_manifest_path,
+    repo_query_file, repo_query_history, repo_query_text, resolve_repo_catalog,
+    verify_cross_repo_contract_parity, verify_standalone_sovereignty,
 };
 pub use repo_query_trace::{
     repo_query_file_with_plane, repo_query_history_with_plane, repo_query_text_with_plane,

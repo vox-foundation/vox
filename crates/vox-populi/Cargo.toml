@@ -52,6 +52,9 @@ mens = [
     "dep:vox-bounded-fs",
     "dep:vox-hf-layout",
     "dep:objc2-metal",
+    "dep:vox-package",
+    "dep:vox-orchestrator-queue",
+    "dep:sha3",
 ]
 mens-candle-qlora = [
     "mens",
@@ -76,7 +79,7 @@ mens-candle-qlora-metal = [
     "candle-nn/metal",
 ]
 mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-plugin-host"]
-mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
+mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread", "dep:askama", "dep:vox-eval", "dep:tempfile"]
 mens-cloud = [
     "mens",
     "mens-hf-hub",
@@ -103,7 +106,6 @@ vox-repository = { workspace = true }
 vox-foundation = { workspace = true }
 vox-secrets = { workspace = true }
 vox-plugin-host = { workspace = true, optional = true }
-vox-constrained-gen = { workspace = true }
 vox-crypto = { workspace = true }
 vox-identity = { workspace = true }
 vox-mesh-types = { workspace = true }
@@ -144,6 +146,7 @@ vox-corpus = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true, optional = true }
 vox-hf-layout = { workspace = true, optional = true }
 hf-hub = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
 candle-nn = { workspace = true, optional = true }
 safetensors = { workspace = true, optional = true }
@@ -151,12 +154,15 @@ tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
+# Model-card templates (`templates/hub/`). Same version and feature set as uniffi_bindgen,
+# so Cargo.lock keeps its single askama entry.
+askama = { version = "0.12", default-features = false, features = ["config"], optional = true }
 vox-publisher = { workspace = true, optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 hex = { workspace = true }
-sha3.workspace = true
+sha3 = { workspace = true, optional = true }
 uuid.workspace = true
-vox-package.workspace = true
+vox-package = { workspace = true, optional = true }
 # Optional: every `vox_quantize::` call in this crate lives under `src/inference/`,
 # which is itself `#[cfg(feature = "mens-candle-qlora")]` (lib.rs:428). Left
 # non-optional, it dragged `candle-core` into EVERY build that touched
@@ -164,7 +170,7 @@ vox-package.workspace = true
 # mens-candle-qlora. Gated under that same feature so the dep tracks its consumer.
 # Its `engine` feature is what pulls candle-core (vox-quantize is Candle-free without it).
 vox-quantize = { workspace = true, optional = true, features = ["engine"] }
-vox-orchestrator-queue.workspace = true
+vox-orchestrator-queue = { workspace = true, optional = true }
 
 # macOS-only: live GPU memory telemetry for HardwareRegistry::monitor(). Already
 # pinned in Cargo.lock via candle-core (mens-candle-qlora), so this adds no new

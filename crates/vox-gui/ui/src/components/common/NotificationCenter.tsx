@@ -79,24 +79,26 @@ export function NotificationCenter({ notices, onMarkAllRead }: Props) {
           role="dialog"
           aria-label="Notifications"
           tabIndex={-1}
-          className="absolute bottom-full right-0 z-50 mb-1 flex max-h-[60vh] w-[360px] max-w-[calc(100vw-2rem)] flex-col rounded-xl border border-border-subtle bg-bg-base p-3 text-xs shadow-2xl"
+          className="vox-marble-tablet absolute bottom-full right-0 z-50 mb-1.5 flex max-h-[min(320px,calc(100vh-96px))] w-[340px] max-w-[calc(100vw-2rem)] flex-col rounded-xl border border-border-subtle bg-bg-base p-2.5 text-xs shadow-2xl"
         >
-          <header className="mb-2 flex items-center gap-2">
-            <span className="flex-1 text-text-secondary">Notifications</span>
-            <span role="radiogroup" aria-label="Show" className="flex gap-1">
+          <header className="mb-1.5 flex items-center gap-2 border-b border-border-subtle/60 pb-1.5">
+            <span className="flex-1 font-display text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+              Notifications
+            </span>
+            <span role="radiogroup" aria-label="Show" className="flex gap-1.5">
               {(['all', 'problems'] as const).map(v => (
-                <label key={v} className="flex items-center gap-1 text-text-muted">
+                <label key={v} className="flex cursor-pointer items-center gap-1 text-[11px] text-text-muted hover:text-text-primary">
                   <input type="radio" name="notice-filter" className="accent-brass" checked={filter === v} onChange={() => setFilter(v)} />
                   {v === 'all' ? 'All' : 'Problems'}
                 </label>
               ))}
             </span>
-            <button type="button" onClick={onMarkAllRead} className="text-text-muted hover:text-text-primary">
+            <button type="button" onClick={onMarkAllRead} className="text-[11px] text-text-muted hover:text-brass">
               Mark all read
             </button>
           </header>
           {shown.length === 0 ? (
-            <p className="py-6 text-center text-text-muted">Nothing to report</p>
+            <p className="py-2.5 text-center text-[11px] text-text-muted">Nothing to report</p>
           ) : (
             <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto">
               {shown.map(n => (

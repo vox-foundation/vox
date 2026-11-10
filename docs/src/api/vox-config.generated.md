@@ -125,17 +125,18 @@ graph {
     vox_cli_contracts -> vox_config
     node vox_cli_core: "vox-cli-core"
     vox_cli_core -> vox_config
-    node vox_code_audit: "vox-code-audit"
-    vox_code_audit -> vox_config
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_config
     node vox_codegen: "vox-codegen"
     vox_codegen -> vox_config
     node vox_compiler: "vox-compiler"
     vox_compiler -> vox_config
-    vox_config_derive -> vox_config
     node vox_db: "vox-db"
     vox_db -> vox_config
     node vox_deploy_codegen: "vox-deploy-codegen"
     vox_deploy_codegen -> vox_config
+    node vox_effort_audit: "vox-effort-audit"
+    vox_effort_audit -> vox_config
 }
 ```
 
@@ -149,13 +150,11 @@ graph {
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-cli-contracts`](./vox-cli-contracts.generated.md) | Direct workspace dependent |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
-| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
-| [`vox-config-derive`](./vox-config-derive.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-deploy-codegen`](./vox-deploy-codegen.generated.md) | Direct workspace dependent |
-| [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
 | [`vox-effort-audit`](./vox-effort-audit.generated.md) | Direct workspace dependent |
 | [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
 | [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |

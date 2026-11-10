@@ -25,7 +25,7 @@ const TIER_METADATA: Record<
       'Low-latency on-device model for quick edits, syntax fixes, and instant AST transforms.',
     accentColor: '#D4AF37',
     borderColor: 'border-[#D4AF37]/50',
-    bgGradient: 'from-[#241A0B] via-[#1A1308] to-[#100C05]',
+    bgGradient: 'from-[#F8F3E8] via-[#EFE6D2] to-[#E6DBC4]',
   },
   fanout: {
     plainTitle: 'Tier 2 · Balanced Hybrid',
@@ -33,7 +33,7 @@ const TIER_METADATA: Record<
       'Balanced routing between local MENS and cloud models for multi-file refactoring and graph fan-out.',
     accentColor: '#D97706',
     borderColor: 'border-[#D97706]/50',
-    bgGradient: 'from-[#261608] via-[#1B1006] to-[#110A04]',
+    bgGradient: 'from-[#F8F3E8] via-[#EFE6D2] to-[#E6DBC4]',
   },
   verifier: {
     plainTitle: 'Tier 3 · Deep Architecture',
@@ -53,10 +53,10 @@ export function WaveformTierStrip({
   return (
     <div
       data-testid="harness-waveform-tier-strip"
-      className="space-y-1.5 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1C160F] via-[#140F0A] to-[#0D0A07] p-2 font-mono text-[11px] text-[#E6DCB8] shadow-lg"
+      className="space-y-1.5 rounded-xl border border-[#C59B27]/40 bg-bg-surface p-2 font-mono text-[11px] text-text-primary shadow-sm"
     >
       {/* Top Row: 3 Symmetrical Roman Brass Dial Gauges (Concept Art Option B) + Live Waveform */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#382F20] pb-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-1.5">
         <div className="flex flex-wrap items-center gap-3">
           <RomanBrassGauge
             label="THROUGHPUT"
@@ -76,7 +76,7 @@ export function WaveformTierStrip({
 
           <RomanBrassGauge
             label="THRIFT"
-            valueText={`-${snapshot.tokenSavingsPct}% ($${snapshot.savedUsd.toFixed(2)})`}
+            valueText={`-${snapshot.tokenSavingsPct}% ($${snapshot.tokenSavingsPct > 0 ? snapshot.savedUsd.toFixed(2) : '0.00'})`}
             ratio={snapshot.tokenSavingsPct / 100}
             tone="emerald"
             purpose="Token and dollar savings from compression, prompt caching, and local MENS execution."
@@ -87,7 +87,7 @@ export function WaveformTierStrip({
           <div
             role="img"
             aria-label="Token throughput waveform"
-            className="flex h-7 items-end gap-[2px] rounded-md bg-[#0B0906] px-2 py-1 border border-[#382F20]"
+            className="flex h-7 items-end gap-[2px] rounded-md bg-bg-elevated px-2 py-1 border border-border-subtle"
           >
             {snapshot.waveformBars.slice(0, condensed ? 12 : 20).map((val, idx) => (
               <span
@@ -98,15 +98,15 @@ export function WaveformTierStrip({
             ))}
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-[#382F20] bg-[#140F0A] px-2.5 py-1">
+          <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-1">
             <RomanMedallion size="sm">
-              <Icon.romanColumn className="size-3 text-[#D4AF37]" />
+              <Icon.romanColumn className="size-3 text-brass" />
             </RomanMedallion>
             <div>
-              <div className="text-[9px] font-serif uppercase tracking-wider text-[#A89878]">
+              <div className="text-[9px] font-serif uppercase tracking-wider text-text-secondary">
                 AGENTS
               </div>
-              <div className="text-xs font-semibold text-[#F3E5AB]">
+              <div className="text-xs font-semibold text-text-primary">
                 {snapshot.activeAgents}
               </div>
             </div>
@@ -123,7 +123,7 @@ export function WaveformTierStrip({
             purpose: 'Execution tier in the autonomous cascade.',
             accentColor: '#D4AF37',
             borderColor: 'border-[#D4AF37]/40',
-            bgGradient: 'from-[#1E160C] to-[#0E0A06]',
+            bgGradient: 'from-[#F8F3E8] to-[#E6DBC4]',
           };
 
           const card = (
@@ -148,7 +148,7 @@ export function WaveformTierStrip({
                 <span className="font-serif text-[11px] font-bold tracking-wide text-[#1C140C]">
                   {meta.plainTitle}
                 </span>
-                <span className="rounded border border-[#8C6825] bg-[#241A0B] px-1.5 py-0.5 text-[9px] font-mono text-[#F3E5AB]">
+                <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 text-[9px] font-mono text-text-primary">
                   {tier.latencySlo}
                 </span>
               </div>
@@ -182,26 +182,26 @@ export function WaveformTierStrip({
       {/* Bottom Row: Progressive-Disclosure 5 Stage Progress Sluices */}
       {!condensed && (
         <details className="group pt-0.5">
-          <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-[#382F20]/70 bg-[#120E09]/80 px-2.5 py-1 text-[9.5px] text-[#B8A88A] hover:border-[#D4AF37]/40 hover:text-[#F3E5AB]">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-border-subtle bg-bg-elevated px-2.5 py-1 text-[9.5px] text-text-secondary hover:border-[#D4AF37]/40 hover:text-text-primary">
             <span className="font-display uppercase tracking-wider">
               ▸ Pipeline Stage Gates (5-Stage Sluice Breakdown)
             </span>
-            <span className="text-[#D4AF37]">100% Verified</span>
+            <span className="text-brass">100% Verified</span>
           </summary>
           <div className="mt-2 grid grid-cols-5 gap-1.5">
             {snapshot.stages.map((st) => (
               <div key={st.id} className="space-y-1 min-w-0">
-                <div className="flex items-center justify-between gap-1 text-[9px] text-[#A89878]">
+                <div className="flex items-center justify-between gap-1 text-[9px] text-text-secondary">
                   <span
                     className={`truncate font-mono ${
-                      st.active ? 'font-bold text-[#F3E5AB]' : 'text-[#8C7D64]'
+                      st.active ? 'font-bold text-text-primary' : 'text-text-muted'
                     }`}
                   >
                     {st.label}
                   </span>
                   <span className="shrink-0 font-mono">{st.pct}%</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-sm bg-[#241E15] border border-[#382F20]/60">
+                <div className="h-1.5 w-full overflow-hidden rounded-sm bg-bg-elevated border border-border-subtle">
                   <div
                     className={`h-full transition-all duration-300 ${
                       st.active

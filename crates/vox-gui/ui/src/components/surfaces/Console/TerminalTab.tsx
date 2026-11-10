@@ -247,9 +247,9 @@ export function TerminalTab({
           boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.65), 0 4px 14px rgba(0,0,0,0.4)',
         }}
       >
-        <div className="mb-2 flex items-center justify-between border-b border-[#D4AF37]/30 pb-1.5 text-[11px] text-[#D4AF37]">
+        <div className="mb-2 flex items-center justify-between border-b border-[#D4AF37]/30 pb-1.5 text-[11px] text-brass">
           <span>VOX TERMINAL SESSION ({activeSessionRef.current ?? sessionId ?? 's-1'})</span>
-          <span className="rounded border border-[#9E7B2F] bg-[#2B2012] px-2 py-0.5 text-[9.5px] text-[#F3E5AB]">
+          <span className="rounded border border-[#9E7B2F] bg-bg-elevated px-2 py-0.5 text-[9.5px] text-text-primary">
             WebGL Block Renderer · OSC-633 SessionHost Active
           </span>
         </div>

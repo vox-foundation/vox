@@ -13,1068 +13,447 @@
 
 use serde_json::{Map, Value};
 
-macro_rules! derived_tool_schema {
-    ($t:ty) => {{
-        let settings = schemars::generate::SchemaSettings::draft07().with(|s| {
-            s.inline_subschemas = true;
-        });
-        let schema_generator = settings.into_generator();
-        let root = schema_generator.into_root_schema_for::<$t>();
-        let serde_json::Value::Object(mut map) =
-            serde_json::to_value(&root).expect(concat!("schema_for ", stringify!($t)))
-        else {
-            panic!(concat!(
-                "JsonSchema root must be an object: ",
-                stringify!($t)
-            ));
-        };
-        map.remove("$schema");
-        map
-    }};
-}
-
-fn parse_obj(s: &str) -> Map<String, Value> {
-    serde_json::from_str::<Value>(s)
-        .ok()
-        .and_then(|v| v.as_object().cloned())
-        .unwrap_or_default()
-}
+#[path = "input_schemas/browser_and_gui.rs"]
+mod browser_and_gui;
+#[path = "input_schemas/chat_and_memory.rs"]
+mod chat_and_memory;
+#[path = "input_schemas/core_and_tasks.rs"]
+mod core_and_tasks;
+#[path = "input_schemas/mens_and_ops.rs"]
+mod mens_and_ops;
+#[path = "input_schemas/scientia_and_kb.rs"]
+mod scientia_and_kb;
+#[path = "input_schemas/vcs_and_workspace.rs"]
+mod vcs_and_workspace;
 
 /// Schema object for RMCP / MCP tool registration.
 pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
     let name = super::tool_aliases::canonical_tool_name(name);
-    match name {
-        // ── Oratio (already strict) ─────────────────────────────────────────
-        // Schemas are pure JSON — no oratio-rerank types referenced; always available
-        // so that TOOL_REGISTRY coverage test passes in all feature configurations.
-        "vox_oratio_transcribe" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative or absolute path to an audio or transcript file"},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"debug_parser_payload":{"type":"boolean"}},"required":["path"],"additionalProperties":false}"#,
-        ),
-        "vox_oratio_listen" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string"},"session_id":{"type":"string"},"timeout_ms":{"type":"integer","minimum":1},"max_duration_ms":{"type":"integer","minimum":1},"inference_deadline_ms":{"type":"integer","minimum":1},"heartbeat_ms":{"type":"integer","minimum":1},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"route_mode":{"type":"string","enum":["none","tool","chat","orchestrator"]},"debug_parser_payload":{"type":"boolean"},"emit_asr_refine_path":{"type":"string"},"llm_refinement":{"type":"boolean"},"llm_min_det_confidence":{"type":"number"},"llm_max_output_tokens":{"type":"integer","minimum":1}},"required":["path"],"additionalProperties":false}"#,
-        ),
-        "vox_oratio_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_speech_to_code" => parse_obj(
-            r#"{"type":"object","description":"Exactly one of `path` (audio/transcript file under workspace) or `prompt` (text only). Chains Oratio STT when path is set, then vox_generate_code.","properties":{"path":{"type":"string","description":"Workspace-relative audio file for Candle Whisper + refine"},"prompt":{"type":"string","description":"Skip STT; use as codegen prompt"},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"debug_parser_payload":{"type":"boolean"},"route_mode":{"type":"string","enum":["none","tool","chat","orchestrator"]},"include_route":{"type":"boolean","description":"When true (default), run deterministic intent routing on refined transcript (path mode only)"},"validate":{"type":"boolean"},"max_retries":{"type":"integer","minimum":0,"maximum":5},"session_id":{"type":"string","description":"Shared with generate; defaults to new correlation if omitted"},"output_surface_mode":{"type":"string"},"emit_trace_path":{"type":"string","description":"Append one JSON line (speech_trace.schema.json fields) under this workspace-relative path"}},"additionalProperties":false}"#,
-        ),
-
-        // ── Tasks & bulletin ─────────────────────────────────────────────────
-        "vox_submit_task" => derived_tool_schema!(crate::params::SubmitTaskParams),
-        "vox_tool_search" => derived_tool_schema!(crate::params::ToolSearchParams),
-        "vox_task_status" | "vox_cancel_task" | "vox_test_decision" => {
-            derived_tool_schema!(crate::params::TaskStatusParams)
-        }
-        "vox_complete_task" => derived_tool_schema!(crate::params::CompleteTaskParams),
-        "vox_fail_task" => derived_tool_schema!(crate::params::FailTaskParams),
-        "vox_doubt_task" => derived_tool_schema!(crate::params::DoubtTaskParams),
-        "vox_verify_task_claims" => {
-            derived_tool_schema!(crate::receipt_tools::VerifyTaskClaimsParams)
-        }
-        "vox_propose_skill" => derived_tool_schema!(crate::params::ProposeSkillParams),
-        "vox_ask_clarification" => derived_tool_schema!(crate::params::AskClarificationParams),
-        "vox_resolve_feedback" => derived_tool_schema!(crate::params::ResolveFeedbackParams),
-        "vox_feedback_list" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_publish_message" => {
-            derived_tool_schema!(crate::params::PublishMessageParams)
-        }
-        "vox_reorder_task" => derived_tool_schema!(crate::params::ReorderTaskParams),
-        "vox_drain_agent" => derived_tool_schema!(crate::params::DrainAgentParams),
-        "vox_spawn_agent" => derived_tool_schema!(crate::params::SpawnAgentParams),
-        "vox_retire_agent" | "vox_pause_agent" | "vox_resume_agent" => {
-            derived_tool_schema!(crate::params::AgentIdToolParams)
-        }
-
-        // ── Orchestrator status / no-arg tools ───────────────────────────────
-        "vox_orchestrator_status"
-        | "vox_orchestrator_persistence_outbox_lifecycle"
-        | "vox_rebalance"
-        | "vox_lock_status"
-        | "vox_file_graph"
-        | "vox_config_get"
-        | "vox_openclaw_list_remote"
-        | "vox_openclaw_discover"
-        | "vox_openclaw_health"
-        | "vox_openclaw_subscriptions"
-        | "vox_agent_list_remote"
-        | "vox_agent_subscriptions"
-        | "vox_session_list"
-        | "vox_session_cleanup"
-        | "vox_memory_list_keys"
-        | "vox_skill_list"
-        | "vox_skill_discover"
-        | "vox_test_all"
-        | "vox_check_workspace"
-        | "vox_get_active_model"
-        | "vox_language_surface"
-        | "vox_capability_model_manifest"
-        | "vox_pipeline_status"
-        | "vox_decorator_registry"
-        | "vox_builtin_registry"
-        | "vox_workspace_modules"
-        | "vox_export_grammar_ebnf"
-        | "vox_a2a_tasks" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_secrets_doctor" => parse_obj(
-            r#"{
-            "type": "object",
-            "properties": {
-                "workflow": { "type": "string", "enum": ["Chat", "Mcp", "Publish", "Review", "DbRemote", "MensMesh"] },
-                "profile": { "type": "string", "enum": ["Dev", "Ci", "Prod", "Mobile"] }
-            },
-            "additionalProperties": false
-        }"#,
-        ),
-
-        // Handler ignores args today; keep the schema strict so clients send `{}` only.
-        "vox_orchestrator_start" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_orchestrator_persistence_outbox_queue" => parse_obj(
-            r#"{"type":"object","properties":{"lane":{"type":"string","description":"Optional lane filter (e.g. lineage/task_failed)"},"limit":{"type":"integer","minimum":1,"maximum":1000,"description":"Maximum rows returned from the tail of filtered queue"},"include_replay":{"type":"boolean","description":"Include replay payload blobs in returned rows (default true)"}},"additionalProperties":false}"#,
-        ),
-        // `params` is `serde_json::Value` — derive would need a custom `schema_with`; keep explicit.
-        "vox_openclaw_gateway_call" | "vox_agent_gateway_call" => parse_obj(
-            r#"{"type":"object","properties":{"method":{"type":"string","minLength":1},"params":{"description":"OpenClaw gateway params JSON object"}},"required":["method"],"additionalProperties":false}"#,
-        ),
-        "vox_openclaw_search_remote" => {
-            derived_tool_schema!(crate::params::OpenClawSearchParams)
-        }
-        "vox_openclaw_import_skill" => {
-            derived_tool_schema!(crate::params::OpenClawImportParams)
-        }
-        "vox_openclaw_subscribe"
-        | "vox_openclaw_unsubscribe"
-        | "vox_agent_subscribe"
-        | "vox_agent_unsubscribe" => derived_tool_schema!(crate::params::OpenClawDomainParams),
-        "vox_openclaw_notify" | "vox_agent_notify" => {
-            derived_tool_schema!(crate::params::OpenClawNotifyParams)
-        }
-
-        // ── Browser (CDP / chromiumoxide) ───────────────────────────────────
-        "vox_browser_open" => derived_tool_schema!(crate::params::BrowserOpenParams),
-        "vox_browser_open_ex" => derived_tool_schema!(crate::params::BrowserOpenExParams),
-        "vox_browser_close" => derived_tool_schema!(crate::params::BrowserPageParams),
-        "vox_browser_goto" => derived_tool_schema!(crate::params::BrowserGotoParams),
-        "vox_browser_click" | "vox_browser_text" => {
-            derived_tool_schema!(crate::params::BrowserTargetParams)
-        }
-        "vox_browser_fill" => derived_tool_schema!(crate::params::BrowserFillParams),
-        "vox_browser_snapshot" => {
-            derived_tool_schema!(crate::params::BrowserSnapshotParams)
-        }
-        "vox_browser_click_ref" => derived_tool_schema!(crate::params::BrowserRefParams),
-        "vox_browser_fill_ref" => {
-            derived_tool_schema!(crate::params::BrowserFillRefParams)
-        }
-        "vox_browser_cookies_export" => {
-            derived_tool_schema!(crate::params::BrowserPageParams)
-        }
-        "vox_browser_cookies_import" => {
-            derived_tool_schema!(crate::params::BrowserCookiesImportParams)
-        }
-        "vox_browser_wait_for" => derived_tool_schema!(crate::params::BrowserWaitParams),
-        "vox_browser_html" => derived_tool_schema!(crate::params::BrowserHtmlParams),
-        "vox_browser_screenshot" => {
-            derived_tool_schema!(crate::params::BrowserScreenshotParams)
-        }
-        "vox_browser_extract" => {
-            derived_tool_schema!(crate::params::BrowserExtractParams)
-        }
-        "vox_browser_extract_json" => {
-            derived_tool_schema!(crate::params::BrowserExtractJsonParams)
-        }
-        "vox_browser_act" => derived_tool_schema!(crate::params::BrowserActParams),
-        "vox_browser_back"
-        | "vox_browser_forward"
-        | "vox_browser_reload"
-        | "vox_browser_stop"
-        | "vox_browser_page_info"
-        | "vox_browser_screenshot_viewport"
-        | "vox_browser_screencast_frame" => {
-            derived_tool_schema!(crate::params::BrowserPageParams)
-        }
-        "vox_browser_click_xy" => {
-            derived_tool_schema!(crate::params::BrowserClickPointParams)
-        }
-        "vox_browser_scroll" => derived_tool_schema!(crate::params::BrowserScrollParams),
-        "vox_browser_press" => derived_tool_schema!(crate::params::BrowserKeyParams),
-        "vox_browser_type" => derived_tool_schema!(crate::params::BrowserTypeParams),
-        "vox_browser_set_viewport" => {
-            derived_tool_schema!(crate::params::BrowserViewportParams)
-        }
-        "vox_browser_set_control_lock" => {
-            derived_tool_schema!(crate::params::BrowserControlLockParams)
-        }
-        "vox_browser_list_pages" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-
-        // ── Compiler / workspace ─────────────────────────────────────────────
-        "vox_check" | "vox_validate_file" | "vox_compiler::ast_inspect" => {
-            derived_tool_schema!(crate::params::ValidateFileParams)
-        }
-        "vox_validate_source" => {
-            derived_tool_schema!(crate::params::ValidateSourceParams)
-        }
-        "vox_validate_mermaid" => parse_obj(
-            r#"{"type":"object","properties":{"code":{"type":"string","description":"Standalone Mermaid diagram source code"},"markdown":{"type":"string","description":"Markdown document containing fenced mermaid code blocks"}},"additionalProperties":false}"#,
-        ),
-        "vox_run_tests" => derived_tool_schema!(crate::params::RunTestsParams),
-        "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
-            derived_tool_schema!(crate::params::OptionalCrateNameParams)
-        }
-
-        // ── Execution Budget ─────────────────────────────────────────────────
-        "vox_exec_time_query" => parse_obj(
-            r#"{"type":"object","properties":{"tool_key":{"type":"string","minLength":1},"repository_id":{"type":"string"},"window_days":{"type":"integer","minimum":1}},"required":["tool_key"],"additionalProperties":false}"#,
-        ),
-        "vox_exec_time_record" => parse_obj(
-            r#"{"type":"object","properties":{"tool_key":{"type":"string","minLength":1},"repository_id":{"type":"string"},"duration_ms":{"type":"integer","minimum":0},"timeout_budget_ms":{"type":"integer","minimum":0},"outcome":{"type":"string","enum":["success","timeout","error"]}},"required":["tool_key","duration_ms"],"additionalProperties":false}"#,
-        ),
-
-        // ── File affinity ────────────────────────────────────────────────────
-        "vox_check_file_owner" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}"#,
-        ),
-        "vox_my_files" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
-        ),
-        "vox_claim_file" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"path":{"type":"string"}},"required":["agent_id","path"],"additionalProperties":false}"#,
-        ),
-        "vox_transfer_file" => parse_obj(
-            r#"{"type":"object","properties":{"from_agent":{"type":"integer","minimum":0},"to_agent":{"type":"integer","minimum":0},"path":{"type":"string"}},"required":["from_agent","to_agent","path"],"additionalProperties":false}"#,
-        ),
-
-        // ── Context ──────────────────────────────────────────────────────────
-        "vox_set_context" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"key":{"type":"string"},"value":{"type":"string"},"ttl_seconds":{"type":"integer","minimum":0}},"required":["agent_id","key","value"],"additionalProperties":false}"#,
-        ),
-        "vox_get_context" => parse_obj(
-            r#"{"type":"object","properties":{"key":{"type":"string","minLength":1}},"required":["key"],"additionalProperties":false}"#,
-        ),
-        "vox_list_context" => parse_obj(
-            r#"{"type":"object","properties":{"prefix":{"type":"string"}},"required":["prefix"],"additionalProperties":false}"#,
-        ),
-        "vox_context_budget" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
-        ),
-        "vox_set_agent_budget" => {
-            derived_tool_schema!(crate::mcp_context::SetAgentBudgetParams)
-        }
-        "vox_emergency_stop" => {
-            derived_tool_schema!(crate::mcp_context::EmergencyStopParams)
-        }
-        "vox_handoff_context" => parse_obj(
-            r#"{"type":"object","properties":{"from_agent":{"type":"integer","minimum":0},"to_agent":{"type":"integer","minimum":0}},"required":["from_agent","to_agent"],"additionalProperties":false}"#,
-        ),
-
-        // ── Gamify ───────────────────────────────────────────────────────────
-        "vox_check_mood" | "vox_agent_status" | "vox_agent_continue" | "vox_agent_assess" => {
-            parse_obj(
-                r#"{"type":"object","additionalProperties":true,"description":"Pass agent_id and other fields per orchestrator tool docs."}"#,
-            )
-        }
-        "vox_agent_handoff" => parse_obj(
-            r#"{"type":"object","properties":{"from_agent_id":{"type":"integer","minimum":0},"to_agent_id":{"type":"integer","minimum":0},"plan_summary":{"type":"string","minLength":1},"unresolved_objectives":{"type":"array","items":{"type":"string"}},"verification_criteria":{"type":"array","items":{"type":"string"}},"context_envelope_json":{"type":"string","minLength":1},"harness_spec_json":{"type":"string","minLength":1}},"required":["from_agent_id","to_agent_id","plan_summary"],"additionalProperties":false}"#,
-        ),
-        "vox_gamify_notifications_list" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":100}},"additionalProperties":false}"#,
-        ),
-        "vox_gamify_progress_snapshot" => parse_obj(
-            r#"{"type":"object","properties":{"notification_limit":{"type":"integer","minimum":1,"maximum":100},"policy_limit":{"type":"integer","minimum":1,"maximum":500},"policy_days":{"type":"integer","minimum":1,"maximum":3660}},"additionalProperties":false}"#,
-        ),
-        "vox_gamify_notification_ack" => parse_obj(
-            r#"{"type":"object","properties":{"notification_id":{"type":"string","minLength":1}},"required":["notification_id"],"additionalProperties":false}"#,
-        ),
-        "vox_gamify_notifications_ack_all" => {
-            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        "vox_gamify_quest_list" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":200}},"additionalProperties":false}"#,
-        ),
-        "vox_gamify_shop_catalog" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_gamify_shop_buy" => parse_obj(
-            r#"{"type":"object","properties":{"item_index":{"type":"integer","minimum":1},"idempotency_key":{"type":"string"}},"required":["item_index"],"additionalProperties":false}"#,
-        ),
-        "vox_gamify_collegium_join" => parse_obj(
-            r#"{"type":"object","properties":{"collegium_id":{"type":"string","minLength":1}},"required":["collegium_id"],"additionalProperties":false}"#,
-        ),
-        "vox_gamify_battle_start" => parse_obj(
-            r#"{"type":"object","properties":{"companion_name":{"type":"string"},"rule_id":{"type":"string"},"message":{"type":"string"},"file_path":{"type":"string"},"line":{"type":"integer","minimum":1},"context":{"type":"string"}},"required":["companion_name","rule_id","message"],"additionalProperties":false}"#,
-        ),
-        "vox_gamify_battle_submit" => parse_obj(
-            r#"{"type":"object","properties":{"companion_name":{"type":"string"},"code":{"type":"string"},"success":{"type":"boolean"}},"required":["companion_name","code"],"additionalProperties":false}"#,
-        ),
-
-        "vox_queue_status" | "vox_budget_status" | "vox_agent_events" | "vox_cost_history"
-        | "vox_poll_events" => parse_obj(r#"{"type":"object","additionalProperties":true}"#),
-
-        // ── Knowledge Bases (VoxKB) ──────────────────────────────────────────
-        "vox_kb_search" => derived_tool_schema!(crate::kb_tools::library::KbSearchParams),
-        "vox_kb_get" => derived_tool_schema!(crate::kb_tools::library::KbGetParams),
-        "vox_kb_cite" => derived_tool_schema!(crate::kb_tools::library::KbCiteParams),
-        "vox_kb_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_kb_reindex" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-
-        // ── Memory (MEMORY.md / search) ─────────────────────────────────────
-        "vox_memory_store" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"key":{"type":"string"},"value":{"type":"string"},"relations":{"type":"array","items":{"type":"string"}},"media_url":{"type":"string"},"media_type":{"type":"string"}},"required":["agent_id","key","value"],"additionalProperties":false}"#,
-        ),
-        "vox_memory_recall" => parse_obj(
-            r#"{"type":"object","properties":{"key":{"type":"string"}},"required":["key"],"additionalProperties":false}"#,
-        ),
-        "vox_memory_search" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string"}},"required":["query"],"additionalProperties":false}"#,
-        ),
-        "vox_semantic_fs_discover" => parse_obj(
-            r#"{"type":"object","properties":{"intent":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":256}},"required":["intent"],"additionalProperties":false}"#,
-        ),
-        "vox_memory_log" => parse_obj(
-            r#"{"type":"object","properties":{"entry":{"type":"string"}},"required":["entry"],"additionalProperties":false}"#,
-        ),
-        "vox_knowledge_query" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"}},"required":["query"],"additionalProperties":false}"#,
-        ),
-        "vox_research_run" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"json":{"type":"boolean"},"waves":{"type":"integer","minimum":1,"description":"Research waves (default 1)"},"domain_mode":{"type":"string","description":"general (default), shopping, or codegen; case-insensitive"},"lane":{"type":"string","enum":["fast","deep"],"description":"fast (default; no LLM planner) or deep (LLM query decomposition). Canonical values are lowercase; the server also accepts any case and surrounding whitespace."}},"required":["query"],"additionalProperties":false}"#,
-        ),
-        "vox_research_start" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"waves":{"type":"integer","minimum":1,"description":"Research waves (default 1)"},"domain_mode":{"type":"string","description":"general (default), shopping, or codegen; case-insensitive"},"lane":{"type":"string","enum":["fast","deep"],"description":"fast (default; no LLM planner) or deep (LLM query decomposition). Canonical values are lowercase; the server also accepts any case and surrounding whitespace."}},"required":["query"],"additionalProperties":false}"#,
-        ),
-        "vox_research_status" | "vox_research_get" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"integer","minimum":1}},"required":["session_id"],"additionalProperties":false}"#,
-        ),
-        "vox_research_search" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":50},"domain":{"type":"string"},"min_confidence":{"type":"number","minimum":0.0,"maximum":1.0},"verified_only":{"type":"boolean"}},"required":["query"],"additionalProperties":false}"#,
-        ),
-
-        // ── Sessions & compaction ─────────────────────────────────────────────
-        "vox_session_create" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
-        ),
-        "vox_session_reset" | "vox_session_info" | "vox_compaction_status" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}"#,
-        ),
-        "vox_session_compact" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string"},"summary":{"type":"string"}},"required":["session_id","summary"],"additionalProperties":false}"#,
-        ),
-
-        // ── Preferences & behavior ──────────────────────────────────────────
-        "vox_preference_get" => parse_obj(
-            r#"{"type":"object","properties":{"key":{"type":"string"}},"required":["key"],"additionalProperties":false}"#,
-        ),
-        "vox_preference_set" => parse_obj(
-            r#"{"type":"object","properties":{"key":{"type":"string"},"value":{"type":"string"}},"required":["key","value"],"additionalProperties":false}"#,
-        ),
-        "vox_preference_list" => parse_obj(
-            r#"{"type":"object","properties":{"prefix":{"type":"string"}},"additionalProperties":false}"#,
-        ),
-        "vox_learn_pattern" | "vox_behavior_record" | "vox_behavior_summary" => {
-            parse_obj(r#"{"type":"object","additionalProperties":true}"#)
-        }
-
-        // ── Codex memory DB ─────────────────────────────────────────────────
-        "vox_memory_save_db" | "vox_memory_recall_db" => parse_obj(
-            r#"{"type":"object","additionalProperties":true,"description":"Typed agent_memory payloads; see memory module handlers."}"#,
-        ),
-
-        // ── Models ──────────────────────────────────────────────────────────
-        "vox_list_models" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_suggest_model" => parse_obj(
-            r#"{"type":"object","properties":{"task_category":{"type":"string","description":"e.g. codegen, review, testing"}},"required":["task_category"],"additionalProperties":false}"#,
-        ),
-        "vox_set_model" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"model_id":{"type":"string"}},"required":["agent_id","model_id"],"additionalProperties":false}"#,
-        ),
-        "vox_set_active_model" => parse_obj(
-            r#"{"type":"object","properties":{"model_id":{"type":"string","description":"Empty string clears sticky override"}},"required":["model_id"],"additionalProperties":false}"#,
-        ),
-
-        // ── Git & repo index ─────────────────────────────────────────────────
-        "vox_git_log" => parse_obj(
-            r#"{"type":"object","properties":{"max_commits":{"type":"integer"}},"additionalProperties":false}"#,
-        ),
-        "vox_git_diff" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string"}},"additionalProperties":false}"#,
-        ),
-        "vox_git_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_git_blame" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}"#,
-        ),
-        "vox_repo_index_status" | "vox_repo_index_refresh" => {
-            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        #[cfg(feature = "gui-visual-review")]
-        "vox_visus_audit" => parse_obj(
-            r#"{"type":"object","properties":{"url":{"type":"string","description":"Target URL for visual audit"}},"required":["url"],"additionalProperties":false}"#,
-        ),
-        #[cfg(feature = "gui-visual-review")]
-        "vox_visus_baseline" => parse_obj(
-            r#"{"type":"object","properties":{"url":{"type":"string"}},"required":["url"],"additionalProperties":false}"#,
-        ),
-        "vox_visual_rag_query" => {
-            derived_tool_schema!(crate::params::VoxVisualRagQueryParams)
-        }
-        "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_gui_components"
-        | "vox_gui_tokens"
-        | "vox_gui_rules"
-        | "vox_agy_doctor"
-        | "vox_credentials_status"
-        | "vox_agy_ledger_digest" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_agy_delegate" => parse_obj(
-            r#"{
-            "type": "object",
-            "required": ["task"],
-            "properties": {
-                "task": { "type": "string", "description": "Exact, zero-ambiguity spec (paths + target symbols)." },
-                "model": { "type": "string", "description": "Optional agy model DISPLAY NAME (not a slug), e.g. \"Gemini 3.5 Flash (Low)\". Omit for the default (Gemini 3.5 Flash High)." },
-                "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill after this many seconds." }
-            }
-        }"#,
-        ),
-        "vox_agy_delegate_batch" => parse_obj(
-            r#"{
-            "type": "object",
-            "required": ["tasks"],
-            "properties": {
-                "tasks": { "type": "array", "items": { "type": "string" }, "description": "File-disjoint, self-contained specs; one worker + worktree per task." },
-                "max_concurrency": { "type": "integer", "default": 3, "description": "Parallel workers (clamped to 8)." },
-                "timeout_secs": { "type": "integer", "default": 900 }
-            }
-        }"#,
-        ),
-        "vox_agy_pipeline" => parse_obj(
-            r#"{
-            "type": "object",
-            "required": ["task"],
-            "properties": {
-                "task": { "type": "string", "description": "Exact, zero-ambiguity launch statement (paths + target symbols), hardened with ledger §B lessons + the digest's top categories." },
-                "model": { "type": "string", "description": "Optional agy model DISPLAY NAME (not a slug)." },
-                "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill for the agy delegation AND each gate." },
-                "gates": {
-                    "type": "array",
-                    "description": "Verification gates run inside the jail. Scope to the touched crate and set env.CARGO_TARGET_DIR to the main target. Empty means outcome 'partial' (unverified).",
-                    "items": {
-                        "type": "object",
-                        "required": ["name", "program"],
-                        "properties": {
-                            "name": { "type": "string" },
-                            "program": { "type": "string" },
-                            "args": { "type": "array", "items": { "type": "string" } },
-                            "env": { "type": "object", "additionalProperties": { "type": "string" } }
-                        }
-                    }
-                }
-            }
-        }"#,
-        ),
-        "vox_agy_review" => parse_obj(
-            r#"{
-            "type": "object",
-            "required": ["ledger_id", "verdict"],
-            "properties": {
-                "ledger_id": { "type": "string", "description": "The AGH id returned by vox_agy_pipeline." },
-                "verdict": { "type": "string", "enum": ["approve", "approve-with-followups", "request-changes"] },
-                "categories": { "type": "array", "items": { "type": "string" }, "description": "Stable §B vocabulary, e.g. hallucinated-api, scope-creep." },
-                "findings": { "type": "string" },
-                "lessons": { "type": "array", "items": { "type": "string" }, "description": "1-3 prompt-hardening lessons fed to the flywheel." }
-            }
-        }"#,
-        ),
-        "vox_validate_vuv" => parse_obj(
-            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"Vox/VUV source to validate against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR). No files are written."}},"required":["source"],"additionalProperties":false}"#,
-        ),
-        "vox_validate_diagram" => parse_obj(
-            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"VoxDiagram source (graph or sequence). At most 65536 bytes."},"from_mermaid":{"type":"boolean","default":false,"description":"Treat source as one Mermaid block; return the converted VoxDiagram or the by-line unsupported list."},"emit":{"type":"string","enum":["svg","mermaid"],"description":"Also return the SVG or Mermaid rendering of a valid diagram."}},"required":["source"],"additionalProperties":false}"#,
-        ),
-        "vox_search_status" => parse_obj(
-            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
-        ),
-        "vox_search_structural" => parse_obj(
-            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for default corpus"},"query":{"type":"string","minLength":1,"description":"Lexical search query matched against node labels"},"limit":{"type":"integer","minimum":1,"description":"Maximum hits to return (default 10)"},"persist":{"type":"boolean","default":true,"description":"When true (default), upsert hits into knowledge_nodes for future agent recall. Pass false for ephemeral searches. Recall consumers must compare metadata.git_sha against HEAD to detect stale hits."}},"required":["query"],"additionalProperties":false}"#,
-        ),
-        "vox_search_atlas" => parse_obj(
-            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"level":{"type":"string","enum":["crate","module","file","symbol"],"description":"LOD level of the slice"},"focus":{"type":"string","description":"Node id to center the slice on"},"branch_tip":{"type":"string","description":"Ref name for provenance header"},"kinds":{"type":"array","items":{"type":"string"},"description":"Restrict to node kinds"},"limit":{"type":"integer","minimum":1,"description":"Max nodes returned (hard-capped by the atlas budget)"}},"required":["level"],"additionalProperties":false}"#,
-        ),
-        "vox_search_neighbors" => parse_obj(
-            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"seeds":{"type":"array","items":{"type":"string"},"minItems":1,"description":"Seed node IDs to BFS-expand from"},"max_depth":{"type":"integer","minimum":1,"maximum":5,"description":"BFS hop limit (default 2)"},"limit":{"type":"integer","minimum":1,"description":"Max hits returned (default 20)"},"direction":{"type":"string","enum":["in","out","both"],"description":"in=callers, out=callees, both=undirected (default)"}},"required":["seeds"],"additionalProperties":false}"#,
-        ),
-        "vox_search_path" => parse_obj(
-            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"from":{"type":"string","description":"Source node ID"},"to":{"type":"string","description":"Destination node ID"},"direction":{"type":"string","enum":["in","out","both"],"description":"in=callers, out=callees, both=undirected (default)"}},"required":["from","to"],"additionalProperties":false}"#,
-        ),
-        "vox_search_callers" | "vox_search_callees" => parse_obj(
-            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"seeds":{"type":"array","items":{"type":"string"},"minItems":1,"description":"Symbol node IDs to find callers/callees of"},"max_depth":{"type":"integer","minimum":1,"maximum":5,"description":"Transitive hop limit (default 2)"},"limit":{"type":"integer","minimum":1,"description":"Max hits returned (default 20)"}},"required":["seeds"],"additionalProperties":false}"#,
-        ),
-        "vox_search_compare" => parse_obj(
-            r#"{"type":"object","properties":{"corpus_a":{"type":"string","description":"First corpus id to compare"},"corpus_b":{"type":"string","description":"Second corpus id to compare"}},"required":["corpus_a","corpus_b"],"additionalProperties":false}"#,
-        ),
-        "vox_capability_explain" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":256,"description":"capability id, CLI path, MCP tool, GUI view key, crate or skill"}},"required":["query"],"additionalProperties":false}"#,
-        ),
-        "vox_capability_features" => parse_obj(
-            r#"{"type":"object","properties":{"domain":{"type":"string","minLength":1,"maxLength":64,"description":"domain id (omit to list every domain with counts)"}},"additionalProperties":false}"#,
-        ),
-        "vox_search_history" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","enum":["log","focus","forgotten","search","timeline","brief"],"description":"View: log (a file's changes through rename/split/merge lineage), focus (churn per area), forgotten (dormant high-fan-in areas), search (commit text, paths, symbols), timeline (top areas per bucket), brief (one line)"},"path":{"type":"string","description":"log: repo-relative file path"},"text":{"type":"string","description":"search: terms"},"since_days":{"type":"integer","minimum":1,"description":"focus (default 30) / timeline (default 90)"},"min_age_days":{"type":"integer","minimum":0,"description":"forgotten: default 60"},"bucket_days":{"type":"integer","minimum":1,"description":"timeline: default 7"},"by":{"type":"string","enum":["crate","dir"],"description":"Area grouping (default crate)"},"include_mechanical":{"type":"boolean","description":"Include fmt/generated/import-only changes (default false)"},"limit":{"type":"integer","minimum":1,"description":"Max rows (default 20)"}},"required":["query"],"additionalProperties":false}"#,
-        ),
-        "vox_search_rebuild" => parse_obj(
-            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id to rebuild; omit for the registry default_corpus_id. WRITE/mutating: regenerates the on-disk AST code graph and snapshots the previous one."}},"additionalProperties":false}"#,
-        ),
-        "vox_search_set_ttl" => parse_obj(
-            r#"{"type":"object","properties":{"ttl_days":{"type":"integer","minimum":1,"maximum":3650,"description":"Staleness TTL in days for Vox Search corpora. WRITE/mutating: edits the tracked contract contracts/retrieval/vox-graph-corpora.v1.yaml, which the CLI and the CI freshness gate also read. This leaves an uncommitted working-tree change: the user must commit it before the CLI and CI see the new value on other checkouts. The VOX_GRAPHIFY_TTL_DAYS env var still takes precedence at runtime."}},"required":["ttl_days"],"additionalProperties":false}"#,
-        ),
-        "vox_project_init" => parse_obj(
-            r#"{"type":"object","properties":{"project_name":{"type":"string","minLength":1,"description":"Project / package name"},"package_kind":{"type":"string","description":"e.g. application, skill, agent, workflow, chatbot, library"},"template":{"type":"string","description":"Optional application template: chatbot, dashboard, api"},"target_subdir":{"type":"string","description":"Repo-relative directory for the scaffold (no `..`); default is workspace root"}},"required":["project_name"],"additionalProperties":false}"#,
-        ),
-        "vox_repo_catalog_list" | "vox_repo_catalog_refresh" => {
-            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        "vox_repo_query_text" => derived_tool_schema!(vox_repository::QueryTextParams),
-        "vox_repo_query_file" => derived_tool_schema!(vox_repository::QueryFileParams),
-        "vox_repo_query_history" => derived_tool_schema!(vox_repository::QueryHistoryParams),
-        "vox_conflict_diff" => parse_obj(
-            r#"{"type":"object","properties":{"conflict_id":{"description":"Conflict id as number or C-XXXXXX string","oneOf":[{"type":"integer","minimum":0},{"type":"string","pattern":"^C-[0-9]{6}$"}]}},"required":["conflict_id"],"additionalProperties":false}"#,
-        ),
-        "vox_snapshot_diff" => parse_obj(
-            r#"{"type":"object","properties":{"before":{"oneOf":[{"type":"integer","minimum":0},{"type":"string","pattern":"^S-[0-9]{6}$"}]},"after":{"oneOf":[{"type":"integer","minimum":0},{"type":"string","pattern":"^S-[0-9]{6}$"}]}},"additionalProperties":false}"#,
-        ),
-        "vox_snapshot_restore" => parse_obj(
-            r#"{"type":"object","properties":{"snapshot_id":{"type":"string","pattern":"^S-[0-9]{6}$"}},"required":["snapshot_id"],"additionalProperties":false}"#,
-        ),
-        "vox_undo" => parse_obj(
-            r#"{"type":"object","properties":{"operation_id":{"oneOf":[{"type":"integer","minimum":0},{"type":"string","pattern":"^OP-[0-9]{6}$"}]}},"required":["operation_id"],"additionalProperties":false}"#,
-        ),
-        "vox_redo" => parse_obj(
-            r#"{"type":"object","properties":{"operation_id":{"oneOf":[{"type":"integer","minimum":0},{"type":"string","pattern":"^OP-[0-9]{6}$"}]}},"required":["operation_id"],"additionalProperties":false}"#,
-        ),
-        "vox_resolve_conflict" => parse_obj(
-            r#"{"type":"object","properties":{"conflict_id":{"oneOf":[{"type":"integer","minimum":0},{"type":"string","pattern":"^C-[0-9]{6}$"}]},"strategy":{"type":"string","enum":["take_left","take_right","defer"]},"defer_to_agent":{"type":"integer","minimum":0}},"required":["conflict_id"],"additionalProperties":false}"#,
-        ),
-
-        // ── VCS (pass-through args; shape varies by tool) ───────────────────
-        "vox_snapshot_list"
-        | "vox_oplog"
-        | "vox_conflicts"
-        | "vox_workspace_create"
-        | "vox_workspace_merge"
-        | "vox_workspace_status"
-        | "vox_change_create"
-        | "vox_change_log"
-        | "vox_vcs_status" => parse_obj(
-            r#"{"type":"object","additionalProperties":true,"description":"Tool-specific JSON; see vcs_tools handlers."}"#,
-        ),
-
-        // ── DB digest tools ──────────────────────────────────────────────────
-        "vox_db_schema" | "vox_db_relationships" | "vox_db_data_flow" => {
-            parse_obj(r#"{"type":"object","additionalProperties":true}"#)
-        }
-        "vox_db_sample_data" | "vox_db_explain_query" | "vox_db_suggest_query" => {
-            parse_obj(r#"{"type":"object","additionalProperties":true}"#)
-        }
-        "vox_journey_canonical_steps" => parse_obj(
-            r#"{"type":"object","properties":{"journey_id":{"type":"string","maxLength":512,"description":"Canonical journey id; defaults to canonical_journey.v1.greenfield_vox_mens_devloop"}},"additionalProperties":false}"#,
-        ),
-
-        "vox_db_research_session_upsert" => parse_obj(
-            r#"{"type":"object","properties":{"session_key":{"type":"string"},"title":{"type":"string"},"status":{"type":"string"},"repository_id":{"type":"string"},"config_json":{"type":"object"},"summary_json":{"type":"object"}},"required":["session_key"],"additionalProperties":false}"#,
-        ),
-        "vox_db_conversation_version_append" => parse_obj(
-            r#"{"type":"object","properties":{"conversation_id":{"type":"integer"},"version_index":{"type":"integer"},"label":{"type":"string"},"snapshot_json":{"type":"object"}},"required":["conversation_id","version_index"],"additionalProperties":false}"#,
-        ),
-        "vox_db_conversation_edge_insert" => parse_obj(
-            r#"{"type":"object","properties":{"from_conversation_id":{"type":"integer"},"to_conversation_id":{"type":"integer"},"edge_kind":{"type":"string"},"weight":{"type":"number"},"metadata_json":{"type":"object"}},"required":["from_conversation_id","to_conversation_id"],"additionalProperties":false}"#,
-        ),
-        "vox_db_topic_evolution_append" => parse_obj(
-            r#"{"type":"object","properties":{"topic_id":{"type":"integer"},"event_kind":{"type":"string"},"prior_label":{"type":"string"},"new_label":{"type":"string"},"detail_json":{"type":"object"}},"required":["topic_id","event_kind"],"additionalProperties":false}"#,
-        ),
-        "vox_db_research_metric_linked" => parse_obj(
-            r#"{"type":"object","properties":{"session_key":{"type":"string"},"metric_type":{"type":"string"},"metric_value":{"type":"number"},"metadata_json":{"type":["string","object","null"]},"repository_id":{"type":"string"}},"required":["session_key","metric_type"],"additionalProperties":false}"#,
-        ),
-        "vox_db_trust_rollups" => parse_obj(
-            r#"{"type":"object","properties":{"entity_type":{"type":"string","maxLength":128},"dimension":{"type":"string","maxLength":128},"domain":{"type":"string","maxLength":256},"repository_id":{"type":"string","maxLength":512},"repository_id_default_workspace":{"type":"boolean","description":"When true, filter rollups to the MCP workspace repository_id"},"limit":{"type":"integer","minimum":1,"maximum":10000}},"additionalProperties":false}"#,
-        ),
-        "vox_db_trust_summary" => parse_obj(
-            r#"{"type":"object","properties":{"entity_type":{"type":"string","maxLength":128},"dimension":{"type":"string","maxLength":128},"domain":{"type":"string","maxLength":256},"repository_id":{"type":"string","maxLength":512},"repository_id_default_workspace":{"type":"boolean","description":"When true, filter trust rollups to the MCP workspace repository_id"},"group_by":{"type":"string","enum":["dimension","domain","entity_type","dimension_domain","entity_dimension"]},"limit_groups":{"type":"integer","minimum":1,"maximum":500}},"additionalProperties":false}"#,
-        ),
-        "vox_db_trust_drift" => parse_obj(
-            r#"{"type":"object","properties":{"entity_type":{"type":"string","maxLength":128},"dimension":{"type":"string","maxLength":128},"window_ms":{"type":"integer","minimum":60000,"maximum":2592000000,"description":"Recent vs prior window length (ms); default 86400000"}},"additionalProperties":false}"#,
-        ),
-        "vox_db_trust_propagate" => parse_obj(
-            r#"{"type":"object","properties":{"dimension":{"type":"string","minLength":1,"maxLength":128},"repository_id":{"type":"string","maxLength":512},"repository_id_default_workspace":{"type":"boolean","description":"When true, scope model rollups to workspace repository_id"},"damping":{"type":"number","minimum":0.0,"maximum":1.0},"iterations":{"type":"integer","minimum":1,"maximum":256},"persist":{"type":"boolean","description":"Write {dimension}_propagated trust observations"}},"required":["dimension"],"additionalProperties":false}"#,
-        ),
-
-        // ── Codegen ──────────────────────────────────────────────────────────
-        "vox_generate_code" => parse_obj(
-            r#"{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"description":"Natural-language description of the `.vox` code to generate"},"validate":{"type":"boolean","description":"When true (default), run `validate_document_with_hir` and bounded repair retries"},"max_retries":{"type":"integer","minimum":0,"maximum":5,"description":"Max HIR repair attempts (clamped to speech policy cap)"},"session_id":{"type":"string","description":"Optional session id for model routing affinity"},"journey_id":{"type":"string","description":"Optional stable id for this generate request (joins routing + telemetry; server-generated if omitted)"},"output_surface_mode":{"type":"string","enum":["raw_code_only","fenced_transport"],"description":"How the model wraps `.vox` surface text"},"output_path":{"type":"string","description":"Optional workspace-relative path to write validated `.vox` text; `meta.file_outcomes` reports bytes and relative path"},"vcs_agent_id":{"type":"integer","minimum":0,"description":"When set with `output_path`, capture a filesystem snapshot for this agent after the write; `meta.file_outcomes.post_write_snapshot_id` is set"}},"required":["prompt"],"additionalProperties":false}"#,
-        ),
-
-        // ── Q&A & A2A ───────────────────────────────────────────────────────
-        "vox_ask_agent" | "vox_answer_question" | "vox_pending_questions" | "vox_broadcast" => {
-            parse_obj(
-                r#"{"type":"object","additionalProperties":true,"description":"See qa module for expected fields."}"#,
-            )
-        }
-        "vox_a2a_send" | "vox_a2a_inbox" | "vox_a2a_ack" | "vox_a2a_broadcast"
-        | "vox_a2a_history" => parse_obj(
-            r#"{"type":"object","additionalProperties":true,"description":"See a2a module for expected fields."}"#,
-        ),
-
-        // ── Skills ───────────────────────────────────────────────────────────
-        "vox_skill_add" => parse_obj(
-            r#"{"type":"object","properties":{"source":{"type":"string"},"global":{"type":"boolean"},"skill":{"type":"string"}},"required":["source"],"additionalProperties":true}"#,
-        ),
-        "vox_skill_remove" => parse_obj(
-            r#"{"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":true}"#,
-        ),
-        "vox_skill_uninstall"
-        | "vox_skill_info"
-        | "vox_skill_use"
-        | "vox_skill_parse"
-        | "vox_skill_run"
-        | "vox_workspace_mcp_refresh" => {
-            parse_obj(r#"{"type":"object","additionalProperties":true}"#)
-        }
-        "vox_skill_search" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string"}},"required":["query"],"additionalProperties":true}"#,
-        ),
-        "vox_skill_install" => parse_obj(
-            r#"{"type":"object","additionalProperties":true,"description":"VoxSkillBundle JSON payload fields."}"#,
-        ),
-
-        // ── Config / session map / heartbeat / cost ────────────────────────
-        "vox_config_set" => parse_obj(
-            r#"{"type":"object","additionalProperties":true,"description":"Partial orchestrator config updates."}"#,
-        ),
-        "vox_map_agent_session" => {
-            derived_tool_schema!(crate::params::MapAgentSessionParams)
-        }
-        "vox_heartbeat" | "vox_record_cost" => {
-            parse_obj(r#"{"type":"object","additionalProperties":true}"#)
-        }
-
-        // ── Chat & plan ──────────────────────────────────────────────────────
-        "vox_chat_message" => parse_obj(
-            r#"{"type":"object","anyOf":[{"required":["prompt"]},{"required":["message"]}],"properties":{"prompt":{"type":"string","minLength":1,"maxLength":262144},"message":{"type":"string","minLength":1,"maxLength":262144,"description":"Alias for prompt (serde maps to prompt)"},"context_files":{"type":"array","items":{"type":"string","maxLength":4096}},"open_files":{"type":"array","items":{"type":"string","maxLength":4096}},"active_file":{"type":"string","maxLength":4096},"active_line":{"type":"integer"},"selected_text":{"type":"string","maxLength":1048576},"diagnostics":{"type":"array"},"session_id":{"type":"string","maxLength":2048,"description":"Opaque session isolation key. Independent sessions maintain separate history transcripts. Omit or pass null to use the shared default session."},"thread_id":{"type":"string","maxLength":2048,"description":"Editor thread id; included in structured transcript journey envelope"},"journey_id":{"type":"string","maxLength":2048,"description":"Stable request id across routing and storage (generated if omitted)"},"cognitive_profile":{"type":"string","enum":["fast","reasoning","creative"],"description":"Optional routing hint: fast=lowest latency model, reasoning=high-tier model, creative=high temperature. Omit for standard automatic resolution."},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0},"force_research":{"type":"boolean","description":"Optional override to force trigger autonomous research"},"research_scope":{"type":"string","enum":["local","web","both"],"description":"Optional research scope override"},"model_override":{"type":"string","maxLength":512,"description":"Per-request model id pick. Takes precedence over the daemon's process-global override; blank is treated as absent."},"tier":{"type":"string","enum":["local","mesh","cloud","auto"],"description":"Composer runtime tier. Feeds model-resolution constraints (NOT cognitive_profile)."},"clutch":{"type":"string","enum":["free","efficiency","balanced","genius"],"description":"Composer clutch profile (how much gas)."},"risk":{"type":"string","enum":["high","moderate","low"],"description":"Composer risk posture."},"skill_exclusions":{"type":"array","items":{"type":"string","maxLength":512},"description":"Session-scoped skills the user rejected in the transcript."}},"additionalProperties":true}"#,
-        ),
-        "vox_chat_history" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","maxLength":2048,"description":"Session isolation key. Omit to retrieve the shared default session history."},"trace_id":{"type":"string","maxLength":256,"description":"Optional trace id; logged server-side for correlation with chat_message"}},"additionalProperties":false}"#,
-        ),
-        "vox_questioning_submit_answer" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048},"answer_text":{"type":"string","minLength":1,"maxLength":131072},"answer_type":{"type":"string","maxLength":64},"question_id":{"type":"string","maxLength":512},"selected_option_id":{"type":"string","maxLength":256},"information_contribution_bits":{"type":"number"}},"required":["session_id","answer_text"],"additionalProperties":false}"#,
-        ),
-        "vox_questioning_pending" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048,"description":"Same MCP session_id as chat / plan"}},"required":["session_id"],"additionalProperties":false}"#,
-        ),
-        "vox_questioning_sync_ssot" => parse_obj(
-            r#"{"type":"object","properties":{"relative_path":{"type":"string","maxLength":4096,"description":"Workspace-relative path to questioning markdown; default is docs/src/reference/information-theoretic-questioning.md"}},"additionalProperties":false}"#,
-        ),
-        "vox_inline_edit" => parse_obj(
-            r#"{"type":"object","properties":{"prompt":{"type":"string"},"instruction":{"type":"string"},"file":{"type":"string"},"file_path":{"type":"string"},"start_line":{"type":"integer"},"end_line":{"type":"integer"},"current_text":{"type":"string"},"selection":{"type":"string"},"language":{"type":"string"},"context_before":{"type":"string"},"context_after":{"type":"string"},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0}},"required":["start_line","end_line","current_text"],"additionalProperties":true}"#,
-        ),
-        "vox_apply_structured_edit" => parse_obj(
-            r#"{"type":"object","properties":{"file_path":{"type":"string"},"start_line":{"type":"integer","minimum":1},"end_line":{"type":"integer","minimum":1},"target_content":{"type":"string"},"replacement_code":{"type":"string"}},"required":["file_path","target_content","replacement_code"],"additionalProperties":false}"#,
-        ),
-        "vox_plan" => parse_obj(
-            r#"{"type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":65536},"scope_files":{"type":"array","items":{"type":"string","maxLength":4096}},"write_to_disk":{"type":"boolean"},"max_tasks":{"type":"integer","minimum":1,"maximum":2000},"session_id":{"type":"string","maxLength":2048},"plan_depth":{"type":"string","enum":["minimal","standard","deep"]},"auto_expand_thin_plan":{"type":"boolean"},"loop_mode":{"type":"string","enum":["off","auto","force"]},"max_refine_rounds":{"type":"integer","minimum":0,"maximum":8},"refine_budget_tokens":{"type":"integer","minimum":0,"maximum":200000},"gap_risk_threshold":{"type":"number","minimum":0.05,"maximum":0.95},"plan_page_offset":{"type":"integer","minimum":0,"maximum":500000},"plan_page_limit":{"type":"integer","minimum":1,"maximum":2000},"plan_telemetry_session_id":{"type":"string","maxLength":2048},"require_approval":{"type":"boolean"},"question_link_session_id":{"type":"string","maxLength":2048},"questioning_hints_enabled":{"type":"boolean"},"answerer_profile":{"type":"string","enum":["local_first","cloud_first","balanced"]},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0},"model_override":{"type":"string","maxLength":256},"trace_id":{"type":"string","maxLength":256,"description":"End-to-end ChatHop correlation id"},"turn_id":{"type":"string","maxLength":256,"description":"Per-submit turn id for Drive / ChatHop JSONL"}},"required":["goal"],"additionalProperties":false}"#,
-        ),
-        "vox_ghost_text" => parse_obj(
-            r#"{"type":"object","properties":{"prefix":{"type":"string"},"suffix":{"type":"string"},"language":{"type":"string"},"file_path":{"type":"string"},"max_tokens":{"type":"integer"},"session_id":{"type":"string"},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0}},"required":["prefix","suffix"],"additionalProperties":true}"#,
-        ),
-        "vox_replan" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048},"delta_hint":{"type":"string","minLength":1,"maxLength":65536},"write_to_disk":{"type":"boolean"},"mode":{"type":"string","maxLength":64}},"required":["session_id","delta_hint"],"additionalProperties":false}"#,
-        ),
-        "vox_plan_status" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048}},"required":["session_id"],"additionalProperties":false}"#,
-        ),
-        "vox_plan_list_sessions" => {
-            derived_tool_schema!(crate::chat_tools::params::PlanListSessionsParams)
-        }
-        "vox_plan_resume" => {
-            derived_tool_schema!(crate::chat_tools::params::PlanResumeParams)
-        }
-        "vox_attention_summary" => {
-            derived_tool_schema!(crate::dei_tools::params::AttentionSummaryParams)
-        }
-        "vox_attention_history" | "vox_attention_reset" | "vox_trust_override" => {
-            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        "vox_handoff_lineage" => {
-            derived_tool_schema!(crate::dei_tools::params::HandoffLineageParams)
-        }
-        "vox_benchmark_list" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500},"metric_type":{"type":"string","enum":["benchmark_event","syntax_k_event"]},"source":{"type":"string","enum":["research_metrics","build_health","build_regressions","build_warnings","dependency_shape"]},"run_id":{"type":"integer","minimum":1}},"additionalProperties":false}"#,
-        ),
-        "vox_benchmark_record" => parse_obj(
-            r#"{"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":512,"description":"Benchmark name (e.g. build_time, eval_p95)"},"fixture_id":{"type":"string","maxLength":512},"metric_type":{"type":"string","enum":["benchmark_event","syntax_k_event"]},"value":{"type":"number","description":"Optional metric value"},"details":{"description":"Optional structured JSON details"}},"required":["name"],"additionalProperties":false}"#,
-        ),
-        "vox_code_audit_findings_upsert" => parse_obj(
-            r#"{"type":"object","properties":{"findings":{"type":"array","minItems":1,"items":{"type":"object","properties":{"rule_id":{"type":"string","minLength":1},"rule_name":{"type":"string","minLength":1},"severity":{"type":"string","enum":["Info","Warning","Error","Critical"]},"file":{"type":"string","minLength":1},"line":{"type":"integer","minimum":1},"column":{"type":"integer","minimum":0},"message":{"type":"string","minLength":1},"suggestion":{"type":"string"},"context":{"type":"string"}},"required":["rule_id","rule_name","severity","file","line","column","message"],"additionalProperties":false}},"session_id":{"type":"string","maxLength":2048}},"required":["findings"],"additionalProperties":false}"#,
-        ),
-        "vox_schola_submit" => parse_obj(
-            r#"{"type":"object","properties":{"description":{"type":"string","minLength":1,"maxLength":65536},"require_cuda":{"type":"boolean"},"require_metal":{"type":"boolean"},"min_vram_mb":{"type":"integer","minimum":0},"pool_label":{"type":"string","maxLength":256},"trajectory_capture":{"type":"boolean"},"min_quality_score":{"type":"integer","minimum":1,"maximum":5}},"required":["description"],"additionalProperties":false}"#,
-        ),
-        "vox_populi_local_status" => parse_obj(
-            r#"{"type":"object","properties":{"registry_path":{"type":"string","description":"Optional override for the mens registry JSON path"}},"additionalProperties":false}"#,
-        ),
-
-        // ── Vox Populi mesh (control-plane preferred, local fallback) ───────
-        "vox_mesh_nodes" | "vox_mesh_queue_stats" => {
-            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        "vox_mesh_dispatch" => parse_obj(
-            r#"{"type":"object","anyOf":[{"required":["source"]},{"required":["script"]}],"properties":{"source":{"type":"string","minLength":1,"description":".vox source to execute remotely"},"script":{"type":"string","minLength":1,"description":"Alias for `source`"},"node_id":{"type":"string","description":"Optional target node id"},"task_kind":{"type":"string"},"min_vram_mb":{"type":"integer","minimum":0}},"additionalProperties":false}"#,
-        ),
-
-        // ── Plugins (installed + catalog) ───────────────────────────────────
-        "vox_plugin_list" | "vox_plugin_catalog" => {
-            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        "vox_plugin_info" | "vox_plugin_remove" => parse_obj(
-            r#"{"type":"object","properties":{"id":{"type":"string","minLength":1,"description":"Plugin id"}},"required":["id"],"additionalProperties":false}"#,
-        ),
-        "vox_plugin_install" => parse_obj(
-            r#"{"type":"object","oneOf":[{"required":["id"]},{"required":["path"]}],"properties":{"id":{"type":"string","minLength":1,"description":"Catalog plugin id to install"},"path":{"type":"string","minLength":1,"description":"Local plugin directory to install from (alternative to `id`)"}},"additionalProperties":false}"#,
-        ),
-
-        // ── HITL approvals ──────────────────────────────────────────────────
-        "vox_pending_approvals" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_resolve_approval" => parse_obj(
-            r#"{"type":"object","properties":{"approval_id":{"type":"string","minLength":1},"outcome":{"type":"string","enum":["approve","approved","modify","modified","reject","rejected"]},"decision":{"type":"string","description":"Alias for `outcome`"}},"required":["approval_id"],"anyOf":[{"required":["outcome"]},{"required":["decision"]}],"additionalProperties":false}"#,
-        ),
-        // T0.3: persisted per-repo "always allow this tool" allowlist.
-        "vox_add_approval_allowlist_entry" => parse_obj(
-            r#"{"type":"object","properties":{"tool":{"type":"string","minLength":1,"description":"Canonical MCP tool name to always allow"},"repo_id":{"type":"string","description":"Repository id to scope the allowlist entry to; defaults to the current server's repository"}},"required":["tool"],"additionalProperties":false}"#,
-        ),
-        "vox_list_approval_allowlist" => parse_obj(
-            r#"{"type":"object","properties":{"repo_id":{"type":"string","description":"Repository id to list allowlisted tools for; defaults to the current server's repository"}},"additionalProperties":false}"#,
-        ),
-
-        // ── Unified news (syndication safety + templates) ───────────────────
-        "vox_news_test_syndicate" => parse_obj(
-            r#"{"type":"object","properties":{"content":{"type":"string","minLength":1,"description":"Markdown with YAML frontmatter"}},"required":["content"],"additionalProperties":false}"#,
-        ),
-        "vox_news_draft_research" => parse_obj(
-            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256,"description":"Filename stem for docs/news/drafts/{news_id}.md"},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"abstract_text":{"type":"string"}},"required":["news_id","title","author","abstract_text"],"additionalProperties":false}"#,
-        ),
-        "vox_news_approve" => parse_obj(
-            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["news_id","approver"],"additionalProperties":false}"#,
-        ),
-        "vox_news_approval_status" => parse_obj(
-            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256}},"required":["news_id"],"additionalProperties":false}"#,
-        ),
-        "vox_news_simulate_publish_gate" => parse_obj(
-            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"content":{"type":"string","minLength":1}},"required":["news_id","content"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_prepare" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"content":{"type":"string","minLength":1},"abstract_text":{"type":"string"},"citations_json":{"type":"object"},"scholarly_metadata":{"type":"object","description":"ScientificPublicationMetadata (authors, license_spdx, funding_statement, ...)","additionalProperties":true},"preflight":{"type":"boolean","description":"If true, run publication_preflight before upsert; fail on error-level findings."},"preflight_profile":{"type":"string","enum":["default","double_blind","metadata_complete","arxiv_assist"]},"scientia_evidence":{"type":"object","description":"Optional ScientiaEvidenceContext for metadata_json.scientia_evidence","additionalProperties":true},"discovery_intake_gate":{"type":"string","enum":["none","strong_signals_only","allow_review_suggested"],"description":"Optional scientia intake gate evaluated before upsert"}},"required":["publication_id","title","author","content"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_preflight" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"profile":{"type":"string","enum":["default","double_blind","metadata_complete","arxiv_assist"]},"with_worthiness":{"type":"boolean","description":"If true, attach conservative worthiness rubric output (repo default YAML)."}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_worthiness_evaluate" => parse_obj(
-            r#"{"type":"object","properties":{"contract_yaml_relative":{"type":"string","minLength":1,"maxLength":512,"description":"Repo-relative path to worthiness YAML"},"with_live_trust":{"type":"boolean","description":"When true and VoxDb is attached, attach summarized trust_rollups for this repository to the result"},"metrics":{"type":"object","description":"WorthinessInputs","properties":{"red_line_violation_ids":{"type":"array","items":{"type":"string","minLength":1}},"repeated_unresolved_contradiction":{"type":"boolean"},"claim_evidence_coverage":{"type":"number"},"artifact_replayability":{"type":"number"},"before_after_pair_integrity":{"type":"number"},"metadata_completeness":{"type":"number"},"ai_disclosure_compliance":{"type":"number"},"epistemic":{"type":"number"},"reproducibility":{"type":"number"},"novelty":{"type":"number"},"reliability":{"type":"number"},"metadata_policy":{"type":"number"},"meaningful_advance":{"type":"boolean"}},"required":["claim_evidence_coverage","artifact_replayability","before_after_pair_integrity","metadata_completeness","ai_disclosure_compliance","epistemic","reproducibility","novelty","reliability","metadata_policy"],"additionalProperties":false}},"required":["metrics"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_approve" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id","approver"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_submit_local" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"adapter":{"type":"string","minLength":1,"maxLength":64,"description":"Override scholarly adapter (zenodo, openreview, local_ledger, …) instead of VOX_SCHOLARLY_ADAPTER"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_status" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"with_worthiness":{"type":"boolean","description":"If true, enrich the embedded preflight report with worthiness scoring and hydrated scientia_evidence sidecars."}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_scholarly_remote_status" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"external_submission_id":{"type":"string","minLength":1,"maxLength":512}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_scholarly_remote_status_sync_all" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_scholarly_remote_status_sync_batch" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":25},"iterations":{"type":"integer","minimum":1,"maximum":10000,"default":1},"interval_secs":{"type":"integer","minimum":0,"maximum":3600,"default":0},"max_runtime_secs":{"type":"integer","minimum":1,"maximum":86400,"description":"Wall-clock cap for loop mode"},"jitter_secs":{"type":"integer","minimum":0,"maximum":3600,"default":0,"description":"Optional extra sleep jitter bound (capped at interval)"}},"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_arxiv_handoff_record" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"stage":{"type":"string","enum":["staging_exported","operator_ack","bundle_validated","submitted","published"]},"operator":{"type":"string","maxLength":256},"note":{"type":"string","maxLength":4096},"arxiv_id":{"type":"string","maxLength":256}},"required":["publication_id","stage"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_scholarly_staging_export" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"output_dir":{"type":"string","minLength":1,"maxLength":4096,"description":"Directory to write staging files (created if needed)"},"venue":{"type":"string","minLength":1,"maxLength":64,"description":"zenodo | openreview | arxiv-assist"}},"required":["publication_id","output_dir","venue"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_external_jobs_due" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":50}},"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_external_jobs_dead_letter" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":50}},"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_external_jobs_replay" => parse_obj(
-            r#"{"type":"object","properties":{"job_id":{"type":"integer","minimum":1}},"required":["job_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_external_jobs_tick" => parse_obj(
-            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":10},"lock_ttl_ms":{"type":"integer","minimum":5000,"maximum":3600000,"default":120000},"lock_owner":{"type":"string","minLength":1,"maxLength":256},"iterations":{"type":"integer","minimum":1,"maximum":10000,"default":1},"interval_secs":{"type":"integer","minimum":0,"maximum":3600,"default":0},"max_runtime_secs":{"type":"integer","minimum":1,"maximum":86400},"jitter_secs":{"type":"integer","minimum":0,"maximum":3600,"default":0}},"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_scholarly_pipeline_run" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"preflight_profile":{"type":"string","enum":["default","double_blind","metadata_complete"]},"dry_run":{"type":"boolean","default":false},"staging_output_dir":{"type":"string","maxLength":4096},"venue":{"type":"string","maxLength":64,"description":"zenodo | openreview | arxiv-assist when staging_output_dir set"},"adapter":{"type":"string","maxLength":64},"json_compact":{"type":"boolean","default":false,"description":"Single-line JSON in tool result"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_external_pipeline_metrics" => parse_obj(
-            r#"{"type":"object","properties":{"since_hours":{"type":"integer","minimum":0,"maximum":8760,"default":168,"description":"Window for attempts/snapshots/latencies/publication_attempts; 0 = all time"}},"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_media_list" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_media_delete" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"asset_ref":{"type":"string","minLength":1,"maxLength":2048}},"required":["publication_id","asset_ref"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_media_upsert" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"asset_ref":{"type":"string","minLength":1,"maxLength":2048},"media_type":{"type":"string","minLength":1,"maxLength":64},"storage_uri":{"type":"string","maxLength":4096},"status":{"type":"string","minLength":1,"maxLength":64},"metadata_json":{"type":"object","additionalProperties":true}},"required":["publication_id","asset_ref","media_type","status"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_route_simulate" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_publish" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"channels":{"type":"array","items":{"type":"string","minLength":1,"maxLength":64}},"dry_run":{"type":"boolean"},"json":{"type":"boolean"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_retry_failed" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"channel":{"type":"string","minLength":1,"maxLength":64},"dry_run":{"type":"boolean"},"json":{"type":"boolean"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_discovery_scan" => parse_obj(
-            r#"{"type":"object","properties":{"content_type":{"type":"string","maxLength":64,"description":"Filter manifests (e.g. scientia)"},"state":{"type":"string","maxLength":64,"description":"Filter by manifest state"},"limit":{"type":"integer","minimum":1,"maximum":500,"default":50}},"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_discovery_explain" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_discovery_refresh_evidence" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_novelty_fetch" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"offline":{"type":"boolean"},"persist_metadata":{"type":"boolean"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_decision_explain" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"live_prior_art":{"type":"boolean"},"offline":{"type":"boolean"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_publication_novelty_happy_path" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"offline":{"type":"boolean"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        "vox_scientia_assist_suggestions" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"use_llm":{"type":"boolean","description":"When false, return heuristic JSON only"}},"required":["publication_id"],"additionalProperties":false}"#,
-        ),
-        // ── gui_ops: models (plan 07) ──
-        "vox_models_preference_set" => {
-            derived_tool_schema!(crate::gui_ops::models::ModelsPreferenceSetParams)
-        }
-        // ── gui_ops: prefs (plan 07) ──
-        "vox_gui_preference_get" => {
-            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceGetParams)
-        }
-        "vox_gui_preference_set" => {
-            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceSetParams)
-        }
-        // ── gui_ops: chat (plan 07) ──
-        "vox_chat_session_create" => {
-            derived_tool_schema!(crate::gui_ops::chat::ChatSessionCreateParams)
-        }
-        "vox_chat_session_append" => {
-            derived_tool_schema!(crate::gui_ops::chat::ChatSessionAppendParams)
-        }
-        "vox_chat_session_rename" => {
-            derived_tool_schema!(crate::gui_ops::chat::ChatSessionRenameParams)
-        }
-        "vox_chat_session_archive" => {
-            derived_tool_schema!(crate::gui_ops::chat::ChatSessionArchiveParams)
-        }
-        // ── gui_ops: knowledge (plan 07) ──
-        "vox_kb_node_delete" => {
-            derived_tool_schema!(crate::gui_ops::knowledge::KbNodeDeleteParams)
-        }
-        "vox_kb_ingest_text" => {
-            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestTextParams)
-        }
-        "vox_kb_ingest_url" => {
-            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestUrlParams)
-        }
-        "vox_kb_import_research_session" => {
-            derived_tool_schema!(crate::gui_ops::knowledge::KbImportResearchSessionParams)
-        }
-        "vox_memory_reindex" => {
-            derived_tool_schema!(crate::gui_ops::knowledge::MemoryReindexParams)
-        }
-        // ── gui_ops: research (plan 07) ──
-        "vox_research_flag_misleading" => {
-            derived_tool_schema!(crate::gui_ops::research::ResearchFlagParams)
-        }
-        "vox_research_publish_doc" => {
-            derived_tool_schema!(crate::gui_ops::research::ResearchPublishDocParams)
-        }
-        "vox_research_engine_config_set" => {
-            derived_tool_schema!(crate::gui_ops::research::ResearchEngineConfigSetParams)
-        }
-        "vox_research_engine_probe" => {
-            derived_tool_schema!(crate::gui_ops::research::ResearchEngineProbeParams)
-        }
-        "vox_scientia_publication_claim_review" => {
-            derived_tool_schema!(crate::gui_ops::scientia::ClaimReviewParams)
-        }
-        "vox_scientia_publication_nanopublish" => {
-            derived_tool_schema!(crate::gui_ops::scientia::NanopublishParams)
-        }
-        "vox_scientia_publication_autofill" => {
-            derived_tool_schema!(crate::gui_ops::scientia::AutofillParams)
-        }
-        "vox_scientia_discovery_ack" => {
-            derived_tool_schema!(crate::gui_ops::scientia::DiscoveryAckParams)
-        }
-        // ── gui_ops: orchestrator (plan 07) ──
-        "vox_hopper_submit" => {
-            derived_tool_schema!(crate::gui_ops::orchestrator::HopperSubmitParams)
-        }
-        "vox_hopper_reprioritize" => {
-            derived_tool_schema!(crate::gui_ops::orchestrator::HopperReprioritizeParams)
-        }
-        "vox_hopper_cancel" => {
-            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
-        }
-        "vox_hopper_mark_done" => {
-            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
-        }
-        "vox_plan_node_upsert" => {
-            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodeUpsertParams)
-        }
-        "vox_plan_nodes_approve" => {
-            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodesApproveParams)
-        }
-        "vox_gui_run_start" => {
-            derived_tool_schema!(crate::gui_ops::dto::orchestrator::StartGuiRunInput)
-        }
-        "vox_gui_run_finish" => {
-            derived_tool_schema!(crate::gui_ops::dto::orchestrator::FinishGuiRunInput)
-        }
-        // ── gui_ops: harness (plan 07) ──
-        "vox_harness_corpus_scan" => {
-            derived_tool_schema!(crate::gui_ops::harness::CorpusScanParams)
-        }
-        "vox_harness_fix_propose" => {
-            derived_tool_schema!(crate::gui_ops::harness::FixProposeParams)
-        }
-        "vox_harness_fix_resolve" => {
-            derived_tool_schema!(crate::gui_ops::harness::FixResolveParams)
-        }
-        "vox_harness_issue_decide" => {
-            derived_tool_schema!(crate::gui_ops::harness::IssueDecideParams)
-        }
-        // ── gui_ops: gamify (plan 07) ──
-        "vox_gamify_profile" => {
-            derived_tool_schema!(crate::gui_ops::gamify::GamifyProfileParams)
-        }
-        "vox_gamify_due_actions" => {
-            derived_tool_schema!(crate::gui_ops::gamify::GamifyDueActionsParams)
-        }
-        "vox_gamify_record_event" => {
-            derived_tool_schema!(crate::gui_ops::gamify::GamifyRecordEventParams)
-        }
-        "vox_gamify_leaderboard" => {
-            derived_tool_schema!(crate::gui_ops::gamify::GamifyLeaderboardParams)
-        }
-        "vox_gamify_companions" => {
-            derived_tool_schema!(crate::gui_ops::gamify::GamifyCompanionsParams)
-        }
-        "vox_gamify_discovery_record" => {
-            derived_tool_schema!(crate::gui_ops::gamify::GamifyDiscoveryRecordParams)
-        }
-        // ── T3 Wave 3 tools (Phase 255: T3-MCP-RPC-WIRE-01..03) ──
-        "vox_consensus_run" => parse_obj(
-            r#"{"type":"object","properties":{"prompt":{"type":"string","minLength":1},"model_ids":{"type":"array","items":{"type":"string"},"minItems":2,"maxItems":4},"candidate_responses":{"type":"array","items":{"type":"string"}}},"required":["prompt"],"additionalProperties":false}"#,
-        ),
-        "vox_context_handoff" => parse_obj(
-            r#"{"type":"object","properties":{"source_thread_id":{"type":"string","minLength":1},"source_model_id":{"type":"string","minLength":1},"target_model_id":{"type":"string","minLength":1},"mode":{"type":"string","enum":["full_history","summarized","custom"]},"custom_instructions":{"type":"string"},"messages":{"type":"array","items":{"type":"string"}}},"required":["source_thread_id","source_model_id","target_model_id"],"additionalProperties":false}"#,
-        ),
-        "vox_checkpoint_capture" => parse_obj(
-            r#"{"type":"object","properties":{"thread_id":{"type":"string","minLength":1},"turn_count":{"type":"integer","minimum":1}},"required":["thread_id"],"additionalProperties":false}"#,
-        ),
-        "vox_checkpoint_list" => parse_obj(
-            r#"{"type":"object","properties":{"thread_id":{"type":"string","minLength":1}},"required":["thread_id"],"additionalProperties":false}"#,
-        ),
-        "vox_checkpoint_restore" => parse_obj(
-            r#"{"type":"object","properties":{"thread_id":{"type":"string","minLength":1},"target_turn":{"type":"integer","minimum":1}},"required":["thread_id","target_turn"],"additionalProperties":false}"#,
-        ),
-        "vox_muse_pool_spawn" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"variant_count":{"type":"integer","minimum":2,"maximum":4}},"required":["session_id"],"additionalProperties":false}"#,
-        ),
-        "vox_muse_pool_adopt" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"winning_slot_index":{"type":"integer","minimum":0,"maximum":3}},"required":["session_id","winning_slot_index"],"additionalProperties":false}"#,
-        ),
-        "vox_guest_share_mint" => parse_obj(
-            r#"{"type":"object","properties":{"thread_id":{"type":"string","minLength":1},"owner_id":{"type":"string","minLength":1},"policy":{"type":"string","enum":["view_only","comment_with_approval","interactive_fork"]}},"required":["thread_id","owner_id"],"additionalProperties":false}"#,
-        ),
-        "vox_guest_share_moderate" => parse_obj(
-            r#"{"type":"object","properties":{"token_id":{"type":"string","minLength":1},"submission_id":{"type":"string","minLength":1},"approve":{"type":"boolean"},"guest_author":{"type":"string"},"prompt":{"type":"string"}},"required":["token_id"],"additionalProperties":false}"#,
-        ),
-        "vox_session_import_external" => parse_obj(
-            r#"{"type":"object","properties":{"source_harness":{"type":"string","enum":["claude","codex","cursor"]},"external_session_id":{"type":"string","minLength":1},"raw_jsonl":{"type":"string","minLength":1}},"required":["source_harness","external_session_id","raw_jsonl"],"additionalProperties":false}"#,
-        ),
-        "vox_session_export_bundle" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"title":{"type":"string","minLength":1},"messages":{"type":"array","items":{"type":"object","properties":{"role":{"type":"string"},"content":{"type":"string"},"timestamp_ms":{"type":"integer"}},"required":["role","content"]}}},"required":["session_id","title","messages"],"additionalProperties":false}"#,
-        ),
-        "vox_session_import_bundle" => parse_obj(
-            r#"{"type":"object","properties":{"bundle_json":{"type":"string","minLength":2}},"required":["bundle_json"],"additionalProperties":false}"#,
-        ),
-        "vox_quarantine_set" => parse_obj(
-            r#"{"type":"object","properties":{"path_prefix":{"type":"string","minLength":1},"quarantined":{"type":"boolean"}},"required":["path_prefix"],"additionalProperties":false}"#,
-        ),
-        "vox_quarantine_list" => {
-            parse_obj(r#"{"type":"object","properties":{},"additionalProperties":false}"#)
-        }
-        "vox_vcs_checkpoint_diff_summary" => parse_obj(
-            r#"{"type":"object","properties":{"thread_id":{"type":"string","minLength":1},"target_turn":{"type":"integer","minimum":1}},"required":["thread_id","target_turn"],"additionalProperties":false}"#,
-        ),
-        "vox_file_diff_and_diagnostics" => parse_obj(
-            r#"{"type":"object","properties":{"file_path":{"type":"string","minLength":1}},"required":["file_path"],"additionalProperties":false}"#,
-        ),
-        "vox_stage_file" => parse_obj(
-            r#"{"type":"object","properties":{"file_path":{"type":"string","minLength":1}},"required":["file_path"],"additionalProperties":false}"#,
-        ),
-        "vox_revert_file" => parse_obj(
-            r#"{"type":"object","properties":{"file_path":{"type":"string","minLength":1}},"required":["file_path"],"additionalProperties":false}"#,
-        ),
-        "vox_chat_compact_up_to" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"message_id":{"type":"string","minLength":1},"index":{"type":"integer","minimum":0},"direction":{"type":"string","enum":["up_to","from"]},"summary":{"type":"string"}},"additionalProperties":false}"#,
-        ),
-        "vox_chat_edit_message_in_place" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"message_id":{"type":"string","minLength":1},"new_content":{"type":"string"}},"required":["message_id","new_content"],"additionalProperties":false}"#,
-        ),
-        "vox_chat_regenerate" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"from_message_id":{"type":"string","minLength":1},"message_id":{"type":"string","minLength":1},"prompt_override":{"type":"string"},"model_override":{"type":"string"},"execute":{"type":"boolean"}},"additionalProperties":false}"#,
-        ),
-        "vox_chat_stream_resume" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"char_offset":{"type":"integer","minimum":0},"after_seq":{"type":"integer","minimum":0}},"additionalProperties":false}"#,
-        ),
-        "vox_chat_stream_cancel" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1}},"additionalProperties":false}"#,
-        ),
-        "vox_chat_queue_steer" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"thread_id":{"type":"string","minLength":1},"entry_id":{"type":"string","minLength":1},"prompt":{"type":"string"},"promote_to_steer":{"type":"boolean"}},"additionalProperties":false}"#,
-        ),
-        "vox_list_mcp_servers" => parse_obj(
-            r#"{"type":"object","properties":{"prefixed_tools":{"type":"array","items":{"type":"object"}}},"additionalProperties":false}"#,
-        ),
-        "vox_list_mcp_tools" => parse_obj(
-            r#"{"type":"object","properties":{"mcp_name":{"type":"string","minLength":1},"server":{"type":"string","minLength":1}},"additionalProperties":false}"#,
-        ),
-        "vox_call_mcp_lazy" => parse_obj(
-            r#"{"type":"object","properties":{"mcp_name":{"type":"string","minLength":1},"tool_name":{"type":"string","minLength":1},"arguments":{"type":"object"}},"required":["mcp_name","tool_name"],"additionalProperties":false}"#,
-        ),
-        "vox_battery_status" => {
-            parse_obj(r#"{"type":"object","properties":{},"additionalProperties":false}"#)
-        }
-        "vox_session_list_external" => parse_obj(
-            r#"{"type":"object","properties":{"source_harness":{"type":"string","enum":["claude","codex","cursor"]},"root_dir":{"type":"string"}},"additionalProperties":false}"#,
-        ),
-        "vox_guest_share_redeem" => parse_obj(
-            r#"{"type":"object","properties":{"invite_id":{"type":"string","minLength":1},"signature_hex":{"type":"string","minLength":1},"guest_session_id":{"type":"string"},"now_ms":{"type":"integer","minimum":0}},"required":["invite_id","signature_hex"],"additionalProperties":false}"#,
-        ),
-        "vox_guest_share_submit" => parse_obj(
-            r#"{"type":"object","properties":{"message_id":{"type":"string","minLength":1},"thread_id":{"type":"string","minLength":1},"guest_session_id":{"type":"string"},"guest_author":{"type":"string"},"prompt":{"type":"string","minLength":1}},"required":["thread_id","prompt"],"additionalProperties":false}"#,
-        ),
-        "vox_pr_review_guide" => parse_obj(
-            r#"{"type":"object","properties":{"pr_number":{"type":"integer","minimum":1},"head_sha":{"type":"string","minLength":1},"changed_files":{"type":"array","items":{"type":"string"}}},"required":["pr_number","head_sha"],"additionalProperties":false}"#,
-        ),
-        _ => Map::new(),
+    if let Some(m) = core_and_tasks::schema_for_tool(name)
+        .or_else(|| vcs_and_workspace::schema_for_tool(name))
+        .or_else(|| chat_and_memory::schema_for_tool(name))
+        .or_else(|| scientia_and_kb::schema_for_tool(name))
+        .or_else(|| mens_and_ops::schema_for_tool(name))
+        .or_else(|| browser_and_gui::schema_for_tool(name))
+    {
+        return m;
     }
-}
 
+    #[cfg(any())]
+    match name {
+        "vox_oratio_transcribe" => {}
+        "vox_oratio_listen" => {}
+        "vox_oratio_status" => {}
+        "vox_speech_to_code" => {}
+        "vox_submit_task" => {}
+        "vox_tool_search" => {}
+        "vox_task_status" => {}
+        "vox_cancel_task" => {}
+        "vox_test_decision" => {}
+        "vox_complete_task" => {}
+        "vox_fail_task" => {}
+        "vox_doubt_task" => {}
+        "vox_verify_task_claims" => {}
+        "vox_propose_skill" => {}
+        "vox_ask_clarification" => {}
+        "vox_resolve_feedback" => {}
+        "vox_feedback_list" => {}
+        "vox_publish_message" => {}
+        "vox_reorder_task" => {}
+        "vox_drain_agent" => {}
+        "vox_spawn_agent" => {}
+        "vox_retire_agent" => {}
+        "vox_pause_agent" => {}
+        "vox_resume_agent" => {}
+        "vox_orchestrator_status" => {}
+        "vox_orchestrator_persistence_outbox_lifecycle" => {}
+        "vox_rebalance" => {}
+        "vox_lock_status" => {}
+        "vox_file_graph" => {}
+        "vox_config_get" => {}
+        "vox_openclaw_list_remote" => {}
+        "vox_openclaw_discover" => {}
+        "vox_openclaw_health" => {}
+        "vox_openclaw_subscriptions" => {}
+        "vox_agent_list_remote" => {}
+        "vox_agent_subscriptions" => {}
+        "vox_session_list" => {}
+        "vox_session_cleanup" => {}
+        "vox_memory_list_keys" => {}
+        "vox_skill_list" => {}
+        "vox_skill_discover" => {}
+        "vox_test_all" => {}
+        "vox_check_workspace" => {}
+        "vox_get_active_model" => {}
+        "vox_language_surface" => {}
+        "vox_capability_model_manifest" => {}
+        "vox_pipeline_status" => {}
+        "vox_decorator_registry" => {}
+        "vox_builtin_registry" => {}
+        "vox_workspace_modules" => {}
+        "vox_export_grammar_ebnf" => {}
+        "vox_a2a_tasks" => {}
+        "vox_secrets_doctor" => {}
+        "vox_orchestrator_start" => {}
+        "vox_orchestrator_persistence_outbox_queue" => {}
+        "vox_openclaw_gateway_call" => {}
+        "vox_agent_gateway_call" => {}
+        "vox_openclaw_search_remote" => {}
+        "vox_openclaw_import_skill" => {}
+        "vox_openclaw_subscribe" => {}
+        "vox_openclaw_unsubscribe" => {}
+        "vox_agent_subscribe" => {}
+        "vox_agent_unsubscribe" => {}
+        "vox_openclaw_notify" => {}
+        "vox_agent_notify" => {}
+        "vox_exec_time_query" => {}
+        "vox_exec_time_record" => {}
+        "vox_ask_agent" => {}
+        "vox_answer_question" => {}
+        "vox_pending_questions" => {}
+        "vox_broadcast" => {}
+        "vox_a2a_send" => {}
+        "vox_a2a_inbox" => {}
+        "vox_a2a_ack" => {}
+        "vox_a2a_broadcast" => {}
+        "vox_a2a_history" => {}
+        "vox_pending_approvals" => {}
+        "vox_resolve_approval" => {}
+        "vox_add_approval_allowlist_entry" => {}
+        "vox_list_approval_allowlist" => {}
+        "vox_check" => {}
+        "vox_validate_file" => {}
+        "vox_compiler::ast_inspect" => {}
+        "vox_validate_source" => {}
+        "vox_validate_mermaid" => {}
+        "vox_run_tests" => {}
+        "vox_build_crate" => {}
+        "vox_lint_crate" => {}
+        "vox_coverage_report" => {}
+        "vox_check_file_owner" => {}
+        "vox_my_files" => {}
+        "vox_claim_file" => {}
+        "vox_transfer_file" => {}
+        "vox_git_log" => {}
+        "vox_git_diff" => {}
+        "vox_git_status" => {}
+        "vox_git_blame" => {}
+        "vox_repo_index_status" => {}
+        "vox_repo_index_refresh" => {}
+        "vox_visus_audit" => {}
+        "vox_visus_baseline" => {}
+        "vox_visual_rag_query" => {}
+        "vox_repo_status" => {}
+        "vox_gui_components" => {}
+        "vox_gui_tokens" => {}
+        "vox_gui_rules" => {}
+        "vox_agy_doctor" => {}
+        "vox_credentials_status" => {}
+        "vox_agy_ledger_digest" => {}
+        "vox_agy_delegate" => {}
+        "vox_agy_delegate_batch" => {}
+        "vox_agy_pipeline" => {}
+        "vox_agy_review" => {}
+        "vox_validate_vuv" => {}
+        "vox_validate_diagram" => {}
+        "vox_search_status" => {}
+        "vox_search_structural" => {}
+        "vox_search_atlas" => {}
+        "vox_search_neighbors" => {}
+        "vox_search_path" => {}
+        "vox_search_callers" => {}
+        "vox_search_callees" => {}
+        "vox_search_compare" => {}
+        "vox_capability_explain" => {}
+        "vox_capability_features" => {}
+        "vox_search_history" => {}
+        "vox_search_rebuild" => {}
+        "vox_search_set_ttl" => {}
+        "vox_project_init" => {}
+        "vox_repo_catalog_list" => {}
+        "vox_repo_catalog_refresh" => {}
+        "vox_repo_query_text" => {}
+        "vox_repo_query_file" => {}
+        "vox_repo_query_history" => {}
+        "vox_conflict_diff" => {}
+        "vox_snapshot_diff" => {}
+        "vox_snapshot_restore" => {}
+        "vox_undo" => {}
+        "vox_redo" => {}
+        "vox_resolve_conflict" => {}
+        "vox_snapshot_list" => {}
+        "vox_oplog" => {}
+        "vox_conflicts" => {}
+        "vox_workspace_create" => {}
+        "vox_workspace_merge" => {}
+        "vox_workspace_status" => {}
+        "vox_change_create" => {}
+        "vox_change_log" => {}
+        "vox_vcs_status" => {}
+        "vox_db_schema" => {}
+        "vox_db_relationships" => {}
+        "vox_db_data_flow" => {}
+        "vox_db_sample_data" => {}
+        "vox_db_explain_query" => {}
+        "vox_db_suggest_query" => {}
+        "vox_journey_canonical_steps" => {}
+        "vox_db_research_session_upsert" => {}
+        "vox_db_conversation_version_append" => {}
+        "vox_db_conversation_edge_insert" => {}
+        "vox_db_topic_evolution_append" => {}
+        "vox_db_research_metric_linked" => {}
+        "vox_db_trust_rollups" => {}
+        "vox_db_trust_summary" => {}
+        "vox_db_trust_drift" => {}
+        "vox_db_trust_propagate" => {}
+        "vox_generate_code" => {}
+        "vox_set_context" => {}
+        "vox_get_context" => {}
+        "vox_list_context" => {}
+        "vox_context_budget" => {}
+        "vox_set_agent_budget" => {}
+        "vox_emergency_stop" => {}
+        "vox_handoff_context" => {}
+        "vox_memory_store" => {}
+        "vox_memory_recall" => {}
+        "vox_memory_search" => {}
+        "vox_semantic_fs_discover" => {}
+        "vox_memory_log" => {}
+        "vox_knowledge_query" => {}
+        "vox_research_run" => {}
+        "vox_research_start" => {}
+        "vox_research_status" => {}
+        "vox_research_get" => {}
+        "vox_research_search" => {}
+        "vox_session_create" => {}
+        "vox_session_reset" => {}
+        "vox_session_info" => {}
+        "vox_compaction_status" => {}
+        "vox_session_compact" => {}
+        "vox_preference_get" => {}
+        "vox_preference_set" => {}
+        "vox_preference_list" => {}
+        "vox_learn_pattern" => {}
+        "vox_behavior_record" => {}
+        "vox_behavior_summary" => {}
+        "vox_memory_save_db" => {}
+        "vox_memory_recall_db" => {}
+        "vox_list_models" => {}
+        "vox_suggest_model" => {}
+        "vox_set_model" => {}
+        "vox_set_active_model" => {}
+        "vox_config_set" => {}
+        "vox_map_agent_session" => {}
+        "vox_heartbeat" => {}
+        "vox_record_cost" => {}
+        "vox_chat_message" => {}
+        "vox_chat_history" => {}
+        "vox_questioning_submit_answer" => {}
+        "vox_questioning_pending" => {}
+        "vox_questioning_sync_ssot" => {}
+        "vox_inline_edit" => {}
+        "vox_apply_structured_edit" => {}
+        "vox_plan" => {}
+        "vox_ghost_text" => {}
+        "vox_replan" => {}
+        "vox_plan_status" => {}
+        "vox_plan_list_sessions" => {}
+        "vox_plan_resume" => {}
+        "vox_attention_summary" => {}
+        "vox_attention_history" => {}
+        "vox_attention_reset" => {}
+        "vox_trust_override" => {}
+        "vox_handoff_lineage" => {}
+        "vox_benchmark_list" => {}
+        "vox_benchmark_record" => {}
+        "vox_code_audit_findings_upsert" => {}
+        "vox_schola_submit" => {}
+        "vox_populi_local_status" => {}
+        "vox_kb_search" => {}
+        "vox_kb_get" => {}
+        "vox_kb_cite" => {}
+        "vox_kb_status" => {}
+        "vox_kb_reindex" => {}
+        "vox_news_test_syndicate" => {}
+        "vox_news_draft_research" => {}
+        "vox_news_approve" => {}
+        "vox_news_approval_status" => {}
+        "vox_news_simulate_publish_gate" => {}
+        "vox_scientia_publication_prepare" => {}
+        "vox_scientia_publication_preflight" => {}
+        "vox_scientia_worthiness_evaluate" => {}
+        "vox_scientia_publication_approve" => {}
+        "vox_scientia_publication_submit_local" => {}
+        "vox_scientia_publication_status" => {}
+        "vox_scientia_publication_scholarly_remote_status" => {}
+        "vox_scientia_publication_scholarly_remote_status_sync_all" => {}
+        "vox_scientia_publication_scholarly_remote_status_sync_batch" => {}
+        "vox_scientia_publication_arxiv_handoff_record" => {}
+        "vox_scientia_publication_scholarly_staging_export" => {}
+        "vox_scientia_publication_external_jobs_due" => {}
+        "vox_scientia_publication_external_jobs_dead_letter" => {}
+        "vox_scientia_publication_external_jobs_replay" => {}
+        "vox_scientia_publication_external_jobs_tick" => {}
+        "vox_scientia_publication_scholarly_pipeline_run" => {}
+        "vox_scientia_publication_external_pipeline_metrics" => {}
+        "vox_scientia_publication_media_list" => {}
+        "vox_scientia_publication_media_delete" => {}
+        "vox_scientia_publication_media_upsert" => {}
+        "vox_scientia_publication_route_simulate" => {}
+        "vox_scientia_publication_publish" => {}
+        "vox_scientia_publication_retry_failed" => {}
+        "vox_scientia_publication_discovery_scan" => {}
+        "vox_scientia_publication_discovery_explain" => {}
+        "vox_scientia_publication_discovery_refresh_evidence" => {}
+        "vox_scientia_publication_novelty_fetch" => {}
+        "vox_scientia_publication_decision_explain" => {}
+        "vox_scientia_publication_novelty_happy_path" => {}
+        "vox_scientia_assist_suggestions" => {}
+        "vox_check_mood" => {}
+        "vox_agent_status" => {}
+        "vox_agent_continue" => {}
+        "vox_agent_assess" => {}
+        "vox_agent_handoff" => {}
+        "vox_gamify_notifications_list" => {}
+        "vox_gamify_progress_snapshot" => {}
+        "vox_gamify_notification_ack" => {}
+        "vox_gamify_notifications_ack_all" => {}
+        "vox_gamify_quest_list" => {}
+        "vox_gamify_shop_catalog" => {}
+        "vox_gamify_shop_buy" => {}
+        "vox_gamify_collegium_join" => {}
+        "vox_gamify_battle_start" => {}
+        "vox_gamify_battle_submit" => {}
+        "vox_queue_status" => {}
+        "vox_budget_status" => {}
+        "vox_agent_events" => {}
+        "vox_cost_history" => {}
+        "vox_poll_events" => {}
+        "vox_skill_add" => {}
+        "vox_skill_remove" => {}
+        "vox_skill_uninstall" => {}
+        "vox_skill_info" => {}
+        "vox_skill_use" => {}
+        "vox_skill_parse" => {}
+        "vox_skill_run" => {}
+        "vox_workspace_mcp_refresh" => {}
+        "vox_skill_search" => {}
+        "vox_skill_install" => {}
+        "vox_mesh_nodes" => {}
+        "vox_mesh_queue_stats" => {}
+        "vox_mesh_dispatch" => {}
+        "vox_plugin_list" => {}
+        "vox_plugin_catalog" => {}
+        "vox_plugin_info" => {}
+        "vox_plugin_remove" => {}
+        "vox_plugin_install" => {}
+        "vox_models_preference_set" => {}
+        "vox_gui_preference_get" => {}
+        "vox_gui_preference_set" => {}
+        "vox_chat_session_create" => {}
+        "vox_chat_session_append" => {}
+        "vox_chat_session_rename" => {}
+        "vox_chat_session_archive" => {}
+        "vox_kb_node_delete" => {}
+        "vox_kb_ingest_text" => {}
+        "vox_kb_ingest_url" => {}
+        "vox_kb_import_research_session" => {}
+        "vox_memory_reindex" => {}
+        "vox_research_flag_misleading" => {}
+        "vox_research_publish_doc" => {}
+        "vox_research_engine_config_set" => {}
+        "vox_research_engine_probe" => {}
+        "vox_scientia_publication_claim_review" => {}
+        "vox_scientia_publication_nanopublish" => {}
+        "vox_scientia_publication_autofill" => {}
+        "vox_scientia_discovery_ack" => {}
+        "vox_hopper_submit" => {}
+        "vox_hopper_reprioritize" => {}
+        "vox_hopper_cancel" => {}
+        "vox_hopper_mark_done" => {}
+        "vox_plan_node_upsert" => {}
+        "vox_plan_nodes_approve" => {}
+        "vox_gui_run_start" => {}
+        "vox_gui_run_finish" => {}
+        "vox_harness_corpus_scan" => {}
+        "vox_harness_fix_propose" => {}
+        "vox_harness_fix_resolve" => {}
+        "vox_harness_issue_decide" => {}
+        "vox_gamify_profile" => {}
+        "vox_gamify_due_actions" => {}
+        "vox_gamify_record_event" => {}
+        "vox_gamify_leaderboard" => {}
+        "vox_gamify_companions" => {}
+        "vox_gamify_discovery_record" => {}
+        "vox_browser_open" => {}
+        "vox_browser_open_ex" => {}
+        "vox_browser_close" => {}
+        "vox_browser_goto" => {}
+        "vox_browser_click" => {}
+        "vox_browser_text" => {}
+        "vox_browser_fill" => {}
+        "vox_browser_snapshot" => {}
+        "vox_browser_click_ref" => {}
+        "vox_browser_fill_ref" => {}
+        "vox_browser_cookies_export" => {}
+        "vox_browser_cookies_import" => {}
+        "vox_browser_wait_for" => {}
+        "vox_browser_html" => {}
+        "vox_browser_screenshot" => {}
+        "vox_browser_extract" => {}
+        "vox_browser_extract_json" => {}
+        "vox_browser_act" => {}
+        "vox_browser_back" => {}
+        "vox_browser_forward" => {}
+        "vox_browser_reload" => {}
+        "vox_browser_stop" => {}
+        "vox_browser_page_info" => {}
+        "vox_browser_screenshot_viewport" => {}
+        "vox_browser_screencast_frame" => {}
+        "vox_browser_click_xy" => {}
+        "vox_browser_scroll" => {}
+        "vox_browser_press" => {}
+        "vox_browser_type" => {}
+        "vox_browser_set_viewport" => {}
+        "vox_browser_set_control_lock" => {}
+        "vox_browser_list_pages" => {}
+        "vox_consensus_run" => {}
+        "vox_context_handoff" => {}
+        "vox_checkpoint_capture" => {}
+        "vox_checkpoint_list" => {}
+        "vox_checkpoint_restore" => {}
+        "vox_muse_pool_spawn" => {}
+        "vox_muse_pool_adopt" => {}
+        "vox_guest_share_mint" => {}
+        "vox_guest_share_moderate" => {}
+        "vox_session_import_external" => {}
+        "vox_session_export_bundle" => {}
+        "vox_session_import_bundle" => {}
+        "vox_quarantine_set" => {}
+        "vox_quarantine_list" => {}
+        "vox_vcs_checkpoint_diff_summary" => {}
+        "vox_file_diff_and_diagnostics" => {}
+        "vox_stage_file" => {}
+        "vox_revert_file" => {}
+        "vox_chat_compact_up_to" => {}
+        "vox_chat_edit_message_in_place" => {}
+        "vox_chat_regenerate" => {}
+        "vox_chat_stream_resume" => {}
+        "vox_chat_stream_cancel" => {}
+        "vox_chat_queue_steer" => {}
+        "vox_list_mcp_servers" => {}
+        "vox_list_mcp_tools" => {}
+        "vox_call_mcp_lazy" => {}
+        "vox_battery_status" => {}
+        "vox_session_list_external" => {}
+        "vox_guest_share_redeem" => {}
+        "vox_guest_share_submit" => {}
+        "vox_pr_review_guide" => {}
+        _ => {}
+    }
+
+    Map::new()
+}
 #[cfg(test)]
 mod tests {
     use super::tool_input_schema;

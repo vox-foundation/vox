@@ -49,8 +49,8 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
             onClick={() => setTab(t.id)}
             className={`rounded-md px-3 py-1.5 font-display text-[11px] uppercase tracking-[0.16em] transition ${
               tab === t.id
-                ? 'border border-[#D4AF37]/50 bg-[#2A2011] text-[#F3E5AB] font-semibold shadow-xs'
-                : 'border border-transparent text-[#D6CEBF] hover:border-[#D4AF37]/25 hover:bg-[#16120C] hover:text-[#F3E5AB]'
+                ? 'border border-[#C59B27]/55 bg-bg-elevated text-text-primary font-semibold shadow-xs'
+                : 'border border-transparent text-text-secondary hover:border-[#C59B27]/35 hover:bg-bg-surface hover:text-text-primary'
             }`}
           >
             {t.label}

@@ -30,6 +30,7 @@ impl SqliteHopper {
     }
 
     /// Most-recent `limit` terminal items, newest first (bounded history read).
+    #[inline(never)]
     pub async fn history_recent(&self, limit: u32) -> Vec<IntakeItem> {
         match self.db.hopper_history_list_recent(limit).await {
             Ok(rows) => rows.into_iter().map(row_to_item).collect(),
@@ -41,6 +42,7 @@ impl SqliteHopper {
     }
 }
 
+#[inline(never)]
 fn row_to_item(row: HopperInboxRow) -> IntakeItem {
     let item_id = HopperItemId(row.item_id);
     let intent = row.intent;

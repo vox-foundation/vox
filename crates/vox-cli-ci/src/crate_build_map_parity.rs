@@ -11,6 +11,7 @@ use std::path::Path;
 
 /// Compare committed vs recomputed summary. Returns drift messages (empty = in sync).
 /// Only DERIVED fields are compared; `compile_s` is the input, taken from committed as-is.
+#[inline(never)]
 pub fn diff_summaries(
     committed: &serde_json::Value,
     recomputed: &serde_json::Value,
@@ -64,6 +65,7 @@ pub fn diff_summaries(
 /// and the committed `compile_s`), plus committed top-level metadata it does not carry
 /// (`measured_on`). Unlike `graphify crate-map --write-summary`, no timing build is needed
 /// and no `compile_s` is lost.
+#[inline(never)]
 pub fn regenerated_summary(
     committed: &serde_json::Value,
     recomputed: &serde_json::Value,
@@ -74,9 +76,35 @@ pub fn regenerated_summary(
             dst.entry(k.clone()).or_insert_with(|| v.clone());
         }
     }
+    // Preserve per-crate metadata fields (touches_90d, churn_compile_pain_score) from committed
+    if let (Some(dst_crates), Some(src_crates)) = (
+        out.get_mut("crates").and_then(|v| v.as_array_mut()),
+        committed.get("crates").and_then(|v| v.as_array()),
+    ) {
+        let mut committed_by_name = HashMap::new();
+        for c in src_crates {
+            if let Some(name) = c.get("crate").and_then(|v| v.as_str()) {
+                committed_by_name.insert(name, c);
+            }
+        }
+        for c in dst_crates {
+            if let Some(name) = c.get("crate").and_then(|v| v.as_str())
+                && let Some(src_c) = committed_by_name.get(name)
+                && let (Some(obj), Some(src_obj)) = (c.as_object_mut(), src_c.as_object())
+            {
+                if let Some(t) = src_obj.get("touches_90d") {
+                    obj.insert("touches_90d".to_string(), t.clone());
+                }
+                if let Some(p) = src_obj.get("churn_compile_pain_score") {
+                    obj.insert("churn_compile_pain_score".to_string(), p.clone());
+                }
+            }
+        }
+    }
     out
 }
 
+#[inline(never)]
 pub fn run_crate_build_map_parity(root: &Path, write: bool) -> Result<()> {
     let graph_path = root.join("contracts/ci/crate-graph.v1.json");
     let summary_path = root.join("contracts/ci/crate-build-map.v1.json");
@@ -150,6 +178,39 @@ mod tests {
         assert_eq!(merged["measured_on"], "x86_64 (cargo check)");
         assert_eq!(merged["crates"][0]["dependents"], 3);
         assert!(diff_summaries(&merged, &recomputed).is_empty());
+    }
+
+    #[test]
+    fn regenerated_summary_preserves_touches_and_churn_score() {
+        let committed = json!({
+            "schema_version": 1,
+            "crates": [
+                {
+                    "crate": "a",
+                    "compile_s": 2.0,
+                    "dependents": 2,
+                    "blast_s": 6.0,
+                    "fan_in": 1,
+                    "touches_90d": 15,
+                    "churn_compile_pain_score": 30.0
+                }
+            ]
+        });
+        let recomputed = json!({
+            "schema_version": 1,
+            "crates": [
+                {
+                    "crate": "a",
+                    "compile_s": 2.0,
+                    "dependents": 3,
+                    "blast_s": 9.0,
+                    "fan_in": 1
+                }
+            ]
+        });
+        let merged = regenerated_summary(&committed, &recomputed);
+        assert_eq!(merged["crates"][0]["touches_90d"], 15);
+        assert_eq!(merged["crates"][0]["churn_compile_pain_score"], 30.0);
     }
 
     #[test]

@@ -157,6 +157,7 @@ pub mod run;
 pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
+#[allow(unused_imports)]
 pub(crate) use vox_cli_contracts::scientia_ledger_contract;
 /// Per-user nanopub identity resolver (get-or-create RSA + ORCID); DB + secrets I/O.
 pub mod scientia_nanopub;

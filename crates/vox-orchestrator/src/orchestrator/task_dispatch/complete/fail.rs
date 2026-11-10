@@ -7,6 +7,7 @@ use vox_db::store::VictoryVerdict;
 
 impl Orchestrator {
     /// Mark a task as failed (async).
+    #[inline(never)]
     pub async fn fail_task(
         &self,
         task_id: TaskId,
@@ -16,6 +17,7 @@ impl Orchestrator {
     }
 
     /// Mark a task as failed and attach an audit report.
+    #[inline(never)]
     pub async fn fail_task_with_audit(
         &self,
         task_id: TaskId,

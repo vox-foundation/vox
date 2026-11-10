@@ -6,9 +6,13 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+pub mod collateral_evidence;
 pub mod compare;
 pub mod corpus_score;
 pub mod corpus_stats;
+pub mod decode_protocol;
+pub mod gate_state;
+pub mod ladder_before_after;
 pub mod mens;
 pub mod paired_ni;
 pub mod provenance;
@@ -16,7 +20,10 @@ pub mod qwen_reasoning;
 pub mod reasoning_bench;
 pub mod reasoning_slice;
 pub mod report;
+pub mod sequential_mcnemar;
 pub mod trial_flywheel;
+
+pub use collateral_evidence::{CollateralRefusal, CollateralRequirement, check_collateral_report};
 
 /// Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage).
 pub struct EvalMetrics {

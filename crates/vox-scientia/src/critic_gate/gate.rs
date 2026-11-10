@@ -104,6 +104,7 @@ pub struct GateOutcome {
 }
 
 /// Evaluate the gate against the supplied inputs.
+#[inline(never)]
 pub fn evaluate_gate(inputs: &GateInputs<'_>) -> GateOutcome {
     let mut humans: Vec<&ApproverRecord> = Vec::new();
     let mut critics: Vec<&ApproverRecord> = Vec::new();

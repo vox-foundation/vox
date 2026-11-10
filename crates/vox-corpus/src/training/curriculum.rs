@@ -155,6 +155,7 @@ pub const DEFAULT_MIN_SPOKE_WEIGHT_FLOOR: f64 = 0.10;
 
 /// Compute inverse-failure curriculum weights from [`MensSpokeScorecardV1`] with `min_floor` (`TRAIN-02`).
 #[must_use]
+#[inline(never)]
 pub fn compute_curriculum_weights(
     scorecard: &MensSpokeScorecardV1,
     min_floor: f64,
@@ -389,6 +390,7 @@ pub struct PreflightSafetyVerdict {
 /// Validate a [`TrustyDatasetSnapshot`], its [`TrainingRecordV2`] records, [`ChosenRejectedPairV2`] pairs,
 /// and holdout prompts before native training (`TRAIN-05`).
 #[must_use]
+#[inline(never)]
 pub fn validate_snapshot_preflight_gate(
     snapshot: &TrustyDatasetSnapshot,
     sft_records: &[TrainingRecordV2],
@@ -509,6 +511,7 @@ pub fn sample_curriculum_records(
 
 /// Prepare a verified [`TrainingBatchManifestV1`] from a [`TrustyDatasetSnapshot`], SFT records,
 /// DPO pairs, and curriculum weights (`TRAIN-01`, `TRAIN-02`, `TRAIN-05`).
+#[inline(never)]
 pub fn prepare_training_batch(
     snapshot: &TrustyDatasetSnapshot,
     sft_records: &[TrainingRecordV2],
@@ -586,6 +589,7 @@ impl MensCheckpointManifestV1 {
 /// Execute a deterministic SFT + DPO optimization pass over a [`TrainingBatchManifestV1`]
 /// and produce a verified [`MensCheckpointManifestV1`] (`TRAIN-03`).
 #[must_use]
+#[inline(never)]
 pub fn run_deterministic_qlora_dpo_step(
     checkpoint_id: &str,
     batch: &TrainingBatchManifestV1,

@@ -741,3 +741,26 @@ interception work in the first place.
 - Bypass shapes are caught by `scripts/broker-bypass-lint.vox`; known,
   not-this-plan's-to-fix cases are recorded in
   `scripts/broker-bypass-allowlist.txt` with a reason, not silently skipped.
+
+## Multi-Repository Federation & Cross-Repo Documentation Sync (Required, SSOT)
+
+Vox is federated across four sibling repositories under the **`vox-foundation`** GitHub organization (local workspace root `~/dev/`):
+
+| Repository | GitHub Target | Local Checkout | Primary Role & Deployment Binding |
+|---|---|---|---|
+| **`vox`** | `vox-foundation/vox` *(public)* | `/Users/brbrainerd/dev/vox` | Core compiler, runtime, CLI, MCP server, MENS ML studio, and canonical architecture/contract SSOT (`docs/src/`, `contracts/`). |
+| **`vox-axis`** | `vox-foundation/vox-axis` *(public)* | `/Users/brbrainerd/dev/vox-axis` | Desktop Tauri 2 operator console (`vox-gui` + React/Vite frontend `ui/`, 32 `SURFACE_REGISTRY` views, animated `.webp` tours, real generated `.webp` architecture diagrams). |
+| **`voxlang.org`** | `vox-foundation/voxlang.org` *(public)* | `/Users/brbrainerd/dev/voxlang.org` | Public Astro + Starlight documentation site (deployed to **Cloudflare Pages** `voxlang.org`) + **Coolify** `/v1/eval` browser sandbox (`vox-eval.compose.yml` -> `eval.voxlang.org`). |
+| **`vox-ops`** | `vox-foundation/vox-ops` *(private)* | `/Users/brbrainerd/dev/vox-ops` | Private telemetry ingestion (`vox-ops-telemetry-ingest`), fleet orchestration, and **Coolify** `telemetry.voxlang.org` stack (`docker/vox-telemetry.compose.yml`). Never push public. |
+
+### Cross-Repo Agent Rules (Enforced Across All 4 Repos)
+
+1. **Always-Loaded Context Awareness:** Every repository has its own `AGENTS.md` (and `CLAUDE.md` symlink), plus the parent workspace hub at `/Users/brbrainerd/dev/AGENTS.md`. Before changing shared contracts, CLI commands, MCP tools, GUI surfaces, or docs layouts, read [`docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md`](docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md) and [`docs/src/architecture/cross-repo-federation-and-standalone-sovereignty-ssot-2026.md`](docs/src/architecture/cross-repo-federation-and-standalone-sovereignty-ssot-2026.md).
+2. **Keep Documentation & Visual Tours Up to Date:**
+   - When adding or modifying a GUI surface in `vox-axis` (`crates/vox-gui/ui/src/lib/surfaceRegistry.ts`), update the screen catalog in `/Users/brbrainerd/dev/vox-axis/README.md` (and `/Users/brbrainerd/dev/vox/crates/vox-gui/README.md`), re-capture Playwright screenshots (`assets/screens/*.png`), and regenerate the animated `.webp` tours (`assets/tours/*.webp`).
+   - Architecture diagrams in repository READMEs (`assets/diagrams/*.webp`) MUST be real generated raster graphics (`.webp` / `.png`), **never hand-drawn `.svg` files**.
+   - When changing `docs-astro/` or Coolify `/v1/eval` (`vox-eval.compose.yml`), sync with `/Users/brbrainerd/dev/voxlang.org` so Cloudflare Pages (`voxlang.org`) and Coolify (`eval.voxlang.org`) stay in lockstep.
+3. **Verification Gates Before Push:**
+   - Run `vox ci cross-repo-parity`, `vox ci federated-symbol-graph`, and `vox ci standalone-sovereignty` to verify contract SHA-256 parity, zero cross-repo broken symbol edges, and zero runtime server dependencies in `vox`.
+   - All public GitHub pushes MUST target `https://github.com/vox-foundation/<repo>.git` (never personal `brbrainerd/*` namespaces).
+

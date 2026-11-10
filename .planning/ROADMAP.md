@@ -1,5 +1,283 @@
 # Roadmap: Vox Unified Workstream
 
+# Roadmap: v6.8 — Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits (`vox-orchestrator`, `vox-compiler`, `vox-db`), `crates.io` Wave 2/3 (`33` Crates), Rich Roman Visual READMEs & Adversarial Cross-Repo README Audit (`Phases 394–401`)
+
+**Milestone:** v6.8
+**Status:** Complete (`8/8` Phases, `32/32` Requirements Verified — 2026-11-10)
+**Approved Architectural & Engineering Direction:**
+
+1. **Physical Multi-Repo Extraction (`Phases 394–395, 398`):** Initialize `/Users/brbrainerd/dev/vox-ops` as a real standalone Git + Cargo workspace repository (hosting `vox-plugin-cloud` and `vox-ops-telemetry-ingest` + synced wire/IPC/telemetry contracts), create standalone sibling workspace entrypoints `/Users/brbrainerd/dev/vox-axis` and `/Users/brbrainerd/dev/voxlang.org`, and verify all **`4/4` repositories live on disk** via `vox ci cross-repo-parity` and `vox ci federated-symbol-graph` with zero split-brain.
+2. **Next-Tier Keystone Build-Time Splits (`Phase 396`):** Apply `#[inline(never)]` compilation firewalls and domain submodule boundaries to `vox-orchestrator` (`119s`), `vox-compiler` (`55.6s`), `vox-db` (`43.5s`), `vox-populi` (`26.9s`), `vox-publisher` (`19.1s`), and `vox-scientia` (`14.7s`).
+3. **Standalone `crates.io` Wave 2 & 3 Expansion (`15` → `33` Crates, `Phase 397`):** Unlock 18 additional standalone crates in `crates/_public.toml` and `contracts/distribution/profiles.v1.yaml`, verified `33/33` by `vox ci publish-dry-run`.
+4. **End-to-End Flywheel Scorecard (`Phase 399`):** Publish `contracts/reports/v68-defactoring-flywheel-scorecard.v1.json` and `docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md`, and complete `/gsd-code-review --fix` (`399-REVIEW.md`).
+5. **Multi-Repo Rich Visual READMEs, Animated `.webp` Tours, Real Generated Raster Graphics, Cross-Repo Agent Awareness & `vox-foundation` GitHub Federation (`Phase 400`):** Author comprehensive visual READMEs for `vox-axis`, `voxlang.org`, `vox-ops`, and `vox` with all 32 GUI screens explained, 7 animated `.webp` tours, real generated `.webp` architecture diagrams (zero SVGs), Coolify/Cloudflare bindings, cross-repo `AGENTS.md` sync rules, and public GitHub pushes under `vox-foundation`.
+6. **Adversarial Cross-Repo & Sub-Crate README Audit, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Visual Refresh, `README-SYNC-MAP` Maintainability & Footnoted Prior-Art Attribution (`Phase 401`):** Replace all legacy Sept 4 dark GUI screenshots and navy diagrams with the current `v6.6` (Nov 9) Sunlit Imperial Roman Carrara White & Gold Playwright captures (`50` PNGs including `VRBS ROMA` 3D/2.5D Simulator `urbs-civilization.png` + `urbs-imperium-inspector.png`, `AQVAEDUCTUS` hydraulic cascade `harness.png`, Multi-Dock Chat `chat-multidock.png`, and 4-profile theme contract `theme-arcane.png`/`theme-slate.png`), regenerate all 7 `.webp` tours and all 7 architectural schematics in the Roman Carrara White & Gold aesthetic (converting the last `.svg` `schema-fragmentation.svg` to `schema-fragmentation.webp`), audit and update all 8 stale sub-crate/app `README.md`s inside `vox/crates/*` and `vox/apps/*`, enforce single-source domain ownership (`README-SYNC-MAP`), and add footnoted prior-art citations (`[^1]`..`[^13]`) crediting every source of ideas.
+
+### Phase 394: Physical Private Backend & Telemetry Repository (`/Users/brbrainerd/dev/vox-ops`) (`VOX-OPS-REPO-01..04`) `[WAVE 1A]`
+- **Directory:** `.planning/phases/394-physical-vox-ops-repository-extraction/`
+- **Goal:** Create `/Users/brbrainerd/dev/vox-ops` as a standalone Git + Cargo workspace with `vox-plugin-cloud`, `vox-ops-telemetry-ingest`, `AGENTS.md`, and synchronized `contracts/{wire,ipc,telemetry}/` so `vox ci cross-repo-parity` and `vox ci federated-symbol-graph` verify `vox-ops` live on disk while `vox` remains 100% standalone/offline.
+
+### Phase 395: `vox-axis` & `voxlang.org` Physical/Workspace Separation & Default Cargo Graph Pruning (`WORKSPACE-PRUNE-01..04`) `[WAVE 1B]`
+- **Directory:** `.planning/phases/395-vox-axis-voxlang-org-and-plugin-workspace-pruning/`
+- **Goal:** Create standalone sibling entrypoints `/Users/brbrainerd/dev/vox-axis` and `/Users/brbrainerd/dev/voxlang.org`, and prune heavy non-core surface/plugin crates from default Cargo resolution.
+
+### Phase 396: Next-Tier >35s Keystone Splits (`vox-orchestrator`, `vox-compiler`, `vox-db`) (`KEYSTONE-V68-01..04`) `[WAVE 1C]`
+- **Directory:** `.planning/phases/396-next-tier-keystone-splits-orchestrator-compiler-db/`
+- **Goal:** Add `#[inline(never)]` compilation firewalls across `vox-orchestrator`, `vox-compiler`, and `vox-db` hot paths to cut incremental check times by `>= 40%`.
+
+### Phase 397: Standalone `crates.io` Wave 2 & 3 Expansion (`15` → `33` Crates) (`CRATES-IO-V68-01..04`) `[WAVE 1D]`
+- **Directory:** `.planning/phases/397-standalone-crates-io-wave-2-21-crates/`
+- **Goal:** Add 18 standalone crates to `crates/_public.toml` and `profiles.v1.yaml` and pass `vox ci publish-dry-run` (`33/33`).
+
+### Phase 398: Live 4-Repo Federation Spine (`vox`, `vox-ops`, `vox-axis`, `voxlang.org`) (`FEDERATION-LIVE-01..04`) `[WAVE 2A]`
+- **Directory:** `.planning/phases/398-live-4-repo-federation-and-llm-awareness/`
+- **Goal:** Verify `4/4` present repositories in `vox ci cross-repo-parity` and `vox ci federated-symbol-graph` (`0` skipped optional repos) and synchronize `~/dev/AGENTS.md` + per-repo `AGENTS.md`.
+
+### Phase 399: End-to-End Multi-Turn Flywheel Scorecard (`v6.6` → `v6.7` → `v6.8`) (`FLYWHEEL-BENCH-01..04`) `[WAVE 2B]`
+- **Directory:** `.planning/phases/399-end-to-end-flywheel-scorecard-and-ssot/`
+- **Goal:** Publish `contracts/reports/v68-defactoring-flywheel-scorecard.v1.json` and `docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md`, pass `/gsd-code-review --fix` (`399-REVIEW.md`), and verify all CI gates pass.
+
+### Phase 400: Multi-Repo Rich Visual READMEs, Animated `.webp` Tours, Real Generated Raster Diagrams, Cross-Repo Agent Awareness, Coolify & `vox-foundation` GitHub Federation (`README-VISUAL-01..04`) `[WAVE 3]`
+- **Directory:** `.planning/phases/400-multi-repo-visual-readmes-and-github-federation/`
+- **Goal:** Ensure `vox-axis` (`README.md` + `crates/vox-gui/README.md`) contains a rich visual tour with real Playwright screenshots, every one of the 32 GUI screens + 3 shell modes + 5 HITL stages explained (why it exists, what it can do), 7 looping animated `.webp` tours, and real generated `.webp` architecture diagrams (no SVGs); author matching READMEs for `voxlang.org`, `vox-ops`, and `vox`; wire Coolify (`eval.voxlang.org`, `telemetry.voxlang.org`) and Cloudflare Pages (`voxlang.org`) + cross-repo `AGENTS.md` sync rules; and push public repositories to GitHub under `vox-foundation` (`vox-foundation/vox`, `vox-foundation/vox-axis`, `vox-foundation/voxlang.org`).
+
+### Phase 401: Adversarial Audit of All READMEs Across All Repositories & Sub-Crates, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Visual Refresh, `README-SYNC-MAP` Maintainability & Footnoted Prior-Art Attribution (`README-AUDIT-01..04`) `[WAVE 4]`
+- **Directory:** `.planning/phases/401-adversarial-readme-audit-and-roman-visual-sync/`
+- **Goal:** Adversarially audit all 46 `README.md` files across `vox-foundation/vox`, `vox-foundation/vox-axis`, `vox-foundation/voxlang.org`, and `vox-ops`; replace stale Sept 4 dark screenshots in `vox-axis/assets/screens/` and `crates/vox-gui/ui/review-bundle/latest/` with the 50 Nov 9 (`v6.6`) Sunlit Imperial Roman Carrara White & Gold Playwright captures (including `VRBS ROMA` 3D/2.5D Simulator `urbs-civilization.png` + `urbs-imperium-inspector.png`, `AQVAEDUCTUS` hydraulic cascade `harness.png`, Multi-Dock Chat `chat-multidock.png`, and 4-profile theme contract `theme-arcane.png` / `theme-slate.png`); regenerate all 7 animated `.webp` tours and all 7 architectural diagrams in the `v6.6` Roman White/Gold aesthetic (replacing `schema-fragmentation.svg` with `schema-fragmentation.webp` in `vox/README.md` and `docs/src/index.mdx`); fix all 8 stale sub-crate/app READMEs inside `vox/crates/*` and `vox/apps/*`; enforce `README-SYNC-MAP` single-source ownership to eliminate cross-repo table duplication; and add footnoted prior-art attribution (`[^1]`..`[^13]`).
+
+---
+
+# Roadmap: v6.7 — Monorepo Defactoring, Build-Time & Crate-Edge Disentanglement, Standalone `crates.io` Ecosystem, Zero-Split-Brain Cross-Repo LLM Federation, End-to-End CI/Nightly Remediation & Zero-Loss Worktree/Scratch Consolidation (`Phases 387–393`)
+
+**Milestone:** v6.7
+**Status:** Complete (`7/7` Phases, `28/28` Requirements Verified — 2026-11-10) — Adversarially Audited via `/gsd-review` ([`MILESTONE-v6.7-REVIEWS.md`](MILESTONE-v6.7-REVIEWS.md))
+**Approved Architectural & Engineering Direction:**
+
+1. **Empirical Build-History & Churn-Driven Defactoring (`Phases 387–389`):** Target the exact crates proven by `contracts/ci/crate-build-map.v1.json` and 90-day git commit churn to dominate developer wait time:
+   - Eliminate all **5 dev-dependency back-edge loops** across both SCC entries in `contracts/ci/dep-backedges.allow.json:1-32` (`vox-test-harness <-> vox-compiler`, `vox-db -> (dev) {vox-compiler, vox-codegen}`, `vox-codegen -> (dev) vox-workflow-runtime`, `vox-compiler -> (dev) {vox-codegen, vox-codegen-ts}`, and `vox-config-derive -> (dev) vox-config`) so `"allowed_cycles": []` (`0` cycles) is enforced by `vox ci dep-cycles --deny-new` and the shared `586s` `--all-targets` blast radius collapses.
+   - Split the #1 slowest crate (`vox-orchestrator-mcp`: `157.9s` self-compile, `102,145` LoC, `708` 90d touches) over an L3 base context crate `vox-mcp-context` (`ServerState`, `ToolResult`, `params`, `workspace_path`) into `vox-mcp-tools-{core,scientia,ops}` (breaking up the 258-arm single-function async state machine in `dispatch.rs:663-2380` and 100 `derived_tool_schema!` expansions in `input_schemas.rs:44-1425` while updating `mcp_wiring.rs:34-71`), and complete `crates/vox-orchestrator-models` Part B4 extraction from `vox-orchestrator` (`119.0s` self-compile, `109,091` LoC; decoupling `models/auto_select.rs:9-11`, preserving `TaskCategory` wire order, and updating the 3 hardcoded CI path readers).
+   - Narrow high-fan-in blast keystones: `vox-db` (`43.5s`, `28` direct fan-in → prune unused `vox-lsp`/`vox-langtool` edges, move `content_hash` to existing `vox-db-types`, add calibration trait seam), `vox-populi` (`26.9s`, `42,020` LoC → rewire deprecated `vox_populi::transport` callsites + extract `mens/cloud` & `mens/hub_card`), and `vox-cli` (`47.4s`, `109,091` LoC, `55+` workspace deps → extract `vox-cli-model`, `vox-cli-db`, `vox-cli-diagnostics` + consolidate remaining `~25K+` LoC of `commands/ci/` into `vox-cli-ci` + invert `vox-ml-cli -> vox-cli`).
+2. **Standalone `crates.io` Ecosystem (`Phase 390`):** Fix all crate-escaping `include_str!("../../../contracts/...")` and `workspace-hack` (`publish = false`) packaging blockers across Tiers 1–3, decouple `vox-code-audit` (`toestub`) from its 11 unpublished internal workspace dependencies, and register Tier 3 standalone crates (`vox-diagram`, `vox-similarity`, `vox-rule-pack`, `vox-code-audit`) in `crates/_public.toml`, gated by `vox ci publish-dry-run`.
+3. **Hybrid Multi-Repo + Segmented Workspaces with Zero-Split-Brain Cross-Repo LLM Spine (`Phase 391`):** Keep `vox` 100% standalone/offline-capable (`vox ci standalone-sovereignty`); isolate `vox-axis` (`crates/vox-gui`, already excluded from `default-members` at `Cargo.toml:23`) and `voxlang.org` (`docs-astro`) from core check/test loops; and extend existing `vox-repository::repo_catalog` (`.vox/repositories.yaml` at `crates/vox-repository/src/repo_catalog/mod.rs:29`) with `vox graph refresh --federated`, `vox ci cross-repo-parity`, and `vox dev link-repos` (Cargo `[patch]` toggle).
+4. **Sub-15s Path-Scoped Pre-Push, PR Workflow Consolidation & End-to-End Green Nightly Proof (`Phase 392`):** Add `--ci` to `vox ci pre-push` (used by `.github/workflows/ci.yml:65`), cut local default `vox ci pre-push` to `<15s` (skipping the 10s `status::print_live_for_push()` network stall, fixing `step_line_endings` at `pre_push.rs:1118`, path-scoping `fast` checks, and updating `lefthook.yml:77` + `ssot_drift.rs:137-200` in lockstep), consolidate `compile-matrix.yml` & `cr-l8-corpus-feedback.yml` into `ci.yml`, and remediate all 7 failing scheduled Nightly workflows with live `workflow_dispatch` green run proof (`contracts/reports/nightly-e2e-run-proof.v1.json`).
+
+### Phase 387: 20-Crate & 2-Crate Dev-Dependency Cycle Elimination & Churn-Weighted Build-Time Measurement Spine (`CYCLE-CUT-01..04`) `[WAVE 1]`
+
+**Directory:** `.planning/phases/387-dev-dep-cycle-elimination-and-build-pain-spine/`
+**Goal:** Eliminate all 5 dev-dependency back-edge loops across both SCC entries in `contracts/ci/dep-backedges.allow.json:1-32` (`allowed_cycles: []`), collapse the shared `586s` `--all-targets` test blast radius, and extend `vox_graph_reader::crate_model::build_crate_summary` with `touches_90d` and `churn_compile_pain_score` in `contracts/ci/crate-build-map.v1.json`.
+**Depends on:** Phase 386
+**Requirements:** `CYCLE-CUT-01`, `CYCLE-CUT-02`, `CYCLE-CUT-03`, `CYCLE-CUT-04`
+**Parallel & Model Dispatch:**
+
+- `Plan 387-01` (`[PARALLEL-SAFE]`, `Flash / Argon`): Decouple `vox-test-harness` from `vox-compiler` (`spans.rs:5` → `vox_ast::span::Span`, move compiler helpers to `vox-compiler` test support) and `vox-config` (`barriers.rs:26`).
+- `Plan 387-02` (`[PARALLEL-SAFE]`, `Flash / Argon`): Relocate `crates/vox-db/tests/arca_compiler_table_parity.rs`, `crates/vox-codegen/tests/{durability_compiles,adr021_parity}.rs`, and `crates/vox-config-derive/tests/*` to cut `vox-db -> (dev) {vox-compiler, vox-codegen}`, `vox-codegen -> (dev) vox-workflow-runtime`, and `vox-config-derive -> (dev) vox-config`.
+- `Plan 387-03` (`[SEQUENTIAL]`, `5.5 Sonnet / Pro`): Relocate the 17 codegen test/bench files from `crates/vox-compiler/Cargo.toml:60-61`, set `"allowed_cycles": []` in `contracts/ci/dep-backedges.allow.json`, enforce `vox ci dep-cycles --deny-new`, and add `touches_90d` + `churn_compile_pain_score` to `crates/vox-graph-reader/src/crate_model.rs:198`.
+
+**Success Criteria:**
+
+1. `vox-test-harness` drops `vox-compiler` from `crates/vox-test-harness/Cargo.toml:14`, becoming a pure `L1` utility (`EnvScratch`, `synthetic_workspace`, `temp_root`, `portpicker`, `spans`).
+2. All 5 dev-dep back-edge loops are severed, `contracts/ci/dep-backedges.allow.json` has `"allowed_cycles": []` (`0` cycles), and `vox ci dep-cycles --deny-new` exits `0`.
+3. Running `cargo test -p <L1/L2-crate>` no longer triggers compilation of unrelated L3 keystones, reducing median `--all-targets` blast radius across L2 crates by `>= 50%`.
+4. `contracts/ci/crate-build-map.v1.json` records `touches_90d` and `churn_compile_pain_score` alongside `compile_s` and `blast_s` without breaking `vox ci crate-build-map-parity` or `vox ci crate-budget`.
+
+### Phase 388: Top Compile-Time Keystone Splits — `vox-orchestrator-mcp` (`158s`, `102K` LoC) & `vox-orchestrator-models` (`119s`, `109K` LoC) (`KEYSTONE-ORCH-01..04`) `[WAVE 2A]`
+
+**Directory:** `.planning/phases/388-keystone-orchestrator-mcp-and-models-splits/`
+**Goal:** Cut the #1 (`vox-orchestrator-mcp`, `157.9s`, `102,145` LoC) and #2 (`vox-orchestrator`, `119.0s`, `109,091` LoC) workspace compile bottlenecks by extracting an L3 `vox-mcp-context` base crate + domain MCP tool crates (breaking up the 258-arm `dispatch.rs` state machine and 100-macro `input_schemas.rs`) and completing `crates/vox-orchestrator-models` Part B4.
+**Depends on:** Phase 387
+**Requirements:** `KEYSTONE-ORCH-01`, `KEYSTONE-ORCH-02`, `KEYSTONE-ORCH-03`, `KEYSTONE-ORCH-04`
+**Parallel & Model Dispatch:**
+
+- `Plan 388-01` (`[SEQUENTIAL]`, `5.5 Sonnet / Pro`): Extract `crates/vox-mcp-context` (`ServerState`, `ToolResult`, `params.rs`, `workspace_path.rs`, `profiles.rs`) and update `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:34-71`.
+- `Plan 388-02a..c` (`[PARALLEL-SAFE]`, `Flash / Argon`): Split `vox-mcp-tools-core`, `vox-mcp-tools-scientia`, `vox-mcp-tools-ops` (plus `input_schemas.rs` shards and `gui_ops`/`chat_tools` separation) over `vox-mcp-context`.
+- `Plan 388-03` (`[PARALLEL-SAFE]`, `5.5 Sonnet / Pro`): Complete `crates/vox-orchestrator-models` Part B4 (lower `TaskPriority`/`PricingSource`/`ClutchProfile` to `vox-orchestrator-types`, decouple `models/auto_select.rs:9-11` from `vox-populi`, keep `TaskCategory` wire-compatible in `vox-orchestrator-models`, and update `model_routing_check.rs:76`, `timeout_literal.rs:79`, `validators.rs:504`).
+
+**Success Criteria:**
+
+1. `vox-mcp-context` (L3) owns `ServerState` and `params.rs`, enabling a cycle-free DAG (`vox-mcp-context` → `vox-mcp-tools-{core,scientia,ops}` → `vox-orchestrator-mcp`), and `vox-orchestrator-mcp` incremental compile time drops below `60s` with 100% `vox ci command-compliance` & `vox ci command-sync` parity.
+2. `crates/vox-orchestrator-models` owns `models/*`, `route_policy.rs`, and `catalog*.rs` with zero wire-format regression on `TaskCategory` (`PascalCase` serde + `Ord` discriminant order) and all 3 CI path readers updated.
+3. `docs/src/architecture/layers.toml` and `contracts/ci/crate-budget.v1.json` enforce updated LoC and compile-time caps.
+4. All 4 surfaces (CLI, `vox-orchestrator-d`, `vox-orchestrator-mcp`, `vox-gui`) pass model-router and MCP tool integration tests without regression.
+
+### Phase 389: Blast-Radius & Surface Keystones — `vox-db-types`, `vox-populi` `SP3`/`SP7` & `vox-cli` Subcommand Crates (`KEYSTONE-DB-CLI-01..04`) `[WAVE 2B]`
+
+**Directory:** `.planning/phases/389-keystone-db-populi-and-cli-splits/`
+**Goal:** Narrow the fan-in and compile times of `vox-db` (`43.5s`, `28` fan-in), `vox-populi` (`26.9s`, `42,020` LoC), and `vox-cli` (`47.4s`, `109,091` LoC, `55+` deps) by pruning dead `vox-db` edges + expanding `vox-db-types`, rewiring deprecated `vox_populi::transport` + splitting `mens/cloud` & `mens/hub_card`, and extracting `vox-cli-{model,db,diagnostics}` + consolidating `commands/ci/*` into `vox-cli-ci`.
+**Depends on:** Phase 387, Phase 388
+**Requirements:** `KEYSTONE-DB-CLI-01`, `KEYSTONE-DB-CLI-02`, `KEYSTONE-DB-CLI-03`, `KEYSTONE-DB-CLI-04`
+**Parallel & Model Dispatch:**
+
+- `Plan 389-01` (`[PARALLEL-SAFE]`, `Flash / Argon`): Remove dead `vox-db` deps from `vox-lsp` and `vox-langtool`, move `hash::content_hash` to `vox-db-types`, and add calibration trait seam for `vox-orchestrator-models`.
+- `Plan 389-02` (`[PARALLEL-SAFE]`, `5.5 Sonnet / Pro`): Rewire `vox-orchestrator` (`remote_worker.rs:289`, `mesh_federation_poll.rs:84`, `task_submit.rs:613`) off deprecated `vox_populi::transport` (`crates/vox-populi/Cargo.toml:19-21`) and extract `mens/cloud` + `mens/hub_card`.
+- `Plan 389-03a..c` (`[PARALLEL-SAFE]`, `Flash / Argon` with `5.5 Sonnet / Pro` integration on `commands/mod.rs`): Extract `vox-cli-model` (`18.7K` LoC), `vox-cli-db` (`9.4K` LoC), `vox-cli-diagnostics` (`7.7K` LoC), consolidate `~25K+` LoC of `commands/ci/` into `vox-cli-ci`, and invert `vox-ml-cli -> vox-cli` (`layers.toml:296-299`).
+
+**Success Criteria:**
+
+1. `vox-lsp`, `vox-langtool`, `vox-package` (normal dep), and `vox-orchestrator-models` drop direct `vox-db` edges, reducing `vox-db` direct fan-in in `contracts/ci/fan-in-snapshot.v1.json`.
+2. Deprecated `vox_populi::transport` callsites are rewired to `vox-plugin-populi-mesh` and `mens/cloud` + `mens/hub_card` are separated, reducing `vox-populi` self-compile time by `>= 35%`.
+3. `vox-cli` delegates model, database, diagnostic, and CI helper subcommands to `vox-cli-{model,db,diagnostics,ci}`, reducing `crates/vox-cli/src/` LoC from `109,091` to `< 50,000` and eliminating the `vox-ml-cli -> vox-cli` layer inversion.
+4. `vox ci command-sync`, `vox ci crate-edges`, and `vox audit arch` pass with zero layer inversions.
+
+### Phase 390: Standalone `crates.io` Ecosystem Expansion & Topological Publish Dry-Run Gate (`CRATES-IO-01..04`) `[WAVE 3A]`
+
+**Directory:** `.planning/phases/390-standalone-crates-io-ecosystem-and-publish-gate/`
+**Goal:** Eliminate all `include_str!` / `workspace-hack` / unpublished transitive dependency blockers and verify standalone `crates.io` publication for Tier 3 crates (`vox-diagram`, `vox-similarity`, `vox-rule-pack`, `vox-code-audit`/`toestub`) alongside Tier 1/2 `crates/_public.toml` crates, gated by `vox ci publish-dry-run`.
+**Depends on:** Phase 389
+**Requirements:** `CRATES-IO-01`, `CRATES-IO-02`, `CRATES-IO-03`, `CRATES-IO-04`
+**Parallel & Model Dispatch:**
+
+- `Plan 390-01` (`[PARALLEL-SAFE]`, `Flash / Argon`): Vendor crate-local copies of `policy.yaml`, `profiles.v1.yaml`, and `rules.v1.yaml` for `include_str!` (`vox-scaling-policy/src/lib.rs:24`, `voxup/src/profiles.rs:7`, `vox-code-audit/src/embedded_rules.rs:7`), guard `vox-diagram` doc-parity `include_str!` tests, strip `workspace-hack` from publishable crates (`.config/hakari.toml` `final-excludes`), inline `vox-build-meta` in `vox-arch-check/build.rs`, and add `version = "0.6.0"` + metadata/READMEs to `vox-diagram`, `vox-similarity`, and `vox-rule-pack`.
+- `Plan 390-02` (`[SEQUENTIAL]`, `5.5 Sonnet / Pro`): Decouple `vox-code-audit` (`toestub`) from its 11 unpublished internal workspace deps (`vox-config`, `vox-llm-egress`, `vox-orchestrator-types`, `vox-http-client`, `vox-jsonschema-util`, `vox-telemetry`, etc.), update `crates/_public.toml` + `crates/voxup/tests/distribution_parity.rs`, and implement `vox ci publish-dry-run`.
+
+**Success Criteria:**
+
+1. Zero publishable crates in `crates/_public.toml` depend on `workspace-hack` or reference `include_str!("../../...")` paths outside their crate root.
+2. `vox-diagram`, `vox-similarity`, and `vox-rule-pack` compile and pass `cargo package --allow-dirty` as standalone libraries with complete crates.io metadata and `README.md`.
+3. `vox-code-audit` (`toestub` binary + library) depends only on published Tier 1/3 crates (`vox-rule-pack`, `vox-scaling-policy`, `vox-bounded-fs`, `vox-secrets`) and passes `cargo package --allow-dirty`.
+4. `vox ci publish-dry-run` verifies topological `cargo package --list --allow-dirty` and `cargo package --allow-dirty` across all `publish = true` crates in `crates/_public.toml`.
+
+### Phase 391: Hybrid Multi-Repo & Workspace Segmentation + Zero-Split-Brain Cross-Repo LLM & Contract Spine (`REPO-FEDERATION-01..04`) `[WAVE 3B]`
+
+**Directory:** `.planning/phases/391-hybrid-multi-repo-and-cross-repo-llm-federation/`
+**Goal:** Verify 100% offline/standalone `vox` sovereignty vs. `~/dev/vox-ops`, isolate `vox-axis` (`vox-gui`) and `voxlang.org` (`docs-astro`) from core check/test loops, and extend existing `vox-repository::repo_catalog` (`.vox/repositories.yaml`) with `vox graph refresh --federated`, `vox ci cross-repo-parity`, and `vox dev link-repos`.
+**Depends on:** Phase 389, Phase 390
+**Requirements:** `REPO-FEDERATION-01`, `REPO-FEDERATION-02`, `REPO-FEDERATION-03`, `REPO-FEDERATION-04`
+**Parallel & Model Dispatch:**
+
+- `Plan 391-01` (`[PARALLEL-SAFE]`, `Flash / Argon`): Implement `vox ci standalone-sovereignty` (`VOX_OFFLINE=1 VOX_TELEMETRY=off`) and core-only Cargo/nextest aliases (`--exclude vox-gui`) + standalone workspace scripts for `vox-gui` and `docs-astro`.
+- `Plan 391-02` (`[SEQUENTIAL]`, `5.5 Sonnet / Pro`): Extend `crates/vox-repository/src/repo_catalog/` (`.vox/repositories.yaml` at `mod.rs:29`) with `vox graph refresh --federated`, `vox ci cross-repo-parity`, and `vox dev link-repos` (gracefully skipping absent optional sibling checkouts like `~/dev/vox-ops`), and synchronize `~/dev/AGENTS.md` + per-repo `AGENTS.md`.
+
+**Success Criteria:**
+
+1. `vox ci standalone-sovereignty` proves `vox`, `vox-gui`, and `vox-orchestrator-d` build, test, and execute end-to-end with `VOX_OFFLINE=1` and `VOX_TELEMETRY=off` and zero network or compile dependency on `~/dev/vox-ops`.
+2. Core Cargo/nextest aliases exclude `vox-gui` by default (complementing `default-members = ["crates/vox-cli"]` at `Cargo.toml:23`), and both `vox-axis` (`crates/vox-gui`) and `voxlang.org` (`docs-astro`) have standalone workspace scripts.
+3. `.vox/repositories.yaml`, `vox ci cross-repo-parity`, and `vox dev link-repos` verify wire/IPC contract digests across registered repositories and toggle Cargo `[patch]` local development cleanly.
+4. `vox graph refresh --federated` indexes registered repositories so existing MCP tools (`vox_repo_catalog_list`, `vox_repo_catalog_refresh`, `vox_repo_query_text`, `vox_graphify_search`, `vox_search_query`) resolve cross-repo symbols without split-brain.
+
+### Phase 392: Sub-15s Path-Scoped `vox ci pre-push`, PR Workflow Consolidation, `~/dev/local-ci` Integration & End-to-End Green Nightly Proof (`CI-NIGHTLY-PROOF-01..04`) `[WAVE 1 & WAVE 4]`
+
+**Directory:** `.planning/phases/392-ci-cd-splitting-pre-push-speedup-and-nightly-proof/`
+**Goal:** Add `--ci` to `vox ci pre-push` (used in `ci.yml:65`), cut local default `vox ci pre-push` execution to `<15s` via strict path scoping, consolidate duplicate PR workflows (`compile-matrix.yml`, `cr-l8-corpus-feedback.yml`), update `~/dev/local-ci`, and remediate all 7 scheduled Nightly workflows with live `workflow_dispatch` end-to-end green run proof.
+**Depends on:** Independent Wave 1 start (`392-01..04`); final proof (`392-06`) runs after Wave 4
+**Requirements:** `CI-NIGHTLY-PROOF-01`, `CI-NIGHTLY-PROOF-02`, `CI-NIGHTLY-PROOF-03`, `CI-NIGHTLY-PROOF-04`
+**Parallel & Model Dispatch:**
+
+- `Plan 392-01` (`[PARALLEL-SAFE]`, `5.5 Sonnet / Pro`): Add `--ci` flag to `pre_push.rs` + `.github/workflows/ci.yml:65`, skip 10s `status::print_live_for_push()` (`pre_push.rs:209`), fix `step_line_endings` arg bug (`pre_push.rs:1118`), path-scope `fast` profile checks (`check_fmt`, `check-links`, `spoke-check`, workflow guards, doc facet/Mermaid checks, `vox-drift-check`), and update `lefthook.yml:77` + `lefthook_retry_failures` (`ssot_drift.rs:137-200`) in lockstep.
+- `Plan 392-02` (`[PARALLEL-SAFE]`, `5.5 Sonnet / Pro`): Fix the 3 `vox-gui` unit test panics (`models_host.rs:127`, `manifest.rs:295`, `manifest.rs:370`) for `gui-cross-build.yml` and fix OpenRouter vs local Ollama (`127.0.0.1:11434`) model routing in `vox harness eval --live` for `harness-eval-nightly.yml`.
+- `Plan 392-03` (`[PARALLEL-SAFE]`, `Flash / Argon`): Add `uv` + `numpy` + `pyarrow` + `target/debug/vox` setup to `mutation-nightly.yml` and `cross-platform-check.yml`, fix Windows clippy warnings + `workflow_runtime_no_db`, fix the 5 URLs in `link_checker.yml`, and remove `CARGO_BUILD_JOBS: "2"` + 5x fat-LTO bottleneck on `aarch64-apple-darwin` in `nightly-artifacts.yml:84`.
+- `Plan 392-04` (`[PARALLEL-SAFE]`, `5.5 Sonnet / Pro`): Fix all 6 failing jobs in `nightly.yml` (`Guards`, `Lints` hakari diff + `vox-drift-check`, `Compiler gates` `pipeline-ssot`, `Tests`, `Audits` `safety-inventory`, `Full workspace` `vox-db-types/src/store_types/trials.rs:248` rustdoc links + `cargo deny`/`audit`), consolidate `compile-matrix.yml` & `cr-l8-corpus-feedback.yml` into `ci.yml`, and update `~/dev/local-ci`.
+- `Plan 392-05` (`[SEQUENTIAL]`, `5.5 Sonnet / Pro`): Trigger `gh workflow run` across all 7 Nightly workflows on `vox-foundation/vox`, verify green completion (`vox ci status`), close issues `#713`, `#648`, `#585`, `#584`, `#583`, `#578`, and write `contracts/reports/nightly-e2e-run-proof.v1.json` + `docs/src/architecture/nightly-builds-ssot.md`.
+
+**Success Criteria:**
+
+1. `.github/workflows/ci.yml:65` runs `./target/debug/vox ci pre-push --ci` (preserving all 36 `ssot-drift` stages in PR CI), while local default `vox ci pre-push` completes in `<15s` on single-crate/docs commits.
+2. `compile-matrix.yml` and `cr-l8-corpus-feedback.yml` are consolidated into path-filtered jobs in `ci.yml` reusing `vox-cli-linux-x64`, and `~/dev/local-ci` supports `--force` + Nightly verification.
+3. All 7 scheduled Nightly workflows (`nightly.yml`, `nightly-artifacts.yml`, `gui-cross-build.yml`, `cross-platform-check.yml`, `link_checker.yml`, `mutation-nightly.yml`, `harness-eval-nightly.yml`) have their verified root-cause failures resolved.
+4. Live `workflow_dispatch` runs complete green across all 7 Nightly workflows, open `nightly-failure` issues (`#713`, `#648`, `#585`, `#584`, `#583`, `#578`) are closed, and run proofs are committed in `contracts/reports/nightly-e2e-run-proof.v1.json`.
+
+### Phase 393: Zero-Loss Worktree, Scratch Folder & Master Directory Consolidation Across `vox` & `~/dev` (`SCRATCH-CONSOLIDATE-01..04`) `[WAVE 2E & WAVE 5]`
+
+**Directory:** `.planning/phases/393-zero-loss-worktree-scratch-folder-master-directory-consolida/`
+**Goal:** Resolve all git worktrees, `.worktrees/*`, `.claude/worktrees/*`, `_wt/*`, `_scratch/*`, and duplicate sibling folders across `/Users/brbrainerd/dev/vox` and `/Users/brbrainerd/dev/*` into their canonical parent master directories with **zero work lost** — salvaging all unmerged code, schemas, and plans first (starting with `/Users/brbrainerd/dev/vox-mens-compare`'s `158 GB` tree, `decode_attention.rs`, `gate-receipt.v2.schema.json`, `spoke-gate-state.v1.schema.json`, and Phase `337–345` artifacts into `/Users/brbrainerd/dev/vox`), then pruning `~176+ GB` of redundant worktrees, build caches, and stale scratch folders across `vox`, `fableforge`, `Resonance`, `velocicode`, `gigme`, `ramada`, and `brFinancier`.
+**Depends on:** Independent forensic audit complete ([`393-AUDIT.md`](phases/393-zero-loss-worktree-scratch-folder-master-directory-consolida/393-AUDIT.md)); executes in parallel with Wave 2–4
+**Requirements:** `SCRATCH-CONSOLIDATE-01`, `SCRATCH-CONSOLIDATE-02`, `SCRATCH-CONSOLIDATE-03`, `SCRATCH-CONSOLIDATE-04`
+**Parallel & Model Dispatch:**
+- `Plan 393-01` (`[PARALLEL-SAFE]`, `5.5 Sonnet / Pro`): **Vox Salvage & Consolidation (`~165 GB` Reclaimed):** Salvage all unique untracked/modified artifacts from `/Users/brbrainerd/dev/vox-mens-compare` (`crates/vox-plugin-mens-candle-metal/src/decode_attention.rs`, `contracts/mens/gate-receipt.v2.schema.json`, `contracts/mens/spoke-gate-state.v1.schema.json`, `.planning/phases/337..345` plans/summaries/reviews) and `/Users/brbrainerd/dev/_scratch/{p335,p339_cards}` into `/Users/brbrainerd/dev/vox`; preserve `gsd/mens-compare-316` branch ref in `/Users/brbrainerd/dev/vox`; then remove `vox-mens-compare` (`158 GB`), `vox-voxdiagram` (`5.2 GB`), `.worktrees/pr-669` (`863 MB`), `vox-readme-main` (`301 MB`), `.worktrees/docs-sidebar-chevrons` (`301 MB`), `vox-mens-compare-p335-clean` (`281 MB`), `.worktrees/finalize-chat-loop`, `.claude/worktrees/research-detection-chat-gui-05d826`, and `~/dev/vox-integration`, followed by `git -C /Users/brbrainerd/dev/vox worktree prune`.
+- `Plan 393-02` (`[PARALLEL-SAFE]`, `Flash / Argon`): **Sibling `~/dev` Repo Salvage & Worktree Cleanup (`velocicode`, `brFinancier`, `Resonance`, `gigme`, `ramada`, `mudlet`):**
+  1. `velocicode`: Fast-forward/cherry-pick `velocicode-numpy` (`9fe792f`, `"numpy>=2.0"` in `pyproject.toml`) into `/Users/brbrainerd/dev/velocicode` `main` and remove `/Users/brbrainerd/dev/velocicode-numpy`.
+  2. `brFinancier`: Remove clean duplicate worktree `/Users/brbrainerd/dev/brFinancier-subdup` (`465 MB`) and run `git -C /Users/brbrainerd/dev/brFinancier worktree prune`.
+  3. `Resonance`: Prune missing `/private/tmp/resonance-runtime-prev-base`, archive/port the 7 commits + dirty diff from `/Users/brbrainerd/dev/Resonance-ci-fix-forward` (`2.1 GB`) into `/Users/brbrainerd/dev/Resonance` (branch `fix/ci-python-environment` + patch bundle in `.vox/salvage/`), and remove the duplicate worktree.
+  4. `gigme`, `ramada`, `mudlet`: Salvage dirty diffs/files from `gigme/.claude/worktrees/test-fast-shared-workers`, `gigme/.worktrees/narrow-nav-review`, `_scratch/gigme-phase179`, `ramada/.claude/worktrees/{v1.5-milestone,event-discovery-v1-1}`, `.worktrees/ramada-release-reports-20261027`, and `_scratch/wip-backups/wip-20261105-161304.patch` into their respective parent master repos, then remove all Bucket A/B/C worktrees and run `git worktree prune`.
+- `Plan 393-03` (`[PARALLEL-SAFE]`, `Flash / Argon`): **FableForge (`_wt/*` & `.claude/worktrees/*`) & `~/dev/_scratch` Consolidation (`~32 GB` Reclaimed):** Remove merged FableForge worktrees (`fableforge-infra-pr` `3.9 GB`, `_wt/ff-replicate-slugs` `1.1 GB`, `_wt/ff-runner-doc` `1.1 GB`, and the 10 clean `fableforge/.claude/worktrees/*` `~10 GB`), preserve branches/dirty patches for the 4 active `_wt/ff-*` (`15.6 GB`) and 6 active `fableforge/.claude/worktrees/*` inside `/Users/brbrainerd/dev/fableforge` before removing their worktree directories, and clean up root `~/dev/*.log` Sept 25–27 stdout dumps (never touching `~/dev/memory` or `~/dev/antigravity-skill-packs`).
+**Success Criteria:**
+1. Every unique file, schema, kernel (`decode_attention.rs`), and `.planning/phases/337..345` artifact from `/Users/brbrainerd/dev/vox-mens-compare` and `_scratch/{p335,p339_cards}` is verified present inside `/Users/brbrainerd/dev/vox` before any Vox worktree is removed.
+2. `git -C /Users/brbrainerd/dev/vox worktree list` reports **only** `/Users/brbrainerd/dev/vox` (1 master worktree), reclaiming `~165 GB` of disk space from Vox worktrees alone.
+3. Every unmerged branch or dirty diff across `velocicode`, `Resonance`, `fableforge`, `gigme`, `ramada`, and `mudlet` is preserved (merged or saved as a named branch + verified patch in its parent master repo), and all secondary worktree directories (`_wt/`, `.worktrees/`, `.claude/worktrees/`, `*-subdup`, `*-infra-pr`, `*-numpy`, `*-ci-fix-forward`) are cleanly removed and pruned.
+4. `~/dev/memory` and `~/dev/antigravity-skill-packs` remain 100% untouched, and a machine-verifiable consolidation receipt (`contracts/reports/dev-worktree-consolidation-receipt.v1.json`) records every salvaged artifact, preserved branch SHA, and reclaimed byte count.
+
+**Plans:**
+
+- [x] `393-01`: Forensic Audit & Zero-Loss Vox Worktree Salvage + Cleanup (`/Users/brbrainerd/dev/vox*`, `~165 GB` reclaimed)
+- [x] `393-02`: Sibling `~/dev` Repository Salvage & Worktree Consolidation (`velocicode`, `brFinancier`, `Resonance`, `gigme`, `ramada`, `mudlet`)
+- [x] `393-03`: FableForge (`_wt/*`, `fableforge-infra-pr`, `.claude/worktrees/*`) & `~/dev/_scratch` Consolidation + Verification Receipt
+
+---
+
+# Roadmap: v6.6 — Chat Multi-Dock Responsive Architecture, Diegetic Uncropped Simulator & Aqueduct Panorama, Playwright Button-Click CV Flywheel, `VoxDb` Lock-Free Daemon Boot & Enforceable Theme Contract (`Phases 383–386`)
+
+**Milestone:** v6.6
+**Status:** Complete (`4/4` Phases Verified — 2026-11-09)
+**Approved Visual & Functional Direction:**
+
+1. **Responsive Multi-Dock & Chat Surface (`Phase 383`):** Zero 4-column crush at `1280×800` and `1440×900` (`ChatSurface.tsx` auto-consolidates multi-dock layouts to a clean 2-column split and stacks secondary panels as tabs inside the right-hand companion column when viewport `< 1560px`), collapsed 1-line `AttentionBudgetMeter` by default unless attention is `>=80%` or blocked, unclipped `[EDIT] [REGENERATE] [COMPACT HERE]` transcript controls, and structured `LLM error:` retry notice cards.
+2. **Diegetic Uncropped Simulator & Aqueduct Cascade (`Phase 384`):** Full-height vertical coverage (`drawH = safeCh`, `drawY = 0`) in narrow docked panels (`diegeticEnvironment.ts`), diegetic water ripples (`drawDiegeticWatercourses`), animated Roman citizen & legionary crowds (`drawDiegeticCrowds`), and 3-tier hydraulic sluice gates (`riverCanvasRenderer.ts`).
+3. **Playwright Button-Click Audit (`before-click`, `on-click`, `after-click`), Synchronized Panorama Camera, Bounded Inspector & Lock-Free `VoxDb` (`Phase 385`):**
+   - Eliminated `VoxDb` file-lock contention between `ModelRegistry::new()` background refresh (`catalog_seed.rs`) and `step_db` (`daemon_steps/run.rs`), plus graceful `.unwrap_or_default()` in `compute_model_leaderboard` (`gui_ops/models.rs`).
+   - Synchronized `LudusSandbox.tsx` `panoRect` with relative camera zoom/pan (`relZoom`, `relDx`, `relDy`), fixed `useEffect([blit])` image reload bug on selection change, added an **Imperial Gold Focus Halo & Target Reticle** on `<canvas>`, and bounded `ImperiumInspector.tsx` (`bottom-[82px] max-h-[calc(100%-136px)]`) so it never overlaps the top architrave toolbar or bottom `TIERS` bar.
+   - Compacted `NotificationCenter.tsx` (`max-h-[min(320px,calc(100vh-96px))]`) and `HudPanels.tsx` (`urbs-hud-embedded`) so notifications never collapse too high and docked HUD controls never clip (`S...`).
+4. **Enforceable & Self-Expanding GUI Theme Contract + Adversarial `/gsd-review` Entropy Hardening (`Phase 386` — `ROMA-V66-THEME-CONTRACT-01..05`):**
+   - **Machine-Readable 4-Profile Theme Contract SSOT (`contracts/gui/theme-contract.v1.json` & `crates/vox-gui/ui/src/lib/themeContract.ts`):** Canonical schema defining all 4 supported theme profiles (`arcane` — Default Imperial Carrara White & Gold; `slate` / `void` — Minimalist Grey-Blue Dark; `high-contrast` — High Contrast Obsidian & Gold; `glacier` / `travertine` — Sunlit Travertine & Verdigris), all `22` required semantic CSS variables (`--brass`, `--color-bg-*`, `--color-text-*`, `--color-border-*`, `--color-accent-*`, `--color-status-*`, `--color-overlay-*`, `--font-*`), programmatic **WCAG 2.1 Relative Luminance Contrast Ratio** verification (`>= 4.5:1` across all 4 profiles), general dark-hex/RGBA pattern detection, and single-line / zero-clipping control invariants.
+   - **Style-Dictionary 4-Profile Token Generation (`tokens/primitive.json`, `tokens/semantic.json`, `tokens/semantic.slate.json`, `tokens/semantic.contrast.json`, `tokens/semantic.travertine.json`, `style-dictionary.config.mjs`):** Generates all 4 standalone CSS files (`tokens.generated.css`, `tokens.slate.generated.css`, `tokens.contrast.generated.css`, `tokens.travertine.generated.css`), each individually defining all 22 required semantic CSS variables, imported directly by `src/index.css` as the single source of truth.
+   - **Blocking `Severity::Error` Static `vox-code-audit` Detector (`vox/ui/theme-contract-drift` in `crates/vox-code-audit/src/detectors/ui_theme_contract.rs`):** Enforces in `vox audit code` with `Severity::Error` that any `.tsx`, `.ts`, or `.css` file under `crates/vox-gui/ui/src/` uses semantic theme tokens (`bg-bg-surface`, `var(--color-*)`, etc.) and flags arbitrary dark background hexes (`bg-[#0..2...]`, `from-[#0..2...]`, `to-[#0..2...]`), dark inline `rgba(...)` surfaces, and quoted or unquoted banned font literals (`Courier`, `Arial`, `Consolas`, `Menlo`, `Monaco`).
+   - **Zero Dark-Hex / Dark-RGBA Component Remediation Across 42 UI Components, Portals, Charts & Modals:** Replaced all remaining hardcoded dark-brown/near-black hex (`bg-[#1A140B]`, `bg-[#120E09]`, `bg-[#0c0a09]`, `bg-[#1F170E]`, etc.) and inline dark `rgba(...)` backgrounds across `RomanTooltip.tsx`, `SpeculumLoupePopover.tsx`, `ViaTemporisScrubber.tsx`, `ErrorBoundary.tsx`, `Popover.tsx`, `ImperiumInspector.tsx`, `chartWidgetShared.tsx`, `LudusSandbox.tsx`, and 34 surface components with semantic tokens (`bg-bg-surface`, `bg-bg-elevated`, `text-text-primary`, `var(--color-*)`).
+   - **Self-Expanding Surface/Component Vitest Gate (`crates/vox-gui/ui/src/lib/themeContract.test.ts`), Live DOM `getComputedStyle` Health Report & 4-Theme Playwright Verification (`SettingsView.tsx`, `cv-flywheel.spec.ts`):** Automatically walks all `.tsx`/`.ts`/`.css` source files plus `discoverAllGuiSurfacesAndPanels()` (`37` views + `14` Chat docks) and verifies all 4 themes (`arcane`, `slate`, `glacier`, `high-contrast`) in Playwright E2E and Gemini Computer Vision.
+
+---
+
+# Roadmap: v6.5 — Complete 32-Surface White/Gold Carrara Marble Unification, Seamless Texture & Roman Emerald Signet Overhaul, and User-Selectable Minimalist Grey-Blue (`slate`) Theme (`Phases 378–382`)
+
+**Milestone:** v6.5
+**Status:** In Progress (`Phases 378–382`)
+**Approved Visual Direction:**
+
+1. **Default Theme — Imperial Carrara White & Gold (`arcane` / `carrara`):** Sunlit White/Cream Honed Carrara Marble (`#FAF6EE` / `#F5EFE2` / `#EFE6D5`), Burnished Gold mouldings (`#C59B27`), Deep Espresso Ink (`#1C140C`), **Roman Imperial Emerald & Gilded Laurel Wreath Signets** (`#1B6B3A` / `#228B4E` with `#D4AF37` gold border) for active/working status (crimson `#881B1B` reserved strictly for errors/alerts), seamless non-cropped marble textures, and universal Romanesque serif typography (`Cinzel`, `Palatino`) across all 32 surfaces, sidebar buttons, tooltips, and drawers.
+2. **User-Selectable Minimalist Dark Theme — Grey-Blue Basalt Slate (`slate` / `void`):** Clean, minimalist grey-blue slate palette (`#0c0e10` base, `#15191c` surface, `#1f262b` elevated, `#2b343a` subtle border, `#f1f5f9` crisp text, `#38bdf8`/`#60a5fa` steel-blue & emerald `#10b981` status indicators, zero marble textures or decorative columns), configurable in `Settings → Theme`.
+
+### Phase 378: Seamless Roman Marble Texture & Concept Art Generation + Fix Glitchy/Repeating/Offset Background Layers (`ROMA-V65-TEXTURES-01..04`) `[WAVE 1]`
+
+**Goal:** Generate seamless frame-free honed white Carrara marble (`carrara-seamless-stone.jpg`), wide horizontal Roman acanthus frieze band (`carrara-acanthus-header-band.jpg`), Roman Imperial Emerald & Gilded Laurel Signet emblem (`roman-emerald-laurel-seal.jpg`), and Milestone `v6.5` concept art plates (`v66_concept_settings_dual_theme_white_and_slate.jpg`, `v66_concept_missed_surfaces_scientia_approvals_white_gold.jpg`); fix `@keyframes vox-marble-sheen` 3-layer `background-position` bug so marble textures never slide or tile; replace framed `travertine-parchment-tablet.jpg` and repeating `roman-architectural-frieze-footer.jpg` astrolabe seams across `index.css`, `Glass.tsx`, `Backdrop.tsx`, `RomanSurfaceHeader.tsx`, `BreadcrumbBar.tsx`, and `RomanTooltip.tsx`.
+
+### Phase 379: Roman Emerald & Gilded Laurel Working Status System + Full Sidebar & Outside-`<main>` Chrome/Drawer White-Gold Conversion (`ROMA-V65-EMERALD-CHROME-01..04`) `[WAVE 2A]`
+
+**Goal:** Replace red working/live `waxSealBadge` pills (`RomanSurfaceHeader.tsx`) and brown `bg-accent-secondary` live dots (`Sidebar.tsx`) with high-visibility **Roman Imperial Emerald & Gilded Laurel Wreath Signets** (`#1B6B3A` / `#228B4E` emerald cabochon + `#D4AF37` burnished gold rim + crisp vector laurel wreath SVG, legible at all resolutions); convert all dark-brown buttons and containers in `Sidebar.tsx` (collapse/expand/hide buttons, `⌘K` badge, expanded Chat Sessions list, active child items, count badges, operator card), `SessionSidebarSection.tsx`, `BackendStatusPill.tsx`, `BottomStatusBar.tsx`, `RomanTooltip.tsx`, `Omnibar.tsx`, `Dialog.tsx`, and all Drawers (`ExplainDrawer`, `DocViewerDrawer`, `InspectorDrawer`, `AchievementsDrawer`, `ResearchEngineDrawer`) to sunlit White/Gold Carrara Marble.
+
+### Phase 380: Convert All 15+ Missed Surfaces & Purge Remaining Dark-Brown Remnants Across 85 Files (`ROMA-V65-SURFACES-01..04`) `[WAVE 2B]`
+
+**Goal:** Convert all remaining hardcoded dark-brown (`#0A0805`..`#2A2011`) classes, inline styles, and canvas fills across `SettingsView.tsx`, `ScientiaDashboard.tsx`, `CommandCatalogForm.tsx`, `LudusSandbox.tsx`, `HudPanels.tsx`, `ImperiumInspector.tsx`, `worldRenderer.ts`, `PublicationsView.tsx`, `MemoryView.tsx`, `DiscoverySurface.tsx`, `ActivitySurface.tsx`, `ApprovalsView.tsx`, `PoliciesView.tsx`, `SubAgentsView.tsx`, `RepositoryView.tsx`, `BrowserView.tsx`, `CodeRabbitView.tsx`, `CommandCardsView.tsx`, `Mercatus.tsx`, `ModelsView.tsx`, `MensTrainingView.tsx`, `MensCorpusStudioPanel.tsx`, `GamifyView.tsx`, `LeaderboardArenaPanel.tsx`, and `HarnessRiverPanel.tsx` to the unified White/Gold Carrara Marble aesthetic, and extend `index.css` attribute overrides from `main` to `#root` when in the default White/Gold theme.
+
+### Phase 381: Dual-Theme Architecture — Preserve & Wire User-Selectable Minimalist Grey-Blue Dark Theme (`slate` / `void`) in `Settings → Theme` (`ROMA-V65-DUAL-THEME-01..04`) `[WAVE 2C]`
+
+**Goal:** Update `crates/vox-gui/ui/src/lib/theme.ts`, `SettingsView.tsx`, `index.css`, `Glass.tsx`, `Backdrop.tsx`, `Sidebar.tsx`, and `RomanSurfaceHeader.tsx` so users can switch seamlessly in `Settings → Theme` between **Imperial Carrara White & Gold (`arcane` — Default)** and **Minimalist Grey-Blue Slate (`slate` / `void`)** (`#0c0e10` / `#15191c` / `#1f262b` / `#2b343a` dark grey-blue palette with crisp sans/mono typography, emerald working indicators, and zero marble textures).
+
+### Phase 382: Full 28-Surface + Dual-Theme Playwright & Gemini Computer Vision Flywheel Verification, Build & Live `vox axis` Relaunch (`ROMA-V65-CV-VERIFY-01..04`) `[WAVE 3]`
+
+**Goal:** Expand `crates/vox-gui/ui/e2e/review/cv-flywheel.spec.ts` to capture and audit all 28 navigable `SURFACE_REGISTRY` surfaces + drawers/modals across **both** the Default White/Gold Carrara Marble theme and the Minimalist Grey-Blue Slate theme, inspect screenshots with Gemini built-in vision, present inline Before/After carousels, rebuild `vox-gui` + `vox` (`--features gui`), and relaunch `vox axis`.
+
+---
+
+### Phase 383: Dynamic Hugging Face Hub Sync, Zero-Hardcode SVG & Card Telemetry, Full Ladder Held-Out Re-Evaluation (`0.6B`–`8B`), and Universal Inference Provider & Playground Integration (`MENS-HUB-DYN-01..04`)
+
+**Directory:** `.planning/phases/383-dynamic-hf-hub-sync-and-universal-inference/`
+**Goal:** Eliminate all hardcoded SVG telemetry, stale phase/research prose, and `Pending` / `REGRESSED` misclassifications across `brbrainerd/vox-mens-index`, `brbrainerd/vox-mens-qwen3-{0.6b,1.7b,4b,8b,14b,32b}`, and `spaces/brbrainerd/vox-mens-playground`, while giving every ladder model (`0.6B`..`32B`) live inference provider & widget coverage:
+
+1. **Zero-Hardcode Dynamic SVG & Fact Derivation (`MENS-HUB-DYN-01`)**:
+   - In `crates/vox-populi/src/mens/hub_card/facts.rs` and `svg.rs`, replace the hardcoded `let is_pos = delta >= -0.005;` check in `render_scorecard_svg` with `!r.regressed` from the McNemar `collateral_damage_report.json` (`p >= 0.05` renders emerald `CLEAR`, eliminating false red `REGRESSED` badges on `0.6B`'s `math500_think` and `vox_think`).
+   - Replace the hardcoded 5-spoke SVG strip in `render_scorecard_svg` and hardcoded `Active` / `Planned` spoke status + `default_vram_gb` array in `render_overview_svg` with dynamic rendering driven by `hub_cards().spokes`, `spoke_of(rec)`, `rec.spoke_gates`, `gate.state`, and each size's measured `peak_mb`.
+   - Derive `spoke_of(rec)` dynamically from `rec.training_manifest` / `rec.spoke_gates` before falling back to `hub-cards.yaml` `default_spoke`, and purge stale internal phase/research references from `mens/config/hub-cards.yaml` and `crates/vox-populi/templates/hub/index.md`.
+2. **Full-Coverage Hub Sync Across Trained, Diverged & Untrained Repos (`MENS-HUB-DYN-02`)**:
+   - Update `crates/vox-populi/src/mens/hub_cards_push.rs` and `hub_sync.rs` so `NotTrained` (`32B`) cards/SVGs and `Diverged` repos whose remote `.safetensors` weights already match local are automatically synced in place during `vox mens hub sync --push`, alongside `brbrainerd/vox-mens-index` and `spaces/brbrainerd/vox-mens-playground`.
+3. **Universal Inference Provider, Rich Vox `widget:` Frontmatter & Deep-Linked Playground (`MENS-HUB-DYN-03`)**:
+   - Emit `inference: true` and real Vox codegen `widget:` examples in `crates/vox-populi/templates/hub/partials/frontmatter.md` across **all 6 model cards (`0.6B`..`32B`)** so Hugging Face never falls back to generic chatbot prompts (`"Hi, what can you help me with?"`).
+   - Add direct deep-links (`https://huggingface.co/spaces/brbrainerd/vox-mens-playground?size=<SIZE>&tab=webgpu`) to `partials/use_it.md` and `index.md`.
+   - Upgrade `crates/vox-populi/templates/hub/space/index.html.tmpl` to honor `?size=` and `?tab=` URL parameters and support live interactive inference across all 6 sizes (`0.6B`..`32B`) via both **In-Browser WebGPU SafeTensors LoRA Merger** (`0.6B`, `1.7B`, `4B`, `8B`) and **OpenAI-Compatible Cloud / Local Inference Provider Router** (`https://router.huggingface.co/v1/chat/completions` + local `vox mens serve` `http://127.0.0.1:11435/v1/chat/completions`) for `0.6B`..`32B`.
+4. **Full Held-Out `nf4_base_plus_lora_arm v2` Re-Evaluation & Live Playwright Verification (`MENS-HUB-DYN-04`)**:
+   - Complete `1.7B` retrain + `eval-local` + `eval-reasoning-compare` + `eval-collateral-damage` + `eval-gate`, re-run `eval-local --force-restart` + `eval-gate` on `4B` and `8B` so all four (`0.6B`, `1.7B`, `4B`, `8B`) carry `"adapter_serving": "nf4_base_plus_lora_arm v2"` and recorded examples, push all repos + Space live, and verify with Playwright.
+
+**Depends on:** Phase 362, Phase 368
+**Requirements:** `MENS-HUB-DYN-01`, `MENS-HUB-DYN-02`, `MENS-HUB-DYN-03`, `MENS-HUB-DYN-04`
+
+---
+
 # Roadmap: v6.4 — Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography (`Phases 373–377`)
 
 **Milestone:** v6.4
@@ -74,6 +352,7 @@
 **Status:** Executing with Parallel Subagent Waves (`image-generator` + `self`).
 **Updated:** 2026-11-08
 **Research & Design SSOTs:**
+
 - [`docs/src/architecture/semiotic-codebase-and-aqueduct-orchestrator-simulator-research-2026.md`](../docs/src/architecture/semiotic-codebase-and-aqueduct-orchestrator-simulator-research-2026.md)
 - [`docs/src/architecture/romanesque-white-marble-pillars-animation-ui-spec-2026.md`](../docs/src/architecture/romanesque-white-marble-pillars-animation-ui-spec-2026.md)
 
@@ -111,10 +390,12 @@
 
 **Directory:** `.planning/phases/368-mens-corpus-pipeline-studio-gui/`
 **Goal:** Eliminate manual JSONL regeneration and surface the entire MENS corpus/mix/reasoning/checkpoint pipeline in `vox-gui` (`MensCorpusStudioPanel.tsx` inside `MensTrainingView.tsx`), matching the Romanesque Concept Art (`concept_mens_pipeline_studio_romanesque_1794153153510.jpg`) via CV Flywheel convergence:
+
 1. Auto-materialize missing/stale synthetic and extracted JSONL sources (`vox_reasoning_traces.jsonl`, `docs.jsonl`, `rust_source.jsonl`) and auto-regenerate `train_mixed*.jsonl` + `mens/data/train.jsonl` whenever source fingerprints or weights change.
 2. Expose real Tauri IPC commands (`mens_corpus_studio_snapshot`, `mens_corpus_read_jsonl`, `mens_corpus_save_jsonl_row`, `mens_corpus_rebuild_mix`) backed by `vox_corpus` and `vox_compiler::parser::parse` AST verification — zero hardcoded/fake data.
 3. Build the 3-arch Romanesque `MensCorpusStudioPanel.tsx` (`Mix Sources & Auto-Materializer DAG`, `Live JSONL Record Inspector & Inline AST Editor`, `Ladder Checkpoints & Collateral Gate Matrix`) with live search, task-family filtering, inline `<think>` & Vox code editing, compiler diagnostics, and one-click/auto mix rebuild.
 4. Verify with Rust unit tests, Vitest component tests, and Playwright CV Flywheel visual convergence against the Romanesque concept art.
+
 **Depends on:** Phase 362
 **Requirements:** `MENS-STUDIO-GUI-01`, `MENS-STUDIO-GUI-02`, `MENS-STUDIO-GUI-03`, `MENS-STUDIO-GUI-04`
 **Plans:** 1/1 plan complete (`368-01-PLAN.md` -> `368-01-SUMMARY.md`) — **Complete**
@@ -155,10 +436,12 @@
 ### Phase 362: MENS Regression Root-Cause Fixes (`supervised_ratio`, `<think>` Reasoning Synthesis & Cued Answer Grader) (`MENS-REGFIX-01..04`)
 
 **Goal:** Eliminate the four verified root causes of MENS training/collateral regressions across the Qwen3 ladder:
+
 1. Switch `generate_training_system_prompt()` in `crates/vox-corpus/src/training/mod.rs` from `generate_system_prompt()` (~2,200 tokens / 8.6 KB `mens/config/system_prompt.txt`) to `builtin_system_prompt()` (~350 tokens / 1.48 KB), raising `supervised_ratio` from `4.5%` (`< 10%` gate failure) to `~20–25%` and speeding up QLoRA step time by ~4x.
 2. Add deterministic, compiler-verified, zero-leakage Vox `<think>` reasoning trace synthesis (`crates/vox-corpus/src/corpus/vox_reasoning_synth.rs`: 120 rows across `literal_debug`, `state_trace`, and `invariant_check`) and wire `mens/data/mix_sources/vox_reasoning_traces.jsonl` (`weight: 2.0`) into `mens/config/mix.yaml`, `mens/config/mix-vox-lang.yaml`, and `mix_prepare.rs` so adapters do not auto-fix literal-execution `debug` items or ramble past 2048 tokens without closing `</think>`.
 3. Harden `extract_cued_answer` in `crates/vox-eval/src/qwen_reasoning.rs` (scanning cues right-to-left, rejecting English prose stopwords like `"The"`/`"that"`/`"not"`, and recovering earlier valid cues when a trace truncates right after `"So the answer is "`) and sync `qwen_reasoning.rs` v2 across worktrees.
 4. Use `--rank 8 --alpha 16` (`grad_accum=8`) when retraining 28-layer models (`0.6B`, `1.7B`) so `lm_head` + projection LoRA updates preserve base reasoning calibration.
+
 **Depends on:** Phase 333, Phase 345
 **Requirements:** `MENS-REGFIX-01`, `MENS-REGFIX-02`, `MENS-REGFIX-03`, `MENS-REGFIX-04`
 **Plans:** 1 plan (`362-01-PLAN.md` — Complete 2026-11-08)
@@ -220,6 +503,7 @@
 **Depends on:** Nothing (Wave 1)
 **Requirements:** `ROMA-CHROME-01`, `ROMA-CHROME-02`, `ROMA-CHROME-03`, `ROMA-CHROME-04`
 **Success Criteria** (what must be TRUE):
+
   1. Generated Romanesque art assets (`frieze-header.jpg`, `astrolabe-dial.jpg`, `urbs-diorama-bg.jpg`, `wax-seal-badge.jpg`) live under `crates/vox-gui/ui/public/assets/romanesque/` and replace polygon-only placeholders.
   2. `Sidebar.tsx` and `BreadcrumbBar.tsx` use Plate 2's carved marble frieze & bronze medallion styling with plain-English navigation labels, Romanesque progressive-disclosure tooltips on every nav item, and zero overlap when `sidebarMode === 'hidden'` across `1280×800`, `1440×900`, and `1920×1080`.
   3. `RomanTooltip.tsx` and `SurfaceHelpTooltip.tsx` render carved travertine & burnished brass progressive-disclosure tooltips explaining **What it is**, **What it does**, and **Click action / shortcut** in clear English.
@@ -230,6 +514,7 @@
 **Depends on:** Phase 346
 **Requirements:** `ROMA-DASH-URBS-01`, `ROMA-DASH-URBS-02`, `ROMA-DASH-URBS-03`, `ROMA-DASH-URBS-04`
 **Success Criteria** (what must be TRUE):
+
   1. `Dashboard.tsx` embeds `<LudusSandbox />` via `<EmbeddedSurfaceProvider value={true}>` with zero HUD pileups and clear plain-English controls + progressive-disclosure tooltips.
   2. Every landmark pill, mapped building (`Orchestrator`, `Compiler`, `GUI & Surfaces`, `Database`, `MENS Models`, `Mesh Network`, `Security & Crypto`), and radar sector (`Foundation`, `Core`, `Orchestrator`, `Runtime`, `MENS`, `Mesh & DB`, `GUI`) is interactive: clicking focuses the region and provides a working `[Open <Surface> ↗]` action that navigates directly to that surface (`onNavigate`).
   3. The 148-polygon wireframe radar is replaced by the Plate 2 engraved marble & brass **Architecture Astrolabe Radar** with animated sweep, glowing hotspot braziers, draggable/clickable viewport frustum, and zero clipped background canvas text (`AQUA Supply`).
@@ -240,6 +525,7 @@
 **Depends on:** Phase 346
 **Requirements:** `ROMA-LUDUS-RIVER-01`, `ROMA-LUDUS-RIVER-02`, `ROMA-LUDUS-RIVER-03`, `ROMA-LUDUS-RIVER-04`
 **Success Criteria** (what must be TRUE):
+
   1. `GamifyView.tsx`, `LudusHud.tsx`, and `LeaderboardArenaPanel.tsx` render Plate 2 travertine tablets, laurel wreaths, crimson wax-seal verification badges, and plain-English tabs/controls with interactive tooltips.
   2. `HarnessRiverPanel.tsx` replaces sci-fi argon neon with Plate 2 brass pressure gauges, animated golden/amber/emerald laminar task streams through a bronze astrolabe interceptor gate, and stepped travertine verification basins.
 
@@ -249,6 +535,7 @@
 **Depends on:** Phase 346
 **Requirements:** `ROMA-STATUSBAR-01`, `ROMA-STATUSBAR-02`, `ROMA-STATUSBAR-03`, `ROMA-STATUSBAR-04`
 **Success Criteria** (what must be TRUE):
+
   1. `BottomStatusBar.tsx` displays `REPO vox@<branch> · <short_sha> · v<version>` and opens a rich Repository popover (`Branch`, `Commit`, `Working Tree Status`, `[Open Git Surface ↗]`, `[Refresh Status]`).
   2. Every status bar tile (`Repo`, `Engine`, `Spend`, `Mesh`, `Routing`, `Alerts`, `Research`) has both an interactive popover dropdown and a direct `[Open <Surface> ↗]` navigation button, plus progressive-disclosure tooltips and `Configure ▾` persistence.
 
@@ -258,6 +545,7 @@
 **Depends on:** Phases 346–349
 **Requirements:** `ROMA-DISCLOSURE-01`, `ROMA-DISCLOSURE-02`, `ROMA-DISCLOSURE-03`, `ROMA-DISCLOSURE-04`
 **Success Criteria** (what must be TRUE):
+
   1. All 32 surfaces use plain-English labels, Plate 2 Romanesque button/card tokens, and progressive-disclosure tooltips/drawers without crowded toolbars or text truncation.
 
 ### Phase 351: Multi-Pass 32-Surface × 3-Resolution Before/After Playwright CV Flywheel & Live Vox Axis Verification (`ROMA-CV-FLYWHEEL-01..04`) `[WAVE 4]`
@@ -266,6 +554,7 @@
 **Depends on:** Phase 350
 **Requirements:** `ROMA-CV-FLYWHEEL-01`, `ROMA-CV-FLYWHEEL-02`, `ROMA-CV-FLYWHEEL-03`, `ROMA-CV-FLYWHEEL-04`
 **Success Criteria** (what must be TRUE):
+
   1. Multi-resolution Playwright CV Flywheel passes with `overlappingControlPairs === 0`, `clippedTextCount === 0`, `horizontalOverflowPx === 0`, and `axeViolations === 0`.
   2. Live `vox-gui` binary is rebuilt and running with all v5.8 Plate 2 improvements.
 

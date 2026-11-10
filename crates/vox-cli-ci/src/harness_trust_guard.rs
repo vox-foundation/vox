@@ -475,6 +475,7 @@ fn scan_orchestrator_status_polling_removed(repo_root: &Path) -> Result<()> {
 /// Check 1 (`args.get("user_approval")`) is run by the caller — see the
 /// module doc's explanation of why it lives in `retired_symbol_check`
 /// instead.
+#[inline(never)]
 pub fn run(repo_root: &Path) -> Result<()> {
     // 2 + 4. Constructor / retired-client-construction sweeps.
     let mut gui_rs = Vec::new();

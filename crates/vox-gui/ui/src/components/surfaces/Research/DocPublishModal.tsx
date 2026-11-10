@@ -167,7 +167,7 @@ export function DocPublishModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-6 bg-[#121216] border border-border-subtle rounded-xl text-text-primary">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-6 bg-bg-surface border border-border-subtle rounded-xl text-text-primary">
         <div className="flex items-start justify-between pb-3 border-b border-border-subtle">
           <div>
             <DialogTitle className="font-display text-base font-semibold text-text-primary tracking-wide">

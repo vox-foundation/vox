@@ -1,9 +1,8 @@
 use super::formatters::parse_review_response;
 use super::prompts::{build_diff_review_prompt, build_review_prompt, review_system_prompt};
 use super::providers::{ReviewProvider, auto_discover_providers};
-use super::types::ReviewFinding;
+use super::types::{ConfidencePolicy, ReviewFinding};
 use crate::rules::{Finding, Language, SourceFile};
-use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
 /// Performs AI-powered code review using the configured provider cascade.
 pub struct ReviewClient {
@@ -15,8 +14,8 @@ pub struct ReviewClient {
 impl ReviewClient {
     /// Create a client with an explicit provider list.
     pub fn new(providers: Vec<ReviewProvider>) -> Self {
-        let http = vox_http_client::client_builder()
-            .timeout(vox_config::timeouts::D_120S)
+        let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
             .user_agent("vox-review/0.1")
             .build()
             .expect("Failed to build HTTP client for vox review");
@@ -147,7 +146,7 @@ impl ReviewClient {
                     return Err("No OpenRouter API key".to_string());
                 }
                 self.call_chat_completions(
-                    &vox_config::openrouter_chat_completions_url(),
+                    "https://openrouter.ai/api/v1/chat/completions",
                     &key,
                     model,
                     prompt,
@@ -186,6 +185,7 @@ impl ReviewClient {
     }
 
     /// Call an OpenAI-compatible `/chat/completions` endpoint.
+    // vox-arch-check: allow llm-egress
     async fn call_chat_completions(
         &self,
         url: &str,
@@ -195,64 +195,55 @@ impl ReviewClient {
         referer: Option<&str>,
         policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
-        // OpenAI-compatible chat (OpenRouter/OpenAI) routes through the sanctioned egress
-        // core. The review client keeps its own key + attribution headers.
         let system = review_system_prompt(policy);
-        let headers = match referer {
-            Some(r) => vec![
-                ("HTTP-Referer".to_string(), r.to_string()),
-                ("X-Title".to_string(), "Vox Code Review".to_string()),
+        let mut req = self.http.post(url).bearer_auth(api_key);
+        if let Some(r) = referer {
+            req = req
+                .header("HTTP-Referer", r)
+                .header("X-Title", "Vox Code Review");
+        }
+        let body = serde_json::json!({
+            "model": model,
+            "messages": [
+                { "role": "system", "content": system },
+                { "role": "user", "content": prompt }
             ],
-            None => Vec::new(),
-        };
-        let ereq = vox_llm_egress::EgressRequest {
-            base_url: url.to_string(),
-            api_key: api_key.to_string(),
-            model: model.to_string(),
-            headers,
-            // referer is set only for OpenRouter; share its throttle, else OpenAI's.
-            throttle_key: if referer.is_some() {
-                "openrouter"
-            } else {
-                "openai"
-            }
-            .to_string(),
-            max_concurrent: 8,
-            timeout_ms: Some(60_000),
-        };
-        let msgs = [
-            vox_llm_egress::ChatMessage {
-                role: "system".to_string(),
-                content: system,
-                tool_calls: None,
-                tool_call_id: None,
-                name: None,
-                content_parts: None,
-            },
-            vox_llm_egress::ChatMessage {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-                tool_calls: None,
-                tool_call_id: None,
-                name: None,
-                content_parts: None,
-            },
-        ];
-        let params = vox_llm_egress::ChatParams {
-            temperature: Some(0.1),
-            max_tokens: Some(4096),
-            ..Default::default()
-        };
+            "temperature": 0.1,
+            "max_tokens": 4096
+        });
 
-        let resp = vox_llm_egress::chat_once(&ereq, &msgs, &params)
+        let resp = req
+            .json(&body)
+            .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("HTTP error: {e}"))?;
 
-        if resp.content.is_empty() {
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(format!("HTTP {status}: {text}"));
+        }
+
+        let json: serde_json::Value = resp.json().await.map_err(|e| format!("JSON: {e}"))?;
+        let content = json
+            .pointer("/choices/0/message/content")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        if content.is_empty() {
             return Err("Empty response from provider".to_string());
         }
-        let tokens = (resp.prompt_tokens + resp.completion_tokens) as usize;
-        Ok((resp.content, tokens))
+        let prompt_tokens = json
+            .pointer("/usage/prompt_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let completion_tokens = json
+            .pointer("/usage/completion_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let tokens = (prompt_tokens + completion_tokens) as usize;
+        Ok((content, tokens))
     }
 
     /// Call the Gemini generateContent endpoint.

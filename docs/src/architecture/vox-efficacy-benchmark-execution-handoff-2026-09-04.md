@@ -23,7 +23,7 @@ harness but could not run the eval (reasons in §6).
 |---|---|
 | **Work is on `main`** | Merged and pushed 2026-09-04 (merge commit `a97e2db45`, 67 commits from `fix-all-ci-failures`). **Just use `main`** — the feature branch is fully merged and needs nothing from you. |
 | Caveat on that push | It bypassed two branch-protection rules ("changes must be made through the merge queue", and a required `Check, Build, and Test (Rust)` status check that was still in progress). It went through on account bypass permissions, not because the checks passed. **Treat fleet CI on `main` as the real verdict**, and see §6. |
-| Command | `vox model eval-corpus` → [`crates/vox-cli/src/commands/model/eval_corpus.rs`](../../../crates/vox-cli/src/commands/model/eval_corpus.rs) |
+| Command | `vox model eval-corpus` → [`crates/vox-cli-research/src/model/eval_corpus.rs`](../../../crates/vox-cli-research/src/model/eval_corpus.rs) |
 | Scoring | [`crates/vox-eval/src/corpus_score.rs`](../../../crates/vox-eval/src/corpus_score.rs), [`corpus_stats.rs`](../../../crates/vox-eval/src/corpus_stats.rs) |
 | Verifier | `vox_corpus::humaneval_runner::verify_program` |
 | Corpus | `contracts/eval/humaneval-vox/` |

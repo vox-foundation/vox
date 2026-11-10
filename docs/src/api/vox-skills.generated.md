@@ -106,6 +106,8 @@ graph {
     vox_actor_runtime -> vox_skills
     node vox_cli: "vox-cli"
     vox_cli -> vox_skills
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_skills
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_skills
     node vox_orchestrator: "vox-orchestrator"
@@ -123,6 +125,7 @@ graph {
 |---|---|
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |

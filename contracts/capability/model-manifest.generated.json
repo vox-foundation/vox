@@ -5879,6 +5879,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.cross-repo-parity",
+      "cli_path": [
+        "ci",
+        "cross-repo-parity"
+      ],
+      "implicit": false,
+      "title": "Ci Cross-repo-parity",
+      "description_model": "CLI operation `vox ci cross-repo-parity`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.cuda-features",
       "cli_path": [
         "ci",
@@ -6194,6 +6206,18 @@
       "title": "Ci Feature-matrix",
       "description_model": "CLI operation `vox ci feature-matrix`",
       "side_effect_class": "spawns_process",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.federated-symbol-graph",
+      "cli_path": [
+        "ci",
+        "federated-symbol-graph"
+      ],
+      "implicit": false,
+      "title": "Ci Federated-symbol-graph",
+      "description_model": "CLI operation `vox ci federated-symbol-graph`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6916,6 +6940,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.publish-dry-run",
+      "cli_path": [
+        "ci",
+        "publish-dry-run"
+      ],
+      "implicit": false,
+      "title": "Ci Publish-dry-run",
+      "description_model": "CLI operation `vox ci publish-dry-run`",
+      "side_effect_class": "spawns_process",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.python-bridge-parity",
       "cli_path": [
         "ci",
@@ -7274,6 +7310,18 @@
       "implicit": false,
       "title": "Ci Ssot-drift",
       "description_model": "CLI operation `vox ci ssot-drift`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.standalone-sovereignty",
+      "cli_path": [
+        "ci",
+        "standalone-sovereignty"
+      ],
+      "implicit": false,
+      "title": "Ci Standalone-sovereignty",
+      "description_model": "CLI operation `vox ci standalone-sovereignty`",
       "side_effect_class": "read_only",
       "curated": true
     },

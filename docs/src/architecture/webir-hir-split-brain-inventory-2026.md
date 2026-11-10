@@ -57,7 +57,7 @@ This document is the **baseline split-brain map** for the [WebIR/HIR unification
 
 | Test / artifact | What it proves |
 | --- | --- |
-| [`crates/vox-compiler/tests/projection_parity_test.rs`](../../../crates/vox-compiler/tests/projection_parity_test.rs) | Bundle + per-projection canonical bytes are **deterministic**; bundle fixture asserts **distinct hashes** and expected `capability_ids`; **`@back_button`** fixture guards shell + triplet stability. |
+| [`crates/vox-codegen/tests/projection_parity_test.rs`](../../../crates/vox-codegen/tests/projection_parity_test.rs) | Bundle + per-projection canonical bytes are **deterministic**; bundle fixture asserts **distinct hashes** and expected `capability_ids`; **`@back_button`** fixture guards shell + triplet stability. |
 | `web_ir_lower_emit_test.rs` | Lower + validate + serde round-trip + validator edge cases. |
 | `reactive_smoke_test.rs` | `reactive_codegen_uses_webir_canonical_view` (non-ignored) pins Path C WebIR emit + bridge stats. |
 | `vox-arch-check` `[[forbidden_pattern]]` (`projection-bundle-*-emit-boundary` in `layers.toml`) | Bans direct `lower_hir_to_web_ir` / `project_*` in `codegen_ts/**` and `codegen_rust/**` outside `projection_bundle.rs`. |

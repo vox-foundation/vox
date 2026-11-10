@@ -1700,9 +1700,9 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
         <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <div
             data-testid="mens-training-actions-cluster"
-            className="inline-flex items-center rounded-lg border border-brass/50 bg-linear-to-r from-[#1E1912]/90 to-[#120F0B]/90 p-0.5 gap-1 shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+            className="inline-flex items-center rounded-lg border border-brass/50 bg-bg-elevated p-0.5 gap-1 shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
           >
-            <div className="flex items-center gap-1 pl-1.5 pr-1 py-0.5 text-[#F3E5AB]">
+            <div className="flex items-center gap-1 pl-1.5 pr-1 py-0.5 text-text-primary">
               <span className="size-1.5 rounded-full bg-brass" aria-hidden="true" />
               <span className="font-display text-[9px] font-semibold uppercase tracking-[0.12em] text-brass">
                 Training Actions

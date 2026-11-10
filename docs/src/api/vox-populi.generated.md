@@ -41,12 +41,12 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 | `gamify` | dep:vox-gamify |
 | `hw-probe-live-test` | — |
 | `inference` | mens-candle-qlora |
-| `mens` | dep:anyhow, dep:serde_yaml, dep:ctrlc, dep:chrono, dep:dirs, dep:sysinfo, dep:rand, dep:vox-tensor, dep:vox-corpus, dep:vox-db, dep:vox-bounded-fs, dep:vox-hf-layout, dep:objc2-metal |
+| `mens` | dep:anyhow, dep:serde_yaml, dep:ctrlc, dep:chrono, dep:dirs, dep:sysinfo, dep:rand, dep:vox-tensor, dep:vox-corpus, dep:vox-db, dep:vox-bounded-fs, dep:vox-hf-layout, dep:objc2-metal, dep:vox-package, dep:vox-orchestrator-queue, dep:sha3 |
 | `mens-candle-qlora` | mens, dep:candle-core, dep:candle-nn, dep:safetensors, dep:tokenizers, dep:qlora-rs, dep:reqwest, dep:vox-quantize |
 | `mens-candle-qlora-cuda` | mens-candle-qlora, candle-core/cuda, candle-nn/cuda |
 | `mens-candle-qlora-metal` | mens-candle-qlora, candle-core/metal, candle-nn/metal |
 | `mens-cloud` | mens, mens-hf-hub, dep:reqwest, dep:vox-http-client, vox-db/host-integration |
-| `mens-hf-hub` | mens, dep:hf-hub, tokio/rt-multi-thread |
+| `mens-hf-hub` | mens, dep:hf-hub, tokio/rt-multi-thread, dep:askama, dep:vox-eval, dep:tempfile |
 | `mens-train` | mens, mens-candle-qlora, mens-hf-hub, dep:vox-eval, dep:vox-plugin-host |
 | `mesh-discovery-publish` | dep:vox-publisher |
 | `nvml-gpu-probe` | — |
@@ -59,7 +59,6 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
-| [`vox-constrained-gen`](./vox-constrained-gen.generated.md) | Normal |
 | [`vox-corpus`](./vox-corpus.generated.md) | Normal |
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
@@ -130,8 +129,6 @@ graph {
     vox_populi -> vox_bounded_fs
     node vox_config: "vox-config"
     vox_populi -> vox_config
-    node vox_constrained_gen: "vox-constrained-gen"
-    vox_populi -> vox_constrained_gen
     node vox_corpus: "vox-corpus"
     vox_populi -> vox_corpus
     node vox_crypto: "vox-crypto"
@@ -150,8 +147,12 @@ graph {
     vox_populi -> vox_http_client
     node vox_identity: "vox-identity"
     vox_populi -> vox_identity
+    node vox_mesh_types: "vox-mesh-types"
+    vox_populi -> vox_mesh_types
     node vox_cli: "vox-cli"
     vox_cli -> vox_populi
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_populi
     node vox_ml_cli: "vox-ml-cli"
     vox_ml_cli -> vox_populi
     node vox_orchestrator: "vox-orchestrator"
@@ -172,6 +173,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
@@ -192,11 +194,11 @@ graph {
 | `fn` | `populi_scope_id_from_env` | `pub fn populi_scope_id_from_env() -> Option<String>` | [`crates/vox-populi/src/lib.rs#L211-L216`](../../../crates/vox-populi/src/lib.rs#L211-L216) | `VOX_MESH_SCOPE_ID` when set and non-empty after trim. |
 | `fn` | `wall_clock_unix_ms` | `pub fn wall_clock_unix_ms() -> u64` | [`crates/vox-populi/src/lib.rs#L220-L222`](../../../crates/vox-populi/src/lib.rs#L220-L222) | Current Unix time in milliseconds (for federation timestamps and tests). |
 | `fn` | `resolve_vox_toml_best_effort` | `pub fn resolve_vox_toml_best_effort() -> Option<PathBuf>` | [`crates/vox-populi/src/lib.rs#L241-L247`](../../../crates/vox-populi/src/lib.rs#L241-L247) | Resolve `Vox.toml` path next to the current working directory (nearest manifest root). |
-| `fn` | `node_record_for_current_process` | `pub fn node_record_for_current_process(node_id: String, listen_addr: Option<String>) -> NodeRecord` | [`crates/vox-populi/src/lib.rs#L257-L334`](../../../crates/vox-populi/src/lib.rs#L257-L334) | Build a [`NodeRecord`] for this process using orchestrator host probe + populi env labels. |
-| `fn` | `publish_local_registry_best_effort` | `pub fn publish_local_registry_best_effort() -> Result<(), PopuliRegistryError>` | [`crates/vox-populi/src/lib.rs#L337-L344`](../../../crates/vox-populi/src/lib.rs#L337-L344) | Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off). |
-| `fn` | `populi_registration_record_for_process` | `pub fn populi_registration_record_for_process() -> NodeRecord` | [`crates/vox-populi/src/lib.rs#L348-L357`](../../../crates/vox-populi/src/lib.rs#L348-L357) | [`NodeRecord`] for this process — same id and `listen_addr` as [`publish_local_registry_best_effort`]. |
-| `fn` | `local_registry_path` | `pub fn local_registry_path() -> PathBuf` | [`crates/vox-populi/src/lib.rs#L361-L363`](../../../crates/vox-populi/src/lib.rs#L361-L363) | Resolved on-disk registry path (honours `VOX_MESH_REGISTRY_PATH`). |
-| `fn` | `current_target_triple` | `pub fn current_target_triple() -> &'static str` | [`crates/vox-populi/src/lib.rs#L380-L398`](../../../crates/vox-populi/src/lib.rs#L380-L398) | Returns the current target triple (Wave 4 best-effort). |
+| `fn` | `node_record_for_current_process` | `pub fn node_record_for_current_process(node_id: String, listen_addr: Option<String>) -> NodeRecord` | [`crates/vox-populi/src/lib.rs#L251-L329`](../../../crates/vox-populi/src/lib.rs#L251-L329) | Build a [`NodeRecord`] for this process using orchestrator host probe + populi env labels. |
+| `fn` | `publish_local_registry_best_effort` | `pub fn publish_local_registry_best_effort() -> Result<(), PopuliRegistryError>` | [`crates/vox-populi/src/lib.rs#L332-L339`](../../../crates/vox-populi/src/lib.rs#L332-L339) | Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off). |
+| `fn` | `populi_registration_record_for_process` | `pub fn populi_registration_record_for_process() -> NodeRecord` | [`crates/vox-populi/src/lib.rs#L343-L352`](../../../crates/vox-populi/src/lib.rs#L343-L352) | [`NodeRecord`] for this process — same id and `listen_addr` as [`publish_local_registry_best_effort`]. |
+| `fn` | `local_registry_path` | `pub fn local_registry_path() -> PathBuf` | [`crates/vox-populi/src/lib.rs#L356-L358`](../../../crates/vox-populi/src/lib.rs#L356-L358) | Resolved on-disk registry path (honours `VOX_MESH_REGISTRY_PATH`). |
+| `fn` | `current_target_triple` | `pub fn current_target_triple() -> &'static str` | [`crates/vox-populi/src/lib.rs#L375-L393`](../../../crates/vox-populi/src/lib.rs#L375-L393) | Returns the current target triple (Wave 4 best-effort). |
 | `struct` | `http_client::A2AInboxPager` | `pub struct A2AInboxPager` | [`crates/vox-populi/src/http_client.rs#L29-L34`](../../../crates/vox-populi/src/http_client.rs#L29-L34) | Iterator-style paging cursor for non-claimer A2A inbox reads. |
 | `fn` | `http_client::new` | `pub fn new(receiver_agent_id: impl Into<String>, page_size: usize) -> Self` | [`crates/vox-populi/src/http_client.rs#L39-L46`](../../../crates/vox-populi/src/http_client.rs#L39-L46) | Create a pager for a receiver id with a bounded page size. |
 | `fn` | `http_client::next_page` | `pub async fn next_page(` | [`crates/vox-populi/src/http_client.rs#L49`](../../../crates/vox-populi/src/http_client.rs#L49) | Fetch the next page (newest-first). Empty page means completion. |

@@ -772,13 +772,13 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   ];
 
   return (
-    <section className="space-y-4 rounded-xl border border-[#D4AF37]/40 bg-gradient-to-b from-[#1B150E] to-[#110D08] p-4">
+    <section className="space-y-4 rounded-xl border border-[#D4AF37]/40 bg-bg-surface p-4">
       <RomanSurfaceHeader
         domainTag="WORKSPACE · BROWSER"
         title="CDP Browser & Preview Deck"
         subtitle="Preview Vox web apps and mirror agent-driven CDP browser sessions."
         waxSealBadge="CDP ACTIVE"
-        icon={<Icon.globe className="size-5 text-[#F3E5AB]" />}
+        icon={<Icon.globe className="size-5 text-text-primary" />}
         gauges={browserGauges}
       />
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4AF37]/20 pb-2">

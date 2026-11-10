@@ -136,8 +136,8 @@ export function CommandCatalogForm({
     const currentCommand = commandList.find((c: CommandCatalogEntry) => c.path.join(' ') === selectedPath);
 
     return (
-        <div className="flex h-full text-[#C8B99E] w-full rounded-xl border border-[#D4AF37]/40 bg-[#16120C] overflow-hidden">
-            <div className="w-72 border-r border-[#D4AF37]/30 bg-[#16120C]/90 p-4 overflow-y-auto">
+        <div className="flex h-full text-[#C8B99E] w-full rounded-xl border border-[#D4AF37]/40 bg-bg-surface overflow-hidden">
+            <div className="w-72 border-r border-[#D4AF37]/30 bg-bg-surface/90 p-4 overflow-y-auto">
                 <div className="flex items-center gap-2 mb-4">
                     <RomanMedallion active size="sm">
                         <Icon.command className="size-3.5 text-[#F3E5AB]" />
@@ -163,7 +163,7 @@ export function CommandCatalogForm({
                                     {cmd.has_subcommands && <span className="text-xs text-text-muted">▸</span>}
                                 </div>
                                 <div className="mt-1 flex gap-2">
-                                    <span className="text-[10px] uppercase tracking-wider bg-[#16120C] border border-[#D4AF37]/35 px-1.5 py-0.5 rounded-sm text-brass">
+                                    <span className="text-[10px] uppercase tracking-wider bg-bg-surface border border-[#D4AF37]/35 px-1.5 py-0.5 rounded-sm text-brass">
                                         {cmd.tier}
                                     </span>
                                     {cmd.aliases.length > 0 && (
@@ -177,16 +177,16 @@ export function CommandCatalogForm({
                     })}
                 </ul>
             </div>
-            <div className="flex-1 p-6 overflow-y-auto bg-gradient-to-b from-[#1B150E] to-[#110D08]">
+            <div className="flex-1 p-6 overflow-y-auto bg-bg-surface">
                 {currentCommand ? (
                     <div>
                         <div className="flex items-center gap-3 mb-2">
                             <RomanMedallion active size="md">
-                                <Icon.command className="size-4 text-[#F3E5AB]" />
+                                <Icon.command className="size-4 text-text-primary" />
                             </RomanMedallion>
                             <h2 className="text-2xl font-display text-brass">vox {selectedPath}</h2>
                         </div>
-                        <p className="text-[#C8B99E] font-mono text-sm mb-6">{currentCommand.about}</p>
+                        <p className="text-text-secondary font-mono text-sm mb-6">{currentCommand.about}</p>
                         
                         {currentCommand.arguments && currentCommand.arguments.length > 0 && (
                             <div className="space-y-4 mb-6">
@@ -196,7 +196,7 @@ export function CommandCatalogForm({
                                         const control = argControl(arg);
                                         const label = arg.long ? `--${arg.long}` : (arg.short ? `-${arg.short}` : arg.name);
                                         const fieldKey = arg.long || arg.name;
-                                        const inputClass = "bg-[#16120C] border border-[#D4AF37]/45 rounded-sm px-3 py-1.5 text-sm text-[#F3E5AB] font-mono focus:border-[#D4AF37] focus:outline-hidden transition-colors max-w-md";
+                                        const inputClass = "bg-bg-surface border border-[#D4AF37]/45 rounded-sm px-3 py-1.5 text-sm text-[#F3E5AB] font-mono focus:border-[#D4AF37] focus:outline-hidden transition-colors max-w-md";
                                         return (
                                             <div key={arg.name} className="flex flex-col">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -206,7 +206,7 @@ export function CommandCatalogForm({
                                                             id={arg.name}
                                                             checked={!!argValues[fieldKey]}
                                                             onChange={e => setArgValues(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
-                                                            className="bg-[#16120C] border border-[#D4AF37]/45 rounded-sm focus:border-[#D4AF37]"
+                                                            className="bg-bg-surface border border-[#D4AF37]/45 rounded-sm focus:border-[#D4AF37]"
                                                         />
                                                     )}
                                                     <label htmlFor={arg.name} className="text-xs font-bold tracking-widest text-[#C8B99E] font-mono">{label}</label>
@@ -262,7 +262,7 @@ export function CommandCatalogForm({
                                     placeholder="e.g. --json --force"
                                     value={argsInput}
                                     onChange={e => setArgsInput(e.target.value)}
-                                    className="bg-[#16120C] border border-[#D4AF37]/45 rounded-sm px-3 py-2 text-sm text-[#F3E5AB] font-mono focus:border-[#D4AF37] focus:outline-hidden transition-colors w-full"
+                                    className="bg-bg-surface border border-[#D4AF37]/45 rounded-sm px-3 py-2 text-sm text-[#F3E5AB] font-mono focus:border-[#D4AF37] focus:outline-hidden transition-colors w-full"
                                 />
                             </div>
                         </div>
@@ -272,13 +272,13 @@ export function CommandCatalogForm({
                             onClick={handleExecute}
                             disabled={running}
                             aria-busy={running}
-                            className="bg-[#D4AF37] text-[#120E0A] font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-[#F3E5AB] transition-colors disabled:opacity-60 disabled:cursor-wait"
+                            className="bg-[#D4AF37] text-[#1C140C] font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-[#F3E5AB] transition-colors disabled:opacity-60 disabled:cursor-wait"
                         >
                             {running ? 'Running…' : 'Run'}
                         </button>
 
                         {output && (
-                            <div className="mt-8 p-4 bg-[#16120C] border border-[#D4AF37]/45 rounded-sm">
+                            <div className="mt-8 p-4 bg-bg-surface border border-[#D4AF37]/45 rounded-sm">
                                 <h4 className="text-sm font-bold tracking-widest text-[#C8B99E] uppercase mb-2">Execution Result</h4>
                                 {output.error ? (
                                     <div className="text-red-500 font-mono text-sm">Error: {output.error}</div>
@@ -306,14 +306,14 @@ export function CommandCatalogForm({
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="flex items-center justify-center rounded-xl border border-dashed border-[#D4AF37]/40 bg-[#16120C]/60 p-6 text-[#C8B99E] font-mono text-sm uppercase tracking-widest">
+                        <div className="flex items-center justify-center rounded-xl border border-dashed border-[#D4AF37]/40 bg-bg-surface/60 p-6 text-[#C8B99E] font-mono text-sm uppercase tracking-widest">
                             Select a command from the catalog to configure and execute.
                         </div>
                         <div
                             data-testid="catalog-overview-deck"
                             className="grid grid-cols-1 gap-3 sm:grid-cols-2"
                         >
-                            <div className="rounded-xl border border-[#D4AF37]/40 bg-[#16120C]/80 p-4">
+                            <div className="rounded-xl border border-[#D4AF37]/40 bg-bg-surface/80 p-4">
                                 <div className="flex items-center justify-between">
                                     <span className="font-display text-[10px] tracking-widest text-brass uppercase">
                                         Typed Clap Metadata
@@ -326,7 +326,7 @@ export function CommandCatalogForm({
                                     Every CLI subcommand in <code className="text-[#D4AF37]">vox-cli</code> compiles its flags, positional arguments, and default values directly into typed form controls.
                                 </p>
                             </div>
-                            <div className="rounded-xl border border-[#D4AF37]/40 bg-[#16120C]/80 p-4">
+                            <div className="rounded-xl border border-[#D4AF37]/40 bg-bg-surface/80 p-4">
                                 <div className="flex items-center justify-between">
                                     <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">
                                         Destructive Run Gate
@@ -341,7 +341,7 @@ export function CommandCatalogForm({
                             </div>
                         </div>
                         {commandList.length > 0 && (
-                            <div className="rounded-xl border border-[#D4AF37]/40 bg-[#16120C]/80 p-4">
+                            <div className="rounded-xl border border-[#D4AF37]/40 bg-bg-surface/80 p-4">
                                 <div className="mb-3 flex items-center justify-between">
                                     <span className="font-display text-[10px] tracking-widest text-[#C8B99E] uppercase">
                                         Quick-Select Command Matrix
@@ -358,7 +358,7 @@ export function CommandCatalogForm({
                                                 key={`quick-${p}`}
                                                 type="button"
                                                 onClick={() => handleCommandSelect(cmd.path)}
-                                                className="flex flex-col items-start justify-between rounded-lg border border-[#D4AF37]/35 bg-[#16120C]/90 p-2.5 text-left transition hover:border-brass/60 hover:bg-[#D4AF37]/10"
+                                                className="flex flex-col items-start justify-between rounded-lg border border-[#D4AF37]/35 bg-bg-surface/90 p-2.5 text-left transition hover:border-brass/60 hover:bg-[#D4AF37]/10"
                                             >
                                                 <div className="flex w-full items-center justify-between gap-1">
                                                     <span className="font-mono text-xs font-medium text-[#F3E5AB]">vox {p}</span>

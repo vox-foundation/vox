@@ -1,13 +1,16 @@
 [package]
 name = "vox-similarity"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
 license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 description = "Pure simhash/minhash/LSH near-duplicate similarity core for Vox discovery and marketplace dedup."
 
 [dependencies]
 blake3 = { workspace = true }
 serde = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]

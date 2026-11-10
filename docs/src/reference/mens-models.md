@@ -204,6 +204,7 @@ Two consequences follow. A sentence that a template repeats for each size must n
 - [Mens native training SSOT](mens-training.md): the training pipeline, at `/reference/mens-training/`.
 - [Mens training data contract](mens-training-data-contract.md): the JSONL contract, at `/reference/mens-training-data-contract/`.
 - [Mens local serving SSOT](mens-serving-ssot.md): serving an adapter, at `/reference/mens-serving-ssot/`.
-- The `vox-mens-index` repository on the Hugging Face Hub: the one place that lists every size.
+- [The `vox-mens-index` repository](https://huggingface.co/brbrainerd/vox-mens-index) on the Hugging Face Hub: the one place that lists every size.
+- [The `vox-mens-playground` Space](https://huggingface.co/spaces/brbrainerd/vox-mens-playground) on the Hugging Face Hub: the interactive browser explorer and local server runner synced automatically alongside `vox-mens-index`.
 
 This page links to those pages and does not copy their content.

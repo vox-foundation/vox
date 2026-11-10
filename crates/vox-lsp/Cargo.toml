@@ -7,13 +7,8 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-# `db` (default-on) enables the Ludus project-DB + gamification telemetry side
-# channel in the LSP binary (cached_project_db + vox_gamify::lsp_telemetry).
-# `--no-default-features` drops vox-db/vox-gamify entirely, leaving a pure
-# lex/parse/typecheck language server — the form a minimal toolchain
-# (e.g. vox-langtool) can embed without pulling persistence.
-default = ["db"]
-db = ["dep:vox-db", "dep:vox-gamify"]
+default = []
+db = []
 
 [dependencies]
 tower-lsp-server = { workspace = true }
@@ -24,12 +19,6 @@ tracing = { workspace = true }
 vox-foundation = { workspace = true }
 
 vox-compiler = { workspace = true }
-# `host-integration` gates `vox_db::project_store` (`open_project_db`), which the
-# LSP calls to open a workspace's database. `49fb36bc6` introduced that gate and
-# updated vox-cli and vox-sql but missed this consumer, so `-p vox-lsp` has not
-# compiled since. Unlike vox-gamify's `paths` re-export, this is a real module
-# behind the feature, so enabling it is the correct fix rather than a workaround.
-vox-db = { workspace = true, optional = true, features = ["host-integration"] }
 vox-gamify = { workspace = true, optional = true }
 vox-secrets.workspace = true
 anyhow = { workspace = true }

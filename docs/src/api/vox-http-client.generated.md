@@ -79,12 +79,12 @@ graph {
     vox_cli -> vox_http_client
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_http_client
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_http_client
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_http_client
     node vox_cli_share: "vox-cli-share"
     vox_cli_share -> vox_http_client
-    node vox_code_audit: "vox-code-audit"
-    vox_code_audit -> vox_http_client
     node vox_forge: "vox-forge"
     vox_forge -> vox_http_client
     node vox_gamify: "vox-gamify"
@@ -106,9 +106,9 @@ graph {
 | [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
 | [`vox-cli-share`](./vox-cli-share.generated.md) | Direct workspace dependent |
-| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
 | [`vox-forge`](./vox-forge.generated.md) | Direct workspace dependent |
 | [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |

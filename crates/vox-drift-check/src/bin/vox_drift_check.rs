@@ -49,10 +49,12 @@ fn main() {
         }
     };
 
+    const REPO_DRIFT_BASELINE_FILE: &str = ".vox/cache/drift/baseline.json";
+
     if cli.update_baseline {
         let baseline_path = cli
             .baseline
-            .unwrap_or_else(|| cli.root.join(vox_config::paths::REPO_DRIFT_BASELINE_FILE));
+            .unwrap_or_else(|| cli.root.join(REPO_DRIFT_BASELINE_FILE));
         if let Some(parent) = baseline_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }

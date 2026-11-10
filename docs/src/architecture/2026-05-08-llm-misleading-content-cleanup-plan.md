@@ -300,11 +300,11 @@ top-of-body banner pointing to the canonical successor.
 
 ### E.1 Reads first
 
-- [`crates/vox-compiler/tests/web_ir_lower_emit_test.rs`](../../../crates/vox-compiler/tests/web_ir_lower_emit_test.rs) — read in full. Look for the test functions that produce the two snapshots:
+- [`crates/vox-codegen/tests/web_ir_lower_emit_test.rs`](../../../crates/vox-codegen/tests/web_ir_lower_emit_test.rs) — read in full. Look for the test functions that produce the two snapshots:
   - `reactive_smoke_test__island_mount_ast_z`
   - `reactive_smoke_test__parity_page_tsx_data_prop_label_op_s166`
-- [`crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap`](../../../crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap)
-- [`crates/vox-compiler/tests/snapshots/reactive_smoke_test__clicky_tsx_classname_onclick.snap`](../../../crates/vox-compiler/tests/snapshots/reactive_smoke_test__clicky_tsx_classname_onclick.snap)
+- [`crates/vox-codegen/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap`](../../../crates/vox-codegen/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap)
+- [`crates/vox-codegen/tests/snapshots/reactive_smoke_test__clicky_tsx_classname_onclick.snap`](../../../crates/vox-codegen/tests/snapshots/reactive_smoke_test__clicky_tsx_classname_onclick.snap)
 - The doc-comment at `web_ir_lower_emit_test.rs:954` says "Parity chain fixture (post-@island retirement)" — that suggests these are intentional regression pins.
 
 ### E.2 Decision tree

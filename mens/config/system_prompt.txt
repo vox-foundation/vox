@@ -111,7 +111,7 @@ component Counter() {
 }
 ```
 
-## VoxLang Automation (`vox run scripts/*.vox`)
+## VoxScript Automation (`vox run scripts/*.vox`)
 
 All project automation, CI tasks, file migrations, and developer scripts are written as standalone `.vox` files executed via `vox run scripts/name.vox` (never `.sh`, `.ps1`, or `.py`). A script uses short stdlib imports (`import fs`, `import process`, `import env`, `import json`, `import path`) and a typed `fn main() to Result[Unit]` entry point:
 

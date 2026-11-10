@@ -80,6 +80,8 @@ another.
 graph {
     direction: right
     node vox_kb_facets: "vox-kb-facets"
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_kb_facets
     node vox_corpus: "vox-corpus"
     vox_corpus -> vox_kb_facets
     node vox_doc_pipeline: "vox-doc-pipeline"
@@ -93,6 +95,7 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
 | [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
 | [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |

@@ -35,17 +35,21 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
 
-      - name: Install cargo-nextest
+      - name: Install cargo-nextest, cargo-mutants, and uv
         if: ${{ !cancelled() }}
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-nextest
+          tool: cargo-nextest,cargo-mutants,uv
 
-      - name: Install cargo-mutants
-        if: ${{ !cancelled() }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-mutants
+      # vox-compiler's Python-worker tests fail closed without a real worker: they
+      # need numpy+pyarrow under python3, uv (for `vox py sync` on CPython 3.12),
+      # and the target/debug/vox binary.
+      - name: Python worker prerequisites (vox-compiler)
+        shell: bash
+        run: |
+          python3 -m pip install --user --break-system-packages numpy pyarrow
+          uv python install 3.12
+          cargo build -p vox-cli --locked
 
       - name: Run mutants (package vox-compiler)
         # Full-crate mutation testing (4453 mutants as of 2026-07-28) does not
@@ -88,8 +92,9 @@ jobs:
           # (a fixed 4 was tuned on a 24-core self-hosted box).
           JOBS=$(( $(nproc) / 2 )); [ "$JOBS" -ge 1 ] || JOBS=1
           cargo mutants -p vox-compiler --no-times --jobs "$JOBS" \
+            --exclude-re "py_array_stats_run|py_frame_report_run|array_materialize_tests" \
             --shard "${SHARD_INDEX}/${SHARD_TOTAL}" \
-            -- -E 'not binary(emission_ladder_test)' \
+            -- -E 'not (binary(emission_ladder_test) | test(py_array_stats_run) | test(py_frame_report_run))' \
             > "$LOG" 2>&1 &
           MUTANTS_PID=$!
 

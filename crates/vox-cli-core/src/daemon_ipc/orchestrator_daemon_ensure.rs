@@ -114,6 +114,7 @@ impl OrchestratorDaemonEnsure {
     /// not cached, so a later call retries. If no daemon answers an
     /// authenticated ping, one is spawned and this polls until it is ready
     /// (or the ~15s deadline elapses).
+    #[inline(never)]
     pub async fn ensure(&self) -> Result<String, String> {
         self.addr
             .get_or_try_init(|| async {
@@ -223,6 +224,7 @@ impl OrchestratorDaemonEnsure {
     /// Build an [`OrchDaemonClient`] for `addr`, using the resolved token if
     /// available (falling back to the client's own best-effort token-file
     /// read otherwise). Convenience wrapper around `ensure()` + `token()`.
+    #[inline(never)]
     pub async fn client(&self) -> Result<OrchDaemonClient, String> {
         let addr = self.ensure().await?;
         Ok(match self.token().await {
@@ -270,6 +272,7 @@ pub fn profile_mismatch_error(ping: &serde_json::Value, requested: &str) -> Stri
     )
 }
 
+#[inline(never)]
 pub async fn ping_existing_daemon() -> Option<OrchDaemonClient> {
     let addr = match std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET") {
         Ok(s) if s.contains(':') => s,

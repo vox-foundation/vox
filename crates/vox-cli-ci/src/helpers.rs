@@ -49,6 +49,10 @@ pub fn nvcc_available() -> bool {
         .unwrap_or(false)
 }
 
+pub fn pnpm_executable() -> &'static str {
+    if cfg!(windows) { "pnpm.cmd" } else { "pnpm" }
+}
+
 /// Where a dev tool binary (`toestub`, `vox-drift-check`) comes from for a `vox ci` step.
 /// Steps never `cargo run` a tool: locally a missing tool is skipped (hosted CI runs the check),
 /// and on hosted CI a missing tool is an error, because the workflow builds the tools first.

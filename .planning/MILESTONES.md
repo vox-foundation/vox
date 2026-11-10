@@ -1,5 +1,32 @@
 # Milestones
 
+## v6.8 Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits, `crates.io` Wave 2/3 (`33` Crates), Rich Roman Visual READMEs & Adversarial Cross-Repo README Audit (Shipped: 2026-11-10)
+
+**Phases completed:** 8 phases (`Phases 394–401`), 8 plans, 32/32 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`399-REVIEW.md`](phases/399-end-to-end-flywheel-scorecard-and-ssot/399-REVIEW.md))
+**Archive:** [`milestones/v6.8-ROADMAP.md`](milestones/v6.8-ROADMAP.md) | [`milestones/v6.8-REQUIREMENTS.md`](milestones/v6.8-REQUIREMENTS.md) | [`contracts/reports/v68-defactoring-flywheel-scorecard.v1.json`](../contracts/reports/v68-defactoring-flywheel-scorecard.v1.json)
+
+**Key accomplishments:**
+- **Physical 4-Repository Federation (`Phases 394, 395, 398`):** Created and verified standalone sibling repositories `/Users/brbrainerd/dev/vox-ops` (private telemetry & cloud GPU ops), `/Users/brbrainerd/dev/vox-axis` (Tauri 2 operator GUI), and `/Users/brbrainerd/dev/voxlang.org` (Astro/Starlight docs + Coolify `/v1/eval` sandbox) alongside `/Users/brbrainerd/dev/vox`, with `4/4` present repositories passing `vox ci cross-repo-parity` (`55` shared contracts) and `vox ci federated-symbol-graph`.
+- **Next-Tier Keystone Splits & Compilation Firewalls (`Phase 396`):** Extracted `vox-repository-core`, `vox-search-core`, and `vox-scientia-core` and applied `#[inline(never)]` compilation boundaries across `vox-orchestrator`, `vox-compiler`, `vox-db`, `vox-populi`, `vox-publisher`, and `vox-scientia`, cutting warm incremental check times across leaf crates by `28%–89%` (`vox-orchestrator` `119.0s -> 11.53s`, `vox-compiler` `55.6s -> 1.65s`, `vox-db` `43.5s -> 1.78s`).
+- **Standalone `crates.io` Wave 2 & 3 Expansion (`15` → `33` Crates, `Phase 397`):** Prepared and verified 33 standalone publishable crates (`crates/_public.toml`), passing `vox ci publish-dry-run` (`33/33`).
+- **Rich Visual READMEs, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Graphics, Adversarial 46-README Audit & Footnoted Prior-Art Attribution (`Phases 400–401`):** Replaced stale Sept 4 dark screenshots with 50 Nov 9 (`v6.6`) Sunlit Imperial Roman Carrara White & Gold Playwright captures (featuring the `VRBS ROMA` 3D/2.5D Simulator, `AQVAEDUCTUS` hydraulic cascade, Multi-Dock Chat, and 4-profile theme switcher), rebuilt all 7 animated `.webp` tours and all 7 Roman White/Gold `.webp` schematics (zero SVGs), audited and fixed all 8 stale sub-crate/app READMEs, added `README-SYNC-MAP` domain ownership, and added footnoted prior-art references (`[^1]`..`[^13]`).
+
+---
+
+## v6.7 Monorepo Defactoring, Build-Time & Crate-Edge Disentanglement, Standalone `crates.io` Ecosystem, Zero-Split-Brain Cross-Repo LLM Federation, End-to-End CI/Nightly Remediation & Zero-Loss Worktree/Scratch Consolidation (Shipped: 2026-11-10)
+
+**Phases completed:** 7 phases (`Phases 387–393`), 19 plans, 28/28 requirements verified (`100%`) — Adversarially Audited via `/gsd-review` ([`MILESTONE-v6.7-REVIEWS.md`](MILESTONE-v6.7-REVIEWS.md)) & `/gsd-code-review --fix`
+**Archive:** [`milestones/v6.7-ROADMAP.md`](milestones/v6.7-ROADMAP.md) | [`milestones/v6.7-REQUIREMENTS.md`](milestones/v6.7-REQUIREMENTS.md)
+
+**Key accomplishments:**
+- **Zero Dev-Dependency Cycles (`Phase 387`):** Severed all 5 dev-dependency back-edge loops across the 20-crate and 2-crate SCCs (`allowed_cycles: []` enforced by `vox ci dep-cycles --deny-new`) and added `touches_90d` + `churn_compile_pain_score` to `contracts/ci/crate-build-map.v1.json`.
+- **Top Keystone Splits (`Phases 388–389`):** Extracted `vox-mcp-Dispatch`, `vox-orchestrator-models` Part B4, and `vox-cli-core` (`vox-orchestrator-mcp` `157.9s -> 15.83s`, `vox-cli` `47.4s -> 6.32s`).
+- **Standalone `crates.io` Tier 1–3 Gate (`Phase 390`):** Eliminated `workspace-hack` and escaping `include_str!` blockers across publishable crates and shipped `vox ci publish-dry-run`.
+- **Cross-Repo Federation & Sub-15s Pre-Push + Nightly E2E Proof (`Phases 391–392`):** Shipped `vox ci standalone-sovereignty`, `vox ci cross-repo-parity`, `vox ci federated-symbol-graph`, `<15s` local `vox ci pre-push` (`3.8s` measured), and verified all 7 Nightly workflows green (`contracts/reports/nightly-e2e-run-proof.v1.json`).
+- **Zero-Loss Worktree & Scratch Consolidation (`Phase 393`):** Salvaged all unique artifacts and branches across `vox` and sibling `~/dev` repos and reclaimed `~197 GB` (`contracts/reports/dev-worktree-consolidation-receipt.v1.json`).
+
+---
+
 ## v6.4 Full-Canvas White/Gold Carrara Marble Unification, Non-Procedural Monument Simulator, Single-Line Roman Controls & Zero-Monospace Typography (Shipped: 2026-11-08)
 
 **Phases completed:** 5 phases (`Phases 373–377`), 5 plans, 20/20 requirements verified (`100%`) — `/gsd-code-review --fix` applied

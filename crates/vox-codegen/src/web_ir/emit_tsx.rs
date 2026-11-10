@@ -34,12 +34,14 @@ pub struct WebIrTsxEmitStats {
 
 /// Emit JSX for a reactive component `view:` root, if present in [`WebIrModule::view_roots`].
 #[must_use]
+#[inline(never)]
 pub fn emit_component_view_tsx(module: &WebIrModule, component_name: &str) -> Option<String> {
     emit_component_view_tsx_with_stats(module, component_name).map(|(s, _)| s)
 }
 
 /// Like [`emit_component_view_tsx`] but returns visit counts for gates / snapshots.
 #[must_use]
+#[inline(never)]
 pub fn emit_component_view_tsx_with_stats(
     module: &WebIrModule,
     component_name: &str,

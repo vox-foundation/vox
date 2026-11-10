@@ -40,18 +40,22 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | Dependency | Kind |
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
+| [`vox-capability-registry`](./vox-capability-registry.generated.md) | Normal |
 | [`vox-cli-contracts`](./vox-cli-contracts.generated.md) | Normal |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Normal |
 | [`vox-code-audit`](./vox-code-audit.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
+| [`vox-crypto`](./vox-crypto.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
+| [`vox-doc-inventory`](./vox-doc-inventory.generated.md) | Normal |
 | [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Normal |
 | [`vox-git`](./vox-git.generated.md) | Normal |
 | [`vox-grammar-export`](./vox-grammar-export.generated.md) | Normal |
 | [`vox-graph-reader`](./vox-graph-reader.generated.md) | Normal |
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Normal |
+| [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | Normal |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Normal |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Normal |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
@@ -134,7 +138,10 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `fan_in_budget` | — |
 | `free_binary` | — |
 | `generate_plugin_catalog_docs` | — |
+| `gui_command_backends` | — |
+| `gui_coverage_exemptions` | — |
 | `gui_honesty` | — |
+| `gui_surface_coverage` | — |
 | `gui_version_sync` | — |
 | `gui_visual_review` | — |
 | `harness_trust_guard` | — |
@@ -163,13 +170,16 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `pre_push_refs` | — |
 | `preview_trust_audit` | — |
 | `profile_parity` | — |
+| `publish_dry_run` | — |
 | `release_draft_guard` | — |
 | `required_context_guard` | — |
 | `retirement_audit` | — |
 | `row_serde_lint` | — |
 | `safety_inventory` | — |
+| `sccache_workflow_guard` | — |
 | `scientia_heuristics_parity` | — |
 | `scientia_worthiness_contract` | — |
+| `status` | — |
 | `string_id_lint` | — |
 | `suppression_review_gate` | — |
 | `sync_ignore_files` | — |
@@ -185,6 +195,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `workflow_concurrency_guard` | — |
 | `workflow_permissions_guard` | — |
 | `workflow_policy_guard` | — |
+| `workspace_artifacts` | — |
 
 ### Traits
 
@@ -200,6 +211,8 @@ graph {
     node vox_cli_ci: "vox-cli-ci"
     node vox_bounded_fs: "vox-bounded-fs"
     vox_cli_ci -> vox_bounded_fs
+    node vox_capability_registry: "vox-capability-registry"
+    vox_cli_ci -> vox_capability_registry
     node vox_cli_contracts: "vox-cli-contracts"
     vox_cli_ci -> vox_cli_contracts
     node vox_cli_core: "vox-cli-core"
@@ -210,20 +223,20 @@ graph {
     vox_cli_ci -> vox_compiler
     node vox_config: "vox-config"
     vox_cli_ci -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_cli_ci -> vox_crypto
     node vox_db: "vox-db"
     vox_cli_ci -> vox_db
+    node vox_doc_inventory: "vox-doc-inventory"
+    vox_cli_ci -> vox_doc_inventory
     node vox_doc_pipeline: "vox-doc-pipeline"
     vox_cli_ci -> vox_doc_pipeline
     node vox_git: "vox-git"
     vox_cli_ci -> vox_git
-    node vox_grammar_export: "vox-grammar-export"
-    vox_cli_ci -> vox_grammar_export
-    node vox_graph_reader: "vox-graph-reader"
-    vox_cli_ci -> vox_graph_reader
-    node vox_http_client: "vox-http-client"
-    vox_cli_ci -> vox_http_client
     node vox_cli: "vox-cli"
     vox_cli -> vox_cli_ci
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_cli_ci
 }
 ```
 
@@ -232,6 +245,7 @@ graph {
 | Consumer Crate | Role |
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 

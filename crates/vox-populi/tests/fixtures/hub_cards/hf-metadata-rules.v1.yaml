@@ -1,0 +1,40 @@
+# Local Hugging Face model-card metadata rules for the MENS cards (no network at test time).
+# Sources, retrieved 2026-11-06:
+#   https://huggingface.co/docs/hub/model-cards
+#   https://raw.githubusercontent.com/huggingface/hub-docs/main/modelcard.md
+# The Hub validates base_model and model-index on push; these rules mirror what those pages state.
+# Assumption A3 (339-RESEARCH): the non-template metric key `verified` is not emitted, so it is
+# not in the rules; add a check for it if a template starts emitting it.
+schema: hf_model_card_metadata_rules.v1
+source: https://huggingface.co/docs/hub/model-cards
+retrieved: 2026-11-06
+required:
+  model_card: [license, base_model, base_model_relation, library_name, pipeline_tag, language, tags]
+  index: [license, library_name, pipeline_tag, language, tags]
+# Hub keys the cards use, plus base_model_revision (project key, ignored by the Hub).
+known_keys:
+  - license
+  - base_model
+  - base_model_relation
+  - base_model_revision
+  - library_name
+  - pipeline_tag
+  - language
+  - tags
+  - model-index
+  - widget
+base_model:
+  forbid_char: "@"
+  # owner/name with no revision; the pin goes in base_model_revision
+  shape: repo_id
+base_model_relation: [adapter, merge, quantized, finetune]
+tags:
+  trained_require_prefix: ["gate-", "spoke-"]
+  not_trained_require: ["not-trained"]
+model_index:
+  entry: [name, results]
+  result: [task, dataset, metrics]
+  task: [type]
+  dataset: [type, name]
+  metric: [type, value]
+  metric_value_type: number

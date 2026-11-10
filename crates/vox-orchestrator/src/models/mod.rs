@@ -34,15 +34,14 @@ pub mod tiering;
 pub mod vram;
 
 pub use auto_select::{
-    AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
-    select_optimal_local_model_for_host,
+    AutoModelSelection, select_for_free_memory, select_optimal_local_model_for_host,
 };
 pub use cost_tier::{
     CHEAP_COST_PER_1K_USD, CostTier, blended_cost_per_1k, cost_tier_for, cost_tier_for_blended,
 };
 pub use generated::{
-    Capability, CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
-    infer_capabilities, infer_prompt_intents, intent_required_capabilities,
+    Capability, CapabilityFlags, ModelTier, PromptIntent, StrengthTag, infer_capabilities,
+    infer_prompt_intents, intent_required_capabilities,
 };
 pub use pareto::{ParetoPoint, is_observed, pareto_frontier, pareto_point_for};
 pub use policy::{
@@ -71,6 +70,7 @@ pub use spec::{
     TurnCostDeltaReceipt, TurnStreamEventKind, route_backend_for_model, task_category_premium_key,
     task_category_strength,
 };
+pub use vox_orchestrator_types::TaskCategory;
 pub use vram::{
     VramFit, VramProbe, estimate_vram_fit, free_vram_mb_hint, refresh_free_vram_hint_from_nvml,
     register_vram_probe, registered_vram_probe,

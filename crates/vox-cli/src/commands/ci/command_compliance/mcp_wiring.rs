@@ -37,35 +37,80 @@ pub(crate) fn extract_mcp_handler_tools(src: &str) -> Result<HashSet<String>> {
         Regex::new(r"(?m)^\s*_\s*=>").expect("handle_tool_call default arm pattern")
     });
 
-    let fn_pos = src
-        .find("pub async fn handle_tool_call")
-        .ok_or_else(|| anyhow!("vox-orchestrator: missing handle_tool_call"))?;
-    let after_fn = &src[fn_pos..];
-    let match_needle = "match name {";
-    let m_start = after_fn
-        .find(match_needle)
-        .ok_or_else(|| anyhow!("vox-orchestrator: handle_tool_call missing `match name {{`"))?;
-    let from_brace = &after_fn[m_start + match_needle.len()..];
-    let end = default_arm
-        .find(from_brace)
-        .map(|m| m.start())
-        .ok_or_else(|| anyhow!("vox-orchestrator: handle_tool_call missing `_ =>` default arm"))?;
-    let block = &from_brace[..end];
     let mut out = HashSet::new();
-    for line in block.lines() {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with("//") {
-            continue;
+
+    if let Some(fn_pos) = src.find("pub async fn handle_tool_call") {
+        let after_fn = &src[fn_pos..];
+        let match_needle = "match name {";
+        if let Some(m_start) = after_fn.find(match_needle) {
+            let from_brace = &after_fn[m_start + match_needle.len()..];
+            if let Some(end) = default_arm.find(from_brace).map(|m| m.start()) {
+                let block = &from_brace[..end];
+                for line in block.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.starts_with("//") || !trimmed.contains("=>") {
+                        continue;
+                    }
+                    if !(trimmed.starts_with('"') || trimmed.starts_with('|')) {
+                        continue;
+                    }
+                    for name in mcp_handler_arm_quoted_names(trimmed) {
+                        out.insert(name);
+                    }
+                }
+            }
         }
-        if !trimmed.contains("=>") {
-            continue;
+    }
+
+    if src.contains("dispatch_domains") {
+        let candidate_dirs = [
+            std::path::PathBuf::from("crates/vox-orchestrator-mcp/src/dispatch_domains"),
+            std::path::PathBuf::from("../vox-orchestrator-mcp/src/dispatch_domains"),
+        ];
+        let domains_dir = candidate_dirs.into_iter().find(|p| p.is_dir()).or_else(|| {
+            std::env::var("CARGO_MANIFEST_DIR").ok().and_then(|m| {
+                let p = std::path::PathBuf::from(m);
+                for anc in p.ancestors() {
+                    let cand = anc.join("crates/vox-orchestrator-mcp/src/dispatch_domains");
+                    if cand.is_dir() {
+                        return Some(cand);
+                    }
+                }
+                None
+            })
+        });
+
+        if let Some(dir) = domains_dir {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                let mut entries: Vec<_> = entries.flatten().collect();
+                entries.sort_by_key(|e| e.path());
+                for entry in entries {
+                    let path = entry.path();
+                    if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            for line in content.lines() {
+                                let trimmed = line.trim_start();
+                                if trimmed.starts_with("//") || !trimmed.contains("=>") {
+                                    continue;
+                                }
+                                if !(trimmed.starts_with('"') || trimmed.starts_with('|')) {
+                                    continue;
+                                }
+                                for name in mcp_handler_arm_quoted_names(trimmed) {
+                                    out.insert(name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-        if !(trimmed.starts_with('"') || trimmed.starts_with('|')) {
-            continue;
-        }
-        for name in mcp_handler_arm_quoted_names(trimmed) {
-            out.insert(name);
-        }
+    }
+
+    if out.is_empty() {
+        return Err(anyhow!(
+            "vox-orchestrator: handle_tool_call missing `match name {{`"
+        ));
     }
     Ok(out)
 }

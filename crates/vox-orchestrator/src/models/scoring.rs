@@ -486,6 +486,7 @@ impl ScoreParts {
 }
 
 #[must_use]
+#[inline(never)]
 pub fn auto_score_parts(
     m: &ModelSpec,
     complexity: u8,
@@ -725,6 +726,7 @@ pub fn auto_score_parts(
 }
 
 #[must_use]
+#[inline(never)]
 pub fn auto_score_model(
     m: &ModelSpec,
     complexity: u8,

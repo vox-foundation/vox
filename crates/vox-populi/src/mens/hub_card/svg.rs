@@ -10,7 +10,11 @@
 use std::fmt::Write;
 
 use super::CardContext;
-use super::facts::{GateState, RunRecords, gate_of, heldout_scores};
+use super::config::{SpokeStatus, hub_cards};
+use super::facts::{
+    AdapterEvidence, GateState, RunRecords, active_spoke_id, adapter_evidence, gate_of,
+    heldout_scores,
+};
 use crate::mens::hub_repo::SIZES;
 use crate::mens::hub_sync::SizeSyncRow;
 
@@ -37,6 +41,7 @@ fn escape_xml(s: &str) -> String {
 }
 
 /// Render the per-size model card SVG asset (`assets/scorecard.svg`).
+#[inline(never)]
 pub fn render_model_assets(cx: &CardContext, rec: &RunRecords) -> Vec<RenderedAsset> {
     let svg = render_scorecard_svg(cx, rec);
     vec![RenderedAsset {
@@ -46,49 +51,17 @@ pub fn render_model_assets(cx: &CardContext, rec: &RunRecords) -> Vec<RenderedAs
 }
 
 /// Render the per-size model card SVG string (`1200x320` 2-panel graphic strip).
+#[inline(never)]
 pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
     let gate_fact = gate_of(rec);
     let gate_state = gate_fact.state;
     let trained = gate_fact.trained;
     let size = cx.size;
 
-    // Metrics for Panel 2 (Held-out Pass@1)
-    let (base_score, adapter_score) = heldout_scores(rec);
-    let base_rate = base_score.map(|s| s.rate).unwrap_or(0.077);
-    let base_passed = base_score.map(|s| s.passed as u64).unwrap_or(4);
-    let base_total = base_score.map(|s| s.total).unwrap_or(52);
-
-    let (adapter_rate, adapter_passed, adapter_total, adapter_evaluated) =
-        if let Some(s) = adapter_score {
-            (s.rate, s.passed as u64, s.total, true)
-        } else if rec.heldout_adapter.is_some() {
-            let r = rec
-                .heldout_adapter
-                .as_ref()
-                .and_then(|v| v["pass_rate_at_1"].as_f64())
-                .unwrap_or(0.25);
-            let p = rec
-                .heldout_adapter
-                .as_ref()
-                .and_then(|v| v["passed_at_1"].as_f64())
-                .map(|p| p as u64)
-                .unwrap_or(13);
-            let t = rec
-                .heldout_adapter
-                .as_ref()
-                .and_then(|v| v["total"].as_u64())
-                .unwrap_or(52);
-            (r, p, t, true)
-        } else {
-            (0.0, 0, 0, false)
-        };
-
-    let delta_pp = (adapter_rate - base_rate) * 100.0;
-    let ratio = if base_rate > 0.001 {
-        adapter_rate / base_rate
-    } else {
-        1.0
-    };
+    // Metrics for Panel 2 (Held-out Pass@1) — gated on AdapterEvidence::Current (B1)
+    let (base_score, raw_adapter_score) = heldout_scores(rec);
+    let adapter_score =
+        raw_adapter_score.filter(|_| adapter_evidence(rec) == AdapterEvidence::Current);
 
     let mut svg = String::with_capacity(16384);
     let _ = writeln!(
@@ -142,16 +115,6 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
     let y_max = 2.60f32;
 
     let has_telemetry = !rec.telemetry_loss.is_empty();
-    let (first_loss, last_loss) = if has_telemetry {
-        (
-            rec.telemetry_loss.first().unwrap().1,
-            rec.telemetry_loss.last().unwrap().1,
-        )
-    } else if trained {
-        (2.02f32, 0.58f32)
-    } else {
-        (0.0f32, 0.0f32)
-    };
 
     let _ = writeln!(
         svg,
@@ -167,7 +130,9 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
   <text x="24" y="52" font-size="11" class="mono subtle">Telemetry plot</text>"##
     );
 
-    if trained || has_telemetry {
+    if has_telemetry {
+        let first_loss = rec.telemetry_loss.first().unwrap().1;
+        let last_loss = rec.telemetry_loss.last().unwrap().1;
         let _ = writeln!(
             svg,
             r##"  <!-- Top-Right EMA Trajectory Pill -->
@@ -203,18 +168,28 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
             );
         }
 
-        // X-axis step labels
+        let min_s = rec.telemetry_loss.first().unwrap().0 as f64;
+        let max_s = rec.telemetry_loss.last().unwrap().0 as f64;
+        let span_s = (max_s - min_s).max(1.0);
+
+        // Dynamic X-axis step labels computed from min_s..max_s
         let x_steps = [
-            ("Step 1", 0.0),
-            ("Step 27", 0.25),
-            ("Step 99", 0.70),
-            ("Step 139", 1.0),
+            (format!("Step {}", min_s.round() as u32), 0.0),
+            (
+                format!("Step {}", (min_s + 0.25 * span_s).round() as u32),
+                0.25,
+            ),
+            (
+                format!("Step {}", (min_s + 0.70 * span_s).round() as u32),
+                0.70,
+            ),
+            (format!("Step {}", max_s.round() as u32), 1.0),
         ];
-        for &(lbl, frac) in &x_steps {
+        for (lbl, frac) in &x_steps {
             let px = chart_x + frac * chart_w;
-            let anchor = if frac == 0.0 {
+            let anchor = if *frac == 0.0 {
                 "start"
-            } else if frac == 1.0 {
+            } else if *frac == 1.0 {
                 "end"
             } else {
                 "middle"
@@ -229,132 +204,98 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
             );
         }
 
-        if has_telemetry {
-            let min_s = rec.telemetry_loss.first().unwrap().0 as f64;
-            let max_s = rec.telemetry_loss.last().unwrap().0 as f64;
-            let span_s = (max_s - min_s).max(1.0);
-
-            // Raw trace
-            if !rec.telemetry_raw.is_empty() {
-                let mut raw_poly = String::new();
-                for &(s, l) in &rec.telemetry_raw {
-                    let nx = (s as f64 - min_s) / span_s;
-                    let ny = (l.clamp(y_min, y_max) - y_min) / (y_max - y_min);
-                    let px = chart_x + nx * chart_w;
-                    let py = chart_y + chart_h - (ny as f64 * chart_h);
-                    let _ = write!(raw_poly, "{:.1},{:.1} ", px, py);
-                }
-                let _ = writeln!(
-                    svg,
-                    r##"  <polyline points="{raw_poly}" fill="none" stroke="#52525b" stroke-opacity="0.35" stroke-width="1"/>"##,
-                    raw_poly = raw_poly
-                );
+        // Raw trace
+        if !rec.telemetry_raw.is_empty() {
+            let mut raw_poly = String::new();
+            for &(s, l) in &rec.telemetry_raw {
+                let nx = (s as f64 - min_s) / span_s;
+                let ny = (l.clamp(y_min, y_max) - y_min) / (y_max - y_min);
+                let px = chart_x + nx * chart_w;
+                let py = chart_y + chart_h - (ny as f64 * chart_h);
+                let _ = write!(raw_poly, "{:.1},{:.1} ", px, py);
             }
-
-            // EMA polyline & area
-            let pts: Vec<(f64, f64, f32)> = rec
-                .telemetry_loss
-                .iter()
-                .map(|&(s, l)| {
-                    let nx = (s as f64 - min_s) / span_s;
-                    let ny = (l.clamp(y_min, y_max) - y_min) / (y_max - y_min);
-                    (
-                        chart_x + nx * chart_w,
-                        chart_y + chart_h - (ny as f64 * chart_h),
-                        l,
-                    )
-                })
-                .collect();
-
-            let mut poly_str = String::new();
-            let mut area_str = format!("M {:.1} {:.1}", pts[0].0, chart_y + chart_h);
-            for &(px, py, _) in &pts {
-                let _ = write!(poly_str, "{:.1},{:.1} ", px, py);
-                let _ = write!(area_str, " L {:.1} {:.1}", px, py);
-            }
-            let _ = write!(
-                area_str,
-                " L {:.1} {:.1} Z",
-                pts.last().unwrap().0,
-                chart_y + chart_h
-            );
-
-            let first = pts.first().unwrap();
-            let last = pts.last().unwrap();
-
             let _ = writeln!(
                 svg,
-                r##"  <path d="{area_str}" fill="url(#telemetry_area_grad)"/>
+                r##"  <polyline points="{raw_poly}" fill="none" stroke="#52525b" stroke-opacity="0.35" stroke-width="1"/>"##,
+                raw_poly = raw_poly
+            );
+        }
+
+        // EMA polyline & area
+        let pts: Vec<(f64, f64, f32)> = rec
+            .telemetry_loss
+            .iter()
+            .map(|&(s, l)| {
+                let nx = (s as f64 - min_s) / span_s;
+                let ny = (l.clamp(y_min, y_max) - y_min) / (y_max - y_min);
+                (
+                    chart_x + nx * chart_w,
+                    chart_y + chart_h - (ny as f64 * chart_h),
+                    l,
+                )
+            })
+            .collect();
+
+        let mut poly_str = String::new();
+        let mut area_str = format!("M {:.1} {:.1}", pts[0].0, chart_y + chart_h);
+        for &(px, py, _) in &pts {
+            let _ = write!(poly_str, "{:.1},{:.1} ", px, py);
+            let _ = write!(area_str, " L {:.1} {:.1}", px, py);
+        }
+        let _ = write!(
+            area_str,
+            " L {:.1} {:.1} Z",
+            pts.last().unwrap().0,
+            chart_y + chart_h
+        );
+
+        let first = pts.first().unwrap();
+        let last = pts.last().unwrap();
+
+        let _ = writeln!(
+            svg,
+            r##"  <path d="{area_str}" fill="url(#telemetry_area_grad)"/>
   <polyline points="{poly_str}" fill="none" stroke="#10b981" stroke-width="2.5" filter="url(#glow)"/>
   <circle cx="{first_x:.1}" cy="{first_y:.1}" r="3.5" fill="#38bdf8"/>
   <text x="{first_tx:.1}" y="{first_ty:.1}" font-size="10" font-weight="600" class="mono" fill="#38bdf8">{first_l:.2}</text>
   <circle cx="{last_x:.1}" cy="{last_y:.1}" r="3.5" fill="#10b981"/>
   <text x="{last_tx:.1}" y="{last_ty:.1}" text-anchor="end" font-size="10" font-weight="600" class="mono" fill="#34d399">{last_l:.2}</text>"##,
-                area_str = area_str,
-                poly_str = poly_str,
-                first_x = first.0,
-                first_y = first.1,
-                first_tx = first.0 + 8.0,
-                first_ty = first.1 - 6.0,
-                first_l = first.2,
-                last_x = last.0,
-                last_y = last.1,
-                last_tx = last.0 - 8.0,
-                last_ty = last.1 - 6.0,
-                last_l = last.2,
-            );
-        } else {
-            // Synthesized smooth curve
-            let pts: Vec<(f64, f64)> = (0..=64)
-                .map(|i| {
-                    let frac = i as f64 / 64.0;
-                    let loss = 0.52 + 1.5 * (-3.2 * frac).exp();
-                    let ny = (loss - y_min as f64) / (y_max as f64 - y_min as f64);
-                    (
-                        chart_x + frac * chart_w,
-                        chart_y + chart_h - (ny.clamp(0.0, 1.0) * chart_h),
-                    )
-                })
-                .collect();
-            let mut poly_str = String::new();
-            let mut area_str = format!("M {:.1} {:.1}", pts[0].0, chart_y + chart_h);
-            for &(px, py) in &pts {
-                let _ = write!(poly_str, "{:.1},{:.1} ", px, py);
-                let _ = write!(area_str, " L {:.1} {:.1}", px, py);
-            }
-            let _ = write!(
-                area_str,
-                " L {:.1} {:.1} Z",
-                pts.last().unwrap().0,
-                chart_y + chart_h
-            );
-            let _ = writeln!(
-                svg,
-                r##"  <path d="{area_str}" fill="url(#telemetry_area_grad)"/>
-  <polyline points="{poly_str}" fill="none" stroke="#10b981" stroke-width="2.5" filter="url(#glow)"/>
-  <circle cx="{fx:.1}" cy="{fy:.1}" r="3.5" fill="#38bdf8"/>
-  <text x="{ftx:.1}" y="{fty:.1}" font-size="10" font-weight="600" class="mono" fill="#38bdf8">2.02</text>
-  <circle cx="{lx:.1}" cy="{ly:.1}" r="3.5" fill="#10b981"/>
-  <text x="{ltx:.1}" y="{lty:.1}" text-anchor="end" font-size="10" font-weight="600" class="mono" fill="#34d399">0.58</text>"##,
-                area_str = area_str,
-                poly_str = poly_str,
-                fx = pts[0].0,
-                fy = pts[0].1,
-                ftx = pts[0].0 + 8.0,
-                fty = pts[0].1 - 6.0,
-                lx = pts.last().unwrap().0,
-                ly = pts.last().unwrap().1,
-                ltx = pts.last().unwrap().0 - 8.0,
-                lty = pts.last().unwrap().1 - 6.0,
-            );
-        }
+            area_str = area_str,
+            poly_str = poly_str,
+            first_x = first.0,
+            first_y = first.1,
+            first_tx = first.0 + 8.0,
+            first_ty = first.1 - 6.0,
+            first_l = first.2,
+            last_x = last.0,
+            last_y = last.1,
+            last_tx = last.0 - 8.0,
+            last_ty = last.1 - 6.0,
+            last_l = last.2,
+        );
+    } else if trained {
+        let _ = writeln!(
+            svg,
+            r##"  <rect x="54" y="82" width="486" height="160" rx="8" fill="#18181b" fill-opacity="0.4" stroke="#27272a" stroke-dasharray="4,4"/>
+  <text x="297" y="152" text-anchor="middle" font-size="13" font-weight="600" fill="#94a3b8">Step Telemetry Not Recorded</text>
+  <text x="297" y="174" text-anchor="middle" font-size="11" class="mono subtle">telemetry.jsonl not recorded for this run</text>"##
+        );
     } else {
         // Untrained clean empty state
+        let untrained_detail = if size == "32B" {
+            "32B QLoRA footprint (66 GB) exceeds 64 GB Mac unified memory limit".to_string()
+        } else {
+            format!(
+                "Run vox mens train --size {} to populate training telemetry",
+                escape_xml(size)
+            )
+        };
         let _ = writeln!(
             svg,
             r##"  <rect x="54" y="82" width="486" height="160" rx="8" fill="#18181b" fill-opacity="0.4" stroke="#27272a" stroke-dasharray="4,4"/>
   <text x="297" y="152" text-anchor="middle" font-size="13" font-weight="600" fill="#94a3b8">Model Weights Not Yet Trained</text>
-  <text x="297" y="174" text-anchor="middle" font-size="11" class="mono subtle">32B QLoRA footprint (66 GB) exceeds 64 GB Mac unified memory limit</text>"##
+  <text x="297" y="174" text-anchor="middle" font-size="11" class="mono subtle">{untrained_detail}</text>"##,
+            untrained_detail = untrained_detail,
         );
     }
     let _ = writeln!(svg, "</g>");
@@ -362,8 +303,6 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
     // ================= RIGHT CARD: SPOKE GATE & PAIRED MCNEMAR VISUAL DELTAS =================
     let scale_max = 0.50f64;
     let track_w = 230.0f64;
-    let base_bar_w = (((base_rate / scale_max).clamp(0.0, 1.0) * track_w) as u32).max(6);
-    let adapter_bar_w = (((adapter_rate / scale_max).clamp(0.0, 1.0) * track_w) as u32).max(6);
 
     let _ = writeln!(
         svg,
@@ -379,35 +318,75 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
   
   <!-- Base Row -->
   <text x="24" y="76" font-size="11" class="mono subtle">Base Pass@1</text>
-  <rect x="135" y="66" width="230" height="13" class="track"/>
-  <rect x="135" y="66" width="{base_bar_w}" height="13" rx="3" fill="#64748b"/>
-  <text x="378" y="76" font-size="10" class="mono subtle">{base_pct:.1}% ({base_passed}/{base_total})</text>
-  <g transform="translate(452, 62)">
-    <rect x="0" y="0" width="84" height="20" rx="10" fill="#064e3b" fill-opacity="0.3" stroke="#10b981" stroke-width="1"/>
-    <text x="42" y="14" text-anchor="middle" font-size="10" font-weight="700" class="mono" fill="#34d399">+{delta_pp:.1}% lift</text>
-  </g>
-  <text x="544" y="98" text-anchor="end" font-size="10" class="mono subtle">{ratio:.1}x</text>
-
-  <!-- Adapter Row -->
-  <text x="24" y="98" font-size="11" class="mono bright">Adapter Pass@1</text>
-  <rect x="135" y="88" width="230" height="13" class="track"/>"##,
-        base_bar_w = base_bar_w,
-        base_pct = base_rate * 100.0,
-        base_passed = base_passed,
-        base_total = base_total,
-        delta_pp = delta_pp,
-        ratio = ratio,
+  <rect x="135" y="66" width="230" height="13" class="track"/>"##
     );
 
-    if adapter_evaluated {
+    if let Some(bs) = base_score {
+        let base_bar_w = (((bs.rate / scale_max).clamp(0.0, 1.0) * track_w) as u32).max(6);
+        let base_passed = bs.passed.round() as u64;
+        let _ = writeln!(
+            svg,
+            r##"  <rect x="135" y="66" width="{base_bar_w}" height="13" rx="3" fill="#64748b"/>
+  <text x="378" y="76" font-size="10" class="mono subtle">{base_pct:.1}% ({base_passed}/{base_total})</text>"##,
+            base_bar_w = base_bar_w,
+            base_pct = bs.rate * 100.0,
+            base_passed = base_passed,
+            base_total = bs.total,
+        );
+    } else {
+        let _ = writeln!(
+            svg,
+            r##"  <rect x="135" y="66" width="230" height="13" class="track" stroke="#3f3f46" stroke-dasharray="3,3"/>
+  <text x="378" y="76" font-size="10" class="mono subtle">n/a (not evaluated)</text>"##
+        );
+    }
+
+    if let (Some(bs), Some(as_)) = (base_score, adapter_score) {
+        let delta_pp = (as_.rate - bs.rate) * 100.0;
+        let ratio = if bs.rate > 0.001 {
+            as_.rate / bs.rate
+        } else {
+            1.0
+        };
+        let _ = writeln!(
+            svg,
+            r##"  <g transform="translate(452, 62)">
+    <rect x="0" y="0" width="84" height="20" rx="10" fill="#064e3b" fill-opacity="0.3" stroke="#10b981" stroke-width="1"/>
+    <text x="42" y="14" text-anchor="middle" font-size="10" font-weight="700" class="mono" fill="#34d399">{delta_pp:+.1}% lift</text>
+  </g>
+  <text x="544" y="98" text-anchor="end" font-size="10" class="mono subtle">{ratio:.1}x</text>"##,
+            delta_pp = delta_pp,
+            ratio = ratio,
+        );
+    } else {
+        let _ = writeln!(
+            svg,
+            r##"  <g transform="translate(452, 62)">
+    <rect x="0" y="0" width="84" height="20" rx="10" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
+    <text x="42" y="14" text-anchor="middle" font-size="9" font-weight="700" class="mono subtle">PENDING</text>
+  </g>"##
+        );
+    }
+
+    // Adapter Row
+    let _ = writeln!(
+        svg,
+        r##"  <!-- Adapter Row -->
+  <text x="24" y="98" font-size="11" class="mono bright">Adapter Pass@1</text>
+  <rect x="135" y="88" width="230" height="13" class="track"/>"##
+    );
+
+    if let Some(as_) = adapter_score {
+        let adapter_bar_w = (((as_.rate / scale_max).clamp(0.0, 1.0) * track_w) as u32).max(6);
+        let adapter_passed = as_.passed.round() as u64;
         let _ = writeln!(
             svg,
             r##"  <rect x="135" y="88" width="{adapter_bar_w}" height="13" rx="3" fill="url(#emerald_grad)" filter="url(#glow)"/>
   <text x="378" y="98" font-size="10" font-weight="600" class="mono bright">{adapter_pct:.1}% ({adapter_passed}/{adapter_total})</text>"##,
             adapter_bar_w = adapter_bar_w,
-            adapter_pct = adapter_rate * 100.0,
+            adapter_pct = as_.rate * 100.0,
             adapter_passed = adapter_passed,
-            adapter_total = adapter_total,
+            adapter_total = as_.total,
         );
     } else {
         let _ = writeln!(
@@ -428,121 +407,127 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
   <line x1="360" y1="130" x2="360" y2="198" stroke="#52525b" stroke-dasharray="2,2" stroke-width="1"/>"##
     );
 
-    let default_slices = [
-        ("gsm8k_think", 0.625f64, 0.625f64),
-        ("math500_think", 0.21875f64, 0.21875f64),
-        ("vox_think", 0.5625f64, 0.71875f64),
-    ];
+    let slice_names = ["gsm8k_think", "math500_think", "vox_think"];
 
-    for (i, &(slice_name, def_pre, def_post)) in default_slices.iter().enumerate() {
-        let (pre, post, status_text, status_color, status_bg) = if let Some(c) = &rec.collateral {
-            let pre_acc = c["reasoning_slices"]["benches"][slice_name]["accuracy"]["pre"]
-                .as_f64()
-                .or_else(|| {
-                    c["reports"].as_array().and_then(|arr| {
-                        arr.iter()
-                            .find(|r| r["benchmark"].as_str() == Some(slice_name))
-                            .and_then(|r| r["pre"].as_f64())
-                    })
-                })
-                .unwrap_or(def_pre);
-            let post_acc = c["reasoning_slices"]["benches"][slice_name]["accuracy"]["post"]
-                .as_f64()
-                .or_else(|| {
-                    c["reports"].as_array().and_then(|arr| {
-                        arr.iter()
-                            .find(|r| r["benchmark"].as_str() == Some(slice_name))
-                            .and_then(|r| r["post"].as_f64())
-                    })
-                })
-                .unwrap_or(def_post);
-            if post_acc >= pre_acc {
-                (
-                    pre_acc,
-                    post_acc,
-                    "CLEAR",
-                    "#34d399",
-                    "rgba(16,185,129,0.14)",
-                )
-            } else {
-                let deg = (pre_acc - post_acc) / pre_acc.max(0.001);
-                if deg > 0.05 {
-                    (
-                        pre_acc,
-                        post_acc,
-                        "REGRESSED",
-                        "#f87171",
-                        "rgba(248,113,113,0.14)",
-                    )
-                } else {
-                    (
-                        pre_acc,
-                        post_acc,
-                        "CLEAR",
-                        "#34d399",
-                        "rgba(16,185,129,0.14)",
-                    )
-                }
-            }
-        } else if gate_state == GateState::NeedsReGate {
-            (
-                def_pre,
-                def_post,
-                "PRE-GATE",
-                "#fbbf24",
-                "rgba(251,191,36,0.14)",
-            )
-        } else if trained {
-            (
-                def_pre,
-                def_post,
-                "CLEAR",
-                "#34d399",
-                "rgba(16,185,129,0.14)",
-            )
-        } else {
-            (
-                def_pre,
-                def_post,
-                "PENDING",
-                "#71717a",
-                "rgba(113,113,122,0.14)",
-            )
-        };
-
+    for (i, &slice_name) in slice_names.iter().enumerate() {
         let y_row = 142 + i * 20;
-        let pre_w = ((pre.clamp(0.0, 1.0) * 160.0) as u32).max(4);
-        let post_w = ((post.clamp(0.0, 1.0) * 160.0) as u32).max(4);
+        let slice_info = rec.collateral.as_ref().and_then(|c| {
+            let acc_obj = &c["reasoning_slices"]["benches"][slice_name]["accuracy"];
+            let pre_acc = acc_obj["pre"].as_f64().or_else(|| {
+                c["reports"].as_array().and_then(|arr| {
+                    arr.iter()
+                        .find(|r| r["benchmark"].as_str() == Some(slice_name))
+                        .and_then(|r| r["pre"].as_f64())
+                })
+            })?;
+            let post_acc = acc_obj["post"].as_f64().or_else(|| {
+                c["reports"].as_array().and_then(|arr| {
+                    arr.iter()
+                        .find(|r| r["benchmark"].as_str() == Some(slice_name))
+                        .and_then(|r| r["post"].as_f64())
+                })
+            })?;
+            let alpha = c["reasoning_slices"]["alpha"].as_f64().unwrap_or(0.05);
+            let p_val = acc_obj["p_value"].as_f64();
+            let regressed = acc_obj["regressed"].as_bool().unwrap_or_else(|| {
+                if let Some(p) = p_val {
+                    post_acc < pre_acc && p < alpha
+                } else {
+                    let deg = (pre_acc - post_acc) / pre_acc.max(0.001);
+                    deg > 0.05
+                }
+            });
+            Some((pre_acc, post_acc, p_val, regressed))
+        });
 
-        let _ = writeln!(
-            svg,
-            r##"  <!-- Slice {slice_name} -->
+        if let Some((pre_acc, post_acc, p_val, regressed)) = slice_info {
+            let (status_text, status_color, status_bg) = if gate_state == GateState::NeedsReGate {
+                ("PRE-GATE", "#fbbf24", "rgba(251,191,36,0.14)")
+            } else if regressed {
+                ("REGRESSED", "#f87171", "rgba(248,113,113,0.14)")
+            } else {
+                ("CLEAR", "#34d399", "rgba(16,185,129,0.14)")
+            };
+            let pre_w = ((pre_acc.clamp(0.0, 1.0) * 160.0) as u32).max(4);
+            let post_w = ((post_acc.clamp(0.0, 1.0) * 160.0) as u32).max(4);
+            let detail_label = match p_val {
+                Some(p) => format!(
+                    "{:.1}%→{:.1}% (p={:.2})",
+                    pre_acc * 100.0,
+                    post_acc * 100.0,
+                    p
+                ),
+                None => format!("{:.1}%→{:.1}%", pre_acc * 100.0, post_acc * 100.0),
+            };
+            let _ = writeln!(
+                svg,
+                r##"  <!-- Slice {slice_name} -->
   <text x="24" y="{text_y}" font-size="11" class="mono subtle">{slice_name}</text>
   <rect x="135" y="{bar_y}" width="160" height="10" class="track"/>
   <rect x="135" y="{bar_y}" width="{post_w}" height="10" rx="2" fill="{post_fill}"/>
   <rect x="135" y="{bar_y}" width="{pre_w}" height="10" rx="2" fill="#38bdf8" opacity="0.4"/>
+  <text x="303" y="{text_y}" font-size="9" class="mono subtle">{detail_label}</text>
   <g transform="translate(470, {badge_y})">
     <rect x="0" y="0" width="70" height="16" rx="8" fill="{status_bg}" stroke="{status_color}" stroke-width="1"/>
     <text x="35" y="12" text-anchor="middle" font-size="9" font-weight="700" class="mono" fill="{status_color}">{status_text}</text>
   </g>"##,
-            slice_name = slice_name,
-            text_y = y_row + 9,
-            bar_y = y_row,
-            pre_w = pre_w,
-            post_w = post_w,
-            post_fill = if status_color == "#f87171" {
-                "#f87171"
+                slice_name = slice_name,
+                text_y = y_row + 9,
+                bar_y = y_row,
+                pre_w = pre_w,
+                post_w = post_w,
+                post_fill = if status_color == "#f87171" {
+                    "#f87171"
+                } else {
+                    "#10b981"
+                },
+                detail_label = detail_label,
+                badge_y = y_row - 3,
+                status_bg = status_bg,
+                status_color = status_color,
+                status_text = status_text,
+            );
+        } else {
+            let (status_text, status_color, status_bg) = if gate_state == GateState::NeedsReGate {
+                ("PRE-GATE", "#fbbf24", "rgba(251,191,36,0.14)")
             } else {
-                "#10b981"
-            },
-            badge_y = y_row - 3,
-            status_bg = status_bg,
-            status_color = status_color,
-            status_text = status_text,
-        );
+                ("PENDING", "#71717a", "rgba(113,113,122,0.14)")
+            };
+            let _ = writeln!(
+                svg,
+                r##"  <!-- Slice {slice_name} -->
+  <text x="24" y="{text_y}" font-size="11" class="mono subtle">{slice_name}</text>
+  <rect x="135" y="{bar_y}" width="160" height="10" class="track"/>
+  <text x="303" y="{text_y}" font-size="9" class="mono subtle">not evaluated</text>
+  <g transform="translate(470, {badge_y})">
+    <rect x="0" y="0" width="70" height="16" rx="8" fill="{status_bg}" stroke="{status_color}" stroke-width="1"/>
+    <text x="35" y="12" text-anchor="middle" font-size="9" font-weight="700" class="mono" fill="{status_color}">{status_text}</text>
+  </g>"##,
+                slice_name = slice_name,
+                text_y = y_row + 9,
+                bar_y = y_row,
+                badge_y = y_row - 3,
+                status_bg = status_bg,
+                status_color = status_color,
+                status_text = status_text,
+            );
+        }
     }
 
-    // 3. Spoke Slot Navigation Strip
+    // 3. Spoke Slot Navigation Strip (dynamically driven by hub-cards.yaml, active_spoke_id, and spoke_gates)
+    let cfg = hub_cards().ok();
+    let default_spoke_id = cfg.map(|c| c.default_spoke.as_str()).unwrap_or("vox-lang");
+    let active_spoke = trained
+        .then(|| active_spoke_id(rec, Some(default_spoke_id)))
+        .flatten();
+    let spoke_slots: [(&str, u32, u32); 5] = [
+        ("vox-lang", 0, 76),
+        ("rust", 84, 54),
+        ("harness", 146, 72),
+        ("tool-selection", 226, 104),
+        ("argument-generation", 338, 144),
+    ];
+
     let _ = writeln!(
         svg,
         r##"  <!-- 3. Spoke Slot Navigation Strip -->
@@ -552,27 +537,75 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
     <text x="528" y="16" text-anchor="end" font-size="9" class="mono subtle">spokes/&lt;spoke&gt;/</text>
     
     <!-- 5 Spoke Slots -->
-    <g transform="translate(10, 22)">
-      <!-- vox-lang (Active) -->
-      <rect x="0" y="0" width="76" height="20" rx="4" fill="#064e3b" stroke="#10b981" stroke-width="1.5" filter="url(#glow)"/>
-      <text x="38" y="14" text-anchor="middle" font-size="10" font-weight="700" class="mono" fill="#34d399">[ vox-lang ]</text>
+    <g transform="translate(10, 22)">"##
+    );
 
-      <!-- rust -->
-      <rect x="84" y="0" width="54" height="20" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-      <text x="111" y="14" text-anchor="middle" font-size="10" class="mono" fill="#71717a">[ rust ]</text>
+    for (spoke_id, slot_x, slot_w) in spoke_slots {
+        let is_active_spoke = active_spoke.as_deref() == Some(spoke_id);
+        let explicit_spoke_gate = rec.spoke_gates.iter().find(|g| g.spoke == spoke_id);
+        let (rect_fill, rect_stroke, stroke_w, glow_attr, text_fill, font_weight) =
+            if is_active_spoke {
+                match gate_state {
+                    GateState::Passed => (
+                        "#064e3b",
+                        "#10b981",
+                        "1.5",
+                        r#" filter="url(#glow)""#,
+                        "#34d399",
+                        r#" font-weight="700""#,
+                    ),
+                    GateState::NeedsReGate | GateState::NotEvaluated => (
+                        "#451a03",
+                        "#f59e0b",
+                        "1.5",
+                        "",
+                        "#fbbf24",
+                        r#" font-weight="700""#,
+                    ),
+                    GateState::Failed => (
+                        "#450a0a",
+                        "#ef4444",
+                        "1.5",
+                        "",
+                        "#f87171",
+                        r#" font-weight="700""#,
+                    ),
+                }
+            } else if explicit_spoke_gate
+                .is_some_and(|g| g.state == vox_eval::gate_state::GateState::Passed)
+            {
+                (
+                    "#064e3b",
+                    "#10b981",
+                    "1.5",
+                    "",
+                    "#34d399",
+                    r#" font-weight="700""#,
+                )
+            } else {
+                ("#18181b", "#3f3f46", "1", "", "#71717a", "")
+            };
+        let text_x = slot_x + slot_w / 2;
+        let _ = writeln!(
+            svg,
+            r##"      <rect x="{slot_x}" y="0" width="{slot_w}" height="20" rx="4" fill="{rect_fill}" stroke="{rect_stroke}" stroke-width="{stroke_w}"{glow_attr}/>
+      <text x="{text_x}" y="14" text-anchor="middle" font-size="10"{font_weight} class="mono" fill="{text_fill}">[ {spoke_id} ]</text>"##,
+            slot_x = slot_x,
+            slot_w = slot_w,
+            rect_fill = rect_fill,
+            rect_stroke = rect_stroke,
+            stroke_w = stroke_w,
+            glow_attr = glow_attr,
+            text_x = text_x,
+            font_weight = font_weight,
+            text_fill = text_fill,
+            spoke_id = spoke_id,
+        );
+    }
 
-      <!-- harness -->
-      <rect x="146" y="0" width="72" height="20" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-      <text x="182" y="14" text-anchor="middle" font-size="10" class="mono" fill="#71717a">[ harness ]</text>
-
-      <!-- tool-selection -->
-      <rect x="226" y="0" width="104" height="20" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-      <text x="278" y="14" text-anchor="middle" font-size="10" class="mono" fill="#71717a">[ tool-selection ]</text>
-
-      <!-- argument-generation -->
-      <rect x="338" y="0" width="144" height="20" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-      <text x="410" y="14" text-anchor="middle" font-size="10" class="mono" fill="#71717a">[ argument-generation ]</text>
-    </g>
+    let _ = writeln!(
+        svg,
+        r##"    </g>
   </g>
 </g>
 </svg>"##
@@ -582,6 +615,7 @@ pub fn render_scorecard_svg(cx: &CardContext, rec: &RunRecords) -> String {
 }
 
 /// Render the index overview SVG asset (`assets/overview.svg`).
+#[inline(never)]
 pub fn render_index_assets(
     namespace: &str,
     entries: &[(SizeSyncRow, RunRecords)],
@@ -594,6 +628,7 @@ pub fn render_index_assets(
 }
 
 /// Render the index overview SVG string (`1200x360` 2-panel graphic strip).
+#[inline(never)]
 pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords)]) -> String {
     let mut svg = String::with_capacity(20480);
     let _ = writeln!(
@@ -634,6 +669,46 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
     );
 
     // ================= LEFT CARD: VOX MENS BRAIN TOPOLOGY =================
+    let trained_count = entries
+        .iter()
+        .filter(|(_, rec)| gate_of(rec).trained)
+        .count();
+    let passed_count = entries
+        .iter()
+        .filter(|(_, rec)| gate_of(rec).state == GateState::Passed)
+        .count();
+    let vox_lang_badge = if passed_count > 0 {
+        format!("✓ {passed_count}/{trained_count} Gated")
+    } else if trained_count > 0 {
+        format!("● {trained_count} Trained")
+    } else {
+        "✓ Active".to_string()
+    };
+    let spoke_status_for =
+        |spoke_id: &str| -> (&'static str, &'static str, &'static str, &'static str) {
+            let passed_n = entries
+                .iter()
+                .filter(|(_, rec)| {
+                    rec.spoke_gates.iter().any(|g| {
+                        g.spoke == spoke_id && g.state == vox_eval::gate_state::GateState::Passed
+                    })
+                })
+                .count();
+            let cfg_trained = hub_cards()
+                .ok()
+                .and_then(|c| c.spokes.iter().find(|s| s.id == spoke_id))
+                .is_some_and(|s| s.status == SpokeStatus::Trained);
+            if passed_n > 0 || cfg_trained {
+                ("#064e3b", "#10b981", "#34d399", "✓ Active")
+            } else {
+                ("#18181b", "#3f3f46", "#71717a", "Planned")
+            }
+        };
+    let (rust_fill, rust_stroke, rust_color, rust_lbl) = spoke_status_for("rust");
+    let (harn_fill, harn_stroke, harn_color, harn_lbl) = spoke_status_for("harness");
+    let (tool_fill, tool_stroke, tool_color, tool_lbl) = spoke_status_for("tool-selection");
+    let (arg_fill, arg_stroke, arg_color, arg_lbl) = spoke_status_for("argument-generation");
+
     let _ = writeln!(
         svg,
         r##"<!-- ================= LEFT CARD: VOX MENS BRAIN — HUB, RETRIEVAL & MULTI-SPOKE TOPOLOGY ================= -->
@@ -649,7 +724,7 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
   </g>
 
   <!-- Telemetry Subtitle Strip -->
-  <text x="24" y="50" font-size="10" class="mono subtle">Telemetry stats — 2.57s</text>
+  <text x="24" y="50" font-size="10" class="mono subtle">Architecture • Frozen Base + Dynamic LoRA Routing</text>
   <text x="24" y="64" font-size="10" class="mono subtle">Status • <tspan fill="#10b981">● Active Routing</tspan></text>
 
   <!-- LEFT HUB STACK (x=24, w=160) -->
@@ -707,39 +782,39 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
     <rect x="0" y="0" width="230" height="23" rx="4" fill="#064e3b" stroke="#10b981" stroke-width="1.2" filter="url(#glow)"/>
     <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="#34d399">QLoRA Spoke</text>
     <text x="8" y="20" font-size="9" font-weight="600" class="mono" fill="#f0fdf4">🗎 vox-lang (*.vox)</text>
-    <text x="222" y="16" text-anchor="end" font-size="8" class="mono" fill="#34d399">✓ Active</text>
+    <text x="222" y="16" text-anchor="end" font-size="8" class="mono" fill="#34d399">{vox_lang_badge}</text>
   </g>
 
   <!-- 2. rust (*.rs) -->
   <g transform="translate(310, 103)">
-    <rect x="0" y="0" width="230" height="23" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="#71717a">QLoRA Spoke</text>
+    <rect x="0" y="0" width="230" height="23" rx="4" fill="{rust_fill}" stroke="{rust_stroke}" stroke-width="1"/>
+    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="{rust_color}">QLoRA Spoke</text>
     <text x="8" y="20" font-size="9" class="mono" fill="#e4e4e7">⚙ rust (*.rs)</text>
-    <text x="222" y="16" text-anchor="end" font-size="8" class="mono subtle">Planned</text>
+    <text x="222" y="16" text-anchor="end" font-size="8" class="mono" fill="{rust_color}">{rust_lbl}</text>
   </g>
 
   <!-- 3. harness (v1 union) -->
   <g transform="translate(310, 129)">
-    <rect x="0" y="0" width="230" height="23" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="#71717a">QLoRA Spoke</text>
+    <rect x="0" y="0" width="230" height="23" rx="4" fill="{harn_fill}" stroke="{harn_stroke}" stroke-width="1"/>
+    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="{harn_color}">QLoRA Spoke</text>
     <text x="8" y="20" font-size="9" class="mono" fill="#e4e4e7">⚗ harness (v1 union)</text>
-    <text x="222" y="16" text-anchor="end" font-size="8" class="mono subtle">Planned</text>
+    <text x="222" y="16" text-anchor="end" font-size="8" class="mono" fill="{harn_color}">{harn_lbl}</text>
   </g>
 
   <!-- 4. tool-selection (MCP) -->
   <g transform="translate(310, 155)">
-    <rect x="0" y="0" width="230" height="23" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="#71717a">QLoRA Spoke</text>
+    <rect x="0" y="0" width="230" height="23" rx="4" fill="{tool_fill}" stroke="{tool_stroke}" stroke-width="1"/>
+    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="{tool_color}">QLoRA Spoke</text>
     <text x="8" y="20" font-size="9" class="mono" fill="#e4e4e7">🛠 tool-selection (MCP)</text>
-    <text x="222" y="16" text-anchor="end" font-size="8" class="mono subtle">Planned</text>
+    <text x="222" y="16" text-anchor="end" font-size="8" class="mono" fill="{tool_color}">{tool_lbl}</text>
   </g>
 
   <!-- 5. argument-generation (JSON) -->
   <g transform="translate(310, 181)">
-    <rect x="0" y="0" width="230" height="23" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
-    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="#71717a">QLoRA Spoke</text>
+    <rect x="0" y="0" width="230" height="23" rx="4" fill="{arg_fill}" stroke="{arg_stroke}" stroke-width="1"/>
+    <text x="8" y="10" font-size="7" font-weight="700" class="mono" fill="{arg_color}">QLoRA Spoke</text>
     <text x="8" y="20" font-size="9" class="mono" fill="#e4e4e7">{{}} argument-generation</text>
-    <text x="222" y="16" text-anchor="end" font-size="8" class="mono subtle">Planned</text>
+    <text x="222" y="16" text-anchor="end" font-size="8" class="mono" fill="{arg_color}">{arg_lbl}</text>
   </g>
 
   <!-- Bottom 4 Knowledge & RLVR Lanes -->
@@ -766,13 +841,56 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
     <rect x="0" y="0" width="230" height="21" rx="4" fill="#18181b" stroke="#312e81" stroke-width="1"/>
     <text x="8" y="14" font-size="8" class="mono" fill="#a5b4fc">🗄 rocks (RocksDB)</text>
   </g>
-</g>"##
+</g>"##,
+        vox_lang_badge = vox_lang_badge,
+        rust_fill = rust_fill,
+        rust_stroke = rust_stroke,
+        rust_color = rust_color,
+        rust_lbl = rust_lbl,
+        harn_fill = harn_fill,
+        harn_stroke = harn_stroke,
+        harn_color = harn_color,
+        harn_lbl = harn_lbl,
+        tool_fill = tool_fill,
+        tool_stroke = tool_stroke,
+        tool_color = tool_color,
+        tool_lbl = tool_lbl,
+        arg_fill = arg_fill,
+        arg_stroke = arg_stroke,
+        arg_color = arg_color,
+        arg_lbl = arg_lbl,
     );
 
     // ================= RIGHT CARD: FULL LADDER (0.6B-32B) PARETO CHART =================
     let chart_floor_y = 250.0f64;
     let chart_h = 180.0f64;
     let max_scale_val = 80.0f64;
+    let default_vram_gb = [15.0_f64, 19.0, 22.0, 32.0, 42.0, 66.0];
+    let mut vram_gbs = [0.0_f64; 6];
+    let mut vram_ys = [0.0_f64; 6];
+    for (i, &size_name) in SIZES.iter().enumerate() {
+        let mut vram_gb = default_vram_gb[i];
+        if let Some((row, rec)) = entries.iter().find(|(r, _)| r.size == size_name) {
+            if let Some(mb) = row.measured_peak_mb.or_else(|| {
+                rec.train_record
+                    .as_ref()
+                    .and_then(|v| v["peak_mb"].as_u64())
+            }) {
+                vram_gb = (mb as f64) / 1024.0;
+            } else if let Some(bytes) = rec
+                .run_summary
+                .as_ref()
+                .and_then(|v| v["peak_metal_allocated_bytes"].as_u64())
+            {
+                vram_gb = (bytes as f64) / 1_000_000_000.0;
+            }
+        }
+        vram_gbs[i] = vram_gb;
+        let norm_vram = (vram_gb / max_scale_val).clamp(0.0, 1.0);
+        vram_ys[i] = (chart_floor_y - norm_vram * chart_h).round();
+    }
+    let min_vram_gb = vram_gbs.iter().copied().fold(f64::INFINITY, f64::min);
+    let max_vram_gb = vram_gbs.iter().copied().fold(0.0_f64, f64::max);
 
     let _ = writeln!(
         svg,
@@ -782,7 +900,7 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
 
   <!-- Header Title -->
   <text x="24" y="32" font-size="11" font-weight="700" class="mono bright">FULL LADDER (0.6B–32B) PASS@1 LIFT &amp; APPLE SILICON VRAM PARETO</text>
-  <text x="540" y="46" text-anchor="end" font-size="9" font-weight="600" class="mono" fill="#fbbf24">Peak Metal VRAM (15 GB → 66 GB)</text>
+  <text x="540" y="46" text-anchor="end" font-size="9" font-weight="600" class="mono" fill="#fbbf24">Peak Metal VRAM ({min_vram_gb:.0} GB → {max_vram_gb:.0} GB)</text>
 
   <!-- Y-Axis Gridlines (0 to 80 scale for both Pass@1 % and VRAM GB) -->
   <text x="44" y="74" text-anchor="end" font-size="9" class="mono subtle">80%</text>
@@ -820,7 +938,9 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
 
   <!-- 64 GB Mac ceiling -->
   <line x1="50" y1="106" x2="530" y2="106" stroke="#475569" stroke-width="1"/>
-  <text x="48" y="103" font-size="8" class="mono" fill="#cbd5e1">64 GB Mac ceiling</text>"##
+  <text x="48" y="103" font-size="8" class="mono" fill="#cbd5e1">64 GB Mac ceiling</text>"##,
+        min_vram_gb = min_vram_gb,
+        max_vram_gb = max_vram_gb,
     );
 
     // Grouped vertical bars for each of the 6 ladder sizes
@@ -828,19 +948,20 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
         let mut base_r = None;
         let mut adapt_r = None;
         let mut gate_state = GateState::NotEvaluated;
+        let mut trained = false;
 
-        if let Some((_row, rec)) = entries.iter().find(|(r, _)| r.size == size_name) {
-            gate_state = gate_of(rec).state;
+        if let Some((_, rec)) = entries.iter().find(|(r, _)| r.size == size_name) {
+            let gf = gate_of(rec);
+            gate_state = gf.state;
+            trained = gf.trained;
             let (b, a) = heldout_scores(rec);
             if let Some(b) = b {
                 base_r = Some(b.rate);
             }
-            if let Some(a) = a {
+            if adapter_evidence(rec) == AdapterEvidence::Current
+                && let Some(a) = a
+            {
                 adapt_r = Some(a.rate);
-            } else if let Some(v) = &rec.heldout_adapter {
-                if let Some(r) = v["pass_rate_at_1"].as_f64() {
-                    adapt_r = Some(r);
-                }
             }
         }
 
@@ -901,14 +1022,15 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
                 adapt_fill = adapt_fill,
                 a_pct = a_pct,
             );
-        } else if size_name == "32B" {
-            // Honest empty dashed box for 32B (exceeds 64 GB Mac memory)
+        } else if size_name == "32B" || !trained {
+            // Honest empty dashed box for untrained rungs (e.g. 32B exceeds 64 GB Mac memory)
             let _ = writeln!(
                 svg,
-                r##"  <!-- 32B Adapter (Untrained - exceeds 64GB Mac ceiling) -->
+                r##"  <!-- {size_name} Adapter (Untrained) -->
   <text x="{lbl_x:.1}" y="{lbl_y1:.1}" text-anchor="middle" font-size="7" class="mono" fill="#fbbf24">66G &gt; 64G</text>
   <text x="{lbl_x:.1}" y="{lbl_y2:.1}" text-anchor="middle" font-size="7" class="mono" fill="#71717a">Untrained</text>
   <rect x="{x_adapt:.1}" y="{y_adapt:.1}" width="14" height="24" rx="3" stroke="#52525b" stroke-dasharray="3,3" fill="none"/>"##,
+                size_name = size_name,
                 lbl_x = x_adapt + 7.0,
                 lbl_y1 = chart_floor_y - 36.0,
                 lbl_y2 = chart_floor_y - 27.0,
@@ -916,14 +1038,24 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
                 y_adapt = chart_floor_y - 24.0,
             );
         } else {
+            let (state_lbl, state_color, state_stroke) = match gate_state {
+                GateState::Failed => ("Failed", "#f87171", "#ef4444"),
+                GateState::NeedsReGate => ("Re-gate", "#fbbf24", "#f59e0b"),
+                GateState::NotEvaluated | GateState::Passed => {
+                    ("Eval Pending", "#94a3b8", "#334155")
+                }
+            };
             let _ = writeln!(
                 svg,
-                r##"  <text x="{lbl_x:.1}" y="{lbl_y:.1}" text-anchor="middle" font-size="7" class="mono" fill="#71717a">Pending</text>
-  <rect x="{x_adapt:.1}" y="{y_adapt:.1}" width="14" height="20" rx="3" stroke="#334155" stroke-dasharray="3,3" fill="none"/>"##,
+                r##"  <text x="{lbl_x:.1}" y="{lbl_y:.1}" text-anchor="middle" font-size="7" class="mono" fill="{state_color}">{state_lbl}</text>
+  <rect x="{x_adapt:.1}" y="{y_adapt:.1}" width="14" height="20" rx="3" stroke="{state_stroke}" stroke-dasharray="3,3" fill="none"/>"##,
                 lbl_x = x_adapt + 7.0,
                 lbl_y = chart_floor_y - 24.0,
                 x_adapt = x_adapt,
                 y_adapt = chart_floor_y - 20.0,
+                state_color = state_color,
+                state_lbl = state_lbl,
+                state_stroke = state_stroke,
             );
         }
 
@@ -936,18 +1068,18 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
         );
     }
 
-    // Overlaid stepped Peak Metal VRAM line (15 GB -> 19 GB -> 22 GB -> 32 GB -> 42 GB -> 66 GB)
-    // 0.6B (x=112, y=216) -> 1.7B (x=184, y=207) -> 4B (x=256, y=200) -> 8B (x=328, y=178) -> 14B (x=400, y=155) -> 32B (x=472, y=101)
+    // Overlaid stepped Peak Metal VRAM line (computed dynamically from entries or tier fallbacks)
+    let [y0, y1, y2, y3, y4, y5] = vram_ys;
     let _ = writeln!(
         svg,
         r##"  <!-- Stepped Peak Metal VRAM Line -->
-  <path d="M 75 216 H 148 V 207 H 220 V 200 H 292 V 178 H 364 V 155 H 436 V 101 H 520" fill="none" stroke="#fbbf24" stroke-width="2"/>
-  <circle cx="112" cy="216" r="3.5" fill="#fbbf24"/>
-  <circle cx="184" cy="207" r="3.5" fill="#fbbf24"/>
-  <circle cx="256" cy="200" r="3.5" fill="#fbbf24"/>
-  <circle cx="328" cy="178" r="3.5" fill="#fbbf24"/>
-  <circle cx="400" cy="155" r="3.5" fill="#fbbf24"/>
-  <circle cx="472" cy="101" r="3.5" fill="#fbbf24"/>
+  <path d="M 75 {y0:.0} H 148 V {y1:.0} H 220 V {y2:.0} H 292 V {y3:.0} H 364 V {y4:.0} H 436 V {y5:.0} H 520" fill="none" stroke="#fbbf24" stroke-width="2"/>
+  <circle cx="112" cy="{y0:.0}" r="3.5" fill="#fbbf24"/>
+  <circle cx="184" cy="{y1:.0}" r="3.5" fill="#fbbf24"/>
+  <circle cx="256" cy="{y2:.0}" r="3.5" fill="#fbbf24"/>
+  <circle cx="328" cy="{y3:.0}" r="3.5" fill="#fbbf24"/>
+  <circle cx="400" cy="{y4:.0}" r="3.5" fill="#fbbf24"/>
+  <circle cx="472" cy="{y5:.0}" r="3.5" fill="#fbbf24"/>
 
   <!-- Legend -->
   <g transform="translate(70, 290)">
@@ -958,10 +1090,18 @@ pub fn render_overview_svg(_namespace: &str, entries: &[(SizeSyncRow, RunRecords
     <text x="126" y="9" font-size="10" class="mono subtle">Adapter Pass@1</text>
 
     <line x1="240" y1="5" x2="260" y2="5" stroke="#fbbf24" stroke-width="2"/>
-    <text x="268" y="9" font-size="10" font-weight="600" class="mono" fill="#fbbf24">Peak Metal VRAM (15 GB → 66 GB)</text>
+    <text x="268" y="9" font-size="10" font-weight="600" class="mono" fill="#fbbf24">Peak Metal VRAM ({min_vram_gb:.0} GB → {max_vram_gb:.0} GB)</text>
   </g>
 </g>
-</svg>"##
+</svg>"##,
+        y0 = y0,
+        y1 = y1,
+        y2 = y2,
+        y3 = y3,
+        y4 = y4,
+        y5 = y5,
+        min_vram_gb = min_vram_gb,
+        max_vram_gb = max_vram_gb,
     );
 
     svg
@@ -991,7 +1131,7 @@ mod tests {
         };
         let cx = CardContext {
             size: "4B",
-            base_pin: "Qwen/Qwen3-4B@1cfa9a720891", // gitleaks:allow
+            base_pin: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c", // gitleaks:allow
             namespace: "brbrainerd",
         };
         let assets = render_model_assets(&cx, &rec);
@@ -1093,5 +1233,41 @@ mod tests {
             !a.content
                 .contains("Size × Spoke Evaluation &amp; Gate Matrix")
         );
+    }
+
+    #[test]
+    fn scorecard_mcnemar_uses_statistical_regression_not_raw_drop() {
+        let rec = RunRecords {
+            has_adapter: true,
+            collateral: Some(serde_json::json!({
+                "reasoning_slices": {
+                    "alpha": 0.05,
+                    "benches": {
+                        "gsm8k_think": {
+                            "accuracy": { "pre": 0.3516, "post": 0.3672, "p_value": 0.8746, "regressed": false }
+                        },
+                        "math500_think": {
+                            "accuracy": { "pre": 0.6719, "post": 0.5938, "p_value": 0.2210, "regressed": false }
+                        },
+                        "vox_think": {
+                            "accuracy": { "pre": 0.6172, "post": 0.5078, "p_value": 0.1405, "regressed": false }
+                        }
+                    }
+                }
+            })),
+            gate_receipt: Some(serde_json::json!({ "passed": true })),
+            ..Default::default()
+        };
+        let cx = CardContext {
+            size: "0.6B",
+            base_pin: "test-pin",
+            namespace: "brbrainerd",
+        };
+        let assets = render_model_assets(&cx, &rec);
+        assert!(
+            !assets[0].content.contains("REGRESSED"),
+            "scorecard.svg must not mark p >= 0.05 slices as REGRESSED"
+        );
+        assert!(assets[0].content.contains("67.2%→59.4% (p=0.22)"));
     }
 }

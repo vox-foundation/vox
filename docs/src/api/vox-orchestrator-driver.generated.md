@@ -99,6 +99,8 @@ graph {
     vox_cli -> vox_orchestrator_driver
     node vox_cli_core: "vox-cli-core"
     vox_cli_core -> vox_orchestrator_driver
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_orchestrator_driver
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
     vox_orchestrator_mcp -> vox_orchestrator_driver
 }
@@ -110,6 +112,7 @@ graph {
 |---|---|
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)

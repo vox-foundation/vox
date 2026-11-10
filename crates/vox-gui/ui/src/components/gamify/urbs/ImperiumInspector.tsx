@@ -201,9 +201,9 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
           </div>
         </div>
 
-        {/* Concept Art B Curved-Bezier Fan-in / Fan-out Mini-DAG on Warm Roman Parchment */}
-        <div className="rounded-lg border border-amber-700/60 bg-[#dfd0b4] px-2.5 py-2 text-[#1c1510] shadow-inner">
-          <div className="flex items-center justify-between font-serif text-[9.5px] font-bold tracking-wide text-[#3b2d20]">
+        {/* Concept Art B Curved-Bezier Fan-in / Fan-out Mini-DAG on Semantic Tablet */}
+        <div className="rounded-lg border border-border-strong bg-bg-elevated px-2.5 py-2 text-text-primary shadow-inner">
+          <div className="flex items-center justify-between font-serif text-[9.5px] font-bold tracking-wide text-text-secondary">
             <span>Fan-in ({fanIn})</span>
             <span className="uppercase">DEPENDENCY & BLAST-RADIUS DAG</span>
             <span>Fan-out ({fanOut})</span>
@@ -212,27 +212,27 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
             <path
               d="M 42 27 C 68 27, 72 13, 98 13 M 42 27 C 68 27, 72 41, 98 41 M 136 13 C 162 13, 168 27, 194 27 M 136 41 C 162 41, 168 27, 194 27"
               fill="none"
-              stroke="#292018"
+              stroke="var(--color-text-secondary)"
               strokeWidth="1.6"
             />
-            <rect x="14" y="16" width="28" height="22" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
-            <text x="28" y="31" textAnchor="middle" fill="#1C140C" fontSize="10" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+            <rect x="14" y="16" width="28" height="22" rx="4" fill="var(--color-bg-surface)" stroke="var(--color-border-strong)" strokeWidth="1.2" />
+            <text x="28" y="31" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="bold" fontFamily="var(--font-serif, 'Palatino', Georgia, serif)">
               {fanIn}
             </text>
-            <rect x="98" y="3" width="38" height="20" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
-            <text x="117" y="16.5" textAnchor="middle" fill="#92400E" fontSize="9.5" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+            <rect x="98" y="3" width="38" height="20" rx="4" fill="var(--color-bg-surface)" stroke="var(--color-border-strong)" strokeWidth="1.2" />
+            <text x="117" y="16.5" textAnchor="middle" fill="var(--color-status-warn)" fontSize="9.5" fontWeight="bold" fontFamily="var(--font-serif, 'Palatino', Georgia, serif)">
               {blast.impactedDependents.length}
             </text>
-            <rect x="98" y="31" width="38" height="20" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
-            <text x="117" y="44.5" textAnchor="middle" fill="#5C4428" fontSize="9.5" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+            <rect x="98" y="31" width="38" height="20" rx="4" fill="var(--color-bg-surface)" stroke="var(--color-border-strong)" strokeWidth="1.2" />
+            <text x="117" y="44.5" textAnchor="middle" fill="var(--color-text-secondary)" fontSize="9.5" fontWeight="bold" fontFamily="var(--font-serif, 'Palatino', Georgia, serif)">
               {d.buildings.length}
             </text>
-            <rect x="194" y="16" width="32" height="22" rx="4" fill="#FAF5E8" stroke="#C59B27" strokeWidth="1.2" />
-            <text x="210" y="31" textAnchor="middle" fill="#3F4D1E" fontSize="10" fontWeight="bold" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+            <rect x="194" y="16" width="32" height="22" rx="4" fill="var(--color-bg-surface)" stroke="var(--color-border-strong)" strokeWidth="1.2" />
+            <text x="210" y="31" textAnchor="middle" fill="var(--color-status-pass)" fontSize="10" fontWeight="bold" fontFamily="var(--font-serif, 'Palatino', Georgia, serif)">
               {fanOut}
             </text>
           </svg>
-          <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-[#3b2d20]">
+          <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-text-secondary">
             <span>Upstream Providers: {blast.providers.length}</span>
             <span>
               Blast Radius: {blast.impactedDependents.length} downstream ({blast.staleTestModules} test)
@@ -252,7 +252,7 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                         onSelect({ kind: 'district', name: dep });
                       }
                     }}
-                    className="rounded border border-teal-700/70 bg-[#1a2e2b] px-1.5 py-0.5 font-mono text-[9px] text-teal-200 hover:bg-[#233d39]"
+                    className="rounded border border-(--color-status-pass)/50 bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-pass) hover:bg-bg-elevated"
                   >
                     ⬆ {dep}
                   </button>
@@ -270,7 +270,7 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                         onSelect({ kind: 'district', name: dep });
                       }
                     }}
-                    className="rounded border border-amber-600/80 bg-[#362417] px-1.5 py-0.5 font-mono text-[9px] text-amber-200 hover:bg-[#47301f]"
+                    className="rounded border border-(--color-status-warn)/60 bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-warn) hover:bg-bg-elevated"
                   >
                     ⚡ {dep}
                   </button>
@@ -888,17 +888,17 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
   return (
     <div
       data-testid="urbs-imperium-inspector"
-      className="pointer-events-auto absolute bottom-12 left-3 z-20 w-[310px] rounded-xl border border-brass/50 bg-[#0A0C14]/95 p-3 text-zinc-100 shadow-2xl backdrop-blur-md"
+      className="vox-marble-tablet pointer-events-auto absolute bottom-[82px] left-2.5 z-20 max-h-[calc(100%-136px)] w-[304px] overflow-y-auto custom-scrollbar rounded-xl border-2 border-[#C59B27]/85 bg-[#FAF6EE]/96 p-2.5 text-[#1C140C] shadow-2xl backdrop-blur-md"
     >
-      <div className="mb-2 flex items-center justify-between border-b border-white/10 pb-1.5">
-        <span className="font-mono text-[9.5px] font-semibold uppercase tracking-widest text-brass">
+      <div className="mb-1.5 flex items-center justify-between border-b border-[#C59B27]/40 pb-1">
+        <span className="font-display text-[9.5px] font-bold uppercase tracking-widest text-[#8C6214]">
           🏛 IMPERIVM PREFECTURE DOCK
         </span>
         <button
           type="button"
           aria-label="Close Imperium Inspector"
           onClick={() => onSelect(null)}
-          className="rounded px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+          className="rounded px-1.5 py-0.5 font-mono text-[10px] text-[#5C4428] hover:bg-[#EFE6D5] hover:text-[#1C140C]"
         >
           ✕
         </button>

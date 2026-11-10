@@ -6583,6 +6583,33 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: ci.cross-repo-parity
+  title: Ci Cross-repo-parity
+  description: CLI operation `vox ci cross-repo-parity`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - cross-repo-parity
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: ci.cuda-features
   title: Ci Cuda-features
   description: CLI operation `vox ci cuda-features`
@@ -7237,6 +7264,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.federated-symbol-graph
+  title: Ci Federated-symbol-graph
+  description: CLI operation `vox ci federated-symbol-graph`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - federated-symbol-graph
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: ci.flake-budget
   title: Ci Flake-budget
   description: CLI operation `vox ci flake-budget`
@@ -8757,6 +8811,33 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: ci.publish-dry-run
+  title: Ci Publish-dry-run
+  description: CLI operation `vox ci publish-dry-run`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - publish-dry-run
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: ci.query-all-guard
   title: Ci Query-all-guard
   description: CLI operation `vox ci query-all-guard`
@@ -9569,6 +9650,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.standalone-sovereignty
+  title: Ci Standalone-sovereignty
+  description: CLI operation `vox ci standalone-sovereignty`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - standalone-sovereignty
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: ci.status
   title: Ci Status
   description: CLI operation `vox ci status`

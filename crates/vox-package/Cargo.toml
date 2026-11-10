@@ -15,6 +15,7 @@ replication = ["vox-db/replication"]
 [dependencies]
 vox-package-types = { workspace = true }
 vox-config = { workspace = true }
+vox-db-types = { workspace = true }
 vox-db = { workspace = true }
 bincode = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

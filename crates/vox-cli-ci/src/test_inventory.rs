@@ -974,6 +974,7 @@ fn emit_markdown(report: &TestInventoryReport) -> String {
 }
 
 /// Run `vox ci test-inventory`.
+#[inline(never)]
 pub fn run(root: &Path, opts: TestInventoryOpts) -> Result<()> {
     let report = build_inventory(root)?;
     let json = report_to_json(&report)?;

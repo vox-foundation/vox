@@ -30,15 +30,25 @@ StyleDictionary.registerFormat({
   },
 });
 
-const dark = new StyleDictionary({
+const arcaneDefault = new StyleDictionary({
   log: { warnings: 'disabled' },
   source: ['tokens/primitive.json', 'tokens/semantic.json'],
   platforms: {
     css: { transformGroup: 'css', buildPath: 'src/styles/', files: [
-      { destination: 'tokens.generated.css', format: 'css/vars-selector', options: { selector: ':root' } },
+      { destination: 'tokens.generated.css', format: 'css/vars-selector', options: { selector: ':root, [data-theme="arcane"]' } },
     ] },
     ts: { transformGroup: 'js', buildPath: 'src/styles/', files: [
       { destination: 'tokens.generated.ts', format: 'ts/nested' },
+    ] },
+  },
+});
+
+const slate = new StyleDictionary({
+  log: { warnings: 'disabled' },
+  source: ['tokens/primitive.json', 'tokens/semantic.slate.json'],
+  platforms: {
+    css: { transformGroup: 'css', buildPath: 'src/styles/', files: [
+      { destination: 'tokens.slate.generated.css', format: 'css/vars-selector', options: { selector: '[data-theme="slate"], [data-theme="void"]' } },
     ] },
   },
 });
@@ -58,12 +68,13 @@ const travertine = new StyleDictionary({
   source: ['tokens/primitive.json', 'tokens/semantic.travertine.json'],
   platforms: {
     css: { transformGroup: 'css', buildPath: 'src/styles/', files: [
-      { destination: 'tokens.travertine.generated.css', format: 'css/vars-selector', options: { selector: '[data-theme="travertine"]' } },
+      { destination: 'tokens.travertine.generated.css', format: 'css/vars-selector', options: { selector: '[data-theme="glacier"], [data-theme="travertine"]' } },
     ] },
   },
 });
 
-await dark.buildAllPlatforms();
+await arcaneDefault.buildAllPlatforms();
+await slate.buildAllPlatforms();
 await contrast.buildAllPlatforms();
 await travertine.buildAllPlatforms();
-console.log('tokens built: tokens.generated.css, tokens.contrast.generated.css, tokens.travertine.generated.css, tokens.generated.ts');
+console.log('tokens built: tokens.generated.css, tokens.slate.generated.css, tokens.contrast.generated.css, tokens.travertine.generated.css, tokens.generated.ts');

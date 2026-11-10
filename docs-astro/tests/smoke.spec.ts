@@ -128,6 +128,10 @@ test.describe('voxlang.org live site', () => {
       '/reference/ref-syntax/',
       '/reference/cli/',
       '/reference/stability/',
+      '/reference/mens-models/',
+      '/reference/mens-training/',
+      '/reference/mens-training-data-contract/',
+      '/reference/mens-serving-ssot/',
     ];
 
     const violations: Array<{ page: string; id: string; line: string }> = [];

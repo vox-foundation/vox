@@ -2,9 +2,11 @@
 name = "voxup"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 description = "The Vox toolchain multiplexer and hermetic installer"
 
 [lib]
@@ -30,7 +32,6 @@ dirs       = { workspace = true }
 flate2     = { workspace = true }
 tar        = { workspace = true }
 vox-secrets = { workspace = true }
-workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]
 zip = { workspace = true }

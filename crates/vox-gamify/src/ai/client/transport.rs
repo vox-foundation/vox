@@ -182,6 +182,7 @@ impl FreeAiClient {
     /// and verifying the local-Ollama SSE framing matches what `vox_openai::sse` expects.
     /// That is real, separately-scoped provider-coverage work; tracked as a T4-series
     /// follow-up rather than folded into this consolidation pass.
+    #[inline(never)]
     pub(crate) async fn stream_ollama(
         http: &reqwest::Client,
         url: &str,
@@ -255,6 +256,7 @@ impl FreeAiClient {
         vox_local_probe::vox_local_generate_url()
     }
 
+    #[inline(never)]
     pub(crate) async fn stream_vox_local(
         http: &reqwest::Client,
         prompt: &str,
@@ -323,6 +325,7 @@ impl FreeAiClient {
     /// OpenAI-compatible wire only (see its crate doc). Adding a second wire protocol
     /// to the egress core is a real, separately-scoped provider-coverage project, not a
     /// small addition — left as an explicit follow-up rather than attempted here.
+    #[inline(never)]
     pub(crate) async fn stream_gemini(
         http: &reqwest::Client,
         api_key: &str,
@@ -458,6 +461,7 @@ impl FreeAiClient {
         })
     }
 
+    #[inline(never)]
     pub(crate) async fn call_provider_static(
         http: &reqwest::Client,
         provider: &FreeAiProvider,
@@ -482,6 +486,7 @@ impl FreeAiClient {
     ///
     /// Tries each model until one returns a non-empty response.
     /// On rate limit (429) or quota errors, advances to the next model.
+    #[inline(never)]
     pub(crate) async fn call_openrouter_static(
         // The wire now goes through vox_llm_egress::chat_once (which owns its HTTP client),
         // so the passed client is no longer used; kept for signature compatibility.
@@ -586,6 +591,7 @@ impl FreeAiClient {
         )))
     }
 
+    #[inline(never)]
     pub(crate) async fn call_ollama_static(
         http: &reqwest::Client,
         url: &str,
@@ -616,6 +622,7 @@ impl FreeAiClient {
             .ok_or(AiError::EmptyResponse)
     }
 
+    #[inline(never)]
     pub(crate) async fn call_pollinations_static(
         http: &reqwest::Client,
         prompt: &str,
@@ -644,6 +651,7 @@ impl FreeAiClient {
         Ok(text)
     }
 
+    #[inline(never)]
     pub(crate) async fn call_gemini_static(
         http: &reqwest::Client,
         api_key: &str,

@@ -249,6 +249,10 @@ pub enum CiCmd {
         /// Legacy alias for the default **fast** profile (same as omitting `--complete`/`--full`).
         #[arg(long, conflicts_with_all = ["complete", "full"])]
         quick: bool,
+        /// Run full workspace verification (36-stage ssot-drift, whole-tree docs, all gates).
+        /// Default on CI runners (GITHUB_ACTIONS=true / VOX_PRE_PUSH_CI=1); opt-in locally.
+        #[arg(long)]
+        ci: bool,
         /// Full static analysis: whole-tree doc lint + doctest, doc-inventory, workspace clippy,
         /// scoped TOESTUB (same shape as the pre-2026-05-11 default pre-push, without nextest).
         #[arg(long, conflicts_with = "quick")]
@@ -1343,6 +1347,18 @@ pub enum CiCmd {
     /// the rows and cannot run on macOS.
     #[command(name = "toolchain-ssot")]
     ToolchainSsot,
+    /// Dry-run publish readiness gate for crates declared in `crates/_public.toml`.
+    #[command(name = "publish-dry-run")]
+    PublishDryRun,
+    /// Verify standalone sovereignty invariants (`VOX_OFFLINE=1` / zero `vox-ops` dependency / `default-members`).
+    #[command(name = "standalone-sovereignty")]
+    StandaloneSovereignty,
+    /// Verify shared wire/IPC/telemetry contract parity across federated repositories in `.vox/repositories.yaml`.
+    #[command(name = "cross-repo-parity")]
+    CrossRepoParity,
+    /// Refresh and verify the federated multi-repository symbol & contract graph.
+    #[command(name = "federated-symbol-graph")]
+    FederatedSymbolGraph,
 }
 
 impl CiCmd {

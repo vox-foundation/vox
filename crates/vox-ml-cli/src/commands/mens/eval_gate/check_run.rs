@@ -3,10 +3,9 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-use super::bfcl::check_bfcl;
 use super::io::{read_jsonl_nonempty_lines, read_utf8_path_capped};
 use super::leakage::assert_no_text_leakage;
-use super::policy::{load_policy, mcp_tool_schema_metrics_path};
+use super::policy::load_policy;
 
 /// Gate check result.
 #[derive(Debug)]
@@ -46,7 +45,7 @@ fn find_upward(rel: &str) -> Option<PathBuf> {
 /// current working directory at all (e.g. a packaged binary run outside the
 /// workspace), the precondition can't be evaluated and is reported as
 /// not-applicable rather than failing closed on an environment difference.
-fn check_leakage_precondition(results: &mut Vec<GateResult>) {
+pub(crate) fn check_leakage_precondition(results: &mut Vec<GateResult>) {
     const BENCH_REL: &str = "mens/data/heldout_bench/manifest.json";
     let Some(bench_path) = find_upward(BENCH_REL) else {
         results.push(GateResult {
@@ -107,7 +106,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
             legacy
         }
     };
-    let manifest: Option<serde_json::Value> = if manifest_path.exists() {
+    let _manifest: Option<serde_json::Value> = if manifest_path.exists() {
         let content = read_utf8_path_capped(&manifest_path)?;
         serde_json::from_str(&content).ok()
     } else {
@@ -127,56 +126,29 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         Vec::new()
     };
 
-    let avg_tokens_per_sec = if metrics_lines.is_empty() {
-        None
-    } else {
-        let mut sum = 0.0;
-        let mut count = 0;
-        let mut used_alias = false;
-        for line in &metrics_lines {
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-                let t = v
-                    .get("tokens_per_sec")
-                    .and_then(|x| x.as_f64())
-                    .or_else(|| {
-                        used_alias = true;
-                        v.get("steps_per_sec_ema").and_then(|x| x.as_f64())
-                    });
-                if let Some(tps) = t {
-                    sum += tps;
-                    count += 1;
-                }
-            }
-        }
-        if used_alias {
-            eprintln!(
-                "warning: eval-gate consumed deprecated throughput alias `steps_per_sec_ema`; emit canonical `tokens_per_sec`"
-            );
-        }
-        if count > 0 {
-            Some(sum / count as f64)
-        } else {
-            None
-        }
-    };
-
-    let device_profile = manifest
-        .as_ref()
-        .and_then(|m| m.get("device_profile"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("cpu");
-
-    if (policy.supervised_ratio.block || policy.supervised_ratio.min_pct > 0.0)
-        && !metrics_lines.is_empty()
-    {
+    if policy.supervised_ratio.block || policy.supervised_ratio.min_pct > 0.0 {
         let sup_values: Vec<f64> = metrics_lines
             .iter()
             .filter_map(|l| {
                 serde_json::from_str::<serde_json::Value>(l)
                     .ok()
                     .and_then(|v| {
-                        v.get("supervised_ratio_pct")
-                            .and_then(|x| x.as_f64())
+                        let from_payload = v.get("payload").and_then(|p| {
+                            p.get("supervised_ratio_pct")
+                                .and_then(|x| x.as_f64())
+                                .or_else(|| {
+                                    let valid = p.get("valid_tokens").and_then(|x| x.as_u64())?;
+                                    let theoretical =
+                                        p.get("theoretical_tokens").and_then(|x| x.as_u64())?;
+                                    if theoretical == 0 {
+                                        Some(0.0)
+                                    } else {
+                                        Some((valid as f64 / theoretical as f64) * 100.0)
+                                    }
+                                })
+                        });
+                        from_payload
+                            .or_else(|| v.get("supervised_ratio_pct").and_then(|x| x.as_f64()))
                             .or_else(|| {
                                 let valid = v.get("valid_tokens").and_then(|x| x.as_u64())?;
                                 let theoretical =
@@ -204,229 +176,17 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 ),
                 block: policy.supervised_ratio.block,
             });
-        }
-    }
-
-    fn normalize_device_profile(profile: &str) -> String {
-        let lower = profile.to_lowercase();
-        if lower.contains("cpu") {
-            "cpu".to_string()
-        } else if lower.contains("4080") {
-            "rtx_4080_super".to_string()
-        } else if lower.contains("4090") {
-            "rtx_4090".to_string()
         } else {
-            lower.replace([' ', '-'], "_")
-        }
-    }
-
-    let device_profile_normalized = normalize_device_profile(device_profile);
-
-    if (policy.truncation.block || policy.truncation.max_fraction < 1.0)
-        && manifest
-            .as_ref()
-            .is_some_and(|m| m.get("truncation_fraction").is_some())
-    {
-        let frac = manifest
-            .as_ref()
-            .and_then(|m| m.get("truncation_fraction").and_then(|v| v.as_f64()))
-            .unwrap_or(0.0);
-        let passed = frac <= policy.truncation.max_fraction;
-        results.push(GateResult {
-            name: "truncation".to_string(),
-            passed,
-            message: format!(
-                "truncation_fraction {:.2} {} {:.2}",
-                frac,
-                if passed { "<=" } else { ">" },
-                policy.truncation.max_fraction
-            ),
-            block: policy.truncation.block,
-        });
-    }
-
-    if let Some(tps) = avg_tokens_per_sec {
-        let min_tps = policy
-            .throughput
-            .min_tokens_per_sec
-            .get(&device_profile_normalized)
-            .copied()
-            .or_else(|| policy.throughput.min_tokens_per_sec.get("cpu").copied())
-            .unwrap_or(0.0);
-        let passed = tps >= min_tps;
-        if min_tps > 0.0 {
             results.push(GateResult {
-                name: "throughput".to_string(),
-                passed,
-                message: format!(
-                    "throughput {:.0} tok/s {} {:.0} (profile={})",
-                    tps,
-                    if passed { ">=" } else { "<" },
-                    min_tps,
-                    device_profile_normalized
-                ),
-                block: policy.throughput.block,
+                name: "supervised_ratio".to_string(),
+                passed: !policy.supervised_ratio.block,
+                message: "supervised_ratio missing from telemetry".to_string(),
+                block: policy.supervised_ratio.block,
             });
         }
     }
 
-    let eval_results_path = run_dir.join("eval_results.json");
-    // Parse eval_results.json once and share it across all gates that need it (B2).
-    let eval_json: Option<serde_json::Value> = if eval_results_path.exists() {
-        let content = read_utf8_path_capped(&eval_results_path)?;
-        serde_json::from_str(&content).ok()
-    } else {
-        None
-    };
-
-    if (policy.eval_local.block || policy.eval_local.min_parse_rate > 0.0)
-        && let Some(ref eval) = eval_json
-    {
-        let parse_rate = eval
-            .get("vox_parse_rate")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        // construct_coverage_pct is stored as 0–100 in eval_results.json (e.g. 35.0)
-        // but min_coverage_pct in the YAML is 0.0–1.0 (e.g. 0.35). Normalise (Q4).
-        let coverage_pct_json = eval
-            .get("construct_coverage_pct")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        let coverage = coverage_pct_json / 100.0;
-        let passed = parse_rate >= policy.eval_local.min_parse_rate
-            && coverage >= policy.eval_local.min_coverage_pct;
-        results.push(GateResult {
-            name: "eval_local".to_string(),
-            passed,
-            message: format!(
-                "parse_rate={:.2} coverage={:.1}% (min={:.2} / {:.0}%)",
-                parse_rate,
-                coverage_pct_json,
-                policy.eval_local.min_parse_rate,
-                policy.eval_local.min_coverage_pct * 100.0,
-            ),
-            block: policy.eval_local.block,
-        });
-    }
-
-    if policy.rust_compile_rate.block || policy.rust_compile_rate.min_pct > 0.0 {
-        // Absent key = no rust rows in this corpus → gate not applicable (pass, don't fail).
-        // This avoids a blocking rust gate misreading a missing metric as 0%.
-        let (passed, msg) = match eval_json
-            .as_ref()
-            .and_then(|e| e.get("rust_compile_rate"))
-            .and_then(|v| v.as_f64())
-        {
-            Some(rate) => {
-                let ok = rate >= policy.rust_compile_rate.min_pct;
-                (
-                    ok,
-                    format!(
-                        "rust_compile_rate={:.2} (min={:.2})",
-                        rate, policy.rust_compile_rate.min_pct
-                    ),
-                )
-            }
-            None => (
-                true,
-                "rust_compile_rate not applicable (no rust_authoring rows)".to_string(),
-            ),
-        };
-        results.push(GateResult {
-            name: "rust_compile_rate".to_string(),
-            passed,
-            message: msg,
-            block: policy.rust_compile_rate.block,
-        });
-    }
-
-    if policy.clippy_clean_rate.block || policy.clippy_clean_rate.min_pct > 0.0 {
-        let (passed, msg) = match eval_json
-            .as_ref()
-            .and_then(|e| e.get("clippy_clean_rate"))
-            .and_then(|v| v.as_f64())
-        {
-            Some(rate) => {
-                let ok = rate >= policy.clippy_clean_rate.min_pct;
-                (
-                    ok,
-                    format!(
-                        "clippy_clean_rate={:.2} (min={:.2})",
-                        rate, policy.clippy_clean_rate.min_pct
-                    ),
-                )
-            }
-            None => (
-                true,
-                "clippy_clean_rate not applicable (no rust_authoring rows)".to_string(),
-            ),
-        };
-        results.push(GateResult {
-            name: "clippy_clean_rate".to_string(),
-            passed,
-            message: msg,
-            block: policy.clippy_clean_rate.block,
-        });
-    }
-
-    // Agentic spoke gates — read from eval_results.json (same file, different keys).
-    if policy.tool_call_valid_json_rate.block || policy.tool_call_valid_json_rate.min_pct > 0.0 {
-        let (passed, msg) = match &eval_json {
-            Some(eval) => {
-                let rate = eval
-                    .get("tool_call_valid_json_rate")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0);
-                let ok = rate >= policy.tool_call_valid_json_rate.min_pct;
-                (
-                    ok,
-                    format!(
-                        "tool_call_valid_json_rate={:.2} (min={:.2})",
-                        rate, policy.tool_call_valid_json_rate.min_pct
-                    ),
-                )
-            }
-            None => (
-                false,
-                "eval_results.json not found — run `vox mens eval` first".to_string(),
-            ),
-        };
-        results.push(GateResult {
-            name: "tool_call_valid_json_rate".to_string(),
-            passed,
-            message: msg,
-            block: policy.tool_call_valid_json_rate.block,
-        });
-    }
-
-    if policy.tool_name_exists_rate.block || policy.tool_name_exists_rate.min_pct > 0.0 {
-        let (passed, msg) = match &eval_json {
-            Some(eval) => {
-                let rate = eval
-                    .get("tool_name_exists_rate")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0);
-                let ok = rate >= policy.tool_name_exists_rate.min_pct;
-                (
-                    ok,
-                    format!(
-                        "tool_name_exists_rate={:.2} (min={:.2})",
-                        rate, policy.tool_name_exists_rate.min_pct
-                    ),
-                )
-            }
-            None => (
-                false,
-                "eval_results.json not found — run `vox mens eval` first".to_string(),
-            ),
-        };
-        results.push(GateResult {
-            name: "tool_name_exists_rate".to_string(),
-            passed,
-            message: msg,
-            block: policy.tool_name_exists_rate.block,
-        });
-    }
+    // --- anti_stub gate --------------------------------------------------------
 
     // anti_stub metrics (anti_stub_task_success, placeholder_event_rate,
     // trivial_placeholder_event_rate, construct_richness_mean) are written by
@@ -462,22 +222,17 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
             } else {
                 let content = read_utf8_path_capped(&eval_local_report_path)?;
                 if let Ok(el) = serde_json::from_str::<serde_json::Value>(&content) {
-                    let anti_stub_pass = el
-                        .get("anti_stub_task_success")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let placeholder_rate = el
-                        .get("placeholder_event_rate")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let trivial_placeholder_rate = el
-                        .get("trivial_placeholder_event_rate")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let construct_richness_mean = el
-                        .get("construct_richness_mean")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
+                    // Recompute from per-sample checks when present so older reports
+                    // (which folded parse failures into anti_stub_pass and averaged
+                    // richness over unparseable zeros) are judged with current rules.
+                    let m =
+                        crate::commands::mens::metrics::anti_stub_metrics_from_eval_local_report(
+                            &el,
+                        );
+                    let anti_stub_pass = m.anti_stub_task_success;
+                    let placeholder_rate = m.placeholder_event_rate;
+                    let trivial_placeholder_rate = m.trivial_placeholder_event_rate;
+                    let construct_richness_mean = m.construct_richness_mean;
                     let pass_rate_ok = anti_stub_pass >= anti_stub_cfg.min_pass_rate;
                     let placeholder_ok = anti_stub_cfg.max_placeholder_event_rate <= 0.0
                         || placeholder_rate <= anti_stub_cfg.max_placeholder_event_rate;
@@ -493,7 +248,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                         message: format!(
                             "anti_stub_pass={:.3} (min={:.3}) placeholder_rate={:.3} \
                              (max={:.3}) trivial_rate={:.3} (max={:.3}) \
-                             richness_mean={:.3} (min={:.3})",
+                             richness_mean={:.3} (min={:.3}) [metrics:{:?}]",
                             anti_stub_pass,
                             anti_stub_cfg.min_pass_rate,
                             placeholder_rate,
@@ -501,7 +256,8 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                             trivial_placeholder_rate,
                             anti_stub_cfg.max_trivial_placeholder_event_rate,
                             construct_richness_mean,
-                            anti_stub_cfg.min_construct_richness_mean
+                            anti_stub_cfg.min_construct_richness_mean,
+                            m.source,
                         ),
                         block: anti_stub_cfg.block,
                     });
@@ -510,195 +266,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         }
     }
 
-    // --- per_context gates ------------------------------------------------------
-    // eval_results.json already parsed above — reuse eval_json.
-    // For each context key in the policy, check parse_rate and scope_compliance_rate.
-    // If the context key is present in policy but absent from JSON, emit a failing
-    // GateResult so CI doesn't silently pass (B5).
-    if !policy.per_context.is_empty() {
-        if let Some(ref eval) = eval_json {
-            let breakdown_obj = eval.get("context_breakdown").and_then(|v| v.as_object());
-            for (ctx_name, gate) in &policy.per_context {
-                let slice = breakdown_obj.and_then(|b| b.get(ctx_name));
-                match slice {
-                    None => {
-                        // Context key configured in policy but not found in eval output.
-                        // Emit a failing gate so this doesn't silently pass in CI.
-                        results.push(GateResult {
-                            name: format!("per_context[{}]", ctx_name),
-                            passed: false,
-                            message: format!(
-                                "context '{}' not found in eval_results.json — \
-                                 0 samples or not evaluated",
-                                ctx_name
-                            ),
-                            block: gate.block,
-                        });
-                    }
-                    Some(slice) => {
-                        let parse_rate = slice
-                            .get("parse_rate")
-                            .and_then(|v| v.as_f64())
-                            .unwrap_or(0.0);
-                        let scope_rate = slice
-                            .get("scope_compliance_rate")
-                            .and_then(|v| v.as_f64())
-                            .unwrap_or(1.0);
-                        let parse_ok =
-                            gate.min_parse_rate == 0.0 || parse_rate >= gate.min_parse_rate;
-                        let scope_ok = gate.min_scope_compliance_rate == 0.0
-                            || scope_rate >= gate.min_scope_compliance_rate;
-                        let passed = parse_ok && scope_ok;
-                        results.push(GateResult {
-                            name: format!("per_context[{}]", ctx_name),
-                            passed,
-                            message: format!(
-                                "parse={:.1}% (min={:.0}%) scope={:.1}% (min={:.0}%)",
-                                100.0 * parse_rate,
-                                100.0 * gate.min_parse_rate,
-                                100.0 * scope_rate,
-                                100.0 * gate.min_scope_compliance_rate,
-                            ),
-                            block: gate.block,
-                        });
-                    }
-                }
-            }
-        } else if !policy.per_context.is_empty() {
-            // No eval_results.json at all — emit failing gates for all configured contexts.
-            for (ctx_name, gate) in &policy.per_context {
-                results.push(GateResult {
-                    name: format!("per_context[{}]", ctx_name),
-                    passed: false,
-                    message: "eval_results.json not found — run `vox mens eval` first".to_string(),
-                    block: gate.block,
-                });
-            }
-        }
-    }
-
-    // --- modal_mix gate ----------------------------------------------------------
-    // Prefers modal_breakdown from eval_json (already parsed). Falls back to
-    // mix_report.json if eval_results.json is absent or lacks the field.
-    if policy.modal_mix.max_voice_fraction > 0.0 {
-        let modal_report: Option<serde_json::Value> = {
-            // First try eval_json (already in memory)
-            let has_modal = eval_json
-                .as_ref()
-                .and_then(|v| v.get("modal_breakdown"))
-                .is_some();
-            if has_modal {
-                eval_json.clone()
-            } else {
-                // Fallback: mix_report.json
-                let mix_report_path = run_dir.join("mix_report.json");
-                if mix_report_path.exists() {
-                    let content = read_utf8_path_capped(&mix_report_path)?;
-                    serde_json::from_str(&content).ok()
-                } else {
-                    None
-                }
-            }
-        };
-        if let Some(ref report) = modal_report
-            && let Some(breakdown) = report.get("modal_breakdown").and_then(|v| v.as_object())
-        {
-            let total: u64 = breakdown.values().filter_map(|v| v.as_u64()).sum();
-            let voice = breakdown.get("voice").and_then(|v| v.as_u64()).unwrap_or(0);
-            if total > 0 {
-                let voice_frac = voice as f64 / total as f64;
-                let passed = voice_frac <= policy.modal_mix.max_voice_fraction;
-                results.push(GateResult {
-                    name: "modal_mix[voice]".to_string(),
-                    passed,
-                    message: format!(
-                        "voice fraction {:.1}% {} {:.0}%",
-                        100.0 * voice_frac,
-                        if passed { "<=" } else { ">" },
-                        100.0 * policy.modal_mix.max_voice_fraction,
-                    ),
-                    block: policy.modal_mix.block,
-                });
-            }
-        }
-    }
-
-    // --- mcp_tool_schema gate (MCP tool-arg JSON Schema KPI) -------------------
-    let mcp_cfg = &policy.mcp_tool_schema;
-    let mcp_active = mcp_cfg.min_strict_validity_rate > 0.0 || mcp_cfg.block;
-    if mcp_active {
-        let path = mcp_tool_schema_metrics_path(run_dir, &mcp_cfg.metrics_file);
-        if !path.exists() {
-            results.push(GateResult {
-                name: "mcp_tool_schema".to_string(),
-                passed: false,
-                message: format!(
-                    "metrics file missing: {} — save `tool_arg_schema_kpi` from vox-mcp diagnostics here",
-                    path.display()
-                ),
-                block: mcp_cfg.block,
-            });
-        } else {
-            let content = read_utf8_path_capped(&path)?;
-            let v: serde_json::Value = serde_json::from_str(&content)
-                .map_err(|e| anyhow::anyhow!("{}: invalid JSON ({})", path.display(), e))?;
-            let enabled = v
-                .get("validation_enabled")
-                .and_then(|x| x.as_bool())
-                .unwrap_or(true);
-            if !enabled {
-                results.push(GateResult {
-                    name: "mcp_tool_schema".to_string(),
-                    passed: true,
-                    message:
-                        "MCP tool-arg schema validation disabled (VOX_MCP_TOOL_ARG_SCHEMA_VALIDATE)"
-                            .to_string(),
-                    block: false,
-                });
-            } else {
-                let checks = v.get("checks_total").and_then(|x| x.as_u64()).unwrap_or(0);
-                let rate_direct = v.get("strict_validity_rate").and_then(|x| x.as_f64());
-                let sp = v.get("strict_passed").and_then(|x| x.as_u64()).unwrap_or(0);
-                let sf = v.get("strict_failed").and_then(|x| x.as_u64()).unwrap_or(0);
-                let decided = sp + sf;
-                let rate_computed = if decided > 0 {
-                    Some(sp as f64 / decided as f64)
-                } else {
-                    None
-                };
-                let effective_rate = rate_direct.or(rate_computed);
-                let (passed, msg) = match effective_rate {
-                    None if checks == 0 => (
-                        false,
-                        "checks_total=0 and no strict_validity_rate / pass-fail counts".to_string(),
-                    ),
-                    None => (
-                        false,
-                        "could not derive strict_validity_rate (missing field and pass+fail=0)"
-                            .to_string(),
-                    ),
-                    Some(r) => {
-                        let ok = r >= mcp_cfg.min_strict_validity_rate;
-                        (
-                            ok,
-                            format!(
-                                "strict_validity_rate={:.4} (min={:.4}) checks_total={}",
-                                r, mcp_cfg.min_strict_validity_rate, checks
-                            ),
-                        )
-                    }
-                };
-                results.push(GateResult {
-                    name: "mcp_tool_schema".to_string(),
-                    passed,
-                    message: msg,
-                    block: mcp_cfg.block,
-                });
-            }
-        }
-    }
-    // -------------------------------------------------------------------------
-
+    // --- pass_at_k gate --------------------------------------------------------
     let passk_cfg = &policy.pass_at_k;
     let passk_active = passk_cfg.block
         || passk_cfg.min_pass_rate_at_1 > 0.0
@@ -742,11 +310,27 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 .get("pass_rate_at_k")
                 .and_then(|x| x.as_f64())
                 .unwrap_or(0.0);
-            let mut pass = p1 >= passk_cfg.min_pass_rate_at_1 && pk >= passk_cfg.min_pass_rate_at_k;
-            let mut msg = format!(
-                "pass@1={:.3} (min={:.3}) pass@k={:.3} (min={:.3})",
-                p1, passk_cfg.min_pass_rate_at_1, pk, passk_cfg.min_pass_rate_at_k
-            );
+            // With samples=1 / k=1, pass@k collapses to pass@1. Requiring a higher
+            // pass@k floor then is a wiring trap, not a quality signal. Keep the
+            // stricter pass@k floor when k > 1.
+            let k = v.get("k").and_then(|x| x.as_u64()).unwrap_or(1);
+            let min_pk = if k <= 1 {
+                passk_cfg.min_pass_rate_at_1
+            } else {
+                passk_cfg.min_pass_rate_at_k
+            };
+            let mut pass = p1 >= passk_cfg.min_pass_rate_at_1 && pk >= min_pk;
+            let mut msg = if k <= 1 {
+                format!(
+                    "pass@1={:.3} (min={:.3}) pass@k={:.3} (min={:.3}; k=1 collapses to pass@1)",
+                    p1, passk_cfg.min_pass_rate_at_1, pk, min_pk
+                )
+            } else {
+                format!(
+                    "pass@1={:.3} (min={:.3}) pass@k={:.3} (min={:.3})",
+                    p1, passk_cfg.min_pass_rate_at_1, pk, min_pk
+                )
+            };
             if let Some(baseline_name) = passk_cfg.baseline_file.as_deref() {
                 let baseline_path = run_dir.join(
                     std::path::Path::new(baseline_name)
@@ -798,113 +382,71 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         }
     }
 
-    let rr = &policy.review_recurrence;
-    let rr_active = rr.block
-        || rr.max_repeated_finding_rate > 0.0
-        || rr.max_post_training_regression_rate > 0.0
-        || rr.min_recurrence_delta > 0.0;
-    if rr_active {
-        let metrics_path = run_dir.join("review_metrics.json");
-        if !metrics_path.exists() {
-            results.push(GateResult {
-                name: "review_recurrence".to_string(),
-                passed: false,
-                message: format!("metrics file missing: {}", metrics_path.display()),
-                block: rr.block,
-            });
-        } else {
-            let content = read_utf8_path_capped(&metrics_path)?;
-            let v: serde_json::Value = serde_json::from_str(&content)
-                .map_err(|e| anyhow::anyhow!("{}: invalid JSON ({})", metrics_path.display(), e))?;
-            let repeated = v
-                .get("repeated_finding_rate")
-                .and_then(|x| x.as_f64())
-                .unwrap_or(0.0);
-            let post_reg = v
-                .get("post_training_regression_rate")
-                .and_then(|x| x.as_f64())
-                .unwrap_or(0.0);
-            let delta = v
-                .get("recurrence_delta")
-                .and_then(|x| x.as_f64())
-                .unwrap_or(0.0);
-
-            let repeated_ok =
-                rr.max_repeated_finding_rate <= 0.0 || repeated <= rr.max_repeated_finding_rate;
-            let post_reg_ok = rr.max_post_training_regression_rate <= 0.0
-                || post_reg <= rr.max_post_training_regression_rate;
-            let delta_ok = rr.min_recurrence_delta <= 0.0 || delta >= rr.min_recurrence_delta;
-            results.push(GateResult {
-                name: "review_recurrence".to_string(),
-                passed: repeated_ok && post_reg_ok && delta_ok,
-                message: format!(
-                    "repeated={:.3} (max={:.3}) post_reg={:.3} (max={:.3}) delta={:.3} (min={:.3})",
-                    repeated,
-                    rr.max_repeated_finding_rate,
-                    post_reg,
-                    rr.max_post_training_regression_rate,
-                    delta,
-                    rr.min_recurrence_delta
-                ),
-                block: rr.block,
-            });
-        }
-    }
-
-    // --- bfcl_accuracy gate --------------------------------------------------
-    // Only active when block=true or min_accuracy > 0 or per_rung_overrides is
-    // non-empty. Absent metrics file + block=false is "not applicable" (pass).
+    // --- collateral_damage gate ----------------------------------------------
+    // Same artifact Hub publish reads. Active when block/require_report is set
+    // (ladder policy) or when a report file is already present (surface status).
     {
-        let bfcl_cfg = &policy.bfcl_accuracy;
-        let bfcl_active = bfcl_cfg.block
-            || bfcl_cfg.min_accuracy > 0.0
-            || !bfcl_cfg.per_rung_overrides.is_empty();
-        if bfcl_active {
-            // Read rung key from run manifest (base_rung field), if present.
-            let rung_key: Option<String> = manifest
-                .as_ref()
-                .and_then(|m| m.get("base_rung"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-
-            // F6: load the captured base-model baseline (baseline_report.json) so
-            // the beat-base comparison actually runs through the integrated gate.
-            // Previously `None` was passed, so beat-base was silently skipped here.
-            // Absent file → None (beat-base skipped, as before). Unparseable file
-            // is non-fatal — we don't want a malformed baseline to crash the gate.
-            let baseline_report = {
-                let path = run_dir.join("baseline_report.json");
-                if path.exists() {
-                    super::baseline::load_baseline(&path).ok()
-                } else {
-                    None
+        let cd = &policy.collateral_damage;
+        let report_path = run_dir.join("collateral_damage_report.json");
+        let req_rep = cd.require_report.unwrap_or(false);
+        let active = cd.block || req_rep || report_path.exists();
+        if active {
+            if !report_path.exists() {
+                results.push(GateResult {
+                    name: "collateral_damage".to_string(),
+                    passed: false,
+                    message: "collateral_damage_report.json missing — run `vox mens eval-collateral-damage` (fail-fast default: gsm8k→math500→vox)".to_string(),
+                    block: cd.block || req_rep,
+                });
+            } else {
+                let content = read_utf8_path_capped(&report_path)?;
+                match serde_json::from_str::<serde_json::Value>(&content) {
+                    Ok(v) => {
+                        let status = v.get("status").and_then(|s| s.as_str()).unwrap_or("");
+                        let failed_on = v.get("failed_on").and_then(|x| x.as_str()).unwrap_or("-");
+                        let fail_fast = v
+                            .get("fail_fast")
+                            .and_then(|x| x.as_bool())
+                            .unwrap_or(false);
+                        // The stored status is not trusted: verified via check_collateral_report
+                        // against current slice pins, rule, alpha, and canonical grader.
+                        let req_res = cd.to_requirement();
+                        let (passed, detail) = match req_res {
+                            Ok(req) => {
+                                match vox_eval::collateral_evidence::check_collateral_report(
+                                    &v, &req,
+                                ) {
+                                    Ok(()) => (
+                                        true,
+                                        format!(
+                                            "paired McNemar alpha={} on the pinned item sets: no regression",
+                                            req.alpha
+                                        ),
+                                    ),
+                                    Err(refusal) => (false, format!("refused: {refusal}")),
+                                }
+                            }
+                            Err(e) => (false, format!("refused: {e}")),
+                        };
+                        results.push(GateResult {
+                            name: "collateral_damage".to_string(),
+                            passed,
+                            message: format!(
+                                "status={status} failed_on={failed_on} fail_fast={fail_fast} {detail}"
+                            )
+                            .trim_end()
+                            .to_string(),
+                            block: cd.block || req_rep,
+                        });
+                    }
+                    Err(e) => results.push(GateResult {
+                        name: "collateral_damage".to_string(),
+                        passed: false,
+                        message: format!("invalid collateral_damage_report.json: {e}"),
+                        block: cd.block || req_rep,
+                    }),
                 }
-            };
-            // Pick the bfcl_accuracy baseline entry. Prefer one whose spoke matches
-            // the run manifest's spoke (when present); otherwise take the first
-            // bfcl_accuracy entry.
-            let manifest_spoke: Option<&str> = manifest
-                .as_ref()
-                .and_then(|m| m.get("spoke"))
-                .and_then(|v| v.as_str());
-            let baseline_entry = baseline_report.as_ref().and_then(|report| {
-                manifest_spoke
-                    .and_then(|spoke| {
-                        report
-                            .entries
-                            .iter()
-                            .find(|e| e.metric_name == "bfcl_accuracy" && e.spoke == spoke)
-                    })
-                    .or_else(|| {
-                        report
-                            .entries
-                            .iter()
-                            .find(|e| e.metric_name == "bfcl_accuracy")
-                    })
-            });
-
-            let gate_result = check_bfcl(run_dir, bfcl_cfg, baseline_entry, rung_key.as_deref())?;
-            results.push(gate_result);
+            }
         }
     }
 

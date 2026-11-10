@@ -22,6 +22,10 @@ pub use workspace_journey::WorkspaceJourneyStoreMode;
 pub mod exec_time;
 pub use exec_time::{ExecOutcome, ExecTimeRecord, ToolLatencyProfile};
 
+/// Hashing utilities (`content_hash`).
+pub mod hash;
+pub use hash::content_hash;
+
 /// Parameters for [`crate::EvalRunParams`] (RLHF / dogfood eval-run recording).
 pub mod eval_params;
 pub use eval_params::EvalRunParams;

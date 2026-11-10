@@ -294,11 +294,6 @@ vox-mesh-policy       = { layer = 2 }                                    # Donat
 # documents WHY and what would be required to remove it.
 
 [[known_inversions]]
-from   = "vox-ml-cli"
-to     = "vox-cli"
-reason = "Optional `mens-dei` workflow path shells out through `vox_cli::commands::build`, `build_service`, and `fs_utils` when `workflow-runtime` is disabled. Prefer extracting a shared L3 driver crate over tightening `vox-cli` deps."
-
-[[known_inversions]]
 from   = "vox-config"
 to     = "vox-git"
 reason = "vox-config::graphify (corpus-staleness check) calls only vox_git::read_only, the dependency-free raw-`git status --porcelain` shim in read_cmd.rs — it never touches the gix-backed GitBridge machinery that makes vox-git L3. read_only has no deps beyond std + thiserror, so it is itself L0/L1-shaped; it is just physically colocated with the heavier gix bridge. Pre-existing on main; never evaluated by this rule before 2026-07-03 because a missing-crates-in-layers.toml gap short-circuited the whole tool. Prefer extracting read_cmd.rs into a small L1 crate (e.g. vox-git-read) shared by vox-config and vox-git's other L3+ callers over tightening vox-config's layer."

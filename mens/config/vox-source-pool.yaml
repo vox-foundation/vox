@@ -17,7 +17,7 @@ roots:
   - path: examples
     reason: "Golden + sandbox examples (the original examples-only baseline)."
   - path: scripts
-    reason: "Repo automation in VoxLang (AGENTS.md: all glue is .vox) — real, idiomatic, maintained code."
+    reason: "Repo automation in VoxScript (AGENTS.md: all glue is .vox) — real, idiomatic, maintained code."
   - path: apps
     reason: "Full sample applications and their build scripts."
   - path: infra/containers

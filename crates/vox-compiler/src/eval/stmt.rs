@@ -133,6 +133,7 @@ pub fn eval_pattern(
     }
 }
 
+#[inline(never)]
 pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
     match stmt {

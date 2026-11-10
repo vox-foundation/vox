@@ -15,6 +15,7 @@ pub struct DiscoveryEntry {
 
 impl VoxDb {
     /// Retrieve discoveries with 'pending' human-gate status.
+    #[inline(never)]
     pub async fn query_pending_discoveries(&self) -> Result<Vec<DiscoveryEntry>, StoreError> {
         let mut rows = self.conn.query(
             "SELECT discovery_id, session_key, repository_id, title, summary, claims_json, confidence_score 
@@ -42,6 +43,7 @@ impl VoxDb {
     }
 
     /// Mark a discovery as approved and initiate publication tracking.
+    #[inline(never)]
     pub async fn approve_discovery(
         &self,
         discovery_id: &str,
@@ -57,6 +59,7 @@ impl VoxDb {
     }
 
     /// Reject a discovery based on validation failure.
+    #[inline(never)]
     pub async fn reject_discovery(
         &self,
         discovery_id: &str,
