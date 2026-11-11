@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v6.8
 milestone_name: Physical Multi-Repo Extraction (vox-ops, vox-axis, voxlang.org), Default Cargo Graph Pruning, Next-Tier Keystone Splits, crates.io Wave 2/3 (33 Crates) & Multi-Repo Rich Visual READMEs / vox-foundation Federation
-current_phase: 401
-current_phase_name: Adversarial Audit of All READMEs Across All Repositories & Sub-Crates, v6.6 Sunlit Imperial Roman Carrara White & Gold + VRBS ROMA Simulator Visual Refresh, README-SYNC-MAP Maintainability & Footnoted Prior-Art Attribution (README-AUDIT-01..04)
+current_phase: 402
+current_phase_name: voxlang.org Suite Portal Frontpage, Vox Axis Dual-Theme Showcase (Light & Dark), Animated .webp Tours, Separation of Concerns & CV Flywheel / Contrast Verification (VOXLANG-PORTAL-01..04)
 status: complete
-stopped_at: Milestone v6.8 (Phases 394-401, 32/32 requirements) complete, adversarially audited across all 46 READMEs, updated with v6.6 Roman White/Gold + VRBS ROMA Simulator graphics, and pushed to vox-foundation.
-last_updated: "2026-11-10T09:22:00.000Z"
+stopped_at: Completed Phase 402 — upgraded voxlang.org frontpage (docs/src/index.mdx) and how-to-axis-workbench.md as the visual entry point for the entire Vox ecosystem (Vox Axis VRBS ROMA Simulator, AQVAEDUCTUS Cascade, Light/Dark themes, animated .webp tours, and 4-repo separation of concerns), verified 7/7 vox-gui CV Flywheel tests (axeViolations: 0 across all 32 surfaces) and 15/15 docs-astro dual-theme Playwright tests, and completed /gsd-review (402-REVIEWS.md).
+last_updated: "2026-11-10T17:20:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: Completed Phase 401 (README-AUDIT-01..04): adversarially audited all 46 README.md files across vox, vox-axis, voxlang.org, and vox-ops; replaced stale Sept 4 dark screenshots with 50 v6.6 (Nov 9) Sunlit Imperial Roman Carrara White & Gold captures including the VRBS ROMA Simulator (urbs-civilization.png + urbs-imperium-inspector.png); regenerated all 7 animated .webp tours and 7 Roman White/Gold .webp diagrams (including schema-fragmentation.webp); fixed 8 sub-crate READMEs; added README-SYNC-MAP maintainability rules and footnoted prior-art citations ([^1]..[^13]).
+last_activity_desc: Completed Phase 402 & /gsd-review: upgraded voxlang.org frontpage & Axis workbench guide, verified 0 broken links across all 4 repos, unified 4-token typography contract across vox-gui & docs-astro, and verified 7/7 vox-gui CV Flywheel + 15/15 docs-astro dual-theme contrast/layout Playwright tests.
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 8
-  completed_plans: 8
+  total_phases: 9
+  completed_phases: 9
+  total_plans: 9
+  completed_plans: 9
   percent: 100
 ---
 

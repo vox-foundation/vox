@@ -8,6 +8,18 @@
   --vox-sidebar-expanded-width: 18.75rem;
   --vox-sidebar-transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 
+  /* Unified 4-Token Vox Typography Contract (shared across vox-gui & docs-astro) */
+  --font-display: 'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --font-serif: 'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Consolas, monospace;
+  --font-family-display: var(--font-display);
+  --font-family-serif: var(--font-serif);
+  --font-family-sans: var(--font-sans);
+  --font-family-mono: var(--font-mono);
+  --sl-font: var(--font-sans);
+  --sl-font-mono: var(--font-mono);
+
   /* Vox Brand Palette — Dark Theme (Default): Deep Obsidian + Electric Cyan + Warm Amber */
   --sl-color-accent-low: #0c2d48;
   --sl-color-accent: #38bdf8;
@@ -515,7 +527,7 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 :root[data-theme='light'] .vox-hero-btn-primary {
-  background: #0284c7;
+  background: #0369a1;
   color: #ffffff !important;
 }
 
@@ -771,5 +783,285 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   border: 1px solid var(--sl-color-hairline);
   box-shadow: var(--sl-shadow-md);
 }
+
+/* ─── Suite Portal Frontpage & Vox Axis Showcase (Dual-Theme Dark & Light) ─── */
+.vox-home-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #38bdf8;
+  margin: 0 0 0.6rem;
+}
+
+:root[data-theme='light'] .vox-home-kicker {
+  color: #0369a1;
+}
+
+.vox-home-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.6vw, 2.75rem);
+  line-height: 1.12;
+  letter-spacing: 0.03em;
+  color: #f8fafc;
+  margin: 0 0 0.75rem;
+}
+
+:root[data-theme='light'] .vox-home-title {
+  color: #0f172a;
+}
+
+.vox-home-lead {
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: #e2e8f0;
+  max-width: 50rem;
+  margin: 0 auto 0.75rem;
+}
+
+:root[data-theme='light'] .vox-home-lead {
+  color: #1e293b;
+}
+
+.vox-home-sublead {
+  font-size: 0.96rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  max-width: 48rem;
+  margin: 0 auto 1.35rem;
+}
+
+:root[data-theme='light'] .vox-home-sublead {
+  color: #334155;
+}
+
+.vox-home-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.35rem;
+}
+
+.vox-hero-btn-secondary {
+  border: 1.5px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  color: #f8fafc !important;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-theme='light'] .vox-hero-btn-secondary {
+  border-color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  color: #0f172a !important;
+}
+
+.vox-hero-btn-gold {
+  border: 1.5px solid rgba(245, 158, 11, 0.7);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fef3c7 !important;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+:root[data-theme='light'] .vox-hero-btn-gold {
+  border-color: #b45309;
+  background: #fef3c7;
+  color: #78350f !important;
+}
+
+.vox-hero-btn-ghost {
+  border: 1px solid var(--sl-color-hairline);
+  background: rgba(15, 23, 42, 0.45);
+  color: #e2e8f0 !important;
+  padding: 0.65rem 1.15rem;
+  border-radius: 8px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+:root[data-theme='light'] .vox-hero-btn-ghost {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b !important;
+}
+
+.vox-home-banner-frame {
+  margin: 0.5rem auto 0;
+  max-width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid rgba(197, 155, 39, 0.55);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='light'] .vox-home-banner-frame {
+  border-color: rgba(180, 130, 25, 0.65);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.vox-home-banner-frame img,
+.vox-media-frame img,
+.vox-showcase-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: auto;
+}
+
+.vox-media-frame {
+  margin: 1.25rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--sl-color-hairline);
+  background: var(--vox-surface-card);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme='light'] .vox-media-frame {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07);
+}
+
+.vox-media-caption {
+  padding: 0.75rem 1rem;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  border-top: 1px solid var(--sl-color-hairline-light);
+  text-align: center;
+}
+
+:root[data-theme='light'] .vox-media-caption {
+  color: #334155;
+  background: #f8fafc;
+}
+
+.vox-media-caption strong {
+  color: #f8fafc;
+}
+
+:root[data-theme='light'] .vox-media-caption strong {
+  color: #0f172a;
+}
+
+.vox-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.15rem;
+  margin: 1.25rem 0;
+}
+
+.vox-showcase-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--sl-color-hairline);
+  background: #0d131f;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+:root[data-theme='light'] .vox-showcase-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.vox-showcase-body {
+  padding: 0.95rem 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.vox-showcase-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+:root[data-theme='light'] .vox-showcase-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #7dd3fc;
+}
+
+.vox-showcase-badge--gold {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+:root[data-theme='light'] .vox-showcase-badge--gold {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+
+.vox-showcase-title {
+  margin: 0.1rem 0 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+:root[data-theme='light'] .vox-showcase-title {
+  color: #0f172a;
+}
+
+.vox-showcase-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.52;
+  color: #cbd5e1;
+}
+
+:root[data-theme='light'] .vox-showcase-desc {
+  color: #334155;
+}
+
+.vox-details-card {
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 10px;
+  padding: 0.95rem 1.15rem;
+  margin: 1rem 0;
+  background: var(--vox-surface-card);
+}
+
+:root[data-theme='light'] .vox-details-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.vox-details-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+:root[data-theme='light'] .vox-details-summary {
+  color: #0f172a;
+}
+
 
 

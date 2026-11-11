@@ -1,6 +1,6 @@
 ---
 title: "Vox"
-description: "Pre-1.0 language and development suite. One .vox file can declare tables, server routes, UI components, workflows, and agent tools."
+description: "Pre-1.0 full-stack programming language, compiler, verification suite, and native Tauri 2 operator workbench (Vox Axis). Declare tables, server routes, reactive UI, durable workflows, and MCP agent tools in one .vox module."
 sort_order: 0
 category: "Getting Started"
 status: "current"
@@ -8,26 +8,30 @@ training_eligible: true
 ---
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
-import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
+import { CardGrid, Card } from '@astrojs/starlight/components';
 
-<div class="vox-home-hero">
-  <p style="font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-color-accent-high); margin: 0 0 0.6rem;">
-    Pre-1.0 Research Prototype · Workspace v0.6.0 · Apache-2.0
+<div class="vox-home-hero" data-testid="vox-suite-portal-hero">
+  <p class="vox-home-kicker">
+    Pre-1.0 Research Prototype · v6.8 / Workspace v0.6.0 · Apache-2.0
   </p>
-  <h1 style="font-size: 2.4rem; line-height: 1.15; margin: 0 0 0.9rem;">
+  <h1 class="vox-home-title">
     Vox
   </h1>
-  <p style="font-size: 1.12rem; line-height: 1.65; color: var(--sl-color-gray-1); max-width: 45rem; margin: 0 auto 0.85rem;">
-    One <code>.vox</code> file can declare a table, server routes, a UI component, and an agent tool. The same declaration is the source for SQL, the Rust server, and the TypeScript client.
+  <p class="vox-home-lead">
+    One <code>.vox</code> module declares relational schemas, server queries, reactive UI components, durable workflows, and MCP agent tools — projected without drift across SQLite/Turso, Rust (Axum), and React/TypeScript, and supervised in the <strong>Vox Axis</strong> desktop workbench.
   </p>
-  <p style="font-size: 0.98rem; line-height: 1.6; color: var(--sl-color-gray-2); max-width: 44rem; margin: 0 auto 1.5rem;">
-    Missing values are <code>Option[T]</code>. Fallible calls return <code>Result[T]</code>. Code that ignores either case does not type-check. This is a pre-1.0 research prototype.
+  <p class="vox-home-sublead">
+    Missing values are <code>Option[T]</code>. Fallible calls return <code>Result[T]</code>. Code that ignores either case does not type-check. Verified across <strong>16,491 CI tests</strong> and <strong>32 GUI workbench surfaces</strong>.
   </p>
-  <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+  <div class="vox-home-actions">
     <a href="/tutorials/tut-getting-started/" class="vox-hero-btn-primary">Start the 5-Minute Tutorial →</a>
-    <a href="#try-it" style="border: 1px solid var(--sl-color-accent); color: var(--sl-color-text); padding: 0.65rem 1.35rem; border-radius: 8px; font-weight: 600; text-decoration: none;">Try in Your Browser ↓</a>
-    <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); color: var(--sl-color-gray-2); padding: 0.65rem 1.25rem; border-radius: 8px; text-decoration: none;">Syntax Cheat Sheet</a>
-    <a href="https://github.com/vox-foundation/vox" style="padding: 0.65rem 1.1rem; border-radius: 8px; text-decoration: none; color: var(--sl-color-gray-2);">GitHub ↗</a>
+    <a href="#try-it" class="vox-hero-btn-secondary">Try in Your Browser ↓</a>
+    <a href="#vox-axis-workbench" class="vox-hero-btn-gold">Explore Vox Axis GUI ↓</a>
+    <a href="/reference/ref-syntax/" class="vox-hero-btn-ghost">Syntax Cheat Sheet</a>
+    <a href="https://github.com/vox-foundation/vox" class="vox-hero-btn-ghost">GitHub (vox-foundation) ↗</a>
+  </div>
+  <div class="vox-home-banner-frame">
+    <img src="./assets/vox_hero_banner.webp" alt="Vox — Single-file full-stack programming language, capability-sandboxed interpreter, and AI-native verification suite" width="1200" height="420" />
   </div>
 </div>
 
@@ -40,7 +44,7 @@ import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
         <span class="vox-tier-accent--cyan">60s:</span> Zero-Install Playground
       </h3>
       <p class="vox-tier-body">
-        Execute a typed <span class="vox-tier-code--cyan">.vox</span> program right here in your browser.
+        Execute a typed <span class="vox-tier-code--cyan">.vox</span> program right here in your browser via the capability-sandboxed interpreter (<span class="vox-tier-code--cyan">--caps deterministic</span>).
       </p>
       <a href="#try-it" class="vox-tier-btn-cyan-top">
         Run that now
@@ -63,9 +67,9 @@ import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
         Start the 5-Min Single-File Full-Stack App. Unite your schema, backend routes, reactive UI, and agent tool in one module:
       </p>
       <ul class="vox-tier-list--amber">
-        <li><span class="vox-tier-code--amber">table Task</span> → Turso / SQLite schema</li>
+        <li><span class="vox-tier-code--amber">table Task</span> → Turso / SQLite schema (<span class="vox-tier-code--amber">Id[Task]</span>)</li>
         <li><span class="vox-tier-code--amber">query &amp; mutation</span> → Typed Rust Axum API</li>
-        <li><span class="vox-tier-code--amber">component TaskBoard()</span> → Reactive React TSX</li>
+        <li><span class="vox-tier-code--amber">component TaskBoard()</span> → Reactive React 19 TSX</li>
         <li><span class="vox-tier-code--amber">tool "complete_task"</span> → MCP Agent Schema</li>
       </ul>
     </div>
@@ -77,16 +81,16 @@ import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
   <div class="vox-tier-card vox-tier-card--emerald">
     <div>
       <h3 class="vox-tier-title">
-        <span class="vox-tier-accent--emerald">15-Min:</span> Agent Harness &amp; Axis GUI
+        <span class="vox-tier-accent--emerald">15-Min:</span> Agent Harness &amp; Vox Axis GUI
       </h3>
       <p class="vox-tier-body">
-        Launch the multi-agent harness &amp; desktop workbench in four steps:
+        Launch the multi-agent harness &amp; native Tauri 2 desktop workbench (<a href="https://github.com/vox-foundation/vox-axis" class="vox-tier-link">vox-axis ↗</a>):
       </p>
       <ul class="vox-tier-list--emerald">
         <li>Step 1: Replayable <span class="vox-tier-code--emerald">workflow</span> &amp; <span class="vox-tier-code--emerald">activity</span> journals</li>
         <li>Step 2: Clavis <span class="vox-tier-code--emerald">vox secrets</span> &amp; capability sandboxing</li>
-        <li>Step 3: Loquela posture controls (<span class="vox-tier-code--emerald">Alt+1..4</span>)</li>
-        <li>Step 4: Multi-panel Axis GUI &amp; 132-crate Atlas</li>
+        <li>Step 3: Multi-dock <span class="vox-tier-code--emerald">Loquela</span> posture controls (<span class="vox-tier-code--emerald">Alt+1..4</span>)</li>
+        <li>Step 4: <span class="vox-tier-code--emerald">VRBS ROMA</span> 3D/2.5D simulator &amp; 32 workbench views</li>
       </ul>
     </div>
     <p class="vox-tier-note" style="margin: 0;">
@@ -164,7 +168,14 @@ These are the choices that follow from that, and what each one buys.
 **A tool is a function in the same file.** An agent tool kept in a side schema drifts like a hand-written JSON contract. `tool` is a typed function plus a short description. The program and an MCP client call that declaration, and a failure comes back as `Result`.
 {/* SYNC-END: why_vox */}
 
-### How One `.vox` File Compiles Across the Stack
+### Two Execution Lanes for One `.vox` File
+
+<div class="vox-media-frame">
+  <img src="./assets/vox_two_lanes_architecture.webp" alt="Vox Dual Execution Lanes: Capability-Sandboxed Interpreter (vox run --caps) vs Full-Stack Native Compiler (vox build)" width="1100" height="580" />
+  <div class="vox-media-caption">
+    <strong>Instant Sandboxed Interpretation (<code>vox run --caps</code>) vs. Full-Stack Native Emission (<code>vox build</code>)</strong> — <em>The same type-checked AST lowers either to the in-memory capability-gated evaluator or to standalone SQLite/Turso DDL, Rust/Axum server handlers, React 19 / TSX components, and MCP tool schemas.</em>
+  </div>
+</div>
 
 ```vox-diagram
 graph {
@@ -185,8 +196,8 @@ graph {
 }
 ```
 
-<details style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.85rem 1.1rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
-  <summary style="cursor: pointer; font-weight: 600; color: var(--sl-color-accent-high);">
+<details class="vox-details-card">
+  <summary class="vox-details-summary">
     What do <code>Option[T]</code> and <code>Result[T]</code> mean if I'm coming from Python or JavaScript?
   </summary>
   <div style="margin-top: 0.75rem; font-size: 0.95rem; line-height: 1.6;">
@@ -195,29 +206,21 @@ graph {
       <li><strong><code>Option[T]</code></strong> is a box that explicitly says: <em>"this value might be missing."</em> It is either <code>Some(value)</code> or <code>None</code>. The Vox compiler makes sure you check both cases before using it.</li>
       <li><strong><code>Result[T]</code></strong> is a box for steps that might fail (like saving to a database). It returns either <code>Ok(value)</code> or <code>Error(message)</code>. Adding <code>?</code> to the end of a call (like <code>db.Task.insert(...)?</code>) means: <em>"if this succeeds, unwrap the value; if it fails, stop and return the error immediately."</em></li>
     </ul>
-    <p style="margin-bottom: 0;">Read more in the <a href="/reference/ref-syntax/">Syntax Reference</a> or try the <strong>"2. No Null / Safe Errors"</strong> tab in the playground below.</p>
+    <p style="margin-bottom: 0;">Read more in the <a href="/reference/ref-syntax/">Syntax Reference</a> or try the <strong>"2. No Null / Safe Errors"</strong> tab in the playground above.</p>
   </div>
 </details>
 
 ---
 
-### Where to learn each piece
-
-The playground above is the program from the [60-second sandbox](/tutorials/tut-getting-started/#1-60-second-zero-install-sandbox). That page explains each declaration. This page does not repeat the lesson.
-
-- **Data, mutations, and a task UI** → [First full-stack app](/tutorials/tut-first-app/)
-- **SQL, Axum, and React side by side** → [Full-stack walkthrough](/tutorials/tut-fullstack-walkthrough/)
-- **`tool` / `resource` for agents** → [AI agents and MCP](/how-to/how-to-ai-agents/)
-- **`Option[T]` and `Result[T]`** → [Syntax reference](/reference/ref-syntax/)
-
----
-
 ## How the Vox Suite Works
 
-Vox combines the language with an AI-native toolchain in one repository. Six pillars connect the workflow from writing code to running agents:
+Empirically testing whether a single-file language improves LLM code generation ([**82.0% Pass@1 vs. 68.0% TypeScript**, N = 100, McNemar p = 0.0031](/architecture/vox-vs-ts-empirical-benchmark-2026/)) required building the surrounding **agent orchestrator**, **trust-tiered knowledge base**, **operator workbench**, and **pure-Rust QLoRA training suite**:
 
-<div align="center">
-  <img src="./assets/vox-suite-pillars.png" alt="A central Vox core linked to six pillars: schema and types, execution lanes, durable workflows, agent harness, knowledge base, and ML" width="760" />
+<div class="vox-media-frame">
+  <img src="./assets/vox_language_suite_tour.webp" alt="Animated WebP tour of the Vox Language & Verification Suite: Single-file .vox grammar projection, Dual execution lanes, Durable workflows & cryptographic MCP receipts, Empirical benchmark + MENS QLoRA, and 6-layer crate architecture" width="1100" height="620" />
+  <div class="vox-media-caption">
+    <strong>Animated Language, Compiler &amp; Verification Suite Tour (<code>vox-foundation/vox</code>)</strong> — <em>Cycling through single-file <code>.vox</code> projection, dual execution lanes, durable workflow replay &amp; <code>BLAKE3</code>/<code>HMAC</code> tool receipts, empirical multi-turn compiler feedback benchmarks, and the 6-layer zero-cycle workspace architecture (<code>L0</code>–<code>L5</code>).</em>
+  </div>
 </div>
 
 <CardGrid>
@@ -228,18 +231,122 @@ Vox combines the language with an AI-native toolchain in one repository. Six pil
     Use <code>vox run</code> for instant, capability-sandboxed script execution in memory, or <code>vox build</code> to emit a standalone Rust (Axum) server and React/TSX frontend. <a href="/tutorials/tut-fullstack-walkthrough/">Full-Stack Walkthrough →</a>
   </Card>
   <Card title="3. Durable Workflows" icon="setting">
-    First-class <code>workflow</code> and <code>activity</code> blocks persist call ordinals, signals, and timers to a SQLite journal so long-running jobs can resume after crashes. <a href="/tutorials/tut-workflow-durability/">Workflows →</a>
+    First-class <code>workflow</code> and <code>activity</code> blocks persist call ordinals, signals, and timers to a SQLite journal so long-running jobs resume deterministically after crashes. <a href="/tutorials/tut-workflow-durability/">Workflows →</a>
   </Card>
   <Card title="4. Verified Agent Harness" icon="approve-check">
-    A built-in MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared resources in the task hopper, and route across live OpenRouter and local models. <a href="/how-to/how-to-ai-agents/">Agent Guide →</a>
+    A built-in 376-tool MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared files in the task hopper, and route across live OpenRouter and local models. <a href="/how-to/how-to-ai-agents/">Agent Guide →</a>
   </Card>
   <Card title="5. Trusted Knowledge Base" icon="open-book">
-    <code>vox kb</code> indexes curated docs with Tantivy and SKOS taxonomy facets while quarantining unverified web scrapes and agent notes as <code>Untrusted</code> in a review inbox. <a href="/reference/cli/">CLI Docs →</a>
+    <code>vox kb</code> indexes curated docs with Tantivy 0.22 and W3C SKOS taxonomy facets while quarantining unverified web scrapes as <code>Untrusted</code> until cleared by the 5-stage Socrates gate. <a href="/reference/cli/">CLI Docs →</a>
   </Card>
   <Card title="6. Native ML & Eval (MENS)" icon="star">
-    Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with seeded multi-turn compiler-feedback evaluation (<code>vox model eval-compare</code>). Public adapters: <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b">Qwen3 0.6B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b">1.7B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-4b">4B</a>, and the <a href="https://huggingface.co/brbrainerd/vox-mens-index">index</a>. <a href="/explanation/expl-architecture/">Architecture →</a>
+    Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with McNemar + Holm compiler-feedback evaluation (<code>vox model eval-compare</code>). Public adapters: <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b">Qwen3 0.6B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b">1.7B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-4b">4B</a>, and the <a href="https://huggingface.co/brbrainerd/vox-mens-index">index</a>. <a href="/explanation/expl-architecture/">Architecture →</a>
   </Card>
 </CardGrid>
+
+---
+
+<a id="vox-axis-workbench"></a>
+
+## Vox Axis (`vox-gui`): Native Tauri 2 Workbench & `VRBS ROMA` Simulator
+
+[**Vox Axis**](https://github.com/vox-foundation/vox-axis) ([Workbench Guide](/how-to/how-to-axis-workbench/)) is the native Tauri 2 desktop operator console and spatial codebase simulator for the Vox ecosystem. Every one of its **32 workbench views** is generated from `contracts/operations/catalog.v1.yaml` (`SURFACE_REGISTRY`) and verified via Playwright (`axeViolations: 0`) across `1280×800`, `1440×900`, and `1920×1080`.
+
+<div class="vox-media-frame" data-testid="axis-animated-showcase">
+  <img src="./assets/axis/axis_hero_tour.webp" alt="Animated WebP tour of Vox Axis: VRBS ROMA Codebase Simulator, Imperium Blast-Radius Inspector, Mission Control Dashboard, Multi-Dock Chat + Aqueduct Cascade, MENS Corpus Studio, Needs You DAG, and Enforced Theme Contract" width="1100" height="688" />
+  <div class="vox-media-caption">
+    <strong>Vox Axis Flagship Workbench Tour (<code>vox-foundation/vox-axis</code>)</strong> — <em>Real Playwright captures cycling through the <code>VRBS ROMA</code> 3D/2.5D Codebase Simulator, <code>Imperium Prefecture</code> Blast-Radius Inspector, Mission Control, Multi-Dock Chat, <code>AQVAEDUCTUS</code> 3-Tier Hydraulic Verification Cascade, MENS QLoRA Studio, and the 4-Profile WCAG Theme Contract.</em>
+  </div>
+</div>
+
+### Key Operator Surfaces (`VRBS ROMA`, `AQVAEDUCTUS`, Multi-Dock Chat & MENS Studio)
+
+<div class="vox-showcase-grid" data-testid="axis-screens-showcase">
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/urbs-civilization.webp" alt="VRBS ROMA 3D/2.5D Isometric Codebase Civilization Simulator and Forma Urbis 7-Tier Astrolabe Radar" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">gamify · VRBS ROMA</span>
+      <h3 class="vox-showcase-title">3D/2.5D Codebase Civilization Simulator</h3>
+      <p class="vox-showcase-desc">
+        Projects topological crate layers (<code>L0</code>–<code>L5</code>), Tarjan SCCs, and live git churn onto an interactive isometric metropolis with autonomous A* magistrate patrols (<code>LEGIO-01..03</code>) and the bottom-right <strong><code>FORMA VRBIS</code> 7-Tier Astrolabe Radar</strong>.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/urbs-imperium-inspector.webp" alt="Imperium Prefecture Dock and Dependency Blast-Radius DAG Inspector" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">ImperiumInspector.tsx</span>
+      <h3 class="vox-showcase-title">Blast-Radius DAG &amp; Monument Inspector</h3>
+      <p class="vox-showcase-desc">
+        Clicking any monument opens the bounded <code>Imperium Prefecture</code> dock, showing upstream providers, downstream blast radius, per-file <code>+LoC / -LoC</code> diff slabs, and 1-click <code>[CHECK]</code>, <code>[✓ TEST]</code>, and <code>[TEST IMPACTED]</code> dispatch controls.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/chat-multidock.webp" alt="Multi-Dock Responsive Chat Workbench with VRBS ROMA Simulator and AQVAEDUCTUS Cascade" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge">chat · Loquela (Alt+1..4)</span>
+      <h3 class="vox-showcase-title">Multi-Dock Chat &amp; Posture Steering</h3>
+      <p class="vox-showcase-desc">
+        Responsive multi-dock tiling (<code>FOCUS</code>, <code>SPLIT CODE</code>, <code>MULTI-AGENT</code>, <code>TACTICAL MAP ⌘M</code>) with multi-model consensus, git LCA branch diffing, BPE compaction receipts, and cryptographic HMAC tool chips.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/harness.webp" alt="AQVAEDUCTUS 3-Tier Hydraulic Verification Cascade and Parallel Agent Execution Braid" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge">harness · AQVAEDUCTUS</span>
+      <h3 class="vox-showcase-title">3-Tier Hydraulic Verification Cascade</h3>
+      <p class="vox-showcase-desc">
+        Visualizes live model routing as a 3-tier Roman hydraulic sluice cascade (<code>CURSUS I · Fast Local MENS</code>, <code>CURSUS II · Balanced Hybrid</code>, <code>CURSUS III · Deep Frontier</code>) flowing through 4 verification gates (<code>AST PARSE</code> → <code>TYPECHECK</code> → <code>TOESTUB</code> → <code>TEST SUITE</code>).
+      </p>
+    </div>
+  </div>
+</div>
+
+### Inline Dual-Theme Verification (`Light` Carrara Marble vs. `Dark` Minimalist Slate)
+
+Every `.tsx`, `.ts`, and `.css` file in **Vox Axis** is statically gated by `vox-code-audit` detector `vox/ui/theme-contract-drift` (`Severity::Error`) and the unified 4-token typography contract (`--font-display`, `--font-serif`, `--font-sans`, `--font-mono`), guaranteeing WCAG 2.1 contrast (≥ 4.5:1) and `axeViolations: 0` across both light and dark profiles:
+
+<div class="vox-showcase-grid" data-testid="axis-dual-theme-showcase">
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/theme-arcane.webp" alt="Vox Axis Light Theme: Sunlit Imperial Carrara White and Gold (arcane)" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">Light Default · arcane</span>
+      <h3 class="vox-showcase-title">Sunlit Imperial Carrara White &amp; Gold</h3>
+      <p class="vox-showcase-desc">
+        Honed Carrara marble surfaces (<code>#FAF6EE</code>), burnished gold mouldings (<code>#C59B27</code>), deep espresso ink (<code>#1C140C</code>), classical <code>Cinzel</code> / <code>Palatino</code> typography, and emerald laurel working signets (<code>#1B6B3A</code>). Also ships with <a href="https://github.com/vox-foundation/vox-axis">Travertine Daylight (<code>glacier</code>)</a>.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/theme-slate.webp" alt="Vox Axis Dark Theme: Minimalist Grey-Blue Slate (slate)" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge">Dark Mode · slate</span>
+      <h3 class="vox-showcase-title">Minimalist Grey-Blue Slate &amp; High-Contrast AAA</h3>
+      <p class="vox-showcase-desc">
+        Distraction-free basalt/slate dark palette (<code>#0c0e10</code> / <code>#15191c</code> / <code>#1f262b</code>), crisp <code>Inter</code> + tabular monospace geometry, steel-blue active indicators, and zero marble textures. Also ships with <a href="https://github.com/vox-foundation/vox-axis">High Contrast Obsidian &amp; Gold (<code>high-contrast</code>, WCAG AAA)</a>.
+      </p>
+    </div>
+  </div>
+</div>
+
+---
+
+## Ecosystem Separation of Concerns (`vox-foundation`)
+
+To keep incremental Rust compile times fast, isolate frontend and documentation toolchains, and enforce a strict air-gap around optional remote telemetry while keeping `vox` **100% standalone offline**, the suite is federated across four repositories governed by `README-SYNC-MAP` and `vox ci cross-repo-parity` (55 `BLAKE3`-verified shared schemas):
+
+| Repository | Role in the Vox Suite | Canonical Scope & Documentation SSOT |
+|:---|:---|:---|
+| [**`vox-foundation/vox`**](https://github.com/vox-foundation/vox) | **Core Language, Compiler, Harness & ML** | `.vox` parser/typechecker (`vox check`), capability-sandboxed interpreter (`vox run --caps`), full-stack Rust/React codegen (`vox build`), 376-tool MCP server (`vox mcp`), `VoxDb` (v97), pure-Rust Candle QLoRA (`vox mens`), 33 `crates.io` crates, and the **48-row suite status matrix**. |
+| [**`vox-foundation/vox-axis`**](https://github.com/vox-foundation/vox-axis) | **Native Tauri 2 Desktop Workbench (`vox-gui`)** | All **32 `SURFACE_REGISTRY` operator views**, the **`VRBS ROMA` 3D/2.5D Codebase Simulator**, `AQVAEDUCTUS` hydraulic verification cascade, 4-profile WCAG theme contract, and Local IPC / Remote TOFU SPKI-pinned TLS transport ([Workbench Guide](/how-to/how-to-axis-workbench/)). |
+| [**`vox-foundation/voxlang.org`**](https://github.com/vox-foundation/voxlang.org) | **Public Portal, Docs Engine & `/v1/eval` Sandbox** | This **Astro 7.4 + Starlight 0.42** site ([voxlang.org](https://voxlang.org)), `vox-doc-pipeline` compiler-verified `.vox` doctests, Diátaxis + W3C SKOS taxonomy (`kb-taxonomy.v1.yaml`), `/voxup` bootstrap scripts, and the Coolify **`eval.voxlang.org` `/v1/eval`** deterministic browser sandbox. |
+| **`vox-foundation/vox-ops`** *(Private)* | **Optional Telemetry Ingest & Cloud GPU Fleet** | Optional remote OTLP/ClickHouse telemetry receiver (`vox-ops-telemetry-ingest`) and commercial spot GPU broker adapters (`vox-plugin-cloud`: RunPod, Vast.ai, Together AI). Zero compile or runtime dependencies from `vox` (`vox ci standalone-sovereignty`). |
 
 ---
 
@@ -247,40 +354,40 @@ Vox combines the language with an AI-native toolchain in one repository. Six pil
 
 We grade every Vox surface honestly by what works today versus what is still a research prototype. Expand either table below when evaluating Vox for a project:
 
-<details open style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.95rem 1.15rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
-  <summary style="cursor: pointer; font-weight: 600; font-size: 1.02rem; color: var(--sl-color-text);">
+<details open class="vox-details-card">
+  <summary class="vox-details-summary">
     When Vox Fits (and When You Should Pick Another Tool)
   </summary>
   <div style="margin-top: 0.85rem;">
 
 | Tradeoff | Why You Might Like Vox | Why You Might Wait or Pick Another Tool |
 |:---|:---|:---|
-| **Opinionated Stack vs. Bring-Your-Own Framework** | You want one `.vox` file to generate your database schema, backend API, and frontend UI without wiring up four separate tools. | Full-stack codegen targets **Rust (Axum) + React/TypeScript + SQLite/Turso**. If you need a Python/Go backend or Vue/Svelte frontend, Vox won't emit it. |
-| **Compile-Time Strictness vs. Loose Scripting** | Every possible failure (`Result[T]`) and optional value (`Option[T]`) is checked before the program runs — catching bugs that LLMs and beginners often miss. | You must handle `Ok`/`Error` and `Some`/`None` explicitly instead of writing quick untyped code that ignores errors. |
+| **Opinionated Stack vs. Bring-Your-Own Framework** | You want one `.vox` file to generate your database schema, backend API, reactive UI, and MCP tools without wiring up four separate frameworks. | Full-stack codegen targets **Rust (Axum) + React 19 / TypeScript + SQLite/Turso**. If you need a Python/Go backend or Vue/Svelte frontend, Vox won't emit it. |
+| **Compile-Time Strictness vs. Loose Scripting** | Every possible failure (`Result[T]`) and optional value (`Option[T]`) is checked before the program runs — catching bugs that LLMs and humans often miss. | You must handle `Ok`/`Error` and `Some`/`None` explicitly instead of writing quick untyped code that ignores errors. |
 | **Interpreter vs. Full-Stack Codegen** | `vox run` runs scripts immediately with zero Rust compile wait and `--caps` sandboxing; `vox build` emits native Rust and TypeScript. | Compiling a generated Rust server outside the Vox repo currently requires building `vox` from a local source checkout (`VOX_REPO_ROOT`). |
-| **Pre-1.0 Research Velocity vs. Long-Term Stability** | You can inspect an active AI-native language, agent harness, and evaluation lab with candid in-tree audits. | Vox is **pre-1.0 prototype software**. Syntax and CLI flags still evolve, and there are no prebuilt binary releases yet. |
+| **Pre-1.0 Research Velocity vs. Long-Term Stability** | You can inspect an active AI-native language, 32-surface operator workbench (`Vox Axis`), and QLoRA evaluation lab with candid in-tree audits. | Vox is **pre-1.0 prototype software**. Syntax and CLI flags still evolve, and there are no prebuilt binary releases yet. |
 
   </div>
 </details>
 
-<details style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.95rem 1.15rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
-  <summary style="cursor: pointer; font-weight: 600; font-size: 1.02rem; color: var(--sl-color-text);">
-    Surface-by-Surface Stability Matrix (summary; full tables in the repository README)
+<details class="vox-details-card">
+  <summary class="vox-details-summary">
+    Surface-by-Surface Stability Matrix (verified 2026-11-10; full 48-row tables in the repository README)
   </summary>
   <div style="margin-top: 0.85rem;">
 
-| Surface | Status | What Works Today & Known Caveats |
+| Surface | Status (`2026-11-10`) | What Works Today & Known Caveats |
 |:---|:---|:---|
-| **Compiler & Type Checker (`vox check`)** | 🟣 Mature / Working | Lexer, recursive-descent parser, HIR lowering, bidirectional type checker, and `@ai(structured_output = T)` JSON-Schema emission. |
+| **Compiler & Type Checker (`vox check`)** | 🟣 Mature / Working | Lexer, recursive-descent parser (57 EBNF rules), HIR lowering, bidirectional type checker, and `@ai(structured_output = T)` JSON-Schema emission. |
 | **Script Interpreter & Sandbox (`vox run`)** | 🔵 Stable / Working | Runs `.vox` scripts, `table`/`query`/`tool` modules, repo automation (`scripts/*.vox`), and this page's browser sandbox (`--caps deterministic`). |
-| **Database & Secrets (`vox-db`, `vox secrets`)** | 🔵 Stable / Working | SQLite/Turso engine at schema baseline 97 and `Clavis` secret resolution (`vox_secrets`). |
-| **Curated Knowledge Base (`vox kb`)** | 🔵 Stable / Working | Tantivy 0.22 lexical search, SKOS taxonomy facets, and four-tier trust filtering (`SystemVerified` → `Untrusted` inbox quarantine). |
-| **Full-Stack Codegen (`vox build`, `vox compile`)** | 🟡 Preview / Prototype | Emits React/TSX, typed Axum handlers, DB mutations, and Tauri desktop projects. Needs a local Vox source checkout (`VOX_REPO_ROOT`) to compile generated Rust servers. |
-| **Durable Runtime (`workflow` / `activity`)** | 🟡 Preview / Prototype | Host-bridge execution with SQLite journal replay, activity call ordinals, signals, and timers ([ADR-019](/adr/019-durable-workflow-journal-contract-v1/), [ADR-021](/adr/021-generated-workflow-durability-parity/)). |
-| **Agent Harness & Operator GUI (`vox mcp`, `vox-gui`)** | 🟡 Preview / Prototype | MCP server with HMAC tool receipts, task-hopper resource locks, live OpenRouter model routing, `⌘K` capability palette, and Remote Axis (TOFU TLS). |
-| **Local ML & Eval (`vox mens`, `eval-compare`)** | 🟠 Emergent / Prototype | Seeded multi-turn benchmark harness (`eval-compare`) is working. QLoRA training runs on Metal, CUDA, and CPU. Public adapters: <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b">0.6B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b">1.7B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-4b">4B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-index">index</a>. The 8B adapter is not public. |
+| **Database & Secrets (`vox-db`, `vox secrets`)** | 🔵 Stable / Working | SQLite/Turso engine at schema baseline `97` and `Clavis` secret resolution (`vox_secrets`). |
+| **Curated Knowledge Base (`vox kb`)** | 🔵 Stable / Working | Tantivy 0.22 lexical + RRF hybrid search, W3C SKOS taxonomy facets, and four-tier trust filtering (`SystemVerified` → `Untrusted` inbox quarantine). |
+| **Full-Stack Codegen (`vox build`, `vox compile`)** | 🟡 Preview / Prototype | Emits React 19 / TSX, typed Axum handlers, DB mutations, and Tauri 2 desktop projects. Needs a local Vox source checkout (`VOX_REPO_ROOT`) to compile generated Rust servers. |
+| **Durable Runtime (`workflow` / `activity`)** | 🟡 Preview / Prototype | `VoxDbTracker` SQLite journal replay, activity call ordinals, `workflow.version` patches, signals, and timers ([ADR-019](/adr/019-durable-workflow-journal-contract-v1/), [ADR-021](/adr/021-generated-workflow-durability-parity/)). |
+| **Agent Harness & Vox Axis GUI (`vox mcp`, `vox-gui`)** | 🟡 Preview / Prototype | 376-tool MCP server with HMAC tool receipts, hopper resource locks, 32 catalog-generated Axis views, `VRBS ROMA` 3D/2.5D simulator, 4-profile WCAG theme contract, and Remote Axis (TOFU TLS). |
+| **Local ML & Eval (`vox mens`, `eval-compare`)** | 🟠 Emergent / Prototype | Seeded multi-turn benchmark harness (`eval-compare`, 82.0% vs 68.0% TS Pass@1) is working. QLoRA training runs on Metal, CUDA, and CPU. Public adapters: <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b">0.6B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b">1.7B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-4b">4B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-index">index</a>. |
 
-→ Dated per-component tables: [README Status](https://github.com/vox-foundation/vox#status) · [Stability Matrix](/reference/stability/) · [v1.0 Release Criteria](/architecture/v1-release-criteria/)
+→ Full 48-row dated tables: [vox-foundation/vox README Status](https://github.com/vox-foundation/vox#status) · [vox-foundation/vox-axis 32-Screen Tour](https://github.com/vox-foundation/vox-axis) · [Stability Matrix](/reference/stability/) · [v1.0 Release Criteria](/architecture/v1-release-criteria/)
 
   </div>
 </details>
@@ -293,17 +400,16 @@ Organized by the [Diátaxis framework](https://diataxis.fr/) — structured arou
 
 | Goal | Start Here |
 |:---|:---|
-| **Learn step by step** | [Installing Vox](/reference/installation/) · [Getting Started](/tutorials/tut-getting-started/) · [First Full-Stack App](/tutorials/tut-first-app/) · [Durable Workflows](/tutorials/tut-workflow-durability/) |
-| **Follow task recipes** | [External App Bootstrap](/how-to/external-app-bootstrap/) · [AI Agents & MCP](/how-to/how-to-ai-agents/) · [Troubleshooting FAQ](/how-to/troubleshooting-faq/) |
-| **Understand the design** | [Why Vox for AI](/explanation/why-vox-for-ai/) · [Compiler Architecture](/explanation/expl-architecture/) · [General FAQ](/explanation/faq/) |
+| **Learn step by step** | [Installing Vox](/reference/installation/) · [Getting Started](/tutorials/tut-getting-started/) · [First Full-Stack App](/tutorials/tut-first-app/) · [Full-Stack Walkthrough](/tutorials/tut-fullstack-walkthrough/) · [Durable Workflows](/tutorials/tut-workflow-durability/) |
+| **Follow task recipes** | [Vox Axis Desktop Workbench](/how-to/how-to-axis-workbench/) · [AI Agents & MCP](/how-to/how-to-ai-agents/) · [External App Bootstrap](/how-to/external-app-bootstrap/) · [Troubleshooting FAQ](/how-to/troubleshooting-faq/) |
+| **Understand the design** | [Why Vox for AI](/explanation/why-vox-for-ai/) · [Compiler Architecture](/explanation/expl-architecture/) · [Empirical Vox vs. TS Benchmark](/architecture/vox-vs-ts-empirical-benchmark-2026/) · [General FAQ](/explanation/faq/) |
 | **Look up exact details** | [Syntax Reference](/reference/ref-syntax/) · [CLI Reference](/reference/cli/) · [Decorators](/reference/ref-decorators/) · [Stability Matrix](/reference/stability/) |
-| **Contribute or audit** | [Where Things Live](/architecture/where-things-live/) · [Contributor Hub](/contributors/contributor-hub/) · [Agents Policy (`AGENTS.md`)](/repo/agents-md/) |
+| **Contribute or audit** | [Where Things Live](/architecture/where-things-live/) · [Flywheel & Multi-Repo SSOT](/architecture/monorepo-to-multirepo-flywheel-ssot-2026/) · [Contributor Hub](/contributors/contributor-hub/) · [Agents Policy (`AGENTS.md`)](/repo/agents-md/) |
 
 ---
 
 ## Community, Stewardship & License
 
-- **Stewardship.** Stewarded by the Vox Foundation (in formation) and backed by the community via [Open Collective](https://opencollective.com/vox-foundation) with a public ledger.
+- **Stewardship.** Led by **Bertrand Reyna-Brainerd** and stewarded by the **Vox Foundation** (in formation), backed transparently by the community via [Open Collective](https://opencollective.com/vox-foundation) with a public ledger.
 - **License.** [Apache 2.0](https://github.com/vox-foundation/vox/blob/main/LICENSE) — free for personal, academic, and commercial use with attribution.
-- **Links.** [GitHub Repository](https://github.com/vox-foundation/vox) · [GitHub Issues](https://github.com/vox-foundation/vox/issues) · [RSS Feed](https://voxlang.org/feed.xml) · [LLM Discovery Index (`/llms.txt`)](https://voxlang.org/llms.txt)
-
+- **Repositories & Links.** [`vox-foundation/vox`](https://github.com/vox-foundation/vox) · [`vox-foundation/vox-axis`](https://github.com/vox-foundation/vox-axis) · [`vox-foundation/voxlang.org`](https://github.com/vox-foundation/voxlang.org) · [GitHub Issues](https://github.com/vox-foundation/vox/issues) · [RSS Feed](https://voxlang.org/feed.xml) · [LLM Discovery Index (`/llms.txt`)](https://voxlang.org/llms.txt)

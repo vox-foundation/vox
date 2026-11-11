@@ -13,7 +13,7 @@
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: local('Palatino'), local('Palatino Linotype'), local('Book Antiqua'), local('Georgia'), url('/fonts/EBGaramond-Italic.woff2') format('woff2');
+  src: local('Palatino'), local('Palatino Linotype'), local('Book Antiqua'), local('URW Palladio L'), local('Georgia');
 }
 @font-face {
   font-family: 'EB Garamond';

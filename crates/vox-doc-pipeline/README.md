@@ -28,5 +28,5 @@ cargo run -p vox-doc-pipeline -- --lint-only --paths docs/src/architecture/docs-
 
 ## Canonical References
 
-- Policy & Frontmatter Vocabulary: [`docs/src/contributors/documentation-governance.md`](../../docs/src/contributors/documentation-governance.md)
-- Pipeline Architecture & Drift Gates: [`docs/src/architecture/docs-system-ssot.md`](../../docs/src/architecture/docs-system-ssot.md)
+- Policy & Frontmatter Vocabulary: [`docs/src/contributors/documentation-governance.md`](https://github.com/vox-foundation/vox/blob/main/docs/src/contributors/documentation-governance.md)
+- Pipeline Architecture & Drift Gates: [`docs/src/architecture/docs-system-ssot.md`](https://github.com/vox-foundation/vox/blob/main/docs/src/architecture/docs-system-ssot.md)

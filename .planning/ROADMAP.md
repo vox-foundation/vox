@@ -1,9 +1,9 @@
 # Roadmap: Vox Unified Workstream
 
-# Roadmap: v6.8 — Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits (`vox-orchestrator`, `vox-compiler`, `vox-db`), `crates.io` Wave 2/3 (`33` Crates), Rich Roman Visual READMEs & Adversarial Cross-Repo README Audit (`Phases 394–401`)
+# Roadmap: v6.8 — Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits (`vox-orchestrator`, `vox-compiler`, `vox-db`), `crates.io` Wave 2/3 (`33` Crates), Rich Roman Visual READMEs, Adversarial Cross-Repo README Audit & `voxlang.org` Suite Portal Showcase (`Phases 394–402`)
 
 **Milestone:** v6.8
-**Status:** Complete (`8/8` Phases, `32/32` Requirements Verified — 2026-11-10)
+**Status:** Complete (`9/9` Phases, `36/36` Requirements Verified — 2026-11-10)
 **Approved Architectural & Engineering Direction:**
 
 1. **Physical Multi-Repo Extraction (`Phases 394–395, 398`):** Initialize `/Users/brbrainerd/dev/vox-ops` as a real standalone Git + Cargo workspace repository (hosting `vox-plugin-cloud` and `vox-ops-telemetry-ingest` + synced wire/IPC/telemetry contracts), create standalone sibling workspace entrypoints `/Users/brbrainerd/dev/vox-axis` and `/Users/brbrainerd/dev/voxlang.org`, and verify all **`4/4` repositories live on disk** via `vox ci cross-repo-parity` and `vox ci federated-symbol-graph` with zero split-brain.
@@ -44,6 +44,10 @@
 ### Phase 401: Adversarial Audit of All READMEs Across All Repositories & Sub-Crates, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Visual Refresh, `README-SYNC-MAP` Maintainability & Footnoted Prior-Art Attribution (`README-AUDIT-01..04`) `[WAVE 4]`
 - **Directory:** `.planning/phases/401-adversarial-readme-audit-and-roman-visual-sync/`
 - **Goal:** Adversarially audit all 46 `README.md` files across `vox-foundation/vox`, `vox-foundation/vox-axis`, `vox-foundation/voxlang.org`, and `vox-ops`; replace stale Sept 4 dark screenshots in `vox-axis/assets/screens/` and `crates/vox-gui/ui/review-bundle/latest/` with the 50 Nov 9 (`v6.6`) Sunlit Imperial Roman Carrara White & Gold Playwright captures (including `VRBS ROMA` 3D/2.5D Simulator `urbs-civilization.png` + `urbs-imperium-inspector.png`, `AQVAEDUCTUS` hydraulic cascade `harness.png`, Multi-Dock Chat `chat-multidock.png`, and 4-profile theme contract `theme-arcane.png` / `theme-slate.png`); regenerate all 7 animated `.webp` tours and all 7 architectural diagrams in the `v6.6` Roman White/Gold aesthetic (replacing `schema-fragmentation.svg` with `schema-fragmentation.webp` in `vox/README.md` and `docs/src/index.mdx`); fix all 8 stale sub-crate/app READMEs inside `vox/crates/*` and `vox/apps/*`; enforce `README-SYNC-MAP` single-source ownership to eliminate cross-repo table duplication; and add footnoted prior-art attribution (`[^1]`..`[^13]`).
+
+### Phase 402: `voxlang.org` Suite Portal Frontpage, `Vox Axis` Dual-Theme Showcase (`Light` & `Dark`), Animated `.webp` Tours, Separation of Concerns & CV Flywheel / Contrast Verification (`VOXLANG-PORTAL-01..04`) `[WAVE 5]`
+- **Directory:** `.planning/phases/402-voxlang-org-suite-portal-and-dual-theme-cv-flywheel/`
+- **Goal:** Upgrade `docs/src/index.mdx` (`voxlang.org` frontpage) and `docs/src/how-to/how-to-axis-workbench.md` so `voxlang.org` serves as the unified visual entry point for the entire Vox ecosystem (`vox`, `vox-axis`, `voxlang.org`, `vox-ops`); embed bespoke animated `.webp` tours (`vox_language_suite_tour.webp` and `axis_hero_tour.webp`), architectural diagrams (`vox_two_lanes_architecture.webp`, `axis_dual_mode_architecture.webp`), and real **Vox Axis** screenshots (`VRBS ROMA` Simulator, `Imperium` Inspector, Multi-Dock Chat + `AQVAEDUCTUS` Cascade, and side-by-side Light `Imperial Carrara White & Gold` vs. Dark `Minimalist Grey-Blue Slate` theme captures); enforce strict SSOT between `vox/README.md`, `vox-axis/README.md`, `voxlang.org/README.md`, and `docs/src/index.mdx`; and run both the `vox-gui` Playwright CV Flywheel (`cv-flywheel.spec.ts`) and `docs-astro` Playwright dual-theme (`light` & `dark`) layout/contrast verification (`axeViolations: 0`, zero contrast/overflow issues).
 
 ---
 

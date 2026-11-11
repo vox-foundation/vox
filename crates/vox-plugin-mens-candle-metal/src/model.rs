@@ -68,6 +68,12 @@ impl QuantizedLinear {
         Ok(Self::Unquantized(wt))
     }
 
+    pub fn set_detach_base(&mut self, detach: bool) {
+        if let Self::QLora(ql) = self {
+            ql.set_detach_base(detach);
+        }
+    }
+
     pub fn forward(&self, x: &Tensor) -> Result<Tensor> {
         match self {
             Self::QLora(ql) => ql

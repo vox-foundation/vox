@@ -2,7 +2,7 @@
   "ssotVersion": "2026.10.19-v3.5",
   "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
   "stage": "after",
-  "evaluatedAt": "2026-11-09T06:24:53.240Z",
+  "evaluatedAt": "2026-11-11T00:15:59.532Z",
   "beforeSurfaces": {
     "chat-default": {
       "surfaceId": "chat-default",
@@ -143,9 +143,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/chat-default-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 26.8,
-        "noiseFloor": 4.6,
-        "meanLuminance": 0.8855
+        "luminanceContrast": 27.2,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8861
       },
       "domAudit": {
         "surfaceId": "chat-default",
@@ -189,13 +189,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8255,
+        "technicalQuality": 0.8246,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9254
+      "weightedRubricScore": 0.9252
     },
     "loquela-knobs": {
       "surfaceId": "loquela-knobs",
@@ -203,9 +203,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/loquela-knobs-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 28.2,
+        "luminanceContrast": 28.1,
         "noiseFloor": 4.7,
-        "meanLuminance": 0.8846
+        "meanLuminance": 0.8863
       },
       "domAudit": {
         "surfaceId": "loquela-knobs",
@@ -249,13 +249,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8268,
+        "technicalQuality": 0.8266,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9257
+      "weightedRubricScore": 0.9256
     },
     "chat-dock-multi": {
       "surfaceId": "chat-dock-multi",
@@ -263,9 +263,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/chat-dock-multi-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 55.7,
+        "luminanceContrast": 56.2,
         "noiseFloor": 4.5,
-        "meanLuminance": 0.8436
+        "meanLuminance": 0.8449
       },
       "domAudit": {
         "surfaceId": "chat-dock-multi",
@@ -275,7 +275,7 @@
         "overlappingControlPairs": 0,
         "unstyledNativeSelectCount": 0,
         "lightThemeContrastLeakCount": 0,
-        "iconIssueCount": 1,
+        "iconIssueCount": 0,
         "controlHeightSpreadPx": 0,
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
@@ -305,13 +305,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8308,
+        "technicalQuality": 0.8919,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.9,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9177
+      "weightedRubricScore": 0.933
     },
     "urbs-civilization": {
       "surfaceId": "urbs-civilization",
@@ -319,7 +319,7 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/urbs-civilization-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 85.1,
+        "luminanceContrast": 85.2,
         "noiseFloor": 5,
         "meanLuminance": 0.6975
       },
@@ -331,7 +331,7 @@
         "overlappingControlPairs": 0,
         "unstyledNativeSelectCount": 0,
         "lightThemeContrastLeakCount": 0,
-        "iconIssueCount": 1,
+        "iconIssueCount": 0,
         "controlHeightSpreadPx": 0,
         "rawEmojiCount": 0,
         "unlitLandmarkCount": 0,
@@ -351,13 +351,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8867,
+        "technicalQuality": 0.9469,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9407
+      "weightedRubricScore": 0.9557
     }
   },
   "verdicts": {
@@ -365,12 +365,12 @@
       "surfaceId": "chat-default",
       "passNumber": 1,
       "visualBeforeScore": 0.8502,
-      "visualAfterScore": 0.9254,
-      "visualDelta": 0.0752,
+      "visualAfterScore": 0.9252,
+      "visualDelta": 0.075,
       "edgeSharpnessDeltaPct": 12.8,
-      "contrastDeltaPct": 84.8,
-      "noiseReductionPct": 13.2,
-      "estimatedPsnrDb": 39.24,
+      "contrastDeltaPct": 87.6,
+      "noiseReductionPct": 11.3,
+      "estimatedPsnrDb": 39.08,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -381,10 +381,10 @@
       "surfaceId": "loquela-knobs",
       "passNumber": 1,
       "visualBeforeScore": 0.828,
-      "visualAfterScore": 0.9257,
-      "visualDelta": 0.0977,
+      "visualAfterScore": 0.9256,
+      "visualDelta": 0.0976,
       "edgeSharpnessDeltaPct": 6,
-      "contrastDeltaPct": 88,
+      "contrastDeltaPct": 87.3,
       "noiseReductionPct": 13,
       "estimatedPsnrDb": 39.22,
       "flywheelConverged": true,
@@ -397,12 +397,12 @@
       "surfaceId": "chat-dock-multi",
       "passNumber": 1,
       "visualBeforeScore": 0.7985,
-      "visualAfterScore": 0.9177,
-      "visualDelta": 0.1192,
+      "visualAfterScore": 0.933,
+      "visualDelta": 0.1345,
       "edgeSharpnessDeltaPct": 4.1,
-      "contrastDeltaPct": 257.1,
+      "contrastDeltaPct": 260.3,
       "noiseReductionPct": 18.2,
-      "estimatedPsnrDb": 39.55,
+      "estimatedPsnrDb": 39.72,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [
@@ -413,12 +413,12 @@
       "surfaceId": "urbs-civilization",
       "passNumber": 1,
       "visualBeforeScore": 0.8228,
-      "visualAfterScore": 0.9407,
-      "visualDelta": 0.1179,
+      "visualAfterScore": 0.9557,
+      "visualDelta": 0.1329,
       "edgeSharpnessDeltaPct": 24.5,
-      "contrastDeltaPct": 391.9,
+      "contrastDeltaPct": 392.5,
       "noiseReductionPct": 2,
-      "estimatedPsnrDb": 38.51,
+      "estimatedPsnrDb": 38.67,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [

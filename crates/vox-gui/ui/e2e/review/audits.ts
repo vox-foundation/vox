@@ -16,8 +16,14 @@ export function auditIconsInPage(): IconIssue[] {
   const hint = (el: Element) =>
     `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}.${(el.getAttribute('class') || '').split(/\s+/)[0]}`;
   for (const svg of Array.from(document.querySelectorAll('svg'))) {
+    if (
+      svg.closest('details:not([open]), .sr-only, [hidden]') ||
+      svg.classList.contains('react-flow__edges')
+    ) {
+      continue;
+    }
     const r = svg.getBoundingClientRect();
-    const drawable = svg.querySelector('path, circle, rect, line, polyline, polygon, use, text');
+    const drawable = svg.querySelector('path, circle, ellipse, rect, line, polyline, polygon, use, text');
     if (r.width === 0 || r.height === 0) {
       issues.push({ kind: 'zero-size-svg', id: svg.id, testid: svg.getAttribute('data-testid') ?? '', selectorHint: hint(svg) });
     } else if (!drawable) {

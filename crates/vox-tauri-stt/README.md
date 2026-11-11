@@ -14,8 +14,8 @@ Speech-to-text plugin surface for **desktop Tauri 2** apps:
 
 ## Rust crate
 
-- **Default:** [`TranscribeResult`](crate::TranscribeResult), [`PLUGIN_ID`](crate::PLUGIN_ID), [`TRANSCRIBE_COMMAND`](crate::TRANSCRIBE_COMMAND) — serde-only; no `tauri` dependency.
-- **Feature `tauri-plugin`:** [`plugin::init`](crate::plugin::init) returns a registered Tauri 2 plugin (`invoke` id matches guest JS).
+- **Default:** [`TranscribeResult`](src/lib.rs), [`PLUGIN_ID`](src/lib.rs), [`TRANSCRIBE_COMMAND`](src/lib.rs) — serde-only; no `tauri` dependency.
+- **Feature `tauri-plugin`:** [`plugin::init`](src/plugin.rs) returns a registered Tauri 2 plugin (`invoke` id matches guest JS).
 
 Embed in generated `src-tauri` / app crate:
 

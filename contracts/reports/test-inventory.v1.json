@@ -2,12 +2,12 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 133,
-    "rust_files_scanned": 4719,
-    "cargo_unit_test_functions": 13870,
+    "rust_files_scanned": 4720,
+    "cargo_unit_test_functions": 13871,
     "cargo_integration_test_functions": 3840,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 102,
-    "cargo_test_functions_total": 17710,
+    "cargo_test_functions_total": 17711,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -661,7 +661,7 @@
       "integration_rs_files": 1
     },
     "vox-plugin-mens-candle-metal": {
-      "unit_tests": 66,
+      "unit_tests": 67,
       "integration_tests": 1,
       "bench_tests": 0,
       "ignored_tests": 4,
@@ -1081,7 +1081,7 @@
     "benches": 4,
     "integration_tests": 900,
     "other": 27,
-    "unit_src": 3788
+    "unit_src": 3789
   },
   "zero_test_crates": [
     "vox-cli-contracts",
@@ -1270,7 +1270,7 @@
   },
   "test_file_patterns": {
     "sleep_sites": 256,
-    "env_var_reads": 920,
+    "env_var_reads": 923,
     "env_var_mutations": 1141,
     "command_new": 651,
     "serial_test": 113,

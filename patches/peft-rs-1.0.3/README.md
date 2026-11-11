@@ -4,7 +4,7 @@ Comprehensive PEFT (Parameter-Efficient Fine-Tuning) adapter library for Rust.
 
 [![Crates.io](https://img.shields.io/crates/v/peft-rs.svg)](https://crates.io/crates/peft-rs)
 [![Documentation](https://docs.rs/peft-rs/badge.svg)](https://docs.rs/peft-rs)
-[![License](https://img.shields.io/crates/l/peft-rs.svg)](LICENSE-MIT)
+[![License](https://img.shields.io/crates/l/peft-rs.svg)](../../LICENSE)
 
 ## Overview
 
@@ -199,4 +199,4 @@ Contributions welcome! See [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) for plan
 
 ## License
 
-MIT Licensed - see [LICENSE-MIT](LICENSE-MIT) for details.
+MIT / Apache-2.0 Licensed - see [LICENSE](../../LICENSE) for details.

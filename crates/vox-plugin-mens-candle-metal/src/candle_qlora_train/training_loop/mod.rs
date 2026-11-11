@@ -28,10 +28,11 @@ use crate::{
 // vox-plugin-mens-candle-core — byte-for-byte identical to the CUDA plugin's
 // copies (logic.rs here held only `trajectory_weight_for_pair`).
 pub use vox_plugin_mens_candle_core::candle_qlora_train::training_loop::{
-    checkpoint, curriculum, encoding, logic, telem_helpers,
+    checkpoint, curriculum, encoding, telem_helpers,
 };
 
 pub mod forward;
+pub mod logic;
 pub mod types;
 pub mod validation;
 
@@ -463,10 +464,20 @@ pub fn run_training_loop(
                     supervised_tokens,
                     theoretical_tokens,
                     syntax_weight_sum,
+                    segments,
                 } => {
-                    if let Err(e) = trainer.backward_step(&loss) {
+                    let backward_result = match segments {
+                        Some(segs) => {
+                            logic::checkpointed_backward_step(trainer, &model, &loss, segs)
+                                .map_err(|e| anyhow::anyhow!("{e}"))
+                        }
+                        None => trainer
+                            .backward_step(&loss)
+                            .map_err(|e| anyhow::anyhow!("{e}")),
+                    };
+                    if let Err(e) = backward_result {
                         return Err(checkpoint_and_bail_on_oom(
-                            anyhow::anyhow!("{e}"),
+                            e,
                             trainer,
                             out,
                             config,
