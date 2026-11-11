@@ -257,6 +257,9 @@ pub struct QuantizedLinear {
     device: Device,
     /// Configuration for quantization (needed for on-the-fly dequant).
     config: QLoraConfig,
+    /// Whether to detach base output during training to avoid computing unused
+    /// base weight gradients in autograd (saves tens of GB on large models).
+    pub detach_base: bool,
 }
 
 impl QuantizedLinear {
@@ -325,6 +328,7 @@ impl QuantizedLinear {
             lora,
             device: device.clone(),
             config: config.clone(),
+            detach_base: false,
         })
     }
 
@@ -401,7 +405,16 @@ impl QuantizedLinear {
             lora,
             device: compute_device,
             config: config.clone(),
+            detach_base: std::env::var("VOX_QLORA_DETACH_BASE")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
         })
+    }
+
+    /// Set whether base output is detached during forward to skip computing
+    /// unused base weight gradients during backprop.
+    pub fn set_detach_base(&mut self, detach: bool) {
+        self.detach_base = detach;
     }
 
     /// Create a new quantized linear layer with zero-initialized quantized weights.
@@ -475,6 +488,11 @@ impl QuantizedLinear {
         };
         let base_output = if w_dtype != in_dtype {
             base_output.to_dtype(in_dtype)?
+        } else {
+            base_output
+        };
+        let base_output = if self.detach_base {
+            base_output.detach()
         } else {
             base_output
         };

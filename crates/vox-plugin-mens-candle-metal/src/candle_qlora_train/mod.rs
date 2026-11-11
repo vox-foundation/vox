@@ -1015,12 +1015,16 @@ pub fn run_candle_qlora_train(
         )?;
         let w_lm = w_lm.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
-        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+        let mut lm_head = QuantizedLinear::from_weight_with_varbuilder(
             &w_lm,
             None,
             &qlora_cfg,
             vb.pp(&lm_label),
         )?;
+        // lm_head must NOT detach base: it has no residual connection, so its
+        // base projection is the sole path threading loss gradients from the
+        // vocabulary logits down into the model's final hidden state.
+        lm_head.set_detach_base(false);
         adapter_layer_order.push(lm_label.clone());
         base_key_map.insert(lm_label, lm_base);
 
