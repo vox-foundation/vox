@@ -78,8 +78,13 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
               className="w-full block"
             >
               <div className="flex items-center justify-between gap-1 truncate rounded px-1 py-0.5 hover:bg-[#D4AF37]/10 transition-colors">
-                <span className="truncate" style={{ color: LANE_COLORS[idx % LANE_COLORS.length] }}>
-                  {row.label}
+                <span className="flex items-center gap-1.5 truncate font-semibold text-text-primary">
+                  <span
+                    className="inline-block size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: LANE_COLORS[idx % LANE_COLORS.length] }}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{row.label}</span>
                 </span>
                 <span className="rounded border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-1 text-[8px] text-text-primary">
                   {row.activeLane}

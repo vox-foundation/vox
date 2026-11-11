@@ -1,6 +1,6 @@
 # `mens/data/rust_bench/` — Held-Out Rust Compile-and-Test Benchmark
 
-Canonical held-out compile-and-test benchmark for the Vox MENS Rust spoke ([SPOKE-07](../../docs/src/architecture/agentos-ssot-2026.md), D-09, D-22).
+Canonical held-out compile-and-test benchmark for the Vox MENS Rust spoke ([SPOKE-07](../../../docs/src/architecture/agentos-ssot-2026.md), D-09, D-22).
 
 ## What the Bench Measures
 

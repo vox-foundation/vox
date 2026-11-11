@@ -204,6 +204,10 @@
     color-scheme: light;
     --color-surface-elevated: var(--color-bg-elevated);
     --color-surface-subtle: var(--color-bg-surface);
+    --font-family-display: var(--font-display);
+    --font-family-sans: var(--font-sans);
+    --font-family-serif: var(--font-serif);
+    --font-family-mono: var(--font-mono);
   }
   [data-theme="glacier"], [data-theme="travertine"] {
     color-scheme: light;
@@ -785,14 +789,20 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
   [class*="text-amber-3"],
   [class*="text-amber-4"],
   [class*="text-amber-5"],
+  [class*="text-amber-6"],
+  [class*="text-amber-7"],
   [class*="text-yellow-1"],
   [class*="text-yellow-2"],
   [class*="text-yellow-3"],
   [class*="text-yellow-4"],
   [class*="text-yellow-5"],
+  [class*="text-yellow-6"],
+  [class*="text-yellow-7"],
   [class*="text-orange-2"],
   [class*="text-orange-3"],
   [class*="text-orange-4"],
+  [class*="text-orange-5"],
+  [class*="text-orange-6"],
   .text-brass
 ):not([data-roman-medallion="true"] *):not([data-roman-wax-seal="true"]):not([data-roman-wax-seal="true"] *) {
   color: #1C140C !important;
@@ -802,10 +812,19 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
   .text-cyan,
   .text-cyan-300,
   .text-cyan-400,
+  .text-cyan-500,
+  .text-cyan-600,
+  .text-cyan-700,
   .text-sky-300,
   .text-sky-400,
+  .text-sky-500,
+  .text-sky-600,
+  .text-sky-700,
   .text-teal-300,
   .text-teal-400,
+  .text-teal-500,
+  .text-teal-600,
+  .text-teal-700,
   [class*="text-blue-2"],
   [class*="text-blue-3"],
   [class*="text-blue-4"],
@@ -824,12 +843,22 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
   .text-emerald-300,
   .text-emerald-400,
   .text-emerald-500,
+  .text-emerald-600,
   .text-green-200,
   .text-green-300,
   .text-green-400,
-  .text-green-500
+  .text-green-500,
+  .text-green-600
 ):not([data-roman-medallion="true"] *) {
   color: #14532D !important;
+}
+
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) :is(main, aside, nav, header, footer) :is(
+  .opacity-70,
+  .opacity-75,
+  .opacity-80
+) {
+  opacity: 1 !important;
 }
 
 html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) :is(body, main, aside, nav, header, footer, [role="dialog"], [role="menu"], [role="tooltip"]) :is(
@@ -837,9 +866,13 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
   [class*="text-rose-2"],
   [class*="text-rose-3"],
   [class*="text-rose-4"],
+  [class*="text-rose-5"],
+  [class*="text-rose-6"],
   [class*="text-red-2"],
   [class*="text-red-3"],
-  [class*="text-red-4"]
+  [class*="text-red-4"],
+  [class*="text-red-5"],
+  [class*="text-red-6"]
 ):not([data-roman-medallion="true"] *) {
   color: #7F1D1D !important;
 }
@@ -960,7 +993,11 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
   [class*="bg-[#efe"],
   [class*="bg-[#EDE"],
   [class*="bg-[#EAE"],
+  [class*="bg-[#E8D"],
   [class*="bg-[#E6D"],
+  [class*="bg-[#E5D"],
+  [class*="bg-[#E4D"],
+  [class*="bg-[#E0D"],
   [class*="bg-[#DFD"],
   [class*="bg-[#dfd"],
   [class*="bg-[#DDD"],
@@ -1010,7 +1047,28 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
   [class*="text-[#6"],
   [class*="text-[#7"],
   [class*="text-[#8"],
-  [class*="text-[#9"]
+  [class*="text-[#9"],
+  [class*="text-amber-6"],
+  [class*="text-amber-7"],
+  [class*="text-amber-8"],
+  [class*="text-amber-9"],
+  [class*="text-yellow-6"],
+  [class*="text-yellow-7"],
+  [class*="text-emerald-6"],
+  [class*="text-emerald-7"],
+  [class*="text-emerald-8"],
+  [class*="text-green-6"],
+  [class*="text-green-7"],
+  [class*="text-cyan-6"],
+  [class*="text-cyan-7"],
+  [class*="text-sky-6"],
+  [class*="text-sky-7"],
+  [class*="text-rose-5"],
+  [class*="text-rose-6"],
+  [class*="text-rose-7"],
+  [class*="text-red-5"],
+  [class*="text-red-6"],
+  [class*="text-red-7"]
 ):not([data-roman-brass-plaque="true"]):not([data-roman-brass-plaque="true"] *) {
   color: var(--color-text-primary) !important;
 }
