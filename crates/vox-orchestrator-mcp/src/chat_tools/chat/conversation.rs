@@ -655,12 +655,12 @@ mod tests {
             ),
             ..Default::default()
         });
-        for i in 0..35 {
+        for i in 0..45 {
             messages.push(LlmChatMessage {
                 role: if i % 2 == 0 { "user" } else { "assistant" }.into(),
                 content: format!(
                     "Follow-up conversational turn {i} {}",
-                    "context ".repeat(90)
+                    "context ".repeat(110)
                 ),
                 ..Default::default()
             });
