@@ -54,7 +54,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps. |
 | [`vox-mesh-types`](../../../crates/vox-mesh-types/) | Pure-data mesh transport types. |
 | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) | Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs, VCS capability tokens (WorkingTreeWrite, BranchCreate, etc.). |
-| [`vox-repository-core`](../../../crates/vox-repository-core/) | Pure-data L0 leaf for `vox-repository`: `RepositoryDescriptor`, `MultiRepoCatalog`, `RepoCapability`, and federated repository identity types (extracted in Phase 393). |
 | [`workspace-hack`](../../../crates/workspace-hack/) | Cargo-hakari unification crate; do not edit by hand. |
 
 ### L1 — primitives & utilities
@@ -90,9 +89,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Donations.vox mesh policy parser and `WorkerDonationPolicy` type; migration to `vox-scaling-policy::donations_vox` in progress. |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
 | [`vox-build-queue`](../../../crates/vox-build-queue/) | Fair FIFO build queue, cargo resolution, and build metrics library for the vox-cargo-shim build broker. Layer 1. |
-| [`vox-mcp-dispatch`](../../../crates/vox-mcp-dispatch/) | L1 MCP tool-dispatch envelope, routing types, and protocol primitives extracted from `vox-orchestrator-mcp` (Phase 392). |
-| [`vox-search-core`](../../../crates/vox-search-core/) | L1 pure-data retrieval leaf (`SearchHit`, `TrustTier`, `SearchPolicy`, query contracts) extracted from `vox-search` (Phase 398). |
-| [`vox-scientia-core`](../../../crates/vox-scientia-core/) | L1 pure-data SCIENTIA leaf (evidence spans, finding records, verification verdicts) extracted from `vox-scientia` (Phase 398). |
 
 ### L2 — domain libraries
 
