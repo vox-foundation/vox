@@ -231,6 +231,9 @@ impl Commands {
         let new_cb = create_command_buffer(&self.command_queue, Arc::clone(&entry.semaphore))?;
         let old_cb = std::mem::replace(&mut state.current, new_cb);
         state.in_flight.push(old_cb);
+        state
+            .in_flight
+            .retain(|cb| cb.status() != objc2_metal::MTLCommandBufferStatus::Completed);
         entry.compute_count.store(reset_to, Ordering::Release);
 
         Ok(())

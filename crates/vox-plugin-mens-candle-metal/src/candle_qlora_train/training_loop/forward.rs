@@ -1,6 +1,4 @@
 //! `forward_masked_ce` — masked cross-entropy forward pass.
-//!
-//! Ported verbatim from vox-populi (SP3 sub-batch C).
 
 use super::types::MaskedCeForward;
 use crate::config::LoraTrainingConfig;
@@ -24,9 +22,67 @@ pub fn forward_masked_ce(
     let input_ids = candle_core::Tensor::new(&ids[..ids_len - 1], device)?.unsqueeze(0)?;
     let targets = candle_core::Tensor::new(&ids[1..], device)?.unsqueeze(0)?;
 
+    // Activation/gradient checkpointing: when enabled, the forward severs the
+    // autograd tape at segment boundaries so only ~1 segment's activations are
+    // retained for backward (bounds the single-backward peak that OOMs large models).
+    if config.gradient_checkpointing {
+        let n_segments = gradient_checkpoint_segments(config);
+        let ckpt = model.forward_checkpointed(&input_ids, n_segments)?;
+        let logits = ckpt.logits.flatten_to(1)?;
+        let targets_flat = targets.flatten_all()?;
+        return finalize_masked_ce(
+            logits,
+            targets_flat,
+            ids_len,
+            prefix_len,
+            trunc_offset,
+            sample_weight,
+            token_weights,
+            config,
+            device,
+            Some(ckpt.segments),
+        );
+    }
+
     let logits = model.forward(&input_ids)?;
     let logits = logits.flatten_to(1)?;
     let targets_flat = targets.flatten_all()?;
+    finalize_masked_ce(
+        logits,
+        targets_flat,
+        ids_len,
+        prefix_len,
+        trunc_offset,
+        sample_weight,
+        token_weights,
+        config,
+        device,
+        None,
+    )
+}
+
+/// Number of checkpoint segments to split the layer stack into.
+fn gradient_checkpoint_segments(_config: &LoraTrainingConfig) -> usize {
+    std::env::var("VOX_MENS_GC_SEGMENTS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(8)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finalize_masked_ce(
+    logits: candle_core::Tensor,
+    targets_flat: candle_core::Tensor,
+    ids_len: usize,
+    prefix_len: usize,
+    trunc_offset: usize,
+    sample_weight: f64,
+    token_weights: Option<&[f32]>,
+    config: &LoraTrainingConfig,
+    device: &Device,
+    segments: Option<Vec<crate::model::CheckpointSegment>>,
+) -> Result<MaskedCeForward> {
     let vocab_dim = logits.dim(1)?;
     let max_tgt = targets_flat.max(0)?.to_scalar::<u32>()? as usize;
     if max_tgt >= vocab_dim {
@@ -75,8 +131,6 @@ pub fn forward_masked_ce(
         .gather(&targets_flat.unsqueeze(1)?, 1)?
         .flatten_all()?;
     let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
-    // Report the plain per-token CE; only the backward loss carries the row's
-    // mix/trajectory weight (otherwise a 6x-weighted row logs 6x its real loss).
     let unweighted = loss.neg()?;
     let w = sample_weight as f32;
     let w_t = candle_core::Tensor::new(&[w], device)?;
@@ -100,5 +154,6 @@ pub fn forward_masked_ce(
         supervised_tokens: mask_sum.max(0.0) as u64,
         theoretical_tokens: (ids_len.saturating_sub(1)) as u64,
         syntax_weight_sum: mask_sum,
+        segments,
     })
 }

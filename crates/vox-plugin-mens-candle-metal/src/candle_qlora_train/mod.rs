@@ -161,6 +161,29 @@ impl TrainGraphModel {
             Self::Qwen35(m) => Ok(m.forward(input_ids)?),
         }
     }
+
+    /// Checkpointed forward (activation/gradient checkpointing). See
+    /// [`crate::model::Qwen35Model::forward_checkpointed`].
+    pub fn forward_checkpointed(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> anyhow::Result<crate::model::CheckpointedForward> {
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_checkpointed(input_ids, n_segments)?),
+        }
+    }
+
+    /// Recompute one checkpoint segment. See
+    /// [`crate::model::Qwen35Model::recompute_segment`].
+    pub fn recompute_segment(
+        &self,
+        seg: &crate::model::CheckpointSegment,
+    ) -> anyhow::Result<(candle_core::Var, Tensor)> {
+        match self {
+            Self::Qwen35(m) => Ok(m.recompute_segment(seg)?),
+        }
+    }
 }
 
 // ── DB message bus ────────────────────────────────────────────────────────────
@@ -326,20 +349,9 @@ pub fn run_candle_qlora_train(
         .clone()
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
-    // The budget planner (`memory_budget::get_resident_per_b`) discounts the
-    // resident estimate whenever gradient checkpointing is requested — heavily so
-    // for the Qwen3.5 family (at 27B it more than halves the estimate), which in
-    // turn inflates the activation budget and the seq_len/batch_size it plans. The
-    // Metal backend does not implement checkpointing (only the CUDA backend reads
-    // this flag), so honoring the discount without saying so would silently plan a
-    // run that cannot fit. Say so loudly instead of OOMing mid-training.
     if config.gradient_checkpointing {
-        train_log::warn(
-            "gradient_checkpointing was requested but the Metal backend does not \
-             implement it (only the CUDA backend does) — the forward runs unsegmented. \
-             The VRAM budget was planned assuming checkpointing, so the planned \
-             seq_len/batch_size may exceed real memory; reduce --seq-len/--batch-size \
-             if this run OOMs.",
+        train_log::info(
+            "gradient_checkpointing enabled: segmented forward + recompute backward active on Metal.",
         );
     }
     let jsonl_strict_resolved =
@@ -526,7 +538,22 @@ pub fn run_candle_qlora_train(
     let rank = config.rank.max(1);
     let alpha_u = config.alpha.round() as usize;
     let mut qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
-    qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_none();
+    let explicit_no_cache = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_some()
+        || std::env::var("VOX_MENS_WEIGHT_CACHE")
+            .is_ok_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
+    let explicit_cache = std::env::var("VOX_MENS_WEIGHT_CACHE")
+        .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+    let auto_cache = if explicit_no_cache {
+        false
+    } else if explicit_cache {
+        true
+    } else {
+        // Default to true (cached BF16 weights): on-the-fly dequantization in Candle on Metal
+        // lacks a fused kernel and creates index_select / stack U32 buffers that accumulate
+        // hundreds of GB of Metal buffers. The 65 GB BF16 base weights fit comfortably in 128 GB Unified Memory.
+        true
+    };
+    qlora_cfg.cache_dequantized = auto_cache;
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;

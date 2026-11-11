@@ -30,7 +30,7 @@ use crate::device::DeviceKind;
 /// its own trainer's compute dtype. CUDA keeps BF16.
 #[must_use]
 pub fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType {
-    if device.is_cuda() {
+    if device.is_cuda() || device.is_metal() {
         qlora_rs::ComputeDType::BF16
     } else {
         qlora_rs::ComputeDType::F32

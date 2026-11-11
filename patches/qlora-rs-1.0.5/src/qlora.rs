@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{QLoraError, Result};
 use crate::quantization::{
-    dequantize_nf4_with_dtype, quantize_nf4_with_config, ComputeDType,
-    QuantizationConfig, QuantizedTensor,
+    ComputeDType, QuantizationConfig, QuantizedTensor, dequantize_nf4_with_dtype,
+    quantize_nf4_with_config,
 };
 
 /// Apply a `candle_nn::Linear`-style (no-bias) projection `x @ w^T` where `w` has
@@ -294,14 +294,24 @@ impl QuantizedLinear {
         // avoids re-running the (CPU, scalar-loop) NF4 dequant on every forward pass,
         // which otherwise dominates training time; the dequantized weight is resident
         // through backward anyway, so caching does not raise the peak.
-        let cached_weight = if config.cache_dequantized {
-            Some(dequantize_nf4_with_dtype(
+        let (quantized_weight, cached_weight) = if config.cache_dequantized {
+            let cache = dequantize_nf4_with_dtype(
                 &quantized_weight,
-                device,
+                weight.device(),
                 config.quantization.compute_dtype,
-            )?)
+            )?;
+            let cache = if cache.device().same_device(device) {
+                cache
+            } else {
+                cache.to_device(device)?
+            };
+            let mut q = quantized_weight;
+            q.data = Vec::new();
+            q.scales = Vec::new();
+            q.zero_points = None;
+            (q, Some(cache))
         } else {
-            None
+            (quantized_weight, None)
         };
 
         // Create LoRA adapter
@@ -359,7 +369,7 @@ impl QuantizedLinear {
         // weight never needs to be resident on the GPU. Caching once (resident) avoids
         // re-dequantizing every forward — which churns/fragments the pool and forces candle
         // to retain a fresh dequant per layer through backward.
-        let cached_weight = if config.cache_dequantized {
+        let (quantized_weight, cached_weight) = if config.cache_dequantized {
             // Dequantize on the BASE weight's device first, then move the (BF16) result to
             // the compute device. When the base is on the CPU this means the per-weight
             // dequant temporaries (nibble LUTs, codes, vals — each numel-sized) are built on
@@ -372,9 +382,13 @@ impl QuantizedLinear {
                 weight.device(),
                 config.quantization.compute_dtype,
             )?;
-            Some(cache.to_device(&compute_device)?)
+            let mut q = quantized_weight;
+            q.data = Vec::new();
+            q.scales = Vec::new();
+            q.zero_points = None;
+            (q, Some(cache.to_device(&compute_device)?))
         } else {
-            None
+            (quantized_weight, None)
         };
 
         // Create LoRA adapter with VarBuilder for gradient tracking (on the compute device).
@@ -487,8 +501,8 @@ impl QuantizedLinear {
         // x @ A^T -> [..., r]; (x @ A^T) @ B^T -> [..., out_features]
         let lora_out = linear_no_bias_t(input, &a)?;
         let lora_out = linear_no_bias_t(&lora_out, &b)?;
-        let scaling = Tensor::new(self.lora.scaling() as f32, lora_out.device())?
-            .to_dtype(act_dtype)?;
+        let scaling =
+            Tensor::new(self.lora.scaling() as f32, lora_out.device())?.to_dtype(act_dtype)?;
         let lora_out = lora_out.broadcast_mul(&scaling)?;
         let output = base_output.broadcast_add(&lora_out)?;
 

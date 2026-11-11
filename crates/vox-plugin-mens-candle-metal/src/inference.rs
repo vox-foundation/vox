@@ -210,7 +210,12 @@ impl InferenceEngine {
             let meta_path = resolve_adapter_manifest_path(model_dir)
                 .unwrap_or_else(|| model_dir.join("adapter_manifest.json"));
 
-            let resolved = resolve_weights(model_dir, &adapter_path, &meta_path, &_device)?;
+            let resolved = resolve_weights(
+                model_dir,
+                &adapter_path,
+                &meta_path,
+                &candle_core::Device::Cpu,
+            )?;
             let base_shards = resolved.base_shards;
             lora_factors = resolved.lora_factors;
 
@@ -234,15 +239,17 @@ impl InferenceEngine {
         let explicit_no_cache = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_some()
             || std::env::var("VOX_MENS_WEIGHT_CACHE")
                 .is_ok_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
-        let is_large = model_dir
-            .to_string_lossy()
-            .to_ascii_lowercase()
-            .contains("14b")
-            || model_dir
-                .to_string_lossy()
-                .to_ascii_lowercase()
-                .contains("32b");
-        qlora_cfg.cache_dequantized = explicit_cache.unwrap_or(!explicit_no_cache && !is_large);
+        let auto_cache = if explicit_no_cache {
+            false
+        } else if explicit_cache.unwrap_or(false) {
+            true
+        } else {
+            // BF16 dequantized caching fits comfortably within memory on Apple Silicon
+            // (e.g. 14B in BF16 is ~28 GB on 64GB/128GB systems) and enables native
+            // Metal MLX GEMM matrix acceleration while eliminating transient GPU tensor leaks.
+            true
+        };
+        qlora_cfg.cache_dequantized = auto_cache;
 
         // Helper to find a non-linear tensor (layernorm, embedding, bias) in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -302,12 +309,42 @@ impl InferenceEngine {
         let requested: std::cell::RefCell<std::collections::HashSet<String>> =
             std::cell::RefCell::new(std::collections::HashSet::new());
 
+        let get_tensor_cpu = |key: &str| -> Result<Tensor> {
+            for st in &weight_maps {
+                if let Ok(view) = st.tensor(key) {
+                    let shape = view.shape().to_vec();
+                    let dtype = match view.dtype() {
+                        Dtype::F32 => candle_core::DType::F32,
+                        Dtype::BF16 => candle_core::DType::BF16,
+                        Dtype::F16 => candle_core::DType::F16,
+                        _ => continue,
+                    };
+                    let t = Tensor::from_raw_buffer(
+                        view.data(),
+                        dtype,
+                        &shape,
+                        &candle_core::Device::Cpu,
+                    )?;
+                    return if t.dtype() == candle_core::DType::F32 {
+                        Ok(t)
+                    } else {
+                        Ok(t.to_dtype(candle_core::DType::F32)?)
+                    };
+                }
+            }
+            anyhow::bail!("Weight not found: {key}");
+        };
+
         let linear_weight = |key: &str| -> Result<Tensor> {
             requested.borrow_mut().insert(key.to_string());
             if is_quantized {
-                Ok(Tensor::zeros((1,), candle_core::DType::F32, &_device)?)
+                Ok(Tensor::zeros(
+                    (1,),
+                    candle_core::DType::F32,
+                    &candle_core::Device::Cpu,
+                )?)
             } else {
-                fold_lora_delta(get_tensor(key)?, key, &lora_factors)
+                fold_lora_delta(get_tensor_cpu(key)?, key, &lora_factors)
             }
         };
 
