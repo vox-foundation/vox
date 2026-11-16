@@ -132,8 +132,6 @@ graph {
     vox_sql -> vox_db
     node vox_secrets: "vox-secrets"
     vox_sql -> vox_secrets
-    node vox_cli: "vox-cli"
-    vox_cli -> vox_sql
     node vox_cli_research: "vox-cli-research"
     vox_cli_research -> vox_sql
     node vox_codegen: "vox-codegen"
@@ -147,7 +145,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
 | [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |

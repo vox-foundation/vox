@@ -73,16 +73,24 @@ pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 /// These map to the actual rungs the resolver emits (see `gpu-specs.yaml` qwen3_code).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum QwenSizeClass {
-    /// ~0.6B — CPU / dev smoke tier.
+    /// ~0.6B — Legacy CPU / dev smoke tier.
     S0p6,
+    /// ~0.8B — Qwen3.5 0.8B compact hybrid entry tier.
+    S0p8,
     /// ~1.7B — 6 GB class.
     S1p7,
-    /// ~4B — 10-12 GB class.
+    /// ~2B — Qwen3.5 2B compact hybrid tier.
+    S2,
+    /// ~4B — 10-12 GB class (Qwen3-4B / Qwen3.5-4B).
     S4,
     /// ~8B — 16 GB tier (RTX 4080 Super).
     S8,
+    /// ~9B — Qwen3.5 9B 16-24 GB hybrid tier.
+    S9,
     /// ~14B — 24/48 GB tier.
     S14,
+    /// ~27B — Qwen3.8 / Qwen3.6 27B 48-96 GB hybrid tier.
+    S27,
     /// ~32B — 96 GB tier.
     S32,
     Other,
@@ -103,14 +111,22 @@ fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
     let near = |b: f64| params.is_some_and(|p| (p - b).abs() < 0.05);
     Some(if near(32.0) {
         QwenSizeClass::S32
+    } else if near(27.0) {
+        QwenSizeClass::S27
     } else if near(14.0) {
         QwenSizeClass::S14
+    } else if near(9.0) {
+        QwenSizeClass::S9
     } else if near(8.0) {
         QwenSizeClass::S8
     } else if near(4.0) {
         QwenSizeClass::S4
+    } else if near(2.0) {
+        QwenSizeClass::S2
     } else if near(1.7) {
         QwenSizeClass::S1p7
+    } else if near(0.8) {
+        QwenSizeClass::S0p8
     } else if near(0.6) {
         QwenSizeClass::S0p6
     } else {
@@ -140,7 +156,12 @@ fn apply_qwen_size_ladder_policy(
             }
             p.grad_accum = p.grad_accum.max(4);
         }
-        QwenSizeClass::S1p7 | QwenSizeClass::S4 | QwenSizeClass::S8 => {
+        QwenSizeClass::S0p8
+        | QwenSizeClass::S1p7
+        | QwenSizeClass::S2
+        | QwenSizeClass::S4
+        | QwenSizeClass::S8
+        | QwenSizeClass::S9 => {
             // 16 GB-tier default rung: keep current 4080-class defaults; enforce safe floors.
             p.batch_size = p.batch_size.max(1);
             p.grad_accum = p.grad_accum.max(8);
@@ -175,10 +196,12 @@ fn apply_qwen_size_ladder_policy(
                 p.grad_accum = p.grad_accum.max(8);
             }
         }
-        QwenSizeClass::S32 => {
-            // 32B is only viable on very large cards; floor it hard on the
-            // small/medium tiers, but the large-card `else` arm must not
-            // inherit the small-card rank/alpha clamp.
+        QwenSizeClass::S27 | QwenSizeClass::S32 => {
+            // 27B/32B require strict small/medium-card clamps; 80-128 GB accelerators
+            // (A100-80G / 128 GB M5 Max) clamp to seq_len 1024 because Qwen3.8-27B at
+            // seq_len 2048 measured 112,802 MiB on Metal (exceeding the 110,101 MiB static
+            // working set and paging unified memory), while >=135 GB accelerators
+            // (H200 / B200) can retain 2048 seq_len.
             if vram_mb <= 24_576 {
                 p.rank = p.rank.min(8);
                 p.alpha = p.alpha.min(16.0);
@@ -196,23 +219,24 @@ fn apply_qwen_size_ladder_policy(
                     p.batch_size = p.batch_size.min(1);
                 }
                 p.grad_accum = p.grad_accum.max(12);
+            } else if vram_mb < 135_000 {
+                p.seq_len = p.seq_len.min(1024);
+                p.grad_accum = p.grad_accum.max(8);
             } else {
-                p.seq_len = p.seq_len.min(768);
+                p.seq_len = p.seq_len.min(2048);
                 p.grad_accum = p.grad_accum.max(8);
             }
         }
         QwenSizeClass::Other => {
             // Not a string-matched rung — fall back to the actual numeric param
-            // count so an unrecognized-but-large model (e.g. "Qwen3.8-27B") still
-            // gets floored instead of running with whatever permissive values the
-            // base preset started with.
+            // count so an unrecognized-but-large model (e.g. "Qwen3-28B-custom")
+            // still gets floored instead of running uncapped.
             if let Some(params_b) =
                 model_hint.and_then(crate::mens::tensor::memory_budget::params_b_from_model_hint)
             {
                 if params_b >= 24.0 {
-                    // As large as or larger than the S32 tier — apply the same
-                    // floor, gated by the same memory conditionals (the
-                    // large-card `else` arm must not inherit the clamp).
+                    // As large as or larger than the S27/S32 tier — apply the same
+                    // floor, gated by the same memory conditionals.
                     if vram_mb <= 24_576 {
                         p.rank = p.rank.min(8);
                         p.alpha = p.alpha.min(16.0);
@@ -230,8 +254,11 @@ fn apply_qwen_size_ladder_policy(
                             p.batch_size = p.batch_size.min(1);
                         }
                         p.grad_accum = p.grad_accum.max(12);
+                    } else if vram_mb < 135_000 {
+                        p.seq_len = p.seq_len.min(1024);
+                        p.grad_accum = p.grad_accum.max(8);
                     } else {
-                        p.seq_len = p.seq_len.min(768);
+                        p.seq_len = p.seq_len.min(2048);
                         p.grad_accum = p.grad_accum.max(8);
                     }
                 } else if params_b >= 12.0 {
@@ -373,7 +400,7 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             warmup: 10,
             lr: 1e-4,
         },
-        "qwen3_6g" | "qwen3_12g" | "qwen3_16g" => TrainPresetProfile {
+        "qwen3_0_6b" | "qwen3_6g" | "qwen3_12g" | "qwen3_16g" => TrainPresetProfile {
             rank: 16,
             alpha: 32.0,
             seq_len: 512,
@@ -412,6 +439,56 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             epochs: 3,
             warmup: 100,
             lr: 8e-5,
+        },
+        "qwen35_0_8b" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 1024,
+            batch_size: 1,
+            grad_accum: 8,
+            epochs: 3,
+            warmup: 60,
+            lr: 1.5e-4,
+        },
+        "qwen35_2b" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 1024,
+            batch_size: 1,
+            grad_accum: 8,
+            epochs: 3,
+            warmup: 80,
+            lr: 1.5e-4,
+        },
+        "qwen35_4b" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 1024,
+            batch_size: 1,
+            grad_accum: 8,
+            epochs: 3,
+            warmup: 100,
+            lr: 1.5e-4,
+        },
+        "qwen35_9b" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 1024,
+            batch_size: 1,
+            grad_accum: 8,
+            epochs: 3,
+            warmup: 100,
+            lr: 1.2e-4,
+        },
+        "qwen38_27b" => TrainPresetProfile {
+            rank: 32,
+            alpha: 64.0,
+            seq_len: 1024,
+            batch_size: 1,
+            grad_accum: 16,
+            epochs: 3,
+            warmup: 100,
+            lr: 1.0e-4,
         },
         _ => TrainPresetProfile {
             rank: 16,
@@ -881,6 +958,7 @@ mod qwen3_preset_tests {
 
     #[test]
     fn new_ladder_presets_share_the_16g_profile() {
+        assert_eq!(base_for_name("qwen3_0_6b"), base_for_name("qwen3_16g"));
         assert_eq!(base_for_name("qwen3_6g"), base_for_name("qwen3_16g"));
         assert_eq!(base_for_name("qwen3_12g"), base_for_name("qwen3_16g"));
     }
@@ -1102,11 +1180,10 @@ mod qwen3_preset_tests {
 
     #[test]
     fn size_class_other_still_clamps_rank_seq_batch() {
-        // "Qwen/Qwen3.8-27B" matches none of the S0.6/S8/S14/S32 substrings
-        // (note: "8b" is not a substring of "27b"), so it falls into `Other`.
-        // `Other` must still reason about the real numeric param count (27B)
-        // and clamp like the S32 tier on a constrained card, not no-op.
-        let hint = "Qwen/Qwen3.8-27B";
+        // "Qwen/Qwen3-28B-custom" matches none of the explicit S0.6..S32 rungs,
+        // so it falls into `Other`. `Other` must still reason about the real
+        // numeric param count (28B) and clamp like S27/S32 on a constrained card.
+        let hint = "Qwen/Qwen3-28B-custom";
         let class = super::detect_qwen_size_class(Some(hint)).expect("qwen hint must classify");
         assert_eq!(class, super::QwenSizeClass::Other);
 
@@ -1123,15 +1200,15 @@ mod qwen3_preset_tests {
         let got = super::apply_qwen_size_ladder_policy(permissive, class, 24_576, Some(hint), None);
         assert!(
             got.rank <= 8,
-            "27B on 24GB must clamp rank down like the S32 tier, got {}",
+            "28B on 24GB must clamp rank down like the S32 tier, got {}",
             got.rank
         );
         assert!(
             got.seq_len <= 256,
-            "27B on 24GB must floor seq_len like the S32 tier, got {}",
+            "28B on 24GB must floor seq_len like the S32 tier, got {}",
             got.seq_len
         );
-        assert_eq!(got.batch_size, 1, "27B on 24GB must be single micro-batch");
+        assert_eq!(got.batch_size, 1, "28B on 24GB must be single micro-batch");
     }
 
     #[test]
@@ -1167,7 +1244,7 @@ mod qwen3_preset_tests {
 
     #[test]
     fn a_large_machine_does_not_get_the_small_card_clamp_in_any_size_class() {
-        // Task 5: the rank/alpha clamps at S14/S32/Other must be gated by the
+        // Task 5: the rank/alpha clamps at S14/S27/S32/Other must be gated by the
         // vram_mb memory conditionals they sit next to, not fire unconditionally
         // above them. A 110 GB budget is nowhere near any of these tiers' tight
         // envelope and must not inherit the 16 GB card's rank floor.
@@ -1183,8 +1260,9 @@ mod qwen3_preset_tests {
         };
         for (class, hint) in [
             (QwenSizeClass::S14, Some("Qwen3-14B")),
+            (QwenSizeClass::S27, Some("Qwen3.8-27B")),
             (QwenSizeClass::S32, Some("Qwen3-32B")),
-            (QwenSizeClass::Other, Some("Qwen3.8-27B")), // the model this program is about
+            (QwenSizeClass::Other, Some("Qwen/Qwen3-28B-custom")),
         ] {
             let big = apply_qwen_size_ladder_policy(base.clone(), class, 110_000, hint, None);
             assert!(
@@ -1204,12 +1282,46 @@ mod qwen3_preset_tests {
     }
 
     #[test]
-    fn the_27b_is_classified_other_not_s32() {
-        // If this ever changes, the clamp fix above must move with it.
-        assert!(matches!(
-            detect_qwen_size_class(Some("Qwen3.8-27B")),
-            Some(QwenSizeClass::Other)
-        ));
+    fn qwen35_and_qwen38_size_classes_and_presets_resolve() {
+        assert_eq!(
+            detect_qwen_size_class(Some("Qwen/Qwen3.8-27B")),
+            Some(QwenSizeClass::S27)
+        );
+        assert_eq!(
+            detect_qwen_size_class(Some("Qwen/Qwen3.5-2B")),
+            Some(QwenSizeClass::S2)
+        );
+        assert_eq!(
+            detect_qwen_size_class(Some("Qwen/Qwen3.5-9B")),
+            Some(QwenSizeClass::S9)
+        );
+
+        for preset in ["qwen35_2b", "qwen35_4b", "qwen35_9b"] {
+            let p = base_for_name(preset);
+            assert_eq!(p.seq_len, 1024, "{preset}");
+            assert_eq!(p.rank, 16, "{preset}");
+        }
+        let p27 = base_for_name("qwen38_27b");
+        assert_eq!(p27.rank, 32);
+        assert_eq!(p27.seq_len, 1024);
+
+        let mid = apply_qwen_size_ladder_policy(
+            base_for_name("qwen3_96g"),
+            QwenSizeClass::S27,
+            110_000,
+            Some("Qwen3.8-27B"),
+            None,
+        );
+        assert_eq!(mid.seq_len, 1024);
+
+        let big = apply_qwen_size_ladder_policy(
+            base_for_name("qwen3_96g"),
+            QwenSizeClass::S27,
+            147_456,
+            Some("Qwen3.8-27B"),
+            None,
+        );
+        assert_eq!(big.seq_len, 2048);
     }
 
     #[test]

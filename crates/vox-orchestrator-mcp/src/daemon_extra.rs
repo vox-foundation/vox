@@ -283,7 +283,27 @@ impl ExtraDispatch for McpExtraDispatch {
                         ));
                     }
                 };
-                let resolved = self.state.pending_approvals.resolve(approval_id, outcome);
+                let resolution = match crate::pending_approvals::parse_resolution_from_params(
+                    outcome,
+                    &req.params,
+                ) {
+                    Ok(r) => r,
+                    Err(msg) => return Some(error(&req.id, msg)),
+                };
+                if let Err(msg) =
+                    crate::dispatch_domains::terminal_approvals::validate_terminal_resolution_before_commit(
+                        &self.state,
+                        approval_id,
+                        &resolution,
+                    )
+                    .await
+                {
+                    return Some(error(&req.id, msg));
+                }
+                let resolved = self
+                    .state
+                    .pending_approvals
+                    .resolve_with_detail(approval_id, resolution);
                 Some(result(
                     &req.id,
                     serde_json::json!({ "resolved": resolved, "approval_id": approval_id }),
@@ -297,12 +317,117 @@ impl ExtraDispatch for McpExtraDispatch {
 #[cfg(test)]
 mod tests {
     use super::McpExtraDispatch;
+    use crate::pending_approvals::{PendingApprovalMeta, PendingResolution};
     use crate::profiles::Subsystem;
+    use serde_json::json;
+    use vox_foundation::protocol::{DispatchPayload, DispatchRequest, orch_daemon_method};
+    use vox_orchestrator::ApprovalOutcome;
+    use vox_orchestrator::orch_daemon::ExtraDispatch;
 
     #[tokio::test]
     async fn new_wraps_a_server_state_whose_default_report_is_fully_booted() {
         let state = crate::ServerState::new_full(crate::load_config());
         let extra = McpExtraDispatch::new(state);
         assert!(extra.state.subsystem_up(Subsystem::Db));
+    }
+
+    #[tokio::test]
+    async fn dual_path_resolve_approval_forwards_detail_and_validates_modified() {
+        use vox_orchestrator::terminal_bridge::{EphemeralTerminalBridge, TerminalBridge};
+        let schema = crate::input_schemas::tool_input_schema("vox_resolve_approval");
+        assert_eq!(schema["additionalProperties"], false);
+        for key in ["modified_command", "steering_note", "allow_pattern"] {
+            assert_eq!(schema["properties"][key]["type"], "string");
+        }
+
+        let state = crate::ServerState::new_test().await;
+        let bridge = std::sync::Arc::new(EphemeralTerminalBridge::new(None));
+        let sid = bridge.open_session(None).await.expect("open ephem session");
+        state.set_terminal_bridge(bridge);
+        let extra = McpExtraDispatch::new(state.clone());
+
+        let meta = PendingApprovalMeta {
+            session_id: Some(sid.clone()),
+            command: Some("cargo test".into()),
+            control_mode: Some("co_pilot".into()),
+            credential_prompt: Some(false),
+            floor_category: None,
+        };
+        let (id_mcp, rx_mcp) = state.pending_approvals.register_with_meta(
+            "vox_terminal_exec".into(),
+            "[terminal:co_pilot] cargo test".into(),
+            10,
+            meta,
+        );
+        let mcp =
+            |a| crate::dispatch_domains::tasks_core::dispatch(&state, "vox_resolve_approval", a);
+        let bad_mcp =
+            mcp(json!({ "approval_id": id_mcp, "outcome": "modified", "modified_command": "   " }))
+                .await
+                .unwrap();
+        assert!(
+            crate::server_state::tool_json_envelope_is_error(&bad_mcp)
+                && state.pending_approvals.list().len() == 1
+        );
+
+        let ok_mcp = mcp(json!({ "approval_id": id_mcp, "outcome": "modified", "modified_command": "cargo test -p vox-cli", "allow_pattern": "cargo test" })).await.unwrap();
+        assert!(!crate::server_state::tool_json_envelope_is_error(&ok_mcp));
+        assert_eq!(
+            rx_mcp.await.unwrap(),
+            PendingResolution {
+                outcome: ApprovalOutcome::Modified,
+                modified_command: Some("cargo test -p vox-cli".into()),
+                steering_note: None,
+                allow_pattern: Some("cargo test".into())
+            }
+        );
+        assert_eq!(
+            state.pending_approvals.session_patterns(&sid),
+            vec!["cargo test"]
+        );
+
+        let (id_rpc, rx_rpc) = state.pending_approvals.register_with_meta(
+            "vox_terminal_exec".into(),
+            "[terminal:co_pilot] cargo build".into(),
+            20,
+            PendingApprovalMeta {
+                session_id: Some(sid.clone()),
+                ..Default::default()
+            },
+        );
+        let mk_req = |params: serde_json::Value| DispatchRequest {
+            id: "r1".into(),
+            method: orch_daemon_method::RESOLVE_APPROVAL.into(),
+            params,
+            auth_token: None,
+            permission_mode: None,
+        };
+        let bad_rpc = extra
+            .try_handle(&mk_req(
+                json!({ "approval_id": id_rpc, "outcome": "modified" }),
+            ))
+            .await
+            .unwrap();
+        let floor_rpc = extra.try_handle(&mk_req(json!({ "approval_id": id_rpc, "outcome": "modified", "modified_command": "git push --force origin main", "allow_pattern": "cargo build" }))).await.unwrap();
+        assert!(
+            matches!(bad_rpc.payload, DispatchPayload::Error { .. })
+                && matches!(floor_rpc.payload, DispatchPayload::Error { .. })
+        );
+        assert!(
+            state.pending_approvals.peek(&id_rpc).is_some()
+                && state.pending_approvals.session_patterns(&sid) == vec!["cargo test"]
+        );
+
+        let ok_rpc = extra.try_handle(&mk_req(json!({ "approval_id": id_rpc, "outcome": "rejected", "steering_note": "Use --no-run instead" }))).await.unwrap();
+        assert!(matches!(ok_rpc.payload, DispatchPayload::Result { .. }));
+        assert_eq!(
+            rx_rpc.await.unwrap(),
+            PendingResolution {
+                outcome: ApprovalOutcome::Rejected,
+                modified_command: None,
+                steering_note: Some("Use --no-run instead".into()),
+                allow_pattern: None
+            }
+        );
     }
 }

@@ -62,7 +62,7 @@ pub mod domain_profiles;
 pub mod domain_router;
 #[cfg(feature = "mens-train")]
 pub mod execution_planner;
-#[cfg(feature = "mens-train")]
+#[cfg(any(feature = "mens-train", feature = "mens-hf-hub"))]
 pub mod external_serving_handoff;
 #[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod finetune_contract;

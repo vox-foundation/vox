@@ -39,8 +39,11 @@ pub(crate) enum GridCell {
 #[derive(Debug, Clone)]
 pub(crate) struct IndexRow {
     pub size: String,
+    pub model_label: String,
+    pub local_run_dir: String,
     pub repo_id: String,
     pub trained: bool,
+    pub merged: bool,
     pub spoke_id: Option<String>,
     pub gate: GateState,
     pub adapter_evidence: AdapterEvidence,
@@ -95,6 +98,7 @@ pub(crate) struct Pending {
 #[derive(Debug, Clone)]
 pub(crate) struct IndexFacts {
     pub namespace: String,
+    pub playground_space_id: String,
     pub docs: &'static str,
     pub protocol: &'static str,
     /// The `hub-cards.yaml` error text when the file did not load.
@@ -116,6 +120,14 @@ impl IndexFacts {
         self.rows
             .iter()
             .filter(|r| r.gate == GateState::Passed)
+            .collect()
+    }
+
+    /// Rows whose gate is passed AND whose complete merged checkpoint exists.
+    pub fn ready_merged_rows(&self) -> Vec<&IndexRow> {
+        self.rows
+            .iter()
+            .filter(|r| r.gate == GateState::Passed && r.merged)
             .collect()
     }
 
@@ -248,10 +260,28 @@ pub(crate) fn index_facts(namespace: &str, entries: &[(SizeSyncRow, RunRecords)]
                 eta,
             });
         }
+        let pin_or_repo = if crate::mens::hub_repo::size_of_pin(&sync.base_pin).is_some() {
+            sync.base_pin.as_str()
+        } else if crate::mens::hub_repo::size_of_pin(&sync.repo_id).is_some() {
+            sync.repo_id.as_str()
+        } else {
+            sync.size.as_str()
+        };
+        let model_label = crate::mens::hub_repo::model_label_for(pin_or_repo);
+        let local_run_dir = if !sync.local_dir.trim().is_empty() {
+            sync.local_dir.clone()
+        } else {
+            crate::mens::hub_repo::local_run_dir_for_size(pin_or_repo)
+                .unwrap_or_else(|_| format!("mens/runs/qwen3-{}", sync.size.to_ascii_lowercase()))
+        };
         let mut row = IndexRow {
             size: sync.size.clone(),
+            model_label,
+            local_run_dir,
             repo_id: sync.repo_id.clone(),
             trained: gate.trained,
+            merged: (rec.has_complete_merged_model || !rec.merged_model_files.is_empty())
+                && gate.state == GateState::Passed,
             spoke_id,
             gate: gate.state,
             adapter_evidence: evidence,
@@ -269,6 +299,8 @@ pub(crate) fn index_facts(namespace: &str, entries: &[(SizeSyncRow, RunRecords)]
         .collect();
     IndexFacts {
         namespace: namespace.to_string(),
+        playground_space_id: crate::mens::hub_repo::space_repo_id(namespace)
+            .unwrap_or_else(|_| format!("{namespace}/vox-mens-playground")),
         docs: DOCS,
         protocol: PROMPT_PROTOCOL,
         config_error,
@@ -330,10 +362,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             [SIZES[2]]
         );
-        assert_eq!(
-            sizes(f.not_passed()),
-            [SIZES[0], SIZES[1], SIZES[3], SIZES[4]]
-        );
+        assert_eq!(sizes(f.not_passed()), [SIZES[0], SIZES[1], SIZES[3]]);
         assert_eq!(sizes(f.needs_reevaluation()), [SIZES[1]]);
     }
 }

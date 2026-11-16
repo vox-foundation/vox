@@ -213,6 +213,7 @@ async fn handle_plan_execute(
     }
 }
 
+#[cfg(feature = "toestub-gate")]
 async fn handle_ai_check(id: &str, params: &Value) -> DispatchResponse {
     let path = match params.get("path").and_then(|v| v.as_str()) {
         Some(p) if !p.is_empty() => std::path::PathBuf::from(p),
@@ -253,6 +254,15 @@ async fn handle_ai_check(id: &str, params: &Value) -> DispatchResponse {
             "repository_id": "",
         }),
     )
+}
+
+#[cfg(not(feature = "toestub-gate"))]
+async fn handle_ai_check(id: &str, params: &Value) -> DispatchResponse {
+    match params.get("path").and_then(|v| v.as_str()) {
+        Some(p) if !p.is_empty() => {}
+        _ => return response_err(id, "params.path required"),
+    }
+    response_err(id, "ai.check requires feature `toestub-gate`")
 }
 
 async fn handle_ai_fix(id: &str, params: &Value) -> DispatchResponse {
@@ -320,4 +330,37 @@ fn handle_config_get(
             "research_model_enabled": cfg.research_model_enabled,
         }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn handle_ai_check_requires_non_empty_path() {
+        let missing = handle_ai_check("req-1", &json!({})).await;
+        let missing_json = serde_json::to_string(&missing).unwrap();
+        assert!(
+            missing_json.contains("params.path required"),
+            "got: {missing_json}"
+        );
+
+        let empty = handle_ai_check("req-2", &json!({ "path": "" })).await;
+        let empty_json = serde_json::to_string(&empty).unwrap();
+        assert!(
+            empty_json.contains("params.path required"),
+            "got: {empty_json}"
+        );
+    }
+
+    #[cfg(not(feature = "toestub-gate"))]
+    #[tokio::test]
+    async fn handle_ai_check_reports_missing_toestub_gate_feature() {
+        let resp = handle_ai_check("req-3", &json!({ "path": "src/lib.rs" })).await;
+        let resp_json = serde_json::to_string(&resp).unwrap();
+        assert!(
+            resp_json.contains("ai.check requires feature `toestub-gate`"),
+            "got: {resp_json}"
+        );
+    }
 }

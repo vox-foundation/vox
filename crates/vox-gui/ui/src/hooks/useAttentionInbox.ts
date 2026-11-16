@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { voxTransport, feedbackList, feedbackResolve, listenFeedbackChanged, hopperList, type FeedbackRow, type HopperTaskDto } from '../transport';
+import { voxTransport, feedbackList, feedbackResolve, listenEvent, listenFeedbackChanged, hopperList, type FeedbackRow, type HopperTaskDto } from '../transport';
 import { parsePendingApprovals, unwrapMcpEnvelope, type McpInvokeResult, type PendingApprovalRow } from '../lib/mcpToolResult';
 import { ATTENTION_POLL_MS } from '../config/constants';
 
@@ -58,7 +57,7 @@ export function useAttentionInbox(): AttentionInbox {
     let unFeedback: (() => void) | null = null;
     let unTasks: (() => void) | null = null;
     Promise.resolve(listenFeedbackChanged(() => { refresh(); })).then((u) => { unFeedback = u ?? null; }).catch(() => {});
-    Promise.resolve(listen<void>('vox://tasks-changed', () => { refresh(); })).then((u) => { unTasks = u ?? null; }).catch(() => {});
+    Promise.resolve(listenEvent<void>('vox://tasks-changed', () => { refresh(); })).then((u) => { unTasks = u ?? null; }).catch(() => {});
     const id = setInterval(refresh, ATTENTION_POLL_MS);
     return () => { unFeedback?.(); unTasks?.(); clearInterval(id); };
   }, [refresh]);

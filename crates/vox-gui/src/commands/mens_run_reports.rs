@@ -608,7 +608,7 @@ fn resolve_runs_root(run_dir: Option<&str>) -> PathBuf {
 fn default_cells_for_size(size: &str, custom_spokes: &[CustomSpokeDto]) -> HashMap<String, String> {
     let mut cells = HashMap::new();
     let defaults: &[(&str, &str)] = match size {
-        "0.6B" | "1.7B" | "4B" | "8B" => &[
+        "0.6B" | "1.7B" | "2B" | "4B" | "8B" | "9B" => &[
             ("vox-lang", "MISSING"),
             ("rust-expert", "MISSING"),
             ("cargo-build", "MISSING"),
@@ -622,7 +622,7 @@ fn default_cells_for_size(size: &str, custom_spokes: &[CustomSpokeDto]) -> HashM
             ("review", "MISSING"),
             ("oratio-voice", "NOT FIT (16GB)"),
         ],
-        _ => &[
+        "27B" | "32B" | _ => &[
             ("vox-lang", "NOT FIT (16GB)"),
             ("rust-expert", "NOT FIT (16GB)"),
             ("cargo-build", "NOT FIT (16GB)"),
@@ -652,25 +652,45 @@ struct GpuSpecsTrainBaseEntry {
     hf_id: String,
     #[serde(default)]
     floor_mb: Option<u32>,
-    #[serde(default = "default_true_flag")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     floor_measured: bool,
     #[serde(default)]
     methods: Vec<String>,
 }
 
-fn default_true_flag() -> bool {
-    true
+fn strip_ladder_size_label(repo_or_pin: &str) -> String {
+    let repo = repo_or_pin.split_once('@').map_or(repo_or_pin, |(r, _)| r);
+    let base = repo.rsplit('/').next().unwrap_or(repo);
+    base.strip_prefix("Qwen3.8-")
+        .or_else(|| base.strip_prefix("Qwen3.5-"))
+        .or_else(|| base.strip_prefix("Qwen3-"))
+        .unwrap_or(base)
+        .to_string()
+}
+
+fn resolve_size_train_json(runs_root: &Path, hf_id: &str, size: &str) -> Option<serde_json::Value> {
+    let (repo, rev_opt) = match hf_id.split_once('@') {
+        Some((repo, rev)) if !rev.is_empty() => (repo, Some(rev)),
+        _ => (hf_id, None),
+    };
+    let repo_sanitized = repo.replace(['/', '\\'], "_");
+    let size_train_dir = runs_root.join("size_train");
+    if let Some(rev) = rev_opt {
+        let rev12 = &rev[..rev.len().min(12)];
+        let pinned_path = size_train_dir.join(format!("{repo_sanitized}-{rev12}.json"));
+        if let Some(val) = read_json(&pinned_path) {
+            return Some(val);
+        }
+    }
+    let repo_path = size_train_dir.join(format!("{repo_sanitized}.json"));
+    if let Some(val) = read_json(&repo_path) {
+        return Some(val);
+    }
+    let legacy_path = size_train_dir.join(format!("Qwen_Qwen3-{size}.json"));
+    read_json(&legacy_path)
 }
 
 pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
-    let custom_spokes: Vec<CustomSpokeDto> = read_json(&runs_root.join("custom_spokes.v1.json"))
-        .and_then(|v| serde_json::from_value(v).ok())
-        .unwrap_or_default();
-
-    let crucible_config: Option<MensCrucibleConfigDto> =
-        read_json(&runs_root.join("crucible_config.v1.json"))
-            .and_then(|v| serde_json::from_value(v).ok());
-
     let gpu_specs_path = workspace_root_dir()
         .map(|r| r.join("mens").join("config").join("gpu-specs.yaml"))
         .unwrap_or_else(|| PathBuf::from("mens/config/gpu-specs.yaml"));
@@ -679,24 +699,43 @@ pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
         .ok()
         .and_then(|raw| serde_yaml::from_str(&raw).ok());
 
-    let size_order = ["0.6B", "1.7B", "4B", "8B", "14B", "32B"];
-    let mut rungs = Vec::with_capacity(size_order.len());
+    read_ladder_status_with_specs(runs_root, parsed_specs.as_ref())
+}
 
-    for size in size_order {
-        let repo_prefix = format!("Qwen/Qwen3-{size}");
-        let entry = parsed_specs
-            .as_ref()
-            .and_then(|s| s.train_bases.get("qwen3_code"))
-            .and_then(|list| {
-                list.iter().find(|b| {
-                    b.methods.iter().any(|m| m == "qlora")
-                        && b.hf_id
-                            .split_once('@')
-                            .map(|(r, _)| r == repo_prefix)
-                            .unwrap_or(b.hf_id == repo_prefix)
-                })
-            });
+fn read_ladder_status_with_specs(
+    runs_root: &Path,
+    parsed_specs: Option<&GpuSpecsYaml>,
+) -> MensLadderStatusDto {
+    let custom_spokes: Vec<CustomSpokeDto> = read_json(&runs_root.join("custom_spokes.v1.json"))
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
 
+    let crucible_config: Option<MensCrucibleConfigDto> =
+        read_json(&runs_root.join("crucible_config.v1.json"))
+            .and_then(|v| serde_json::from_value(v).ok());
+
+    let dynamic_entries: Vec<(String, Option<&GpuSpecsTrainBaseEntry>)> = parsed_specs
+        .and_then(|s| s.train_bases.get("qwen3_code"))
+        .map(|list| {
+            list.iter()
+                .filter(|b| b.methods.iter().any(|m| m == "qlora"))
+                .map(|b| (strip_ladder_size_label(&b.hf_id), Some(b)))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let entries: Vec<(String, Option<&GpuSpecsTrainBaseEntry>)> = if dynamic_entries.is_empty() {
+        ["0.6B", "1.7B", "4B", "8B", "14B", "32B"]
+            .into_iter()
+            .map(|size| (size.to_string(), None))
+            .collect()
+    } else {
+        dynamic_entries
+    };
+
+    let mut rungs = Vec::with_capacity(entries.len());
+
+    for (size, entry) in entries {
         let (hf_id, repo_master_sha, floor_mb, floor_measured) = match entry {
             Some(b) => {
                 let sha_short = b
@@ -707,24 +746,26 @@ pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
                 (b.hf_id.clone(), sha_short, b.floor_mb, b.floor_measured)
             }
             None => (
-                format!("{repo_prefix}@pinned"),
+                format!("Qwen/Qwen3-{size}@pinned"),
                 "@pinned".to_string(),
                 None,
                 false,
             ),
         };
 
-        let size_train_file = runs_root
-            .join("size_train")
-            .join(format!("Qwen_Qwen3-{size}.json"));
-        let size_train_json = read_json(&size_train_file);
+        let size_train_json = resolve_size_train_json(runs_root, &hf_id, &size);
 
-        let mut cells = default_cells_for_size(size, &custom_spokes);
+        let mut cells = default_cells_for_size(&size, &custom_spokes);
+        let repo = hf_id.split_once('@').map_or(hf_id.as_str(), |(r, _)| r);
+        let repo_basename = repo.rsplit('/').next().unwrap_or(repo);
+        let repo_dir = runs_root.join(repo_basename.to_ascii_lowercase());
         let qwen_dir = runs_root.join(format!("qwen3-{}", size.to_ascii_lowercase()));
-        let size_dir = if qwen_dir.is_dir() {
+        let size_dir = if repo_dir.is_dir() {
+            repo_dir
+        } else if qwen_dir.is_dir() {
             qwen_dir
         } else {
-            runs_root.join(size)
+            runs_root.join(&size)
         };
 
         let (local_sha, sync_status) = if let Some(ref st) = size_train_json {
@@ -777,7 +818,7 @@ pub fn read_ladder_status(runs_root: &Path) -> MensLadderStatusDto {
         }
 
         rungs.push(MensLadderRungDto {
-            size: size.to_string(),
+            size,
             hf_id,
             local_sha,
             repo_master_sha,
@@ -1154,6 +1195,85 @@ mod tests {
         assert_eq!(
             status.crucible_config.as_ref().map(|c| c.lora_rank),
             Some(32)
+        );
+    }
+
+    #[test]
+    fn ladder_status_resolves_dynamic_qwen35_and_qwen38_rungs_and_rev12_size_train_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let size_train = dir.path().join("size_train");
+        std::fs::create_dir_all(&size_train).unwrap();
+        let rev_27b = "37561816e66b5b9153b1b64c10968c18c1e6f4a0";
+        std::fs::write(
+            size_train.join("Qwen_Qwen3.8-27B-37561816e66b.json"),
+            r#"{"status":"trained"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            size_train.join("Qwen_Qwen3.5-9B.json"),
+            r#"{"status":"not_trained","reason":"train_not_run"}"#,
+        )
+        .unwrap();
+        let repo_27b_dir = dir.path().join("qwen3.8-27b");
+        std::fs::create_dir_all(&repo_27b_dir).unwrap();
+        std::fs::write(
+            repo_27b_dir.join("gate_receipt.json"),
+            r#"{"overall_passed":true,"gates":[{"gate_id":"g1","passed":true}]}"#,
+        )
+        .unwrap();
+
+        let mut train_bases = HashMap::new();
+        train_bases.insert(
+            "qwen3_code".to_string(),
+            vec![
+                GpuSpecsTrainBaseEntry {
+                    hf_id: "Qwen/Qwen3.5-2B@0123456789abcdef0123456789abcdef01234567".to_string(),
+                    floor_mb: Some(18000),
+                    floor_measured: false,
+                    methods: vec!["qlora".to_string()],
+                },
+                GpuSpecsTrainBaseEntry {
+                    hf_id: "Qwen/Qwen3.5-9B@fedcba9876543210fedcba9876543210fedcba98".to_string(),
+                    floor_mb: Some(36000),
+                    floor_measured: false,
+                    methods: vec!["qlora".to_string()],
+                },
+                GpuSpecsTrainBaseEntry {
+                    hf_id: format!("Qwen/Qwen3.8-27B@{rev_27b}"),
+                    floor_mb: Some(64000),
+                    floor_measured: false,
+                    methods: vec!["qlora".to_string()],
+                },
+            ],
+        );
+        let specs = GpuSpecsYaml { train_bases };
+
+        let status = read_ladder_status_with_specs(dir.path(), Some(&specs));
+        assert_eq!(status.rungs.len(), 3);
+        assert_eq!(status.rungs[0].size, "2B");
+        assert_eq!(status.rungs[0].sync_status, "missing");
+        assert_eq!(
+            status.rungs[0].cells.get("vox-lang").map(String::as_str),
+            Some("MISSING")
+        );
+
+        assert_eq!(status.rungs[1].size, "9B");
+        assert_eq!(status.rungs[1].sync_status, "synced");
+        assert_eq!(
+            status.rungs[1].cells.get("vox-lang").map(String::as_str),
+            Some("MISSING")
+        );
+
+        assert_eq!(status.rungs[2].size, "27B");
+        assert_eq!(status.rungs[2].repo_master_sha, "@37561816");
+        assert_eq!(status.rungs[2].sync_status, "synced");
+        assert_eq!(
+            status.rungs[2].cells.get("vox-lang").map(String::as_str),
+            Some("TRAINED · GATED")
+        );
+        assert_eq!(
+            status.rungs[2].cells.get("rust-expert").map(String::as_str),
+            Some("NOT FIT (16GB)")
         );
     }
 

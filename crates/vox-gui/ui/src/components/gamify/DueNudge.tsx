@@ -10,8 +10,8 @@ interface DueNudgeProps {
 export const DueNudge: React.FC<DueNudgeProps> = ({ count, onOpen }) => {
   if (count === 0) {
     return (
-      <Glass size="sm" className="bg-zinc-950/65 border-zinc-800 text-zinc-400 select-none text-xs">
-        ✨ All caught up! No due actions.
+      <Glass size="sm" className="bg-bg-elevated border-border-subtle text-text-muted select-none text-xs">
+        All caught up! No due actions.
       </Glass>
     );
   }

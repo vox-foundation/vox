@@ -6,7 +6,7 @@ use uuid::Uuid;
 use vox_db::{DbConfig, ResearchEvalRunRecord, ResearchEvalSampleRecord, VoxDb, now_unix_ms};
 use vox_search::context::SearchRuntimeContext;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GoldenQueryItem {
     pub query: String,
     #[serde(default)]
@@ -17,6 +17,10 @@ pub struct GoldenQueryItem {
     pub expected_sources: Option<Vec<String>>,
     #[serde(default)]
     pub is_adversarial: Option<bool>,
+    #[serde(default)]
+    pub bridge_entities: Option<Vec<String>>,
+    #[serde(default)]
+    pub expected_waves: Option<u8>,
 }
 
 pub async fn evaluate_single_query_pipeline(
@@ -37,6 +41,7 @@ pub async fn evaluate_single_query_pipeline(
         Some("codegen") | Some("code_gen") => {
             vox_research_shim::research::ResearchDomainMode::CodeGen
         }
+        Some("scholarly") => vox_research_shim::research::ResearchDomainMode::Scholarly,
         _ => vox_research_shim::research::ResearchDomainMode::General,
     };
     let query_req = vox_research_shim::research::ResearchQuery {
@@ -47,7 +52,7 @@ pub async fn evaluate_single_query_pipeline(
         verify_claims: true,
         site_scope: None,
         domain_mode,
-        waves: 1,
+        waves: usize::from(item.expected_waves.unwrap_or(1).clamp(1, 5)),
         lane: vox_search::policy::ResearchLane::default(),
     };
 
@@ -76,10 +81,14 @@ pub async fn evaluate_single_query_pipeline(
     let abstained = answer_abstained(&model_answer);
     let citation_precision =
         effective_citation_precision(citation_precision, citations_found, abstained);
+    let bridge_entities = item.bridge_entities.as_deref().unwrap_or(&[]);
     let multi_hop_score = multi_hop_pipeline_score(
         &item.query,
         result.research_metadata.subquery_count,
         result.sources.len(),
+        bridge_entities,
+        &model_answer,
+        &evidence_snippets,
     );
 
     // 2. Calculate recall against gold answer if provided
@@ -361,38 +370,9 @@ fn answer_abstained(answer: &str) -> bool {
         .starts_with(vox_research_shim::research::ABSTENTION_MARKER)
 }
 
-fn multi_hop_pipeline_score(query: &str, subquery_count: usize, sources_count: usize) -> f64 {
-    let multi_hop_query = query.contains("compare")
-        || query.contains("trace")
-        || query.contains("then")
-        || query.contains("FRAMES-style")
-        || query.contains("BrowseComp-style");
-    if !multi_hop_query {
-        return 1.0;
-    }
-    let subquery_score = (subquery_count as f64 / 2.0).min(1.0);
-    let source_score = (sources_count as f64 / 3.0).min(1.0);
-    ((subquery_score + source_score) / 2.0).clamp(0.0, 1.0)
-}
-
 #[cfg(test)]
-fn multi_hop_completion_score(
-    query: &str,
-    backend_mix: &[vox_db::SearchBackend],
-    web_lines: &[String],
-) -> f64 {
-    let multi_hop_query = query.contains("compare")
-        || query.contains("trace")
-        || query.contains("then")
-        || query.contains("FRAMES-style")
-        || query.contains("BrowseComp-style");
-    if !multi_hop_query {
-        return 1.0;
-    }
-    let backend_score = (backend_mix.len() as f64 / 2.0).min(1.0);
-    let source_score = (web_lines.len() as f64 / 3.0).min(1.0);
-    ((backend_score + source_score) / 2.0).clamp(0.0, 1.0)
-}
+use crate::scientia_v76_audit::scoring::multi_hop_completion_score;
+pub use crate::scientia_v76_audit::scoring::multi_hop_pipeline_score;
 
 fn average_evidence_metric(samples: &[ResearchEvalSampleRecord], key: &str) -> f64 {
     if samples.is_empty() {
@@ -457,15 +437,19 @@ fn load_queries_file(path: &Path) -> anyhow::Result<Vec<GoldenQueryItem>> {
                         .get("expected_sources")
                         .and_then(|v| serde_json::from_value(v.clone()).ok()),
                     is_adversarial: val.get("is_adversarial").and_then(|v| v.as_bool()),
+                    bridge_entities: val
+                        .get("bridge_entities")
+                        .and_then(|v| serde_json::from_value(v.clone()).ok()),
+                    expected_waves: val
+                        .get("expected_waves")
+                        .and_then(|v| v.as_u64())
+                        .and_then(|n| u8::try_from(n).ok()),
                 });
             }
         } else {
             items.push(GoldenQueryItem {
                 query: trimmed.to_string(),
-                gold_answer: None,
-                domain_mode: None,
-                expected_sources: None,
-                is_adversarial: None,
+                ..Default::default()
             });
         }
     }
@@ -510,10 +494,7 @@ fn default_golden_queries() -> Vec<GoldenQueryItem> {
         .iter()
         .map(|q| GoldenQueryItem {
             query: (*q).to_string(),
-            gold_answer: None,
-            domain_mode: None,
-            expected_sources: None,
-            is_adversarial: None,
+            ..Default::default()
         })
         .collect()
 }
@@ -696,5 +677,53 @@ mod tests {
         );
 
         assert_eq!(score, 1.0);
+    }
+
+    #[test]
+    fn non_keyword_query_with_zero_sources_never_scores_one() {
+        let score = multi_hop_pipeline_score(
+            "What is the memory safety model of Rust?",
+            0,
+            0,
+            &[],
+            "",
+            &[],
+        );
+        assert_eq!(score, 0.0);
+        let completion = multi_hop_completion_score("What is Rust?", &[], &[]);
+        assert_eq!(completion, 0.0);
+    }
+
+    #[test]
+    fn bridge_entity_partial_grounding_scores_below_one() {
+        let bridges = vec!["OpenAlex".to_string(), "CrossRef".to_string()];
+        let partial = multi_hop_pipeline_score(
+            "Which scholarly aggregators feed Scientia novelty scoring?",
+            2,
+            3,
+            &bridges,
+            "Scientia queries OpenAlex [1] for prior art.",
+            &["OpenAlex returns works with DOI metadata.".to_string()],
+        );
+        assert!(
+            partial > 0.0 && partial < 1.0,
+            "expected partial bridge grounding < 1.0, got {partial}"
+        );
+
+        let full = multi_hop_pipeline_score(
+            "Which scholarly aggregators feed Scientia novelty scoring?",
+            2,
+            3,
+            &bridges,
+            "Scientia queries OpenAlex [1] and CrossRef [2] for prior art.",
+            &[
+                "OpenAlex returns works with DOI metadata.".to_string(),
+                "CrossRef resolves DOI bibliographic records.".to_string(),
+            ],
+        );
+        assert!(
+            (full - 1.0).abs() < 1e-9,
+            "expected full bridge grounding == 1.0, got {full}"
+        );
     }
 }

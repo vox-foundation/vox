@@ -7,10 +7,10 @@ description = "AI-judged audit of git commit history, ranking commits by estimat
 
 [dependencies]
 hex = { workspace = true }
-vox-actor-runtime = { path = "../vox-actor-runtime" }
-vox-telemetry     = { path = "../vox-telemetry" }
-vox-config        = { path = "../vox-config" }
-vox-git           = { path = "../vox-git" }
+vox-actor-runtime = { workspace = true }
+vox-telemetry     = { workspace = true }
+vox-config        = { workspace = true }
+vox-git           = { workspace = true }
 gix               = { workspace = true }
 serde             = { workspace = true, features = ["derive"] }
 serde_json        = { workspace = true }

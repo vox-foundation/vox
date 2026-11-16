@@ -94,23 +94,26 @@ Legend: **fix** rewrites the drift automatically; **report** fails or warns and 
 
 | Gate | Detects | Where it runs | Mode |
 |---|---|---|---|
-| `vox-doc-pipeline --lint-only` | Missing/invalid frontmatter, category vocabulary, forbidden `last_updated`, KB facets and `kb:summary`, README↔index drift, Mermaid structure | pre-push fast (changed docs), `--complete` (all), PR `docs-quality.yml` | report |
-| Doctests (`vox-doc-pipeline`, `vox ci doctest-md --strict`) | ` ```vox ` fences that do not compile (`// vox:skip` opts out) | pre-push, PR | report |
-| KB facet backlog ratchet | Backlog growth in `kb-facet-backlog.v1.yaml` | pre-push fast | report (shrink-only) |
-| `vox ci ssot-drift` | Any generated artifact out of date (≈40 stages, `ssot_drift_stages()`); reports every failing stage in one run; `ssot_regen_parity` fails when `scripts/ssot-regen.vox` or the lefthook retry diverge from the table | pre-push fast, PR CI | fix locally / report in CI |
-| `ssot-autoregen` job | Same drift on a PR | PR CI (same-repo) | **fix** (bot commit) |
-| `vox ci check-links` | Broken internal Markdown links; a missing docs/src or target is an error; expired, unneeded or unused allowlist entries fail | pre-push fast, PR | report |
-| `starlight-links-validator` | Broken internal links and hashes in the built site | every `pnpm build` | report (fatal) |
-| Lychee on `dist` / nightly `link_checker.yml` | Broken links, including external | PR (offline), nightly (external) | report (nightly opens an issue) |
-| `vox audit docs --check-drift` | New freshness deficits on reader-facing `status: current` pages | PR and push `docs-quality.yml` | report |
-| Retired-symbol check | Prose using symbols in `contracts/documentation/retired-symbols.v1.yaml`; AGENTS.md, CLAUDE.md, GEMINI.md, copilot-instructions.md and .cursor/rules are mandatory inputs | pre-push fast | report |
-| `canonical-map-verify` | A second canonical doc for a registered domain | pre-push fast, PR | report |
-| `sync-ignore-files --verify` | Derived ignore files drifted from `.voxignore` | PR, pre-push fallback | report (pre-push fallback regenerates) |
-| Build-output Playwright specs (`docs-astro/tests/build-output/`) | Alerts, archive exclusion, dates, honesty, links, `llms.txt`, repo mounts | PR `docs-quality.yml` | report |
-| `frontmatter_governance_parity.rs` | Governance page and lint rules disagree | `cargo test -p vox-doc-pipeline` | report |
-| Overlay parity (`overlay_parity` ssot-drift stage) | An overlay line contradicting a claim in `contracts/documentation/overlay-claims.v1.yaml`; a claim whose AGENTS.md anchor vanished; a missing overlay file | pre-push fast, PR CI | report |
-| CLI-claims check (`docs_cli_claims` ssot-drift stage) | A prescriptive `vox` command or flag in agent files or reader-facing `status: current` pages that the clap tree (union the registry for feature-gated groups) does not define; a shipped command described as planned | pre-push fast, PR CI | report |
-| Orphan-page check (`docs_orphan_pages` ssot-drift stage) | A docs page that no other docs page or root guide links to (index, generated, archive pages exempt; reader-facing gated at zero, whole-tree reported) | pre-push fast, PR CI | report |
+| <!-- gate: doc-lint --> `vox-doc-pipeline --lint-only` | Missing/invalid frontmatter, category vocabulary, forbidden `last_updated`, KB facets and `kb:summary`, README↔index drift, Mermaid structure | pre-push fast (changed docs), pre-push complete (all), docs-quality.yml | report |
+| <!-- gate: doctest-md --> Doctests (`vox-doc-pipeline`, `vox ci doctest-md --strict`) | ` ```vox ` fences that do not compile (`// vox:skip` opts out) | pre-push fast, pre-push complete, docs-quality.yml | report |
+| <!-- gate: facet-backlog --> KB facet backlog ratchet | Backlog growth in `kb-facet-backlog.v1.yaml` | pre-push fast, pre-push complete | report (shrink-only) |
+| <!-- gate: mermaid-ratchet --> Legacy-Mermaid ratchet (`vox-doc-pipeline --mermaid-lint`) | Legacy Mermaid baseline growth across `docs/src` | pre-push fast, pre-push complete, docs-quality.yml | report (shrink-only) |
+| <!-- gate: ssot-drift --> `vox ci ssot-drift` | Any generated artifact out of date (~40 stages, `ssot_drift_stages()`); reports every failing stage in one run; `ssot_regen_parity` fails when `scripts/ssot-regen.vox` or the lefthook retry diverge from the table | pre-push fast, pre-push complete, ci.yml | fix locally / report in CI |
+| <!-- gate: ssot-autoregen --> `ssot-autoregen` job | Same drift on a PR | ci.yml (same-repo) | **fix** (bot commit) |
+| <!-- gate: check-links --> `vox ci check-links` | Broken internal Markdown links; a missing `docs/src` or target is an error; expired, unneeded or unused allowlist entries fail | pre-push fast, pre-push complete, docs-quality.yml | report |
+| <!-- gate: starlight-links --> `starlight-links-validator` | Broken internal links and hashes in the built site | docs-quality.yml, docs-deploy.yml | report (fatal) |
+| <!-- gate: external-links --> Lychee link checker | Broken links, including external; offline on built site in PRs, external weekly triage into `external-links.v1.json` + `.lycheeignore` proposals | docs-quality.yml (offline), docs-drift-refresh.yml (weekly) | report (non-blocking draft PR) |
+| <!-- gate: check-drift --> `vox audit docs --check-drift` | New freshness deficits on reader-facing `status: current` pages | docs-quality.yml | report |
+| <!-- gate: retired-symbol-check --> Retired-symbol check | Prose using symbols in `contracts/documentation/retired-symbols.v1.yaml`; `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `copilot-instructions.md` and `.cursor/rules` are mandatory inputs | pre-push complete, nightly.yml | report |
+| <!-- gate: canonical-map-verify --> `canonical-map-verify` | A second canonical doc for a registered domain | pre-push complete, docs-quality.yml | report |
+| <!-- gate: sync-ignore-files --> `sync-ignore-files --verify` | Derived ignore files drifted from `.voxignore` | ssot-drift, ci.yml | report (pre-push fallback regenerates) |
+| <!-- gate: playwright-docs --> Build-output Playwright specs (`docs-astro/tests/build-output/`) | Alerts, archive exclusion, dates, honesty, links, `llms.txt`, repo mounts | docs-quality.yml | report |
+| <!-- gate: frontmatter-governance-parity --> `frontmatter_governance_parity.rs` | Governance page and lint rules disagree | cargo test -p vox-doc-pipeline | report |
+| <!-- gate: overlay-parity --> Overlay parity (`overlay_parity` ssot-drift stage) | An overlay line contradicting a claim in `contracts/documentation/overlay-claims.v1.yaml`; a claim whose `AGENTS.md` anchor vanished; a missing overlay file | ssot-drift, pre-push fast, ci.yml | report |
+| <!-- gate: docs-cli-claims --> CLI-claims check (`docs_cli_claims` ssot-drift stage) | A prescriptive `vox` command or flag in agent files or reader-facing `status: current` pages that the clap tree (union the registry for feature-gated groups) does not define; a shipped command described as planned | ssot-drift, pre-push fast, ci.yml | report |
+| <!-- gate: docs-orphan-pages --> Orphan-page check (`docs_orphan_pages` ssot-drift stage) | A docs page that no other docs page or root guide links to (index, generated, archive pages exempt; reader-facing gated at zero, whole-tree reported) | ssot-drift, pre-push fast, ci.yml | report |
+| <!-- gate: docs-drift-refresh --> Weekly docs drift refresh & link triage (`docs-drift-refresh.yml` + `scripts/lychee-triage.vox`) | Idempotent refresh of freshness ledger (`ledger.v1.json`), reality findings/metrics (`findings.v1.json`, `metrics.v1.json`), and sorted external-link triage (`external-links.v1.json` + 403/429/5xx `.lycheeignore` proposals) on `bot/docs-drift-refresh` | docs-drift-refresh.yml (weekly) | non-blocking draft PR (never auto-merged) |
+| <!-- gate: docs-system-parity --> Docs-system SSOT parity (`docs_system_parity` ssot-drift stage) | §4 gate rows, `Where it runs` targets/workflows, `GATE_PROBES` code anchors, and closed-gap status in `docs-system-ssot.md` | ssot-drift, pre-push fast, ci.yml | report |
 
 The pre-push hook (`lefthook.yml` → `vox ci pre-push`) retries once after regenerating fmt,
 line endings, ignore files, GUI/capability/plugin syncs, and crate API docs (checked against
@@ -133,18 +136,28 @@ The instruction layering model is in
 
 ## 6. Known gaps (no automated detection or correction today)
 
-These are verified as of 2026-11-06 and are the scope of roadmap Phase 343
-(*Docs System SSOT and Automated Drift Control*).
+These track Phase 343 (*Docs System SSOT and Automated Drift Control*) status.
 
-- **Manual loops.** Freshness ledger refresh/attest, `.lycheeignore` triage for the nightly link
-  checker, README status-table review, and governance review cadences are all manual. The
-  docs-reality-audit program is dormant, and the self-heal workflow only runs its unit tests.
+### Open gaps
+
+- <!-- gap: prose-behavior-drift --> **Prose behavior drift and manual governance cadence.** Semantic claims in narrative prose that do not map to a file anchor or CLI command, README status-table judgment calls, and human governance review cadences remain human-reviewed.
+
+### Closed in Phase 343
+
+- <!-- gap: overlay-contradiction --> **Closed (Phase 343):** Cross-tool overlay contradictions against `AGENTS.md` are checked by `overlay_parity` (`ssot-drift`).
+- <!-- gap: aspirational-cli-claim --> **Closed (Phase 343):** Nonexistent or mislabelled CLI commands/flags in docs and overlays are checked by `docs_cli_claims` (`ssot-drift`).
+- <!-- gap: silent-noop-guard --> **Closed (Phase 343):** Missing-input no-ops in docs/link guards were removed and mutation-tested.
+- <!-- gap: orphan-page --> **Closed (Phase 343):** Unreachable reader-facing docs pages are blocked by `docs_orphan_pages` (`ssot-drift`).
+- <!-- gap: dormant-freshness-ledger --> **Closed (Phase 343):** Weekly freshness ledger, reality findings/metrics, and docs self-heal reporting now run idempotently in `.github/workflows/docs-drift-refresh.yml` (draft PR on `bot/docs-drift-refresh`); `docs-self-heal.yml` is strictly read-only.
+- <!-- gap: blocking-external-links --> **Closed (Phase 343):** Blocking `link_checker.yml` is retired; external links run non-blockingly in `docs-drift-refresh.yml` with `scripts/lychee-triage.vox`.
 
 ## 7. Changing the system
 
 - **New generated page:** add the generator as a `vox ci` subcommand, register it as a stage in
   `ssot_drift_stages()` (`ssot_drift.rs`) and in `scripts/ssot-regen.vox`, name the output
   `*.generated.md`, and add it to `.gitattributes` `linguist-generated`.
-- **New gate:** wire it into the pre-push tier and `docs-quality.yml`, add a row to §4, and add
-  a detector-coverage row in [`detector-coverage-ledger.md`](../contributors/detector-coverage-ledger.md).
+- **New gate:** wire it into the pre-push tier and workflow, add a row to §4 with a
+  `<!-- gate: <id> -->` marker and canonical `Where it runs` target, register its `Probe` in
+  `crates/vox-cli/src/commands/ci/docs_system_parity.rs` (`GATE_PROBES`), and add a row in
+  [`detector-coverage-ledger.md`](../contributors/detector-coverage-ledger.md).
 - **New docs-about-docs page:** don't. Extend this page (mechanism) or governance (policy).

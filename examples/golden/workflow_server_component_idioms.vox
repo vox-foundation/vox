@@ -1,0 +1,82 @@
+// ---
+// title: "Workflow, Activity, Mutation, Server Handler, and Component Idioms"
+// description: "Canonical Vox declarations for durable workflow/activity, table/query/mutation, typed record functions, and stateful UI component views."
+// syntax_version: "0.6.0"
+// status: golden
+// category: example
+// constructs: [type, table, query, mutation, activity, workflow, component, fn, @test]
+// last_validated: 2026-11-15
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: intermediate
+// ---
+// @training_prompt: Write canonical Vox declarations combining typed records, table/query/mutation, durable activity/workflow, and a reactive UI component.
+
+type TaskRecord {
+    id: int,
+    label: str,
+}
+
+table TaskEntry {
+    label: str
+    done: bool
+}
+
+/// Create a new `TaskRecord` with a deterministic id and the provided `label`.
+fn build_task_record(label: str) to TaskRecord {
+    return { id: 1, label: label }
+}
+
+/// Remove a task entry by integer `id` and return a boolean indicating completion.
+fn remove_task_by_id(id: int) to bool {
+    return id > 0
+}
+
+/// Read the total number of stored `TaskEntry` rows.
+query count_task_entries() to int {
+    return len(db.TaskEntry.all())
+}
+
+/// Insert a new `TaskEntry` row and return its confirmation label.
+mutation add_task_entry(label: str) to str {
+    db.TaskEntry.insert({ label: label, done: false })
+    return label
+}
+
+/// Download raw text payload from `endpoint`.
+activity download_payload(endpoint: str) to Result[str] {
+    if len(endpoint) is 0 {
+        return Error("empty endpoint")
+    }
+    return Ok("payload:" + endpoint)
+}
+
+/// Store `payload` in durable storage and return the saved key.
+activity archive_payload(payload: str) to Result[str] {
+    return Ok("saved:" + payload)
+}
+
+/// Durable workflow that downloads data from `endpoint` and archives the resulting `payload`.
+workflow ingest_and_archive(endpoint: str) to Result[str] {
+    let payload = download_payload(endpoint)?
+    let saved = archive_payload(payload)?
+    return Ok(saved)
+}
+
+/// UI component `StatusBanner` with state title `'Dashboard'` that renders a heading `'Ready'`.
+component StatusBanner() {
+    state banner_title: str = "Dashboard"
+    view: column() {
+        heading(level=1) { "Ready" }
+    }
+}
+
+@test
+fn test_record_and_db_helpers() to Unit {
+    let rec = build_task_record("ship")
+    assert(rec.id is 1)
+    assert(rec.label is "ship")
+    assert(remove_task_by_id(7) is true)
+    assert(add_task_entry("alpha") is "alpha")
+    assert(count_task_entries() is 1)
+}

@@ -23,9 +23,9 @@ describe('PlanPanel', () => {
     expect(screen.getByText('first step')).toBeInTheDocument();
     expect(screen.getByText('second step')).toBeInTheDocument();
     expect(screen.getByDisplayValue('third step')).toBeInTheDocument();
-    expect(screen.getByTestId('plan-node-n1').textContent).toMatch(/●/);
-    expect(screen.getByTestId('plan-node-n2').textContent).toMatch(/◑/);
-    expect(screen.getByTestId('plan-node-n3').textContent).toMatch(/○/);
+    expect(screen.getByTestId('plan-node-n1').querySelector('[data-icon="plan-step-done"]')).toBeTruthy();
+    expect(screen.getByTestId('plan-node-n2').querySelector('[data-icon="plan-step-running"]')).toBeTruthy();
+    expect(screen.getByTestId('plan-node-n3').querySelector('[data-icon="plan-step-pending"]')).toBeTruthy();
   });
 
   it('editing a pending node description calls update_plan_node with the right input shape', async () => {

@@ -366,33 +366,6 @@ pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
 bundle-path = "assets/skills/claude-api"
 
 [[skill-bundle]]
-id = "dispatching-parallel-agents"
-description = "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/dispatching-parallel-agents"
-
-[[skill-bundle]]
-id = "executing-plans"
-description = "Use when you have a written implementation plan to execute in a separate session with review checkpoints"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/executing-plans"
-
-[[skill-bundle]]
-id = "finishing-a-development-branch"
-description = "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options fo..."
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/finishing-a-development-branch"
-
-[[skill-bundle]]
 id = "frontend-design"
 description = "Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't ..."
 status = "stable"
@@ -400,6 +373,276 @@ license = "Apache-2.0"
 source = "https://github.com/anthropics/skills"
 pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
 bundle-path = "assets/skills/frontend-design"
+
+[[skill-bundle]]
+id = "gsd-add-tests"
+description = "Generate unit, integration, and E2E tests for a completed phase based on UAT and requirement specs."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-add-tests"
+
+[[skill-bundle]]
+id = "gsd-audit-fix"
+description = "Autonomous audit-to-fix loop — locate verification defects, classify root causes, repair, re-test, and log."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-audit-fix"
+
+[[skill-bundle]]
+id = "gsd-audit-milestone"
+description = "Audit milestone completion against original architectural intent and requirements before archiving."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-audit-milestone"
+
+[[skill-bundle]]
+id = "gsd-audit-uat"
+description = "Cross-phase audit of all outstanding UAT criteria, E2E suites, and verification artifacts."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-audit-uat"
+
+[[skill-bundle]]
+id = "gsd-autonomous"
+description = "Drive remaining phases autonomously in wave order (discuss -> plan -> execute -> verify) with hard verification gates."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-autonomous"
+
+[[skill-bundle]]
+id = "gsd-capture"
+description = "Capture engineering ideas, follow-up tasks, bugs, and architectural seeds directly into .planning/."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-capture"
+
+[[skill-bundle]]
+id = "gsd-code-review"
+description = "Review source files changed during a phase for correctness, security, layer architecture, and code quality."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-code-review"
+
+[[skill-bundle]]
+id = "gsd-complete-milestone"
+description = "Archive a verified milestone cleanly into .planning/milestones/, update PROJECT.md, and prepare the next cycle."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-complete-milestone"
+
+[[skill-bundle]]
+id = "gsd-debug"
+description = "Systematic root-cause debugging with persistent hypothesis tracking across context resets."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-debug"
+
+[[skill-bundle]]
+id = "gsd-discuss-phase"
+description = "Gather phase implementation context and operator decisions through adaptive questioning before planning."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-discuss-phase"
+
+[[skill-bundle]]
+id = "gsd-execute-phase"
+description = "Execute all plans in a phase with dependency-aware wave parallelization and post-wave verification."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-execute-phase"
+
+[[skill-bundle]]
+id = "gsd-explore"
+description = "Socratic ideation and architecture option analysis before committing a feature into REQUIREMENTS.md."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-explore"
+
+[[skill-bundle]]
+id = "gsd-extract-learnings"
+description = "Extract architectural decisions, failure modes, and workflow episodes from completed GSD phases for docs and MENS."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-extract-learnings"
+
+[[skill-bundle]]
+id = "gsd-fast"
+description = "Execute a trivial deterministic edit inline with direct verification and minimal ceremony."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-fast"
+
+[[skill-bundle]]
+id = "gsd-health"
+description = "Diagnose .planning/ directory integrity, frontmatter consistency, and VoxDb/CAS synchronization health."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-health"
+
+[[skill-bundle]]
+id = "gsd-map-codebase"
+description = "Analyze workspace structure, crate dependencies, and hot modules to populate .planning/codebase/ maps."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-map-codebase"
+
+[[skill-bundle]]
+id = "gsd-mvp-phase"
+description = "Plan a phase as a vertical MVP slice — user story, SPIDR splitting, then plan-phase."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-mvp-phase"
+
+[[skill-bundle]]
+id = "gsd-new-milestone"
+description = "Start a new milestone cycle — update PROJECT.md, scope REQUIREMENTS.md, append phases to ROADMAP.md, and reset STATE.md."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-new-milestone"
+
+[[skill-bundle]]
+id = "gsd-new-project"
+description = "Initialize a new GSD project with deep context gathering and PROJECT.md, REQUIREMENTS.md, ROADMAP.md, and STATE.md."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-new-project"
+
+[[skill-bundle]]
+id = "gsd-next"
+description = "Smart entry — inspect project state and automatically route to the highest-priority next GSD workflow."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-next"
+
+[[skill-bundle]]
+id = "gsd-pause-work"
+description = "Create an accurate handoff state in .planning/STATE.md and state.json when pausing mid-phase."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-pause-work"
+
+[[skill-bundle]]
+id = "gsd-phase"
+description = "Add, insert, reorder, or update phases cleanly in ROADMAP.md and VoxDb."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-phase"
+
+[[skill-bundle]]
+id = "gsd-plan-phase"
+description = "Create detailed wave-ordered PLAN.md artifacts with verification assertions and PlanNode DAG mapping."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-plan-phase"
+
+[[skill-bundle]]
+id = "gsd-progress"
+description = "Check milestone/phase completion status, active documents, and route cleanly to the next GSD step."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-progress"
+
+[[skill-bundle]]
+id = "gsd-quick"
+description = "Execute a bounded single task with GSD state tracking and atomic verification while skipping full multi-phase scaffolding."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-quick"
+
+[[skill-bundle]]
+id = "gsd-resume-work"
+description = "Restore full GSD context from .planning/STATE.md, ROADMAP.md, and VoxDb before continuing execution."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-resume-work"
+
+[[skill-bundle]]
+id = "gsd-ship"
+description = "Run final GSD quality gates, verify documentation/SSOT sync, and prepare a phase or milestone branch for merge."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-ship"
+
+[[skill-bundle]]
+id = "gsd-spec-phase"
+description = "Clarify WHAT a phase delivers with ambiguity scoring and produce SPEC.md before discuss-phase or plan-phase."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-spec-phase"
+
+[[skill-bundle]]
+id = "gsd-validate-phase"
+description = "Retroactively audit and fill test/validation coverage gaps for a completed phase."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-validate-phase"
+
+[[skill-bundle]]
+id = "gsd-verify-work"
+description = "Validate built features against phase requirements and UAT criteria before marking a phase complete."
+status = "stable"
+license = "MIT"
+source = "https://github.com/open-gsd/gsd-core"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+bundle-path = "assets/skills/gsd-verify-work"
 
 [[skill-bundle]]
 id = "internal-comms"
@@ -420,24 +663,6 @@ pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
 bundle-path = "assets/skills/mcp-builder"
 
 [[skill-bundle]]
-id = "receiving-code-review"
-description = "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verific..."
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/receiving-code-review"
-
-[[skill-bundle]]
-id = "requesting-code-review"
-description = "Use when completing tasks, implementing major features, or before merging to verify work meets requirements"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/requesting-code-review"
-
-[[skill-bundle]]
 id = "skill-creator"
 description = "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, ru..."
 status = "stable"
@@ -456,33 +681,6 @@ pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
 bundle-path = "assets/skills/slack-gif-creator"
 
 [[skill-bundle]]
-id = "subagent-driven-development"
-description = "Use when executing implementation plans with independent tasks in the current session"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/subagent-driven-development"
-
-[[skill-bundle]]
-id = "systematic-debugging"
-description = "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/systematic-debugging"
-
-[[skill-bundle]]
-id = "test-driven-development"
-description = "Use when implementing any feature or bugfix, before writing implementation code"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/test-driven-development"
-
-[[skill-bundle]]
 id = "theme-factory"
 description = "Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc. There are 10 pre-set themes with colors/fonts that you can ..."
 status = "stable"
@@ -490,33 +688,6 @@ license = "Apache-2.0"
 source = "https://github.com/anthropics/skills"
 pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
 bundle-path = "assets/skills/theme-factory"
-
-[[skill-bundle]]
-id = "using-git-worktrees"
-description = "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selecti..."
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/using-git-worktrees"
-
-[[skill-bundle]]
-id = "using-superpowers"
-description = "Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/using-superpowers"
-
-[[skill-bundle]]
-id = "verification-before-completion"
-description = "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any s..."
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/verification-before-completion"
 
 [[skill-bundle]]
 id = "vox-graph"
@@ -553,22 +724,4 @@ license = "Apache-2.0"
 source = "https://github.com/anthropics/skills"
 pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
 bundle-path = "assets/skills/webapp-testing"
-
-[[skill-bundle]]
-id = "writing-plans"
-description = "Use when you have a spec or requirements for a multi-step task, before touching code"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/writing-plans"
-
-[[skill-bundle]]
-id = "writing-skills"
-description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment"
-status = "stable"
-license = "MIT"
-source = "https://github.com/obra/superpowers"
-pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
-bundle-path = "assets/skills/writing-skills"
 

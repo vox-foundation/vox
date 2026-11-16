@@ -114,33 +114,48 @@ impl SafeTensorsSource {
             let idx: ShardIndex =
                 serde_json::from_str(&raw).map_err(|e| QuantizeError::ShardIndex(e.to_string()))?;
             for (name, file) in idx.weight_map {
-                map.insert(name, dir.join(file));
+                if !crate::policy::is_vision_or_mtp_key(&name) {
+                    map.insert(name, dir.join(file));
+                }
             }
         } else if single.exists() {
             for name in header_tensor_names(&single)? {
-                map.insert(name, single.clone());
+                if !crate::policy::is_vision_or_mtp_key(&name) {
+                    map.insert(name, single.clone());
+                }
             }
         } else if merged.exists() {
             // Overlay mode: dir has merged.safetensors and points to base model shards
             let base_dir = Self::resolve_base_dir(dir)?;
             let base_index = base_dir.join("model.safetensors.index.json");
+            let base_single = base_dir.join("model.safetensors");
             if base_index.exists() {
                 let raw = std::fs::read_to_string(&base_index)?;
                 let idx: ShardIndex = serde_json::from_str(&raw)
                     .map_err(|e| QuantizeError::ShardIndex(e.to_string()))?;
                 for (name, file) in idx.weight_map {
-                    map.insert(name, base_dir.join(file));
+                    if !crate::policy::is_vision_or_mtp_key(&name) {
+                        map.insert(name, base_dir.join(file));
+                    }
+                }
+            } else if base_single.exists() {
+                for name in header_tensor_names(&base_single)? {
+                    if !crate::policy::is_vision_or_mtp_key(&name) {
+                        map.insert(name, base_single.clone());
+                    }
                 }
             } else {
                 return Err(QuantizeError::ReadModel(format!(
-                    "base model index not found at {}",
-                    base_index.display()
+                    "base model index or model.safetensors not found at {}",
+                    base_dir.display()
                 )));
             }
 
             // Overlay the merged adapted keys from merged.safetensors
             for name in header_tensor_names(&merged)? {
-                map.insert(name, merged.clone());
+                if !crate::policy::is_vision_or_mtp_key(&name) {
+                    map.insert(name, merged.clone());
+                }
             }
         } else {
             return Err(QuantizeError::ReadModel(format!(
@@ -185,7 +200,8 @@ impl SafeTensorsSource {
         {
             let p = PathBuf::from(tok_path);
             if let Some(parent) = p.parent()
-                && parent.join("model.safetensors.index.json").is_file()
+                && (parent.join("model.safetensors.index.json").is_file()
+                    || parent.join("model.safetensors").is_file())
             {
                 return Ok(parent.to_path_buf());
             }
@@ -206,7 +222,10 @@ impl SafeTensorsSource {
             if let Ok(entries) = std::fs::read_dir(&hub) {
                 for entry in entries.flatten() {
                     let ep = entry.path();
-                    if ep.is_dir() && ep.join("model.safetensors.index.json").is_file() {
+                    if ep.is_dir()
+                        && (ep.join("model.safetensors.index.json").is_file()
+                            || ep.join("model.safetensors").is_file())
+                    {
                         return Ok(ep);
                     }
                 }
@@ -225,6 +244,12 @@ impl SafeTensorsSource {
 
     /// Load a tensor and cast to f32 on CPU.
     pub fn load_f32(&self, name: &str) -> Result<Tensor, QuantizeError> {
+        Ok(self.load_native(name)?.to_dtype(candle_core::DType::F32)?)
+    }
+
+    /// Load a tensor on CPU preserving its native storage dtype (`BF16`,
+    /// `F16`, `F32`, etc.) without forcing an `F32` cast.
+    pub fn load_native(&self, name: &str) -> Result<Tensor, QuantizeError> {
         let path = self
             .map
             .get(name)
@@ -243,7 +268,7 @@ impl SafeTensorsSource {
         let t = tensors.get(name).ok_or_else(|| {
             QuantizeError::ReadModel(format!("tensor `{name}` missing from shard"))
         })?;
-        Ok(t.to_dtype(candle_core::DType::F32)?)
+        Ok(t.clone())
     }
 
     /// Byte size of each tensor's data, read from safetensors headers only —
@@ -254,6 +279,7 @@ impl SafeTensorsSource {
         for path in self.unique_paths() {
             for (name, entry) in read_header(path)? {
                 if name != "__metadata__"
+                    && !crate::policy::is_vision_or_mtp_key(&name)
                     && let Some(len) = header_entry_byte_len(&entry)
                 {
                     sizes.insert(name, len);
@@ -271,6 +297,7 @@ impl SafeTensorsSource {
         for path in self.unique_paths() {
             for (name, entry) in read_header(path)? {
                 if name != "__metadata__"
+                    && !crate::policy::is_vision_or_mtp_key(&name)
                     && let Some(shape) = header_entry_shape(&entry)
                 {
                     shapes.insert(name, shape);
@@ -290,6 +317,7 @@ impl SafeTensorsSource {
         for path in self.unique_paths() {
             for (name, entry) in read_header(path)? {
                 if name != "__metadata__"
+                    && !crate::policy::is_vision_or_mtp_key(&name)
                     && let Some(dtype) = header_entry_dtype(&entry)
                 {
                     dtypes.insert(name, dtype);
@@ -478,5 +506,151 @@ mod tests {
             msg.contains("bf16"),
             "the error must name the valid input: {msg}"
         );
+    }
+
+    #[test]
+    fn open_skips_uninstalled_vision_and_mtp_shards_in_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let w = Tensor::zeros((2, 256), candle_core::DType::F32, &Device::Cpu).unwrap();
+        write_st(
+            dir.path(),
+            "model-00001-of-00002.safetensors",
+            &[("model.language_model.layers.0.mlp.down_proj.weight", w)],
+        );
+        std::fs::write(
+            dir.path().join("model.safetensors.index.json"),
+            r#"{"weight_map":{
+                "model.language_model.layers.0.mlp.down_proj.weight":"model-00001-of-00002.safetensors",
+                "model.visual.patch_embed.weight":"model-00002-of-00002.safetensors",
+                "mtp.layers.0.weight":"model-00002-of-00002.safetensors"
+            }}"#,
+        )
+        .unwrap();
+
+        let src =
+            SafeTensorsSource::open(dir.path()).expect("missing vision/MTP shard must not ENOENT");
+        assert_eq!(
+            src.tensor_names(),
+            &["model.language_model.layers.0.mlp.down_proj.weight".to_string()]
+        );
+    }
+
+    #[test]
+    fn open_overlay_supports_single_file_base_via_training_manifest() {
+        let dev = Device::Cpu;
+        let base = tempfile::tempdir().unwrap();
+        let overlay = tempfile::tempdir().unwrap();
+
+        write_st(
+            base.path(),
+            "model.safetensors",
+            &[
+                (
+                    "model.layers.0.self_attn.q_proj.weight",
+                    Tensor::ones((4, 256), candle_core::DType::F32, &dev).unwrap(),
+                ),
+                (
+                    "model.layers.0.mlp.down_proj.weight",
+                    Tensor::full(3.0f32, (4, 256), &dev).unwrap(),
+                ),
+            ],
+        );
+        std::fs::write(base.path().join("tokenizer.json"), "{}").unwrap();
+        std::fs::write(
+            overlay.path().join("training_manifest.json"),
+            serde_json::json!({
+                "tokenizer_path": base.path().join("tokenizer.json")
+            })
+            .to_string(),
+        )
+        .unwrap();
+        write_st(
+            overlay.path(),
+            "merged.safetensors",
+            &[(
+                "model.layers.0.self_attn.q_proj.weight",
+                Tensor::full(7.0f32, (4, 256), &dev).unwrap(),
+            )],
+        );
+
+        let src = SafeTensorsSource::open(overlay.path()).unwrap();
+        let mut names = src.tensor_names().to_vec();
+        names.sort();
+        assert_eq!(
+            names,
+            vec![
+                "model.layers.0.mlp.down_proj.weight".to_string(),
+                "model.layers.0.self_attn.q_proj.weight".to_string(),
+            ]
+        );
+        assert_eq!(
+            src.load_f32("model.layers.0.self_attn.q_proj.weight")
+                .unwrap()
+                .mean_all()
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap(),
+            7.0
+        );
+        assert_eq!(
+            src.load_f32("model.layers.0.mlp.down_proj.weight")
+                .unwrap()
+                .mean_all()
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap(),
+            3.0
+        );
+    }
+
+    #[test]
+    fn load_native_preserves_bf16_and_f32_dtypes() {
+        let dev = Device::Cpu;
+        let dir = tempfile::tempdir().unwrap();
+        let bf16 = Tensor::full(2.5f32, (2, 4), &dev)
+            .unwrap()
+            .to_dtype(candle_core::DType::BF16)
+            .unwrap();
+        let f16 = Tensor::full(1.5f32, (2, 4), &dev)
+            .unwrap()
+            .to_dtype(candle_core::DType::F16)
+            .unwrap();
+        let f32 = Tensor::full(3.25f32, (2, 4), &dev).unwrap();
+        write_st(
+            dir.path(),
+            "model.safetensors",
+            &[("w_bf16", bf16), ("w_f16", f16), ("w_f32", f32)],
+        );
+
+        let src = SafeTensorsSource::open(dir.path()).unwrap();
+        let loaded_bf16 = src.load_native("w_bf16").unwrap();
+        assert_eq!(loaded_bf16.dtype(), candle_core::DType::BF16);
+        assert_eq!(
+            loaded_bf16
+                .to_dtype(candle_core::DType::F32)
+                .unwrap()
+                .mean_all()
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap(),
+            2.5
+        );
+
+        let loaded_f16 = src.load_native("w_f16").unwrap();
+        assert_eq!(loaded_f16.dtype(), candle_core::DType::F16);
+
+        let loaded_f32 = src.load_native("w_f32").unwrap();
+        assert_eq!(loaded_f32.dtype(), candle_core::DType::F32);
+        assert_eq!(
+            loaded_f32.mean_all().unwrap().to_scalar::<f32>().unwrap(),
+            3.25
+        );
+
+        // `load_f32` still upcasts BF16 to F32, and all reads hit the 1-slot cache.
+        assert_eq!(
+            src.load_f32("w_bf16").unwrap().dtype(),
+            candle_core::DType::F32
+        );
+        assert_eq!(src.shard_loads(), 1);
     }
 }

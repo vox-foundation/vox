@@ -535,7 +535,7 @@ rules:
     languages: [rust, typescript, python, gdscript, vox]
     match:
       kind: line-regex
-      pattern: "(?:\"|')(?:C:\\\\|D:\\\\|/home/|/tmp/|/var/|/usr/|/etc/)[^\"']*(?:\"|')"
+      pattern: "(?:\"|')(?:C:\\\\|D:\\\\|/Users/|/home/|/tmp/|/var/|/usr/|/etc/)[^\"']*(?:\"|')"
     message: "Hardcoded absolute filesystem path — use config or environment variable"
     suggestion: "Read from environment variable or config file."
     fixtures:

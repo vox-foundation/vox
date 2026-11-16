@@ -163,8 +163,7 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
         .map_err(|e| anyhow::anyhow!("Together fine-tune response JSON: {}", e))?;
     let job_id = v.get("id").and_then(|x| x.as_str()).unwrap_or("unknown");
     println!(
-        "Together fine-tune job created: id={}. Monitor at https://api.together.xyz/v1/fine-tunes/{}",
-        job_id, job_id
+        "Together fine-tune job created: id={job_id}. Monitor at {TOGETHER_FINE_TUNES}/{job_id}"
     );
     Ok(())
 }

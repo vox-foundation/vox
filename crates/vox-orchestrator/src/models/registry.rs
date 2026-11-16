@@ -728,6 +728,9 @@ mod mens_spoke_routing;
 mod selection_queries;
 mod sota_harness_eval;
 
+pub use mens_spoke_routing::{
+    B3_RETRIEVAL_EMBEDDER_PIN, research_expert_reward_hook, route_retrieval_lane_to_embedder,
+};
 #[cfg(feature = "runtime")]
 pub use selection_queries::llm_config_for_spec;
 

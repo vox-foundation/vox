@@ -21,7 +21,7 @@ pub struct PythonProject {
 }
 
 enum Msg {
-    Hello(std::sync::mpsc::SyncSender<Result<String, String>>),
+    Hello(std::sync::mpsc::SyncSender<Result<serde_json::Value, String>>),
     ExecutePlan {
         params: serde_json::Value,
         body: Vec<u8>,
@@ -103,7 +103,14 @@ pub(crate) fn note_print(line: &str) {
 /// Record the project environment. Replaces any worker already started.
 pub fn set_python_project(interp: &mut Interpreter, project: PythonProject) {
     interp.python_host = None;
+    interp.python_env_metadata = None;
     interp.python_project = Some(project);
+}
+
+/// Cached Python package versions and `.vox/python/uv.lock` BLAKE3 hash for durable journals.
+#[must_use]
+pub fn python_env_metadata(interp: &Interpreter) -> Option<&serde_json::Value> {
+    interp.python_env_metadata.as_ref()
 }
 
 #[cfg(test)]
@@ -118,12 +125,15 @@ pub(crate) fn call_version(interp: &mut Interpreter) -> VoxValue {
     }
 }
 
-fn version_string(interp: &mut Interpreter) -> Result<String, String> {
-    let Some(project) = interp.python_project.clone() else {
-        return Err(PY_ENV_MISSING.to_string());
-    };
+fn ensure_python_env_metadata(
+    interp: &mut Interpreter,
+    project: &PythonProject,
+) -> Result<serde_json::Value, String> {
+    if let Some(cached) = interp.python_env_metadata.clone() {
+        return Ok(cached);
+    }
     if interp.python_host.is_none() {
-        interp.python_host = Some(Host::start(&project)?);
+        interp.python_host = Some(Host::start(project)?);
     }
     let host = interp
         .python_host
@@ -133,8 +143,33 @@ fn version_string(interp: &mut Interpreter) -> Result<String, String> {
     host.tx
         .send(Msg::Hello(tx))
         .map_err(|_| "py: worker stopped".to_string())?;
-    rx.recv_timeout(project.timeout)
-        .map_err(|_| "py: worker timed out".to_string())?
+    let mut meta = rx
+        .recv_timeout(project.timeout)
+        .map_err(|_| "py: worker timed out".to_string())??;
+    let lock_path = project.root.join(".vox").join("python").join("uv.lock");
+    if let Ok(bytes) = std::fs::read(&lock_path) {
+        let hash = vox_crypto::hex_encode(&vox_crypto::secure_hash(&bytes));
+        if let Some(obj) = meta.as_object_mut() {
+            obj.insert(
+                "uv_lock_blake3".to_string(),
+                serde_json::Value::String(hash),
+            );
+        }
+    }
+    interp.python_env_metadata = Some(meta.clone());
+    Ok(meta)
+}
+
+fn version_string(interp: &mut Interpreter) -> Result<String, String> {
+    let Some(project) = interp.python_project.clone() else {
+        return Err(PY_ENV_MISSING.to_string());
+    };
+    let meta = ensure_python_env_metadata(interp, &project)?;
+    meta.get("python")
+        .and_then(|value| value.as_str())
+        .filter(|version| !version.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| "py: hello reply missing python version".to_string())
 }
 
 /// One `execute_plan` on the worker this host already owns.
@@ -142,12 +177,19 @@ fn version_string(interp: &mut Interpreter) -> Result<String, String> {
 /// Does not construct a second [`vox_python_bridge::Bridge`].
 pub(crate) fn execute_plan(
     interp: &mut Interpreter,
-    params: serde_json::Value,
+    mut params: serde_json::Value,
     body: Vec<u8>,
 ) -> Result<vox_python_bridge::Reply, String> {
     let Some(project) = interp.python_project.clone() else {
         return Err(PY_ENV_MISSING.to_string());
     };
+    let _ = ensure_python_env_metadata(interp, &project)?;
+    if let Some(seed) = interp.caps.random_seed()
+        && let Some(obj) = params.as_object_mut()
+        && !obj.contains_key("seed")
+    {
+        obj.insert("seed".to_string(), serde_json::json!(seed));
+    }
     tracing::debug!(payload = %params, "array plan sent to execute_plan");
     if interp.python_host.is_none() {
         interp.python_host = Some(Host::start(&project)?);
@@ -184,15 +226,22 @@ async fn execute_plan_call(
         .map_err(|err| err.to_string())
 }
 
-async fn hello_version(bridge: &vox_python_bridge::Bridge) -> Result<String, String> {
+async fn hello_version(bridge: &vox_python_bridge::Bridge) -> Result<serde_json::Value, String> {
     match bridge.call("hello", serde_json::json!({}), None).await {
-        Ok(reply) => reply
-            .value
-            .get("python")
-            .and_then(|value| value.as_str())
-            .filter(|version| !version.is_empty())
-            .map(str::to_string)
-            .ok_or_else(|| "py: hello reply missing python version".to_string()),
+        Ok(reply) => {
+            let py_ver = reply
+                .value
+                .get("python")
+                .and_then(|value| value.as_str())
+                .filter(|version| !version.is_empty())
+                .ok_or_else(|| "py: hello reply missing python version".to_string())?;
+            let mut meta = serde_json::Map::new();
+            meta.insert("python".to_string(), serde_json::json!(py_ver));
+            if let Some(packages) = reply.value.get("packages") {
+                meta.insert("packages".to_string(), packages.clone());
+            }
+            Ok(serde_json::Value::Object(meta))
+        }
         Err(err) => Err(err.to_string()),
     }
 }
@@ -315,7 +364,7 @@ mod tests {
             PythonProject {
                 root: std::env::temp_dir(),
                 max_fetch_mb: 1,
-                timeout: Duration::from_secs(5),
+                timeout: vox_config::timeouts::D_5S,
             },
         );
         interp.run_module(&hir).expect("load");
@@ -349,7 +398,7 @@ mod tests {
             Some(PythonProject {
                 root: std::env::temp_dir(),
                 max_fetch_mb: 256,
-                timeout: Duration::from_secs(30),
+                timeout: vox_config::timeouts::D_30S,
             }),
         )
         .expect("eval");

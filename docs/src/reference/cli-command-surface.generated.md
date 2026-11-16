@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 1038
+**schema_version:** `1` · **vox-cli operations:** 1046
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -836,9 +836,17 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox openclaw subscriptions` | active | ars | ars | interop | — |
 | `vox openclaw unsubscribe` | active | ars | ars | interop | — |
 | `vox plan` | active | — | — | ai | — |
+| `vox plan complete-milestone` | active | — | — | ai | — |
 | `vox plan create` | active | — | — | ai | — |
+| `vox plan discuss-phase` | active | — | — | ai | — |
+| `vox plan docs` | active | — | — | ai | — |
+| `vox plan execute-phase` | active | — | — | ai | — |
+| `vox plan new-milestone` | active | — | — | ai | — |
+| `vox plan plan-phase` | active | — | — | ai | — |
+| `vox plan progress` | active | — | — | ai | — |
 | `vox plan replan` | active | — | — | ai | — |
 | `vox plan status` | active | — | — | ai | — |
+| `vox plan verify-work` | active | — | — | ai | — |
 | `vox play` | active | — | — | app | — |
 | `vox plugin` | active | — | — | platform | — |
 | `vox plugin doctor` | active | — | — | platform | — |

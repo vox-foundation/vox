@@ -10,6 +10,7 @@ pub(crate) mod message;
 pub mod research_intent;
 pub mod research_turn;
 pub mod system_prompt_vars;
+pub mod term_mentions;
 mod turn_events;
 
 pub use history::{

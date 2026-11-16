@@ -25,6 +25,11 @@ export interface PendingApprovalRow {
   tool: string;
   summary: string;
   requested_at_ms: number;
+  floor_category?: string;
+  session_id?: string;
+  command?: string;
+  control_mode?: string;
+  credential_prompt?: boolean;
 }
 
 /** Unwrap a ToolResult `.data` field when present. */
@@ -39,9 +44,25 @@ export function parsePendingApprovals(
   invokeResult: McpInvokeResult | null | undefined,
 ): PendingApprovalRow[] {
   if (!invokeResult) return [];
-  const data = unwrapMcpEnvelope(invokeResult.result) as { approvals?: PendingApprovalRow[] } | null;
+  const data = unwrapMcpEnvelope(invokeResult.result) as { approvals?: unknown[] } | null;
   const list = data?.approvals;
-  return Array.isArray(list) ? list : [];
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((r) => {
+      const row: PendingApprovalRow = {
+        approval_id: typeof r.approval_id === 'string' ? r.approval_id : '',
+        tool: typeof r.tool === 'string' ? r.tool : '',
+        summary: typeof r.summary === 'string' ? r.summary : '',
+        requested_at_ms: typeof r.requested_at_ms === 'number' ? r.requested_at_ms : 0,
+      };
+      if (typeof r.floor_category === 'string') row.floor_category = r.floor_category;
+      if (typeof r.session_id === 'string') row.session_id = r.session_id;
+      if (typeof r.command === 'string') row.command = r.command;
+      if (typeof r.control_mode === 'string') row.control_mode = r.control_mode;
+      if (typeof r.credential_prompt === 'boolean') row.credential_prompt = r.credential_prompt;
+      return row;
+    });
 }
 
 export interface GraphifyStatusPayload {

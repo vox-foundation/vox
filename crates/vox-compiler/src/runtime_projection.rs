@@ -1,11 +1,79 @@
 //! Runtime projection IR — orchestration-facing payloads derived from typed core IR.
 //!
 //! This is **not** WebIR: it captures DB planning policy and (later) task capability hints in a
-//! serde-stable shape aligned with [`vox_repository::TaskCapabilityHints`] wire contracts.
+//! serde-stable shape aligned with `vox_repository::TaskCapabilityHints` wire contracts.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use vox_repository::TaskCapabilityHints;
+
+// vox:defactored-from vox-repository 2026-11-12 (avoids vox-compiler -> vox-repository edge)
+/// Hardware and routing capability hints aligned with the repository wire contract.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct TaskCapabilityHints {
+    #[serde(default)]
+    pub gpu_cuda: bool,
+    #[serde(default)]
+    pub gpu_metal: bool,
+    #[serde(default)]
+    pub gpu_vulkan: bool,
+    #[serde(default)]
+    pub gpu_webgpu: bool,
+    #[serde(default)]
+    pub npu: bool,
+    #[serde(default)]
+    pub visus_eligible: bool,
+    #[serde(default)]
+    pub multi_modal: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_vram_mb: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_cores: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arch: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hostname: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_cpu_cores: Option<u32>,
+    #[serde(default)]
+    pub prefer_gpu_compute: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routing_tier: Option<String>,
+    #[serde(default)]
+    pub is_low_confidence_bypass_blocked: bool,
+    #[serde(default)]
+    pub force_socrates_research: bool,
+}
+
+fn probe_host_capabilities_inline() -> TaskCapabilityHints {
+    let truthy = |k: &str| {
+        std::env::var(k)
+            .map(|v| v.trim() == "1" || v.trim().eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+    };
+    TaskCapabilityHints {
+        gpu_cuda: truthy("VOX_MESH_ADVERTISE_GPU"),
+        gpu_vulkan: truthy("VOX_MESH_ADVERTISE_VULKAN"),
+        gpu_webgpu: truthy("VOX_MESH_ADVERTISE_WEBGPU"),
+        npu: truthy("VOX_MESH_ADVERTISE_NPU"),
+        device_class: std::env::var("VOX_MESH_DEVICE_CLASS")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty()),
+        cpu_cores: std::thread::available_parallelism()
+            .ok()
+            .map(|n| n.get() as u32),
+        arch: Some(std::env::consts::ARCH.to_string()),
+        hostname: std::env::var("HOSTNAME")
+            .or_else(|_| std::env::var("COMPUTERNAME"))
+            .ok()
+            .filter(|s| !s.is_empty()),
+        ..Default::default()
+    }
+}
 
 use crate::hir::db_op_walk::{self, DbTableOpSite};
 use crate::hir::{HirDbPlanCapabilities, HirDbRetrievalMode, HirModule, TypedCoreIR_v2};
@@ -96,7 +164,7 @@ fn host_capability_probe_from_env() -> Option<TaskCapabilityHints> {
     std::env::var("VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE")
         .ok()
         .filter(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .map(|_| vox_repository::probe_host_capabilities())
+        .map(|_| probe_host_capabilities_inline())
 }
 
 /// Derive orchestration-facing [`TaskCapabilityHints`] from DB query plan capability metadata.

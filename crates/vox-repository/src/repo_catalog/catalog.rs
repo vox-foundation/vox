@@ -37,6 +37,12 @@ pub enum RepoCatalogError {
         #[source]
         source: std::io::Error,
     },
+    #[error("sync federated satellite mirror {path}: {source}")]
+    SyncSatellite {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("invalid regex query {pattern:?}: {message}")]
     InvalidRegex { pattern: String, message: String },
 }
@@ -295,6 +301,7 @@ fn implicit_workspace_catalog(workspace_root: &Path) -> RepoCatalog {
     }
 }
 
+#[inline(never)]
 pub fn resolve_repo_catalog(repo_root: &Path) -> Result<ResolvedRepoCatalog, RepoCatalogError> {
     let workspace = crate::discover_repository_or_fallback(repo_root);
     let catalog = match load_repo_catalog_from_repo(&workspace.root) {
@@ -438,6 +445,7 @@ pub fn resolve_repo_catalog(repo_root: &Path) -> Result<ResolvedRepoCatalog, Rep
     })
 }
 
+#[inline(never)]
 pub fn refresh_repo_catalog(
     repo_root: &Path,
 ) -> Result<RepoCatalogRefreshResult, RepoCatalogError> {

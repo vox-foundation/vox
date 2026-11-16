@@ -47,7 +47,6 @@ analysis-stage iteration.
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-deploy-codegen`](./vox-deploy-codegen.generated.md) | Normal |
-| [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-sql`](./vox-sql.generated.md) | Normal |
 | [`vox-tauri-codegen`](./vox-tauri-codegen.generated.md) | Normal |
@@ -90,8 +89,6 @@ graph {
     vox_codegen -> vox_deploy_codegen
     node vox_jsonschema_util: "vox-jsonschema-util"
     vox_codegen -> vox_jsonschema_util
-    node vox_repository: "vox-repository"
-    vox_codegen -> vox_repository
     node vox_secrets: "vox-secrets"
     vox_codegen -> vox_secrets
     node vox_sql: "vox-sql"
@@ -175,11 +172,11 @@ graph {
 | `fn` | `syntax_k::canonical_web_ir_bytes` | `pub fn canonical_web_ir_bytes(module: &WebIrModule) -> Result<Vec<u8>, serde_json::Error>` | [`crates/vox-codegen/src/syntax_k.rs#L99-L103`](../../../crates/vox-codegen/src/syntax_k.rs#L99-L103) | Deterministic JSON bytes for WebIR (sorted keys at every object depth). |
 | `fn` | `syntax_k::canonical_emitted_files_bytes` | `pub fn canonical_emitted_files_bytes(files: &[(String, String)]) -> Vec<u8>` | [`crates/vox-codegen/src/syntax_k.rs#L106-L117`](../../../crates/vox-codegen/src/syntax_k.rs#L106-L117) | Deterministic canonical bytes for emitted file outputs. |
 | `struct` | `syntax_k::RepresentabilityPayload` | `pub struct RepresentabilityPayload` | [`crates/vox-codegen/src/syntax_k.rs#L209-L215`](../../../crates/vox-codegen/src/syntax_k.rs#L209-L215) | Pipeline stages for [`enrich_syntax_k_support_metrics`] (`first_failing_stage`). |
-| `fn` | `syntax_k::enrich_syntax_k_support_metrics` | `pub fn enrich_syntax_k_support_metrics(` | [`crates/vox-codegen/src/syntax_k.rs#L219`](../../../crates/vox-codegen/src/syntax_k.rs#L219) | Attach `representability`, optional `llm_surface`, and optional `runtime_projection` to Syntax-K `support_metrics`. |
-| `fn` | `syntax_k::measure_syntax_k_event` | `pub fn measure_syntax_k_event(input: SyntaxKInput<'_>) -> std::io::Result<SyntaxKEvent>` | [`crates/vox-codegen/src/syntax_k.rs#L277-L321`](../../../crates/vox-codegen/src/syntax_k.rs#L277-L321) | Measure practical syntax-K event payload for one canonical output object. |
+| `fn` | `syntax_k::count_python_tier_calls` | `pub fn count_python_tier_calls(hir: &vox_compiler::hir::HirModule) -> (usize, usize)` | [`crates/vox-codegen/src/syntax_k.rs#L220-L245`](../../../crates/vox-codegen/src/syntax_k.rs#L220-L245) | Count Tier 1 (`std.{array,frame,plot,tensor}`) and Tier 2 (`import py <alias> from ...`) Python calls present in lowered HIR bodies. |
+| `fn` | `syntax_k::enrich_syntax_k_support_metrics` | `pub fn enrich_syntax_k_support_metrics(` | [`crates/vox-codegen/src/syntax_k.rs#L370`](../../../crates/vox-codegen/src/syntax_k.rs#L370) | Attach `representability`, optional `llm_surface`, and optional `runtime_projection` to Syntax-K `support_metrics`. |
+| `fn` | `syntax_k::measure_syntax_k_event` | `pub fn measure_syntax_k_event(input: SyntaxKInput<'_>) -> std::io::Result<SyntaxKEvent>` | [`crates/vox-codegen/src/syntax_k.rs#L428-L472`](../../../crates/vox-codegen/src/syntax_k.rs#L428-L472) | Measure practical syntax-K event payload for one canonical output object. |
 | `enum` | `web_ir::WebIrVersion` | `pub enum WebIrVersion` | [`crates/vox-codegen/src/web_ir/mod.rs#L49-L53`](../../../crates/vox-codegen/src/web_ir/mod.rs#L49-L53) | Increment when the schema gains breaking layout changes. ADR 012 CP-002. |
 | `enum` | `web_ir::ZTier` | `pub enum ZTier` | [`crates/vox-codegen/src/web_ir/mod.rs#L60-L68`](../../../crates/vox-codegen/src/web_ir/mod.rs#L60-L68) | Normative Z-tiers for the seven-tier ladder (ADR 034 / VUV Layered Layout Discipline).  **Rule 2:** within-tier ordering is deliberately unspecified. |
 | `fn` | `web_ir::from_str` | `pub fn from_str(s: &str) -> Option<Self>` | [`crates/vox-codegen/src/web_ir/mod.rs#L73-L84`](../../../crates/vox-codegen/src/web_ir/mod.rs#L73-L84) | — |
 | `fn` | `web_ir::to_str` | `pub fn to_str(self) -> &'static str` | [`crates/vox-codegen/src/web_ir/mod.rs#L86-L96`](../../../crates/vox-codegen/src/web_ir/mod.rs#L86-L96) | — |
-| `fn` | `web_ir::z_value` | `pub fn z_value(self) -> i32` | [`crates/vox-codegen/src/web_ir/mod.rs#L102-L104`](../../../crates/vox-codegen/src/web_ir/mod.rs#L102-L104) | Canonical z-index for this tier. Single source of truth for the z-ladder (tier N → N × 100); `layer_emit::tier_z_index` mirrors this for `LayerTier`, and the parity test `ztier_and_layertier_agree_on_names_and_order` keeps the two enums lock-step. Do NOT hand-roll per-tier z numbers elsewhere. |
 

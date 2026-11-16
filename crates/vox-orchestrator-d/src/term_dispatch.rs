@@ -17,16 +17,30 @@ use serde_json::{Value, json};
 use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse, term_method};
 use vox_orchestrator::orch_daemon::{ExtraDispatch, FrameSink, response_err, response_result};
 use vox_orchestrator::oversight::floor::{FloorInput, classify_floor};
+use vox_orchestrator::terminal_bridge::{
+    TermExecRequest, TermReadRequest, TermSendInputRequest, TerminalBridge,
+};
 use vox_terminal_core::block::{BlockId, BlockOrigin};
 use vox_terminal_core::{LocalHost, OpenSpec, SessionEvent};
 
+use crate::term_bridge_impl::LocalHostTerminalBridge;
+
+#[path = "term_session_ops.rs"]
+pub mod term_session_ops;
+
 pub struct TermDispatch {
     host: Arc<LocalHost>,
+    bridge: Arc<LocalHostTerminalBridge>,
 }
 
 impl TermDispatch {
     pub fn new(host: Arc<LocalHost>) -> Self {
-        Self { host }
+        let bridge = Arc::new(LocalHostTerminalBridge::new(Arc::clone(&host), None));
+        Self { host, bridge }
+    }
+
+    pub fn with_bridge(host: Arc<LocalHost>, bridge: Arc<LocalHostTerminalBridge>) -> Self {
+        Self { host, bridge }
     }
 
     /// Execute an agent-initiated terminal line in `session_id` gated by the Phase 12
@@ -103,6 +117,12 @@ fn req_dim(p: &Value, key: &str) -> anyhow::Result<u16> {
         .ok_or_else(|| anyhow::anyhow!("missing or out-of-range numeric param `{key}`"))
 }
 
+fn req_u64(p: &Value, key: &str) -> anyhow::Result<u64> {
+    p.get(key)
+        .and_then(Value::as_u64)
+        .ok_or_else(|| anyhow::anyhow!("missing numeric param `{key}`"))
+}
+
 fn event_frame(id: &str, value: Value) -> DispatchResponse {
     DispatchResponse {
         id: id.to_string(),
@@ -112,14 +132,96 @@ fn event_frame(id: &str, value: Value) -> DispatchResponse {
 
 fn session_event_json(host: &LocalHost, session: &str, ev: SessionEvent) -> Value {
     match ev {
-        SessionEvent::BlockOpened { id } => json!({"type": "block_opened", "id": id.0}),
+        SessionEvent::BlockOpened {
+            id,
+            kind,
+            input,
+            origin,
+            cwd,
+            git_branch,
+        } => json!({
+            "type": "block_opened",
+            "id": id.0,
+            "kind": kind,
+            "input": input,
+            "origin": origin,
+            "cwd": cwd,
+            "git_branch": git_branch,
+            "block": host.block(session, BlockId(id.0)),
+        }),
         SessionEvent::OutputAppended { id, chunk } => {
             json!({"type": "block_output", "id": id.0, "chunk": chunk})
         }
-        SessionEvent::BlockClosed { id } => {
-            json!({"type": "block_closed", "id": id.0, "block": host.block(session, BlockId(id.0))})
+        SessionEvent::BlockClosed {
+            id,
+            exit_code,
+            status,
+        } => {
+            json!({
+                "type": "block_closed",
+                "id": id.0,
+                "exit_code": exit_code,
+                "status": status,
+                "block": host.block(session, BlockId(id.0)),
+            })
         }
         SessionEvent::AgentMessage { text } => json!({"type": "agent", "text": text}),
+        SessionEvent::AltScreenChanged { active } => {
+            json!({"type": "alt_screen", "active": active})
+        }
+        SessionEvent::CwdChanged { cwd, git_branch } => {
+            json!({"type": "cwd_changed", "cwd": cwd, "git_branch": git_branch})
+        }
+        SessionEvent::SnapshotResync {
+            blocks,
+            resync_required,
+            alt_screen,
+            cwd,
+            git_branch,
+        } => {
+            json!({
+                "type": "snapshot",
+                "blocks": blocks,
+                "resync_required": resync_required,
+                "alt_screen": alt_screen,
+                "cwd": cwd,
+                "git_branch": git_branch,
+            })
+        }
+        SessionEvent::BlockAwaitingInput {
+            id,
+            prompt_tail,
+            prompt_kind,
+            credential_prompt,
+        } => {
+            json!({
+                "type": "block_awaiting_input",
+                "id": id.0,
+                "prompt_tail": prompt_tail,
+                "prompt_kind": prompt_kind,
+                "credential_prompt": credential_prompt,
+                "block": host.block(session, BlockId(id.0)),
+            })
+        }
+        SessionEvent::BlockPinned { id, pinned } => {
+            json!({
+                "type": "block_pinned",
+                "id": id.0,
+                "pinned": pinned,
+            })
+        }
+        SessionEvent::SecurityLevelChanged { security_level } => {
+            json!({
+                "type": "security_changed",
+                "security_level": security_level,
+            })
+        }
+        SessionEvent::ControlModeChanged { control_mode } => {
+            json!({
+                "type": "control_changed",
+                "control_mode": control_mode,
+            })
+        }
     }
 }
 
@@ -134,11 +236,16 @@ impl ExtraDispatch for TermDispatch {
             match req.method.as_str() {
                 term_method::OPEN => {
                     let spec = OpenSpec {
-                        cols: dim(p, "cols", 80),
-                        rows: dim(p, "rows", 24),
+                        cols: dim(p, "cols", 120),
+                        rows: dim(p, "rows", 32),
                         shell: p.get("shell").and_then(Value::as_str).map(String::from),
                     };
-                    Ok(json!({"session_id": self.host.open(spec).await?}))
+                    let cwd = p
+                        .get("cwd")
+                        .and_then(Value::as_str)
+                        .filter(|s| !s.is_empty())
+                        .map(std::path::Path::new);
+                    Ok(json!({"session_id": self.host.open_with_cwd(spec, cwd).await?}))
                 }
                 term_method::LIST => Ok(Value::Array(
                     self.host
@@ -150,6 +257,9 @@ impl ExtraDispatch for TermDispatch {
                                 "blocks": s.blocks,
                                 "security_level": s.security_level,
                                 "control_mode": s.control_mode,
+                                "alt_screen": s.alt_screen,
+                                "cwd": s.cwd,
+                                "git_branch": s.git_branch,
                             })
                         })
                         .collect(),
@@ -185,12 +295,62 @@ impl ExtraDispatch for TermDispatch {
                     self.host.close(str_param(p, "session_id")?)?;
                     Ok(json!({}))
                 }
+                vox_terminal_core::daemon_host::SIGNAL => {
+                    refuse_agent_origin(p)?;
+                    let sid = str_param(p, "session_id")?;
+                    let sig = match p.get("signal") {
+                        Some(sig_val) if !sig_val.is_null() => {
+                            serde_json::from_value::<vox_terminal_core::TermSignal>(
+                                sig_val.clone(),
+                            )?
+                        }
+                        _ => vox_terminal_core::TermSignal::Interrupt,
+                    };
+                    self.host.signal(sid, sig)?;
+                    Ok(json!({}))
+                }
                 "term.context" => {
                     let sid = str_param(p, "session_id")?;
                     let max_blocks =
                         p.get("max_blocks").and_then(Value::as_u64).unwrap_or(10) as usize;
-                    let blocks = self.host.redacted_context_bundle(sid, max_blocks)?;
+                    let mut blocks = self.host.redacted_context_bundle(sid, max_blocks)?;
+                    for b in &mut blocks {
+                        b.input = vox_secrets::scrub_resolved_secrets(&b.input);
+                        b.output = vox_secrets::scrub_resolved_secrets(&b.output);
+                    }
                     Ok(json!({ "blocks": blocks }))
+                }
+                "term.agent_exec" => {
+                    let exec_req: TermExecRequest = serde_json::from_value(p.clone())?;
+                    crate::term_bridge_impl::validate_daemon_agent_exec(
+                        &exec_req,
+                        std::path::Path::new("."),
+                    )?;
+                    let resp = self.bridge.exec(exec_req).await?;
+                    Ok(serde_json::to_value(resp)?)
+                }
+                "term.agent_send_input" => {
+                    let send_req: TermSendInputRequest = serde_json::from_value(p.clone())?;
+                    self.bridge.send_input(send_req).await?;
+                    Ok(json!({}))
+                }
+                "term.read" => {
+                    let read_req: TermReadRequest = serde_json::from_value(p.clone())?;
+                    let resp = self.bridge.read(read_req).await?;
+                    Ok(serde_json::to_value(resp)?)
+                }
+                "term.promote_bg" => {
+                    let sid = str_param(p, "session_id")?;
+                    let bid = req_u64(p, "block_id")?;
+                    self.bridge.promote_bg(sid, bid).await?;
+                    Ok(json!({}))
+                }
+                "term.pin" => {
+                    let sid = str_param(p, "session_id")?;
+                    let bid = req_u64(p, "block_id")?;
+                    let pinned = p.get("pinned").and_then(Value::as_bool).unwrap_or(true);
+                    self.bridge.pin_block(sid, bid, pinned).await?;
+                    Ok(json!({}))
                 }
                 "term.security" => {
                     let sid = str_param(p, "session_id")?;
@@ -210,7 +370,22 @@ impl ExtraDispatch for TermDispatch {
                     }
                     Ok(json!({ "control_mode": self.host.control_mode(sid)? }))
                 }
-                other => anyhow::bail!("unknown terminal method `{other}`"),
+                vox_terminal_core::daemon_host::VOXIFY => {
+                    refuse_agent_origin(p)?;
+                    let sid = str_param(p, "session_id")?;
+                    let hint = p.get("shell_hint").and_then(Value::as_str);
+                    self.host.voxify_subshell(sid, hint)?;
+                    Ok(json!({ "ok": true }))
+                }
+                other => {
+                    if let Some(res) =
+                        term_session_ops::try_handle_session_op(&self.host, other, p).await
+                    {
+                        res
+                    } else {
+                        anyhow::bail!("unknown terminal method `{other}`")
+                    }
+                }
             }
         }
         .await;
@@ -232,7 +407,8 @@ impl ExtraDispatch for TermDispatch {
             Ok(s) => s.to_string(),
             Err(e) => return Some(out.send(&response_err(&req.id, e.to_string())).await),
         };
-        let mut a = match self.host.attach(&session) {
+        let after_seq = req.params.get("after_seq").and_then(Value::as_u64);
+        let mut a = match self.host.attach_since(&session, after_seq) {
             Ok(a) => a,
             Err(e) => return Some(out.send(&response_err(&req.id, e.to_string())).await),
         };
@@ -241,6 +417,10 @@ impl ExtraDispatch for TermDispatch {
             "blocks": a.blocks,
             "replay_b64": B64.encode(&a.replay),
             "seq": a.seq,
+            "resync_required": a.resync_required,
+            "alt_screen": a.alt_screen,
+            "cwd": a.cwd,
+            "git_branch": a.git_branch,
         });
         Some(
             async {
@@ -279,7 +459,7 @@ impl ExtraDispatch for TermDispatch {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use std::net::SocketAddr;
     use std::time::Duration;
@@ -288,7 +468,7 @@ mod tests {
     use vox_orchestrator::orch_daemon::serve_listener_with_extra;
     use vox_orchestrator::{Orchestrator, OrchestratorConfig};
 
-    async fn start(token: Option<&str>) -> (SocketAddr, Arc<LocalHost>) {
+    pub(crate) async fn start(token: Option<&str>) -> (SocketAddr, Arc<LocalHost>) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let host = Arc::new(LocalHost::default());
@@ -335,7 +515,7 @@ mod tests {
         }
     }
 
-    async fn call(
+    pub(crate) async fn call(
         addr: SocketAddr,
         method: &str,
         params: Value,
@@ -410,7 +590,7 @@ mod tests {
         host.submit(&id, "!echo hi").await.unwrap();
         assert!(host.list().await.unwrap().iter().any(|s| s.id == id));
 
-        let mut a = host.attach(&id).await.unwrap();
+        let mut a = host.attach(&id, None).await.unwrap();
         assert_eq!(a.blocks.len(), 1);
         assert!(a.blocks[0].plain_output().contains("hi"));
 
@@ -429,7 +609,7 @@ mod tests {
         .await
         .expect("live BlockOpened event");
 
-        assert!(host.attach("nope").await.is_err());
+        assert!(host.attach("nope", None).await.is_err());
         host.close(&id).await.unwrap();
         assert!(host.submit(&id, "!echo x").await.is_err());
     }
@@ -467,6 +647,48 @@ mod tests {
                 term_method::CLOSE
             ]
         );
+        assert_eq!(d::SIGNAL, "term.signal");
+        assert_eq!(d::VOXIFY, "term.voxify");
+    }
+
+    #[tokio::test]
+    async fn term_voxify_refuses_agent_origin_and_dispatches_human_origin() {
+        let (addr, host) = start(Some("tok")).await;
+        let sid = result(call(addr, term_method::OPEN, json!({}), Some("tok")).await)["session_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let err = call(
+            addr,
+            vox_terminal_core::daemon_host::VOXIFY,
+            json!({"session_id": sid, "shell_hint": "bash", "origin": "agent"}),
+            Some("tok"),
+        )
+        .await;
+        assert!(
+            matches!(err, DispatchPayload::Error { ref message, .. } if message.contains("refused"))
+        );
+
+        let ok = result(
+            call(
+                addr,
+                vox_terminal_core::daemon_host::VOXIFY,
+                json!({"session_id": sid, "shell_hint": "bash"}),
+                Some("tok"),
+            )
+            .await,
+        );
+        assert_eq!(ok["ok"], true);
+
+        let client =
+            vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr.to_string(), "tok");
+        let daemon_host = vox_terminal_core::DaemonHost::new(client);
+        vox_terminal_core::SessionHost::voxify_subshell(&daemon_host, &sid, Some("zsh"))
+            .await
+            .expect("DaemonHost::voxify_subshell");
+
+        host.close(&sid).unwrap();
     }
 
     #[tokio::test]
@@ -530,6 +752,14 @@ mod tests {
         for (m, extra) in [
             (term_method::INPUT, json!({"bytes_b64": B64.encode("x")})),
             (term_method::SUBMIT, json!({"line": "!echo no"})),
+            (
+                vox_terminal_core::daemon_host::SIGNAL,
+                json!({"signal": "interrupt"}),
+            ),
+            (
+                vox_terminal_core::daemon_host::SIGNAL,
+                json!({"signal": "kill"}),
+            ),
         ] {
             let mut params = extra;
             params["session_id"] = json!(sid);
@@ -617,6 +847,332 @@ mod tests {
                 .unwrap()
                 .contains("[REDACTED_EMAIL]")
         );
+        host.close(&sid).unwrap();
+    }
+
+    #[tokio::test]
+    async fn attach_after_seq_streams_delta_over_tcp_loopback() {
+        use vox_terminal_core::SessionHost as _;
+
+        let (addr, local_host) = start(Some("delta-token")).await;
+
+        // Verify `term.open` with omitted cols/rows defaults to 120x32 matching OpenSpec::default().
+        #[cfg(unix)]
+        {
+            let default_sid = result(
+                call(addr, term_method::OPEN, json!({}), Some("delta-token")).await,
+            )["session_id"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            let stty_bid = local_host
+                .submit(&default_sid, "!stty size")
+                .expect("submit stty size");
+            let stty_out = local_host
+                .block(&default_sid, stty_bid)
+                .expect("stty block")
+                .plain_output();
+            assert!(
+                stty_out.contains("32 120"),
+                "term.open without cols/rows must default to 120x32, got {stty_out:?}"
+            );
+            local_host.close(&default_sid).unwrap();
+        }
+
+        let client = vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(
+            addr.to_string(),
+            "delta-token",
+        );
+        let host = vox_terminal_core::DaemonHost::new(client);
+
+        let id = host.open(OpenSpec::default()).await.unwrap();
+        host.submit(&id, "!echo first").await.unwrap();
+
+        let a1 = host.attach(&id, None).await.unwrap();
+        assert!(
+            a1.resync_required,
+            "initial attach without after_seq must mark resync_required = true"
+        );
+        let replay_1 = String::from_utf8_lossy(&a1.replay);
+        assert!(
+            replay_1.contains("first"),
+            "initial attach replay must contain first output, got {replay_1:?}"
+        );
+        let seq_1 = a1.seq;
+        assert!(seq_1 > 0, "expected positive seq after first command");
+
+        host.submit(&id, "!echo second").await.unwrap();
+
+        let a2 = host.attach(&id, Some(seq_1)).await.unwrap();
+        assert!(
+            !a2.resync_required,
+            "delta attach with valid after_seq must mark resync_required = false"
+        );
+        assert!(a2.seq > seq_1, "delta seq must advance past seq_1");
+        let replay_2 = String::from_utf8_lossy(&a2.replay);
+        assert!(
+            replay_2.contains("second"),
+            "delta replay must contain second output, got {replay_2:?}"
+        );
+        assert!(
+            !replay_2.contains("first"),
+            "delta replay must not re-send pre-cursor output, got {replay_2:?}"
+        );
+
+        host.close(&id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn list_and_events_expose_alt_screen_and_cwd_metadata() {
+        let (addr, host) = start(None).await;
+
+        assert_eq!(
+            session_event_json(&host, "s", SessionEvent::AltScreenChanged { active: true }),
+            json!({"type": "alt_screen", "active": true})
+        );
+        assert_eq!(
+            session_event_json(
+                &host,
+                "s",
+                SessionEvent::CwdChanged {
+                    cwd: "/tmp/vox-441".to_string(),
+                    git_branch: Some("feat-441".to_string()),
+                },
+            ),
+            json!({
+                "type": "cwd_changed",
+                "cwd": "/tmp/vox-441",
+                "git_branch": "feat-441",
+            })
+        );
+
+        let sid = host.open_synthetic(120, 32);
+        host.feed_raw_output(
+            &sid,
+            b"\x1b]7;file://localhost/tmp/vox-441\x07\x1b]633;P;GitBranch=feat-441\x07\x1b[?1049h",
+        )
+        .unwrap();
+
+        let list = result(call(addr, term_method::LIST, json!({}), None).await);
+        let item = list
+            .as_array()
+            .expect("list array")
+            .iter()
+            .find(|entry| entry["session_id"] == sid.as_str())
+            .expect("synthetic session listed");
+        assert_eq!(item["alt_screen"], json!(true));
+        assert_eq!(item["cwd"], json!("/tmp/vox-441"));
+        assert_eq!(item["git_branch"], json!("feat-441"));
+
+        let (rd, mut wr) = TcpStream::connect(addr).await.unwrap().into_split();
+        let mut rd = BufReader::new(rd);
+        wr.write_all(request(term_method::ATTACH, json!({"session_id": sid}), None).as_bytes())
+            .await
+            .unwrap();
+        let DispatchPayload::Event { value: snap } = next(&mut rd).await.expect("snapshot frame")
+        else {
+            panic!("expected snapshot event frame");
+        };
+        assert_eq!(snap["type"], json!("snapshot"));
+        assert_eq!(snap["resync_required"], json!(true));
+        assert_eq!(snap["alt_screen"], json!(true));
+        assert_eq!(snap["cwd"], json!("/tmp/vox-441"));
+        assert_eq!(snap["git_branch"], json!("feat-441"));
+
+        host.feed_raw_output(&sid, b"\x1b[?1049l\x1b]633;P;Cwd=/tmp/vox-next\x07")
+            .unwrap();
+
+        let mut saw_alt_false = false;
+        let mut saw_cwd_changed = false;
+        while !(saw_alt_false && saw_cwd_changed) {
+            let DispatchPayload::Event { value } = next(&mut rd).await.expect("live stream frame")
+            else {
+                panic!("expected event frame on attach stream");
+            };
+            if value["type"] == "alt_screen" && value["active"] == json!(false) {
+                saw_alt_false = true;
+            }
+            if value["type"] == "cwd_changed"
+                && value["cwd"] == json!("/tmp/vox-next")
+                && value["git_branch"] == json!("feat-441")
+            {
+                saw_cwd_changed = true;
+            }
+        }
+
+        host.close(&sid).unwrap();
+    }
+
+    #[tokio::test]
+    async fn term_signal_interrupts_running_job_over_daemon_host() {
+        use vox_terminal_core::{BlockStatus, SessionHost as _, TermSignal};
+
+        let (addr, _local_host) = start(Some("sig-token")).await;
+        let client = vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(
+            addr.to_string(),
+            "sig-token",
+        );
+        let host = vox_terminal_core::DaemonHost::new(client);
+
+        let id = host.open(OpenSpec::default()).await.unwrap();
+        let mut attached = host.attach(&id, None).await.unwrap();
+
+        // Run inside a `( ...; exec sleep 30 )` subshell so `fork` + `setpgid` + `tcsetpgrp`
+        // and `SIG_DFL` on `SIGINT` are already established before `__sleep_ready__` flushes.
+        host.input(&id, b"(printf '__sleep_%s__\\n' 'ready'; exec sleep 30)\n")
+            .await
+            .unwrap();
+
+        // Wait until stdout proves `printf` completed and `sleep 30` is running in foreground.
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local test foreground job readiness bound
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut seen = String::new();
+            loop {
+                let frame = attached.output.recv().await.expect("output stream open");
+                seen.push_str(&String::from_utf8_lossy(&frame.bytes));
+                if seen.contains("__sleep_ready__") {
+                    break;
+                }
+            }
+        })
+        .await
+        .expect("foreground sleep command started");
+
+        host.signal(&id, TermSignal::Interrupt).await.unwrap();
+
+        // Wait for the interrupted foreground job block to close before submitting next command.
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local test interrupt settle bound
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if matches!(
+                    attached.events.recv().await.expect("event stream open"),
+                    SessionEvent::BlockClosed { .. }
+                ) {
+                    break;
+                }
+            }
+        })
+        .await
+        .expect("sleep 30 interrupted promptly by TermSignal::Interrupt");
+
+        let after_bid = host.submit(&id, "!echo after_sigint").await.unwrap();
+        let snap = host.attach(&id, None).await.unwrap();
+        let after_block = snap
+            .blocks
+            .iter()
+            .find(|b| b.id == after_bid)
+            .expect("after_sigint block recorded");
+        assert_eq!(after_block.status, BlockStatus::Ok);
+        assert!(
+            after_block.plain_output().contains("after_sigint"),
+            "session shell must stay alive after SIGINT, got {:?}",
+            after_block.plain_output()
+        );
+
+        host.close(&id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn orch_daemon_terminal_bridge_exec_read_pin_and_three_stage_scrub_over_tcp() {
+        use vox_orchestrator::terminal_bridge::{OrchDaemonTerminalBridge, TerminalBridge as _};
+        use vox_terminal_core::SessionHost as _;
+
+        let (addr, host) = start(Some("bridge-tok")).await;
+        let client = vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(
+            addr.to_string(),
+            "bridge-tok",
+        );
+        let bridge = OrchDaemonTerminalBridge::new(client.clone());
+        let daemon_host = vox_terminal_core::DaemonHost::new(client);
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let sid = bridge
+            .open_session(Some(tmp.path().to_path_buf()))
+            .await
+            .expect("open_session");
+
+        let mut att = daemon_host.attach(&sid, None).await.expect("attach");
+        daemon_host
+            .set_security_level(
+                &sid,
+                vox_terminal_core::TermSecurityLevel::L3StructuredDefault,
+            )
+            .await
+            .expect("set_security_level");
+        daemon_host
+            .set_control_mode(&sid, vox_terminal_core::TermControlMode::CoPilot)
+            .await
+            .expect("set_control_mode");
+
+        let exec_res = bridge
+            .exec(TermExecRequest {
+                session_id: sid.clone(),
+                command: "printf 'ROW1\\nBearer sk-abcdefghijklmnopqrstuvwxyz123456\\nROW3\\n'"
+                    .to_string(),
+                agent_id: "bridge-agent".to_string(),
+                wait_ms: 5_000,
+                head_lines: 40,
+                tail_lines: 160,
+                max_bytes: 16_384,
+                stall_quiescence_ms: 1_500,
+                rationale: None,
+                hitl_approved: false,
+            })
+            .await
+            .expect("bridge.exec");
+        assert_eq!(exec_res.status, "completed");
+        assert_eq!(exec_res.exit_code, Some(0));
+        assert!(!exec_res.ephemeral_fallback);
+        assert!(
+            !exec_res
+                .output
+                .contains("sk-abcdefghijklmnopqrstuvwxyz123456"),
+            "exec output leaked bearer key: {:?}",
+            exec_res.output
+        );
+        assert!(exec_res.output.contains("[REDACTED_KEY]"));
+
+        bridge
+            .pin_block(&sid, exec_res.block_id, true)
+            .await
+            .expect("pin_block");
+
+        let mut saw_security = false;
+        let mut saw_control = false;
+        let mut saw_pin = false;
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local test event stream bound
+        tokio::time::timeout(Duration::from_secs(3), async {
+            while !(saw_security && saw_control && saw_pin) {
+                match att.events.recv().await.expect("event") {
+                    SessionEvent::SecurityLevelChanged { .. } => saw_security = true,
+                    SessionEvent::ControlModeChanged { .. } => saw_control = true,
+                    SessionEvent::BlockPinned { id, pinned: true } if id.0 == exec_res.block_id => {
+                        saw_pin = true;
+                    }
+                    _ => {}
+                }
+            }
+        })
+        .await
+        .expect("received security, control, and pin events over DaemonHost");
+
+        let sliced = bridge
+            .read(TermReadRequest {
+                session_id: sid.clone(),
+                block_id: Some(exec_res.block_id),
+                line_start: Some(3),
+                line_end: Some(3),
+                max_blocks: None,
+            })
+            .await
+            .expect("read slice");
+        assert_eq!(sliced.blocks.len(), 1);
+        assert!(sliced.blocks[0].pinned);
+        assert_eq!(sliced.blocks[0].output.trim(), "ROW3");
+
+        let listed = bridge.list_sessions().await.expect("list_sessions");
+        assert!(listed.iter().any(|s| s.session_id == sid));
+
         host.close(&sid).unwrap();
     }
 }

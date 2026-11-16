@@ -50,8 +50,6 @@ See `docs/src/architecture/2026-05-09-detector-rule-ssot-design.md`.
 graph {
     direction: right
     node vox_rule_pack: "vox-rule-pack"
-    node vox_cli: "vox-cli"
-    vox_cli -> vox_rule_pack
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_rule_pack
     node vox_code_audit: "vox-code-audit"
@@ -63,7 +61,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
 

@@ -205,6 +205,10 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             plan_only,
             persistent,
             no_hf_sync,
+            lora_exclude_lm_head,
+            use_rslora,
+            token_normalized_grad_accum,
+            sequence_packing,
         } => {
             if no_hf_sync {
                 #[allow(unsafe_code)]
@@ -294,6 +298,10 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     plan_only,
                     json: _global_json,
                     max_runtime_secs,
+                    lora_exclude_lm_head,
+                    use_rslora,
+                    token_normalized_grad_accum,
+                    sequence_packing,
                 },
             )
             .await
@@ -1058,28 +1066,17 @@ mod serve_preconditions_tests {
         assert!(assert_serve_preconditions(dir.path()).is_ok());
     }
 
-    /// Z1 fixed a ~100x throughput regression (proven floor ~22-25 tok/s on Metal);
-    /// this locks in that a run which measured below the real, shipped throughput
-    /// floor (`mens/config/eval-gates.yaml`) is refused at the serve boundary —
-    /// not just theoretically possible to refuse, but actually refused by the
-    /// policy this repo ships. Runs the real `eval-gate` pipeline (not a
-    /// hand-authored receipt) so a future change that silently makes the
-    /// throughput gate non-blocking again is caught here.
+    /// Locks in that a run failing an active blocking floor in the real shipped
+    /// policy (`mens/config/eval-gates.yaml`) is refused at the serve boundary —
+    /// runs the real `eval-gate` pipeline (not a hand-authored receipt) so a
+    /// future change that silently makes the `anti_stub` gate non-blocking is
+    /// caught here.
     ///
-    /// Every other blocking gate in that policy (pass_at_k, anti_stub,
-    /// review_recurrence) is given a fixture that satisfies it, so the only
-    /// gate deciding the outcome is throughput.
+    /// Every other blocking gate in that policy (`pass_at_k`) is given a fixture
+    /// that satisfies it, so the only gate deciding the outcome is `anti_stub`.
     #[test]
-    fn a_below_floor_throughput_run_is_refused_by_the_real_policy() {
+    fn a_below_floor_anti_stub_run_is_refused_by_the_real_policy() {
         let dir = tempfile::tempdir().unwrap();
-
-        // Far below the `cpu` floor (1.0 tok/s) in mens/config/eval-gates.yaml —
-        // no manifest is written, so device_profile defaults to "cpu".
-        std::fs::write(
-            dir.path().join("telemetry.jsonl"),
-            "{\"tokens_per_sec\": 0.2}\n",
-        )
-        .unwrap();
 
         // Satisfy pass_at_k (block: true, needs metrics + baseline file).
         std::fs::write(
@@ -1093,19 +1090,11 @@ mod serve_preconditions_tests {
         )
         .unwrap();
 
-        // Satisfy anti_stub (block: true).
+        // Fail anti_stub (block: true; min_pass_rate = 0.92 in eval-gates.yaml).
         std::fs::write(
             dir.path().join("eval_local_report.json"),
-            r#"{"anti_stub_task_success":0.95,"placeholder_event_rate":0.05,
+            r#"{"anti_stub_task_success":0.50,"placeholder_event_rate":0.05,
                 "trivial_placeholder_event_rate":0.05,"construct_richness_mean":0.25}"#,
-        )
-        .unwrap();
-
-        // Satisfy review_recurrence (block: true).
-        std::fs::write(
-            dir.path().join("review_metrics.json"),
-            r#"{"repeated_finding_rate":0.10,"post_training_regression_rate":0.05,
-                "recurrence_delta":0.02}"#,
         )
         .unwrap();
 
@@ -1125,7 +1114,7 @@ mod serve_preconditions_tests {
         .unwrap();
         assert_eq!(
             exit_code, 1,
-            "eval-gate must report failure for a below-floor throughput run"
+            "eval-gate must report failure for a below-floor anti_stub run"
         );
 
         let err = assert_serve_preconditions(dir.path())

@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import {
+  invokeCmd,
   listenAgentEvents,
+  listenEvent,
   voxTransport,
   type AgentEventFrame,
+  type UnlistenFn,
 } from '../../transport';
 import {
   emptyLiveState,
@@ -86,12 +87,12 @@ export function AxisDriveHost({
     if (!sessionReady) return;
     let cancelled = false;
     let unlisten: UnlistenFn | undefined;
-    void invoke<string>('get_drive_mode')
+    void invokeCmd<string>('get_drive_mode')
       .then(async mode => {
         if (cancelled || mode !== 'live') return;
-        await invoke('drive_set_ready');
+        await invokeCmd('drive_set_ready');
         if (cancelled) return;
-        const stop = await listen<DriveRequest>('drive://request', async event => {
+        const stop = await listenEvent<DriveRequest>('drive://request', async event => {
           // state/show must not wait on model IPC — a hung catalog made every
           // drive verb 504 while the window was already up.
           const needsCatalog = driveVerbNeedsCatalog(event.payload.verb);
@@ -123,7 +124,7 @@ export function AxisDriveHost({
           }
           let orchFresh = false;
           try {
-            orchFresh = await invoke<boolean>('orchestrator_daemon_ready');
+            orchFresh = await invokeCmd<boolean>('orchestrator_daemon_ready');
           } catch {
             orchFresh = false;
           }
@@ -132,7 +133,7 @@ export function AxisDriveHost({
             state: { ...res.state, orch_fresh: orchFresh },
           };
           stateRef.current = stamped.state;
-          await invoke('drive_respond', {
+          await invokeCmd('drive_respond', {
             args: {
               id: event.payload.id,
               status: stamped.status,
@@ -174,7 +175,7 @@ async function loadModels(): Promise<PickerModel[]> {
 
 async function loadStatuses(): Promise<ProviderStatus[]> {
   try {
-    const rows = await invoke<ProviderStatus[]>('inference_provider_status');
+    const rows = await invokeCmd<ProviderStatus[]>('inference_provider_status');
     return Array.isArray(rows) ? rows : [];
   } catch {
     return [];

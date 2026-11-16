@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "toestub-gate")]
 use vox_db::store::types::{ObservationReport, VictoryVerdict};
 
 /// The VictoryEvaluator aggregates signals from multiple verification tiers
@@ -45,6 +46,7 @@ impl VictoryEvaluator {
     }
 
     /// Aggregate all verification signals into a single verdict consistent with the persistent store.
+    #[cfg(feature = "toestub-gate")]
     pub fn evaluate(
         &self,
         task_id: &str,
@@ -101,5 +103,18 @@ impl VictoryEvaluator {
             report: validation.report.clone(),
             created_at_ms: chrono::Utc::now().timestamp_millis(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn victory_evaluator_new_retains_default_config() {
+        let eval = VictoryEvaluator::new(VictoryConfig::default());
+        assert!(eval.config.require_tests);
+        assert!(eval.config.strict_toestub);
+        assert!((eval.config.min_socrates_score - 0.8).abs() < f32::EPSILON);
     }
 }

@@ -317,7 +317,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             rec.gpu_vram_total_mb = Some(summary.vram_mb);
             rec.gpu_model_name = Some(summary.model_name.clone());
             rec.nvidia_driver_version = summary.driver_version.clone();
-            // TODO: cuda_driver_version from precision layer if needed.
+            // Note: cuda_driver_version is populated separately when precision-layer probing is active.
         }
         rec.probe_failures = summary.probe_failures.clone();
         // MESH-01: live free accelerator MB from the phase 318 reading. Omitted,
@@ -359,6 +359,10 @@ pub fn local_registry_path() -> PathBuf {
 
 #[cfg(feature = "mens")]
 pub mod mens;
+#[cfg(all(test, not(feature = "mens")))]
+#[allow(dead_code, missing_docs)]
+#[path = "mens/tensor/spoke_base_resolver.rs"]
+mod spoke_base_resolver;
 
 #[cfg(feature = "transport")]
 mod http_auth;

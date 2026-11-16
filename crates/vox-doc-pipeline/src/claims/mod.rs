@@ -35,7 +35,7 @@ pub use hasher::{
 };
 pub use ledger::{
     AnchorKind, AnchorRecord, AnchorSource, DocState, FreshnessLedger, LedgerMetrics,
-    PageLedgerRecord, generate_freshness_ledger,
+    PageLedgerRecord, generate_freshness_ledger, write_ledger_if_changed,
 };
 pub use prune::{PagePruneRecord, PruneDisposition, PruneReport, generate_prune_report};
 pub use resolver::GroundTruthRegistry;

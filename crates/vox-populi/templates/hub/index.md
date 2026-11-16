@@ -4,22 +4,27 @@ library_name: vox
 pipeline_tag: text-generation
 language:
 - en
+spaces:
+- {{ f.playground_space_id }}
 tags:
 - vox
 - vox-mens
-- qwen3
+- qwen3-5
+- qwen3-8
 - qlora
+- code
+- conversational
 - index
 ---
-# Vox MENS — Qwen3 adapter ladder
+# Vox MENS — AI coding models for the Vox language
 
-MENS is the Vox project's own adapter ladder: one LoRA adapter per size of a pinned Qwen3 base model, trained on Vox source and gated before it is published. The docs page explains [what MENS is]({{ f.docs }}#what-mens-is), how [hubs and spokes]({{ f.docs }}#hub-and-spoke) relate and how the [gates]({{ f.docs }}#gating) decide; this index is the one place that lists every size.
+MENS is the Vox project's family of open-weights coding models (`0.8B` through `27B`), fine-tuned to write, check, and explain [Vox](https://voxlang.org) — a full-stack programming language where database tables, backend endpoints, reactive web UI components, and AI agents live in one compiler-checked `.vox` file. Pick a size that fits your machine, run locally or through Python and Hugging Face Inference Providers, and try live checkpoints in the [Vox MENS Playground Space](https://huggingface.co/spaces/{{ f.playground_space_id }}). The docs explain [what MENS is]({{ f.docs }}#what-mens-is), how [models are organized]({{ f.docs }}#hub-and-spoke), and how automated [quality gates]({{ f.docs }}#gating) verify every release; this index lists every size side by side.
 {%- if let Some(e) = f.config_error %}
 
 <!-- hub card config error: {{ e }} -->
 {%- endif %}
 
-![Vox MENS overview](assets/overview.svg)
+![Vox MENS overview](assets/overview.jpg)
 
 ## Sizes and spokes
 
@@ -44,9 +49,11 @@ MENS is the Vox project's own adapter ladder: one LoRA adapter per size of a pin
 Each trained cell holds the size's gate, defined in the [state legend]({{ f.docs }}#state-legend), and `planned` marks a spoke with no adapter yet.
 {%- if let Some(src) = f.spoke_source %} {{ src }}{% endif %}
 
+{% if f.ready_merged_rows().is_empty() %}Sizes without a complete merged checkpoint currently distribute the trained add-on while their release review is unfinished, and merged models are held until collateral and gate checks pass.{% else %}Ready sizes distributing a complete merged checkpoint via `vox mens hub download` or the Files tab:{% for r in f.ready_merged_rows() %}{% if !loop.first %},{% endif %} {{ r.model_label }} (`vox mens hub download --repo {{ r.repo_id }} --output-dir {{ r.local_run_dir }}`){% endfor %}.{% endif %}
+
 ## Which model should I use
 
-Pick among the sizes whose gate is current by held-out adapter pass@1, and step down to the next smaller current size when the pick does not fit your memory. Each card's Why this size section says what work that size suits, and the training peak is measured while training rather than during serving.
+Pick the largest current model that fits comfortably in your memory (choosing a compact laptop checkpoint for quick edits or a larger studio checkpoint for multi-file changes), and step down to a smaller size whenever you want lower latency or lighter RAM use. Each card's Why this size, What it does, and Vox and Python sections explain what tasks it suits and how to wire it up, while the training peak reflects measured training memory rather than serving memory.
 {%- match f.pick %}
 {%- when Some with (p) %}
 
@@ -118,6 +125,7 @@ The table lists held-out pass@1 ([defined here]({{ f.docs }}#held-out-pass-rate)
 ## Links
 
 - Docs page: [MENS models]({{ f.docs }})
+- Playground: [Vox MENS Playground Space](https://huggingface.co/spaces/{{ f.playground_space_id }})
 - Training: [MENS training](https://voxlang.org/reference/mens-training/)
 - Training data: [training data contract](https://voxlang.org/reference/mens-training-data-contract/)
 - Serving: [MENS serving](https://voxlang.org/reference/mens-serving-ssot/)

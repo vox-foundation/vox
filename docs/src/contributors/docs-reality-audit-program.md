@@ -11,7 +11,7 @@ schema_type: "TechArticle"
 
 # Documentation Reality Audit Program
 
-> **Dormant (2026-10-08).** This program is not running. Phase 21 of the docs-freshness workstream (Measure & Prune) reactivates it with machine-generated findings; until then treat this page as a roadmap, not a description of current CI.
+> **Scheduled Weekly Refresh (Phase 343-07 / 343-08).** Machine-generated reality findings (`contracts/reports/docs-freshness/findings.v1.json`, `metrics.v1.json`) and docs freshness ledgers (`ledger.v1.json`) are refreshed weekly by `.github/workflows/docs-drift-refresh.yml` (`vox audit docs-reality --update-ledger` + `vox audit docs-reality`), opening a draft PR on `bot/docs-drift-refresh` only when content changes (`write_ledger_if_changed`, `write_json_if_changed`). Historical hand-authored backlog rows live under `contracts/reports/docs-reality-audit/`.
 
 This program tracks **aspiration vs fulfillment** and **documentation vs code** truth using a single machine-readable backlog. It complements (does not replace) `vox ci` guards such as `command-compliance`, `retired-symbol-check`, and `ssot-drift`.
 

@@ -101,10 +101,10 @@ pub fn embedding_config_from_env() -> Option<LlmConfig> {
 
 /// Default revision-pinned local embedding model identifier (`EMB-01`).
 pub const DEFAULT_LOCAL_EMBED_MODEL: &str = "Alibaba-NLP/gte-modernbert-base";
-/// Default pinned revision for the local embedder (`EMB-01`).
-pub const DEFAULT_LOCAL_EMBED_REVISION: &str = "refs/pr/1";
-/// Default vector dimension for the local embedder (`EMB-01`).
-pub const DEFAULT_LOCAL_EMBED_DIM: usize = 256;
+/// Default pinned revision for the local embedder (`EMB-01`, 2026-11-13 verified HF commit SHA).
+pub const DEFAULT_LOCAL_EMBED_REVISION: &str = "e7f32e3c00f91d699e8c43b53106206bcc72bb22";
+/// Default vector dimension for the local embedder (`EMB-01`, native gte-modernbert-base dim).
+pub const DEFAULT_LOCAL_EMBED_DIM: usize = 768;
 
 /// Build a zero-API-key `provider = "local"` embedding configuration (`EMB-01`).
 #[must_use]
@@ -154,5 +154,16 @@ mod tests {
         let local = default_local_embedding_config();
         assert_eq!(local.provider, "local");
         assert!(local.seed.is_none());
+    }
+
+    #[test]
+    fn default_local_embed_pin_is_40_hex_sha_with_native_768_dim() {
+        assert_eq!(DEFAULT_LOCAL_EMBED_REVISION.len(), 40);
+        assert!(
+            DEFAULT_LOCAL_EMBED_REVISION
+                .chars()
+                .all(|c| matches!(c, '0'..='9' | 'a'..='f'))
+        );
+        assert_eq!(DEFAULT_LOCAL_EMBED_DIM, 768);
     }
 }

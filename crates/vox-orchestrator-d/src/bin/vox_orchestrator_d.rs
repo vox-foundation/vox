@@ -9,10 +9,8 @@ use std::sync::Arc;
 use vox_orchestrator::{OrchestratorConfig, orch_daemon};
 use vox_orchestrator_d::boot_plan::{self, DependencyMode};
 use vox_orchestrator_d::daemon_steps::{self, DaemonBootCtx};
+use vox_orchestrator_d::{term_bridge_impl, term_dispatch};
 use vox_orchestrator_mcp::profiles::BootReport;
-
-#[path = "../term_dispatch.rs"]
-mod term_dispatch;
 
 /// Well-known file the daemon writes its auth token to at startup (T0.2), read
 /// back by [`vox_orchestrator::orch_daemon::OrchDaemonClient::new`] to
@@ -280,18 +278,52 @@ async fn async_main() -> anyhow::Result<()> {
     // Serve orch.tool_call / orch.resolve_approval / orch.list_pending_approvals
     // against this same ServerState so the GUI runs tools + resolves HITL
     // approvals through the one shared orchestrator (B5 path-c, B3 cross-process).
-    let mut extras: Vec<Arc<dyn orch_daemon::ExtraDispatch>> = vec![Arc::new(
-        vox_orchestrator_mcp::daemon_extra::McpExtraDispatch::new(state.clone()),
-    )];
+    let mut extras: Vec<Arc<dyn orch_daemon::ExtraDispatch>> = Vec::new();
     // `term.*` runs commands as the daemon user: loopback/stdio only, even with an
     // explicit token, until remote attach has its own design (terminal-session-host §7).
     if orch_daemon::is_stdio_transport(&bind_raw)
         || orch_daemon::is_loopback_bind_addr(&orch_daemon::normalize_tcp_bind_addr(&bind_raw))
     {
-        extras.push(Arc::new(term_dispatch::TermDispatch::new(Arc::new(
-            vox_terminal_core::LocalHost::default(),
-        ))));
+        let default_cwd = state
+            .workspace_root
+            .clone()
+            .or_else(|| Some(state.repository.root.clone()));
+        let journal_dir = default_cwd
+            .as_deref()
+            .map(|r| r.join(".vox/terminal-journal"))
+            .unwrap_or_else(|| PathBuf::from(".vox/terminal-journal"));
+        let local_host = match vox_terminal_core::LocalHost::open_default_journal_sink(
+            &journal_dir,
+            vox_secrets::scrub_resolved_secrets,
+        ) {
+            Ok(sink) => {
+                Arc::new(vox_terminal_core::LocalHost::default().with_transcript_sink(sink))
+            }
+            Err(e) => {
+                tracing::warn!(
+                    path = %journal_dir.display(),
+                    error = %e,
+                    "failed to open terminal journal sink; continuing in-memory"
+                );
+                Arc::new(vox_terminal_core::LocalHost::default())
+            }
+        };
+        let term_bridge = Arc::new(term_bridge_impl::LocalHostTerminalBridge::new(
+            Arc::clone(&local_host),
+            default_cwd,
+        ));
+        state.set_terminal_bridge(term_bridge.clone());
+        extras.push(Arc::new(
+            vox_orchestrator_mcp::daemon_extra::McpExtraDispatch::new(state.clone()),
+        ));
+        extras.push(Arc::new(term_dispatch::TermDispatch::with_bridge(
+            local_host,
+            term_bridge,
+        )));
     } else {
+        extras.push(Arc::new(
+            vox_orchestrator_mcp::daemon_extra::McpExtraDispatch::new(state.clone()),
+        ));
         tracing::warn!("term.* terminal sessions disabled on a non-loopback bind");
     }
     let extra: Option<Arc<dyn orch_daemon::ExtraDispatch>> =

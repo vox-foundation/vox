@@ -155,7 +155,7 @@ pub(super) fn schema_for_tool(name: &str) -> Option<Map<String, Value>> {
         // ── HITL approvals ──────────────────────────────────────────────────
         "vox_pending_approvals" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
         "vox_resolve_approval" => parse_obj(
-            r#"{"type":"object","properties":{"approval_id":{"type":"string","minLength":1},"outcome":{"type":"string","enum":["approve","approved","modify","modified","reject","rejected"]},"decision":{"type":"string","description":"Alias for `outcome`"}},"required":["approval_id"],"anyOf":[{"required":["outcome"]},{"required":["decision"]}],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"approval_id":{"type":"string","minLength":1},"outcome":{"type":"string","enum":["approve","approved","modify","modified","reject","rejected"]},"decision":{"type":"string","description":"Alias for `outcome`"},"modified_command":{"type":"string","description":"Edited command when outcome is `modify`/`modified`"},"steering_note":{"type":"string","description":"Optional operator steering note when rejecting"},"allow_pattern":{"type":"string","description":"Optional session Ask-tier command prefix pattern"}},"required":["approval_id"],"anyOf":[{"required":["outcome"]},{"required":["decision"]}],"additionalProperties":false}"#,
         ),
         // T0.3: persisted per-repo "always allow this tool" allowlist.
         "vox_add_approval_allowlist_entry" => parse_obj(
@@ -163,6 +163,41 @@ pub(super) fn schema_for_tool(name: &str) -> Option<Map<String, Value>> {
         ),
         "vox_list_approval_allowlist" => parse_obj(
             r#"{"type":"object","properties":{"repo_id":{"type":"string","description":"Repository id to list allowlisted tools for; defaults to the current server's repository"}},"additionalProperties":false}"#,
+        ),
+
+        // ── GSD (Get Shit Done) workflow suite ───────────────────────────────
+        "vox_gsd_status" => parse_obj(
+            r#"{"type":"object","properties":{"milestone_id":{"type":"string"}},"additionalProperties":false}"#,
+        ),
+        "vox_gsd_progress" => parse_obj(
+            r#"{"type":"object","properties":{"milestone_id":{"type":"string"}},"additionalProperties":false}"#,
+        ),
+        "vox_gsd_new_milestone" => parse_obj(
+            r#"{"type":"object","properties":{"version":{"type":"string","minLength":1},"title":{"type":"string","minLength":1},"start_phase":{"type":"integer","minimum":1},"phases":{"type":"integer","minimum":1}},"required":["version","title"],"additionalProperties":false}"#,
+        ),
+        "vox_gsd_discuss_phase" => parse_obj(
+            r#"{"type":"object","properties":{"phase":{"type":"integer","minimum":1},"summary":{"type":"string","minLength":1},"milestone_id":{"type":"string"}},"required":["phase","summary"],"additionalProperties":false}"#,
+        ),
+        "vox_gsd_plan_phase" => parse_obj(
+            r#"{"type":"object","properties":{"phase":{"type":"integer","minimum":1},"mvp":{"type":"boolean"},"milestone_id":{"type":"string"}},"required":["phase"],"additionalProperties":false}"#,
+        ),
+        "vox_gsd_execute_phase" => parse_obj(
+            r#"{"type":"object","properties":{"phase":{"type":"integer","minimum":1},"milestone_id":{"type":"string"}},"required":["phase"],"additionalProperties":false}"#,
+        ),
+        "vox_gsd_verify_work" => parse_obj(
+            r#"{"type":"object","properties":{"phase":{"type":"integer","minimum":1},"passed":{"type":"boolean"},"evidence":{"type":"string"},"milestone_id":{"type":"string"}},"required":["phase"],"additionalProperties":false}"#,
+        ),
+        "vox_gsd_complete_milestone" => parse_obj(
+            r#"{"type":"object","properties":{"version":{"type":"string","minLength":1}},"required":["version"],"additionalProperties":false}"#,
+        ),
+        "vox_gsd_list_documents" => parse_obj(
+            r#"{"type":"object","properties":{"milestone_id":{"type":"string"},"phase":{"type":"integer","minimum":1}},"additionalProperties":false}"#,
+        ),
+        "vox_gsd_store_document" => parse_obj(
+            r#"{"type":"object","properties":{"rel_path":{"type":"string","minLength":1},"content":{"type":"string"},"kind":{"type":"string"},"phase":{"type":"integer","minimum":1},"milestone_id":{"type":"string"}},"required":["rel_path","content"],"additionalProperties":false}"#,
+        ),
+        "vox_gsd_get_document" => parse_obj(
+            r#"{"type":"object","properties":{"doc_id_or_path":{"type":"string","minLength":1}},"required":["doc_id_or_path"],"additionalProperties":false}"#,
         ),
 
         _ => return None,

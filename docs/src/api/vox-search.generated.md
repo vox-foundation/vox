@@ -68,6 +68,7 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `arxiv` | — |
 | `bundle` | — |
 | `capture` | — |
+| `chunk_spill` | — |
 | `context` | — |
 | `corroboration` | — |
 | `crag` | — |
@@ -186,6 +187,20 @@ graph {
 | `fn` | `bundle::diagnostics_value` | `pub fn diagnostics_value(diag: &SearchDiagnostics) -> Value` | [`crates/vox-search/src/bundle.rs#L278-L280`](../../../crates/vox-search/src/bundle.rs#L278-L280) | — |
 | `struct` | `capture::CapturedWebHit` | `pub struct CapturedWebHit` | [`crates/vox-search/src/capture.rs#L9-L18`](../../../crates/vox-search/src/capture.rs#L9-L18) | One web hit handed to a capture sink. |
 | `trait` | `capture::WebFindingCapture` | `pub trait WebFindingCapture: Send + Sync` | [`crates/vox-search/src/capture.rs#L21-L23`](../../../crates/vox-search/src/capture.rs#L21-L23) | Fire-and-forget sink; the implementor owns spawning and error logging. |
+| `struct` | `chunk_spill::SpillPointer` | `pub struct SpillPointer` | [`crates/vox-search/src/chunk_spill.rs#L24-L30`](../../../crates/vox-search/src/chunk_spill.rs#L24-L30) | Metadata pointer returned when a payload exceeds [`SPILL_THRESHOLD_BYTES`] and is spilled. |
+| `struct` | `chunk_spill::ChunkSpillStore` | `pub struct ChunkSpillStore` | [`crates/vox-search/src/chunk_spill.rs#L34-L38`](../../../crates/vox-search/src/chunk_spill.rs#L34-L38) | Bounded, content-addressed disk store for spilled research payload chunks. |
+| `fn` | `chunk_spill::default_spill_root` | `pub fn default_spill_root() -> PathBuf` | [`crates/vox-search/src/chunk_spill.rs#L52-L54`](../../../crates/vox-search/src/chunk_spill.rs#L52-L54) | Default spill root under the OS temp directory (never hardcodes POSIX root paths). |
+| `fn` | `chunk_spill::is_valid_digest_hex` | `pub fn is_valid_digest_hex(digest_hex: &str) -> bool` | [`crates/vox-search/src/chunk_spill.rs#L58-L63`](../../../crates/vox-search/src/chunk_spill.rs#L58-L63) | Strictly validate that `digest_hex` is 64 lowercase ASCII hex digits (path-traversal guard). |
+| `fn` | `chunk_spill::new` | `pub fn new(root: impl Into<PathBuf>, max_bytes: u64, threshold_bytes: usize) -> Self` | [`crates/vox-search/src/chunk_spill.rs#L80-L86`](../../../crates/vox-search/src/chunk_spill.rs#L80-L86) | — |
+| `fn` | `chunk_spill::with_root` | `pub fn with_root(root: impl Into<PathBuf>) -> Self` | [`crates/vox-search/src/chunk_spill.rs#L89-L91`](../../../crates/vox-search/src/chunk_spill.rs#L89-L91) | — |
+| `fn` | `chunk_spill::root` | `pub fn root(&self) -> &Path` | [`crates/vox-search/src/chunk_spill.rs#L94-L96`](../../../crates/vox-search/src/chunk_spill.rs#L94-L96) | — |
+| `fn` | `chunk_spill::spill_with_digest` | `pub fn spill_with_digest(` | [`crates/vox-search/src/chunk_spill.rs#L106`](../../../crates/vox-search/src/chunk_spill.rs#L106) | Spill `bytes` only if `bytes.len() > self.threshold_bytes`. |
+| `fn` | `chunk_spill::force_spill_with_digest` | `pub fn force_spill_with_digest(&self, digest_hex: &str, bytes: &[u8]) -> Result<SpillPointer>` | [`crates/vox-search/src/chunk_spill.rs#L121-L162`](../../../crates/vox-search/src/chunk_spill.rs#L121-L162) | Spill `bytes` unconditionally using a pre-computed 64-hex `digest_hex`. |
+| `fn` | `chunk_spill::spill_with_hasher` | `pub fn spill_with_hasher(` | [`crates/vox-search/src/chunk_spill.rs#L165`](../../../crates/vox-search/src/chunk_spill.rs#L165) | Spill `bytes` when above threshold using caller-supplied digest and hex functions. |
+| `fn` | `chunk_spill::read_chunk` | `pub fn read_chunk(&self, digest_hex: &str) -> Result<Option<Vec<u8>>>` | [`crates/vox-search/src/chunk_spill.rs#L179-L198`](../../../crates/vox-search/src/chunk_spill.rs#L179-L198) | Read raw chunk bytes for `digest_hex`, returning `Ok(None)` when absent. |
+| `fn` | `chunk_spill::read_chunk_utf8` | `pub fn read_chunk_utf8(&self, digest_hex: &str) -> Result<Option<String>>` | [`crates/vox-search/src/chunk_spill.rs#L201-L207`](../../../crates/vox-search/src/chunk_spill.rs#L201-L207) | Read a UTF-8 chunk via `vox_bounded_fs::read_utf8_path_capped`, returning `Ok(None)` when absent. |
+| `fn` | `chunk_spill::total_bytes` | `pub fn total_bytes(&self) -> Result<u64>` | [`crates/vox-search/src/chunk_spill.rs#L209-L211`](../../../crates/vox-search/src/chunk_spill.rs#L209-L211) | — |
+| `fn` | `chunk_spill::chunk_count` | `pub fn chunk_count(&self) -> Result<usize>` | [`crates/vox-search/src/chunk_spill.rs#L213-L215`](../../../crates/vox-search/src/chunk_spill.rs#L213-L215) | — |
 | `struct` | `context::SearchRuntimeContext` | `pub struct SearchRuntimeContext` | [`crates/vox-search/src/context.rs#L12-L25`](../../../crates/vox-search/src/context.rs#L12-L25) | Cross-platform retrieval runtime inputs (orchestrator, MCP, CLI). |
 | `fn` | `context::new` | `pub fn new(` | [`crates/vox-search/src/context.rs#L42`](../../../crates/vox-search/src/context.rs#L42) | New context; callers should canonicalize `repo_root` when possible. |
 | `fn` | `context::with_trace_id` | `pub fn with_trace_id(mut self, trace_id: Option<String>) -> Self` | [`crates/vox-search/src/context.rs#L60-L63`](../../../crates/vox-search/src/context.rs#L60-L63) | Attach a trace id for [`crate::execution::execute_search_plan`] telemetry and sidecar headers. |
@@ -202,18 +217,4 @@ graph {
 | `fn` | `crawler::extract_candidate_links` | `pub fn extract_candidate_links(html: &str, base_url: &str, allow_origin: &str) -> Vec<String>` | [`crates/vox-search/src/crawler.rs#L18-L50`](../../../crates/vox-search/src/crawler.rs#L18-L50) | — |
 | `fn` | `crawler::score_and_prioritize_links` | `pub fn score_and_prioritize_links(links: &[String]) -> Vec<(String, u32)>` | [`crates/vox-search/src/crawler.rs#L52-L79`](../../../crates/vox-search/src/crawler.rs#L52-L79) | — |
 | `fn` | `crawler::crawl_domain_depth` | `pub async fn crawl_domain_depth(` | [`crates/vox-search/src/crawler.rs#L81`](../../../crates/vox-search/src/crawler.rs#L81) | — |
-| `struct` | `duckduckgo::DdgResult` | `pub struct DdgResult` | [`crates/vox-search/src/duckduckgo.rs#L4-L9`](../../../crates/vox-search/src/duckduckgo.rs#L4-L9) | — |
-| `enum` | `duckduckgo::DdgTopicItem` | `pub enum DdgTopicItem` | [`crates/vox-search/src/duckduckgo.rs#L13-L21`](../../../crates/vox-search/src/duckduckgo.rs#L13-L21) | — |
-| `struct` | `duckduckgo::DdgResponse` | `pub struct DdgResponse` | [`crates/vox-search/src/duckduckgo.rs#L24-L27`](../../../crates/vox-search/src/duckduckgo.rs#L24-L27) | — |
-| `struct` | `duckduckgo::DuckDuckGoClient` | `pub struct DuckDuckGoClient` | [`crates/vox-search/src/duckduckgo.rs#L29`](../../../crates/vox-search/src/duckduckgo.rs#L29) | — |
-| `fn` | `duckduckgo::search` | `pub async fn search(` | [`crates/vox-search/src/duckduckgo.rs#L36`](../../../crates/vox-search/src/duckduckgo.rs#L36) | Pruned DuckDuckGo search stub.  DuckDuckGo fallback has been retired in favor of parallel multi-source keyless retrieval (arXiv, OpenAlex, Wikipedia). |
-| `fn` | `embedding_env::embedding_config_from_env` | `pub fn embedding_config_from_env() -> Option<LlmConfig>` | [`crates/vox-search/src/embedding_env.rs#L18-L100`](../../../crates/vox-search/src/embedding_env.rs#L18-L100) | Build embedding configuration from well-known providers. |
-| `fn` | `embedding_env::default_local_embedding_config` | `pub fn default_local_embedding_config() -> LlmConfig` | [`crates/vox-search/src/embedding_env.rs#L111-L135`](../../../crates/vox-search/src/embedding_env.rs#L111-L135) | Build a zero-API-key `provider = "local"` embedding configuration (`EMB-01`). |
-| `fn` | `embedding_env::embedding_config_or_local` | `pub fn embedding_config_or_local() -> LlmConfig` | [`crates/vox-search/src/embedding_env.rs#L140-L142`](../../../crates/vox-search/src/embedding_env.rs#L140-L142) | Prefer explicit environment/Clavis API provider when configured, falling back to the zero-key `provider = "local"` configuration (`EMB-01`, `EMB-05`). |
-| `struct` | `embeddings::EmbeddingService` | `pub struct EmbeddingService` | [`crates/vox-search/src/embeddings.rs#L10-L13`](../../../crates/vox-search/src/embeddings.rs#L10-L13) | Generate query vectors and optionally persist rows into `embeddings`. |
-| `fn` | `embeddings::new` | `pub fn new(db: Arc<VoxDb>, config: LlmConfig) -> Self` | [`crates/vox-search/src/embeddings.rs#L17-L19`](../../../crates/vox-search/src/embeddings.rs#L17-L19) | New service bound to a [`vox_db::VoxDb`] handle and provider configuration. |
-| `fn` | `embeddings::embed_and_store` | `pub async fn embed_and_store(` | [`crates/vox-search/src/embeddings.rs#L22`](../../../crates/vox-search/src/embeddings.rs#L22) | Generate an embedding for text and store it in the database. |
-| `fn` | `embeddings::embed_query` | `pub async fn embed_query(&self, query: &str) -> Result<Vec<f32>, String>` | [`crates/vox-search/src/embeddings.rs#L51-L59`](../../../crates/vox-search/src/embeddings.rs#L51-L59) | Generate a vector for a search query. |
-| `fn` | `embeddings::llm_config` | `pub fn llm_config(&self) -> &LlmConfig` | [`crates/vox-search/src/embeddings.rs#L63-L65`](../../../crates/vox-search/src/embeddings.rs#L63-L65) | Underlying model configuration (for telemetry). |
-| `fn` | `embeddings::db` | `pub fn db(&self) -> &Arc<VoxDb>` | [`crates/vox-search/src/embeddings.rs#L69-L71`](../../../crates/vox-search/src/embeddings.rs#L69-L71) | Shared database handle. |
 

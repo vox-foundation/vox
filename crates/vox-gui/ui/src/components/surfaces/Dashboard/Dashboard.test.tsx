@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
@@ -7,7 +7,9 @@ import { Dashboard } from './Dashboard';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 import type { DashboardData, KPI } from '../../../types/dashboard';
 import { addWidgetToLayout, defaultDashboardLayout } from '../../../lib/dashboardLayout';
+import { __resetBackendAvailabilityForTests } from '../../../lib/backendGuard';
 import { SHELL_PREFERENCE_KEYS } from '../../../lib/shellPersistence';
+import { voxTransport } from '../../../transport';
 import {
   metricSeriesFromSpark,
   metricSeriesStorageKey,
@@ -23,7 +25,11 @@ vi.mock('../../../hooks/useAgentApprovals', () => ({
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   LineChart: ({ children }: { children: React.ReactNode }) => <svg>{children}</svg>,
-  BarChart: ({ children }: { children: React.ReactNode }) => <svg>{children}</svg>,
+  BarChart: ({ children, onClick }: { children: React.ReactNode; onClick?: (s: unknown) => void }) => (
+    <svg data-testid="dash-bar-chart" onClick={() => onClick?.({ activeTooltipIndex: 0, activeLabel: 0 })}>
+      {children}
+    </svg>
+  ),
   AreaChart: ({ children }: { children: React.ReactNode }) => <svg>{children}</svg>,
   Line: () => null,
   Bar: () => null,
@@ -32,6 +38,8 @@ vi.mock('recharts', () => ({
   YAxis: () => null,
   CartesianGrid: () => null,
   Tooltip: () => null,
+  Brush: () => <g data-testid="dash-chart-brush" />,
+  ReferenceLine: ({ y }: { y?: number }) => <g data-testid="dash-reference-line" data-y={String(y)} />,
 }));
 
 const mockKPI: KPI = { label: 'Test', value: 0, cap: 1, spark: [] };
@@ -65,6 +73,14 @@ function renderDashboard(over: Partial<DashboardData> = {}) {
 describe('Dashboard', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
+    __resetBackendAvailabilityForTests();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
+    __resetBackendAvailabilityForTests();
   });
 
   it('leaves the page h1 to the shell: it has headings of its own but no h1', async () => {
@@ -407,5 +423,91 @@ describe('Dashboard', () => {
 
     const expandBtn = screen.getByText('Full-Screen Map');
     expect(expandBtn).toBeDefined();
+  });
+
+  it('hydrates dashboard layout from backend on mount and persists resets to setGuiPreference', async () => {
+    const user = userEvent.setup();
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    __resetBackendAvailabilityForTests();
+
+    const remoteLayout = addWidgetToLayout(defaultDashboardLayout(), 'budget_burn');
+    vi.spyOn(voxTransport, 'getGuiPreference').mockResolvedValue(
+      JSON.stringify(remoteLayout),
+    );
+    const setPrefSpy = vi
+      .spyOn(voxTransport, 'setGuiPreference')
+      .mockResolvedValue(undefined);
+
+    const dashData: DashboardData = {
+      ...emptyDash,
+      kpis: {
+        ...emptyDash.kpis,
+        budgetBurn: { label: 'Budget', value: 12.5, cap: 50, spark: [2, 5, 8, 10, 11, 12.5] },
+      },
+    };
+
+    render(
+      <LanguageProvider>
+        <Dashboard
+          data={dashData}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: /budget burn chart/i })).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('dash-reference-line')).toHaveAttribute('data-y', '50');
+    expect(screen.getByTestId('dash-chart-brush')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /customize dashboard/i }));
+    await user.click(screen.getByRole('button', { name: /reset to default/i }));
+
+    expect(setPrefSpy).toHaveBeenCalledWith(
+      SHELL_PREFERENCE_KEYS.dashboardLayout,
+      JSON.stringify(defaultDashboardLayout()),
+    );
+  });
+
+  it('filters stream on queue_depth chart point selection', async () => {
+    const user = userEvent.setup();
+    const setFilterKind = vi.fn();
+    const layout = addWidgetToLayout(defaultDashboardLayout(), 'queue_depth');
+    window.localStorage.setItem(
+      SHELL_PREFERENCE_KEYS.dashboardLayout,
+      JSON.stringify(layout),
+    );
+
+    render(
+      <LanguageProvider>
+        <Dashboard
+          data={{
+            ...emptyDash,
+            kpis: {
+              ...emptyDash.kpis,
+              queueDepth: { value: 4, spark: [3, 4] },
+            },
+          }}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={setFilterKind}
+        />
+      </LanguageProvider>,
+    );
+
+    await user.click(screen.getByTestId('dash-bar-chart'));
+    expect(setFilterKind).toHaveBeenCalledWith('in-progress');
+    expect(screen.getByTestId('chart-selected-pill')).toHaveTextContent('Selected: 3');
   });
 });

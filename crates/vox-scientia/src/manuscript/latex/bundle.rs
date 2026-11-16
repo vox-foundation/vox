@@ -14,8 +14,7 @@
 //! so they line up with the LaTeX `\includegraphics{...}` references.
 
 use crate::manuscript::scaffold::ScaffoldInput;
-use flate2::Compression;
-use flate2::write::GzEncoder;
+use flate2::{Compression, GzBuilder};
 use thiserror::Error;
 
 use super::render::render_latex;
@@ -51,6 +50,37 @@ pub enum BundleError {
     Tar(#[from] std::io::Error),
     #[error("figure {path:?} declared in scaffold but no blob supplied")]
     MissingFigureBlob { path: String },
+    #[error("invalid figure path {path:?}: absolute paths and `..` traversal are forbidden")]
+    InvalidFigurePath { path: String },
+}
+
+fn validate_figure_path(path: &str) -> Result<(), BundleError> {
+    if path.is_empty()
+        || path.starts_with('/')
+        || path.starts_with('\\')
+        || path.contains('\\')
+        || path.contains('\0')
+        || path
+            .split('/')
+            .any(|seg| seg.is_empty() || seg == "." || seg == "..")
+    {
+        return Err(BundleError::InvalidFigurePath {
+            path: path.to_string(),
+        });
+    }
+    Ok(())
+}
+
+fn deterministic_tar_header(path: &str, size: u64) -> Result<tar::Header, BundleError> {
+    let mut header = tar::Header::new_gnu();
+    header.set_path(path)?;
+    header.set_size(size);
+    header.set_mode(0o644);
+    header.set_mtime(0);
+    header.set_uid(0);
+    header.set_gid(0);
+    header.set_cksum();
+    Ok(header)
 }
 
 /// Build an arXiv-shaped `.tar.gz` from a [`ScaffoldInput`] + figure blobs.
@@ -82,37 +112,38 @@ pub fn render_arxiv_bundle_with_handoff(
     figure_blobs: &[(String, Vec<u8>)],
     meta: Option<&ArxivHandoffMeta>,
 ) -> Result<Vec<u8>, BundleError> {
-    // Validate every declared figure has a blob.
+    // Validate figure path safety and every declared figure has a blob.
     for f in &input.figures {
+        validate_figure_path(&f.path)?;
         if !figure_blobs.iter().any(|(path, _)| path == &f.path) {
             return Err(BundleError::MissingFigureBlob {
                 path: f.path.clone(),
             });
         }
     }
+    for (path, _) in figure_blobs {
+        validate_figure_path(path)?;
+    }
+
+    let mut sorted_blobs: Vec<&(String, Vec<u8>)> = figure_blobs.iter().collect();
+    sorted_blobs.sort_by(|a, b| a.0.cmp(&b.0));
 
     let tex = render_latex(input);
     let mut buf: Vec<u8> = Vec::with_capacity(tex.len() + 1024);
     {
-        let gz = GzEncoder::new(&mut buf, Compression::default());
+        let gz = GzBuilder::new()
+            .mtime(0)
+            .write(&mut buf, Compression::default());
         let mut tar = tar::Builder::new(gz);
 
         // Write main.tex.
-        let mut header = tar::Header::new_gnu();
         let tex_bytes = tex.as_bytes();
-        header.set_path("main.tex")?;
-        header.set_size(tex_bytes.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
+        let header = deterministic_tar_header("main.tex", tex_bytes.len() as u64)?;
         tar.append(&header, tex_bytes)?;
 
-        // Write each figure blob at its declared path.
-        for (path, blob) in figure_blobs {
-            let mut header = tar::Header::new_gnu();
-            header.set_path(path)?;
-            header.set_size(blob.len() as u64);
-            header.set_mode(0o644);
-            header.set_cksum();
+        // Write each figure blob in deterministic sorted path order.
+        for (path, blob) in sorted_blobs {
+            let header = deterministic_tar_header(path, blob.len() as u64)?;
             tar.append(&header, blob.as_slice())?;
         }
 
@@ -120,20 +151,14 @@ pub fn render_arxiv_bundle_with_handoff(
         if let Some(m) = meta {
             let sidecar = build_metadata_sidecar(input, m);
             let sidecar_bytes = sidecar.as_bytes();
-            let mut header = tar::Header::new_gnu();
-            header.set_path("arxiv-metadata.json")?;
-            header.set_size(sidecar_bytes.len() as u64);
-            header.set_mode(0o644);
-            header.set_cksum();
+            let header =
+                deterministic_tar_header("arxiv-metadata.json", sidecar_bytes.len() as u64)?;
             tar.append(&header, sidecar_bytes)?;
 
             let checklist = build_upload_checklist(m);
             let checklist_bytes = checklist.as_bytes();
-            let mut header = tar::Header::new_gnu();
-            header.set_path("UPLOAD-CHECKLIST.md")?;
-            header.set_size(checklist_bytes.len() as u64);
-            header.set_mode(0o644);
-            header.set_cksum();
+            let header =
+                deterministic_tar_header("UPLOAD-CHECKLIST.md", checklist_bytes.len() as u64)?;
             tar.append(&header, checklist_bytes)?;
         }
 
@@ -484,5 +509,59 @@ mod tests {
             bundle_no_meta, bundle_legacy,
             "render_arxiv_bundle_with_handoff(None) must be byte-identical to render_arxiv_bundle"
         );
+    }
+
+    #[test]
+    fn bundle_is_deterministic_across_figure_ordering_and_rejects_traversal() {
+        let mut input = minimal_input();
+        input.figures = vec![
+            crate::manuscript::scaffold::FigureEntry {
+                path: "figures/b.png".into(),
+                sha3_256_hex: "bbbb".into(),
+                source_script: "scripts/b.vox".into(),
+                caption_hint: None,
+            },
+            crate::manuscript::scaffold::FigureEntry {
+                path: "figures/a.png".into(),
+                sha3_256_hex: "aaaa".into(),
+                source_script: "scripts/a.vox".into(),
+                caption_hint: None,
+            },
+        ];
+        let b1 = render_arxiv_bundle(
+            &input,
+            &[
+                ("figures/b.png".into(), vec![2, 3]),
+                ("figures/a.png".into(), vec![1]),
+            ],
+        )
+        .unwrap();
+        let b2 = render_arxiv_bundle(
+            &input,
+            &[
+                ("figures/a.png".into(), vec![1]),
+                ("figures/b.png".into(), vec![2, 3]),
+            ],
+        )
+        .unwrap();
+        assert_eq!(b1, b2, "sorted figures + mtime=0 must be deterministic");
+        assert_eq!(&b1[4..8], &[0, 0, 0, 0], "gzip mtime header must be 0");
+
+        let err = render_arxiv_bundle(&input, &[("../escape.png".into(), vec![1])]).unwrap_err();
+        assert!(matches!(
+            err,
+            BundleError::InvalidFigurePath { .. } | BundleError::MissingFigureBlob { .. }
+        ));
+
+        let mut bad_input = minimal_input();
+        bad_input.figures = vec![crate::manuscript::scaffold::FigureEntry {
+            path: "/abs/fig.png".into(),
+            sha3_256_hex: "cccc".into(),
+            source_script: "scripts/c.vox".into(),
+            caption_hint: None,
+        }];
+        let err_abs =
+            render_arxiv_bundle(&bad_input, &[("/abs/fig.png".into(), vec![1])]).unwrap_err();
+        assert!(matches!(err_abs, BundleError::InvalidFigurePath { .. }));
     }
 }

@@ -60,8 +60,8 @@ fn sync_python(project: &Path, vox: &Path) {
         output_text(&sync)
     );
 
-    let pyproject =
-        fs::read_to_string(project.join(".vox/python/pyproject.toml")).expect("pyproject.toml");
+    let pyproject = fs::read_to_string(project.join(vox_config::paths::REPO_PYTHON_PYPROJECT_FILE))
+        .expect("pyproject.toml");
     assert!(
         pyproject.contains("polars==2.1.0"),
         "temp project must pin polars==2.1.0, got:\n{pyproject}"
@@ -75,7 +75,7 @@ fn sync_python(project: &Path, vox: &Path) {
         "temp project must pin pyarrow==26.0.1, got:\n{pyproject}"
     );
 
-    let venv_python = project.join(".vox/python/.venv/bin/python");
+    let venv_python = project.join(vox_config::paths::REPO_PYTHON_VENV_BIN);
     assert!(
         venv_python.is_file(),
         "uv venv python missing at {}",

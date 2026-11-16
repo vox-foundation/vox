@@ -1,4 +1,5 @@
 # Mix configuration for rocks domain
+include_lanes: [vox_docs_qa, vox_codegen]
 output: mens/data/train_mixed_rocks.jsonl
 sources:
   - path: target/dogfood/rocks_pairs.validated.jsonl

@@ -13,6 +13,8 @@ export type LoquelaModeId = 'plan' | 'act' | 'verify';
 
 /** App-level slash commands routed through `onSlashCommand` in App.tsx. */
 export const APP_SLASH_COMMANDS = [
+  '/gsd',
+  '/gsd-new-milestone',
   '/plan',
   '/memory',
   '/audit',
@@ -41,9 +43,15 @@ export function resolveInternalModeSlash(cmd: string): LoquelaModeId | null {
   return (mode as LoquelaModeId | undefined) ?? null;
 }
 
+/** Returns true for `/gsd` and any `/gsd-*` workflow slash command. */
+export function isGsdSlashCommand(cmd: string): boolean {
+  const base = slashCommandBase(cmd);
+  return /^\/gsd(?:-[a-z0-9-]+)?$/.test(base);
+}
+
 export function isAppSlashCommand(cmd: string): boolean {
   const base = slashCommandBase(cmd);
-  return (APP_SLASH_COMMANDS as readonly string[]).includes(base);
+  return (APP_SLASH_COMMANDS as readonly string[]).includes(base) || isGsdSlashCommand(base);
 }
 
 export interface ParsedResearchSlashCommand {

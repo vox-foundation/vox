@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
+import { Icon, PlanStepGlyph } from '../../ui/Icons';
 import { ContextWindowMeter } from './ContextWindowMeter';
 import { useLabel } from '../../../hooks/useLanguage';
 import { useMetricSeries, type MetricPoint } from '../../../hooks/useMetricSeries';
@@ -511,9 +512,9 @@ export function ChatExecutionRail({
     : '';
 
   return (
-    <aside aria-label="Execution rail" className="flex h-full w-full min-w-0 flex-col">
-      <Glass className="flex h-full flex-col gap-2 overflow-y-auto custom-scrollbar p-2.5 pb-4">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5">
+    <aside aria-label="Execution rail" className="@container flex h-full w-full min-w-0 flex-col">
+      <Glass className="flex h-full flex-col gap-2 overflow-y-auto custom-scrollbar p-2 pb-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-1">
           <div className="flex items-center gap-1.5">
             <h2 className="text-[11px] uppercase tracking-[0.08em] text-brass">{useLabel('chat-execution')}</h2>
             {displayTasks.length > 0 && (
@@ -545,10 +546,10 @@ export function ChatExecutionRail({
               title={`Task list version v${ledgerRev} (${pendingDeltasCount} recent edits synced with assistant)`}
               className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-brass"
             >
-              Synced · v{ledgerRev}
+              <span className="@max-[280px]:hidden">Synced · </span>v{ledgerRev}
             </span>
             <span className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
-              {displayTasks.length === 0 ? 'IDLE · READY' : `${displayTasks.length} ACTIVE`}
+              {displayTasks.length === 0 ? 'IDLE' : `${displayTasks.length} ACTIVE`}
             </span>
           </div>
         </div>
@@ -557,7 +558,7 @@ export function ChatExecutionRail({
           role="tablist"
           aria-label="Session inspector sections"
           data-testid="execution-rail-segmented-tabs"
-          className="flex shrink-0 items-center justify-between gap-0.5 overflow-x-auto no-scrollbar border-b border-border-subtle bg-overlay-solid/90 px-0.5 pt-0.5 font-mono text-[11px]"
+          className="grid shrink-0 grid-cols-4 gap-0.5 overflow-hidden border-b border-border-subtle bg-overlay-solid/90 px-0.5 pt-0.5 font-mono text-[11px]"
         >
           {(
             [
@@ -576,7 +577,7 @@ export function ChatExecutionRail({
               data-testid={`execution-rail-tab-${tab.id}`}
               aria-selected={activeInspectorTab === tab.id}
               onClick={() => setActiveInspectorTab(tab.id)}
-              className={`min-w-0 flex-1 whitespace-nowrap rounded-t px-1 py-1 text-center tracking-tight transition ${
+              className={`min-w-0 truncate rounded-t px-1 py-1 text-center tracking-tight transition ${
                 activeInspectorTab === tab.id
                   ? 'border-b-2 border-brass bg-brass/12 text-brass font-semibold'
                   : 'border-b-2 border-transparent text-text-muted hover:text-text-secondary'
@@ -692,7 +693,10 @@ export function ChatExecutionRail({
                               : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary'
                         }`}
                       >
-                        {isDone ? '✓' : isRunning ? '◑' : '○'}
+                        <PlanStepGlyph
+                          state={isDone ? 'completed' : isRunning ? 'running' : 'pending'}
+                          className="size-3 shrink-0"
+                        />
                       </button>
                       <div className="min-w-0 flex-1">
                         {isEditing ? (
@@ -753,18 +757,18 @@ export function ChatExecutionRail({
                           aria-label={`Force verify on ${task.title}`}
                           title="Verify step"
                           onClick={() => handleVerifyTask(task)}
-                          className="whitespace-nowrap rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-pass)"
+                          className="inline-flex items-center justify-center whitespace-nowrap rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-(--color-status-pass)"
                         >
-                          ✓
+                          <PlanStepGlyph state="completed" className="size-3 shrink-0" />
                         </button>
                         <button
                           type="button"
                           data-testid={`execution-rail-task-edit-${task.id}`}
                           aria-label={`Edit task ${task.title}`}
                           onClick={() => handleStartEditTask(task)}
-                          className="whitespace-nowrap rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-brass"
+                          className="inline-flex items-center justify-center whitespace-nowrap rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-brass"
                         >
-                          ✎
+                          <Icon.penQuill className="size-3 shrink-0" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -1040,9 +1044,9 @@ export function ChatExecutionRail({
                           setEditingPinId(pin.id);
                           setEditingPinDraft(pin.label);
                         }}
-                        className="rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-brass"
+                        className="inline-flex items-center justify-center rounded px-1 py-0.5 font-mono text-[11px] text-text-muted transition hover:bg-overlay-medium hover:text-brass"
                       >
-                        ✎
+                        <Icon.penQuill className="size-3 shrink-0" aria-hidden="true" />
                       </button>
                       <button
                         type="button"
@@ -1106,9 +1110,10 @@ export function ChatExecutionRail({
                 type="button"
                 data-testid="execution-rail-session-interop-btn"
                 onClick={() => setSessionInteropOpen((o) => !o)}
-                className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                className="inline-flex items-center gap-1 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
               >
-                ⇄ CLI Import
+                <Icon.arrowLeftRight className="size-3 shrink-0" aria-hidden="true" />
+                <span>CLI Import</span>
               </button>
             </div>
           </div>

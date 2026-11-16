@@ -14,6 +14,7 @@
 # instructed to "search the archive" by the human operator.
 archive/
 docs/src/archive/
+.vox/salvage/
 
 # === BUILD ARTIFACTS ===
 target/
@@ -71,15 +72,26 @@ populi/data/
 *.sqlite3
 
 # === GENERATED / DERIVED FILES ===
+# Note: keep `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`,
+# `crates/vox-gui/ui/src/generated/capabilityIndex.generated.ts`, and
+# `docs/src/reference/*.generated.md` visible so agents can reason over UI surfaces & CLI/MCP docs.
 Cargo.lock
 package-lock.json
 *.lock
-*.generated.*
 *.gen.rs
 *.gen.ts
 contracts/capability/model-manifest.generated.json
+docs/src/api/*.generated.md
+crates/vox-gui/ui/src/styles/*.generated.css
 stub_check_results*.json
 opencode.json
+
+# === GUI SCREENSHOTS, REVIEW BUNDLES & RASTER TOURS (exclude from default text search) ===
+crates/vox-gui/ui/artifacts/
+crates/vox-gui/ui/review-bundle/
+crates/vox-gui/assets/screens/
+crates/vox-gui/assets/tours/
+docs-astro/public/assets/
 
 # === SCRATCH / EPHEMERAL / LOGS ===
 scratch/
@@ -94,6 +106,7 @@ scratch*.txt
 /artifacts/
 .opencode/
 .coderabbit/
+.remediation-notes/
 .mypy_cache/
 
 # === LARGE BINARY BLOBS ===

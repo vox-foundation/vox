@@ -65,6 +65,7 @@ pub mod safety;
 pub mod scientia;
 pub mod scientia_nanopub;
 pub mod scientia_phase_handlers;
+pub mod scientia_v76_audit;
 pub mod scientia_worthiness_enrich;
 pub mod scout;
 pub mod secrets;
@@ -112,7 +113,7 @@ pub enum ResearchCmd {
         /// Research waves (1-5, default 1).
         #[arg(long)]
         waves: Option<usize>,
-        /// Domain mode — `general` (default), `shopping`, or `codegen`.
+        /// Domain mode — `general` (default), `shopping`, `codegen`, or `scholarly`.
         #[arg(long)]
         domain_mode: Option<String>,
     },
@@ -636,7 +637,16 @@ pub async fn run_research_query(
     let repo_ctx = discover_repository_or_fallback(&cwd);
     let mem = vox_orchestrator::MemoryConfig::default();
     let db = match DbConfig::resolve_canonical() {
-        Ok(cfg) => VoxDb::connect(cfg).await.ok().map(Arc::new),
+        Ok(cfg) => match VoxDb::connect(cfg).await {
+            Ok(conn) => Some(Arc::new(conn)),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "canonical VoxDb unavailable (locked or unreachable); running research inline without durable DB persistence (set VOX_DB_PATH to persist concurrently)"
+                );
+                None
+            }
+        },
         Err(_) => None,
     };
     let ctx = SearchRuntimeContext::new(
@@ -693,6 +703,7 @@ fn research_run_daemon_params(
             ResearchDomainMode::General => "general",
             ResearchDomainMode::Shopping => "shopping",
             ResearchDomainMode::CodeGen => "codegen",
+            ResearchDomainMode::Scholarly => "scholarly",
         },
         "lane": match rq.lane {
             ResearchLane::Fast => "fast",

@@ -55,6 +55,8 @@ pub fn run_k_complexity_budget(root: &Path, tolerance: f64, update: bool) -> Res
             let web_ir = lower_hir_to_web_ir(&hir);
             let ir_bytes = canonical_web_ir_bytes(&web_ir)
                 .map_err(|e| anyhow!("Failed to serialize IR {}: {:?}", fixture_id, e))?;
+            let (py_tier1_calls, py_tier2_calls) =
+                vox_codegen::syntax_k::count_python_tier_calls(&hir);
 
             let input = SyntaxKInput {
                 fixture_id: &fixture_id,
@@ -63,7 +65,12 @@ pub fn run_k_complexity_budget(root: &Path, tolerance: f64, update: bool) -> Res
                 source_hash: None,
                 web_ir_hash: None,
                 baseline_bytes: None,
-                support_metrics: None,
+                support_metrics: Some(serde_json::json!({
+                    "llm_surface": {
+                        "py_tier1_calls": py_tier1_calls,
+                        "py_tier2_calls": py_tier2_calls,
+                    }
+                })),
             };
 
             let event = measure_syntax_k_event(input)

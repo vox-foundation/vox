@@ -84,7 +84,7 @@ impl DetectionRule for DbPersistencePolicyDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
         let path_str = file.path.to_string_lossy();
@@ -129,7 +129,11 @@ impl DetectionRule for DbPersistencePolicyDetector {
             }
 
             if file.language == Language::Rust {
-                if let Some(caps) = self.rust_banned_import_re.captures(line) {
+                if let Some(caps) = self.rust_banned_import_re.captures(line)
+                    && let Some(m) = caps.get(0)
+                    && !crate::rules::rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
+                    && !crate::rules::rust_byte_is_cfg_test(file, line_num, m.start(), rust_ctx)
+                {
                     let krate = caps.get(1).map(|m| m.as_str()).unwrap_or("unknown");
                     findings.push(Finding {
                         rule_id: self.id().to_string(),

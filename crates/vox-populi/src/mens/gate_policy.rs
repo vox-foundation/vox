@@ -154,6 +154,28 @@ pub fn spoke_gate_rows(
     rows
 }
 
+/// Filter/annotate `rows` according to the `spokes` claimed by an adapter run (`338-06`).
+///
+/// The `ladder` row always applies. Any profile row whose `spoke` appears in `spokes` (or that
+/// already has a receipt on disk) is marked `applies = true`; non-applying rows keep `applies = false`.
+pub fn applying_rows(
+    rows: &[vox_eval::gate_state::SpokeGateRow],
+    spokes: &[String],
+) -> Vec<vox_eval::gate_state::SpokeGateRow> {
+    rows.iter()
+        .cloned()
+        .map(|mut r| {
+            if r.spoke == "ladder"
+                || spokes.iter().any(|s| s == &r.spoke)
+                || r.receipt_file.is_some()
+            {
+                r.applies = true;
+            }
+            r
+        })
+        .collect()
+}
+
 #[cfg(test)]
 pub fn passing_collateral_report(req: &vox_eval::CollateralRequirement) -> serde_json::Value {
     use vox_eval::reasoning_bench::{SLICE_NAMES, SLICE_SIZE};

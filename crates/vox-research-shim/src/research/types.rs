@@ -26,19 +26,34 @@ pub enum ResearchDomainMode {
     General,
     Shopping,
     CodeGen,
+    Scholarly,
+}
+
+impl ResearchDomainMode {
+    /// Canonical snake_case wire label.
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::General => "general",
+            Self::Shopping => "shopping",
+            Self::CodeGen => "code_gen",
+            Self::Scholarly => "scholarly",
+        }
+    }
 }
 
 impl std::str::FromStr for ResearchDomainMode {
     type Err = String;
 
-    /// Parse the `general` / `shopping` / `codegen` wire and CLI label (case-insensitive).
+    /// Parse the `general` / `shopping` / `codegen` / `scholarly` wire and CLI label (case-insensitive).
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_ascii_lowercase().as_str() {
             "general" => Ok(Self::General),
             "shopping" => Ok(Self::Shopping),
             "codegen" | "code_gen" => Ok(Self::CodeGen),
-            other => Err(format!(
-                "invalid domain mode {other:?}: use general|shopping|codegen"
+            "scholarly" => Ok(Self::Scholarly),
+            _ => Err(format!(
+                "Unknown domain mode: {s}. Expected general|shopping|codegen|scholarly"
             )),
         }
     }
@@ -431,7 +446,19 @@ mod tests {
         assert_eq!("shopping".parse(), Ok(ResearchDomainMode::Shopping));
         assert_eq!("Code_Gen".parse(), Ok(ResearchDomainMode::CodeGen));
         assert_eq!("general".parse(), Ok(ResearchDomainMode::General));
+        assert_eq!("scholarly".parse(), Ok(ResearchDomainMode::Scholarly));
+        assert_eq!("SCHOLARLY".parse(), Ok(ResearchDomainMode::Scholarly));
         assert!("legal".parse::<ResearchDomainMode>().is_err());
+    }
+
+    #[test]
+    fn scholarly_domain_mode_serde_round_trip() {
+        let mode = ResearchDomainMode::Scholarly;
+        assert_eq!(mode.as_str(), "scholarly");
+        let json = serde_json::to_string(&mode).expect("serialize scholarly");
+        assert_eq!(json, "\"scholarly\"");
+        let back: ResearchDomainMode = serde_json::from_str(&json).expect("deserialize scholarly");
+        assert_eq!(back, ResearchDomainMode::Scholarly);
     }
 
     #[test]

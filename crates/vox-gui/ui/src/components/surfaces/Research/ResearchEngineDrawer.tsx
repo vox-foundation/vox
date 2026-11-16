@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Icon } from '../../ui/Icons';
 import {
   getResearchEngineStatus,
   saveResearchEngineConfig,
@@ -262,9 +263,9 @@ export function ResearchEngineDrawer({
             data-testid="close-drawer-btn"
             onClick={onClose}
             aria-label="Close drawer"
-            className="rounded p-1 text-text-muted hover:text-text-primary hover:bg-overlay-subtle transition-colors text-lg leading-none"
+            className="inline-flex items-center justify-center rounded p-1 text-text-muted hover:text-text-primary hover:bg-overlay-subtle transition-colors text-lg leading-none"
           >
-            ✕
+            <Icon.close className="size-4 shrink-0" aria-hidden="true" />
           </button>
         </div>
 
@@ -274,7 +275,10 @@ export function ResearchEngineDrawer({
           className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2"
         >
           <div className="flex items-center gap-2">
-            <span className="text-emerald-400 font-bold text-sm">✓ Zero-Key Guarantee</span>
+            <span className="inline-flex items-center gap-1 text-emerald-400 font-bold text-sm">
+              <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>Zero-Key Guarantee</span>
+            </span>
             <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
               Built-In
             </span>
@@ -335,7 +339,8 @@ export function ResearchEngineDrawer({
                       url={offer.signup_url}
                       className="inline-flex items-center gap-1 rounded border border-brass/40 bg-brass/10 hover:bg-brass/20 text-brass px-2.5 py-1 text-[11px] font-medium transition-colors"
                     >
-                      Claim Free Key ↗
+                      <span>Claim Free Key</span>
+                      <Icon.externalLink className="size-3 shrink-0" aria-hidden="true" />
                     </SafeExternalLink>
                   </div>
 
@@ -439,15 +444,23 @@ export function ResearchEngineDrawer({
                     {probeRes && (
                       <span
                         data-testid={`probe-result-${p.id}`}
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-mono ${
+                        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-mono ${
                           probeRes.success
                             ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
                             : 'border border-red-500/30 bg-red-500/10 text-red-400'
                         }`}
                       >
-                        {probeRes.success
-                          ? `✓ Pass (${probeRes.latency_ms}ms, ${probeRes.hit_count} hits)`
-                          : `✗ Fail: ${probeRes.error_message || 'error'}`}
+                        {probeRes.success ? (
+                          <>
+                            <Icon.check className="size-3 shrink-0" aria-hidden="true" />
+                            <span>Pass ({probeRes.latency_ms}ms, {probeRes.hit_count} hits)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Icon.close className="size-3 shrink-0" aria-hidden="true" />
+                            <span>Fail: {probeRes.error_message || 'error'}</span>
+                          </>
+                        )}
                       </span>
                     )}
                   </div>
@@ -502,7 +515,10 @@ export function ResearchEngineDrawer({
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-4 border-t border-border-subtle">
           {saveSuccess ? (
-            <span className="text-xs text-emerald-400 font-medium">✓ Configuration Saved</span>
+            <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+              <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>Configuration Saved</span>
+            </span>
           ) : (
             <span />
           )}

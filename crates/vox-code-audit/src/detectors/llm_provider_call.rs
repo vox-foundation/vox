@@ -216,6 +216,7 @@ impl DetectionRule for LlmProviderCallDetector {
                 || trimmed.starts_with("eprintln!(")
                 || trimmed.starts_with("tracing::")
                 || ((line.contains("/api/models")
+                    || line.contains("/api/collections")
                     || line.contains("/v1/models\"")
                     || line.contains("/v1beta/models?"))
                     && !line.contains("generateContent"))
@@ -418,6 +419,34 @@ let resp = http.post(&url).json(&body).send().await?;
         assert!(
             findings.is_empty(),
             "hostname without an HTTP call should not fire"
+        );
+    }
+
+    #[test]
+    fn allows_huggingface_collections_metadata_while_flagging_inference_urls() {
+        let d = LlmProviderCallDetector::new();
+        let collections_code = r#"
+let resp = reqwest::Client::new()
+    .get("https://huggingface.co/api/collections")
+    .send()
+    .await?;
+"#;
+        let collections_file = source_at("crates/vox-populi/src/mens/hub.rs", collections_code);
+        assert!(
+            d.detect(&collections_file, None).is_empty(),
+            "read-only /api/collections catalog query should pass cleanly"
+        );
+
+        let inference_code = r#"
+let resp = reqwest::Client::new()
+    .post("https://api.openai.com/v1/chat/completions")
+    .send()
+    .await?;
+"#;
+        let inference_file = source_at("crates/vox-populi/src/mens/hub.rs", inference_code);
+        assert!(
+            !d.detect(&inference_file, None).is_empty(),
+            "direct vendor LLM inference URLs must still fail"
         );
     }
 }

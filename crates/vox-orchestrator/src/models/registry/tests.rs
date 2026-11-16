@@ -179,11 +179,11 @@ fn models_iter_yields_all_registered_models() {
 #[test]
 fn the_ollama_listing_decides_which_ollama_models_exist() {
     let mut reg = ModelRegistry::default();
-    reg.register(spec("qwen/qwen-3.6-27b", ProviderType::Ollama));
+    reg.register(spec("qwen/qwen-3.8-27b", ProviderType::Ollama));
     reg.register(spec("qwen3:8b", ProviderType::Ollama));
     reg.register(spec("acme/hosted-1", ProviderType::OpenRouter));
     reg.reconcile_ollama(Some(&["qwen3:8b".to_string()]));
-    assert!(reg.get("qwen/qwen-3.6-27b").is_none(), "not installed");
+    assert!(reg.get("qwen/qwen-3.8-27b").is_none(), "not installed");
     assert!(reg.get("qwen3:8b").is_some());
     assert!(
         reg.get("acme/hosted-1").is_some(),

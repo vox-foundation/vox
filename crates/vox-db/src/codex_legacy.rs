@@ -259,6 +259,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "research_eval_samples",
     "research_metrics",
     "research_misguidance_events",
+    "research_session_sources",
     "research_sessions",
     "routing_decisions",
     "scheduled",

@@ -58,8 +58,9 @@ docs-astro/public/robots.txt
 !/contracts/reports/gui-visual-review/cache.v1.json
 !/contracts/reports/gui-visual-review/bundle-cache.v1.json
 
-# Playwright HTML report (local e2e runs; never commit)
+# Playwright HTML report & transient screenshots/ledgers (local e2e runs; never commit)
 **/playwright-report/
+**/test-results/
 
 # === SCRATCH / EPHEMERAL / LOGS ===
 .tmp_metadata.json
@@ -278,6 +279,7 @@ gui-*.log
 
 # Superpowers brainstorm visual-companion scratch (local-only)
 .superpowers/
+.remediation-notes/
 
 # Local `act` artifact server output (see .actrc --artifact-server-path)
 .act-artifacts/

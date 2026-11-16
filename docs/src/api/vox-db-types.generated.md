@@ -86,7 +86,7 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `type` | `MemoryParams` | `pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>` | [`crates/vox-db-types/src/lib.rs#L48`](../../../crates/vox-db-types/src/lib.rs#L48) | Alias kept for back-compat (`vox_db::MemoryParams`). |
+| `type` | `MemoryParams` | `pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>` | [`crates/vox-db-types/src/lib.rs#L49`](../../../crates/vox-db-types/src/lib.rs#L49) | Alias kept for back-compat (`vox_db::MemoryParams`). |
 | `enum` | `circuit::CircuitState` | `pub enum CircuitState` | [`crates/vox-db-types/src/circuit.rs#L12-L19`](../../../crates/vox-db-types/src/circuit.rs#L12-L19) | Three states a circuit breaker can be in. |
 | `struct` | `eval_params::EvalRunParams` | `pub struct EvalRunParams<'a>` | [`crates/vox-db-types/src/eval_params.rs#L5-L22`](../../../crates/vox-db-types/src/eval_params.rs#L5-L22) | Parameters for `vox_db::VoxDb::record_eval_run`. |
 | `struct` | `exec_time::ExecTimeRecord` | `pub struct ExecTimeRecord<'a>` | [`crates/vox-db-types/src/exec_time.rs#L9-L21`](../../../crates/vox-db-types/src/exec_time.rs#L9-L21) | Write-path record for one execution observation. |
@@ -126,9 +126,9 @@ graph {
 | `struct` | `research::RecordMisguidanceParams` | `pub struct RecordMisguidanceParams` | [`crates/vox-db-types/src/research.rs#L174-L187`](../../../crates/vox-db-types/src/research.rs#L174-L187) | Parameter block for recording a research misguidance event into VoxDb. |
 | `struct` | `research::ResearchMisguidanceRecord` | `pub struct ResearchMisguidanceRecord` | [`crates/vox-db-types/src/research.rs#L191-L208`](../../../crates/vox-db-types/src/research.rs#L191-L208) | Persisted research misguidance event row. |
 | `struct` | `research::DomainReputationRecord` | `pub struct DomainReputationRecord` | [`crates/vox-db-types/src/research.rs#L212-L219`](../../../crates/vox-db-types/src/research.rs#L212-L219) | Persisted domain reputation summary row. |
-| `enum` | `retrieval::RetrievalEvidenceSource` | `pub enum RetrievalEvidenceSource` | [`crates/vox-db-types/src/retrieval.rs#L12-L22`](../../../crates/vox-db-types/src/retrieval.rs#L12-L22) | Which retrieval branch produced evidence for a hit (or both after hybrid fusion). |
-| `fn` | `retrieval::merge` | `pub fn merge(self, other: Self) -> Self` | [`crates/vox-db-types/src/retrieval.rs#L26-L36`](../../../crates/vox-db-types/src/retrieval.rs#L26-L36) | Combines evidence from two hits of the same chunk (e.g. vector + FTS overlap). |
-| `enum` | `retrieval::RetrievalMode` | `pub enum RetrievalMode` | [`crates/vox-db-types/src/retrieval.rs#L42-L49`](../../../crates/vox-db-types/src/retrieval.rs#L42-L49) | How a [`RetrievalQuery`] should be interpreted upstream. |
-| `struct` | `retrieval::RetrievalQuery` | `pub struct RetrievalQuery` | [`crates/vox-db-types/src/retrieval.rs#L53-L62`](../../../crates/vox-db-types/src/retrieval.rs#L53-L62) | Inputs for a retrieval request (caller maps to concrete SQL or RPC). |
-| `enum` | `retrieval::SearchIntent` | `pub enum SearchIntent` | [`crates/vox-db-types/src/retrieval.rs#L78-L90`](../../../crates/vox-db-types/src/retrieval.rs#L78-L90) | What kind of information need is being served by the current search. |
+| `struct` | `research::NewResearchSessionSource` | `pub struct NewResearchSessionSource` | [`crates/vox-db-types/src/research.rs#L223-L233`](../../../crates/vox-db-types/src/research.rs#L223-L233) | Input parameters for inserting or updating a discovered source in a research session. |
+| `struct` | `research::ResearchSessionSourceRecord` | `pub struct ResearchSessionSourceRecord` | [`crates/vox-db-types/src/research.rs#L237-L248`](../../../crates/vox-db-types/src/research.rs#L237-L248) | Persisted source row for a research session (`research_session_sources`). |
+| `struct` | `research::SessionClaimPageItem` | `pub struct SessionClaimPageItem` | [`crates/vox-db-types/src/research.rs#L252-L261`](../../../crates/vox-db-types/src/research.rs#L252-L261) | One cursor-paginated claim row joined to its latest non-span verdict. |
+| `struct` | `research::SessionClaimsPage` | `pub struct SessionClaimsPage` | [`crates/vox-db-types/src/research.rs#L265-L269`](../../../crates/vox-db-types/src/research.rs#L265-L269) | Deterministic cursor-paginated page of claims for a research session. |
+| `struct` | `research::SessionSourcesPage` | `pub struct SessionSourcesPage` | [`crates/vox-db-types/src/research.rs#L273-L277`](../../../crates/vox-db-types/src/research.rs#L273-L277) | Deterministic cursor-paginated page of sources for a research session. |
 

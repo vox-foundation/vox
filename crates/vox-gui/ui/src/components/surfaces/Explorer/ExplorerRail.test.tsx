@@ -82,7 +82,7 @@ describe('ExplorerRail', () => {
     expect(onSelect).toHaveBeenCalledWith('orchestrator');
   });
 
-  it('replaces the rail with a native <select aria-label="Domain"> when narrow is true', () => {
+  it('replaces the rail with a Domain combobox when narrow is true', () => {
     const onSelect = vi.fn();
     render(
       <ExplorerRail
@@ -94,9 +94,10 @@ describe('ExplorerRail', () => {
       />,
     );
 
-    const select = screen.getByRole('combobox', { name: 'Domain' }) as HTMLSelectElement;
-    expect(select.value).toBe('mesh');
-    fireEvent.change(select, { target: { value: '' } });
+    const select = screen.getByRole('combobox', { name: 'Domain' });
+    expect(select).toHaveTextContent(/Mesh/i);
+    fireEvent.click(select);
+    fireEvent.click(screen.getByRole('option', { name: /All domains/i }));
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 });

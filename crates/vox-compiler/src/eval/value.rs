@@ -19,6 +19,17 @@ pub enum VoxValue {
     /// Pure `std.frame` plan. Constructors store the path and op names;
     /// they do not call the Python worker.
     FramePlan(crate::eval::frame_plan::FramePlan),
+    /// Pure `std.plot` chart plan rendered inside the Python worker on `.save(png)`.
+    PlotPlan(crate::eval::plot_plan::PlotPlan),
+    /// Worker-resident `torch.export` (`.pt2`) model handle.
+    TensorModel(crate::eval::tensor_model::ExportedModel),
+    /// Tier 2 Python module escape-hatch binding (`import py <alias> from "<module>"`).
+    PyModule {
+        alias: String,
+        module: String,
+    },
+    /// Opaque JSON-transported value returned from an unbound Tier 2 Python call.
+    PyObject(serde_json::Value),
     /// One expression inside a frame filter or aggregation.
     FrameExpr(crate::eval::frame_plan::FrameExpr),
     /// Collected frame. One concrete column per field. A missing name is an
@@ -299,7 +310,21 @@ impl PartialEq for VoxValue {
             // zeros, so `8.2500dec == 8.25dec` is true.
             (Self::Decimal(a), Self::Decimal(b)) => a == b,
             (Self::Regex(a), Self::Regex(b)) => a.as_str() == b.as_str(),
+            (Self::ArrayPlan(a), Self::ArrayPlan(b)) => a == b,
             (Self::FramePlan(a), Self::FramePlan(b)) => a == b,
+            (Self::PlotPlan(a), Self::PlotPlan(b)) => a == b,
+            (Self::TensorModel(a), Self::TensorModel(b)) => a == b,
+            (
+                Self::PyModule {
+                    alias: a1,
+                    module: m1,
+                },
+                Self::PyModule {
+                    alias: a2,
+                    module: m2,
+                },
+            ) => a1 == a2 && m1 == m2,
+            (Self::PyObject(a), Self::PyObject(b)) => a == b,
             (Self::FrameExpr(a), Self::FrameExpr(b)) => a == b,
             (Self::Records { columns: a }, Self::Records { columns: b }) => a == b,
             (Self::Date(a), Self::Date(b)) => a == b,

@@ -3242,7 +3242,35 @@
       "feature_gate": null
     },
     {
+      "path": "plan complete-milestone",
+      "feature_gate": null
+    },
+    {
       "path": "plan create",
+      "feature_gate": null
+    },
+    {
+      "path": "plan discuss-phase",
+      "feature_gate": null
+    },
+    {
+      "path": "plan docs",
+      "feature_gate": null
+    },
+    {
+      "path": "plan execute-phase",
+      "feature_gate": null
+    },
+    {
+      "path": "plan new-milestone",
+      "feature_gate": null
+    },
+    {
+      "path": "plan plan-phase",
+      "feature_gate": null
+    },
+    {
+      "path": "plan progress",
       "feature_gate": null
     },
     {
@@ -3251,6 +3279,10 @@
     },
     {
       "path": "plan status",
+      "feature_gate": null
+    },
+    {
+      "path": "plan verify-work",
       "feature_gate": null
     },
     {
@@ -5010,6 +5042,18 @@
     "graph.refresh",
     "graph.status",
     "graph.why-rebuilt",
+    "gsd.complete-milestone",
+    "gsd.discuss-phase",
+    "gsd.execute-phase",
+    "gsd.get-document",
+    "gsd.list-documents",
+    "gsd.new-milestone",
+    "gsd.plan-phase",
+    "gsd.progress",
+    "gsd.status",
+    "gsd.store-document",
+    "gsd.verify-work",
+    "guest.share.list",
     "guest.share.mint",
     "guest.share.moderate",
     "guest.share.redeem",
@@ -5531,6 +5575,10 @@
     "telemetry.status",
     "telemetry.upload",
     "term",
+    "terminal.exec",
+    "terminal.read",
+    "terminal.send.input",
+    "terminal.sessions",
     "test",
     "test.all",
     "test.decision",
@@ -5577,6 +5625,7 @@
     "explorer",
     "flow",
     "gamify",
+    "gsd",
     "harness",
     "knowledge",
     "memory",
@@ -5712,6 +5761,17 @@
     "get_task_policy_overrides",
     "get_user_config",
     "get_vcs_isolation",
+    "gsd_complete_milestone",
+    "gsd_discuss_phase",
+    "gsd_execute_phase",
+    "gsd_get_document",
+    "gsd_get_progress",
+    "gsd_get_status",
+    "gsd_list_documents",
+    "gsd_new_milestone",
+    "gsd_plan_phase",
+    "gsd_store_document",
+    "gsd_verify_work",
     "harness_ci_fleet_status",
     "harness_eval_history",
     "harness_eval_regressions",
@@ -5792,6 +5852,7 @@
     "preview_stop",
     "probe_all_search_providers",
     "probe_search_provider",
+    "promote_scientia_candidate",
     "propose_harness_issue_fix",
     "pty_close",
     "pty_spawn",
@@ -5816,6 +5877,15 @@
     "scan_training_corpus",
     "scientia_cost_rollup",
     "scientia_dashboard_snapshot",
+    "scientia_publication_claims",
+    "scientia_publication_extract_claims",
+    "scientia_publication_finding_page",
+    "scientia_publication_flywheel_advance",
+    "scientia_publication_latex",
+    "scientia_publication_manuscript",
+    "scientia_publication_replay",
+    "scientia_publication_venue_recommend",
+    "scientia_v76_audit_diff",
     "search_model_cards",
     "secretary_confirm_task",
     "secrets_backend_status",
@@ -5851,13 +5921,28 @@
     "submit_orchestrator_task",
     "suggest_evidence_improvements",
     "suggest_model_for_task",
+    "term_agent_cancel",
+    "term_agent_explain_fix",
+    "term_agent_prompt",
+    "term_block_feedback",
+    "term_complete",
+    "term_history_clear",
+    "term_history_query",
+    "term_history_record",
+    "term_runbooks_list",
     "term_session_attach",
     "term_session_close",
     "term_session_input",
     "term_session_list",
     "term_session_open",
+    "term_session_pin",
+    "term_session_promote_bg",
     "term_session_resize",
+    "term_session_set_control",
+    "term_session_set_security",
     "term_session_submit",
+    "term_session_voxify",
+    "term_slash_exec",
     "trust_mesh_node",
     "untrust_mesh_node",
     "update_plan_node",
@@ -5866,6 +5951,7 @@
     "vox_docs_index",
     "vox_graphify_status",
     "vox_search_query",
+    "warp",
     "workspace_town_scan"
   ],
   "capabilities": [

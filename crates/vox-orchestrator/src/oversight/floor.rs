@@ -86,7 +86,7 @@ pub const EXTERNAL_EFFECT_TOOLS: &[&str] = &[
 ];
 
 /// Shell command execution tools subject to history rewrite pattern matching.
-pub const SHELL_COMMAND_TOOLS: &[&str] = &["vox_run_shell", "vox_skill_run"];
+pub const SHELL_COMMAND_TOOLS: &[&str] = &["vox_run_shell", "vox_skill_run", "vox_terminal_exec"];
 
 /// File write tools inspected for policy or secrets path violations.
 pub const FILE_WRITE_TOOLS: &[&str] = &["vox_apply_structured_edit", "vox_generate_code"];
@@ -208,7 +208,11 @@ pub fn classify_floor(input: &FloorInput<'_>) -> Option<FloorCategory> {
                 return Some(FloorCategory::HistoryRewrite);
             }
             if SHELL_COMMAND_TOOLS.contains(name) {
-                if let Some(cmd) = args.get("command").and_then(|v| v.as_str()) {
+                if let Some(cmd) = args
+                    .get("command")
+                    .or_else(|| args.get("cmd"))
+                    .and_then(|v| v.as_str())
+                {
                     if command_rewrites_history(cmd) {
                         return Some(FloorCategory::HistoryRewrite);
                     }
@@ -397,24 +401,32 @@ fn json_has_secret_key(val: &serde_json::Value) -> bool {
     }
 }
 
-fn command_rewrites_history(cmd: &str) -> bool {
-    let segments = cmd.split([';', '&', '|']);
-    for segment in segments {
-        let tokens: Vec<&str> = segment.split_whitespace().collect();
-        if tokens.is_empty() {
-            continue;
-        }
-
-        for (i, &token) in tokens.iter().enumerate() {
-            if token == "git" || token.ends_with("/git") || token.ends_with("\\git") {
-                if git_tokens_rewrite_history(&tokens[i + 1..]) {
-                    return true;
-                }
-            } else if token == "jj" || token.ends_with("/jj") || token.ends_with("\\jj") {
-                if jj_tokens_rewrite_history(&tokens[i + 1..]) {
-                    return true;
-                }
+pub(crate) fn command_argv_rewrites_history(tokens: &[&str]) -> bool {
+    for (i, &token) in tokens.iter().enumerate() {
+        if token == "git" || token.ends_with("/git") || token.ends_with("\\git") {
+            if git_tokens_rewrite_history(&tokens[i + 1..]) {
+                return true;
             }
+        } else if token == "jj" || token.ends_with("/jj") || token.ends_with("\\jj") {
+            if jj_tokens_rewrite_history(&tokens[i + 1..]) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn command_rewrites_history(cmd: &str) -> bool {
+    for segment in cmd.split([';', '&', '|']) {
+        let tokens: Vec<&str> = segment.split_whitespace().collect();
+        if !tokens.is_empty() && command_argv_rewrites_history(&tokens) {
+            return true;
+        }
+    }
+    for argv in super::exec_policy::extract_effective_commands(cmd) {
+        let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
+        if command_argv_rewrites_history(&refs) {
+            return true;
         }
     }
     false
@@ -478,6 +490,10 @@ fn git_tokens_rewrite_history(mut args: &[&str]) -> bool {
             true
         }
         "commit" => rest.contains(&"--amend"),
+        "clean" => rest.iter().any(|&arg| {
+            arg == "--force"
+                || (arg.starts_with('-') && !arg.starts_with("--") && arg.contains('f'))
+        }),
         "update-ref" => rest.contains(&"-d"),
         "reflog" => rest.contains(&"expire"),
         _ => false,
@@ -605,6 +621,53 @@ pub mod safety_floor_tests {
             let input_skill = FloorInput::tool("vox_skill_run", &args, root);
             assert_eq!(classify_floor(&input_skill), None, "negative cmd {cmd}");
         }
+    }
+
+    #[test]
+    fn safety_floor_unwraps_compound_and_wrapped_history_rewrites() {
+        assert_eq!(
+            SHELL_COMMAND_TOOLS,
+            &["vox_run_shell", "vox_skill_run", "vox_terminal_exec"]
+        );
+        // vox-arch-check: allow abs-path
+        let root = Path::new("/tmp/test-repo");
+        assert_eq!(
+            classify_floor(&FloorInput::tool(
+                "vox_terminal_exec",
+                &json!({ "command": "git push --force origin main" }),
+                root,
+            )),
+            Some(FloorCategory::HistoryRewrite)
+        );
+        for (key, cmd) in [
+            ("command", "echo ok && git push --force"),
+            ("command", "pwd && git push --force origin main \\"),
+            (
+                "command",
+                "pwd && bash -c 'git push --force origin main' \\",
+            ),
+            ("command", "pwsh -com 'git push --force origin main'"),
+            ("command", "env GIT_TRACE=1 git reset --hard HEAD~1"),
+            ("command", "bash -c 'git reset --hard'"),
+            (
+                "cmd",
+                "env FOO=1 command timeout 5s git push -f origin main",
+            ),
+        ] {
+            let args = json!({ key: cmd });
+            let input = FloorInput::tool("vox_run_shell", &args, root);
+            assert_eq!(
+                classify_floor(&input),
+                Some(FloorCategory::HistoryRewrite),
+                "expected HistoryRewrite for `{cmd}` ({key})"
+            );
+        }
+        // note: `git clean -fd` is also explicitly named in Task 1 Behavior 5!
+        let clean_args = json!({ "command": "bash -c 'git clean -fd'" });
+        assert_eq!(
+            classify_floor(&FloorInput::tool("vox_run_shell", &clean_args, root)),
+            Some(FloorCategory::HistoryRewrite)
+        );
     }
 
     #[test]
@@ -767,5 +830,25 @@ pub mod safety_floor_tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn safety_floor_terminal_exec_history_rewrite_only_on_arg_match() {
+        let root = Path::new(".");
+        let empty_args = serde_json::json!({});
+        let empty = FloorInput::tool("vox_terminal_exec", &empty_args, root);
+        assert_eq!(classify_floor(&empty), None);
+
+        let safe_args = serde_json::json!({ "command": "cargo check -p vox-orchestrator" });
+        let safe = FloorInput::tool("vox_terminal_exec", &safe_args, root);
+        assert_eq!(classify_floor(&safe), None);
+
+        let rewrite_args =
+            serde_json::json!({ "command": "echo ok && git push --force origin main" });
+        let rewrite = FloorInput::tool("vox_terminal_exec", &rewrite_args, root);
+        assert_eq!(
+            classify_floor(&rewrite),
+            Some(FloorCategory::HistoryRewrite)
+        );
     }
 }

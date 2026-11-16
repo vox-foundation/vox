@@ -85,6 +85,10 @@ impl MensServeState {
         self.port.lock().ok().and_then(|p| *p)
     }
 
+    pub(crate) fn running_port(&self) -> Option<u16> {
+        self.is_running().then(|| self.current_port()).flatten()
+    }
+
     fn status(&self) -> MensServeStatusDto {
         MensServeStatusDto {
             running: self.is_running(),

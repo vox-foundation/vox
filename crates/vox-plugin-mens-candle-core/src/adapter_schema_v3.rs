@@ -21,6 +21,8 @@ pub struct PopuliAdapterManifestV3 {
     pub d_model: usize,
     pub rank: usize,
     pub alpha: usize,
+    #[serde(default)]
+    pub use_rslora: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -91,8 +93,62 @@ impl PopuliAdapterManifestV3 {
             d_model,
             rank,
             alpha,
+            use_rslora: false,
             base_model,
             provenance,
         }
+    }
+
+    /// Mark whether this adapter was trained with rank-stabilized LoRA scaling
+    /// (`alpha / sqrt(rank)` instead of `alpha / rank`).
+    #[must_use]
+    pub fn with_rslora(mut self, use_rslora: bool) -> Self {
+        self.use_rslora = use_rslora;
+        self
+    }
+
+    /// Effective `alpha` numerator for `scale = effective_alpha / rank` when merging
+    /// or running adapter inference: returns `alpha * sqrt(rank)` when `use_rslora`
+    /// is enabled so non-square ranks preserve full `f64` precision.
+    #[must_use]
+    pub fn effective_alpha_f64(&self) -> f64 {
+        if self.use_rslora && self.rank > 0 {
+            (self.alpha as f64) * (self.rank as f64).sqrt()
+        } else {
+            self.alpha as f64
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AdapterMethod, BaseQuantMode, PopuliAdapterManifestV3};
+    use std::collections::HashMap;
+
+    #[test]
+    fn effective_alpha_f64_preserves_non_square_rslora_precision() {
+        let base = PopuliAdapterManifestV3::new(
+            AdapterMethod::Qlora,
+            BaseQuantMode::Nf4,
+            true,
+            HashMap::new(),
+            vec![],
+            32,
+            64,
+            2,
+            1,
+            None,
+            None,
+        );
+        assert!(!base.use_rslora);
+        assert!((base.effective_alpha_f64() - 1.0).abs() < 1e-12);
+
+        let rslora = base.with_rslora(true);
+        assert!(rslora.use_rslora);
+        let expected = 2.0_f64.sqrt();
+        assert!((rslora.effective_alpha_f64() - expected).abs() < 1e-12);
+        // Scale alpha / sqrt(rank) == 1.0 / sqrt(2)
+        let scale = rslora.effective_alpha_f64() / (rslora.rank as f64);
+        assert!((scale - (1.0 / 2.0_f64.sqrt())).abs() < 1e-12);
     }
 }

@@ -26,10 +26,9 @@
 // This calls cargo three times. Do not run anything else that invokes cargo
 // concurrently with this script.
 //
-// Respects CARGO_TARGET_DIR if set; does not hardcode a target directory.
-// vox-cargo-shim declares its own [workspace] table, so with no
-// CARGO_TARGET_DIR set its default target dir is crates/vox-cargo-shim/target
-// (not the repo root's target/), which is what this script checks by default.
+// Respects CARGO_TARGET_DIR if set; otherwise checks crates/vox-cargo-shim/target/release
+// first and falls back to <root>/target/release (used when .cargo/config.toml sets
+// workspace-relative CARGO_TARGET_DIR = "target").
 //
 // Env:
 //   VOX_REPO_ROOT   Repo root (default ".") -- see vendor-skills.vox.
@@ -77,10 +76,16 @@ fn main() {
     let root = repo_root();
     let manifest = "crates/vox-cargo-shim/Cargo.toml";
 
-    let bin_name = if env.get("OS").unwrap_or("") == "Windows_NT" {
+    let is_win = env.get("OS").unwrap_or("") == "Windows_NT";
+    let bin_name = if is_win {
         "cargo.exe"
     } else {
         "cargo"
+    };
+    let broker_bin_name = if is_win {
+        "vox-broker.exe"
+    } else {
+        "vox-broker"
     };
 
     run_step(
@@ -122,7 +127,15 @@ fn main() {
     } else {
         "crates/vox-cargo-shim/target"
     };
-    let bin_path = path.join(path.join(root, target_dir), path.join("release", bin_name));
+    let mut resolved_target = target_dir;
+    let mut bin_path = path.join(path.join(root, target_dir), path.join("release", bin_name));
+    if (not target_dir_opt.is_some()) and (not fs.is_file(bin_path)) {
+        let ws_bin = path.join(path.join(root, "target"), path.join("release", bin_name));
+        if fs.is_file(ws_bin) {
+            resolved_target = "target";
+            bin_path = ws_bin;
+        }
+    }
     if not fs.is_file(bin_path) {
         print("broker-ci: FAILED at step: artifact check");
         print("expected release binary not found at: " + bin_path);
@@ -134,7 +147,13 @@ fn main() {
         print("binary at " + bin_path + " is not named cargo/cargo.exe (found: " + base_name + ")");
         process.exit(1);
     }
+    let broker_bin_path = path.join(path.join(root, resolved_target), path.join("release", broker_bin_name));
+    if not fs.is_file(broker_bin_path) {
+        print("broker-ci: FAILED at step: artifact check");
+        print("expected companion release binary not found at: " + broker_bin_path);
+        process.exit(1);
+    }
 
-    print("broker-ci: OK -- build, test, and clippy all passed; binary present at " + bin_path);
+    print("broker-ci: OK -- build, test, and clippy all passed; binaries present at " + bin_path + " and " + broker_bin_path);
     process.exit(0);
 }

@@ -2,16 +2,29 @@
 
 use std::path::{Path, PathBuf};
 
+// vox:defactored-from vox-repository 2026-11-12 (avoids vox-corpus -> vox-repository edge)
 /// Walk up from [`std::env::current_dir`] until a `Cargo.toml` containing a `[workspace]` section is found.
 ///
 /// Returns [`None`] if the current directory cannot be read or no workspace manifest is found.
 pub fn find_workspace_root() -> Option<PathBuf> {
-    vox_repository::find_cargo_workspace_root()
+    let mut dir = std::env::current_dir().ok()?;
+    loop {
+        let manifest = dir.join("Cargo.toml");
+        if manifest.is_file()
+            && let Ok(contents) = std::fs::read_to_string(&manifest)
+            && contents.lines().any(|l| l.trim() == "[workspace]")
+        {
+            return Some(dir);
+        }
+        dir = dir.parent()?.to_path_buf();
+    }
 }
 
 /// Resolve `path` relative to the workspace root when possible; otherwise return `path` as-is.
 pub fn resolve_from_workspace(path: &Path) -> PathBuf {
-    vox_repository::resolve_from_cargo_workspace(path)
+    find_workspace_root()
+        .map(|root| root.join(path))
+        .unwrap_or_else(|| path.to_path_buf())
 }
 
 /// Anchor a **relative** CLI path to the Cargo workspace (e.g. `--data-dir`, `--output-dir`, `--resume`).

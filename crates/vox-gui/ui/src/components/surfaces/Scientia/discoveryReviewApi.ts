@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /**
  * Typed wrappers over the P2/P3 Tauri commands that back the Discovery Review
@@ -41,7 +41,7 @@ export interface EvidenceSuggestion {
 
 /** List the claims still awaiting review for a publication. */
 export function listReviewQueue(publication_id: string): Promise<ClaimAwaitingReview[]> {
-  return invoke<ClaimAwaitingReview[]>('list_publication_review_queue', {
+  return invokeCmd<ClaimAwaitingReview[]>('list_publication_review_queue', {
     publicationId: publication_id,
   });
 }
@@ -53,7 +53,7 @@ export function recordDecision(
   decision: ReviewDecision,
   reason?: string,
 ): Promise<void> {
-  return invoke<void>('record_publication_claim_review', {
+  return invokeCmd<void>('record_publication_claim_review', {
     publicationId: publication_id,
     claimId: claim_id,
     decision,
@@ -67,7 +67,7 @@ export function nanopublish(
   claim_id: number,
   orcid?: string,
 ): Promise<NanopubResult> {
-  return invoke<NanopubResult>('nanopublish_approved_claim', {
+  return invokeCmd<NanopubResult>('nanopublish_approved_claim', {
     publicationId: publication_id,
     claimId: claim_id,
     orcid: orcid ?? null,
@@ -83,7 +83,7 @@ export function suggestEvidence(
   publication_id: string,
   claim_id: number,
 ): Promise<EvidenceSuggestion[]> {
-  return invoke<EvidenceSuggestion[]>('suggest_evidence_improvements', {
+  return invokeCmd<EvidenceSuggestion[]>('suggest_evidence_improvements', {
     publicationId: publication_id,
     claimId: claim_id,
   });

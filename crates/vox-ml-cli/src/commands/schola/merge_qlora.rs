@@ -43,6 +43,8 @@ pub struct PopuliAdapterManifestV3 {
     pub d_model: usize,
     pub rank: usize,
     pub alpha: usize,
+    #[serde(default)]
+    pub use_rslora: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -222,8 +224,54 @@ pub(crate) fn run_merge_qlora_using(
         // Clear any stale recombined dir so a prior sharded run's
         // model.safetensors.index.json can't mislead the reader.
         let _ = std::fs::remove_dir_all(&recombined);
-        vox_quantize::recombine::recombine(&base_dir, &output, &recombined)
-            .with_context(|| format!("recombine over base {}", base_dir.display()))?;
+        vox_quantize::recombine::recombine_hf_causal_lm(&base_dir, &output, &recombined)
+            .with_context(|| format!("recombine_hf_causal_lm over base {}", base_dir.display()))?;
+
+        // Auto-export HuggingFace/PEFT-compatible adapter under <run_dir>/peft/ when
+        // Candle adapter + manifest exist alongside the run dir or passed inputs.
+        let peft_adapter = if out_parent
+            .join("candle_qlora_adapter.safetensors")
+            .is_file()
+        {
+            out_parent.join("candle_qlora_adapter.safetensors")
+        } else {
+            adapter.clone()
+        };
+        let peft_meta = if out_parent.join("adapter_manifest.json").is_file() {
+            out_parent.join("adapter_manifest.json")
+        } else {
+            meta.clone()
+        };
+        if peft_adapter.is_file() && peft_meta.is_file() {
+            let strip_lm = should_strip_language_model_prefix(&recombined);
+            let peft_dir = out_parent.join("peft");
+            let outcome = vox_populi::mens::peft_export::export_peft_from_candle(
+                &peft_adapter,
+                &peft_meta,
+                &peft_dir,
+                strip_lm,
+            )
+            .with_context(|| format!("export PEFT adapter -> {}", peft_dir.display()))?;
+            println!(
+                "Exported PEFT adapter -> {} (base={}, target_modules={}, use_rslora={}, strip_language_model_prefix={})",
+                peft_dir.display(),
+                outcome.base_model_name_or_path,
+                outcome.target_modules.len(),
+                outcome.use_rslora,
+                strip_lm
+            );
+        }
+
+        if keep_merged {
+            for f in ["chat_template.jinja", "special_tokens_map.json"] {
+                let dst = recombined.join(f);
+                let src = out_parent.join(f);
+                if !dst.exists() && src.is_file() {
+                    std::fs::copy(&src, &dst)
+                        .with_context(|| format!("copy adapter {f} into recombined_full"))?;
+                }
+            }
+        }
 
         if let Some(mixture_str) = quantize.as_deref() {
             let mixture = crate::commands::quantize::parse_mixture(mixture_str)?;
@@ -341,6 +389,41 @@ fn run_llama_cpp_lane(
 ///
 /// No `ADAPTER` directive: Ollama's safetensors adapter converter covers
 /// llama and gemma2 bases only — merged weights are the supported route.
+const OLLAMA_CANONICAL_VOX_SYSTEM: &str = r#"You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack language that compiles to native Rust and TypeScript.
+
+## Rules
+- Brace-delimited blocks, no semicolons, no significant indentation. Comments are `//` and `///`.
+- Return types use `to`: `fn name(p: T) to U { ... }`. Never `->` for returns (`->` appears only in `state_machine` transitions).
+- No null: use `Option[T]`, `Result[T]` (or `Result[T, E]` at API boundaries), and tagged unions.
+- `let x = expr`, `let mut x = expr`, `return expr`, `if c { } else { }`, `for x in xs { }`, `match e { Variant(f) => body }`.
+- Operators are `and`, `or`, `not`, `is`, `is not`.
+
+## Declarations (bare keywords)
+- `type Name { field: T }`, `type Name = | A | B(field: T)`
+- `table Name { field: T }`, `query name(p: T) to U { }`, `mutation name(p: T) to U { }`, `server name(p: T) to U { }`
+- `tool "name: description" name(p: T) to U { }`, `resource "uri" "description" name() to U { }`
+- `component Name() { view: column() { text() { "{x}" } } }`
+- `actor Name { on handler(p: T) to U { } }`, `spawn(Name)`
+- `workflow name(p: T) to Result[U] { }` calling `activity name(p: T) to Result[U] { }`
+- `routes { "/" to Home }`, `state_machine Name { state A state B on Ev() from A -> B }`, `import module.name`
+- Modifiers: `@test`, `@pure`, `@uses(net)`, `@scheduled("1h")`, `@auth(scheme: bearer)`, `@deprecated`, `@durable`."#;
+
+#[must_use]
+fn should_strip_language_model_prefix(recombined_dir: &Path) -> bool {
+    let Ok(raw) = std::fs::read_to_string(recombined_dir.join("config.json")) else {
+        return false;
+    };
+    let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return false;
+    };
+    let model_type = val.get("model_type").and_then(|v| v.as_str()).unwrap_or("");
+    let arch_match = val
+        .get("architectures")
+        .and_then(|v| v.as_array())
+        .is_some_and(|arr| arr.iter().any(|a| a.as_str() == Some("Qwen3_5ForCausalLM")));
+    model_type == "qwen3_5_text" || arch_match
+}
+
 #[must_use]
 pub fn render_ollama_modelfile(num_ctx: usize, license: &str) -> String {
     let mut s = String::from("FROM .\n");
@@ -352,6 +435,9 @@ pub fn render_ollama_modelfile(num_ctx: usize, license: &str) -> String {
         "TEMPLATE \"\"\"{{ if .System }}<|im_start|>system\n{{ .System }}<|im_end|>\n{{ end }}\
          <|im_start|>user\n{{ .Prompt }}<|im_end|>\n<|im_start|>assistant\n\"\"\"\n",
     );
+    s.push_str(&format!(
+        "SYSTEM \"\"\"{OLLAMA_CANONICAL_VOX_SYSTEM}\"\"\"\n"
+    ));
     s.push_str(&format!("LICENSE \"\"\"{license}\"\"\"\n"));
     s
 }
@@ -395,12 +481,14 @@ fn finish_recombined(
     for f in [
         "tokenizer.json",
         "tokenizer_config.json",
+        "special_tokens_map.json",
         "generation_config.json",
+        "chat_template.jinja",
     ] {
         let src = base_dir.join(f);
-        if src.exists() {
-            std::fs::copy(&src, recombined.join(f))
-                .with_context(|| format!("copy {f} into recombined_full"))?;
+        let dst = recombined.join(f);
+        if src.exists() && !dst.exists() {
+            std::fs::copy(&src, &dst).with_context(|| format!("copy {f} into recombined_full"))?;
         }
     }
     // `run_merge_qlora` always resolves (and hard-errors on failure) before
@@ -416,7 +504,7 @@ fn finish_recombined(
     )
     .context("write Modelfile")?;
     println!(
-        "Merged model kept at {} — for a llama/gemma2 base, publish with:\n  cd {} && ollama create -q q4_K_M <name> -f Modelfile\nFor a Qwen3 base, `ollama create` rejects the architecture; use `vox mens merge-qlora --gguf-out <file> --llama-cpp <dir>` instead.",
+        "Merged model kept at {} — for a llama/gemma2 base, publish with:\n  cd {} && ollama create -q q4_K_M <name> -f Modelfile\nFor Qwen3 / Qwen3.5 / Qwen3.8 bases, use `vox mens merge-qlora --gguf-out <file> --llama-cpp <dir>` when `ollama create` does not support the architecture.",
         recombined.display(),
         recombined.display()
     );
@@ -621,5 +709,58 @@ mod ollama_publish_tests {
             !recombined.exists(),
             "without --keep-merged the recombined dir is still deleted"
         );
+    }
+
+    #[test]
+    fn modelfile_includes_canonical_vox_system_prompt_without_retired_syntax() {
+        let m = render_ollama_modelfile(8192, "apache-2.0");
+        assert!(m.contains("SYSTEM \"\"\""), "got: {m}");
+        assert!(m.contains("fn name(p: T) to U"), "got: {m}");
+        assert!(m.contains("table Name"), "got: {m}");
+        assert!(m.contains("component Name()"), "got: {m}");
+        assert!(!m.contains("@table"), "retired syntax leaked: {m}");
+        assert!(!m.contains("@component"), "retired syntax leaked: {m}");
+    }
+
+    #[test]
+    fn finish_recombined_copies_chat_template_and_special_tokens_map_idempotently() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().join("base");
+        let recombined = dir.path().join("recombined_full");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&recombined).unwrap();
+        std::fs::write(
+            base.join("chat_template.jinja"),
+            "{% for m in messages %}{% endfor %}",
+        )
+        .unwrap();
+        std::fs::write(base.join("special_tokens_map.json"), "{}").unwrap();
+
+        finish_recombined(&recombined, &base, true, Some("apache-2.0")).unwrap();
+        assert!(recombined.join("chat_template.jinja").is_file());
+        assert!(recombined.join("special_tokens_map.json").is_file());
+        // Calling a second time must not error when destination already exists.
+        finish_recombined(&recombined, &base, true, Some("apache-2.0")).unwrap();
+    }
+
+    #[test]
+    fn strip_language_model_prefix_matches_qwen35_text_and_arch() {
+        let dir = tempfile::tempdir().unwrap();
+        let d1 = dir.path().join("q35");
+        let d2 = dir.path().join("q35_arch");
+        let d3 = dir.path().join("q3");
+        std::fs::create_dir_all(&d1).unwrap();
+        std::fs::create_dir_all(&d2).unwrap();
+        std::fs::create_dir_all(&d3).unwrap();
+        std::fs::write(d1.join("config.json"), r#"{"model_type":"qwen3_5_text"}"#).unwrap();
+        std::fs::write(
+            d2.join("config.json"),
+            r#"{"architectures":["Qwen3_5ForCausalLM"]}"#,
+        )
+        .unwrap();
+        std::fs::write(d3.join("config.json"), r#"{"model_type":"qwen3"}"#).unwrap();
+        assert!(should_strip_language_model_prefix(&d1));
+        assert!(should_strip_language_model_prefix(&d2));
+        assert!(!should_strip_language_model_prefix(&d3));
     }
 }

@@ -333,9 +333,9 @@ impl<'a> Checker<'a> {
                 let r_ty = self.check_expr(right, None);
                 self.check_binary_op(*op, l_ty, r_ty, *span)
             }
-            HirExpr::Unary(op, operand, _span) => {
+            HirExpr::Unary(op, operand, span) => {
                 let ty = self.check_expr(operand, None);
-                self.check_unary_op(*op, ty)
+                self.check_unary_op(*op, ty, *span)
             }
 
             HirExpr::Call(callee, args, _tail, span) => {
@@ -539,6 +539,16 @@ impl<'a> Checker<'a> {
                     }
                 }
 
+                if let Ty::Named(ref n) = obj_ty
+                    && let Some(module_name) = n.strip_prefix("PyModule::")
+                {
+                    let module_name = module_name.to_string();
+                    return self.check_py_module_method_call(&module_name, method, args, *span);
+                }
+                if matches!(&obj_ty, Ty::Named(n) if n == "PyObject") {
+                    return self.check_py_object_method_call(method, args, *span);
+                }
+
                 if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
                     let bindings = match &obj_ty {
                         Ty::List(inner)
@@ -634,6 +644,40 @@ impl<'a> Checker<'a> {
                                         self.source,
                                     ));
                                 }
+                            }
+                            if (method == "save"
+                                && matches!(&obj_ty, Ty::Named(name) if name == "Plot"))
+                                || (method == "load_exported"
+                                    && matches!(&obj_ty, Ty::Named(name) if name == "StdTensorNs"))
+                            {
+                                let has_python = self
+                                    .current_caps
+                                    .iter()
+                                    .any(|cap| matches!(cap, crate::hir::HirCapability::Python));
+                                let has_fs = self
+                                    .current_caps
+                                    .iter()
+                                    .any(|cap| matches!(cap, crate::hir::HirCapability::Fs));
+                                if !has_python || !has_fs {
+                                    self.diags.push(Diagnostic::error(
+                                        format!("{method} requires `uses python` and `uses fs`"),
+                                        *span,
+                                        self.source,
+                                    ));
+                                }
+                            }
+                            if method == "run"
+                                && matches!(&obj_ty, Ty::Named(name) if name == "Model")
+                                && !self
+                                    .current_caps
+                                    .iter()
+                                    .any(|cap| matches!(cap, crate::hir::HirCapability::Python))
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    "Model.run requires `uses python`".into(),
+                                    *span,
+                                    self.source,
+                                ));
                             }
                             if method == "col"
                                 && matches!(&obj_ty, Ty::Named(name) if name == "StdFrameNs")
@@ -965,7 +1009,7 @@ impl<'a> Checker<'a> {
                 Ty::Element
             }
 
-            HirExpr::Index(object, index, _) => {
+            HirExpr::Index(object, index, span) => {
                 // Strict-Option subscript per the typed-subscript decision
                 // 2026-05-23. `list[T] [i]` returns `Option[T]` (None on
                 // out-of-bounds), matching the no-silent-failure principle
@@ -977,6 +1021,20 @@ impl<'a> Checker<'a> {
                 let obj_ty = self.check_expr(object.as_ref(), None);
                 let _ = self.check_expr(index.as_ref(), None);
                 let obj_ty = self.uf.resolve(&obj_ty);
+                if matches!(&obj_ty, Ty::Named(n) if n == "PyObject") {
+                    self.diags.push(
+                        Diagnostic::error(
+                            "Cannot index into opaque `PyObject`; decode it with `.decode(...)` first."
+                                .into(),
+                            *span,
+                            self.source,
+                        )
+                        .with_suggestion(
+                            "Decode the Python value with `.decode(...)` before indexing.",
+                        ),
+                    );
+                    return Ty::Error;
+                }
                 match obj_ty {
                     Ty::List(elem) => Ty::Option(elem),
                     Ty::Map(_, val) => Ty::Option(val),
@@ -1103,6 +1161,194 @@ impl<'a> Checker<'a> {
                 *span,
                 self.source,
             ));
+        }
+    }
+
+    fn check_py_module_method_call(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirArg],
+        span: Span,
+    ) -> Ty {
+        if let Some(hint) =
+            crate::python_escape_support::is_denied_python_target(module_name, Some(method))
+        {
+            for a in args {
+                let _ = self.check_expr(&a.value, None);
+            }
+            self.diags.push(
+                Diagnostic::error(
+                    format!("Python call `{module_name}.{method}` is in the Denied tier. {hint}"),
+                    span,
+                    self.source,
+                )
+                .with_suggestion(hint),
+            );
+            return Ty::Error;
+        }
+
+        let sidecar =
+            match crate::python_escape_support::load_sidecar(module_name, self.source_path) {
+                Ok(sc) => sc,
+                Err(msg) => {
+                    for a in args {
+                        let _ = self.check_expr(&a.value, None);
+                    }
+                    self.diags.push(Diagnostic::error(msg, span, self.source));
+                    return Ty::Error;
+                }
+            };
+
+        let matched_sig = sidecar
+            .as_ref()
+            .and_then(|sc| sc.fns.iter().find(|sig| sig.name == method))
+            .cloned();
+
+        if let Some(sig) = matched_sig {
+            let param_tys: Vec<Ty> = sig.params.iter().map(|(_, ty)| ty.clone()).collect();
+            self.check_arguments(&param_tys, args, span);
+            let has_python = self.current_caps.iter().any(|cap| {
+                matches!(
+                    cap,
+                    crate::hir::HirCapability::Python | crate::hir::HirCapability::PythonUnverified
+                )
+            });
+            if !has_python {
+                self.diags.push(Diagnostic::error(
+                    format!(
+                        "Python call `{module_name}.{method}` requires `uses python` or `uses python_unverified`"
+                    ),
+                    span,
+                    self.source,
+                ));
+            }
+            let tier_label = if sidecar.as_ref().is_some_and(|s| s.is_curated) {
+                "curated"
+            } else {
+                "sidecar"
+            };
+            self.diags.push(
+                Diagnostic::warning(
+                    format!(
+                        "Tier 2 Python escape-hatch call `{module_name}.{method}` ({tier_label} `.vox.pyi` sidecar); prefer a first-class `std.*` wrapper when available."
+                    ),
+                    span,
+                    self.source,
+                )
+                .with_code(crate::typeck::diagnostics::codes::PYTHON_UNVERIFIED_CALL),
+            );
+            sig.ret
+        } else {
+            for a in args {
+                let _ = self.check_expr(&a.value, None);
+            }
+            let has_unverified = self
+                .current_caps
+                .iter()
+                .any(|cap| matches!(cap, crate::hir::HirCapability::PythonUnverified));
+            if !has_unverified {
+                self.diags.push(
+                    Diagnostic::error(
+                        format!(
+                            "Unbound Python call `{module_name}.{method}` requires `uses python_unverified` (or generate a typed sidecar with `vox py bind {module_name}`)."
+                        ),
+                        span,
+                        self.source,
+                    )
+                    .with_suggestion(format!("vox py bind {module_name}")),
+                );
+            }
+            self.diags.push(
+                Diagnostic::warning(
+                    format!(
+                        "Unbound Tier 2 Python call `{module_name}.{method}` returns opaque `PyObject`; run `vox py bind {module_name}` to bind a typed `.vox.pyi` signature."
+                    ),
+                    span,
+                    self.source,
+                )
+                .with_code(crate::typeck::diagnostics::codes::PYTHON_UNVERIFIED_CALL)
+                .with_suggestion(format!("vox py bind {module_name}")),
+            );
+            Ty::Named("PyObject".to_string())
+        }
+    }
+
+    fn check_py_object_method_call(&mut self, method: &str, args: &[HirArg], span: Span) -> Ty {
+        if method != "decode" {
+            for a in args {
+                let _ = self.check_expr(&a.value, None);
+            }
+            self.diags.push(
+                Diagnostic::error(
+                    format!(
+                        "Cannot call method `{method}` on opaque `PyObject`; decode it with `.decode(...)` first."
+                    ),
+                    span,
+                    self.source,
+                )
+                .with_suggestion("Call `.decode(...)` on the `PyObject` before calling methods."),
+            );
+            return Ty::Error;
+        }
+        if args.len() > 1 {
+            self.diags.push(Diagnostic::error(
+                "`PyObject.decode` takes at most 1 type argument".into(),
+                span,
+                self.source,
+            ));
+        }
+        let target_ty = match args.first() {
+            None => self.uf.fresh_var(),
+            Some(arg) => Self::hir_expr_as_decode_ty(&arg.value).unwrap_or_else(|| {
+                let _ = self.check_expr(&arg.value, None);
+                self.uf.fresh_var()
+            }),
+        };
+        Ty::Result(Box::new(target_ty), Box::new(Ty::Str))
+    }
+
+    fn hir_expr_as_decode_ty(expr: &HirExpr) -> Option<Ty> {
+        match expr {
+            HirExpr::StringLit(s, _) => Some(crate::python_escape_support::parse_vox_type_str(s)),
+            HirExpr::Ident(name, _) => {
+                if matches!(
+                    name.as_str(),
+                    "int"
+                        | "Int"
+                        | "i64"
+                        | "float"
+                        | "Float"
+                        | "f64"
+                        | "f32"
+                        | "str"
+                        | "Str"
+                        | "String"
+                        | "string"
+                        | "bool"
+                        | "Bool"
+                        | "Unit"
+                        | "unit"
+                ) {
+                    Some(crate::python_escape_support::parse_vox_type_str(name))
+                } else {
+                    None
+                }
+            }
+            HirExpr::Index(base, inner, _) => {
+                if let HirExpr::Ident(container, _) = base.as_ref()
+                    && matches!(container.as_str(), "list" | "List" | "Option" | "option")
+                {
+                    let inner_ty = Self::hir_expr_as_decode_ty(inner)?;
+                    return Some(if container.eq_ignore_ascii_case("option") {
+                        Ty::Option(Box::new(inner_ty))
+                    } else {
+                        Ty::List(Box::new(inner_ty))
+                    });
+                }
+                None
+            }
+            _ => None,
         }
     }
 }

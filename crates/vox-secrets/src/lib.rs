@@ -34,6 +34,10 @@ pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(()
 pub use backend::vox_vault::{VaultHealth, cloudless_vault_env_diagnostic, probe_vault_health};
 pub use errors::SecretError;
 pub use policy::{MissingBehavior, SecretPolicy};
+pub use redact::{
+    contains_secret_material, redact_secrets_from_value, scrub_resolved_secrets,
+    scrub_secret_needles,
+};
 use resolver::{ResolveOptions, SecretResolver};
 pub use resolver::{ResolveProfile, parse_clavis_uri};
 pub use spec::{

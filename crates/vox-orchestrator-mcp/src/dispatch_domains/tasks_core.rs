@@ -77,6 +77,17 @@ pub fn handles(name: &str) -> bool {
         "vox_a2a_ack" => true,
         "vox_a2a_broadcast" => true,
         "vox_a2a_history" => true,
+        "vox_gsd_status" => true,
+        "vox_gsd_progress" => true,
+        "vox_gsd_new_milestone" => true,
+        "vox_gsd_discuss_phase" => true,
+        "vox_gsd_plan_phase" => true,
+        "vox_gsd_execute_phase" => true,
+        "vox_gsd_verify_work" => true,
+        "vox_gsd_complete_milestone" => true,
+        "vox_gsd_list_documents" => true,
+        "vox_gsd_store_document" => true,
+        "vox_gsd_get_document" => true,
         _ => false,
     }
 }
@@ -125,7 +136,26 @@ pub async fn dispatch(
             {
                 return Ok(refusal);
             }
-            let resolved = state.pending_approvals.resolve(approval_id, outcome);
+            let resolution =
+                match crate::pending_approvals::parse_resolution_from_params(outcome, &args) {
+                    Ok(r) => r,
+                    Err(msg) => {
+                        return Ok(crate::params::ToolResult::<()>::err(msg.to_string()).to_json());
+                    }
+                };
+            if let Err(msg) =
+                crate::dispatch_domains::terminal_approvals::validate_terminal_resolution_before_commit(
+                    state,
+                    approval_id,
+                    &resolution,
+                )
+                .await
+            {
+                return Ok(crate::params::ToolResult::<()>::err(msg).to_json());
+            }
+            let resolved = state
+                .pending_approvals
+                .resolve_with_detail(approval_id, resolution);
             Ok(crate::params::ToolResult::ok(serde_json::json!({
                 "resolved": resolved,
                 "approval_id": approval_id,
@@ -344,6 +374,37 @@ pub async fn dispatch(
         }
         "vox_a2a_history" => {
             Ok(crate::a2a_tools::a2a_history(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_status" => Ok(crate::gsd_tools::gsd_status(state, args).await),
+        "vox_gsd_progress" => Ok(crate::gsd_tools::gsd_progress(state, args).await),
+        "vox_gsd_new_milestone" => {
+            Ok(crate::gsd_tools::gsd_new_milestone(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_discuss_phase" => {
+            Ok(crate::gsd_tools::gsd_discuss_phase(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_plan_phase" => {
+            Ok(crate::gsd_tools::gsd_plan_phase(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_execute_phase" => {
+            Ok(crate::gsd_tools::gsd_execute_phase(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_verify_work" => {
+            Ok(crate::gsd_tools::gsd_verify_work(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_complete_milestone" => Ok(crate::gsd_tools::gsd_complete_milestone(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gsd_list_documents" => {
+            Ok(crate::gsd_tools::gsd_list_documents(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_store_document" => {
+            Ok(crate::gsd_tools::gsd_store_document(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gsd_get_document" => {
+            Ok(crate::gsd_tools::gsd_get_document(state, serde_json::from_value(args)?).await)
         }
         _ => Err(anyhow::anyhow!("unhandled tool in tasks_core: {}", name)),
     }

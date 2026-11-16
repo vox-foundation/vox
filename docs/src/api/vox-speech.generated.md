@@ -114,8 +114,6 @@ graph {
     vox_integration_tests -> vox_speech
     node vox_ml_cli: "vox-ml-cli"
     vox_ml_cli -> vox_speech
-    node vox_orchestrator: "vox-orchestrator"
-    vox_orchestrator -> vox_speech
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
     vox_orchestrator_mcp -> vox_speech
 }
@@ -128,7 +126,6 @@ graph {
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
-| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)

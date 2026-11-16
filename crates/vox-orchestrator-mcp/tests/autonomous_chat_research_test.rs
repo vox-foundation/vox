@@ -43,6 +43,8 @@ async fn test_forced_autonomous_chat_research_triggers() {
         oversight_level: None,
         kb_scope: None,
         grounding_check_enabled: None,
+        research_mode: None,
+        waves: None,
     };
 
     // Since network backends and API keys might not be present in local test environments,

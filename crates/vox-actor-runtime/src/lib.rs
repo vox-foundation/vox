@@ -22,6 +22,9 @@ pub mod credential_broker;
 pub mod db;
 /// Durable / cron scheduler primitives for `@scheduled` + `@durable` (GA-11).
 pub mod durable_scheduler;
+#[cfg(feature = "database")]
+/// LLM interaction and RLHF user feedback collector backed by [`vox_db::VoxDb`].
+pub mod feedback;
 /// Garbage collection arena and !Send pointers for actor memory isolation.
 pub mod gc;
 /// Hugging Face router, Hub listings, and Mens/Ollama capability probes.

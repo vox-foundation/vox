@@ -250,8 +250,9 @@ mod tests {
         let bus = EventBus::new(16);
         let mut engine = ContinuationEngine::new(0, 10);
         let agent = AgentId(1);
-        let skill_id = "superpowers:tdd";
-        let skill_instructions = "# TDD Instructions\n1. Red\n2. Green\n3. Refactor";
+        let skill_id = "gsd-execute-phase";
+        let skill_instructions =
+            "# GSD Phase Execution\n1. Verify plan\n2. Execute wave\n3. Verify work";
 
         let prompt = engine.generate_continuation(
             agent,
@@ -266,7 +267,7 @@ mod tests {
         assert!(prompt.is_some());
         let p = prompt.unwrap();
         assert!(p.prompt_text.contains("<active_skill>"));
-        assert!(p.prompt_text.contains("1. Red"));
+        assert!(p.prompt_text.contains("2. Execute wave"));
         assert!(p.prompt_text.contains("</active_skill>"));
     }
 

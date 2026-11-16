@@ -6,6 +6,7 @@ import {
   DialogDescription,
 } from '../../ui/Dialog';
 import { Button } from '../../ui/Button';
+import { VoxSelect } from '../../ui/Select';
 import {
   ISOLATION_STRATEGIES,
   conflictRows,
@@ -62,22 +63,21 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
         <label className="text-xs text-text-muted" htmlFor="isolation-default">
           Default strategy
         </label>
-        <select
+        <VoxSelect
           id="isolation-default"
-          className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1 text-sm text-text-secondary"
+          aria-label="Default strategy"
+          className="w-48 rounded-lg border-border-subtle bg-overlay-subtle text-sm text-text-secondary"
           value={current}
           disabled={busy || !onSetDefault}
-          onChange={(e) => {
-            const next = e.target.value as IsolationStrategy;
+          onValueChange={(v) => {
+            const next = v as IsolationStrategy;
             if (next !== current) setPending(next);
           }}
-        >
-          {ISOLATION_STRATEGIES.map((s) => (
-            <option key={s} value={s}>
-              {strategyLabel(s)}
-            </option>
-          ))}
-        </select>
+          options={ISOLATION_STRATEGIES.map((s) => ({
+            value: s,
+            label: strategyLabel(s),
+          }))}
+        />
         <span className="text-xs text-text-muted">active: {strategyLabel(current)}</span>
       </div>
 
@@ -89,14 +89,14 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
           <table className="w-full text-left text-xs text-text-secondary">
             <thead className="text-text-muted">
               <tr>
-                <th className="py-1 pr-4">Agent</th>
+                <th className="py-1 pl-3 pr-4">Agent</th>
                 <th className="py-1">Strategy</th>
               </tr>
             </thead>
             <tbody>
               {agents.map((row) => (
                 <tr key={row.agentId} className="border-t border-border-subtle">
-                  <td className="py-1 pr-4 font-mono">A-{row.agentId}</td>
+                  <td className="py-1 pl-3 pr-4 font-mono">A-{row.agentId}</td>
                   <td className="py-1">{strategyLabel(row.strategy)}</td>
                 </tr>
               ))}

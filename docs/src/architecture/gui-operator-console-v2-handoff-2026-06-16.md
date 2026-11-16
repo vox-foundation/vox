@@ -151,7 +151,7 @@ Dockview: ⌘/Ctrl+\\ split, ⌘/Ctrl+W close panel; layout key `gui.layout.v1`.
 Run these before claiming done:
 
 ```powershell
-cd c:\Users\Owner\vox\crates\vox-gui\ui
+cd crates/vox-gui/ui
 pnpm test
 pnpm typecheck
 pnpm exec playwright test `
@@ -165,7 +165,7 @@ pnpm exec playwright test `
   e2e/dock-layout.spec.ts `
   --project=chromium
 
-cd c:\Users\Owner\vox
+cd ..\..\..
 pwsh -File scripts/windows/vox-dev.ps1 ci gui-surface-registry
 cargo test -p vox-gui map_gui_hook_event_type
 ```

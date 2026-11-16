@@ -3,6 +3,7 @@ import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
 import {
   activityQuery,
   listenActivityAppended,
@@ -318,41 +319,43 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
 
       <Glass className="flex items-center gap-3 p-3 flex-wrap border-[#C59B27]/35 bg-bg-surface">
         <div className="flex flex-col gap-1 min-w-[120px]">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
+          <label
+            htmlFor="activity-agent-filter"
+            className="text-[10px] uppercase font-bold tracking-wider text-text-muted"
+          >
             Agent
           </label>
-          <select
+          <VoxSelect
+            id="activity-agent-filter"
             value={agentFilter}
             aria-label="Agent"
-            onChange={(e) => setAgentFilter(e.target.value)}
-            className="bg-bg-base border border-border-subtle rounded-sm px-2 py-1 text-xs text-text-secondary focus:outline-hidden focus:border-brass/50"
-          >
-            <option value="">All Agents</option>
-            {uniqueAgents.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </select>
+            onValueChange={setAgentFilter}
+            options={[
+              { value: '', label: 'All Agents' },
+              ...uniqueAgents.map((id) => ({ value: id, label: id })),
+            ]}
+            className="bg-bg-base border-border-subtle text-xs text-text-secondary"
+          />
         </div>
 
         <div className="flex flex-col gap-1 min-w-[150px]">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
+          <label
+            htmlFor="activity-kind-filter"
+            className="text-[10px] uppercase font-bold tracking-wider text-text-muted"
+          >
             Event Type
           </label>
-          <select
+          <VoxSelect
+            id="activity-kind-filter"
             value={kindFilter}
             aria-label="Event Type"
-            onChange={(e) => setKindFilter(e.target.value)}
-            className="bg-bg-base border border-border-subtle rounded-sm px-2 py-1 text-xs text-text-secondary focus:outline-hidden focus:border-brass/50"
-          >
-            <option value="">All Kinds</option>
-            {uniqueKinds.map((kind) => (
-              <option key={kind} value={kind}>
-                {kind}
-              </option>
-            ))}
-          </select>
+            onValueChange={setKindFilter}
+            options={[
+              { value: '', label: 'All Kinds' },
+              ...uniqueKinds.map((kind) => ({ value: kind, label: kind })),
+            ]}
+            className="bg-bg-base border-border-subtle text-xs text-text-secondary"
+          />
         </div>
 
         <div className="flex items-end h-full mt-auto">

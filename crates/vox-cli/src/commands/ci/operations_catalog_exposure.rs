@@ -86,6 +86,9 @@ mod tests {
                 catalog_group: None,
                 ref_cli_required: None,
                 reachability_required: None,
+                verb_aliases: Vec::new(),
+                noun_aliases: Vec::new(),
+                foreign_idioms: Vec::new(),
             }),
             mcp,
         }

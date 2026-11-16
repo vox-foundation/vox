@@ -1,0 +1,64 @@
+{
+  "x-vox-version": 1,
+  "schema_version": 1,
+  "stage": "before",
+  "deterministic_seed": 20260447,
+  "six_axes": {
+    "performance": {
+      "simulated_fast_p50_ms": 610,
+      "simulated_deep_p95_ms": 5390,
+      "kv_cache_prefix_stability_ratio": 0.544548,
+      "session_detail_ipc_payload_bytes": 140517,
+      "gui_cli_db_spawn_count": 3
+    },
+    "quality": {
+      "groundedness_mean": 0.25,
+      "citation_precision_mean": 1.0,
+      "multi_hop_bridge_recall_mean": 0.833333,
+      "domain_coverage_modes": [
+        "general",
+        "shopping",
+        "codegen",
+        "scholarly"
+      ]
+    },
+    "verification": {
+      "claim_precision": 0.5,
+      "contradiction_detection_recall": 0.333333,
+      "contradiction_false_support_rate": 0.666667,
+      "mock_verifier_fallback_rate": 1.0
+    },
+    "integration": {
+      "composer_continuum_fidelity_rate": 0.0,
+      "doc_publish_artifact_retention_rate": 0.0,
+      "sequenced_event_replay_supported": true
+    },
+    "socrates_calibration": {
+      "ece": 0.198333,
+      "brier_score": 0.159417,
+      "selective_abstention_f1": 0.8
+    },
+    "novelty_detection": {
+      "prior_art_recall_at_5": 0.5,
+      "false_novelty_rate": 1.0,
+      "embedder_l3_shared": true
+    }
+  },
+  "live_bug_reproductions": {
+    "composer_research_scope_overwritten": true,
+    "research_turn_waves_hardcoded_to_one": true,
+    "none_to_novel_false_positive_rate": 1.0,
+    "artifact_json_wiped_on_doc_publish": true,
+    "mock_verifier_fallback_rate": 1.0,
+    "contradiction_false_support_rate": 0.666667,
+    "kv_cache_prefix_stability_ratio": 0.544548,
+    "session_detail_ipc_payload_bytes": 140517,
+    "gui_cli_db_spawn_count": 3
+  },
+  "cassette_summary": {
+    "query_cases": 4,
+    "socrates_cases": 6,
+    "claim_pairs": 5,
+    "novelty_bundles": 3
+  }
+}

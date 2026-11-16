@@ -4,7 +4,13 @@ import { useStore } from 'zustand';
 import { useLudusStore } from './store';
 import { HudPanels } from './HudPanels';
 import { useLlmSpend } from '../../hooks/useLlmSpend';
-import { listenAgentEvents, voxTransport } from '../../transport';
+import {
+  getSessionContextPins,
+  listenAgentEvents,
+  setSessionContextPins,
+  voxTransport,
+} from '../../transport';
+import { BackendUnavailableError, sanitizeErrorForToast } from '../../lib/backendGuard';
 import { moodFromPhase } from './LudusSandbox.mappers';
 import type { MoodType } from './store';
 import { layoutTown, assignNewFile, hitTestViaductEdge } from './urbs/layout';
@@ -29,7 +35,12 @@ import {
   computeSafePanoramaRect,
   drawDiegeticCrowdsAndGalleys,
   drawDiegeticWatercourses,
+  type PanoramaRect,
 } from './urbs/diegeticEnvironment';
+import {
+  renderInteractiveMonumentBeaconsAndHalo,
+  type FxMonumentFootprintSpec,
+} from '../fx/PhotorealisticCanvasFx';
 import { fetchHarnessSnapshot, HARNESS_POLL_MS } from './urbs/harnessData';
 import { nearestRoad, findPath } from './urbs/pathfind';
 import { spawnCitizen, stepCitizen, type Citizen } from './urbs/citizens';
@@ -54,8 +65,10 @@ import {
   type FileDiffAndDiagnosticsDto,
 } from '../../transport/t3Wave3Rpc';
 import { useIsEmbeddedSurface } from '../dashboard/EmbeddedSurfaceContext';
-import { Icon } from '../ui/Icons';
+import { Icon, RoleRankEmblem } from '../ui/Icons';
+import { RomanCrestPlate } from '../ui/RomanCrestPlate';
 import { RomanTooltip, RomanMedallion } from '../ui/RomanTooltip';
+import { VoxSelect } from '../ui/Select';
 
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 4;
@@ -65,34 +78,41 @@ function RomanCitizenSvg() {
   return (
     <svg
       data-testid="urbs-citizen-sprite"
-      viewBox="0 0 18 22"
-      className="h-5 w-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
+      viewBox="0 0 16 18"
+      className="h-4 w-3.5 drop-shadow-[0_2px_4px_rgba(28,20,12,0.65)]"
       fill="none"
       aria-hidden="true"
     >
-      <circle cx="9" cy="4.5" r="2.8" fill="#f5d0a9" stroke="#78350f" strokeWidth="0.9" />
-      <path d="M5 3.2C6.4 1.6 11.6 1.6 13 3.2" stroke="#d4af37" strokeWidth="1.2" strokeLinecap="round" />
+      <ellipse cx="8" cy="15.8" rx="4.2" ry="1.3" fill="rgba(28,20,12,0.42)" />
       <path
-        d="M4.5 8.5C4.5 7.4 5.4 6.8 6.5 6.8H11.5C12.6 6.8 13.5 7.4 13.5 8.5L14.5 16.5H3.5L4.5 8.5Z"
-        fill="#b91c1c"
-        stroke="#f59e0b"
-        strokeWidth="0.9"
+        d="M8 1.4C4.9 1.4 2.4 3.9 2.4 7C2.4 10.6 8 15.2 8 15.2C8 15.2 13.6 10.6 13.6 7C13.6 3.9 11.1 1.4 8 1.4Z"
+        fill="#1B6B3A"
+        stroke="#D4AF37"
+        strokeWidth="1.25"
       />
-      <path d="M5.5 7.2L12.5 14.5" stroke="#fef3c7" strokeWidth="1.3" strokeLinecap="round" />
-      <path d="M6.5 16.5V20.5M11.5 16.5V20.5" stroke="#d6d3d1" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="8" cy="6.8" r="2.5" fill="#F3E5AB" stroke="#8C6214" strokeWidth="0.7" />
     </svg>
   );
 }
 
 export interface MonumentCallout {
   id: string;
+  romanTier: string;
   label: string;
+  shortLabel: string;
   crateHint: string;
   surface: string;
   targetView: string;
   purpose: string;
+  /** Legacy CSS fallback % */
   left: string;
   top: string;
+  /** Exact normalized `[u, v]` center of the painted building in `urbs-white-gold-citadel-bg.jpg`. */
+  buildingUv: [number, number];
+  /** Exact normalized `[u, v]` stone plinth/steps anchor where the diegetic inscription sits. */
+  plinthUv: [number, number];
+  /** Normalized `[rx, ry]` architectural halo footprint radii relative to panorama dimensions. */
+  haloRadiusUv: [number, number];
   monumentArt: string;
   defaultFilePath: string;
 }
@@ -100,89 +120,146 @@ export interface MonumentCallout {
 export const MONUMENT_CALLOUTS: MonumentCallout[] = [
   {
     id: 'monument-compiler',
+    romanTier: 'I',
     label: 'Compiler & Typecheck',
+    shortLabel: 'Compiler',
     crateHint: 'vox-compiler',
     surface: 'explorer',
     targetView: 'explorer',
     purpose: 'Vox parser, HIR typechecker, effect gate, and Rust/TSX code generator.',
-    left: '27%',
-    top: '16%',
+    left: '29%',
+    top: '22%',
+    buildingUv: [0.288, 0.138],
+    plinthUv: [0.292, 0.218],
+    haloRadiusUv: [0.095, 0.075],
     monumentArt: '/assets/romanesque/monument-temple-compiler.jpg',
     defaultFilePath: 'crates/vox-compiler/src/typeck/mod.rs',
   },
   {
     id: 'monument-orchestrator',
+    romanTier: 'IV',
     label: 'Agent Orchestrator',
+    shortLabel: 'Orchestrator',
     crateHint: 'vox-orchestrator',
     surface: 'flow',
     targetView: 'flow',
     purpose: 'Multi-agent turn coordinator, spoke router, worktree leases, and tool verification.',
-    left: '16%',
-    top: '57%',
+    left: '14%',
+    top: '74%',
+    buildingUv: [0.108, 0.655],
+    plinthUv: [0.138, 0.742],
+    haloRadiusUv: [0.088, 0.078],
     monumentArt: '/assets/romanesque/monument-pantheon-orchestrator.jpg',
     defaultFilePath: 'crates/vox-orchestrator/src/router.rs',
   },
   {
     id: 'monument-gui',
+    romanTier: 'V',
     label: 'GUI & Surfaces',
+    shortLabel: 'GUI Surfaces',
     crateHint: 'vox-gui',
     surface: 'dashboard',
     targetView: 'dashboard',
     purpose: 'Vox Axis Tauri 2 desktop workbench and all 32 interactive operator surfaces.',
-    left: '56%',
-    top: '19%',
-    monumentArt: '/assets/romanesque/monument-colosseum-harness.jpg',
+    left: '57%',
+    top: '28%',
+    buildingUv: [0.562, 0.202],
+    plinthUv: [0.575, 0.278],
+    haloRadiusUv: [0.078, 0.072],
+    monumentArt: '/assets/romanesque/monument-rotunda-gui.jpg',
     defaultFilePath: 'crates/vox-gui/ui/src/App.tsx',
   },
   {
     id: 'monument-db',
+    romanTier: 'III',
     label: 'Database & Knowledge',
+    shortLabel: 'Scientia DB',
     crateHint: 'vox-db',
     surface: 'memory',
     targetView: 'memory',
     purpose: 'Turso/SQLite state store, Tantivy hybrid search index, and Scientia knowledge graph.',
-    left: '39%',
-    top: '32%',
+    left: '47%',
+    top: '37%',
+    buildingUv: [0.478, 0.298],
+    plinthUv: [0.468, 0.368],
+    haloRadiusUv: [0.078, 0.058],
     monumentArt: '/assets/romanesque/monument-library-knowledge.jpg',
     defaultFilePath: 'crates/vox-db/src/turso.rs',
   },
   {
     id: 'monument-mens',
+    romanTier: 'VII',
     label: 'MENS Local Models',
+    shortLabel: 'MENS Forge',
     crateHint: 'vox-mens',
     surface: 'mens',
     targetView: 'mens',
     purpose: 'Native QLoRA fine-tuning ladder (0.6B–32B), 8-spoke adapters, and Hugging Face sync.',
-    left: '85%',
-    top: '56%',
-    monumentArt: '/assets/romanesque/monument-pantheon-orchestrator.jpg',
+    left: '86%',
+    top: '69%',
+    buildingUv: [0.865, 0.605],
+    plinthUv: [0.862, 0.692],
+    haloRadiusUv: [0.088, 0.072],
+    monumentArt: '/assets/romanesque/monument-foundry-mens.jpg',
     defaultFilePath: 'crates/vox-mens/src/qlora.rs',
   },
   {
     id: 'monument-crypto',
+    romanTier: 'II',
     label: 'Security & Secrets',
+    shortLabel: 'Clavis Vault',
     crateHint: 'vox-crypto',
     surface: 'settings',
     targetView: 'settings',
     purpose: 'Clavis vault governance, BLAKE3 and Ed25519 cryptographic envelopes, and policy gates.',
-    left: '83%',
-    top: '23%',
-    monumentArt: '/assets/romanesque/monument-temple-compiler.jpg',
+    left: '84%',
+    top: '35%',
+    buildingUv: [0.84, 0.248],
+    plinthUv: [0.842, 0.348],
+    haloRadiusUv: [0.112, 0.088],
+    monumentArt: '/assets/romanesque/monument-vault-crypto.jpg',
     defaultFilePath: 'crates/vox-crypto/src/envelope.rs',
   },
   {
     id: 'monument-mesh',
+    romanTier: 'VI',
     label: 'Compute Mesh & Queue',
+    shortLabel: 'Populi Mesh',
     crateHint: 'vox-populi',
     surface: 'mesh',
     targetView: 'mesh',
     purpose: 'Distributed iroh QUIC peer mesh, live VRAM selector, and task dispatch queue.',
-    left: '64%',
-    top: '67%',
-    monumentArt: '/assets/romanesque/monument-colosseum-harness.jpg',
+    left: '72%',
+    top: '62%',
+    buildingUv: [0.73, 0.552],
+    plinthUv: [0.722, 0.622],
+    haloRadiusUv: [0.075, 0.065],
+    monumentArt: '/assets/romanesque/monument-portus-mesh.jpg',
     defaultFilePath: 'crates/vox-populi/src/mesh.rs',
   },
 ];
+
+function hitTestPanoramaMonument(
+  sx: number,
+  sy: number,
+  panoRect: PanoramaRect,
+): MonumentCallout | null {
+  if (panoRect.drawW < 32 || panoRect.drawH < 32) return null;
+  let best: MonumentCallout | null = null;
+  let bestNormDist = 1.08;
+  for (const m of MONUMENT_CALLOUTS) {
+    const cx = panoRect.drawX + m.buildingUv[0] * panoRect.drawW;
+    const cy = panoRect.drawY + m.buildingUv[1] * panoRect.drawH;
+    const rx = Math.max(24, m.haloRadiusUv[0] * panoRect.drawW * 1.08);
+    const ry = Math.max(18, m.haloRadiusUv[1] * panoRect.drawH * 1.12);
+    const norm = Math.hypot((sx - cx) / rx, (sy - cy) / ry);
+    if (norm < bestNormDist) {
+      bestNormDist = norm;
+      best = m;
+    }
+  }
+  return best;
+}
 
 interface Props {
   /** Optional: energy for the HUD (GamifyView passes profile data down). */
@@ -200,12 +277,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
   const [showLensMenu, setShowLensMenu] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rendererRef = useRef(new WorldRenderer());
+  const rendererRef = useRef<WorldRenderer | null>(null);
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 0.3 });
   const dragRef = useRef<{ sx: number; sy: number; camX: number; camY: number } | null>(null);
   const citizensRef = useRef<Record<string, Citizen>>({});
-  const [layout, setLayout] = useState<TownLayout | null>(null);
-  const [scanRoot, setScanRoot] = useState('');
   const [scanFailed, setScanFailed] = useState(false);
   const [paused, setPaused] = useState(false); // stream drop → SIM PAVSED
   const [harness, setHarness] = useState<HarnessSnapshot>({ ci: null, vcs: null, queueLen: null, mcp: null });
@@ -217,7 +292,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
   const [buildStage, setBuildStage] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ path: string; sx: number; sy: number } | null>(null);
   const [selection, setSelection] = useState<ImperiumSelection | null>(null);
-  const [lens, setLens] = useState<UrbsLens>('agents');
+  const [lens, setLens] = useState<UrbsLens>('architecture');
+  const [hoveredMonumentId, setHoveredMonumentId] = useState<string | null>(null);
+  const [canvasHoveredMonumentId, setCanvasHoveredMonumentId] = useState<string | null>(null);
+  const hoveredMonumentRef = useRef<string | null>(null);
+  const lastPanoRectRef = useRef<PanoramaRect>({ drawX: 0, drawY: 0, drawW: 800, drawH: 520 });
   const [presetId, setPresetId] = useState<UrbsRepoPresetId>('live');
   const [focusMode, setFocusMode] = useState<RealEstateFocusMode>('attention');
   const [liveWorkspaceScan, setLiveWorkspaceScan] = useState<TownScan | null>(null);
@@ -261,7 +340,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     useLudusStore.getState().setSelectedDistrictFilter(distName);
   }, [selection]);
 
-  // Hydrate quarantined districts from backend on mount
+  // Hydrate quarantined districts, session context pins, and claimed yield XP from backend on mount
   useEffect(() => {
     let active = true;
     listDistrictQuarantines()
@@ -272,6 +351,37 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         }
       })
       .catch(() => {});
+    if (typeof getSessionContextPins === 'function') {
+      getSessionContextPins('default')
+        .then((pins) => {
+          if (!active || !Array.isArray(pins) || pins.length === 0) return;
+          const hydrated = pins
+            .map((pin) =>
+              pin.id.startsWith('crate:')
+                ? pin.id.slice('crate:'.length)
+                : pin.label.replace(/^@crate:/, ''),
+            )
+            .filter(Boolean);
+          if (hydrated.length > 0) {
+            setPinnedCrates(new Set(hydrated));
+          }
+        })
+        .catch(() => {});
+    }
+    const t = voxTransport as typeof voxTransport & {
+      getGuiPreference?: (key: string) => Promise<string | null>;
+    };
+    if (typeof t.getGuiPreference === 'function') {
+      t.getGuiPreference('vox.urbs.claimed_yield_xp.v1')
+        .then((saved) => {
+          if (!active || saved == null) return;
+          const parsed = Number(saved);
+          if (Number.isFinite(parsed) && parsed >= 0) {
+            setClaimedYieldXp(parsed);
+          }
+        })
+        .catch(() => {});
+    }
     return () => {
       active = false;
     };
@@ -330,6 +440,53 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     }
     return remapped;
   }, [storeAgentTasks, activePreset, currentScan, primaryDirtyFile]);
+
+  const { layout, scanRoot, layoutFailed } = React.useMemo(() => {
+    const scan = presetId === 'live' ? liveWorkspaceScan : activePreset.scan;
+    if (!scan || scan.crates.length === 0) {
+      return { layout: null as TownLayout | null, scanRoot: '', layoutFailed: false };
+    }
+    const gods = new Set(
+      [...scan.crates]
+        .sort((a, b) => b.files.length - a.files.length)
+        .slice(0, 3)
+        .map((c) => c.name),
+    );
+    const activeFiles = new Set(Object.values(agentTasks).map((t) => t.filePath));
+    const attentionByDistrict: Record<string, DistrictAttentionSignal> = {};
+    for (const c of scan.crates) {
+      const activeAgentCount = c.files.filter((f) => activeFiles.has(f.path)).length;
+      const errorCount = c.files.reduce((s, f) => s + (buildings[f.path]?.errors ?? 0), 0);
+      const warningCount = c.files.reduce((s, f) => s + (buildings[f.path]?.warnings ?? 0), 0);
+      const needsYouGates = activeGates.filter((g) => g.district === c.name).length;
+      attentionByDistrict[c.name] = {
+        activeAgentCount,
+        dirtyFileCount: c.dirty_file_count ?? 0,
+        totalChurnLines: c.total_churn_lines ?? 0,
+        errorCount,
+        warningCount,
+        needsYouGates,
+        isSelected: false,
+      };
+    }
+    try {
+      return {
+        layout: layoutTown(scan, gods, {
+          focusMode,
+          attentionByDistrict,
+          activeFiles,
+        }),
+        scanRoot: scan.root,
+        layoutFailed: false,
+      };
+    } catch (err) {
+      console.error('[urbs] layoutTown failed:', err);
+      return { layout: null as TownLayout | null, scanRoot: scan.root, layoutFailed: true };
+    }
+  }, [presetId, focusMode, liveWorkspaceScan, activePreset, activeGates, agentTasks, buildings]);
+
+  const layoutRef = useRef<TownLayout | null>(null);
+  layoutRef.current = layout;
 
   // ── Multi-Agent Write-Set Collision Cone Radar (URBS-COLLISION-01..04) ───
   const collisionRadar = React.useMemo(() => {
@@ -465,73 +622,43 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
   // ── Workspace scan → layout ──────────────────────────────────────────────
   useEffect(() => {
     let live = true;
+    const fallbackTimer = setTimeout(() => {
+      if (live) {
+        setLiveWorkspaceScan((prev) => prev ?? DEFAULT_LIVE_FALLBACK_SCAN);
+      }
+    }, 3_500);
     voxTransport.workspaceTownScan()
       .then((rawScan) => {
+        clearTimeout(fallbackTimer);
         if (!live) return;
         const scan =
           rawScan && Array.isArray(rawScan.crates) && rawScan.crates.length > 0
             ? rawScan
             : DEFAULT_LIVE_FALLBACK_SCAN;
+        setScanFailed(false);
         setLiveWorkspaceScan(scan);
       })
-      .catch(() => { if (live) setScanFailed(true); });
-    return () => { live = false; };
+      .catch((err: unknown) => {
+        clearTimeout(fallbackTimer);
+        if (!live) return;
+        if (err instanceof BackendUnavailableError) {
+          setScanFailed(false);
+          setLiveWorkspaceScan(DEFAULT_LIVE_FALLBACK_SCAN);
+        } else {
+          setScanFailed(true);
+        }
+      });
+    return () => {
+      live = false;
+      clearTimeout(fallbackTimer);
+    };
   }, []);
-
-  useEffect(() => {
-    const scan = presetId === 'live' ? liveWorkspaceScan : activePreset.scan;
-    if (!scan || scan.crates.length === 0) return;
-    setScanFailed(false);
-
-    const gods = new Set(
-      [...scan.crates]
-        .sort((a, b) => b.files.length - a.files.length)
-        .slice(0, 3)
-        .map((c) => c.name),
-    );
-    const activeFiles = new Set(Object.values(agentTasks).map((t) => t.filePath));
-    const attentionByDistrict: Record<string, DistrictAttentionSignal> = {};
-    for (const c of scan.crates) {
-      const activeAgentCount = c.files.filter((f) => activeFiles.has(f.path)).length;
-      const errorCount = c.files.reduce(
-        (s, f) => s + (buildings[f.path]?.errors ?? 0),
-        0,
-      );
-      const warningCount = c.files.reduce(
-        (s, f) => s + (buildings[f.path]?.warnings ?? 0),
-        0,
-      );
-      const needsYouGates = activeGates.filter(
-        (g) => g.district === c.name,
-      ).length;
-      attentionByDistrict[c.name] = {
-        activeAgentCount,
-        dirtyFileCount: c.dirty_file_count ?? 0,
-        totalChurnLines: c.total_churn_lines ?? 0,
-        errorCount,
-        warningCount,
-        needsYouGates,
-        isSelected: selection?.kind === 'district' && selection.name === c.name,
-      };
-    }
-
-    setScanRoot(scan.root);
-    try {
-      setLayout(
-        layoutTown(scan, gods, {
-          focusMode,
-          attentionByDistrict,
-          activeFiles,
-        }),
-      );
-    } catch (err) {
-      console.error('[urbs] layoutTown failed:', err);
-      setScanFailed(true);
-    }
-  }, [presetId, focusMode, liveWorkspaceScan, activePreset, activeGates, agentTasks, buildings, selection]);
 
   // ── Blit: offscreen buffer → screen with camera transform ───────────────
   const dioramaImgRef = useRef<HTMLImageElement | null>(null);
+  const canvas2dUnsupportedRef = useRef(
+    typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent),
+  );
   const blit = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !layout) return;
@@ -543,8 +670,17 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         ? { ...cam }
         : prev,
     );
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (canvas2dUnsupportedRef.current) return;
+    let ctx: CanvasRenderingContext2D | null = null;
+    try {
+      ctx = canvas.getContext('2d');
+    } catch {
+      ctx = null;
+    }
+    if (!ctx) {
+      canvas2dUnsupportedRef.current = true;
+      return;
+    }
     const dpr = window.devicePixelRatio || 1;
     const needsYouByDistrict: Record<string, number> = {};
     for (const g of activeGates) {
@@ -563,7 +699,6 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       selectedViaductEdge: selection?.kind === 'viaduct' ? selection.edge : null,
       activeToolPulses,
     };
-    const { canvas: buffer, scale } = rendererRef.current.ensure(state, cam.zoom);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cw = canvas.width / dpr;
     const ch = canvas.height / dpr;
@@ -596,6 +731,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       drawW: basePanoRect.drawW * relZoom,
       drawH: basePanoRect.drawH * relZoom,
     };
+    lastPanoRectRef.current = panoRect;
     if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
       ctx.save();
       const skyGrad = ctx.createLinearGradient(0, 0, 0, ch);
@@ -610,50 +746,84 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     }
     drawDiegeticWatercourses(ctx, panoRect, nowMs, activeTaskCount, totalErrCount);
     drawDiegeticCrowdsAndGalleys(ctx, panoRect, nowMs, activeTaskCount);
-    ctx.save();
-    ctx.translate(cam.x, cam.y);
-    ctx.scale(cam.zoom, cam.zoom);
-    ctx.globalAlpha = bgImg && bgImg.complete && bgImg.naturalWidth > 0 ? 0.58 : 1;
-    ctx.drawImage(buffer, 0, 0, buffer.width / scale, buffer.height / scale);
-    ctx.globalAlpha = 1;
-    rendererRef.current.drawFires(ctx, state, cam.zoom, fireFrame);
-    rendererRef.current.drawAnimatedWorldEffects(ctx, state, nowMs);
-    ctx.restore();
-    if (selection) {
-      let focusUv: [number, number] = [0.49, 0.52];
-      if (selection.kind === 'landmark') {
-        if (selection.id === 'PRAETORIVM') focusUv = [0.28, 0.63];
-        else if (selection.id === 'CASTRVM') focusUv = [0.84, 0.36];
-        else if (selection.id === 'PORTVS') focusUv = [0.68, 0.70];
-        else focusUv = [0.37, 0.31];
-      } else if (selection.kind === 'district') {
-        const nm = selection.name.toLowerCase();
-        if (nm.includes('compiler') || nm.includes('lexer') || nm.includes('typeck')) focusUv = [0.37, 0.31];
-        else if (nm.includes('gui') || nm.includes('surface')) focusUv = [0.61, 0.34];
-        else if (nm.includes('db') || nm.includes('search')) focusUv = [0.47, 0.43];
-        else if (nm.includes('orchestrator') || nm.includes('mcp')) focusUv = [0.28, 0.63];
-        else if (nm.includes('mens') || nm.includes('populi')) focusUv = [0.86, 0.62];
-        else if (nm.includes('crypto') || nm.includes('secrets')) focusUv = [0.84, 0.36];
-      }
-      const fx = panoRect.drawX + focusUv[0] * panoRect.drawW;
-      const fy = panoRect.drawY + focusUv[1] * panoRect.drawH;
+    const hasPaintedPanorama = Boolean(bgImg && bgImg.complete && bgImg.naturalWidth > 0);
+    if (!hasPaintedPanorama) {
+      const renderer = (rendererRef.current ??= new WorldRenderer());
+      const { canvas: buffer, scale } = renderer.ensure(state, cam.zoom);
       ctx.save();
-      const haloGrad = ctx.createRadialGradient(fx, fy, 6, fx, fy, 68);
-      haloGrad.addColorStop(0, 'rgba(255, 245, 190, 0.52)');
-      haloGrad.addColorStop(0.55, 'rgba(212, 175, 55, 0.24)');
-      haloGrad.addColorStop(1, 'rgba(212, 175, 55, 0)');
-      ctx.fillStyle = haloGrad;
-      ctx.beginPath();
-      ctx.arc(fx, fy, 68, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.92)';
-      ctx.lineWidth = 2.2;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.ellipse(fx, fy, 46, 24, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.translate(cam.x, cam.y);
+      ctx.scale(cam.zoom, cam.zoom);
+      ctx.drawImage(buffer, 0, 0, buffer.width / scale, buffer.height / scale);
+      renderer.drawFires(ctx, state, cam.zoom, fireFrame);
+      renderer.drawAnimatedWorldEffects(ctx, state, nowMs);
       ctx.restore();
+    } else {
+      // Render diegetic interactive building affordance beacons + mouseover/selection architectural halos
+      // in 1:1 painted panorama UV space (zero misaligned grid wireframes or dashed lines).
+      const activeHoverId = hoveredMonumentRef.current;
+      const monumentSpecs: FxMonumentFootprintSpec[] = MONUMENT_CALLOUTS.map((m) => {
+        const shortKey = m.crateHint.replace('vox-', '');
+        const matchedDist = layout.districts.find((d) => d.name.includes(shortKey));
+        const hasLiveAgent = Object.values(agentTasks).some(
+          (t) =>
+            t.filePath.includes(m.crateHint) ||
+            (matchedDist ? t.filePath.includes(matchedDist.name) : false),
+        );
+        const hasGateOrErr =
+          activeGates.some((g) => g.district.includes(shortKey)) ||
+          (matchedDist
+            ? matchedDist.buildings.some((b) => (buildings[b.path]?.errors ?? 0) > 0)
+            : false);
+        const isQuarantined = matchedDist
+          ? quarantinedDistrictsList.includes(matchedDist.name)
+          : false;
+        const isDistrictSelected =
+          (selection?.kind === 'district' && selection.name.includes(shortKey)) ||
+          (selection?.kind === 'landmark' &&
+            ((selection.id === 'PRAETORIVM' && m.id === 'monument-orchestrator') ||
+              (selection.id === 'CASTRVM' && m.id === 'monument-crypto') ||
+              (selection.id === 'PORTVS' && m.id === 'monument-mesh') ||
+              (selection.id === 'FORVM' && m.id === 'monument-compiler')));
+
+        const lensHighlight =
+          lens === 'agents' && (hasLiveAgent || m.id === 'monument-orchestrator' || m.id === 'monument-compiler')
+            ? 1.0
+            : lens === 'health' && hasGateOrErr
+              ? 1.2
+              : lens === 'cost' && (m.id === 'monument-mens' || m.id === 'monument-orchestrator')
+                ? 0.95
+                : lens === 'pipeline' && (m.id === 'monument-mesh' || m.id === 'monument-crypto')
+                  ? 0.95
+                  : 0.15;
+
+        return {
+          id: m.id,
+          footprintUv: m.buildingUv,
+          plinthUv: m.plinthUv,
+          radiusUv: m.haloRadiusUv,
+          activityState: isQuarantined
+            ? 'quarantined'
+            : hasGateOrErr
+              ? 'attention'
+              : hasLiveAgent || m.id === 'monument-compiler' || m.id === 'monument-orchestrator'
+                ? 'active'
+                : 'ready',
+          isHovered: activeHoverId === m.id,
+          isSelected: isDistrictSelected,
+          lensHighlight,
+        };
+      });
+      renderInteractiveMonumentBeaconsAndHalo(
+        ctx,
+        {
+          x: panoRect.drawX,
+          y: panoRect.drawY,
+          width: panoRect.drawW,
+          height: panoRect.drawH,
+        },
+        monumentSpecs,
+        nowMs,
+      );
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }, [
@@ -703,7 +873,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       if (wrap.clientWidth > 0 && wrap.clientHeight > 0) {
         setViewportSize({ w: wrap.clientWidth, h: wrap.clientHeight });
       }
-      if (first) {
+      if (first && wrap.clientWidth > 0 && wrap.clientHeight > 0) {
         // Initial view: fit the occupied world (districts + landmarks), not the
         // padded 64×64 canvas, so the town fills the viewport.
         cameraRef.current = fitBounds(
@@ -725,13 +895,26 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
 
   // ── Fire animation frame (slow, only when errors exist) ─────────────────
   useEffect(() => {
+    if (canvas2dUnsupportedRef.current) return;
     const anyErrors = Object.values(buildings).some((b) => b.errors > 0);
     if (!anyErrors || speed === 0) return;
     const id = setInterval(() => setFireFrame((f) => (f ? 0 : 1)), FIRE_FRAME_MS / Math.max(speed, 1));
     return () => clearInterval(id);
   }, [buildings, speed]);
 
-  // ── Pan / zoom (the actual fix) ──────────────────────────────────────────
+  // ── Pan / zoom + interactive monument hover detection ────────────────────
+  const syncMonumentHover = (nextId: string | null, fromCanvas: boolean) => {
+    if (hoveredMonumentRef.current !== nextId) {
+      hoveredMonumentRef.current = nextId;
+      setHoveredMonumentId(nextId);
+      blitRef.current();
+    }
+    setCanvasHoveredMonumentId((prev) => {
+      const target = fromCanvas ? nextId : null;
+      return prev === target ? prev : target;
+    });
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const cam = cameraRef.current;
@@ -740,7 +923,19 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
   const onPointerMove = (e: React.PointerEvent) => {
     const d = dragRef.current;
     const wrap = wrapRef.current;
-    if (!d || !wrap || !layout) return;
+    if (!wrap || !layout) return;
+    if (!d) {
+      const rect = wrap.getBoundingClientRect();
+      const hitMon = hitTestPanoramaMonument(
+        e.clientX - rect.left,
+        e.clientY - rect.top,
+        lastPanoRectRef.current,
+      );
+      syncMonumentHover(hitMon ? hitMon.id : null, true);
+      return;
+    }
+    if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 3) return;
+    syncMonumentHover(null, false);
     cameraRef.current = clampCamera(
       { ...cameraRef.current, x: d.camX + (e.clientX - d.sx), y: d.camY + (e.clientY - d.sy) },
       worldBounds(layout), wrap.clientWidth, wrap.clientHeight,
@@ -748,6 +943,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     blit();
   };
   const onPointerUp = () => { dragRef.current = null; };
+  const onPointerLeave = () => {
+    if (!dragRef.current) {
+      syncMonumentHover(null, false);
+    }
+  };
   const onWheel = (e: React.WheelEvent) => {
     const wrap = wrapRef.current;
     if (!wrap || !layout) return;
@@ -812,13 +1012,39 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     blit();
   };
 
-  // ── Click → landmark / viaduct / building / district hit-test → ImperiumInspector & Speculum Loupe ──
+  // ── Click → painted monument / landmark / viaduct / building / district hit-test ──
   const onClick = (e: React.MouseEvent) => {
     const wrap = wrapRef.current;
     if (!wrap || !layout || dragRef.current) return;
     const rect = wrap.getBoundingClientRect();
     const clickSx = e.clientX - rect.left;
     const clickSy = e.clientY - rect.top;
+
+    // 0. Check painted interactive monument footprint first (1:1 visual building accuracy)
+    const hitMon = hitTestPanoramaMonument(clickSx, clickSy, lastPanoRectRef.current);
+    if (hitMon) {
+      const shortKey = hitMon.crateHint.replace('vox-', '');
+      const matchedDistrict =
+        layout.districts.find((d) => d.name.includes(shortKey)) ?? layout.districts[0];
+      if (matchedDistrict) {
+        if (e.altKey) {
+          toggleDistrictQuarantine(matchedDistrict.name);
+        }
+        jumpToTile(
+          (matchedDistrict.x0 + matchedDistrict.x1) / 2,
+          (matchedDistrict.y0 + matchedDistrict.y1) / 2,
+        );
+        const alreadySelected =
+          selection?.kind === 'district' && selection.name === matchedDistrict.name;
+        setSelection({ kind: 'district', name: matchedDistrict.name });
+        if (onNavigate && (alreadySelected || e.metaKey || e.shiftKey || embedded)) {
+          onNavigate(hitMon.targetView);
+        }
+      }
+      setMenu(null);
+      return;
+    }
+
     const { wx, wy } = screenToWorld(cameraRef.current, clickSx, clickSy);
     // tileFromWorld is the single inverse of worldPx — no duplicated margin math.
     const { x: tx, y: ty } = tileFromWorld(layout, wx, wy);
@@ -874,8 +1100,9 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
     listenAgentEvents((event) => {
       const store = useLudusStore.getState();
       const k = event.kind as { type: string; path?: string; agent_id?: string; phase?: string; stage?: string };
-      if (k.type === 'file_edited' && typeof k.path === 'string' && layout) {
-        if (!layout.byPath[k.path]) assignNewFile(layout, k.path);
+      const curLayout = layoutRef.current;
+      if (k.type === 'file_edited' && typeof k.path === 'string' && curLayout) {
+        if (!curLayout.byPath[k.path]) assignNewFile(curLayout, k.path);
       }
       if (k.type === 'task_phase_changed' && k.agent_id && k.phase) {
         store.updateAgent(k.agent_id, { mood: moodFromPhase(k.phase) as MoodType });
@@ -890,7 +1117,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       .then((fn) => { if (!active) fn(); else { unlisten = fn; setPaused(false); } })
       .catch(() => { if (active) setPaused(true); });
     return () => { active = false; unlisten?.(); };
-  }, [layout]);
+  }, []);
 
   // ── Citizens: derive from agentTasks or autonomous Via Appia patrol, walk in a rAF loop ──
   const patrolGoalIdxRef = useRef<Record<string, number>>({});
@@ -950,7 +1177,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
   }, [agentTasks, layout, embedded]);
 
   useEffect(() => {
-    if (!layout) return;
+    if (!layout || canvas2dUnsupportedRef.current) return;
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
@@ -987,16 +1214,6 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             const { px, py } = worldPx(layout, next.pos.x, next.pos.y);
             const s = worldToScreen(cameraRef.current, px, py);
             el.style.transform = `translate(${s.sx}px, ${s.sy}px) translate(-50%, -100%)`;
-          } else if (viewportSize.w > 120 && viewportSize.h > 100) {
-            const { px, py } = worldPx(layout, next.pos.x, next.pos.y);
-            const s = worldToScreen(cameraRef.current, px, py);
-            const minY = embedded ? 38 : 62;
-            const maxY = viewportSize.h - (embedded ? 38 : 96);
-            const maxX = viewportSize.w - (embedded ? 48 : showRadarDrawer || showPriorityDrawer ? 228 : 56);
-            const clampedX = Math.max(56, Math.min(maxX, s.sx));
-            const clampedY = Math.max(minY, Math.min(maxY, s.sy));
-            el.style.left = `${Math.round(clampedX)}px`;
-            el.style.top = `${Math.round(clampedY)}px`;
           }
           el.style.zIndex = String(Math.floor(next.pos.x + next.pos.y));
         }
@@ -1048,59 +1265,118 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       : langLower.includes('go')
         ? 'go test ./...'
         : 'cargo test';
-  const vexillumMeta: Record<string, { legion: string; model: string; task: string; border: string }> = {
+  // Compute live safe-frame panorama rectangle in React render space so diegetic monument
+  // plinth plaques and garrison vexillum standards stay 100% locked to their painted buildings.
+  const livePanoRect: PanoramaRect = React.useMemo(() => {
+    const cw = Math.max(1, viewportSize.w);
+    const ch = Math.max(1, viewportSize.h);
+    const baseRect = computeSafePanoramaRect(cw, ch, 1920, 1080);
+    if (!layout) return baseRect;
+    const baseCam = fitBounds(occupiedWorldBounds(layout), cw, ch, embedded ? 12 : 20);
+    const relZoom = Math.max(
+      0.88,
+      Math.min(1.45, camView.zoom / Math.max(0.05, baseCam.zoom)),
+    );
+    const relDx = (camView.x - baseCam.x) * 0.42;
+    const relDy = (camView.y - baseCam.y) * 0.42;
+    return {
+      drawX: baseRect.drawX * relZoom + cw * (1 - relZoom) * 0.5 + relDx,
+      drawY: baseRect.drawY * relZoom + ch * (1 - relZoom) * 0.5 + relDy,
+      drawW: baseRect.drawW * relZoom,
+      drawH: baseRect.drawH * relZoom,
+    };
+  }, [viewportSize.w, viewportSize.h, layout, camView.x, camView.y, camView.zoom, embedded]);
+
+  const vexillumMeta: Record<
+    string,
+    { legion: string; rank: string; shortStandard: string; model: string; task: string; uv: [number, number]; dotColor: string }
+  > = {
     'AEDILIS-01': {
       legion: 'LEGIO-01',
+      rank: 'praetor',
+      shortStandard: 'I',
       model: 'Claude Sonnet 4.5',
       task: `Editing ${primaryEditFile}`,
-      border: 'border-[#D4AF37]/85 bg-bg-elevated/95 text-text-primary',
+      uv: [0.382, 0.238], // Stationed on paved Acropolis eastern terrace beside vox-compiler
+      dotColor: 'bg-(--color-success,rgb(16_185_129))',
     },
     'AVGVR-02': {
       legion: 'LEGIO-02',
+      rank: 'legatus',
+      shortStandard: 'II',
       model: 'Gemini 2.5 Pro',
       task: `Running ${polyglotTestCmd}`,
-      border: 'border-[#7B8C32]/85 bg-bg-elevated/95 text-text-primary',
+      uv: [0.518, 0.592], // Stationed on paved Forum canal promenade beside Nymphaeum
+      dotColor: 'bg-(--color-success,rgb(16_185_129))',
     },
     'FABER-03': {
       legion: 'LEGIO-03',
+      rank: 'faber',
+      shortStandard: 'III',
       model: 'MENS local',
       task: `Indexing ${layout?.districts[0]?.name ?? 'workspace'}`,
-      border: 'border-amber-400/75 bg-bg-elevated/95 text-text-primary',
+      uv: [0.648, 0.448], // Stationed on sunlit upper Grand Canal plaza clear of monument plaques
+      dotColor: 'bg-[#B8860B]',
     },
   };
+
   const ambientRosters =
     layout && layout.districts.length > 0
       ? (isCompactViewport ? ['AEDILIS-01', 'AVGVR-02'] : ['AEDILIS-01', 'AVGVR-02', 'FABER-03'])
           .filter((id) => !storeAgentTasks[id])
           .map((id, idx) => {
-          const districtSlots = [0, 2, 4];
-          const d = layout.districts[districtSlots[idx % districtSlots.length]! % layout.districts.length]!;
-          const tx = idx === 1 ? d.x1 - 0.8 : d.x0 + 0.8;
-          const ty = d.y0 + 0.6;
-          if (viewportSize.w > 120 && viewportSize.h > 100) {
-            const wp = worldPx(layout, tx, ty);
-            const sp = worldToScreen(camView, wp.px, wp.py - 28);
-            const minY = embedded ? 38 : 82;
-            const maxY = viewportSize.h - (embedded ? 38 : 96);
-            const maxX = viewportSize.w - (embedded ? 76 : showRadarDrawer || showPriorityDrawer ? 248 : 84);
-            const clampedX = Math.max(84, Math.min(maxX, sp.sx));
-            const clampedY = Math.max(minY, Math.min(maxY, sp.sy));
-            return { id, left: `${Math.round(clampedX)}px`, top: `${Math.round(clampedY)}px` };
-          }
-          const fallbacks = [
-            { left: '29%', top: '69%' },
-            { left: '49%', top: '52%' },
-            { left: '56%', top: '65%' },
-          ];
-          return { id, ...fallbacks[idx % fallbacks.length]! };
-        })
+            const meta = vexillumMeta[id];
+            const uv: [number, number] = meta?.uv ?? [0.36 + idx * 0.16, 0.58];
+            if (viewportSize.w > 120 && viewportSize.h > 100) {
+              const rawX = livePanoRect.drawX + uv[0] * livePanoRect.drawW;
+              const rawY = livePanoRect.drawY + uv[1] * livePanoRect.drawH;
+              const minY = embedded ? 38 : 64;
+              const maxY = viewportSize.h - (embedded ? 34 : 76);
+              const maxX =
+                viewportSize.w -
+                (embedded ? 56 : showRadarDrawer || showPriorityDrawer ? 176 : 56);
+              const clampedX = Math.max(48, Math.min(maxX, rawX));
+              const clampedY = Math.max(minY, Math.min(maxY, rawY));
+              return { id, left: `${Math.round(clampedX)}px`, top: `${Math.round(clampedY)}px` };
+            }
+            return {
+              id,
+              left: `${Math.round(uv[0] * 100)}%`,
+              top: `${Math.round(uv[1] * 100)}%`,
+            };
+          })
       : [];
 
   const handleBannerDrop = (agentId: string, clientX: number, clientY: number) => {
     const wrap = wrapRef.current;
     if (!wrap || !layout) return;
     const rect = wrap.getBoundingClientRect();
-    const { wx, wy } = screenToWorld(cameraRef.current, clientX - rect.left, clientY - rect.top);
+    const dropSx = clientX - rect.left;
+    const dropSy = clientY - rect.top;
+
+    // First check painted interactive monuments in panorama UV space
+    const hitMon = hitTestPanoramaMonument(dropSx, dropSy, lastPanoRectRef.current);
+    if (hitMon) {
+      const shortKey = hitMon.crateHint.replace('vox-', '');
+      const hitDist =
+        layout.districts.find((d) => d.name.includes(shortKey)) ?? layout.districts[0];
+      const targetPath = hitDist?.buildings[0]?.path ?? hitMon.defaultFilePath;
+      useLudusStore.getState().updateAgentTask(agentId, {
+        taskId: agentId,
+        filePath: targetPath,
+        status: `Assigned via Vexillum drop to ${targetPath}`,
+      });
+      if (hitDist) setSelection({ kind: 'district', name: hitDist.name });
+      void voxTransport
+        .callTool('vox_submit_task', {
+          description: `Fix & inspect ${targetPath}`,
+          file_affinity: [targetPath],
+        })
+        .catch(() => {});
+      return;
+    }
+
+    const { wx, wy } = screenToWorld(cameraRef.current, dropSx, dropSy);
     const { x: tx, y: ty } = tileFromWorld(layout, wx, wy);
     const hitPlot = Object.values(layout.byPath).find((p) => p.x === tx && p.y === ty);
     const hitDist = layout.districts.find((d) => tx >= d.x0 && tx < d.x1 && ty >= d.y0 && ty < d.y1);
@@ -1109,7 +1385,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
       useLudusStore.getState().updateAgentTask(agentId, {
         taskId: agentId,
         filePath: targetPath,
-        status: `Assigned via Vexillum drop → ${targetPath}`,
+        status: `Assigned via Vexillum drop to ${targetPath}`,
       });
       if (hitDist) setSelection({ kind: 'district', name: hitDist.name });
       void voxTransport
@@ -1163,7 +1439,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
-  if (scanFailed) {
+  if ((presetId === 'live' && scanFailed) || layoutFailed) {
     return (
       <div className="flex h-full w-full items-center justify-center rounded-2xl border border-border-subtle bg-bg-surface text-sm text-text-muted">
         Workspace scan unavailable — the town cannot render.
@@ -1186,15 +1462,32 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         ref={canvasRef}
         data-testid="urbs-canvas"
         data-diorama-composited="true"
-        className={`absolute inset-0 cursor-grab active:cursor-grabbing opacity-100 ${layout ? '' : 'invisible'}`}
+        data-hovered-monument={hoveredMonumentId ?? undefined}
+        className={`absolute inset-0 ${
+          hoveredMonumentId ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'
+        } opacity-100 ${layout ? '' : 'invisible'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave}
         onWheel={onWheel}
         onClick={onClick}
+        onDoubleClick={(e) => {
+          if (!onNavigate || !wrapRef.current) return;
+          const rect = wrapRef.current.getBoundingClientRect();
+          const hitMon = hitTestPanoramaMonument(
+            e.clientX - rect.left,
+            e.clientY - rect.top,
+            lastPanoRectRef.current,
+          );
+          if (hitMon) {
+            e.stopPropagation();
+            onNavigate(hitMon.targetView);
+          }
+        }}
       />
 
-      {/* Diegetic Watercourse Shimmer SVG + Compact Chiseled Monument Nameplates */}
+      {/* Diegetic Sunlit Vignette + Architectural Plinth Entablature Inscriptions */}
       {layout && (
         <div className="pointer-events-none absolute inset-0 z-[5]">
           <svg
@@ -1205,125 +1498,149 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             className="pointer-events-none absolute inset-0 h-full w-full opacity-90"
           >
             <defs>
-              <radialGradient id="urbs-waterfall-mist" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.65" />
-                <stop offset="55%" stopColor="#E0F7FA" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
-              </radialGradient>
+              <linearGradient id="urbs-sunlit-vignette" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FFF7D6" stopOpacity="0.12" />
+                <stop offset="60%" stopColor="#FFF7D6" stopOpacity="0" />
+                <stop offset="100%" stopColor="var(--color-text-primary)" stopOpacity="0.09" />
+              </linearGradient>
             </defs>
-            {/* Diegetic Waterfall Plunge Mist & Concentric Ripples inside Nymphaeum Pool & Portus Harbor Cascade */}
-            {[
-              { id: 'nymphaeum-pool', cx: 51.5, cy: 61.5, rx: 3.2, ry: 1.4, dur: '2.4s' },
-              { id: 'canal-bridge-pool', cx: 61.0, cy: 73.0, rx: 2.6, ry: 1.1, dur: '2.9s' },
-              { id: 'harbor-cascade-pool', cx: 61.0, cy: 87.5, rx: 4.4, ry: 1.7, dur: '2.1s' },
-            ].map((pool) => (
-              <g key={pool.id}>
-                <ellipse
-                  cx={pool.cx}
-                  cy={pool.cy}
-                  rx={pool.rx}
-                  ry={pool.ry}
-                  fill="url(#urbs-waterfall-mist)"
-                >
-                  <animate
-                    attributeName="rx"
-                    values={`${pool.rx * 0.85};${pool.rx * 1.25};${pool.rx * 0.85}`}
-                    dur={pool.dur}
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName=" opacity"
-                    values="0.55;0.9;0.55"
-                    dur={pool.dur}
-                    repeatCount="indefinite"
-                  />
-                </ellipse>
-                <ellipse
-                  cx={pool.cx}
-                  cy={pool.cy}
-                  rx={pool.rx * 0.7}
-                  ry={pool.ry * 0.65}
-                  fill="none"
-                  stroke="rgba(224, 247, 250, 0.65)"
-                  strokeWidth="0.18"
-                >
-                  <animate
-                    attributeName="rx"
-                    values={`${pool.rx * 0.4};${pool.rx * 1.35}`}
-                    dur={pool.dur}
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="ry"
-                    values={`${pool.ry * 0.4};${pool.ry * 1.35}`}
-                    dur={pool.dur}
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="stroke-opacity"
-                    values="0.75;0"
-                    dur={pool.dur}
-                    repeatCount="indefinite"
-                  />
-                </ellipse>
-              </g>
-            ))}
+            <rect x="0" y="0" width="100" height="100" fill="url(#urbs-sunlit-vignette)" />
           </svg>
 
+          {/* Subtle Diegetic Affordance Legend (Top-Left beneath Architrave Bar: clarifies interactive monuments vs scenery) */}
+          {!embedded && viewportSize.w >= 720 && viewportSize.h >= 420 && (
+            <div
+              data-testid="urbs-interactivity-guide"
+              className="pointer-events-none absolute left-3 top-[58px] z-10 flex items-center gap-1.5 rounded-[5px] border border-border-strong bg-bg-surface/94 px-2 py-0.5 font-sans text-[8.5px] font-semibold text-text-primary shadow-[0_3px_10px_rgba(28,20,12,0.22)]"
+            >
+              <span className="inline-block size-1.5 rounded-full bg-(--color-status-pass) animate-pulse" />
+              <span>Lit plinths = Interactive crates (hover for halo &amp; vignette · click to inspect)</span>
+            </div>
+          )}
+
           {MONUMENT_CALLOUTS.filter(
-            (m) => !embedded || ['monument-compiler', 'monument-orchestrator', 'monument-mens'].includes(m.id),
+            (m) =>
+              !embedded ||
+              (viewportSize.w >= 760
+                ? ['monument-compiler', 'monument-gui', 'monument-crypto', 'monument-orchestrator', 'monument-mens'].includes(m.id)
+                : ['monument-compiler', 'monument-orchestrator', 'monument-mens'].includes(m.id)),
           ).map((m) => {
-            const topPos = embedded
-              ? m.id === 'monument-compiler'
-                ? '22%'
-                : m.id === 'monument-orchestrator'
-                  ? '58%'
-                  : '52%'
-              : m.top;
-            const leftPos = m.left;
-            const matchedDistrict = layout.districts.find((d) =>
-              d.name.includes(m.crateHint.replace('vox-', '')),
-            );
-            const liveTaskForMonument = Object.values(agentTasks).find(
-              (t) =>
+            const shortKey = m.crateHint.replace('vox-', '');
+            const matchedDistrict = layout.districts.find((d) => d.name.includes(shortKey));
+            const liveTaskEntry = Object.entries(agentTasks).find(
+              ([, t]) =>
                 t.filePath.includes(m.crateHint) ||
                 (matchedDistrict && t.filePath.includes(matchedDistrict.name)),
             );
+            const liveTaskForMonument = liveTaskEntry?.[1];
+            const assignedCohort =
+              liveTaskEntry?.[0] ??
+              (m.id === 'monument-compiler'
+                ? 'LEGIO-01'
+                : m.id === 'monument-db'
+                  ? 'LEGIO-02'
+                  : m.id === 'monument-mens'
+                    ? 'LEGIO-03'
+                    : 'Standby');
+            const errCount = matchedDistrict
+              ? matchedDistrict.buildings.reduce(
+                  (acc, b) => acc + (buildings[b.path]?.errors ?? 0),
+                  0,
+                )
+              : 0;
+            const gateCount = activeGates.filter((g) => g.district.includes(shortKey)).length;
             const activeFilePath =
               liveTaskForMonument?.filePath ??
               matchedDistrict?.buildings.find((b) => b.isTouched || (b.diffAdded ?? 0) > 0)?.path ??
               m.defaultFilePath;
             const shortFileBadge = activeFilePath.split('/').slice(-2).join('/');
             const isAlreadySelected =
-              selection?.kind === 'district' &&
-              selection.name.includes(m.crateHint.replace('vox-', ''));
-            const plaqueLabel = embedded
-              ? m.id === 'monument-compiler'
-                ? 'Compiler'
-                : m.id === 'monument-orchestrator'
-                  ? 'Orchestrator'
-                  : 'MENS Models'
-              : m.label;
+              selection?.kind === 'district' && selection.name.includes(shortKey);
+            const isHovered = hoveredMonumentId === m.id;
+            const isActiveBeacon =
+              Boolean(liveTaskForMonument) ||
+              m.id === 'monument-compiler' ||
+              m.id === 'monument-orchestrator';
+            const hasAlert = errCount > 0 || gateCount > 0;
+
+            // Project monument plinth UV directly through `livePanoRect` so inscription sits
+            // physically on the carved stone base of its building at every resolution & camera pan.
+            let leftStyle = m.left;
+            let topStyle = m.top;
+            if (viewportSize.w > 120 && viewportSize.h > 80) {
+              const rawX = livePanoRect.drawX + m.plinthUv[0] * livePanoRect.drawW;
+              const rawY = livePanoRect.drawY + m.plinthUv[1] * livePanoRect.drawH;
+              const padX = embedded ? 58 : 78;
+              const minTop = embedded ? 36 : 54;
+              const maxTop = viewportSize.h - (embedded ? 20 : 54);
+              const clampedX = Math.max(padX, Math.min(viewportSize.w - padX, rawX));
+              const clampedY = Math.max(minTop, Math.min(maxTop, rawY));
+              leftStyle = `${Math.round(clampedX)}px`;
+              topStyle = `${Math.round(clampedY)}px`;
+            }
+
+            const rawModuleLeaf = shortFileBadge.split('/').pop() ?? shortFileBadge;
+            const conciseModuleLeaf =
+              rawModuleLeaf.length > 14
+                ? rawModuleLeaf.replace(/\.(tsx|ts|rs)$/, '')
+                : rawModuleLeaf;
+
+            // Compact architectural plinth inscription fits cleanly within each building's carved base
+            const plaqueLabel = m.shortLabel;
+            const activityTag = hasAlert
+              ? `${errCount + gateCount}!`
+              : liveTaskForMonument
+                ? 'LIVE'
+                : assignedCohort !== 'Standby'
+                  ? assignedCohort.replace('LEGIO-0', 'L')
+                  : null;
 
             return (
               <div
                 key={m.id}
-                style={{ left: leftPos, top: topPos }}
-                className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: leftStyle, top: topStyle }}
+                onMouseEnter={() => syncMonumentHover(m.id, false)}
+                onMouseLeave={() => syncMonumentHover(null, false)}
+                className={`pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ${
+                  isHovered || isAlreadySelected ? 'z-20 scale-[1.06]' : 'z-10'
+                }`}
               >
                 <RomanTooltip
-                  title={m.label}
-                  purpose={`${m.purpose} Active target: ${activeFilePath}`}
+                  title={`${m.romanTier} · ${m.label}`}
+                  purpose={m.purpose}
+                  previewImageSrc={m.monumentArt}
+                  crateBadge={m.crateHint}
+                  statusBadge={hasAlert ? `${errCount + gateCount} Gate/Diag` : isActiveBeacon ? 'Active Sanctuary' : 'Interactive'}
+                  metrics={[
+                    {
+                      label: 'Garrison',
+                      value: assignedCohort,
+                      tone: isActiveBeacon ? 'emerald' : 'gold',
+                    },
+                    {
+                      label: 'Health',
+                      value: errCount > 0 ? `${errCount} Err` : gateCount > 0 ? `${gateCount} Gate` : 'Verified',
+                      tone: hasAlert ? 'crimson' : 'emerald',
+                    },
+                    {
+                      label: 'Module',
+                      value: conciseModuleLeaf,
+                      tone: 'gold',
+                    },
+                  ]}
                   actionHint={
                     onNavigate
-                      ? `Click to focus ${m.crateHint} (click again or click ↗ to jump directly to ${m.targetView})`
-                      : `Click to focus ${m.crateHint} on the map`
+                      ? `Click to inspect ${m.crateHint} · Click again, double-click, or press open icon to open ${m.targetView}`
+                      : `Click to focus & inspect ${m.crateHint} on the map`
                   }
-                  statusBadge={shortFileBadge}
+                  forceOpen={canvasHoveredMonumentId === m.id}
+                  placement={m.plinthUv[1] < 0.42 ? 'bottom' : 'top'}
                 >
                   <button
                     type="button"
                     data-testid={`urbs-${m.id}`}
+                    data-diegetic-plaque="true"
+                    data-activity-state={hasAlert ? 'attention' : isActiveBeacon ? 'active' : 'ready'}
                     onClick={(ev) => {
                       ev.stopPropagation();
                       const dist = matchedDistrict ?? layout.districts[0];
@@ -1339,19 +1656,39 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       ev.stopPropagation();
                       onNavigate?.(m.targetView);
                     }}
-                    className={`group inline-flex items-center gap-1 rounded-full border border-[#C59B27]/90 bg-linear-to-b from-[#FAF6EE]/95 to-[#EDE1CA]/95 ${
-                      embedded ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[8.5px]'
-                    } font-display font-bold tracking-wide text-[#1C140C] shadow-[0_4px_12px_rgba(28,20,12,0.35),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:scale-105 hover:border-[#8C6214]`}
+                    className={`group relative inline-flex items-center gap-1 rounded-[4px] border-y-[1.5px] border-x border-border-strong bg-bg-surface text-text-primary ${
+                      isHovered || isAlreadySelected
+                        ? 'shadow-[0_6px_16px_rgba(28,20,12,0.45),0_0_18px_rgba(245,198,72,0.72),inset_0_1px_0_rgba(255,255,255,0.95)]'
+                        : 'shadow-[0_3px_9px_rgba(28,20,12,0.36),inset_0_1px_0_rgba(255,255,255,0.88)]'
+                    } ${
+                      embedded ? 'px-1.5 py-[1px] text-[7.5px]' : 'px-1.5 py-[2px] text-[8px]'
+                    } font-display font-bold tracking-[0.06em] transition-[box-shadow,border-color] cursor-pointer`}
                   >
+                    {/* Diegetic Upward Architectural Pediment Finial anchored to building plinth */}
                     <span
-                      className={`size-1.5 shrink-0 rounded-full ${
-                        liveTaskForMonument
-                          ? 'animate-pulse bg-[#10B981] shadow-[0_0_6px_#10B981]'
-                          : 'bg-[#B8860B] shadow-[0_0_5px_#D4AF37]'
-                      }`}
                       aria-hidden="true"
+                      className="pointer-events-none absolute -top-[5px] left-1/2 -translate-x-1/2 h-0 w-0 border-x-[4px] border-b-[5px] border-x-transparent border-b-[#B88E28]"
                     />
-                    <span className="whitespace-nowrap">{plaqueLabel}</span>
+                    {/* Activity Guidance Brazier Seal + Roman Tier */}
+                    <span className="inline-flex items-center gap-1 font-mono text-[7.5px] font-bold text-text-primary">
+                      <span
+                        className={`size-1.5 shrink-0 rounded-full ${
+                          hasAlert
+                            ? 'animate-pulse bg-[#D97706] shadow-[0_0_5px_#F59E0B]'
+                            : isActiveBeacon
+                              ? 'animate-pulse bg-(--color-success,rgb(16_185_129)) shadow-[0_0_5px_var(--color-status-pass)]'
+                              : 'bg-[#B8860B] shadow-[0_0_4px_#D4AF37]'
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span>{m.romanTier}·</span>
+                    </span>
+                    <span className="whitespace-nowrap uppercase">{plaqueLabel}</span>
+                    {!embedded && activityTag && (
+                      <span className="rounded-[2px] border border-border-subtle bg-bg-elevated px-1 py-[0.5px] font-mono text-[6.5px] font-bold tracking-tight text-text-primary">
+                        {activityTag}
+                      </span>
+                    )}
                     {onNavigate && (
                       <span
                         data-testid={`open-${m.id}`}
@@ -1360,9 +1697,9 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                           onNavigate(m.targetView);
                         }}
                         title={`Jump directly to ${m.label} (${m.targetView})`}
-                        className="ml-0.5 inline-flex items-center whitespace-nowrap rounded-full border border-[#C59B27]/65 bg-[#F3E5AB]/85 px-1 font-display text-[7.5px] font-bold text-[#1C140C] hover:bg-[#D4AF37]/65 transition"
+                        className="ml-0.5 inline-flex items-center whitespace-nowrap rounded-[2px] border border-border-subtle bg-bg-elevated p-0.5 font-display text-[7px] font-bold text-text-primary hover:border-border-strong transition-colors"
                       >
-                        ↗
+                        <Icon.externalLink className="size-2.5 shrink-0" aria-hidden="true" />
                       </span>
                     )}
                   </button>
@@ -1387,7 +1724,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
-          className="pointer-events-auto absolute left-2 top-2 max-w-[calc(100%-86px)] px-1.5 py-0.5 text-[8.5px] z-10 flex flex-nowrap items-center justify-start gap-1 overflow-x-auto no-scrollbar rounded-xl border border-[#C59B27]/85 font-display text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
+          className="pointer-events-auto absolute left-2 top-2 max-w-[calc(100%-108px)] px-1.5 py-0.5 text-[8.5px] z-10 flex flex-nowrap items-center justify-start gap-1 overflow-hidden rounded-xl border border-[#C59B27]/85 font-display text-(--color-text-primary) shadow-[0_6px_18px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
         >
           {[
             {
@@ -1418,7 +1755,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               label: 'Orchestrator',
               shortLabel: 'Orchestrator',
               purpose: 'Focus the central Agent Orchestrator hub coordinating active turns, spokes, and worktrees.',
-              actionHint: 'Click to focus Orchestrator (click again or click ↗ to open Operations Flow)',
+              actionHint: 'Click to focus Orchestrator (click again or double-click to open Operations Flow)',
               surface: 'flow',
               lit: true,
               detail: 'Live',
@@ -1441,7 +1778,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               label: 'CI & Gates',
               shortLabel: 'CI Gates',
               purpose: 'Inspect continuous integration runners, TOESTUB static audit gates, and compiler verification.',
-              actionHint: 'Click to focus CI Fortress (click again or click ↗ to open Pipeline Cascade)',
+              actionHint: 'Click to focus CI Fortress (click again or double-click to open Pipeline Cascade)',
               surface: 'harness',
               lit: Boolean(harness.ci),
               detail: harness.ci ? `${harness.ci.runners.length}/${harness.ci.runners.length}` : 'verified',
@@ -1460,7 +1797,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               label: 'Task Queue',
               shortLabel: 'Tasks',
               purpose: 'Inspect the task queue harbor where new user goals and background jobs enter the workspace.',
-              actionHint: 'Click to focus Task Harbor (click again or click ↗ to open Task Queue)',
+              actionHint: 'Click to focus Task Harbor (click again or double-click to open Task Queue)',
               surface: 'tasks',
               lit: harness.queueLen !== null,
               detail: harness.queueLen !== null ? `${harness.queueLen} queued` : '0 queued',
@@ -1474,7 +1811,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 }
               },
             },
-          ].map((lm) => {
+          ].filter((lm, idx) => !(viewportSize.w > 0 && viewportSize.w < 360 && idx >= 2)).map((lm) => {
             return (
               <RomanTooltip
                 key={lm.id}
@@ -1495,8 +1832,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   }}
                   className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-1.5 py-0.5 transition ${
                     lm.lit
-                      ? 'border-[#C59B27]/80 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
-                      : 'border-[#C59B27]/45 bg-[#EFE6D5] text-[#5C4428] hover:text-[#1C140C]'
+                      ? 'border-[#C59B27]/80 bg-[#FAF5E8] text-(--color-text-primary) hover:border-[#B8860B] hover:bg-white'
+                      : 'border-[#C59B27]/45 bg-[#EFE6D5] text-[#5C4428] hover:text-(--color-text-primary)'
                   }`}
                 >
                   <span
@@ -1526,11 +1863,12 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
           >
             <button
               type="button"
-              onClick={() => onNavigate?.('vox-Ludus-view')}
-              className="inline-flex items-center gap-1 rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C] shadow-md hover:border-[#B8860B]"
+              onClick={() => onNavigate?.('gamify')}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-(--color-text-primary) shadow-md hover:border-[#B8860B]"
             >
               <Icon.astrolabeRadar className="size-2.5 text-[#8C6214]" aria-hidden="true" />
-              <span>Full Map ↗</span>
+              <span>Full Map</span>
+              <Icon.externalLink className="size-2.5 shrink-0" aria-hidden="true" />
             </button>
           </RomanTooltip>
         </div>
@@ -1545,10 +1883,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
-          className="pointer-events-auto absolute left-2.5 right-2.5 top-2.5 z-10 flex flex-nowrap items-center justify-between gap-2 rounded-xl border-2 border-[#C59B27]/80 px-2.5 py-1 text-[10px] font-display text-[#1C140C] shadow-[0_8px_24px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
+          className="pointer-events-auto absolute left-2.5 right-2.5 top-2.5 z-10 flex flex-nowrap items-center justify-between gap-2 rounded-xl border-2 border-[#C59B27]/80 px-2.5 py-1 text-[10px] font-display text-(--color-text-primary) shadow-[0_8px_24px_rgba(28,20,12,0.28),inset_0_1px_0_rgba(255,255,255,0.9)]"
         >
-          {/* Left: 4 compact Landmark Medallion buttons */}
-          <div data-testid="urbs-landmark-bar" className="flex min-w-0 items-center gap-1 overflow-x-auto no-scrollbar">
+          {/* Left: Sovereign Crest Plate + 4 compact Landmark Medallion buttons */}
+          <div data-testid="urbs-landmark-bar" className="flex min-w-0 items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <RomanCrestPlate variant="imperium" size="sm" />
             {[
               {
                 id: 'FORVM',
@@ -1578,7 +1917,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 label: 'Orchestrator',
                 shortLabel: 'Orchestrator',
                 purpose: 'Focus the central Agent Orchestrator hub coordinating active turns, spokes, and worktrees.',
-                actionHint: 'Click to focus Orchestrator (click again or click ↗ to open Operations Flow)',
+                actionHint: 'Click to focus Orchestrator (click again or open icon to open Operations Flow)',
                 surface: 'flow',
                 lit: true,
                 detail: 'Live',
@@ -1601,7 +1940,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 label: 'CI & Gates',
                 shortLabel: 'CI Gates',
                 purpose: 'Inspect continuous integration runners, TOESTUB static audit gates, and compiler verification.',
-                actionHint: 'Click to focus CI Fortress (click again or click ↗ to open Pipeline Cascade)',
+                actionHint: 'Click to focus CI Fortress (click again or open icon to open Pipeline Cascade)',
                 surface: 'harness',
                 lit: Boolean(harness.ci),
                 detail: harness.ci ? `${harness.ci.runners.length}/${harness.ci.runners.length}` : 'verified',
@@ -1620,7 +1959,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 label: 'Task Queue',
                 shortLabel: 'Tasks',
                 purpose: 'Inspect the task queue harbor where new user goals and background jobs enter the workspace.',
-                actionHint: 'Click to focus Task Harbor (click again or click ↗ to open Task Queue)',
+                actionHint: 'Click to focus Task Harbor (click again or open icon to open Task Queue)',
                 surface: 'tasks',
                 lit: harness.queueLen !== null,
                 detail: harness.queueLen !== null ? `${harness.queueLen} queued` : '0 queued',
@@ -1634,7 +1973,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   }
                 },
               },
-            ].map((lm) => {
+            ].filter((lm, idx) => !(viewportSize.w > 0 && viewportSize.w < 360 && idx >= 2)).map((lm) => {
               const IconComp = lm.icon;
               const isSelected = selection?.kind === 'landmark' && selection.id === lm.id;
               return (
@@ -1655,10 +1994,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       ev.stopPropagation();
                       onNavigate?.(lm.surface);
                     }}
-                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 transition ${
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 transition-colors ${
                       lm.lit
-                        ? 'border-[#C59B27]/80 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
-                        : 'border-[#C59B27]/45 bg-[#EFE6D5] text-[#5C4428] hover:text-[#1C140C]'
+                        ? 'border-[#C59B27]/80 bg-[#FAF5E8] text-(--color-text-primary) hover:border-[#B8860B] hover:bg-white'
+                        : 'border-[#C59B27]/45 bg-[#EFE6D5] text-[#5C4428] hover:text-(--color-text-primary)'
                     }`}
                   >
                     <RomanMedallion size="sm" active={isSelected || lm.lit}>
@@ -1675,9 +2014,9 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                           onNavigate(lm.surface);
                         }}
                         title={`Open ${lm.label} surface (${lm.surface})`}
-                        className="rounded border border-[#C59B27]/55 bg-[#F3E5AB]/70 px-1 font-display text-[8.5px] font-bold text-[#1C140C] hover:bg-[#D4AF37]/50"
+                        className="inline-flex items-center justify-center rounded border border-[#C59B27]/55 bg-[#F3E5AB]/70 p-0.5 font-display text-[8.5px] font-bold text-(--color-text-primary) hover:bg-[#D4AF37]/50"
                       >
-                        ↗
+                        <Icon.externalLink className="size-2.5 shrink-0" aria-hidden="true" />
                       </span>
                     )}
                   </button>
@@ -1686,7 +2025,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             })}
           </div>
 
-          {/* Center/Right: Primary Lens + [ Lens & Layout ▾ ] + [ Alerts & History ▾ ] */}
+          {/* Center/Right: Primary Lens + [ Lens & Layout ] + [ Alerts & History ] */}
           <div data-testid="urbs-lens-bar" className="relative flex items-center gap-1.5 font-sans text-[9.5px]">
             {/* Primary Architecture lens button */}
             <RomanTooltip
@@ -1701,8 +2040,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 onClick={() => setLens('architecture')}
                 className={`group inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 font-display text-[9.5px] uppercase tracking-wider transition ${
                   lens === 'architecture'
-                    ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 font-semibold text-[#1C140C] shadow-sm'
-                    : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                    ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 font-semibold text-(--color-text-primary) shadow-sm'
+                    : 'border-[#C59B27]/75 bg-[#FAF5E8] text-(--color-text-primary) hover:border-[#B8860B] hover:bg-white'
                 }`}
               >
                 <Icon.romanColumn className={`size-3 ${lens === 'architecture' ? 'text-[#8C6214]' : 'text-[#8C6214]'}`} aria-hidden="true" />
@@ -1724,12 +2063,13 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   onClick={() => setShowLensMenu((v) => !v)}
                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 font-display text-[9.5px] font-semibold uppercase tracking-wider transition ${
                     showLensMenu
-                      ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-[#1C140C]'
-                      : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                      ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-(--color-text-primary)'
+                      : 'border-[#C59B27]/75 bg-[#FAF5E8] text-(--color-text-primary) hover:border-[#B8860B] hover:bg-white'
                   }`}
                 >
                   <Icon.astrolabeRadar className="size-3 text-[#8C6214]" aria-hidden="true" />
-                  <span>Lens &amp; Layout ▾</span>
+                  <span>Lens &amp; Layout</span>
+                  <Icon.chevronDown className="size-3 shrink-0" aria-hidden="true" />
                 </button>
               </RomanTooltip>
 
@@ -1744,38 +2084,37 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 <div className="flex flex-col gap-1 border-b border-[#D4AF37]/25 pb-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#8C6214]">Repo:</span>
-                    <select
+                    <VoxSelect
+                      size="xs"
                       data-testid="urbs-repo-preset-select"
-                      data-unified-knob="true"
                       aria-label="Repository simulation preset"
                       value={presetId}
-                      onChange={(e) => {
-                        setPresetId(e.target.value as UrbsRepoPresetId);
+                      onValueChange={(next) => {
+                        setPresetId(next as UrbsRepoPresetId);
                         setSelection(null);
                       }}
-                      className="appearance-none rounded border border-[#D4AF37]/45 bg-bg-surface px-2 py-0.5 font-mono text-[9.5px] text-text-primary focus:border-[#B8860B] focus:outline-none"
-                    >
-                      {Object.values(URBS_REPO_PRESETS).map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.label}
-                        </option>
-                      ))}
-                    </select>
+                      options={Object.values(URBS_REPO_PRESETS).map((preset) => ({
+                        value: preset.id,
+                        label: preset.label,
+                      }))}
+                      className="w-auto min-w-[160px] border-[#D4AF37]/45 bg-bg-surface font-mono text-[9.5px] text-text-primary"
+                    />
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-1">
                     <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-[#8C6214]">Layout:</span>
-                    <select
+                    <VoxSelect
+                      size="xs"
                       data-testid="urbs-focus-mode-select"
-                      data-unified-knob="true"
                       aria-label="Real-estate attention focus mode"
                       value={focusMode}
-                      onChange={(e) => setFocusMode(e.target.value as RealEstateFocusMode)}
-                      className="appearance-none rounded border border-[#D4AF37]/45 bg-bg-surface px-2 py-0.5 font-mono text-[9.5px] text-text-primary focus:border-[#B8860B] focus:outline-none"
-                    >
-                      <option value="attention">Attention Weighted</option>
-                      <option value="worksite_only">Active Worksite Only</option>
-                      <option value="proportional">Proportional LoC</option>
-                    </select>
+                      onValueChange={(next) => setFocusMode(next as RealEstateFocusMode)}
+                      options={[
+                        { value: 'attention', label: 'Attention Weighted' },
+                        { value: 'worksite_only', label: 'Active Worksite Only' },
+                        { value: 'proportional', label: 'Proportional LoC' },
+                      ]}
+                      className="w-auto min-w-[160px] border-[#D4AF37]/45 bg-bg-surface font-mono text-[9.5px] text-text-primary"
+                    />
                   </div>
                 </div>
 
@@ -1832,7 +2171,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
               </div>
             </div>
 
-            {/* Compact [ Alerts & History ▾ ] Button */}
+            {/* Compact [ Alerts & History ] Button */}
             <RomanTooltip
               title="Alerts & History Overlays"
               purpose="Toggle priority alerts drawer and git timeline scrubber."
@@ -1847,16 +2186,17 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   setShowPriorityDrawer(next);
                   setShowTimelineDrawer(next);
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 font-display text-[9.5px] font-semibold uppercase tracking-wider transition ${
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 font-display text-[9.5px] font-semibold uppercase tracking-wider transition-colors ${
                   showPriorityDrawer || showTimelineDrawer
-                    ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-[#1C140C]'
-                    : 'border-[#C59B27]/75 bg-[#FAF5E8] text-[#1C140C] hover:border-[#B8860B] hover:bg-white'
+                    ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-(--color-text-primary)'
+                    : 'border-[#C59B27]/75 bg-[#FAF5E8] text-(--color-text-primary) hover:border-[#B8860B] hover:bg-white'
                 }`}
               >
                 <Icon.gladiusShield className="size-3 text-[#8C6214]" aria-hidden="true" />
-                <span>Alerts &amp; History ▾</span>
+                <span>Alerts &amp; History</span>
+                <Icon.chevronDown className="size-3 shrink-0" aria-hidden="true" />
                 {activeGates.length > 0 && (
-                  <span className="rounded-full border border-[#C59B27]/50 bg-[#F3E5AB] px-1 font-sans text-[8.5px] font-bold text-[#1C140C]">
+                  <span className="rounded-full border border-[#C59B27]/50 bg-[#F3E5AB] px-1 font-sans text-[8.5px] font-bold text-(--color-text-primary)">
                     {activeGates.length}
                   </span>
                 )}
@@ -1887,9 +2227,10 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 type="button"
                 onClick={() => setShowPriorityDrawer(false)}
                 title="Close Priority Alerts"
-                className="text-[#8C7D64] hover:text-[#F3E5AB] font-mono text-[10px]"
+                aria-label="Close Priority Alerts"
+                className="inline-flex items-center justify-center rounded p-0.5 text-[#8C7D64] hover:text-[#F3E5AB] transition-colors"
               >
-                ✕
+                <Icon.close className="size-3 shrink-0" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -1981,8 +2322,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     }}
                     className="flex w-full items-center justify-between gap-1 rounded border border-[#D4AF37]/40 bg-bg-surface px-2 py-1 text-left font-mono text-[9px] text-text-primary hover:border-[#D4AF37]"
                   >
-                    <span className="truncate">
-                      {agentId} → {shortName}
+                    <span className="inline-flex min-w-0 items-center gap-1 truncate">
+                      <RoleRankEmblem rank={agentId} className="size-2.5 shrink-0 text-[#8C6214]" />
+                      <span>{agentId}</span>
+                      <Icon.arrowRight className="size-2.5 shrink-0 text-text-secondary" aria-hidden="true" />
+                      <span className="truncate">{shortName}</span>
                     </span>
                     <span className="shrink-0 text-[8.5px] text-emerald-700 font-semibold">ACTIVE</span>
                   </button>
@@ -2103,15 +2447,17 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
         {ambientRosters.map((c) => {
           const meta = vexillumMeta[c.id] ?? {
             legion: c.id,
+            rank: 'centurion',
+            shortStandard: 'I',
             model: 'Claude Sonnet 4.5',
             task: 'Patrolling Workspace',
-            border: 'border-[#D4AF37]/70 bg-bg-elevated/95 text-[#F3E5AB]',
+            uv: [0.382, 0.238] as [number, number],
+            dotColor: 'bg-(--color-success,rgb(16_185_129))',
           };
           return (
             <div
               key={c.id}
               data-testid="urbs-vexillum-banner"
-              ref={(el) => { if (el) spriteEls.current.set(c.id, el); else spriteEls.current.delete(c.id); }}
               style={{ left: c.left, top: c.top }}
               onPointerDown={(ev) => {
                 if (isCompactViewport) return;
@@ -2143,48 +2489,42 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 isCompactViewport ? 'pointer-events-none' : 'pointer-events-auto cursor-grab active:cursor-grabbing'
               }`}
             >
-              <div className="group flex flex-col items-center">
-                {!isCompactViewport && (
-                  <div className="mb-0.5 flex items-center gap-1">
-                    <svg viewBox="0 0 22 30" className="h-6 w-4 shrink-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]" aria-hidden="true">
-                      <line x1="11" y1="1" x2="11" y2="29" stroke="#d4af37" strokeWidth="1.6" />
-                      <line x1="2" y1="4" x2="20" y2="4" stroke="#f59e0b" strokeWidth="2" />
-                      <path d="M3 4H19V22L15 20L11 23L7 20L3 22V4Z" fill="#991b1b" stroke="#fbbf24" strokeWidth="1.1" />
-                      <circle cx="11" cy="12" r="3.6" fill="none" stroke="#fde68a" strokeWidth="1.1" />
-                      <path d="M9 10.5L13 13.5M13 10.5L9 13.5" stroke="#fef08a" strokeWidth="1" />
-                    </svg>
-                    <div className={`rounded border px-1.5 py-0.5 font-mono shadow-lg backdrop-blur-sm ${meta.border}`}>
-                      <div className="leading-tight">
-                        <div className="text-[8.5px] font-bold tracking-wide">
-                          {meta.legion} · {meta.model}
-                        </div>
-                        <div className="hidden text-[8px] opacity-90 group-hover:block">{meta.task}</div>
-                      </div>
+              <RomanTooltip
+                title={`${meta.legion} · ${meta.model}`}
+                purpose={`Stationed cohort standard (${meta.task}).`}
+                actionHint="Drag standard onto any lit monument to dispatch this agent cohort"
+                statusBadge="Cohort Ready"
+                disabled={isCompactViewport || Boolean(dragBanner)}
+              >
+                <div className="group flex flex-col items-center">
+                  {!isCompactViewport && (
+                    <div className="mb-0.5 inline-flex items-center gap-1 rounded-[4px] border border-border-strong bg-bg-surface px-1.5 py-[1px] font-display text-[7.5px] font-bold tracking-wider text-text-primary shadow-[0_3px_8px_rgba(28,20,12,0.38)] transition-transform group-hover:scale-105">
+                      <span className={`size-1.5 rounded-full ${meta.dotColor} animate-pulse`} aria-hidden="true" />
+                      <RoleRankEmblem rank={meta.rank} className="size-2.5 shrink-0 text-[#8C6214]" />
+                      <span>{meta.legion}</span>
                     </div>
-                  </div>
-                )}
-                <RomanCitizenSvg />
-              </div>
+                  )}
+                  <RomanCitizenSvg />
+                </div>
+              </RomanTooltip>
             </div>
           );
         })}
         {dragBanner && (
           <svg className="pointer-events-none absolute inset-0 h-full w-full">
-            <line
-              x1={dragBanner.sx}
-              y1={dragBanner.sy}
-              x2={dragBanner.cx}
-              y2={dragBanner.cy}
-              stroke="#fbbf24"
-              strokeWidth="2.2"
-              strokeDasharray="5 3"
+            <path
+              d={`M ${dragBanner.sx} ${dragBanner.sy} Q ${(dragBanner.sx + dragBanner.cx) * 0.5} ${Math.min(dragBanner.sy, dragBanner.cy) - 36} ${dragBanner.cx} ${dragBanner.cy}`}
+              fill="none"
+              stroke="rgba(255, 248, 210, 0.92)"
+              strokeWidth="2.4"
+              strokeLinecap="round"
             />
             <circle
               cx={dragBanner.cx}
               cy={dragBanner.cy}
               r="18"
-              fill="rgba(251, 191, 36, 0.18)"
-              stroke="#fbbf24"
+              fill="rgba(251, 191, 36, 0.22)"
+              stroke="#D4AF37"
               strokeWidth="2"
             />
           </svg>
@@ -2235,7 +2575,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             className="pointer-events-auto absolute bottom-1.5 right-1.5 z-10 w-[148px] rounded-xl border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/95 to-[#EFE5D2]/95 p-1.5 shadow-[0_8px_22px_rgba(28,20,12,0.32),inset_0_1px_0_rgba(255,255,255,0.9)]"
           >
             <div className="flex items-center justify-between px-0.5 pb-1">
-              <span className="inline-flex items-center gap-1 font-display text-[8px] font-bold uppercase tracking-[0.12em] text-[#1C140C]">
+              <span className="inline-flex items-center gap-1 font-display text-[8px] font-bold uppercase tracking-[0.12em] text-(--color-text-primary)">
                 <Icon.astrolabeRadar className="size-2.5 text-[#8C6214]" aria-hidden="true" />
                 <span>Radar</span>
               </span>
@@ -2369,7 +2709,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 type="button"
                 data-testid="urbs-git-timeline-trigger"
                 onClick={() => setShowTimelineDrawer(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-[#1C140C] shadow-[0_6px_18px_rgba(28,20,12,0.3)] hover:border-[#B8860B] transition"
+                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#C59B27]/80 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE5D2]/96 px-2.5 py-1 font-display text-[9.5px] font-semibold uppercase tracking-wider text-(--color-text-primary) shadow-[0_6px_18px_rgba(28,20,12,0.3)] hover:border-[#B8860B] transition"
               >
                 <div className="relative size-4 shrink-0 overflow-hidden rounded-full border border-[#C59B27]/80 shadow-[0_0_6px_rgba(212,175,55,0.4)]">
                   <img
@@ -2379,8 +2719,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     className="size-full object-cover"
                   />
                 </div>
-                <span className="font-semibold text-[#1C140C]">
-                  Git Step {selectedTurn}/{viaMilestones[viaMilestones.length - 1]?.turnNumber ?? 3} ▾
+                <span className="inline-flex items-center gap-1 font-semibold text-(--color-text-primary)">
+                  <span>
+                    Git Step {selectedTurn}/{viaMilestones[viaMilestones.length - 1]?.turnNumber ?? 3}
+                  </span>
+                  <Icon.chevronDown className="size-3 shrink-0" aria-hidden="true" />
                 </span>
               </button>
             </RomanTooltip>
@@ -2431,13 +2774,13 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       if (targetDist) {
                         jumpToTile((targetDist.x0 + targetDist.x1) / 2, (targetDist.y0 + targetDist.y1) / 2);
                         setSelection({ kind: 'district', name: targetDist.name });
-                        setDevActionReceipt(`Focused ${item.label} → ${targetDist.name}`);
+                        setDevActionReceipt(`Focused ${item.label}: ${targetDist.name}`);
                       }
                     }
                   }}
                   className={`rounded border px-1.5 py-0.5 font-display text-[8px] font-bold uppercase tracking-wider transition ${
                     isAct
-                      ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-[#1C140C] shadow-sm'
+                      ? 'border-[#8C6214] bg-linear-to-b from-[#FAF0D7] to-[#E6C762]/65 text-(--color-text-primary) shadow-sm'
                       : 'border-[#B38728]/55 bg-[#F8F3E8]/90 text-[#3B2B10] hover:border-[#8C6214] hover:bg-white'
                   }`}
                 >
@@ -2466,23 +2809,24 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                   type="button"
                   data-testid="urbs-action-check-crate"
                   onClick={() => {
-                    setDevActionReceipt(`⚙ Dispatched cargo check -p ${crateName}`);
+                    setDevActionReceipt(`Dispatched cargo check -p ${crateName}`);
                     void voxTransport.executeCommand(['check'], { crate: crateName }).catch(() => {});
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  <span>⚙ Check Crate</span>
+                  <span>Check Crate</span>
                 </button>
                 <button
                   type="button"
                   data-testid="urbs-action-run-tests"
                   onClick={() => {
-                    setDevActionReceipt(`✓ Running test suite for ${crateName}`);
+                    setDevActionReceipt(`Running test suite for ${crateName}`);
                     void voxTransport.executeCommand(['test'], { crate: crateName }).catch(() => {});
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  <span>✓ Run Tests</span>
+                  <Icon.check className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Run Tests</span>
                 </button>
                 <button
                   type="button"
@@ -2494,28 +2838,42 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                         Math.round(viewportSize.w * 0.45),
                         Math.round(viewportSize.h * 0.34),
                       );
-                      setDevActionReceipt(`🔍 Opened Speculum Diff Loupe on ${firstPlot.path}`);
+                      setDevActionReceipt(`Opened Speculum Diff Loupe on ${firstPlot.path}`);
                     }
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  <span>🔍 Diff Loupe</span>
+                  <Icon.spark className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Diff Loupe</span>
                 </button>
                 <button
                   type="button"
                   data-testid="urbs-action-pin-context"
                   onClick={() => {
-                    setPinnedCrates((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(crateName)) next.delete(crateName);
-                      else next.add(crateName);
-                      return next;
-                    });
-                    setDevActionReceipt(
-                      isPinned
-                        ? `Unpinned ${crateName} from LLM context`
-                        : `📌 Pinned ${crateName} to active LLM context budget`,
-                    );
+                    const prevSet = new Set(pinnedCrates);
+                    const nextSet = new Set(pinnedCrates);
+                    if (nextSet.has(crateName)) nextSet.delete(crateName);
+                    else nextSet.add(crateName);
+                    setPinnedCrates(nextSet);
+                    const nextPins = Array.from(nextSet).map((c) => ({
+                      id: `crate:${c}`,
+                      label: `@crate:${c}`,
+                      scope: 'urbs',
+                    }));
+                    void setSessionContextPins('default', nextPins)
+                      .then(() => {
+                        setDevActionReceipt(
+                          isPinned
+                            ? `Unpinned ${crateName} from LLM context`
+                            : `Pinned ${crateName} to active LLM context budget`,
+                        );
+                      })
+                      .catch((err: unknown) => {
+                        setPinnedCrates(prevSet);
+                        setDevActionReceipt(
+                          `Pin update failed: ${sanitizeErrorForToast(err)}`,
+                        );
+                      });
                   }}
                   className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider shadow-sm ${
                     isPinned
@@ -2523,7 +2881,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       : 'border-[#8C6214]/80 bg-bg-elevated text-text-primary hover:border-[#D4AF37]'
                   }`}
                 >
-                  <span>{isPinned ? '📌 Pinned' : '📌 Pin Context'}</span>
+                  <Icon.crystalGem className="size-3 shrink-0" aria-hidden="true" />
+                  <span>{isPinned ? 'Pinned' : 'Pin Context'}</span>
                 </button>
                 <button
                   type="button"
@@ -2532,8 +2891,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                     toggleDistrictQuarantine(crateName);
                     setDevActionReceipt(
                       isQuarantined
-                        ? `🔓 Lifted quarantine on ${crateName}`
-                        : `🔒 Quarantined ${crateName} from autonomous edits`,
+                        ? `Lifted quarantine on ${crateName}`
+                        : `Quarantined ${crateName} from autonomous edits`,
                     );
                   }}
                   className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider shadow-sm ${
@@ -2542,7 +2901,12 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                       : 'border-[#8C6214]/80 bg-bg-elevated text-text-primary hover:border-[#D4AF37]'
                   }`}
                 >
-                  <span>{isQuarantined ? '🔒 Quarantined' : '🔒 Quarantine'}</span>
+                  {isQuarantined ? (
+                    <Icon.lockKeyhole className="size-3 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <Icon.square className="size-3 shrink-0" aria-hidden="true" />
+                  )}
+                  <span>{isQuarantined ? 'Quarantined' : 'Quarantine'}</span>
                 </button>
                 <button
                   type="button"
@@ -2560,22 +2924,57 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                         file_affinity: [targetFile],
                       })
                       .catch(() => {});
-                    setDevActionReceipt(`⚔ Dispatched LEGIO-01 agent to ${crateName}`);
+                    setDevActionReceipt(`Dispatched LEGIO-01 agent to ${crateName}`);
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-[#8C6214]/80 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  <span>⚔ Spawn Agent</span>
+                  <Icon.chevR className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Spawn Agent</span>
                 </button>
                 <button
                   type="button"
                   data-testid="urbs-action-claim-yield"
                   onClick={() => {
-                    setClaimedYieldXp((xp) => xp + 50);
-                    setDevActionReceipt(`🏆 Claimed +50 XP · +8 Denarii from ${crateName} verification!`);
+                    const prevXp = claimedYieldXp;
+                    const nextXp = prevXp + 50;
+                    setClaimedYieldXp(nextXp);
+                    const t = voxTransport as typeof voxTransport & {
+                      recordGuiEvent?: (
+                        eventType: string,
+                        metadata?: Record<string, unknown>,
+                      ) => Promise<{ xpGranted: number; lumensGranted: number }>;
+                      setGuiPreference?: (key: string, value: string) => Promise<void>;
+                    };
+                    const recordPromise =
+                      typeof t.recordGuiEvent === 'function'
+                        ? t.recordGuiEvent('urbs_yield_claimed', {
+                            crate: crateName,
+                            xpDelta: 50,
+                          })
+                        : Promise.resolve({ xpGranted: 50, lumensGranted: 8 });
+                    const prefPromise =
+                      typeof t.setGuiPreference === 'function'
+                        ? t.setGuiPreference('vox.urbs.claimed_yield_xp.v1', String(nextXp))
+                        : Promise.resolve();
+                    void Promise.all([recordPromise, prefPromise])
+                      .then(([res]) => {
+                        const xpAwarded = res?.xpGranted ?? 50;
+                        const lumensAwarded = res?.lumensGranted ?? 8;
+                        setDevActionReceipt(
+                          `Claimed +${xpAwarded} XP · +${lumensAwarded} Denarii from ${crateName} verification!`,
+                        );
+                      })
+                      .catch((err: unknown) => {
+                        setClaimedYieldXp(prevXp);
+                        setDevActionReceipt(
+                          `Yield claim failed: ${sanitizeErrorForToast(err)}`,
+                        );
+                      });
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-[#B38728] bg-linear-to-b from-[#D4AF37] to-[#9A711C] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208] shadow-sm hover:brightness-110"
                 >
-                  <span>🏆 Yield ({claimedYieldXp} XP)</span>
+                  <Icon.spark className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Yield ({claimedYieldXp} XP)</span>
                 </button>
               </div>
             );
@@ -2620,11 +3019,12 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
             title="Fit city to view"
             aria-label="Fit city to view"
             onClick={fitWorld}
-            className={`pointer-events-auto shrink-0 whitespace-nowrap rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 ${
+            className={`pointer-events-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 ${
               embedded ? 'px-1.5 py-0.5 text-[8.5px]' : 'px-2.5 py-1 text-[10px]'
-            } font-display font-bold uppercase tracking-wider text-[#1C140C] hover:border-[#9A7014] hover:bg-[#FAF6EE]`}
+            } font-display font-bold uppercase tracking-wider text-(--color-text-primary) hover:border-[#9A7014] hover:bg-[#FAF6EE]`}
           >
-            {embedded ? '⌂ Fit' : '⌂ Fit Map'}
+            <Icon.homeVilla className="size-3 shrink-0" aria-hidden="true" />
+            <span>{embedded ? 'Fit' : 'Fit Map'}</span>
           </button>
         </RomanTooltip>
         {!embedded && (
@@ -2639,7 +3039,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 title="Zoom out"
                 aria-label="Zoom out"
                 onClick={() => stepZoom(1 / 1.2)}
-                className="pointer-events-auto rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 px-2.5 py-1 font-display text-[11px] font-bold text-[#1C140C] hover:border-[#9A7014] hover:bg-[#FAF6EE]"
+                className="pointer-events-auto rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 px-2.5 py-1 font-display text-[11px] font-bold text-(--color-text-primary) hover:border-[#9A7014] hover:bg-[#FAF6EE]"
               >
                 −
               </button>
@@ -2654,7 +3054,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0, onNav
                 title="Zoom in"
                 aria-label="Zoom in"
                 onClick={() => stepZoom(1.2)}
-                className="pointer-events-auto rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 px-2.5 py-1 font-display text-[11px] font-bold text-[#1C140C] hover:border-[#9A7014] hover:bg-[#FAF6EE]"
+                className="pointer-events-auto rounded-lg border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE]/96 to-[#EFE6D5]/96 px-2.5 py-1 font-display text-[11px] font-bold text-(--color-text-primary) hover:border-[#9A7014] hover:bg-[#FAF6EE]"
               >
                 +
               </button>

@@ -18,7 +18,7 @@ Audits thirty-five repositories across media processing, job intelligence, decis
 
 ## 1. Executive Summary & Audit Scope
 
-We audited the active repository portfolio under `~/dev` against `/Users/brbrainerd/dev/vox` (`crates/vox-compiler/src/feature_matrix.rs`, `crates/vox-ast/`, `crates/vox-codegen/`, `crates/vox-db/`, `crates/vox-actor-runtime/`, and `.planning/ROADMAP.md` Waves 0–4 / Phases 01–54):
+We audited the active repository portfolio under `~/dev` against `.` (`crates/vox-compiler/src/feature_matrix.rs`, `crates/vox-ast/`, `crates/vox-codegen/`, `crates/vox-db/`, `crates/vox-actor-runtime/`, and `.planning/ROADMAP.md` Waves 0–4 / Phases 01–54):
 
 - **Media, Video & Desktop Orchestration:** `brVideo`, `ngi.video`, `cineflow`, `brFrame`, `brUpVideo`, `brAutosub`, `annotate-subs`, `ytfloat`
 - **Marketplaces, Decision Engines & Civic/FinTech:** `gigme`, `ramada`, `greaterFool`, `govSim`, `brFinancier`, `peaceboard`, `containment`
@@ -168,7 +168,7 @@ Vox's current `v1.5` Unified Holistic Stream (Phases 01–54) builds a world-cla
 
 ## 4. Portfolio-Wide Ponytail Audit (YAGNI, DRY, SSOT, Cull, Integrate)
 
-Applying the `ponytail` / `ponytail-audit` hierarchy (**skip (YAGNI) → reuse codebase → stdlib → native platform → installed dep → one-line → minimum code**) across `/Users/brbrainerd/dev` and the Vox GSD roadmap yields concrete code deletions, SSOT consolidations, and roadmap plan reductions.
+Applying the `ponytail` / `ponytail-audit` hierarchy (**skip (YAGNI) → reuse codebase → stdlib → native platform → installed dep → one-line → minimum code**) across `~/dev` and the Vox GSD roadmap yields concrete code deletions, SSOT consolidations, and roadmap plan reductions.
 
 ### 4.1 Executed & Ranked Portfolio Reductions (`~/dev`)
 
@@ -180,7 +180,7 @@ Applying the `ponytail` / `ponytail-audit` hierarchy (**skip (YAGNI) → reuse c
   - Built `fableforge/convex/rpg/skills/melvorEngine.ts` (`MasteryPool`, `MasteryController`, `UnifiedModifierPipeline`, `simulateUnifiedIdleProgress`) and wired it into `src/lib/games/village/offlineSimulation.ts`, `convex/lib/gameSystems/crafting/recipes.ts`, and `convex/lib/ffscript/skillIdleOps.ts` (`convex/games/village/ffscript.ts`), verified by `convex/rpg/skills/__tests__/melvorEngine.test.ts` (`4/4` passing).
   - **Next cull:** Point `open-melvor/packages/engine` directly at the shared pure TypeScript skill-engine package instead of maintaining two separate copies of `MasteryPool` and `ModifierPipeline`.
 - **`delete:` `brVideo` root script sprawl (-4,500+ LoC):**
-  - Delete 38+ one-off root scripts in `/Users/brbrainerd/dev/brVideo/` (`fix_config_imports_properly.py`, `fix_all_config_calls.py`, `ultimate_test_runner.py`, `comprehensive_ci_local_runner.py`, `comprehensive_local_ci_runner.py`, `final_slow_test_validator.py`, `final_cleanup_slow_tests.py`, and ad-hoc root `test_*.py` files) that duplicate `pytest` and git history.
+  - Delete 38+ one-off root scripts in `~/dev/brVideo/` (`fix_config_imports_properly.py`, `fix_all_config_calls.py`, `ultimate_test_runner.py`, `comprehensive_ci_local_runner.py`, `comprehensive_local_ci_runner.py`, `final_slow_test_validator.py`, `final_cleanup_slow_tests.py`, and ad-hoc root `test_*.py` files) that duplicate `pytest` and git history.
 - **`ssot:` Video satellite repos (`brFrame`, `brUpVideo`, `brAutosub`, `annotate-subs`) → `brVideo` Registry SSOT:**
   - `brFrame` (frame extraction), `brUpVideo` (upscaling), and `brAutosub` (Whisper subtitles) duplicate FFmpeg/GPU/CLI scaffolding already inside `brVideo/packages/brvideo-registry`. Archive standalone satellite wrappers and treat `brVideo` tool registry as the single backend SSOT consumed by `ngi.video` and `cineflow`.
 - **`ssot:` `Resonance` vs. `resonance-godot48` & `neurogecko` vs. `neuroscience-atlas-mapper`:**

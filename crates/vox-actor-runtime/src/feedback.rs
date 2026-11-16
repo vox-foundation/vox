@@ -15,14 +15,20 @@
 //! }
 //! ```
 
-use thiserror::Error;
 use std::sync::Arc;
-use vox_db::{VoxDb, store::{StoreError, TrainingPair}};
+use thiserror::Error;
+use vox_db::{
+    VoxDb,
+    store::{StoreError, TrainingPair},
+};
 
+/// Errors returned by [`FeedbackCollector`] operations.
 #[derive(Debug, Error)]
 pub enum FeedbackError {
+    /// Underlying database store error.
     #[error("Store error: {0}")]
     Store(#[from] StoreError),
+    /// JSON serialization error when exporting training pairs.
     #[error("Serialization error: {0}")]
     Json(#[from] serde_json::Error),
 }
@@ -69,6 +75,7 @@ impl FeedbackCollector {
                 response,
                 &self.model_version,
                 Some(latency_ms),
+                None,
                 Some(token_count),
             )
             .await?;
@@ -192,18 +199,19 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore = "requires libsql local feature; run cargo test -p vox-actor-runtime -- --ignored owner: actor-runtime sunset: 2026-12-31"]
     async fn test_feedback_log_and_thumbs_up_round_trip() {
         // B-016: Integration test for FeedbackCollector::log + thumbs_up round-trip
-        let path = std::env::temp_dir().join(format!(
-            "vox_feedback_test_{}.db",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_micros()
-        ));
-        let db_path = path.to_str().unwrap().to_string();
-        let store = Arc::new(VoxDb::connect(vox_db::DbConfig::Local { path: db_path }).await.expect("temp store"));
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp
+            .path()
+            .join("vox_feedback_test.db")
+            .display()
+            .to_string();
+        let store = Arc::new(
+            VoxDb::connect(vox_db::DbConfig::Local { path: db_path })
+                .await
+                .expect("temp store"),
+        );
         let collector = FeedbackCollector::new(store, "test-session", Some("user-1".into()));
 
         // Log an interaction

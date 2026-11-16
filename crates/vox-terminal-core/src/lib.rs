@@ -18,29 +18,57 @@
 pub const CRATE_NAME: &str = "vox-terminal-core";
 
 pub mod agent;
+pub mod agent_exec;
 pub mod block;
 pub mod commands;
+pub mod completions;
+mod completions_specs;
 pub mod corpus;
 pub mod daemon_host;
+pub mod history;
 pub mod host;
 pub mod input;
 pub mod osc633;
 pub mod pty;
+pub mod runbooks;
 pub mod session;
+pub mod shell_init;
+pub mod stall_detector;
 pub mod transcript;
+pub mod utf8_stream;
 pub mod vox_interp;
+pub mod voxify;
+pub mod vt_shadow;
 
 // Flat re-exports for ergonomic use by front-ends.
 pub use agent::{AgentAdapterConfig, translate_event};
+pub use agent_exec::{
+    AgentExecOutcome, AgentExecRequest, AgentExecStatus, allows_agent_command,
+    format_agent_command_for_shell,
+};
 pub use block::{Block, BlockId, BlockKind, BlockOrigin, BlockStatus, OutputChunk, Stream};
+pub use completions::{
+    CompletionEngine, TermCompletionItem, TermCompletionKind, TermCompletionRequest,
+};
+pub use corpus::writer::RedactingTranscriptSink;
 pub use daemon_host::DaemonHost;
+pub use history::{DEFAULT_HISTORY_CAP, HistoryEntry, HistoryStore};
 pub use host::{
-    Attachment, LocalHost, OpenSpec, OutputFrame, RedactedBlockContext, SessionHost, SessionId,
-    SessionInfo, TermControlMode, TermSecurityLevel,
+    Attachment, BlockFeedbackVerdict, LocalHost, OpenSpec, OutputFrame, RedactedBlockContext,
+    SessionHost, SessionId, SessionInfo, TermControlMode, TermSecurityLevel,
 };
 pub use input::{InputIntent, classify};
 pub use osc633::{Osc633Event, Osc633Parser};
-pub use pty::{PtyHandle, ShellBackend, ShellKind, default_shell, spawn_pty};
+pub use pty::{
+    PtyHandle, ShellBackend, ShellKind, TermSignal, default_shell, spawn_pty,
+    spawn_pty_with_callback,
+};
+pub use runbooks::{RunbookDescriptor, RunbookKind, RunbookParam, scan_workspace_runbooks};
 pub use session::{Session, SessionEvent};
+pub use shell_init::{ShellLaunchShim, prepare_shell_command};
+pub use stall_detector::{DEFAULT_STALL_QUIESCENCE_MS, PromptKind, StallSignal, classify_stall};
 pub use transcript::{JournalSink, NullSink, TranscriptEvent, TranscriptKind, TranscriptSink};
+pub use utf8_stream::{Utf8StreamDecoder, normalize_cr_overwrites};
 pub use vox_interp::eval_line;
+pub use voxify::{VoxifyShellKind, build_voxify_payload, detect_subshell_command};
+pub use vt_shadow::VtShadow;

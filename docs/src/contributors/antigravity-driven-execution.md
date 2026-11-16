@@ -93,9 +93,9 @@ come along). Three things then differ, and each cost a run before it was fixed:
 | --- | --- | --- |
 | 16 | `drive.mjs` hardcoded the shared checkout as its root, so it could not drive a worktree. | The root is now derived from the script's location (`new URL("../..", import.meta.url)`). |
 | 17 | A plan path with slashes went into the run-log filename and crashed the driver after the agent had finished its work. | The log is named by the plan's basename. |
-| 18 | Plan steps written for the shared checkout say `cd /Users/brbrainerd/dev/vox/...`. In a worktree the agent would run them, `sed -i` included, in **another session's tree**. | The guard denies any absolute path under the shared checkout that is outside its own root, and says to use relative paths; plans say "from the repository root" and use relative `cd`s. Nothing leaked before the guard existed (checked: the shared checkout's status was unchanged), but the earlier plans carry the same prefix. |
+| 18 | Plan steps written for the shared checkout say `cd ~/dev/vox/...`. In a worktree the agent would run them, `sed -i` included, in **another session's tree**. | The guard denies any absolute path under the shared checkout that is outside its own root, and says to use relative paths; plans say "from the repository root" and use relative `cd`s. Nothing leaked before the guard existed (checked: the shared checkout's status was unchanged), but the earlier plans carry the same prefix. |
 
-Also: run vitest in the worktree yourself after every agent run. An agent told `cd /Users/brbrainerd/dev/vox && vitest …`
+Also: run vitest in the worktree yourself after every agent run. An agent told `cd ~/dev/vox && vitest …`
 was testing the other tree, so its green means little until you re-run it where the change is.
 
 ## Plan format that drives well

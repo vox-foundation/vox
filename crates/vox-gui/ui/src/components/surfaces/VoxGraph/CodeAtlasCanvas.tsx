@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { voxTransport } from '../../../transport';
+import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
 
 export type AtlasLodLevel = 'L0_Crates' | 'L1_Files' | 'L2_Symbols';
 export type AtlasDiffStatus = 'added' | 'modified' | 'unchanged';
@@ -205,48 +207,52 @@ export function CodeAtlasCanvas({ compact = false, onMentionNode }: CodeAtlasCan
   return (
     <section
       data-testid="code-atlas-canvas"
-      className={`rounded-xl border border-white/10 bg-zinc-950/60 ${compact ? 'p-2.5' : 'p-4'}`}
+      className={`rounded-xl border border-border-subtle bg-bg-surface ${compact ? 'p-2.5' : 'p-4'}`}
     >
       {/* Header & Controls: Phase 26 LOD, Phase 27 Branch/Worktree Diff Overlay, Phase 29 Watcher */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2.5">
         <div className="flex items-center gap-2">
-          <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-amber-300">
+          <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
             Unified Code & Architecture Atlas (v5)
           </h3>
           <span
             data-testid="atlas-watcher-badge"
-            className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300"
+            className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/12 px-2 py-0.5 font-mono text-[10px] text-text-primary"
           >
             Live Watcher · {watcherEvents} events
           </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          <select
+          <VoxSelect
+            size="xs"
             aria-label="Atlas LOD level"
             data-testid="atlas-lod-select"
             value={lod}
-            onChange={(e) => setLod(e.target.value as AtlasLodLevel)}
-            className="rounded border border-white/10 bg-zinc-900 px-2 py-1 font-mono text-[11px] text-zinc-200"
-          >
-            <option value="L0_Crates">LOD: L0 Crates</option>
-            <option value="L1_Files">LOD: L1 Files</option>
-            <option value="L2_Symbols">LOD: L2 Symbols + .vox AST</option>
-          </select>
+            onValueChange={(v) => setLod(v as AtlasLodLevel)}
+            options={[
+              { value: 'L0_Crates', label: 'LOD: L0 Crates' },
+              { value: 'L1_Files', label: 'LOD: L1 Files' },
+              { value: 'L2_Symbols', label: 'LOD: L2 Symbols + .vox AST' },
+            ]}
+            className="w-44 border-border-subtle bg-bg-elevated font-mono text-[11px] text-text-primary"
+          />
 
-          <select
+          <VoxSelect
+            size="xs"
             aria-label="Branch or worktree diff overlay"
             data-testid="atlas-diff-branch-select"
             value={branchOverlay}
-            onChange={(e) => setBranchOverlay(e.target.value)}
-            className="rounded border border-white/10 bg-zinc-900 px-2 py-1 font-mono text-[11px] text-zinc-200"
-          >
-            <option value="origin/main">Diff vs origin/main</option>
-            <option value="feat/unified-2026-q4">Worktree: feat/unified-2026-q4</option>
-            <option value="jj:@-">jj change @-</option>
-          </select>
+            onValueChange={setBranchOverlay}
+            options={[
+              { value: 'origin/main', label: 'Diff vs origin/main' },
+              { value: 'feat/unified-2026-q4', label: 'Worktree: feat/unified-2026-q4' },
+              { value: 'jj:@-', label: 'jj change @-' },
+            ]}
+            className="w-52 border-border-subtle bg-bg-elevated font-mono text-[11px] text-text-primary"
+          />
 
-          <label className="inline-flex items-center gap-1 text-[11px] text-zinc-300">
+          <label className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
             <input
               type="checkbox"
               data-testid="atlas-diff-only-toggle"
@@ -260,7 +266,7 @@ export function CodeAtlasCanvas({ compact = false, onMentionNode }: CodeAtlasCan
             type="button"
             data-testid="atlas-sync-watcher-btn"
             onClick={handleSyncWatcher}
-            className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 font-mono text-[10px] text-cyan-300 hover:bg-cyan-500/20"
+            className="rounded border border-border-strong bg-bg-elevated px-2 py-1 font-mono text-[10px] text-text-primary hover:bg-overlay-hover"
           >
             Sync Graph
           </button>
@@ -276,9 +282,9 @@ export function CodeAtlasCanvas({ compact = false, onMentionNode }: CodeAtlasCan
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
           placeholder="Filter crates, .vox @table/@tool/@workflow symbols, or paths…"
-          className="min-w-[200px] flex-1 rounded border border-white/10 bg-zinc-900/80 px-2.5 py-1 font-mono text-[11px] text-zinc-200"
+          className="min-w-[200px] flex-1 rounded border border-border-subtle bg-bg-elevated px-2.5 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted"
         />
-        <span data-testid="atlas-budget-pill" className="font-mono text-[10px] text-zinc-400">
+        <span data-testid="atlas-budget-pill" className="font-mono text-[10px] text-text-muted">
           Culled Viewport: {visibleNodes.length}/{ATLAS_MAX_NODES_BUDGET} nodes ·{' '}
           {visibleEdges.length}/{ATLAS_MAX_EDGES_BUDGET} edges
         </span>
@@ -293,31 +299,31 @@ export function CodeAtlasCanvas({ compact = false, onMentionNode }: CodeAtlasCan
           const isSelected = selectedNode?.id === node.id;
           const diffTone =
             node.diffStatus === 'added'
-              ? 'border-emerald-500/40 bg-emerald-500/5'
+              ? 'border-emerald-500/40 bg-emerald-500/8'
               : node.diffStatus === 'modified'
-                ? 'border-amber-500/40 bg-amber-500/5'
-                : 'border-white/10 bg-zinc-900/40';
+                ? 'border-amber-500/40 bg-amber-500/8'
+                : 'border-border-subtle bg-bg-elevated';
           return (
             <div
               key={node.id}
               data-testid={`atlas-node-${node.id}`}
               onClick={() => setSelectedNodeId(node.id)}
               className={`cursor-pointer rounded-lg border p-2.5 transition ${diffTone} ${
-                isSelected ? 'ring-1 ring-amber-400' : ''
+                isSelected ? 'ring-1 ring-brass' : ''
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <span className="font-mono text-xs font-semibold text-zinc-100">
+                  <span className="font-mono text-xs font-semibold text-text-primary">
                     {node.label}
                   </span>
-                  <div className="mt-0.5 font-mono text-[10px] text-zinc-400">
+                  <div className="mt-0.5 font-mono text-[10px] text-text-muted">
                     {node.layer} · {node.kind}
                   </div>
                 </div>
                 <span
                   data-testid={`atlas-diff-badge-${node.id}`}
-                  className="rounded px-1.5 py-0.5 font-mono text-[10px] uppercase text-amber-300 bg-amber-500/10"
+                  className="rounded border border-border-subtle bg-bg-surface px-1.5 py-0.5 font-mono text-[10px] uppercase text-text-primary"
                 >
                   {node.diffStatus}
                 </span>
@@ -327,13 +333,14 @@ export function CodeAtlasCanvas({ compact = false, onMentionNode }: CodeAtlasCan
               {node.activeAgentId && (
                 <div
                   data-testid={`atlas-agent-badge-${node.id}`}
-                  className="mt-1.5 inline-flex items-center gap-1 rounded bg-sky-500/15 px-1.5 py-0.5 font-mono text-[10px] text-sky-300"
+                  className="mt-1.5 inline-flex items-center gap-1 rounded bg-brass/15 px-1.5 py-0.5 font-mono text-[10px] text-text-primary"
                 >
-                  ⚡ {node.activeAgentId}
+                  <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />
+                  <span>{node.activeAgentId}</span>
                 </div>
               )}
 
-              <div className="mt-2 flex items-center justify-between border-t border-white/5 pt-1.5 text-[10px] text-zinc-400">
+              <div className="mt-2 flex items-center justify-between border-t border-border-subtle pt-1.5 text-[10px] text-text-muted">
                 <span className="font-mono">
                   in:{node.fanIn} · out:{node.fanOut}
                 </span>
@@ -345,7 +352,7 @@ export function CodeAtlasCanvas({ compact = false, onMentionNode }: CodeAtlasCan
                     e.stopPropagation();
                     handleMention(node);
                   }}
-                  className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] text-amber-300 hover:bg-amber-500/20"
+                  className="rounded border border-brass/50 bg-brass/15 px-2 py-0.5 font-mono text-[10px] text-text-primary hover:bg-brass/25"
                 >
                   @ Mention in Chat
                 </button>
@@ -359,14 +366,14 @@ export function CodeAtlasCanvas({ compact = false, onMentionNode }: CodeAtlasCan
       {selectedNode && (
         <div
           data-testid="atlas-node-inspector"
-          className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 font-mono text-[11px] text-zinc-300"
+          className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 font-mono text-[11px] text-text-primary"
         >
           <div>
             Selected: <strong>{selectedNode.label}</strong> ({selectedNode.filePath}) · Diff vs{' '}
-            {branchOverlay}: <span className="text-amber-300">{selectedNode.diffStatus}</span>
+            {branchOverlay}: <span className="font-semibold text-text-primary">{selectedNode.diffStatus}</span>
           </div>
           {lastMentionedToken && (
-            <span data-testid="atlas-last-mention-chip" className="text-emerald-300">
+            <span data-testid="atlas-last-mention-chip" className="font-semibold text-text-primary">
               Inserted chip: {lastMentionedToken}
             </span>
           )}

@@ -1,0 +1,497 @@
+// vox:caps fs process env
+// scripts/lychee-triage.vox
+//
+// Triages lychee JSON failure output for Docs Drift Refresh (`.github/workflows/docs-drift-refresh.yml`).
+//
+// Proposes `.lycheeignore` host regexes ONLY for anti-bot / transient HTTP status codes
+// (403, 429, 500..=599) with a dated reason comment. NEVER proposes 404, DNS, TLS, or timeout
+// failures for `.lycheeignore` — those are written sorted by URL to
+// `contracts/reports/docs-freshness/external-links.v1.json` for human fixing.
+
+import fs
+import process
+import env
+import json
+
+fn contains_str(xs: list[str], target: str) to bool {
+    let mut i = 0
+    while i < xs.len() {
+        if xs.get(i).unwrap() is target {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn push_unique_str(xs: list[str], item: str) to list[str] {
+    if contains_str(xs, item) {
+        return xs
+    }
+    return xs.push(item)
+}
+
+fn str_lt(a: str, b: str) to bool {
+    let ca = a.chars()
+    let cb = b.chars()
+    let na = ca.len()
+    let nb = cb.len()
+    let min_n = if na < nb { na } else { nb }
+    let mut i = 0
+    while i < min_n {
+        let oa = ca.get(i).unwrap_or("").ord()
+        let ob = cb.get(i).unwrap_or("").ord()
+        if oa < ob {
+            return true
+        }
+        if oa > ob {
+            return false
+        }
+        i = i + 1
+    }
+    return na < nb
+}
+
+fn sort_strs(xs: list[str]) to list[str] {
+    let mut out: list[str] = []
+    let mut i = 0
+    while i < xs.len() {
+        out = out.push(xs.get(i).unwrap())
+        i = i + 1
+    }
+    let n = out.len()
+    let mut a = 0
+    while a < n {
+        let mut b = a + 1
+        while b < n {
+            let va = out.get(a).unwrap()
+            let vb = out.get(b).unwrap()
+            if str_lt(vb, va) {
+                let mut rebuilt: list[str] = []
+                let mut k = 0
+                while k < n {
+                    if k is a {
+                        rebuilt = rebuilt.push(vb)
+                    } else if k is b {
+                        rebuilt = rebuilt.push(va)
+                    } else {
+                        rebuilt = rebuilt.push(out.get(k).unwrap())
+                    }
+                    k = k + 1
+                }
+                out = rebuilt
+            }
+            b = b + 1
+        }
+        a = a + 1
+    }
+    return out
+}
+
+fn extract_host(url: str) to str {
+    let mut rest = url
+    if rest.starts_with("https://") {
+        rest = rest.replace("https://", "")
+    } else if rest.starts_with("http://") {
+        rest = rest.replace("http://", "")
+    } else {
+        return ""
+    }
+    let slash_parts = rest.split("/")
+    let authority = slash_parts.get(0).unwrap_or("")
+    let port_parts = authority.split(":")
+    let host = port_parts.get(0).unwrap_or("")
+    return host.trim().to_lowercase()
+}
+
+fn escape_host_regex(host: str) to str {
+    return host.replace(".", "\\.")
+}
+
+fn json_escape_str(s: str) to str {
+    let mut out = s.replace("\\", "\\\\")
+    out = out.replace("\"", "\\\"")
+    out = out.replace("\n", "\\n")
+    out = out.replace("\r", "")
+    out = out.replace("\t", " ")
+    return out
+}
+
+fn classify_ignore_code(code: int) to bool {
+    if code is 403 or code is 429 {
+        return true
+    }
+    return code >= 500 and code <= 599
+}
+
+fn object_keys(obj: Json) to list[str] {
+    let cs = obj.to_string().chars()
+    let mut keys: list[str] = []
+    let mut depth = 0
+    let mut in_str = false
+    let mut esc = false
+    let mut cur = ""
+    let mut i = 0
+    let n = cs.len()
+    while i < n {
+        let ch = cs.get(i).unwrap_or("")
+        if in_str {
+            if esc {
+                cur = cur + ch
+                esc = false
+            } else if ch is "\\" {
+                esc = true
+            } else if ch is "\"" {
+                in_str = false
+                if depth is 1 {
+                    let mut j = i + 1
+                    while j < n {
+                        let nc = cs.get(j).unwrap_or("")
+                        if nc is " " or nc is "\t" or nc is "\n" or nc is "\r" {
+                            j = j + 1
+                        } else {
+                            if nc is ":" {
+                                keys = keys.push(cur)
+                            }
+                            j = n
+                        }
+                    }
+                }
+                cur = ""
+            } else {
+                cur = cur + ch
+            }
+        } else {
+            if ch is "\"" {
+                in_str = true
+                cur = ""
+            } else if ch is "{" or ch is "[" {
+                depth = depth + 1
+            } else if ch is "}" or ch is "]" {
+                depth = depth - 1
+            }
+        }
+        i = i + 1
+    }
+    return keys
+}
+
+fn validate_lychee_json(json_text: str) to str {
+    let parsed = json.parse(json_text)
+    if parsed.is_err() {
+        return "lychee-triage: invalid JSON: " + parsed.unwrap_err()
+    }
+    let root = parsed.unwrap()
+    let has_error_map = root.has("error_map")
+    let has_fail_map = root.has("fail_map")
+    if not has_error_map and not has_fail_map {
+        return "lychee-triage: missing required failure map key error_map (or fail_map) in lychee JSON"
+    }
+    let failure_map_opt = if has_error_map { root.get("error_map") } else { root.get("fail_map") }
+    if failure_map_opt.is_none() {
+        return "lychee-triage: error_map is null"
+    }
+    if failure_map_opt.unwrap().as_object().is_none() {
+        return "lychee-triage: error_map is not a JSON object"
+    }
+    return ""
+}
+
+fn get_failure_map(root: Json) to Json {
+    if root.has("error_map") {
+        return root.get("error_map").unwrap()
+    }
+    return root.get("fail_map").unwrap()
+}
+
+fn jstr(j: Json, k: str, default_val: str) to str {
+    let v = j.get(k)
+    if v.is_none() {
+        return default_val
+    }
+    return v.unwrap().as_str().unwrap_or(default_val)
+}
+
+fn jint(j: Json, k: str, default_val: int) to int {
+    let v = j.get(k)
+    if v.is_none() {
+        return default_val
+    }
+    return v.unwrap().as_int().unwrap_or(default_val)
+}
+
+fn jitems(failure_map: Json, src: str) to list[Json] {
+    let f_opt = failure_map.get(src)
+    if f_opt.is_none() {
+        return []
+    }
+    return f_opt.unwrap().as_array().unwrap_or([])
+}
+
+fn triage_proposals(json_text: str, existing_ignore: str, triage_date: str) to list[str] {
+    let root = json.parse(json_text).unwrap()
+    let failure_map = get_failure_map(root)
+    let source_keys = sort_strs(object_keys(failure_map))
+
+    let mut prop_hosts: list[str] = []
+    let mut prop_lines: list[str] = []
+
+    let mut si = 0
+    while si < source_keys.len() {
+        let src = source_keys.get(si).unwrap()
+        let items = jitems(failure_map, src)
+        let mut ei = 0
+        while ei < items.len() {
+            let item = items.get(ei).unwrap()
+            let url = jstr(item, "url", "")
+            let status_opt = item.get("status")
+            let code = if status_opt.is_some() { jint(status_opt.unwrap(), "code", -1) } else { -1 }
+            if url isnt "" and code >= 0 and classify_ignore_code(code) {
+                let host = extract_host(url)
+                if host isnt "" {
+                    let escaped = escape_host_regex(host)
+                    if not existing_ignore.contains(escaped) and not contains_str(prop_hosts, escaped) {
+                        prop_hosts = prop_hosts.push(escaped)
+                        prop_lines = prop_lines.push("# " + host + " returned " + str(code) + " to the CI link checker on " + triage_date + "; proposed by Docs Drift Refresh, verify before merging")
+                        prop_lines = prop_lines.push(".*" + escaped + "/.*")
+                    }
+                }
+            }
+            ei = ei + 1
+        }
+        si = si + 1
+    }
+    return prop_lines
+}
+
+fn triage_dead_links_json(json_text: str) to str {
+    let root = json.parse(json_text).unwrap()
+    let failure_map = get_failure_map(root)
+    let source_keys = sort_strs(object_keys(failure_map))
+
+    let mut dead_urls: list[str] = []
+    let mut dead_statuses: list[str] = []
+    let mut dead_sources_list: list[list[str]] = []
+
+    let mut si = 0
+    while si < source_keys.len() {
+        let src = source_keys.get(si).unwrap()
+        let items = jitems(failure_map, src)
+        let mut ei = 0
+        while ei < items.len() {
+            let item = items.get(ei).unwrap()
+            let url = jstr(item, "url", "")
+            let status_opt = item.get("status")
+            let status_text = if status_opt.is_some() { jstr(status_opt.unwrap(), "text", "unknown error") } else { "unknown error" }
+            let code = if status_opt.is_some() { jint(status_opt.unwrap(), "code", -1) } else { -1 }
+            if url isnt "" and (code < 0 or not classify_ignore_code(code)) {
+                let mut found_idx = -1
+                let mut di = 0
+                while di < dead_urls.len() {
+                    if dead_urls.get(di).unwrap() is url {
+                        found_idx = di
+                    }
+                    di = di + 1
+                }
+                if found_idx is -1 {
+                    dead_urls = dead_urls.push(url)
+                    let code_suffix = if code >= 0 { status_text + " (" + str(code) + ")" } else { status_text }
+                    dead_statuses = dead_statuses.push(code_suffix)
+                    dead_sources_list = dead_sources_list.push([src])
+                } else {
+                    let cur_srcs = dead_sources_list.get(found_idx).unwrap()
+                    let next_srcs = push_unique_str(cur_srcs, src)
+                    let mut rebuilt_srcs: list[list[str]] = []
+                    let mut ri = 0
+                    while ri < dead_sources_list.len() {
+                        if ri is found_idx {
+                            rebuilt_srcs = rebuilt_srcs.push(next_srcs)
+                        } else {
+                            rebuilt_srcs = rebuilt_srcs.push(dead_sources_list.get(ri).unwrap())
+                        }
+                        ri = ri + 1
+                    }
+                    dead_sources_list = rebuilt_srcs
+                }
+            }
+            ei = ei + 1
+        }
+        si = si + 1
+    }
+
+    let sorted_urls = sort_strs(dead_urls)
+    let mut out = "{\n  \"schema_version\": 1,\n  \"failures\": ["
+    if sorted_urls.len() is 0 {
+        return out + "]\n}\n"
+    }
+    out = out + "\n"
+    let mut ui = 0
+    while ui < sorted_urls.len() {
+        let u = sorted_urls.get(ui).unwrap()
+        let mut orig_idx = 0
+        let mut k = 0
+        while k < dead_urls.len() {
+            if dead_urls.get(k).unwrap() is u {
+                orig_idx = k
+            }
+            k = k + 1
+        }
+        let st = dead_statuses.get(orig_idx).unwrap()
+        let srcs = sort_strs(dead_sources_list.get(orig_idx).unwrap())
+        out = out + "    {\n"
+        out = out + "      \"url\": \"" + json_escape_str(u) + "\",\n"
+        out = out + "      \"status\": \"" + json_escape_str(st) + "\",\n"
+        out = out + "      \"sources\": ["
+        let mut s_idx = 0
+        while s_idx < srcs.len() {
+            if s_idx > 0 {
+                out = out + ", "
+            }
+            out = out + "\"" + json_escape_str(srcs.get(s_idx).unwrap()) + "\""
+            s_idx = s_idx + 1
+        }
+        out = out + "]\n"
+        if ui + 1 < sorted_urls.len() {
+            out = out + "    },\n"
+        } else {
+            out = out + "    }\n"
+        }
+        ui = ui + 1
+    }
+    out = out + "  ]\n}\n"
+    return out
+}
+
+fn read_text_or_empty(path: str) to str {
+    if not fs.exists(path) {
+        return ""
+    }
+    let res = fs.read(path)
+    if res.is_err() {
+        return ""
+    }
+    return res.unwrap()
+}
+
+fn write_text_if_changed(path: str, content: str) to bool {
+    if fs.exists(path) {
+        let prev = read_text_or_empty(path)
+        if prev is content {
+            return false
+        }
+    }
+    let _ = fs.write(path, content)
+    return true
+}
+
+fn apply_ignore_proposals(existing_ignore: str, new_lines: list[str]) to str {
+    if new_lines.len() is 0 {
+        return existing_ignore
+    }
+    let mut out = existing_ignore
+    if out isnt "" and not out.ends_with("\n") {
+        out = out + "\n"
+    }
+    let mut i = 0
+    while i < new_lines.len() {
+        out = out + new_lines.get(i).unwrap() + "\n"
+        i = i + 1
+    }
+    return out
+}
+
+fn env_or(name: str, default_val: str) to str {
+    return env.get(name).unwrap_or(default_val)
+}
+
+@test
+fn test_triage_separates_403_429_5xx_from_404_and_dns() to Unit {
+    let fixture = "{\"error_map\":{\"docs/b.md\":[{\"url\":\"https://example.org/a\",\"status\":{\"text\":\"Forbidden\",\"code\":403}},{\"url\":\"https://rate.example/b\",\"status\":{\"text\":\"Too Many Requests\",\"code\":429}},{\"url\":\"https://flaky.example/c\",\"status\":{\"text\":\"Service Unavailable\",\"code\":503}}],\"docs/a.md\":[{\"url\":\"https://gone.example/d\",\"status\":{\"text\":\"Not Found\",\"code\":404}},{\"url\":\"https://nxdomain.example/e\",\"status\":{\"text\":\"DNS error: failed to lookup address information\"}}]}}"
+    assert(validate_lychee_json(fixture) is "")
+    let props = triage_proposals(fixture, "", "2026-11-13")
+    assert(props.len() is 6)
+    let joined = apply_ignore_proposals("", props)
+    assert(joined.contains("example\\.org") is true)
+    assert(joined.contains("rate\\.example") is true)
+    assert(joined.contains("flaky\\.example") is true)
+    assert(joined.contains("gone\\.example") is false)
+    assert(joined.contains("nxdomain\\.example") is false)
+
+    let report = triage_dead_links_json(fixture)
+    assert(report.contains("https://gone.example/d") is true)
+    assert(report.contains("https://nxdomain.example/e") is true)
+    assert(report.contains("docs/a.md") is true)
+}
+
+@test
+fn test_existing_ignore_and_same_host_dedup() to Unit {
+    let existing = "# Medium returns 403 to bots\n.*medium\\.com/.*\n"
+    let fixture = "{\"error_map\":{\"docs/a.md\":[{\"url\":\"https://medium.com/p/1\",\"status\":{\"text\":\"Forbidden\",\"code\":403}},{\"url\":\"https://flaky.example/one\",\"status\":{\"text\":\"Bad Gateway\",\"code\":502}},{\"url\":\"https://flaky.example/two\",\"status\":{\"text\":\"Service Unavailable\",\"code\":503}}]}}"
+    let props = triage_proposals(fixture, existing, "2026-11-13")
+    assert(props.len() is 2)
+    let joined = apply_ignore_proposals("", props)
+    assert(joined.contains("medium\\.com") is false)
+    assert(joined.contains("flaky\\.example") is true)
+}
+
+@test
+fn test_missing_failure_map_errors() to Unit {
+    let fixture = "{\"total\":1,\"success_map\":{}}"
+    let err = validate_lychee_json(fixture)
+    assert(err isnt "")
+    assert(err.contains("error_map") is true)
+}
+
+@test
+fn test_report_deterministic_no_timestamp() to Unit {
+    let fixture = "{\"error_map\":{\"docs/z.md\":[{\"url\":\"https://b.example/z\",\"status\":{\"text\":\"Not Found\",\"code\":404}}],\"docs/a.md\":[{\"url\":\"https://a.example/x\",\"status\":{\"text\":\"Not Found\",\"code\":404}}]}}"
+    let json1 = triage_dead_links_json(fixture)
+    let json2 = triage_dead_links_json(fixture)
+    assert(json1 is json2)
+    assert(json1.contains("\"schema_version\": 1") is true)
+}
+
+fn main() {
+    let argv = env.args()
+    if contains_str(argv, "--self-test") {
+        test_triage_separates_403_429_5xx_from_404_and_dns()
+        test_existing_ignore_and_same_host_dedup()
+        test_missing_failure_map_errors()
+        test_report_deterministic_no_timestamp()
+        print("lychee-triage: self-test OK")
+        return
+    }
+
+    let lychee_json_path = env_or("LYCHEE_JSON", "lychee.json")
+    let ignore_path = env_or("LYCHEEIGNORE", ".lycheeignore")
+    let report_path = env_or("EXTERNAL_LINKS_OUT", "contracts/reports/docs-freshness/external-links.v1.json")
+    let triage_date = env_or("TRIAGE_DATE", "2026-11-13")
+
+    if not fs.exists(lychee_json_path) {
+        print("lychee-triage: missing LYCHEE_JSON file: " + lychee_json_path)
+        process.exit(1)
+    }
+
+    let json_text_res = fs.read(lychee_json_path)
+    if json_text_res.is_err() {
+        print("lychee-triage: could not read LYCHEE_JSON: " + json_text_res.unwrap_err())
+        process.exit(1)
+    }
+    let json_text = json_text_res.unwrap()
+    let err = validate_lychee_json(json_text)
+    if err isnt "" {
+        print(err)
+        process.exit(1)
+    }
+
+    let existing_ignore = read_text_or_empty(ignore_path)
+    let new_lines = triage_proposals(json_text, existing_ignore, triage_date)
+    let updated_ignore = apply_ignore_proposals(existing_ignore, new_lines)
+    if updated_ignore isnt existing_ignore {
+        let _ = fs.write(ignore_path, updated_ignore)
+    }
+
+    let report_json = triage_dead_links_json(json_text)
+    let changed = write_text_if_changed(report_path, report_json)
+    print("lychee-triage: new_ignore_lines=" + str(new_lines.len()) + " report_changed=" + str(changed))
+}

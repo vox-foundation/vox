@@ -11,6 +11,7 @@ pub const VOX_REPO_ROOT_ENV: &str = "VOX_REPO_ROOT";
 
 /// Resolve repository root for `vox ci` and doc-inventory: `VOX_REPO_ROOT`, else walk up from
 /// [`std::env::current_dir`] until both `AGENTS.md` and `Cargo.toml` exist, else fall back to CWD.
+#[inline(never)]
 pub fn resolve_repo_root_for_ci() -> PathBuf {
     if let Ok(p) = std::env::var(VOX_REPO_ROOT_ENV) {
         return PathBuf::from(p);
@@ -52,6 +53,7 @@ pub fn resolve_repo_root_for_ci() -> PathBuf {
 /// Walk up from `start` (or CWD if empty) until a directory contains `Vox.toml` or `Cargo.toml`.
 ///
 /// If no marker is found, returns [`std::env::current_dir`] (same behavior as the former MCP helper).
+#[inline(never)]
 pub fn find_project_manifest_root(start: &Path) -> Option<PathBuf> {
     let mut current = if start.as_os_str().is_empty() {
         std::env::current_dir().ok()?
@@ -72,6 +74,7 @@ pub fn find_project_manifest_root(start: &Path) -> Option<PathBuf> {
 }
 
 /// Walk up from `start` until `Cargo.toml` contains a `[workspace]` section.
+#[inline(never)]
 pub fn find_cargo_workspace_root_from(start: &Path) -> Option<PathBuf> {
     let mut dir = if start.as_os_str().is_empty() {
         std::env::current_dir().ok()?

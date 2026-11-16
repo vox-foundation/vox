@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "milestone": "v7.1",
+  "generated_at": "2026-11-13T09:55:00-07:00",
+  "policy_note": "Read-only manifest grouping dirty/untracked workspace paths into dependency-ordered atomic commit slices. No git staging/commit commands executed per multi-session shared working-tree safety rules.",
+  "workflow_consolidation": {
+    "deleted_workflow": ".github/workflows/link_checker.yml",
+    "disposition": "intentionally_consolidated",
+    "replacement_workflows": [
+      {
+        "path": ".github/workflows/docs-quality.yml",
+        "coverage": "Blocking internal link gate + lychee v0.24.2 self-test on PRs and main pushes"
+      },
+      {
+        "path": ".github/workflows/docs-drift-refresh.yml",
+        "coverage": "Scheduled external link check via lychee v0.24.2 + scripts/lychee-triage.vox"
+      }
+    ]
+  },
+  "dependabot_open_prs": [
+    {
+      "number": 721,
+      "title": "chore(deps): Bump the npm-minor-patch group across 1 directory with 26 updates",
+      "scope": "crates/vox-gui/ui",
+      "mergeable": "MERGEABLE",
+      "disposition": "ready_to_merge_batch",
+      "rationale": "Grouped minor/patch updates in Vox Axis UI; merge after running pnpm --dir crates/vox-gui/ui build."
+    },
+    {
+      "number": 720,
+      "title": "chore(deps): Bump the npm-minor-patch group across 1 directory with 6 updates",
+      "scope": "docs-astro",
+      "mergeable": "MERGEABLE",
+      "disposition": "ready_to_merge_batch",
+      "rationale": "Grouped minor/patch updates in Starlight docs; merge after docs-quality CI passes."
+    },
+    {
+      "number": 703,
+      "title": "chore(deps): Bump ossf/scorecard-action from 2.4.4 to 2.5.0 in the github-actions-minor-patch group across 1 directory",
+      "scope": ".github/workflows",
+      "mergeable": "MERGEABLE",
+      "disposition": "ready_to_merge_batch",
+      "rationale": "Safe minor bump of OSSF Scorecard GitHub Action."
+    },
+    {
+      "number": 698,
+      "title": "chore(deps): Bump the npm-minor-patch group across 1 directory with 14 updates",
+      "scope": "apps/experimental/visualizer",
+      "mergeable": "MERGEABLE",
+      "disposition": "ready_to_merge_batch",
+      "rationale": "Grouped minor/patch updates in experimental visualizer."
+    },
+    {
+      "number": 693,
+      "title": "chore(deps): Bump the npm-minor-patch group across 1 directory with 5 updates",
+      "scope": "apps/editor/vox-vscode",
+      "mergeable": "MERGEABLE",
+      "disposition": "ready_to_merge_batch",
+      "rationale": "Grouped minor/patch updates in VS Code extension."
+    },
+    {
+      "number": 692,
+      "title": "chore(deps-dev): Bump @playwright/test from 1.63.0 to 1.65.0 in /crates/vox-integration-tests",
+      "scope": "crates/vox-integration-tests",
+      "mergeable": "MERGEABLE",
+      "disposition": "ready_to_merge_batch",
+      "rationale": "Minor bump of @playwright/test dev dependency."
+    },
+    {
+      "number": 702,
+      "title": "chore(deps-dev): Bump vitest from 3.2.6 to 5.1.0 in /crates/vox-gui/ui",
+      "scope": "crates/vox-gui/ui",
+      "mergeable": "UNKNOWN",
+      "disposition": "hold_for_major_migration",
+      "rationale": "Major jump (v3 -> v5); requires Vite/Vitest config & coverage provider compatibility verification."
+    },
+    {
+      "number": 701,
+      "title": "chore(deps): Bump dockview from 6.6.1 to 8.8.3 in /crates/vox-gui/ui",
+      "scope": "crates/vox-gui/ui",
+      "mergeable": "UNKNOWN",
+      "disposition": "hold_for_major_migration",
+      "rationale": "Two-major jump (v6 -> v8) on core Vox Axis docking layout engine; requires dedicated Playwright visual regression pass."
+    },
+    {
+      "number": 699,
+      "title": "chore(deps): Bump framer-motion from 13.2.0 to 14.9.0 in /apps/experimental/visualizer",
+      "scope": "apps/experimental/visualizer",
+      "mergeable": "UNKNOWN",
+      "disposition": "hold_for_major_migration",
+      "rationale": "Major React animation runtime bump; verify React version compatibility in visualizer."
+    },
+    {
+      "number": 697,
+      "title": "chore(deps-dev): Bump mermaid from 11.17.2 to 12.3.0 in /docs-astro",
+      "scope": "docs-astro",
+      "mergeable": "UNKNOWN",
+      "disposition": "hold_for_major_migration",
+      "rationale": "Major Mermaid v12 bump; verify against vox_validate_mermaid grammar rules and Astro diagram SSR."
+    },
+    {
+      "number": 695,
+      "title": "chore(deps-dev): Bump @vscode/vsce from 3.9.2 to 4.1.0 in /apps/editor/vox-vscode",
+      "scope": "apps/editor/vox-vscode",
+      "mergeable": "UNKNOWN",
+      "disposition": "hold_for_major_migration",
+      "rationale": "Major VSCE packaging CLI bump; verify Node engine floor and VSIX bundle output."
+    },
+    {
+      "number": 694,
+      "title": "chore(deps): Bump vscode-languageclient from 9.0.1 to 11.0.0 in /apps/editor/vox-vscode",
+      "scope": "apps/editor/vox-vscode",
+      "mergeable": "UNKNOWN",
+      "disposition": "hold_for_major_migration",
+      "rationale": "Two-major LSP client jump (v9 -> v11); requires vox-lsp protocol compatibility check."
+    }
+  ],
+  "commit_slices": [
+    {
+      "order": 1,
+      "slice_id": "slice-01-toolchain-and-ignore-hygiene",
+      "conventional_commit": "chore(hygiene): sync .voxignore derived files, consolidate link_checker workflow & exclude patches from rustfmt",
+      "globs": [
+        ".voxignore",
+        ".gitignore",
+        ".cursorignore",
+        ".aiignore",
+        ".aiexclude",
+        ".cargo/config.toml",
+        ".cursor/rules/build-environment.mdc",
+        ".github/workflows/link_checker.yml",
+        ".github/workflows/docs-self-heal.yml",
+        ".github/workflows/nightly-report.yml",
+        "patches/candle-core-0.10.2/**",
+        "scripts/fmt.vox",
+        "scripts/lychee-triage.vox"
+      ]
+    },
+    {
+      "order": 2,
+      "slice_id": "slice-02-python-bridge-and-compiler-escape-hatches",
+      "conventional_commit": "feat(compiler,python-bridge): typed @py.import plot/tensor sidecars and golden verification",
+      "globs": [
+        "contracts/python/sidecars/**",
+        "contracts/telemetry/python-escape-call.v1.schema.json",
+        "crates/vox-compiler/**",
+        "crates/vox-python-bridge/**",
+        "examples/golden/fixtures/tiny_linear.pt2",
+        "examples/golden/py_*.vox"
+      ]
+    },
+    {
+      "order": 3,
+      "slice_id": "slice-03-mens-multispoke-eval-and-metal-decode",
+      "conventional_commit": "feat(mens,eval,corpus): 5-spoke corpus roundtrip verifiers, episode eval harness, Metal batch decode & CWD path hardening",
+      "globs": [
+        "contracts/mens/**",
+        "crates/vox-corpus/**",
+        "crates/vox-eval/**",
+        "crates/vox-ml-cli/**",
+        "crates/vox-plugin-mens-candle-metal/**",
+        "crates/vox-populi/**",
+        "mens/data/agent_episodes/**",
+        "docs/src/architecture/mens-multispoke-corpus-and-tuning-research-2026.md"
+      ]
+    },
+    {
+      "order": 4,
+      "slice_id": "slice-04-cli-split-and-audit-detectors",
+      "conventional_commit": "refactor(cli,audit): decouple vox-cli-ci/vox-cli-research split crates, semantic CLI synonyms & portability/hygiene detectors",
+      "globs": [
+        "crates/vox-cli/**",
+        "crates/vox-cli-ci/**",
+        "crates/vox-cli-research/**",
+        "crates/vox-code-audit/**",
+        "crates/vox-drift-check/**",
+        "crates/vox-doc-inventory/**",
+        "crates/vox-repository/**",
+        "docs/src/architecture/layers.toml"
+      ]
+    },
+    {
+      "order": 5,
+      "slice_id": "slice-05-gsd-native-suite-integration",
+      "conventional_commit": "feat(gsd,db,mcp,gui): native GSD suite persistence (v98), orchestrator DAG planner, MCP tools, Axis GSD surface & skill bundle",
+      "globs": [
+        "assets/skills/gsd-*/**",
+        "crates/vox-skills/skills/gsd/**",
+        "crates/vox-db/**",
+        "crates/vox-orchestrator-types/src/gsd.rs",
+        "crates/vox-orchestrator/src/planning/gsd/**",
+        "crates/vox-orchestrator-mcp/**",
+        "crates/vox-gui/**",
+        "scripts/sync-gsd-skills.vox",
+        "docs/src/architecture/gsd-integration-ssot-2026.md"
+      ]
+    },
+    {
+      "order": 6,
+      "slice_id": "slice-06-ssot-contracts-and-generated-docs",
+      "conventional_commit": "chore(ssot): converge operations catalog, crate-edges/fan-in/crate-graph contracts, baseline digest v98 & generated reference docs",
+      "globs": [
+        "contracts/operations/catalog.v1.yaml",
+        "contracts/mcp/**",
+        "contracts/cli/**",
+        "contracts/capability/**",
+        "contracts/capabilities/**",
+        "contracts/ci/**",
+        "contracts/db/baseline-version-policy.yaml",
+        "contracts/reports/**",
+        "docs/src/.well-known/**",
+        "docs/src/reference/*.generated.md",
+        "docs/src/index.mdx"
+      ]
+    },
+    {
+      "order": 7,
+      "slice_id": "slice-07-public-release-docs-and-planning-archive",
+      "conventional_commit": "docs(release,planning): refresh RELEASE_NOTES/CHANGELOG/CONTRIBUTING for 0.6.x and archive completed GSD workstreams & milestones",
+      "globs": [
+        "RELEASE_NOTES.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md",
+        ".planning/**"
+      ]
+    }
+  ]
+}

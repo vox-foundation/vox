@@ -66,8 +66,8 @@ describe('ContextWindowMeter', () => {
     expect(container.querySelector('[data-zone="danger"]')).toBeTruthy();
   });
 
-  it('clamps percent to 100 when used exceeds max', () => {
-    render(
+  it('clamps percent to 100 and clamps role="meter" aria-valuenow/aria-valuemax', () => {
+    const { rerender } = render(
       <ContextWindowMeter
         usedTokens={999_999}
         maxTokens={128_000}
@@ -76,38 +76,108 @@ describe('ContextWindowMeter', () => {
       />
     );
     expect(screen.getByText('100%')).toBeInTheDocument();
+    const meter = screen.getByRole('meter');
+    expect(meter).toHaveAttribute('aria-valuemax', '128000');
+    expect(meter).toHaveAttribute('aria-valuenow', '128000');
+
+    rerender(
+      <ContextWindowMeter
+        usedTokens={50}
+        maxTokens={0}
+        thresholdTokens={0}
+        strategy="balanced"
+      />
+    );
+    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuemax', '1');
+    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '1');
   });
 
-  it('renders 0% when usedTokens is 0', () => {
+  it('renders 0% and 0% cached when usedTokens is 0 (no fake static cache hit rate)', () => {
     render(
       <ContextWindowMeter
         usedTokens={0}
         maxTokens={128_000}
         thresholdTokens={102_400}
-        strategy="balanced"
+        strategy="conservative"
       />
     );
     expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.getByTestId('context-meter-kv-cache')).toHaveTextContent('0% cached');
+    expect(screen.getByTestId('context-meter-slice-system')).toHaveTextContent('Sys0');
+    expect(screen.getByTestId('context-meter-slice-kb')).toHaveTextContent('KB0');
+    expect(screen.getByTestId('context-meter-slice-ast')).toHaveTextContent('AST0');
+    expect(screen.getByTestId('context-meter-slice-history')).toHaveTextContent('Hist0');
   });
 
-  it('renders BPE token slice breakdown, KV prefix-cache badge, and interactive segmented strategy buttons', () => {
+  it('computes empirical KV cache hit percentage from cacheReadTokens or cacheHitPct', () => {
+    const { rerender } = render(
+      <ContextWindowMeter
+        usedTokens={20_000}
+        maxTokens={128_000}
+        thresholdTokens={102_400}
+        strategy="balanced"
+        cacheReadTokens={60_000}
+      />
+    );
+    // 60_000 / (20_000 + 60_000) = 75%
+    expect(screen.getByTestId('context-meter-kv-cache')).toHaveTextContent('75% cached');
+
+    rerender(
+      <ContextWindowMeter
+        usedTokens={20_000}
+        maxTokens={128_000}
+        thresholdTokens={102_400}
+        strategy="balanced"
+        cacheHitPct={88.6}
+      />
+    );
+    expect(screen.getByTestId('context-meter-kv-cache')).toHaveTextContent('89% cached');
+  });
+
+  it('renders BPE token slice breakdown, interactive slice selection, and segmented strategy buttons', () => {
     const onStrategyChange = vi.fn();
+    const onSliceSelect = vi.fn();
     render(
       <ContextWindowMeter
         usedTokens={64_000}
         maxTokens={128_000}
         thresholdTokens={102_400}
         strategy="balanced"
+        sliceBreakdown={{
+          systemTokens: 8_000,
+          kbTokens: 20_000,
+          astTokens: 16_000,
+          historyTokens: 20_000,
+        }}
+        onSliceSelect={onSliceSelect}
         onStrategyChange={onStrategyChange}
       />
     );
     const slices = screen.getByTestId('context-meter-bpe-slices');
     expect(slices).toBeInTheDocument();
     expect(slices.tagName.toLowerCase()).toBe('svg');
-    expect(screen.getByTestId('context-meter-kv-cache')).toHaveTextContent('86% cached');
+    expect(screen.getByTestId('context-meter-kv-cache')).toHaveTextContent('0% cached');
+
+    const kbBtn = screen.getByTestId('context-meter-slice-kb');
+    expect(kbBtn).toHaveTextContent('20,000');
+    expect(kbBtn).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(kbBtn);
+    expect(onSliceSelect).toHaveBeenCalledWith('kb');
+    expect(kbBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('context-meter-slice-inspector')).toHaveTextContent(
+      'Pinned Files & Cache',
+    );
+
+    fireEvent.click(kbBtn);
+    expect(onSliceSelect).toHaveBeenLastCalledWith(null);
+    expect(kbBtn).toHaveAttribute('aria-pressed', 'false');
 
     fireEvent.click(screen.getByTestId('context-meter-strategy-conservative'));
     expect(onStrategyChange).toHaveBeenCalledWith('conservative');
+    expect(screen.queryByTestId('context-meter-strategy-btn')).toBeNull();
+    expect(slices.querySelector('rect')?.getAttribute('fill')).toBe('var(--color-overlay-subtle)');
+    expect(slices.querySelector('line')?.getAttribute('stroke')).toBe('var(--color-text-muted)');
   });
 
   it('renders 1-click surgical Clear Tools action button and reclaimed token counter (CONTEXT-SURGERY-03)', () => {

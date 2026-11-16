@@ -8,13 +8,17 @@ import { LudusBanner } from './LudusBanner';
 import { DashboardData, Agent, StreamItem, LudusAlert } from '../../../types/dashboard';
 import { Skeleton } from '../../ui/Skeleton';
 import { defaultDashboardLayout, type DashboardWidget, addWidgetToLayout, resetDashboardLayout } from '../../../lib/dashboardLayout';
-import { DashboardGrid, persistDashboardLayout } from '../../dashboard/DashboardGrid';
+import {
+  DashboardGrid,
+  hydrateDashboardLayoutFromBackend,
+  loadDashboardLayout,
+  persistDashboardLayout,
+} from '../../dashboard/DashboardGrid';
 import { WidgetPickerDrawer } from '../../dashboard/WidgetPickerDrawer';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { labelFor } from '../../../lib/lexicon';
 import { useLang } from '../../../hooks/useLanguage';
 import { SHELL_PREFERENCE_KEYS } from '../../../lib/shellPersistence';
-import { loadDashboardLayout } from '../../dashboard/DashboardGrid';
 import {
   useMetricSeries,
   metricSeriesFromSpark,
@@ -93,6 +97,7 @@ export function Dashboard({
     SHELL_PREFERENCE_KEYS.dashboardLayout,
     loadDashboardLayout(defaultDashboardLayout()),
   );
+  const userCustomizedLayoutRef = useRef(false);
   const approvals = useAgentApprovals(data.agents.map((a) => a.codename));
   const { series: budgetSeries, setSeries: setBudgetSeries, append: appendBudget } =
     useMetricSeries('budget_burn', []);
@@ -100,6 +105,20 @@ export function Dashboard({
     useMetricSeries('queue_depth', []);
   const prevBudgetValue = useRef<number | undefined>(undefined);
   const prevQueueValue = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    void hydrateDashboardLayoutFromBackend(defaultDashboardLayout()).then(
+      (remote) => {
+        if (!cancelled && remote && !userCustomizedLayoutRef.current) {
+          setLayout(remote);
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [setLayout]);
 
   const budgetSpark = data.kpis.budgetBurn.spark;
   const budgetValue =
@@ -136,6 +155,7 @@ export function Dashboard({
   }, [queueSpark, queueValue, appendQueue]);
 
   function updateLayout(next: ReturnType<typeof defaultDashboardLayout>) {
+    userCustomizedLayoutRef.current = true;
     setLayout(next);
     persistDashboardLayout(next);
   }
@@ -310,51 +330,101 @@ export function Dashboard({
             </Glass>
           </div>
         );
-      case 'budget_burn':
+      case 'budget_burn': {
+        const budgetCap =
+          typeof data.kpis.budgetBurn.cap === 'number' && data.kpis.budgetBurn.cap > 0
+            ? data.kpis.budgetBurn.cap
+            : undefined;
         return (
           <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
             <AreaChartWidget
               title="Budget Burn"
               series={budgetSeries}
+              unit="$"
+              referenceCap={budgetCap}
+              referenceLabel={budgetCap !== undefined ? 'Budget cap' : undefined}
+              onPointSelect={(pt) => {
+                setActiveBottomTab('agents');
+                if (budgetCap !== undefined && pt.v >= budgetCap) {
+                  setFilterKind('doubted');
+                }
+              }}
             />
           </div>
         );
+      }
       case 'queue_depth':
         return (
           <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
             <BarChartWidget
               title="Queue Depth"
               series={queueSeries}
+              onPointSelect={(pt) => {
+                setActiveBottomTab('agents');
+                setFilterKind(pt.v > 0 ? 'in-progress' : 'all');
+              }}
             />
           </div>
         );
-      case 'line_chart':
+      case 'line_chart': {
+        const budgetCap =
+          typeof data.kpis.budgetBurn.cap === 'number' && data.kpis.budgetBurn.cap > 0
+            ? data.kpis.budgetBurn.cap
+            : undefined;
         return (
           <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
             <LineChartWidget
               title={chartTitle(widget, 'Metric')}
               series={budgetSeries}
+              unit="$"
+              referenceCap={budgetCap}
+              referenceLabel={budgetCap !== undefined ? 'Budget cap' : undefined}
+              onPointSelect={(pt) => {
+                setActiveBottomTab('agents');
+                if (budgetCap !== undefined && pt.v >= budgetCap) {
+                  setFilterKind('doubted');
+                }
+              }}
             />
           </div>
         );
+      }
       case 'bar_chart':
         return (
           <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
             <BarChartWidget
               title={chartTitle(widget, 'Metric')}
               series={queueSeries}
+              onPointSelect={(pt) => {
+                setActiveBottomTab('agents');
+                setFilterKind(pt.v > 0 ? 'in-progress' : 'all');
+              }}
             />
           </div>
         );
-      case 'area_chart':
+      case 'area_chart': {
+        const budgetCap =
+          typeof data.kpis.budgetBurn.cap === 'number' && data.kpis.budgetBurn.cap > 0
+            ? data.kpis.budgetBurn.cap
+            : undefined;
         return (
           <div className={isAgentsTab ? 'h-full' : 'sr-only'}>
             <AreaChartWidget
               title={chartTitle(widget, 'Metric')}
               series={budgetSeries}
+              unit="$"
+              referenceCap={budgetCap}
+              referenceLabel={budgetCap !== undefined ? 'Budget cap' : undefined}
+              onPointSelect={(pt) => {
+                setActiveBottomTab('agents');
+                if (budgetCap !== undefined && pt.v >= budgetCap) {
+                  setFilterKind('doubted');
+                }
+              }}
             />
           </div>
         );
+      }
       case 'resources':
         return (
           <div className={isResourcesTab ? 'h-full' : 'sr-only'}>
@@ -438,7 +508,9 @@ export function Dashboard({
               onClick={() => {
                 setCustomizeMode((v) => {
                   const next = !v;
-                  if (!next) {
+                  if (next) {
+                    userCustomizedLayoutRef.current = true;
+                  } else {
                     setPickerOpen(false);
                   }
                   return next;
@@ -487,7 +559,9 @@ export function Dashboard({
             onClick={() => {
               setCustomizeMode((v) => {
                 const next = !v;
-                if (!next) {
+                if (next) {
+                  userCustomizedLayoutRef.current = true;
+                } else {
                   setPickerOpen(false);
                 }
                 return next;

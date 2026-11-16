@@ -1,12 +1,11 @@
 //! Real semantic similarity for prior-art scoring.
 //!
-//! vox-publisher defines the pure math + the [`Embedder`] seam; the
-//! llm_embed-backed, vox-db-cached implementation lives in the caller
-//! (vox-cli), keeping this crate free of LLM/runtime deps. On embed failure
+//! Re-exports the canonical L3 [`Embedder`] trait, [`cosine_similarity`], and
+//! [`embed_cache_key`] from [`vox_scientia::embedder`]. On embed failure
 //! callers receive `None` — absence is propagated, never replaced with a
 //! fake score.
 
-use sha2::{Digest, Sha256};
+pub use vox_scientia::embedder::{Embedder, cosine_similarity, embed_cache_key};
 
 /// True when `VOX_SCIENTIA_REQUIRE_EMBEDDER` is set to a truthy value (`1`, `true`, `yes`, `on`).
 #[must_use]
@@ -39,51 +38,6 @@ pub fn require_embedder_for_online_novelty(
         "online novelty requires an embedder when VOX_SCIENTIA_REQUIRE_EMBEDDER=1; \
          configure an embedding provider (see vox-search embedding env) or pass --offline"
     )
-}
-
-/// Cosine similarity in [-1, 1]; 0.0 when either vector is all-zero.
-#[must_use]
-pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
-    if a.len() != b.len() || a.is_empty() {
-        return 0.0;
-    }
-    let dot: f64 = a
-        .iter()
-        .zip(b.iter())
-        .map(|(x, y)| f64::from(*x) * f64::from(*y))
-        .sum();
-    let norm_a: f64 = a
-        .iter()
-        .map(|x| f64::from(*x) * f64::from(*x))
-        .sum::<f64>()
-        .sqrt();
-    let norm_b: f64 = b
-        .iter()
-        .map(|x| f64::from(*x) * f64::from(*x))
-        .sum::<f64>()
-        .sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 {
-        return 0.0;
-    }
-    (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
-}
-
-/// Cache key: sha256 over model + NUL + text, lowercase hex.
-#[must_use]
-pub fn embed_cache_key(text: &str, model: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(model.as_bytes());
-    hasher.update(b"\x00");
-    hasher.update(text.as_bytes());
-    let h = hasher.finalize();
-    h.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// Async embedding provider seam.
-#[async_trait::async_trait]
-pub trait Embedder: Send + Sync {
-    /// Embed `text`; `None` on any failure (offline, no key, provider error).
-    async fn embed(&self, text: &str) -> Option<Vec<f32>>;
 }
 
 /// Enrich hits' `semantic_score` with cosine(query, hit title) where embeddings

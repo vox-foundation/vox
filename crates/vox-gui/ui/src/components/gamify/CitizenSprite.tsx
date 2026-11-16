@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useStore } from 'zustand';
 import { projectIso, getZIndex } from '../../lib/projection';
+import { Icon, RoleRankEmblem } from '../ui/Icons';
 import { useLudusStore, AgentState } from './store';
 
 interface CitizenProps {
@@ -12,13 +13,21 @@ interface CitizenProps {
   offsetY: number;
 }
 
-const MOOD_EMOJIS: Record<string, string> = {
-  Happy: '😊',
-  Tired: '🥱',
-  Sad: '😢',
-  Excited: '🤩',
-  Exhausted: '😩',
-};
+function renderMoodBadgeIcon(mood: string, rankHint: string): React.ReactNode {
+  switch (mood) {
+    case 'Excited':
+      return <RoleRankEmblem rank={rankHint} className="size-3 shrink-0" />;
+    case 'Tired':
+      return <Icon.crystalGem className="size-3 shrink-0 opacity-80" aria-hidden="true" />;
+    case 'Sad':
+      return <Icon.minus className="size-3 shrink-0" aria-hidden="true" />;
+    case 'Exhausted':
+      return <Icon.circle className="size-3 shrink-0 opacity-70" aria-hidden="true" />;
+    case 'Happy':
+    default:
+      return <Icon.spark className="size-3 shrink-0" aria-hidden="true" />;
+  }
+}
 
 export const CitizenSprite: React.FC<CitizenProps> = ({
   id,
@@ -74,11 +83,12 @@ export const CitizenSprite: React.FC<CitizenProps> = ({
       className="absolute flex flex-col items-center pointer-events-none"
       style={{ left: 0, top: 0 }}
     >
-      <div className="text-[9px] bg-black/80 px-1 py-0.5 rounded-sm border border-blue-500/20 text-blue-400 font-mono scale-75 whitespace-nowrap mb-1">
-        {name}
+      <div className="inline-flex items-center gap-1 text-[9px] bg-bg-elevated px-1.5 py-0.5 rounded-sm border border-[#C59B27]/50 text-text-primary font-mono scale-75 whitespace-nowrap mb-1 shadow-xs">
+        <RoleRankEmblem rank={name} className="size-2.5 shrink-0 text-[#8C6825]" />
+        <span>{name}</span>
       </div>
-      <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center border border-white/20 shadow-lg">
-        <span>{MOOD_EMOJIS[mood] || '👨‍💻'}</span>
+      <div className="w-5 h-5 rounded-full bg-bg-surface flex items-center justify-center border border-[#C59B27]/80 text-[#8C6825] shadow-md">
+        {renderMoodBadgeIcon(mood, name)}
       </div>
     </div>
   );

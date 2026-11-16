@@ -46,6 +46,8 @@ describe('Phase 386 — Enforceable & Self-Expanding GUI Theme Contract', () => 
     expect(rawJson.default_theme).toBe(THEME_CONTRACT.default_theme);
     expect(rawJson.supported_themes).toEqual([...THEME_CONTRACT.supported_themes]);
     expect(rawJson.required_semantic_css_vars).toEqual([...REQUIRED_SEMANTIC_CSS_VARS]);
+    expect(REQUIRED_SEMANTIC_CSS_VARS).toContain('--font-terminal-mono');
+    expect(REQUIRED_SEMANTIC_CSS_VARS).toHaveLength(23);
     expect(rawJson.themes.arcane.tokens).toEqual(THEME_CONTRACT.themes.arcane.tokens);
     expect(rawJson.themes.slate.tokens).toEqual(THEME_CONTRACT.themes.slate.tokens);
     expect(rawJson.themes['high-contrast'].tokens).toEqual(
@@ -60,7 +62,7 @@ describe('Phase 386 — Enforceable & Self-Expanding GUI Theme Contract', () => 
     ]);
   });
 
-  it('defines all 22 required semantic CSS variables individually in every generated Style Dictionary theme file (arcane, slate, high-contrast, travertine)', () => {
+  it('defines all 23 required semantic CSS variables individually in every generated Style Dictionary theme file (arcane, slate, high-contrast, travertine)', () => {
     const indexCss = readFileSync(join(SRC_ROOT, 'index.css'), 'utf8');
     const generatedFiles = [
       { name: 'arcane (tokens.generated.css)', file: 'tokens.generated.css' },
@@ -68,6 +70,9 @@ describe('Phase 386 — Enforceable & Self-Expanding GUI Theme Contract', () => 
       { name: 'high-contrast (tokens.contrast.generated.css)', file: 'tokens.contrast.generated.css' },
       { name: 'glacier/travertine (tokens.travertine.generated.css)', file: 'tokens.travertine.generated.css' },
     ];
+
+    expect(REQUIRED_SEMANTIC_CSS_VARS).toContain('--font-terminal-mono');
+    expect(REQUIRED_SEMANTIC_CSS_VARS).toHaveLength(23);
 
     for (const { name, file } of generatedFiles) {
       const cssContent = readFileSync(join(SRC_ROOT, 'styles', file), 'utf8');
@@ -77,6 +82,20 @@ describe('Phase 386 — Enforceable & Self-Expanding GUI Theme Contract', () => 
           `Generated stylesheet ${name} is missing semantic variable ${cssVar}`,
         ).toBe(true);
       }
+      expect(cssContent).toContain(
+        "--font-terminal-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;",
+      );
+    }
+
+    for (const profile of [
+      THEME_CONTRACT.themes.arcane,
+      THEME_CONTRACT.themes.slate,
+      THEME_CONTRACT.themes['high-contrast'],
+      THEME_CONTRACT.themes.glacier,
+    ]) {
+      expect(profile.tokens['--font-terminal-mono']).toBe(
+        "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace",
+      );
     }
 
     // Verify single-line button and pill badge invariant in index.css
@@ -192,5 +211,42 @@ describe('Phase 386 — Enforceable & Self-Expanding GUI Theme Contract', () => 
 
     // Restore default
     applyTheme('arcane');
+  });
+
+  it('enforces Dual-Surface --terminal-well-* variables, terminal monospace isolation, and .xterm-helper-textarea zero-box containment in index.css', () => {
+    const indexCss = readFileSync(join(SRC_ROOT, 'index.css'), 'utf8');
+
+    for (const wellVar of [
+      '--terminal-well-bg',
+      '--terminal-well-fg',
+      '--terminal-well-muted',
+      '--terminal-well-border',
+      '--terminal-well-cursor',
+      '--terminal-well-selection',
+    ]) {
+      const occurrences = indexCss.split(`${wellVar}:`).length - 1;
+      expect(
+        occurrences,
+        `Expected ${wellVar} across all 4 theme blocks in src/index.css`,
+      ).toBeGreaterThanOrEqual(4);
+    }
+
+    expect(indexCss).toContain('--terminal-well-bg: #15110d;');
+    expect(indexCss).toContain('--terminal-well-bg: #171512;');
+    expect(indexCss).toContain('--terminal-well-bg: #0c0e10;');
+    expect(indexCss).toContain('--terminal-well-bg: #000000;');
+
+    expect(indexCss).toContain('font-family: var(--font-terminal-mono) !important;');
+    expect(indexCss).toContain('font-variant-ligatures: none;');
+    expect(indexCss).toContain('.xterm-helper-textarea');
+    expect(indexCss).toContain('width: 0 !important;');
+    expect(indexCss).toContain('height: 0 !important;');
+    expect(indexCss).toContain('opacity: 0 !important;');
+    expect(indexCss).toContain('background: transparent !important;');
+    expect(indexCss).toContain('pointer-events: none !important;');
+    expect(indexCss).toContain('*:not(.xterm-helper-textarea):focus-visible');
+    expect(indexCss).toContain(':not(.xterm)');
+    expect(indexCss).toContain(':not([data-terminal-mono="true"])');
+    expect(indexCss).toContain(':not([data-terminal-well="true"])');
   });
 });

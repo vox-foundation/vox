@@ -21,8 +21,17 @@ impl<'a> Checker<'a> {
         }
     }
 
-    pub(super) fn check_unary_op(&mut self, op: HirUnOp, ty: Ty) -> Ty {
+    pub(super) fn check_unary_op(&mut self, op: HirUnOp, ty: Ty, span: Span) -> Ty {
         let ty = self.uf.resolve(&ty);
+        if matches!(&ty, Ty::Named(n) if n == "PyObject") {
+            self.diags.push(Diagnostic::error(
+                "Cannot apply unary operator to opaque `PyObject`; decode it with `.decode(...)` first."
+                    .into(),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        }
         match op {
             HirUnOp::Not => {
                 let _ = self.uf.unify(&ty, &Ty::Bool);
@@ -43,6 +52,18 @@ impl<'a> Checker<'a> {
     pub(super) fn check_binary_op(&mut self, op: HirBinOp, l: Ty, r: Ty, span: Span) -> Ty {
         let l = self.uf.resolve(&l);
         let r = self.uf.resolve(&r);
+        if !matches!(op, HirBinOp::Pipe)
+            && (matches!(&l, Ty::Named(n) if n == "PyObject")
+                || matches!(&r, Ty::Named(n) if n == "PyObject"))
+        {
+            self.diags.push(Diagnostic::error(
+                "Cannot apply binary operator to opaque `PyObject`; decode it with `.decode(...)` first."
+                    .into(),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        }
         match op {
             HirBinOp::Add => {
                 if matches!(l, Ty::Array(_)) || matches!(r, Ty::Array(_)) {

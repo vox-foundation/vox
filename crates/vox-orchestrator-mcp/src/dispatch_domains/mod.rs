@@ -4,4 +4,6 @@ pub mod compiler_analysis;
 pub mod mens_populi;
 pub mod scientia_kb;
 pub mod tasks_core;
+pub(crate) mod terminal_approvals;
+pub mod terminal_tools;
 pub mod vcs_jj;

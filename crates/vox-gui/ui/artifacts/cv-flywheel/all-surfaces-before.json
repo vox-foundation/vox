@@ -1,0 +1,3547 @@
+{
+  "ssotVersion": "2026.10.19-v3.5",
+  "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
+  "capturedAt": "2026-11-14T02:39:54.383Z",
+  "surfaceCount": 33,
+  "surfaces": {
+    "activity": {
+      "surfaceId": "activity",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/activity-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 27.1,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8961
+      },
+      "domAudit": {
+        "surfaceId": "activity",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Memory",
+          "Findings",
+          "Research",
+          "Discovery",
+          "Publications",
+          "Search Index",
+          "Timeline",
+          "Inbox",
+          "Review",
+          "Archive"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8296,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9264,
+      "vlmCritique": {
+        "surfaceId": "activity",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[activity · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 5 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.1% cold slate/cyan, and 71.0% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9968,
+          "ivoryMarbleLuminanceRatio": 0.9652,
+          "coldDigitalSlateCyanRatio": 0.0013,
+          "topFriezeTextureEntropy": 25.4,
+          "conceptArtHistogramSimilarity": 0.7104,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 20 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9294,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8362,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 83.6% (histogram similarity 71.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9494,
+        "actionableDirectives": []
+      }
+    },
+    "approvals": {
+      "surfaceId": "approvals",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/approvals-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 28.2,
+        "noiseFloor": 4.3,
+        "meanLuminance": 0.8986
+      },
+      "domAudit": {
+        "surfaceId": "approvals",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Approvals",
+          "Needs You",
+          "Review",
+          "Policies"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8338,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9274,
+      "vlmCritique": {
+        "surfaceId": "approvals",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[approvals · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 9 classical brass/wax-seal ornaments, 99.5% warm travertine/brass palette vs 0.2% cold slate/cyan, and 68.8% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9949,
+          "ivoryMarbleLuminanceRatio": 0.9604,
+          "coldDigitalSlateCyanRatio": 0.0017,
+          "topFriezeTextureEntropy": 23.4,
+          "conceptArtHistogramSimilarity": 0.6879,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 6,
+          "romanOrnamentCount": 9
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.2% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 9 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 6 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9292,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8238,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 82.4% (histogram similarity 68.8%)."
+          }
+        ],
+        "vlmOverallScore": 0.9475,
+        "actionableDirectives": []
+      }
+    },
+    "browser": {
+      "surfaceId": "browser",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/browser-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 28.1,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8991
+      },
+      "domAudit": {
+        "surfaceId": "browser",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Console",
+          "Repository",
+          "Browser",
+          "Harness",
+          "CodeRabbit",
+          "Preview",
+          "Agent live view"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8318,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.927,
+      "vlmCritique": {
+        "surfaceId": "browser",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[browser · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 5 classical brass/wax-seal ornaments, 99.8% warm travertine/brass palette vs 0.1% cold slate/cyan, and 69.1% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9978,
+          "ivoryMarbleLuminanceRatio": 0.9678,
+          "coldDigitalSlateCyanRatio": 0.001,
+          "topFriezeTextureEntropy": 25,
+          "conceptArtHistogramSimilarity": 0.6907,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.8% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9295,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8254,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 82.5% (histogram similarity 69.1%)."
+          }
+        ],
+        "vlmOverallScore": 0.9478,
+        "actionableDirectives": []
+      }
+    },
+    "catalog": {
+      "surfaceId": "catalog",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/catalog-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 27.2,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8989
+      },
+      "domAudit": {
+        "surfaceId": "catalog",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Catalog",
+          "Skills"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8298,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9264,
+      "vlmCritique": {
+        "surfaceId": "catalog",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/travertine-parchment-tablet.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Unhydrated grey loading skeleton bars (`animate-pulse`) and cold digital slate command cards without a classical header.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9982,
+          "ivoryMarbleLuminanceRatio": 0.9591,
+          "coldDigitalSlateCyanRatio": 0.0005,
+          "topFriezeTextureEntropy": 20,
+          "conceptArtHistogramSimilarity": 0.7112,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 8,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.9% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 6 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 8 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9298,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8367,
+            "answer": "Chromatic & structural convergence with travertine-parchment-tablet.jpg is 83.7% (histogram similarity 71.1%)."
+          }
+        ],
+        "vlmOverallScore": 0.9496,
+        "actionableDirectives": [
+          "Pass: Zero loading skeletons and full convergence with v61_concept_workspace_and_commands_1794141011579.jpg right-half Commands plate."
+        ]
+      }
+    },
+    "chat": {
+      "surfaceId": "chat",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/chat-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 27.2,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8861
+      },
+      "domAudit": {
+        "surfaceId": "chat",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 1,
+        "composerToolbarHeightPx": 28,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 5,
+        "discoveredSubTabLabels": [
+          "Focus",
+          "Split Code",
+          "Multi-Agent",
+          "All",
+          "Tasks",
+          "Context",
+          "Routing"
+        ],
+        "discoveredPopoverTriggers": [
+          "loquela-posture-trigger",
+          "loquela-keybind-hud-toggle",
+          "Risk: Moderate — click to configure",
+          "Choose skill",
+          "Structured intent",
+          "Research mode: Auto (Socrates)",
+          "Choose model tier",
+          "Choose send mode"
+        ],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.5746,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.84,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.89
+      },
+      "weightedRubricScore": 0.8327,
+      "vlmCritique": {
+        "surfaceId": "chat",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[chat · BEFORE] Unfriezed surface header, 0 classical brass/wax-seal ornaments, 99.9% warm travertine/brass palette vs 0.1% cold slate/cyan, and 74.7% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9985,
+          "ivoryMarbleLuminanceRatio": 0.9699,
+          "coldDigitalSlateCyanRatio": 0.0011,
+          "topFriezeTextureEntropy": 14.7,
+          "conceptArtHistogramSimilarity": 0.7468,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 17,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 2,
+          "romanOrnamentCount": 0
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (97.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.9% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.63,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9294,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.7842,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 78.4% (histogram similarity 74.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.8624,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to chat."
+        ]
+      }
+    },
+    "coderabbit": {
+      "surfaceId": "coderabbit",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/coderabbit-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 24.3,
+        "noiseFloor": 4.3,
+        "meanLuminance": 0.912
+      },
+      "domAudit": {
+        "surfaceId": "coderabbit",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Console",
+          "Repository",
+          "Browser",
+          "Harness",
+          "CodeRabbit"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8252,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9253,
+      "vlmCritique": {
+        "surfaceId": "coderabbit",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[coderabbit · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 5 classical brass/wax-seal ornaments, 99.8% warm travertine/brass palette vs 0.1% cold slate/cyan, and 65.0% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9981,
+          "ivoryMarbleLuminanceRatio": 0.9717,
+          "coldDigitalSlateCyanRatio": 0.0007,
+          "topFriezeTextureEntropy": 21.8,
+          "conceptArtHistogramSimilarity": 0.6504,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (97.2% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9297,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8032,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 80.3% (histogram similarity 65.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9445,
+        "actionableDirectives": []
+      }
+    },
+    "console": {
+      "surfaceId": "console",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/console-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 100,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.649
+      },
+      "domAudit": {
+        "surfaceId": "console",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Console",
+          "Repository",
+          "Browser",
+          "Harness",
+          "CodeRabbit"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.9882,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.966,
+      "vlmCritique": {
+        "surfaceId": "console",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Raw dark terminal box with cold slate chrome and no classical Romanesque header framing.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9981,
+          "ivoryMarbleLuminanceRatio": 0.6647,
+          "coldDigitalSlateCyanRatio": 0.0003,
+          "topFriezeTextureEntropy": 29.7,
+          "conceptArtHistogramSimilarity": 0.6583,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (66.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 20 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9299,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8076,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 80.8% (histogram similarity 65.8%)."
+          }
+        ],
+        "vlmOverallScore": 0.9452,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg bottom-left Console plate."
+        ]
+      }
+    },
+    "dashboard": {
+      "surfaceId": "dashboard",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/dashboard-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 58,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8356
+      },
+      "domAudit": {
+        "surfaceId": "dashboard",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 0.204,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Dashboard",
+          "GSD",
+          "Flow",
+          "Tasks",
+          "Mesh",
+          "Sub-Agents",
+          "Active Agents & Alerts",
+          "Attention Budget",
+          "System Resources"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0,
+        "animationMotionDeltaPct": 0.499
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8958,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.7791,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9158,
+      "vlmCritique": {
+        "surfaceId": "dashboard",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-urbs-simulator.jpg",
+        "vlmCaption": "[dashboard · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 2 classical brass/wax-seal ornaments, 90.2% warm travertine/brass palette vs 5.6% cold slate/cyan, and 70.9% histogram similarity to v66-concept-diegetic-urbs-simulator.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.902,
+          "ivoryMarbleLuminanceRatio": 0.8043,
+          "coldDigitalSlateCyanRatio": 0.0559,
+          "topFriezeTextureEntropy": 17.2,
+          "conceptArtHistogramSimilarity": 0.7093,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 30,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 2
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.9217,
+            "answer": "Luminous white/cream Carrara marble (80.4% ivory marble pixels), warm travertine, and burnished brass dominate (90.2% warm tones, 5.6% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 30 fluted Ionic marble pillars, 2 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 4 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9021,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8185,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-urbs-simulator.jpg is 81.8% (histogram similarity 70.9%)."
+          }
+        ],
+        "vlmOverallScore": 0.9242,
+        "actionableDirectives": []
+      }
+    },
+    "explorer": {
+      "surfaceId": "explorer",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/explorer-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 34.9,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.8777
+      },
+      "domAudit": {
+        "surfaceId": "explorer",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8398,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.929,
+      "vlmCritique": {
+        "surfaceId": "explorer",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-aqueduct-cascade.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Cold dark-slate treegrid with sky-blue (#38bdf8) 'generic_form' capability badges leaking through --color-status-info.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9961,
+          "ivoryMarbleLuminanceRatio": 0.9395,
+          "coldDigitalSlateCyanRatio": 0.0005,
+          "topFriezeTextureEntropy": 22.1,
+          "conceptArtHistogramSimilarity": 0.6391,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 22,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (94.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.6% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 22 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9298,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.797,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-aqueduct-cascade.jpg is 79.7% (histogram similarity 63.9%)."
+          }
+        ],
+        "vlmOverallScore": 0.9436,
+        "actionableDirectives": [
+          "Pass: Overrode --color-status-info to burnished Roman gold (#d4af37) and styled treegrid header with warm travertine & brass."
+        ]
+      }
+    },
+    "flow": {
+      "surfaceId": "flow",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/flow-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 35.2,
+        "noiseFloor": 5.1,
+        "meanLuminance": 0.8547
+      },
+      "domAudit": {
+        "surfaceId": "flow",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 4,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 4,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Dashboard",
+          "GSD",
+          "Flow",
+          "Tasks",
+          "Mesh",
+          "Sub-Agents"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0,
+        "animationMotionDeltaPct": 0.274
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8352,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.72,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.67
+      },
+      "weightedRubricScore": 0.8518,
+      "vlmCritique": {
+        "surfaceId": "flow",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-aqueduct-cascade.jpg",
+        "vlmCaption": "[flow · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 2 classical brass/wax-seal ornaments, 96.9% warm travertine/brass palette vs 1.8% cold slate/cyan, and 63.5% histogram similarity to v66-concept-diegetic-aqueduct-cascade.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9687,
+          "ivoryMarbleLuminanceRatio": 0.9316,
+          "coldDigitalSlateCyanRatio": 0.0182,
+          "topFriezeTextureEntropy": 16.2,
+          "conceptArtHistogramSimilarity": 0.6347,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 2
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.9745,
+            "answer": "Luminous white/cream Carrara marble (93.2% ivory marble pixels), warm travertine, and burnished brass dominate (96.9% warm tones, 1.8% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 2 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 4 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9209,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.7907,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-aqueduct-cascade.jpg is 79.1% (histogram similarity 63.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.937,
+        "actionableDirectives": []
+      }
+    },
+    "gamify": {
+      "surfaceId": "gamify",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/gamify-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 85.2,
+        "noiseFloor": 5,
+        "meanLuminance": 0.6973
+      },
+      "domAudit": {
+        "surfaceId": "gamify",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 5,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Settings",
+          "Gamify"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0,
+        "animationMotionDeltaPct": 2.032
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.9469,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.66,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.8
+      },
+      "weightedRubricScore": 0.8807,
+      "vlmCritique": {
+        "surfaceId": "gamify",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-urbs-simulator.jpg",
+        "vlmCaption": "[gamify · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 14 classical brass/wax-seal ornaments, 78.6% warm travertine/brass palette vs 9.4% cold slate/cyan, and 88.7% histogram similarity to v66-concept-diegetic-urbs-simulator.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.7863,
+          "ivoryMarbleLuminanceRatio": 0.5607,
+          "coldDigitalSlateCyanRatio": 0.0939,
+          "topFriezeTextureEntropy": 19.8,
+          "conceptArtHistogramSimilarity": 0.8874,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 27,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 11,
+          "romanOrnamentCount": 14
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.8685,
+            "answer": "Luminous white/cream Carrara marble (56.1% ivory marble pixels), warm travertine, and burnished brass dominate (78.6% warm tones, 9.4% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 27 fluted Ionic marble pillars, 14 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 11 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.8831,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.9032,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-urbs-simulator.jpg is 90.3% (histogram similarity 88.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.9198,
+        "actionableDirectives": []
+      }
+    },
+    "gsd": {
+      "surfaceId": "gsd",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/gsd-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 28.7,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8889
+      },
+      "domAudit": {
+        "surfaceId": "gsd",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Dashboard",
+          "GSD",
+          "Flow",
+          "Tasks",
+          "Mesh",
+          "Sub-Agents"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8296,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9264,
+      "vlmCritique": {
+        "surfaceId": "gsd",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[gsd · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 1 classical brass/wax-seal ornaments, 99.8% warm travertine/brass palette vs 0.1% cold slate/cyan, and 74.5% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9982,
+          "ivoryMarbleLuminanceRatio": 0.9477,
+          "coldDigitalSlateCyanRatio": 0.0013,
+          "topFriezeTextureEntropy": 23.8,
+          "conceptArtHistogramSimilarity": 0.7453,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 23,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 1
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (94.8% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 23 fluted Ionic marble pillars, 1 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 4 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9294,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8554,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 85.5% (histogram similarity 74.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.9523,
+        "actionableDirectives": []
+      }
+    },
+    "harness": {
+      "surfaceId": "harness",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/harness-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 61.1,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8257
+      },
+      "domAudit": {
+        "surfaceId": "harness",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 0.462,
+        "bracketedLabelCount": 5,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Console",
+          "Repository",
+          "Browser",
+          "Harness",
+          "CodeRabbit"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0,
+        "animationMotionDeltaPct": 2.443
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.9009,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.8514,
+        "styleConsistency": 0.77
+      },
+      "weightedRubricScore": 0.9099,
+      "vlmCritique": {
+        "surfaceId": "harness",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-aqueduct-cascade.jpg",
+        "vlmCaption": "[harness · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 7 classical brass/wax-seal ornaments, 92.1% warm travertine/brass palette vs 4.3% cold slate/cyan, and 74.6% histogram similarity to v66-concept-diegetic-aqueduct-cascade.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9212,
+          "ivoryMarbleLuminanceRatio": 0.8136,
+          "coldDigitalSlateCyanRatio": 0.0435,
+          "topFriezeTextureEntropy": 21.7,
+          "conceptArtHistogramSimilarity": 0.7455,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 27,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 9,
+          "romanOrnamentCount": 7
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.9391,
+            "answer": "Luminous white/cream Carrara marble (81.4% ivory marble pixels), warm travertine, and burnished brass dominate (92.1% warm tones, 4.3% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 27 fluted Ionic marble pillars, 7 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 9 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9083,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8428,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-aqueduct-cascade.jpg is 84.3% (histogram similarity 74.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.9335,
+        "actionableDirectives": []
+      }
+    },
+    "harness-health": {
+      "surfaceId": "harness-health",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/harness-health-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 26.9,
+        "noiseFloor": 4.3,
+        "meanLuminance": 0.9051
+      },
+      "domAudit": {
+        "surfaceId": "harness-health",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8309,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9267,
+      "vlmCritique": {
+        "surfaceId": "harness-health",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-aqueduct-cascade.jpg",
+        "vlmCaption": "[harness-health · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 5 classical brass/wax-seal ornaments, 99.8% warm travertine/brass palette vs 0.1% cold slate/cyan, and 53.5% histogram similarity to v66-concept-diegetic-aqueduct-cascade.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9977,
+          "ivoryMarbleLuminanceRatio": 0.9647,
+          "coldDigitalSlateCyanRatio": 0.0011,
+          "topFriezeTextureEntropy": 22.7,
+          "conceptArtHistogramSimilarity": 0.5346,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 6,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 6 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9294,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.7395,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-aqueduct-cascade.jpg is 74.0% (histogram similarity 53.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.9349,
+        "actionableDirectives": []
+      }
+    },
+    "memory": {
+      "surfaceId": "memory",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/memory-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 29.2,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8861
+      },
+      "domAudit": {
+        "surfaceId": "memory",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Memory",
+          "Findings",
+          "Research",
+          "Discovery",
+          "Publications",
+          "Search Index"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8325,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9271,
+      "vlmCritique": {
+        "surfaceId": "memory",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Cold slate 3-pane RAG viewer with sky-blue search highlights and no classical Romanesque header or gauges.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9978,
+          "ivoryMarbleLuminanceRatio": 0.952,
+          "coldDigitalSlateCyanRatio": 0.0008,
+          "topFriezeTextureEntropy": 25.8,
+          "conceptArtHistogramSimilarity": 0.7391,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 25,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.2% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 25 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9296,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.852,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 85.2% (histogram similarity 73.9%)."
+          }
+        ],
+        "vlmOverallScore": 0.9518,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_knowledge_explorer_urbs_refined_1794141055158.jpg top-left Knowledge Memory plate."
+        ]
+      }
+    },
+    "mens": {
+      "surfaceId": "mens",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/mens-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 29.8,
+        "noiseFloor": 5,
+        "meanLuminance": 0.8909
+      },
+      "domAudit": {
+        "surfaceId": "mens",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 6,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Models",
+          "Training",
+          "Nodes",
+          "Voice"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8251,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.77
+      },
+      "weightedRubricScore": 0.9073,
+      "vlmCritique": {
+        "surfaceId": "mens",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[mens · BEFORE] Unfriezed surface header, 6 classical brass/wax-seal ornaments, 98.7% warm travertine/brass palette vs 0.9% cold slate/cyan, and 73.5% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9873,
+          "ivoryMarbleLuminanceRatio": 0.9608,
+          "coldDigitalSlateCyanRatio": 0.0095,
+          "topFriezeTextureEntropy": 19.5,
+          "conceptArtHistogramSimilarity": 0.7345,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 8,
+          "romanOrnamentCount": 6
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.9867,
+            "answer": "Luminous white/cream Carrara marble (96.1% ivory marble pixels), warm travertine, and burnished brass dominate (98.7% warm tones, 0.9% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.76,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9253,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8027,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 80.3% (histogram similarity 73.5%)."
+          }
+        ],
+        "vlmOverallScore": 0.8921,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to mens."
+        ]
+      }
+    },
+    "mercatus": {
+      "surfaceId": "mercatus",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/mercatus-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 36.1,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8854
+      },
+      "domAudit": {
+        "surfaceId": "mercatus",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8442,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.93,
+      "vlmCritique": {
+        "surfaceId": "mercatus",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Generic dark digital exchange view with flat gray cards, unframed top title, and cold cyan/slate borders.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9919,
+          "ivoryMarbleLuminanceRatio": 0.9408,
+          "coldDigitalSlateCyanRatio": 0.0025,
+          "topFriezeTextureEntropy": 24.1,
+          "conceptArtHistogramSimilarity": 0.7478,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 15
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (94.1% ivory marble pixels), warm travertine, and burnished brass dominate (99.2% warm tones, 0.3% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 15 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9288,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8568,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 85.7% (histogram similarity 74.8%)."
+          }
+        ],
+        "vlmOverallScore": 0.9524,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_compute_and_market_1794141010387.jpg right-half Mercatus Exchange plate."
+        ]
+      }
+    },
+    "mesh": {
+      "surfaceId": "mesh",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/mesh-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 27.2,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8938
+      },
+      "domAudit": {
+        "surfaceId": "mesh",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Dashboard",
+          "GSD",
+          "Flow",
+          "Tasks",
+          "Mesh",
+          "Sub-Agents"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8263,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9256,
+      "vlmCritique": {
+        "surfaceId": "mesh",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[mesh · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 5 classical brass/wax-seal ornaments, 99.8% warm travertine/brass palette vs 0.1% cold slate/cyan, and 70.9% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9979,
+          "ivoryMarbleLuminanceRatio": 0.9669,
+          "coldDigitalSlateCyanRatio": 0.0007,
+          "topFriezeTextureEntropy": 23.8,
+          "conceptArtHistogramSimilarity": 0.709,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 22,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.7% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 22 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9297,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8355,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 83.5% (histogram similarity 70.9%)."
+          }
+        ],
+        "vlmOverallScore": 0.9494,
+        "actionableDirectives": []
+      }
+    },
+    "models": {
+      "surfaceId": "models",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/models-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 33.8,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.892
+      },
+      "domAudit": {
+        "surfaceId": "models",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Models",
+          "Training",
+          "Nodes",
+          "Voice"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8374,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9283,
+      "vlmCritique": {
+        "surfaceId": "models",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Cold digital dark-slate tables (#0b0e14), generic rounded pill buttons, raw cyan/indigo badges, and zero classical Romanesque architectural framing or semicircular brass dial gauges.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9965,
+          "ivoryMarbleLuminanceRatio": 0.9545,
+          "coldDigitalSlateCyanRatio": 0.0008,
+          "topFriezeTextureEntropy": 24.9,
+          "conceptArtHistogramSimilarity": 0.7218,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 54,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 21
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 54 fluted Ionic marble pillars, 21 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9296,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8425,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 84.3% (histogram similarity 72.2%)."
+          }
+        ],
+        "vlmOverallScore": 0.9504,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_compute_and_market_1794141010387.jpg (VLM overall score 0.9222)."
+        ]
+      }
+    },
+    "needs-you": {
+      "surfaceId": "needs-you",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/needs-you-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 26.2,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.9044
+      },
+      "domAudit": {
+        "surfaceId": "needs-you",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Approvals",
+          "Needs You",
+          "Review",
+          "Policies"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8276,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9259,
+      "vlmCritique": {
+        "surfaceId": "needs-you",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-aqueduct-cascade.jpg",
+        "vlmCaption": "[needs-you · BEFORE] Unfriezed surface header, 2 classical brass/wax-seal ornaments, 99.8% warm travertine/brass palette vs 0.2% cold slate/cyan, and 54.4% histogram similarity to v66-concept-diegetic-aqueduct-cascade.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.998,
+          "ivoryMarbleLuminanceRatio": 0.9732,
+          "coldDigitalSlateCyanRatio": 0.0016,
+          "topFriezeTextureEntropy": 12.9,
+          "conceptArtHistogramSimilarity": 0.5435,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 20,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 2
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (97.3% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.2% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.72,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9292,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.6904,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-aqueduct-cascade.jpg is 69.0% (histogram similarity 54.4%)."
+          }
+        ],
+        "vlmOverallScore": 0.8681,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to needs-you."
+        ]
+      }
+    },
+    "oratio": {
+      "surfaceId": "oratio",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/oratio-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 36.8,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8804
+      },
+      "domAudit": {
+        "surfaceId": "oratio",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Models",
+          "Training",
+          "Nodes",
+          "Voice"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0,
+        "animationMotionDeltaPct": 0.753
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8457,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9304,
+      "vlmCritique": {
+        "surfaceId": "oratio",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[oratio · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 15 classical brass/wax-seal ornaments, 99.3% warm travertine/brass palette vs 0.1% cold slate/cyan, and 76.8% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9931,
+          "ivoryMarbleLuminanceRatio": 0.9385,
+          "coldDigitalSlateCyanRatio": 0.0015,
+          "topFriezeTextureEntropy": 23.4,
+          "conceptArtHistogramSimilarity": 0.7676,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 22,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 9,
+          "romanOrnamentCount": 15
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.8% ivory marble pixels), warm travertine, and burnished brass dominate (99.3% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 22 fluted Ionic marble pillars, 15 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 9 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9293,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8677,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 86.8% (histogram similarity 76.8%)."
+          }
+        ],
+        "vlmOverallScore": 0.9541,
+        "actionableDirectives": []
+      }
+    },
+    "policies": {
+      "surfaceId": "policies",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/policies-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 27.8,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8952
+      },
+      "domAudit": {
+        "surfaceId": "policies",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Approvals",
+          "Needs You",
+          "Review",
+          "Policies"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8312,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9268,
+      "vlmCritique": {
+        "surfaceId": "policies",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[policies · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 8 classical brass/wax-seal ornaments, 99.5% warm travertine/brass palette vs 0.1% cold slate/cyan, and 70.4% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9949,
+          "ivoryMarbleLuminanceRatio": 0.9592,
+          "coldDigitalSlateCyanRatio": 0.0015,
+          "topFriezeTextureEntropy": 24.2,
+          "conceptArtHistogramSimilarity": 0.7043,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 8
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.9% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 8 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9293,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8329,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 83.3% (histogram similarity 70.4%)."
+          }
+        ],
+        "vlmOverallScore": 0.9489,
+        "actionableDirectives": []
+      }
+    },
+    "populi": {
+      "surfaceId": "populi",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/populi-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 36.8,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8803
+      },
+      "domAudit": {
+        "surfaceId": "populi",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Models",
+          "Training",
+          "Nodes",
+          "Voice"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8457,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9304,
+      "vlmCritique": {
+        "surfaceId": "populi",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Flat dark-slate command cards with raw backticks in headings (`vox populi`) and zero Romanesque header banner or brass gauges.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.993,
+          "ivoryMarbleLuminanceRatio": 0.9377,
+          "coldDigitalSlateCyanRatio": 0.0016,
+          "topFriezeTextureEntropy": 23.6,
+          "conceptArtHistogramSimilarity": 0.769,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 22,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 9,
+          "romanOrnamentCount": 15
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (93.8% ivory marble pixels), warm travertine, and burnished brass dominate (99.3% warm tones, 0.2% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 22 fluted Ionic marble pillars, 15 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 9 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9292,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8684,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 86.8% (histogram similarity 76.9%)."
+          }
+        ],
+        "vlmOverallScore": 0.9542,
+        "actionableDirectives": [
+          "Pass: Zero raw markdown backticks and full Plate 2 travertine & brass framing."
+        ]
+      }
+    },
+    "publications": {
+      "surfaceId": "publications",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/publications-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 26.8,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.9054
+      },
+      "domAudit": {
+        "surfaceId": "publications",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Memory",
+          "Findings",
+          "Research",
+          "Discovery",
+          "Publications",
+          "Search Index"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.829,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9262,
+      "vlmCritique": {
+        "surfaceId": "publications",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[publications · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 10 classical brass/wax-seal ornaments, 99.6% warm travertine/brass palette vs 0.1% cold slate/cyan, and 67.7% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9961,
+          "ivoryMarbleLuminanceRatio": 0.9619,
+          "coldDigitalSlateCyanRatio": 0.0012,
+          "topFriezeTextureEntropy": 26.2,
+          "conceptArtHistogramSimilarity": 0.6769,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 10
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.2% ivory marble pixels), warm travertine, and burnished brass dominate (99.6% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 10 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9294,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8178,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 81.8% (histogram similarity 67.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.9466,
+        "actionableDirectives": []
+      }
+    },
+    "repository": {
+      "surfaceId": "repository",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/repository-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 29.7,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8901
+      },
+      "domAudit": {
+        "surfaceId": "repository",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Console",
+          "Repository",
+          "Browser",
+          "Harness",
+          "CodeRabbit"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8353,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9278,
+      "vlmCritique": {
+        "surfaceId": "repository",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Cold slate 3-column git panel without a Romanesque frieze banner or semicircular brass gauges.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9982,
+          "ivoryMarbleLuminanceRatio": 0.9682,
+          "coldDigitalSlateCyanRatio": 0.0008,
+          "topFriezeTextureEntropy": 22.8,
+          "conceptArtHistogramSimilarity": 0.7095,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.8% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9296,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8357,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 83.6% (histogram similarity 71.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9494,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg left-half Repository plate."
+        ]
+      }
+    },
+    "research": {
+      "surfaceId": "research",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/research-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 26.2,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.9047
+      },
+      "domAudit": {
+        "surfaceId": "research",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Memory",
+          "Findings",
+          "Research",
+          "Discovery",
+          "Publications",
+          "Search Index",
+          "⚡ Fast",
+          "🔬 Deep Research"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8241,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.84,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.89
+      },
+      "weightedRubricScore": 0.895,
+      "vlmCritique": {
+        "surfaceId": "research",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[research · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 5 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.1% cold slate/cyan, and 70.3% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9973,
+          "ivoryMarbleLuminanceRatio": 0.9554,
+          "coldDigitalSlateCyanRatio": 0.001,
+          "topFriezeTextureEntropy": 26.5,
+          "conceptArtHistogramSimilarity": 0.7025,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.5% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9295,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8319,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 83.2% (histogram similarity 70.3%)."
+          }
+        ],
+        "vlmOverallScore": 0.9488,
+        "actionableDirectives": []
+      }
+    },
+    "runs": {
+      "surfaceId": "runs",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/runs-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 22,
+        "noiseFloor": 4.3,
+        "meanLuminance": 0.9101
+      },
+      "domAudit": {
+        "surfaceId": "runs",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Approvals",
+          "Needs You",
+          "Review",
+          "Policies"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8202,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.924,
+      "vlmCritique": {
+        "surfaceId": "runs",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-aqueduct-cascade.jpg",
+        "vlmCaption": "[runs · BEFORE] Unfriezed surface header, 0 classical brass/wax-seal ornaments, 99.9% warm travertine/brass palette vs 0.1% cold slate/cyan, and 49.3% histogram similarity to v66-concept-diegetic-aqueduct-cascade.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9991,
+          "ivoryMarbleLuminanceRatio": 0.9827,
+          "coldDigitalSlateCyanRatio": 0.0006,
+          "topFriezeTextureEntropy": 11.7,
+          "conceptArtHistogramSimilarity": 0.493,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 17,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 2,
+          "romanOrnamentCount": 0
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (98.3% ivory marble pixels), warm travertine, and burnished brass dominate (99.9% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.63,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9297,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.6447,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-aqueduct-cascade.jpg is 64.5% (histogram similarity 49.3%)."
+          }
+        ],
+        "vlmOverallScore": 0.8415,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to runs."
+        ]
+      }
+    },
+    "scientia": {
+      "surfaceId": "scientia",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/scientia-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 30,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.8871
+      },
+      "domAudit": {
+        "surfaceId": "scientia",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Memory",
+          "Findings",
+          "Research",
+          "Discovery",
+          "Publications",
+          "Search Index",
+          "Dashboard",
+          "Inbox",
+          "Studio & Review",
+          "Claims",
+          "Harness Issues"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8325,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9271,
+      "vlmCritique": {
+        "surfaceId": "scientia",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Cold digital research cards; in Pass 2 VLM inspection also caught a duplicate stacked <RomanSurfaceHeader> between ScientiaSurface and ScientiaDashboard.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.994,
+          "ivoryMarbleLuminanceRatio": 0.9504,
+          "coldDigitalSlateCyanRatio": 0.002,
+          "topFriezeTextureEntropy": 19.9,
+          "conceptArtHistogramSimilarity": 0.7372,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 26,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 13
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.4% warm tones, 0.2% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 26 fluted Ionic marble pillars, 13 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.929,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.851,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 85.1% (histogram similarity 73.7%)."
+          }
+        ],
+        "vlmOverallScore": 0.9515,
+        "actionableDirectives": [
+          "Pass: Duplicate <RomanSurfaceHeader> eliminated in Pass 3; single frieze banner with live brass gauges."
+        ]
+      }
+    },
+    "settings": {
+      "surfaceId": "settings",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/settings-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 30.3,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8748
+      },
+      "domAudit": {
+        "surfaceId": "settings",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Settings",
+          "Gamify"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8367,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9282,
+      "vlmCritique": {
+        "surfaceId": "settings",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Generic dark digital settings form with cold slate inputs and no classical header banner.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9977,
+          "ivoryMarbleLuminanceRatio": 0.9609,
+          "coldDigitalSlateCyanRatio": 0.0009,
+          "topFriezeTextureEntropy": 24.9,
+          "conceptArtHistogramSimilarity": 0.7705,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.1% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9296,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8693,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 86.9% (histogram similarity 77.0%)."
+          }
+        ],
+        "vlmOverallScore": 0.9544,
+        "actionableDirectives": [
+          "Pass: Full Plate 2 Romanesque styling across Clavis secret vault and governance settings."
+        ]
+      }
+    },
+    "skills": {
+      "surfaceId": "skills",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/skills-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 26.3,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.8822
+      },
+      "domAudit": {
+        "surfaceId": "skills",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Catalog",
+          "Skills",
+          "Installed",
+          "Marketplace",
+          "Discovered"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8279,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.926,
+      "vlmCritique": {
+        "surfaceId": "skills",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "VLM Vision Critique (Before): Flat dark-slate skill cards with cold blue accents and no Romanesque frieze banner.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9978,
+          "ivoryMarbleLuminanceRatio": 0.96,
+          "coldDigitalSlateCyanRatio": 0.0008,
+          "topFriezeTextureEntropy": 21.8,
+          "conceptArtHistogramSimilarity": 0.7236,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 5
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.0% ivory marble pixels), warm travertine, and burnished brass dominate (99.8% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 5 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9296,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8435,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 84.4% (histogram similarity 72.4%)."
+          }
+        ],
+        "vlmOverallScore": 0.9505,
+        "actionableDirectives": [
+          "Pass: Converged with v61_concept_workspace_and_commands_1794141011579.jpg bottom-right Skills & Plugins plate."
+        ]
+      }
+    },
+    "sub-agents": {
+      "surfaceId": "sub-agents",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/sub-agents-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 26.6,
+        "noiseFloor": 4.3,
+        "meanLuminance": 0.901
+      },
+      "domAudit": {
+        "surfaceId": "sub-agents",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Dashboard",
+          "GSD",
+          "Flow",
+          "Tasks",
+          "Mesh",
+          "Sub-Agents"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8303,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9266,
+      "vlmCritique": {
+        "surfaceId": "sub-agents",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[sub-agents · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 8 classical brass/wax-seal ornaments, 99.5% warm travertine/brass palette vs 0.1% cold slate/cyan, and 68.2% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9948,
+          "ivoryMarbleLuminanceRatio": 0.9587,
+          "coldDigitalSlateCyanRatio": 0.0013,
+          "topFriezeTextureEntropy": 25.5,
+          "conceptArtHistogramSimilarity": 0.6824,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 19,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 7,
+          "romanOrnamentCount": 8
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (95.9% ivory marble pixels), warm travertine, and burnished brass dominate (99.5% warm tones, 0.1% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 19 fluted Ionic marble pillars, 8 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 7 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9294,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8208,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 82.1% (histogram similarity 68.2%)."
+          }
+        ],
+        "vlmOverallScore": 0.9471,
+        "actionableDirectives": []
+      }
+    },
+    "tasks": {
+      "surfaceId": "tasks",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/tasks-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 25.1,
+        "noiseFloor": 4.4,
+        "meanLuminance": 0.9141
+      },
+      "domAudit": {
+        "surfaceId": "tasks",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Dashboard",
+          "GSD",
+          "Flow",
+          "Tasks",
+          "Mesh",
+          "Sub-Agents"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8252,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9253,
+      "vlmCritique": {
+        "surfaceId": "tasks",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/v66-concept-diegetic-aqueduct-cascade.jpg",
+        "vlmCaption": "[tasks · BEFORE] Unfriezed surface header, 0 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.2% cold slate/cyan, and 49.6% histogram similarity to v66-concept-diegetic-aqueduct-cascade.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.9969,
+          "ivoryMarbleLuminanceRatio": 0.9734,
+          "coldDigitalSlateCyanRatio": 0.0021,
+          "topFriezeTextureEntropy": 12.5,
+          "conceptArtHistogramSimilarity": 0.4965,
+          "hasVisibleMarbleFrieze": false,
+          "friezeHeaderCount": 0,
+          "flutedPillarCount": 15,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 2,
+          "romanOrnamentCount": 0
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (97.3% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.2% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.63,
+            "answer": "Missing Plate 2 white Carrara marble bas-relief frieze header (<RomanSurfaceHeader>), fluted Ionic pillars, and semicircular brass dial gauges."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.929,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.6466,
+            "answer": "Chromatic & structural convergence with v66-concept-diegetic-aqueduct-cascade.jpg is 64.7% (histogram similarity 49.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.8417,
+        "actionableDirectives": [
+          "Add <RomanSurfaceHeader> with carved marble bas-relief frieze banner and semicircular <RomanBrassGauge> dials to tasks."
+        ]
+      }
+    },
+    "vox-search": {
+      "surfaceId": "vox-search",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/surfaces/vox-search-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 26.1,
+        "noiseFloor": 4.6,
+        "meanLuminance": 0.897
+      },
+      "domAudit": {
+        "surfaceId": "vox-search",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Memory",
+          "Findings",
+          "Research",
+          "Discovery",
+          "Publications",
+          "Search Index"
+        ],
+        "discoveredPopoverTriggers": [],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8239,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.925,
+      "vlmCritique": {
+        "surfaceId": "vox-search",
+        "stage": "before",
+        "referenceConceptArtPlate": "public/assets/romanesque/white-marble-frieze-banner.jpg",
+        "vlmCaption": "[vox-search · BEFORE] Plate 2 Romanesque surface with carved marble bas-relief frieze header, 1 classical brass/wax-seal ornaments, 99.7% warm travertine/brass palette vs 0.0% cold slate/cyan, and 70.6% histogram similarity to white-marble-frieze-banner.jpg.",
+        "visionSignals": {
+          "warmRomanesquePaletteRatio": 0.997,
+          "ivoryMarbleLuminanceRatio": 0.9636,
+          "coldDigitalSlateCyanRatio": 0.0003,
+          "topFriezeTextureEntropy": 24.5,
+          "conceptArtHistogramSimilarity": 0.7061,
+          "hasVisibleMarbleFrieze": true,
+          "friezeHeaderCount": 1,
+          "flutedPillarCount": 21,
+          "romanFontCoverageRatio": 1,
+          "activeAnimationCount": 4,
+          "romanOrnamentCount": 1
+        },
+        "vlmQueries": [
+          {
+            "id": "q1_themingAndMateriality",
+            "question": "Does the surface exhibit warm Romanesque travertine, obsidian, and burnished brass (#D4AF37) rather than cold digital slate/cyan?",
+            "score": 0.99,
+            "answer": "Luminous white/cream Carrara marble (96.4% ivory marble pixels), warm travertine, and burnished brass dominate (99.7% warm tones, 0.0% cold tones)."
+          },
+          {
+            "id": "q2_classicalHeaderAndGauges",
+            "question": "Does the surface feature a carved marble bas-relief frieze header, embossed bronze medallion, crimson wax-seal badge, and semicircular brass gauges?",
+            "score": 0.99,
+            "answer": "White Carrara marble bas-relief frieze header present with 21 fluted Ionic marble pillars, 1 Romanesque ornaments (bronze medallions, analog brass dial gauges, wax seals), and 4 active classical animations."
+          },
+          {
+            "id": "q3_graphicsAndSimulatorRichness",
+            "question": "Are graphics high-resolution and Romanesque (crisp Roman diorama, torchlight, golden aqueducts, zero loading skeletons)?",
+            "score": 0.9299,
+            "answer": "High-resolution raster art and classical vector semiotics rendered cleanly with zero loading skeletons."
+          },
+          {
+            "id": "q4_layoutDensityAndHierarchy",
+            "question": "Is the layout well-clustered with progressive disclosure, readable humanist typography, and zero overlapping widgets or raw backticks?",
+            "score": 0.96,
+            "answer": "Controls are cleanly clustered with 100.0% Romanesque Cinzel/Palatino font coverage and progressive disclosure tooltips."
+          },
+          {
+            "id": "q5_conceptArtConvergence",
+            "question": "How closely does the rendered surface converge toward the paired Plate 2 Romanesque Concept Art plate?",
+            "score": 0.8339,
+            "answer": "Chromatic & structural convergence with white-marble-frieze-banner.jpg is 83.4% (histogram similarity 70.6%)."
+          }
+        ],
+        "vlmOverallScore": 0.9492,
+        "actionableDirectives": []
+      }
+    }
+  }
+}

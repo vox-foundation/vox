@@ -78,7 +78,7 @@ describe('ExplorerView', () => {
     expect(screen.getByText('vox fmt')).toBeTruthy();
   });
 
-  it('filters by search (Escape clears), status chips (toggle ✓, counts ignore status filter), and show-exempt checkbox', () => {
+  it('filters by search (Escape clears), status chips (toggle check icon, counts ignore status filter), and show-exempt checkbox', () => {
     mockLoadedFixture();
     render(<ExplorerView pushToast={vi.fn()} />);
 
@@ -91,7 +91,7 @@ describe('ExplorerView', () => {
     expect(search.value).toBe('');
     expect(screen.getByRole('status').textContent).toContain('capabilities in');
 
-    // Status chips toggle aria-pressed and show ✓ when pressed; chip counts ignore status filter
+    // Status chips toggle aria-pressed and show check icon when pressed; chip counts ignore status filter
     const chipGroup = screen.getByRole('group', { name: 'Filter by status' });
     const dedicatedChip = within(chipGroup).getByRole('button', { name: /Dedicated surface/i });
     const genericChip = within(chipGroup).getByRole('button', { name: /Generic form/i });
@@ -100,7 +100,7 @@ describe('ExplorerView', () => {
 
     fireEvent.click(dedicatedChip);
     expect(dedicatedChip.getAttribute('aria-pressed')).toBe('true');
-    expect(dedicatedChip.textContent).toContain('✓');
+    expect(dedicatedChip.querySelector('[data-icon="check"]')).not.toBeNull();
     // Chip count for Generic form stays unchanged even while Dedicated surface is pressed
     expect(genericChip.textContent).toBe(initialGenericText);
     // Singular result count when 1 capability matches

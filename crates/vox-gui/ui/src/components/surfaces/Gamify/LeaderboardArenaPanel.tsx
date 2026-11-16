@@ -187,7 +187,7 @@ export function LeaderboardArenaPanel({
             >
               <span
                 data-testid="leaderboard-verified-badge"
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#10B981]/50 bg-[#10B981]/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-[#6EE7B7]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#10B981]/60 bg-[#D1FAE5] px-2.5 py-0.5 font-mono text-[10px] font-bold text-[#065F46]"
               >
                 <Icon.waxSeal className="size-3 text-[#10B981]" />
                 <span>
@@ -507,9 +507,10 @@ export function LeaderboardArenaPanel({
                 type="button"
                 data-testid="close-proof-drawer"
                 onClick={() => setSelectedProof(null)}
-                className="rounded border border-border-subtle bg-bg-surface px-2.5 py-1 text-[10px] text-text-secondary hover:text-text-primary hover:border-[#D4AF37]/50 transition"
+                className="inline-flex items-center gap-1 rounded border border-border-subtle bg-bg-surface px-2.5 py-1 text-[10px] text-text-secondary hover:text-text-primary hover:border-[#D4AF37]/50 transition-colors"
               >
-                Close
+                <Icon.close className="size-3 shrink-0" aria-hidden="true" />
+                <span>Close</span>
               </button>
             </RomanTooltip>
           </div>
@@ -542,17 +543,18 @@ export function LeaderboardArenaPanel({
                 data-testid="verify-ed25519-btn"
                 onClick={() =>
                   setSigVerifiedMsg(
-                    '✓ Ed25519 signature (dd1fefe5c88499bd…) & BLAKE3 chain link verified against canonical key ea4a6c63e29c520a…'
+                    'Ed25519 signature (dd1fefe5c88499bd…) & BLAKE3 chain link verified against canonical key ea4a6c63e29c520a…'
                   )
                 }
-                className="rounded border border-[#10B981]/50 bg-[#10B981]/20 px-3 py-1 text-[10px] font-semibold text-[#6EE7B7] hover:bg-[#10B981]/30 transition"
+                className="rounded border border-[#10B981]/50 bg-[#10B981]/20 px-3 py-1 text-[10px] font-semibold text-[#6EE7B7] hover:bg-[#10B981]/30 transition-colors"
               >
                 Verify Ed25519 Signature
               </button>
             </RomanTooltip>
             {sigVerifiedMsg && (
-              <span data-testid="verify-ed25519-msg" className="text-[10px] text-[#6EE7B7] font-semibold">
-                {sigVerifiedMsg}
+              <span data-testid="verify-ed25519-msg" className="inline-flex items-center gap-1 text-[10px] text-[#6EE7B7] font-semibold">
+                <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>{sigVerifiedMsg}</span>
               </span>
             )}
           </div>

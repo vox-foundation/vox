@@ -141,6 +141,14 @@ pub struct ServerState {
 
     /// Subsystems actually up. "Everything booted" until plan 03's conditioned boot.
     pub boot_report: Arc<PrRwLock<crate::profiles::BootReport>>,
+    /// Live stateful PTY terminal bridge injected by `vox-orchestrator-d` (propagates across clones).
+    pub terminal_bridge:
+        Arc<PrRwLock<Option<Arc<dyn vox_orchestrator::terminal_bridge::TerminalBridge>>>>,
+    /// Sticky `chat_thread_id -> terminal session_id` binding table shared across turns.
+    pub chat_terminal_sessions: Arc<PrRwLock<HashMap<String, String>>>,
+    /// Cached standalone ephemeral terminal bridge when no daemon PTY host is reachable.
+    ephemeral_terminal_bridge:
+        Arc<PrRwLock<Option<Arc<dyn vox_orchestrator::terminal_bridge::TerminalBridge>>>>,
 
     /// T3 Wave 4 live battery and cost ledger (dual-unit BU + USD accounting).
     pub battery_ledger: Arc<PrMutex<vox_orchestrator::budget::tracker::BatteryAndCostLedger>>,
@@ -246,6 +254,98 @@ impl ServerState {
             }
         }
         None
+    }
+
+    /// Install a live [`TerminalBridge`] (e.g. `LocalHostTerminalBridge` in `vox-orchestrator-d`),
+    /// propagating immediately to all pre-existing [`ServerState`] clones.
+    pub fn set_terminal_bridge(
+        &self,
+        bridge: Arc<dyn vox_orchestrator::terminal_bridge::TerminalBridge>,
+    ) {
+        *self.terminal_bridge.write() = Some(bridge);
+    }
+
+    /// Resolve the active [`TerminalBridge`]: in-process injected bridge first, running
+    /// `vox-orchestrator-d` over loopback second, cached [`EphemeralTerminalBridge`] third.
+    pub async fn resolve_terminal_bridge(
+        &self,
+    ) -> Arc<dyn vox_orchestrator::terminal_bridge::TerminalBridge> {
+        if let Some(b) = self.terminal_bridge.read().clone() {
+            return b;
+        }
+        if let Some(client) =
+            vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::ping_existing_daemon().await
+        {
+            return Arc::new(
+                vox_orchestrator::terminal_bridge::OrchDaemonTerminalBridge::new(client),
+            );
+        }
+        if let Some(cached) = self.ephemeral_terminal_bridge.read().clone() {
+            return cached;
+        }
+        let mut guard = self.ephemeral_terminal_bridge.write();
+        if let Some(cached) = guard.clone() {
+            return cached;
+        }
+        let default_cwd = self
+            .workspace_root
+            .clone()
+            .or_else(|| Some(self.repository.root.clone()));
+        let created: Arc<dyn vox_orchestrator::terminal_bridge::TerminalBridge> =
+            Arc::new(vox_orchestrator::terminal_bridge::EphemeralTerminalBridge::new(default_cwd));
+        *guard = Some(Arc::clone(&created));
+        created
+    }
+
+    /// Resolve or open a sticky terminal `session_id` bound to `chat_thread_id`.
+    pub async fn bind_or_resolve_terminal_session(
+        &self,
+        chat_thread_id: Option<&str>,
+        explicit_session_id: Option<&str>,
+    ) -> anyhow::Result<(
+        Arc<dyn vox_orchestrator::terminal_bridge::TerminalBridge>,
+        String,
+    )> {
+        let bridge = self.resolve_terminal_bridge().await;
+        let thread_key = chat_thread_id.map(str::trim).filter(|t| !t.is_empty());
+
+        if let Some(explicit) = explicit_session_id.map(str::trim).filter(|s| !s.is_empty()) {
+            if let Some(tid) = thread_key {
+                self.chat_terminal_sessions
+                    .write()
+                    .insert(tid.to_string(), explicit.to_string());
+            }
+            return Ok((bridge, explicit.to_string()));
+        }
+
+        let live = bridge.list_sessions().await.unwrap_or_default();
+        if let Some(tid) = thread_key
+            && let Some(bound) = self.chat_terminal_sessions.read().get(tid).cloned()
+            && live.iter().any(|s| s.session_id == bound)
+        {
+            return Ok((bridge, bound));
+        }
+
+        if let Some(first) = live.first() {
+            if let Some(tid) = thread_key {
+                self.chat_terminal_sessions
+                    .write()
+                    .insert(tid.to_string(), first.session_id.clone());
+            }
+            return Ok((bridge, first.session_id.clone()));
+        }
+
+        let init_cwd = self
+            .workspace_root
+            .clone()
+            .or_else(|| Some(self.repository.root.clone()));
+        let sid = bridge.open_session(init_cwd).await?;
+        if let Some(tid) = thread_key {
+            self.chat_terminal_sessions
+                .write()
+                .insert(tid.to_string(), sid.clone());
+        }
+        Ok((bridge, sid))
     }
 
     /// Scope this state to `profile` (advertising and dispatch both honor it).
@@ -443,6 +543,9 @@ impl ServerState {
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
             active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
             boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
+            terminal_bridge: Arc::new(PrRwLock::new(None)),
+            chat_terminal_sessions: Arc::new(PrRwLock::new(HashMap::new())),
+            ephemeral_terminal_bridge: Arc::new(PrRwLock::new(None)),
             battery_ledger: Arc::new(PrMutex::new(
                 vox_orchestrator::budget::tracker::BatteryAndCostLedger::default(),
             )),
@@ -567,6 +670,9 @@ impl ServerState {
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
             active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
             boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
+            terminal_bridge: Arc::new(PrRwLock::new(None)),
+            chat_terminal_sessions: Arc::new(PrRwLock::new(HashMap::new())),
+            ephemeral_terminal_bridge: Arc::new(PrRwLock::new(None)),
             battery_ledger: Arc::new(PrMutex::new(
                 vox_orchestrator::budget::tracker::BatteryAndCostLedger::default(),
             )),
@@ -929,6 +1035,9 @@ impl ServerState {
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
             active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
             boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
+            terminal_bridge: Arc::new(PrRwLock::new(None)),
+            chat_terminal_sessions: Arc::new(PrRwLock::new(HashMap::new())),
+            ephemeral_terminal_bridge: Arc::new(PrRwLock::new(None)),
             battery_ledger: Arc::new(PrMutex::new(
                 vox_orchestrator::budget::tracker::BatteryAndCostLedger::default(),
             )),
@@ -1070,5 +1179,43 @@ mod tests {
         ] {
             assert!(status_tool_client(true, &[flag, sock]).await, "{flag:?}");
         }
+    }
+
+    #[tokio::test]
+    async fn terminal_bridge_propagates_across_clones_and_binds_sticky_thread_sessions() {
+        let state = ServerState::new_test().await;
+        let cloned = state.clone();
+        assert!(cloned.terminal_bridge.read().is_none());
+
+        let ephem = Arc::new(vox_orchestrator::terminal_bridge::EphemeralTerminalBridge::new(None));
+        state.set_terminal_bridge(ephem);
+        assert!(
+            cloned.terminal_bridge.read().is_some(),
+            "set_terminal_bridge must propagate to pre-existing ServerState clones"
+        );
+
+        let (_, s1) = cloned
+            .bind_or_resolve_terminal_session(Some("thread-alpha"), None)
+            .await
+            .expect("bind thread-alpha");
+        let (_, s2) = state
+            .bind_or_resolve_terminal_session(Some("thread-alpha"), None)
+            .await
+            .expect("re-resolve thread-alpha");
+        assert_eq!(s1, s2, "sticky chat_thread_id must reuse same session_id");
+
+        let (_, explicit) = state
+            .bind_or_resolve_terminal_session(Some("thread-alpha"), Some("custom-session-9"))
+            .await
+            .expect("explicit override");
+        assert_eq!(explicit, "custom-session-9");
+        assert_eq!(
+            cloned
+                .chat_terminal_sessions
+                .read()
+                .get("thread-alpha")
+                .map(String::as_str),
+            Some("custom-session-9")
+        );
     }
 }

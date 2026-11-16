@@ -14,6 +14,13 @@ import type { AgentTask, BuildingState } from '../store';
 import type { District, TownLayout } from './types';
 import type { WorldState } from './worldRenderer';
 import { computeBlastRadius } from './topology';
+import {
+  drawArrowRightBadge,
+  drawChevronRightBadge,
+  drawDiamondBadge,
+  drawTargetRingBadge,
+  drawTriangleUpBadge,
+} from './canvasVectorBadges';
 
 export type WorldPxFn = (layout: TownLayout, x: number, y: number) => { px: number; py: number };
 export type ElevFn = (d: District) => number;
@@ -783,7 +790,7 @@ export function buildActiveHydraulicConduits(
         [aqPt.px - 18, aqPt.py - 32],
         [castPt.px, castPt.py - uElev - 10],
       ],
-      label: 'AQVAE → CASTELLVM',
+      label: 'AQVAE AD CASTELLVM',
     });
   }
 
@@ -893,7 +900,7 @@ export function buildActiveHydraulicConduits(
       [castrumPt.px - 16, castrumPt.py],
       [portaPt.px + 18, portaPt.py],
     ),
-    label: 'CASTRVM CI → PORTA GIT',
+    label: 'CASTRVM CI AD PORTA GIT',
   });
 
   return segments;
@@ -1034,16 +1041,25 @@ export function drawScreenSpaceHydraulicOverlay(
   ctx.stroke();
 
   const cy = ly + lh / 2;
-  drawChevronWaveParticle(ctx, lx + 12, cy, 0, 0.72);
-  drawDiamondIngotParticle(ctx, lx + 106, cy, 0, 0.72);
-  drawWarningTriangleParticle(ctx, lx + 208, cy, 0, 0.72);
-  drawLaurelSealParticle(ctx, lx + 306, cy, 0.72);
+  drawChevronRightBadge(ctx, lx + 12, cy + 0.5, 3.6, '#38bdf8', 1.6);
+  drawDiamondBadge(ctx, lx + 108, cy + 0.5, 3.6, {
+    fill: '#fbbf24',
+    stroke: '#b45309',
+    lineWidth: 1,
+  });
+  drawTriangleUpBadge(ctx, lx + 206, cy + 0.5, 3.8, {
+    fill: '#f87171',
+    stroke: '#991b1b',
+    lineWidth: 1,
+  });
+  drawTargetRingBadge(ctx, lx + 304, cy + 0.5, 3.8, '#34d399', true);
+  drawArrowRightBadge(ctx, lx + lw - 9, cy + 0.5, 2.8, 'rgba(251, 191, 36, 0.75)', 1.25);
 
-  const items: { sym: string; label: string; color: string; xOffset: number }[] = [
-    { sym: '❯', label: `AQUA Supply (${supplyCount})`, color: '#38bdf8', xOffset: 20 },
-    { sym: '◆', label: `IGNIS WIP (${wipCount})`, color: '#fbbf24', xOffset: 115 },
-    { sym: '▲', label: `CLOACA Fault (${faultCount})`, color: '#f87171', xOffset: 217 },
-    { sym: '◉', label: `VICTORIA CI (${ciCount})`, color: '#34d399', xOffset: 314 },
+  const items: { label: string; color: string; xOffset: number }[] = [
+    { label: `AQUA Supply (${supplyCount})`, color: '#38bdf8', xOffset: 20 },
+    { label: `IGNIS WIP (${wipCount})`, color: '#fbbf24', xOffset: 116 },
+    { label: `CLOACA Fault (${faultCount})`, color: '#f87171', xOffset: 215 },
+    { label: `VICTORIA CI (${ciCount})`, color: '#34d399', xOffset: 312 },
   ];
 
   ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
@@ -1051,7 +1067,7 @@ export function drawScreenSpaceHydraulicOverlay(
   ctx.textAlign = 'left';
   for (const item of items) {
     ctx.fillStyle = item.color;
-    ctx.fillText(`${item.sym} ${item.label}`, lx + item.xOffset, cy + 0.5);
+    ctx.fillText(item.label, lx + item.xOffset, cy + 0.5);
   }
 
   ctx.restore();

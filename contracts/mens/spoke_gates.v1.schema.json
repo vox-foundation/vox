@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/contracts/mens/spoke_gates.v1.schema.json",
+  "title": "Vox MENS Spoke Gates Manifest v1",
+  "description": "Unified per-spoke gate status matrix staged and published alongside MENS QLoRA adapters.",
+  "type": "object",
+  "required": ["schema", "rows"],
+  "properties": {
+    "schema": {
+      "const": "vox_mens_spoke_gates_v1"
+    },
+    "adapter_sha256": {
+      "type": ["string", "null"]
+    },
+    "base_pin": {
+      "type": ["string", "null"]
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["spoke", "policy_file", "policy_blake3", "state", "reason", "applies"],
+        "properties": {
+          "spoke": { "type": "string", "minLength": 1 },
+          "policy_file": { "type": "string", "minLength": 1 },
+          "policy_blake3": { "type": "string" },
+          "receipt_file": { "type": ["string", "null"] },
+          "state": {
+            "type": "string",
+            "enum": ["passed", "failed", "needs_re_gate", "not_run"]
+          },
+          "reason": { "type": "string" },
+          "applies": { "type": "boolean" }
+        }
+      }
+    },
+    "spokes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["state"],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": ["passed", "failed", "needs_re_gate", "not_run"]
+          },
+          "policy_blake3": { "type": "string" },
+          "receipt_file": { "type": ["string", "null"] },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}

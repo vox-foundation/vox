@@ -214,6 +214,13 @@ impl LowerCtx {
                                     span: path.span,
                                 });
                             }
+                            ImportPathKind::PyModule { alias, module } => {
+                                hir.py_imports.push(HirPyImport {
+                                    alias: alias.clone(),
+                                    module: module.clone(),
+                                    span: path.span,
+                                });
+                            }
                         }
                     }
                 }

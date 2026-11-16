@@ -3,8 +3,8 @@ pub fn extract_from_vox_file(
     path: &Path,
     config: &ExtractVoxConfig,
 ) -> anyhow::Result<Vec<VoxTrainingPair>> {
-    let source =
-        vox_bounded_fs::read_utf8_path_capped(path).with_context(|| format!("read {}", path.display()))?;
+    let source = vox_bounded_fs::read_utf8_path_capped(path)
+        .with_context(|| format!("read {}", path.display()))?;
 
     if !is_eligible_for_training(&source) {
         return Ok(Vec::new());
@@ -45,8 +45,32 @@ pub fn extract_from_vox_file(
         rating: config.default_rating,
     });
 
-    // 2. Per-construct pairs
+    // 2. Cohesive multi-construct synthesis pair (bridges declaration slices & whole modules)
     let blocks = extract_construct_blocks(&source);
+    if blocks.len() >= 2 {
+        let construct_list: Vec<String> = blocks
+            .iter()
+            .take(6)
+            .map(|(kind, name, _)| format!("{kind} `{name}`"))
+            .collect();
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("module");
+        let cohesive_prompt = format!(
+            "Write a cohesive multi-construct Vox module (`{stem}`) combining {}.",
+            construct_list.join(", ")
+        );
+        pairs.push(VoxTrainingPair {
+            source_path: path.to_path_buf(),
+            category: "vox_module_cohesive".to_string(),
+            prompt: cohesive_prompt,
+            response: source.clone(),
+            rating: config.default_rating,
+        });
+    }
+
+    // 3. Per-construct pairs
     for (i, (construct_type, name, block)) in blocks.iter().enumerate() {
         if block.lines().count() < 2 {
             continue;
@@ -71,11 +95,11 @@ pub fn extract_from_vox_file(
 /// Walk a directory tree and extract pairs from all `.vox` files.
 pub fn walk_and_extract_vox(config: &ExtractVoxConfig) -> anyhow::Result<Vec<VoxTrainingPair>> {
     let mut all = Vec::new();
-    
+
     if let Ok(mut golden) = extract_golden_examples(&config.root) {
         all.append(&mut golden);
     }
-    
+
     walk_vox_dir(&config.root, config, &mut all)?;
     Ok(all)
 }
@@ -141,27 +165,30 @@ fn walk_golden_dir(dir: &Path, out: &mut Vec<VoxTrainingPair>) -> anyhow::Result
         if path.is_dir() {
             walk_golden_dir(&path, out)?;
         } else if path.extension().is_some_and(|e| e == "vox")
-            && let Ok(source) = std::fs::read_to_string(&path) {
-                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("example");
-                let summary = extract_golden_prompt_summary(&source).unwrap_or_else(|| {
-                    source
-                        .lines()
-                        .find(|l| l.trim().starts_with("//"))
-                        .map(|l| l.trim().trim_start_matches("//").trim().to_string())
-                        .unwrap_or_else(|| "the given specification".into())
-                });
-                let prompt = format!(
-                    "Write a complete Vox program for {stem} that implements {summary}"
-                );
+            && let Ok(source) = std::fs::read_to_string(&path)
+        {
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("example");
+            let summary = extract_golden_prompt_summary(&source).unwrap_or_else(|| {
+                source
+                    .lines()
+                    .find(|l| l.trim().starts_with("//"))
+                    .map(|l| l.trim().trim_start_matches("//").trim().to_string())
+                    .unwrap_or_else(|| "the given specification".into())
+            });
+            let prompt =
+                format!("Write a complete Vox program for {stem} that implements {summary}");
 
-                out.push(VoxTrainingPair {
-                    source_path: path.to_path_buf(),
-                    category: "golden".into(),
-                    prompt,
-                    response: source.clone(),
-                    rating: 5,
-                });
-            }
+            out.push(VoxTrainingPair {
+                source_path: path.to_path_buf(),
+                category: "golden".into(),
+                prompt,
+                response: source.clone(),
+                rating: 5,
+            });
+        }
     }
     Ok(())
 }
@@ -242,5 +269,24 @@ fn SupportBot(query: str, session: str) to str {
         let doc = extract_file_doc(SAMPLE_VOX);
         assert!(doc.is_some());
         assert!(doc.unwrap().contains("agent"));
+    }
+
+    #[test]
+    fn extracts_cohesive_multi_construct_pair() {
+        let cfg = ExtractVoxConfig {
+            min_content_lines: 1,
+            ..Default::default()
+        };
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("agent.vox");
+        std::fs::write(&p, SAMPLE_VOX).unwrap();
+        let pairs = extract_from_vox_file(&p, &cfg).unwrap();
+        let cohesive = pairs
+            .iter()
+            .find(|pair| pair.category == "vox_module_cohesive")
+            .expect("multi-construct file should emit vox_module_cohesive pair");
+        assert!(cohesive.prompt.contains("table `AgentMemory`"));
+        assert!(cohesive.prompt.contains("fn `SupportBot`"));
+        assert!(cohesive.response.contains("fn SupportBot"));
     }
 }

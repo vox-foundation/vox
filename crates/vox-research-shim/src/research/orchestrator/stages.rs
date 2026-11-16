@@ -595,11 +595,34 @@ pub(crate) async fn chat_stage_with_model(
         api_key,
         Some(model),
     ));
+    if vox_config::inference::forced_model_for(stage.model_role()).is_none()
+        && vox_config::inference::openrouter_api_key().is_some()
+    {
+        let fallback_ids = [
+            vox_config::NLI_FALLBACK,
+            vox_config::RESEARCH_FLASH_FALLBACK,
+        ];
+        let insert_pos = candidates
+            .iter()
+            .position(|c| c.model.ends_with(":free"))
+            .unwrap_or(candidates.len());
+        for (offset, fb) in fallback_ids.into_iter().enumerate() {
+            candidates.insert(
+                insert_pos + offset,
+                vox_actor_runtime::llm::LlmConfig::openrouter(fb.to_string()),
+            );
+        }
+    }
     candidates.dedup_by(|a, b| a.provider == b.provider && a.model == b.model);
+    let stage_timeout_ms = match stage {
+        ResearchStage::Synthesis | ResearchStage::Judge => 90_000,
+        _ => 45_000,
+    };
     for candidate in &mut candidates {
         candidate.temperature = Some(temperature);
         candidate.max_tokens = Some(max_tokens.into());
         candidate.response_format = response_format.clone();
+        candidate.timeout_ms = Some(stage_timeout_ms);
     }
     crate::research::metering::tag_candidates(&mut candidates);
     let messages = messages
@@ -610,7 +633,7 @@ pub(crate) async fn chat_stage_with_model(
             ..Default::default()
         })
         .collect();
-    let opts = ActivityOptions::new().with_timeout_secs(45);
+    let opts = ActivityOptions::new().with_timeout_secs((stage_timeout_ms / 1000) + 5);
     // `Some(stage)`: labels telemetry and lets a trace record the requested vs
     // resolved model for this role (`record_research_model_uses`).
     chat_with_cascade(&opts, messages, candidates, Some(stage))

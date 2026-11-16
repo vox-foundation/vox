@@ -1,4 +1,4 @@
-import type { TermBlockDto } from '../transport';
+import { termSessionSetControl, type TermBlockDto } from '../transport';
 
 export type TermSecurityLevelId =
   | 'L1'
@@ -17,6 +17,7 @@ export type TermShellModeId = 'default' | 'nu' | 'vox';
 
 export interface TerminalBridgeState {
   activeSessionId: string | null;
+  cwd?: string | null;
   blocks: TermBlockDto[];
   pinnedBlockIds: number[];
   securityLevel: TermSecurityLevelId;
@@ -26,17 +27,33 @@ export interface TerminalBridgeState {
 
 const DEFAULT_STATE: TerminalBridgeState = {
   activeSessionId: null,
+  cwd: null,
   blocks: [],
   pinnedBlockIds: [],
-  securityLevel: 'L3',
-  controlMode: 'copilot',
+  securityLevel: 'l3_workspace_write',
+  controlMode: 'co_pilot',
   shellMode: 'default',
 };
 
+export interface ConsoleFocusTarget {
+  sessionId: string | null;
+  blockId?: number | null;
+}
+
+export interface RunbookLaunchRequest {
+  runbookId?: string;
+  command?: string;
+  mode: 'insert' | 'run' | 'open_rail';
+}
+
 let currentState: TerminalBridgeState = { ...DEFAULT_STATE };
+let pendingConsoleFocus: ConsoleFocusTarget | null = null;
+let pendingOpenRunbook: RunbookLaunchRequest | null = null;
 const stateListeners = new Set<(state: TerminalBridgeState) => void>();
 const commandListeners = new Set<(cmd: string, origin?: string) => void>();
 const attentionListeners = new Set<(chipOrPrompt: string) => void>();
+const consoleFocusListeners = new Set<(target: ConsoleFocusTarget) => void>();
+const openRunbookListeners = new Set<(req: RunbookLaunchRequest) => void>();
 
 export function getTerminalBridgeState(): TerminalBridgeState {
   return currentState;
@@ -90,15 +107,67 @@ export function onChatAttention(
   };
 }
 
-export function triggerManualTakeover(): void {
+export function requestConsoleBlockFocus(target: ConsoleFocusTarget): void {
+  pendingConsoleFocus = { ...target };
+  for (const listener of consoleFocusListeners) {
+    listener(pendingConsoleFocus);
+  }
+}
+
+export function consumePendingConsoleBlockFocus(): ConsoleFocusTarget | null {
+  const next = pendingConsoleFocus;
+  pendingConsoleFocus = null;
+  return next;
+}
+
+export function onConsoleBlockFocus(
+  listener: (target: ConsoleFocusTarget) => void,
+): () => void {
+  consoleFocusListeners.add(listener);
+  return () => {
+    consoleFocusListeners.delete(listener);
+  };
+}
+
+export function requestOpenRunbook(req: RunbookLaunchRequest): void {
+  pendingOpenRunbook = { ...req };
+  for (const listener of openRunbookListeners) {
+    listener(pendingOpenRunbook);
+  }
+}
+
+export function consumePendingOpenRunbook(): RunbookLaunchRequest | null {
+  const next = pendingOpenRunbook;
+  pendingOpenRunbook = null;
+  return next;
+}
+
+export function onOpenRunbook(
+  handler: (req: RunbookLaunchRequest) => void,
+): () => void {
+  openRunbookListeners.add(handler);
+  return () => {
+    openRunbookListeners.delete(handler);
+  };
+}
+
+export function triggerManualTakeover(sessionId?: string | null): void {
+  const sid = sessionId ?? currentState.activeSessionId;
   publishTerminalSnapshot({ controlMode: 'manual' });
+  if (sid && typeof termSessionSetControl === 'function') {
+    void Promise.resolve(termSessionSetControl(sid, 'manual')).catch(() => {});
+  }
 }
 
 export function resetTerminalBridgeForTests(): void {
   currentState = { ...DEFAULT_STATE };
+  pendingConsoleFocus = null;
+  pendingOpenRunbook = null;
   stateListeners.clear();
   commandListeners.clear();
   attentionListeners.clear();
+  consoleFocusListeners.clear();
+  openRunbookListeners.clear();
 }
 
 export interface TermMentionOption {

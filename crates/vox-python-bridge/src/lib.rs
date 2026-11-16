@@ -10,6 +10,7 @@ mod array_ipc;
 mod array_numeric;
 mod frame;
 mod frame_columns;
+pub mod frame_stream;
 mod host;
 
 pub use array_ipc::{
@@ -20,6 +21,10 @@ pub use array_numeric::{DecodedColumn, decode_column, encode_f32_column, encode_
 pub use frame_columns::{
     DecodedFrame, FrameCell, TemporalUnit, decode_frame_columns, encode_i64_frame,
     encode_nullable_i64_frame, encode_typed_frame_fixture,
+};
+pub use frame_stream::{
+    DEFAULT_FRAME_BATCH_SIZE, FrameChunkCursor, FrameChunkPage, FrameFieldSchema,
+    FrameSchemaManifest, MAX_FRAME_BATCH_SIZE, MIN_FRAME_BATCH_SIZE, clamp_frame_batch_size,
 };
 
 pub use host::Bridge;
@@ -35,12 +40,14 @@ pub struct BridgeConfig {
     pub env: Vec<(OsString, OsString)>,
 }
 
+const DEFAULT_BRIDGE_TIMEOUT: Duration = Duration::from_secs(300);
+
 impl Default for BridgeConfig {
     fn default() -> Self {
         Self {
             worker_cmd: vec!["python3".into(), "-m".into(), "vox_bridge".into()],
             max_fetch_mb: 256,
-            timeout: Duration::from_secs(300),
+            timeout: DEFAULT_BRIDGE_TIMEOUT,
             env: Vec::new(),
         }
     }

@@ -1,13 +1,4 @@
-/**
- * Shared-Package Computer Vision (CV) Flywheel for `vox-gui` (`@ngi/platform-ssot`).
- *
- * Bridges the synced `platformSsot.generated.ts` (`evaluateBeforeAfterCvFlywheel`,
- * `evaluateWcagContrastRatio`, `PLATFORM_SSOT_VERSION`, `PLATFORM_SSOT_SHA256`) with:
- * - Real RGBA pixel signal extraction (Sobel gradient edge sharpness, RMS + P95/P10 luminance contrast,
- *   and 4-neighbor Laplacian flat-region noise floor).
- * - Universal Before/After CV Flywheel pass runner (`runUniversalCvFlywheelPass`).
- * - GUI surface DOM + visual quality rubric synthesis for VS Code-grade Chat, Docking, and Urbs Civilization audits.
- */
+/** Shared-Package Computer Vision (CV) Flywheel for `vox-gui` (`@ngi/platform-ssot`). */
 
 import {
   PLATFORM_SSOT_SHA256,
@@ -16,11 +7,7 @@ import {
   evaluateWcagContrastRatio as ssotEvaluateWcagContrastRatio,
 } from './platformSsot.generated';
 
-export {
-  PLATFORM_SSOT_VERSION,
-  PLATFORM_SSOT_SHA256,
-  evaluateBeforeAfterCvFlywheel,
-};
+export { PLATFORM_SSOT_VERSION, PLATFORM_SSOT_SHA256, evaluateBeforeAfterCvFlywheel };
 
 function srgbTupleRelativeLuminance(rgb: readonly [number, number, number]): number {
   const toLinear = (c: number) => {
@@ -37,12 +24,7 @@ export function evaluateWcagContrastRatio(
   const fgLum = typeof fg === 'number' ? fg : srgbTupleRelativeLuminance(fg);
   const bgLum = typeof bg === 'number' ? bg : srgbTupleRelativeLuminance(bg);
   const res = ssotEvaluateWcagContrastRatio(fgLum, bgLum);
-  return {
-    ...res,
-    ratio: res.contrastRatio,
-    passesAA: res.passesAa,
-    passesAAA: res.passesAaa,
-  };
+  return { ...res, ratio: res.contrastRatio, passesAA: res.passesAa, passesAAA: res.passesAaa };
 }
 
 export interface VisionRubricScores {
@@ -65,20 +47,9 @@ export interface UniversalCvFlywheelInput {
   passNumber: number;
   rawPrompt: string;
   targetModelId?: string;
-  beforeMetrics: {
-    edgeSharpness: number;
-    luminanceContrast: number;
-    noiseFloor: number;
-    rubricScore: number;
-    vlmRubric?: VisionRubricScores;
-  };
-  afterMetrics: {
-    edgeSharpness: number;
-    luminanceContrast: number;
-    noiseFloor: number;
-    rubricScore: number;
-    vlmRubric?: VisionRubricScores;
-  };
+  beforeMetrics: { edgeSharpness: number; luminanceContrast: number; noiseFloor: number; rubricScore: number; vlmRubric?: VisionRubricScores };
+  afterMetrics: { edgeSharpness: number; luminanceContrast: number; noiseFloor: number; rubricScore: number; vlmRubric?: VisionRubricScores };
+  afterDom?: Partial<GuiDomAuditMetrics>;
   afterGrounded?: boolean;
 }
 
@@ -118,8 +89,17 @@ export interface GuiDomAuditMetrics {
   skeletonCount?: number;
   rawBacktickCount?: number;
   digitalColorLeakCount?: number;
+  chartPanelFillRatio?: number;
+  bracketedLabelCount?: number;
+  statusBarClippedSegmentCount?: number;
+  sidebarTruncatedLabelCount?: number;
+  animationMotionDeltaPct?: number;
   discoveredSubTabLabels?: readonly string[];
   discoveredPopoverTriggers?: readonly string[];
+  terminalStartupSpamCount?: number;
+  xtermHelperLeakCount?: number;
+  terminalFontProportionalLeakCount?: number;
+  terminalContrastViolationCount?: number;
 }
 
 export function makeRubricFromScalar(score: number): VisionRubricScores {
@@ -233,11 +213,14 @@ export function computeRgbaFrameCvMetrics(
       sobelSum += mag;
       if (mag > 0.14) {
         edgePixels++;
-      } else if (mag < 0.02) {
-        // Stricter flat mask — exclude AA fringe from "flat-region" Laplacian (`URBS-CV-MAX-02`)
-        const lap = Math.abs(4 * mc - tc - bc - ml - mr);
-        flatLaplacianSum += lap;
-        flatCount++;
+      } else if (mag < 0.008) {
+        const span = Math.max(tl, tc, tr, ml, mc, mr, bl, bc, br) - Math.min(tl, tc, tr, ml, mc, mr, bl, bc, br);
+        if (span < 0.04) {
+          // Stricter flat mask — exclude AA fringe and symmetric 1px UI border ridges (`URBS-CV-MAX-02`)
+          const lap = Math.abs(4 * mc - tc - bc - ml - mr);
+          flatLaplacianSum += lap;
+          flatCount++;
+        }
       }
     }
   }
@@ -261,19 +244,63 @@ export function computeRgbaFrameCvMetrics(
 }
 
 /**
+ * Computes percentage (0..100) of interior pixels whose BT.709 luminance or chroma shifts
+ * perceptibly (`> 4 / 255` per channel) between two consecutive RGBA frames captured with
+ * `animations: 'allow'`. Verifies unmistakable live FX motion without noisy full-screen flicker.
+ */
+export function computeRgbaMotionDeltaPct(
+  frameA: Uint8ClampedArray | Uint8Array,
+  frameB: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+): number {
+  const totalPixels = Math.max(1, width * height);
+  if (
+    width < 4 ||
+    height < 4 ||
+    frameA.length < totalPixels * 4 ||
+    frameB.length < totalPixels * 4
+  ) {
+    return 0;
+  }
+  let changed = 0;
+  for (let i = 0; i < totalPixels; i++) {
+    const idx = i * 4;
+    const dr = Math.abs((frameA[idx] ?? 0) - (frameB[idx] ?? 0));
+    const dg = Math.abs((frameA[idx + 1] ?? 0) - (frameB[idx + 1] ?? 0));
+    const db = Math.abs((frameA[idx + 2] ?? 0) - (frameB[idx + 2] ?? 0));
+    if (dr + dg + db >= 10) {
+      changed++;
+    }
+  }
+  return Number(((changed / totalPixels) * 100).toFixed(3));
+}
+
+/**
  * Synthesizes a 5-axis `VisionRubricScores` struct from measured DOM layout invariants and pixel signals.
  */
 export function evaluateGuiSurfaceRubric(
   dom: GuiDomAuditMetrics,
   pixelSignals: { edgeSharpness: number; luminanceContrast: number; noiseFloor: number },
 ): VisionRubricScores {
-  // 1. technicalQuality: pixel sharpness, low noise floor, zero overflow, zero axe violations, zero broken icons
+  const terminalDefectCount =
+    (dom.terminalStartupSpamCount ?? 0) +
+    (dom.xtermHelperLeakCount ?? 0) +
+    (dom.terminalFontProportionalLeakCount ?? 0) +
+    (dom.terminalContrastViolationCount ?? 0);
+  const terminalPenalty = Math.min(0.6, terminalDefectCount * 0.3);
+
+  // 1. technicalQuality: pixel sharpness, low noise floor, zero overflow, zero axe, zero terminal defects
   const totalOverflowPx = dom.outerOverflowPx + (dom.scrollHostOverflowPx ?? 0);
   const overflowPenalty = Math.min(0.35, totalOverflowPx * 0.02);
   const axePenalty = Math.min(0.3, dom.axeViolations * 0.1);
-  const clippedPenalty = Math.min(0.25, dom.clippedInteractiveCount * 0.05);
+  const clippedPenalty = Math.min(
+    0.25,
+    dom.clippedInteractiveCount * 0.05 +
+      (dom.statusBarClippedSegmentCount ?? 0) * 0.06 +
+      (dom.sidebarTruncatedLabelCount ?? 0) * 0.05,
+  );
   const iconPenalty = Math.min(0.2, (dom.iconIssueCount ?? 0) * 0.06);
-  // Honor documented "low noise floor" axis — reward NF near the 4.0 floor, zero by NF≥12
   const noiseCleanliness = Math.max(0, Math.min(1, (12 - pixelSignals.noiseFloor) / 8));
   const signalQuality = Math.min(
     1,
@@ -285,18 +312,24 @@ export function evaluateGuiSurfaceRubric(
   const technicalQuality = Number(
     Math.max(
       0.2,
-      Math.min(0.99, signalQuality - overflowPenalty - axePenalty - clippedPenalty - iconPenalty),
+      Math.min(
+        0.99,
+        signalQuality - overflowPenalty - axePenalty - clippedPenalty - iconPenalty - terminalPenalty,
+      ),
     ).toFixed(4),
   );
 
-  // 2. promptAdherence: dock panel completeness, unified knobs, landmark liveness
+  // 2. promptAdherence: dock panel completeness, unified knobs, landmark liveness, terminal invariants
   const missingDockPenalty = dom.missingDockPanelIds.length * 0.12;
   const unlitLandmarkPenalty = dom.unlitLandmarkCount * 0.055;
   const promptAdherence = Number(
-    Math.max(0.2, Math.min(0.99, 0.96 - missingDockPenalty - unlitLandmarkPenalty)).toFixed(4),
+    Math.max(
+      0.2,
+      Math.min(0.99, 0.96 - missingDockPenalty - unlitLandmarkPenalty - terminalPenalty),
+    ).toFixed(4),
   );
 
-  // 3. anatomicalAccuracy: zero raw emojis (`🧍`), zero overlapping controls, consistent control heights
+  // 3. anatomicalAccuracy: zero raw emojis, zero overlapping controls, consistent control heights
   const emojiPenalty = dom.rawEmojiCount * 0.06;
   const overlapPenalty = dom.overlappingControlPairs * 0.08;
   const heightSpreadPenalty = Math.max(0, (dom.controlHeightSpreadPx - 4) * 0.015);
@@ -304,10 +337,12 @@ export function evaluateGuiSurfaceRubric(
     Math.max(0.2, Math.min(0.98, 0.96 - emojiPenalty - overlapPenalty - heightSpreadPenalty)).toFixed(4),
   );
 
-  // 4. compositionQuality: balanced viewport coverage, zero unstyled native selects, clean toolbar rhythm, single-row composer
+  // 4. compositionQuality: balanced viewport coverage, zero unstyled native selects, clean toolbar rhythm
   const selectPenalty = dom.unstyledNativeSelectCount * 0.09;
   const composerRowPenalty = Math.max(0, ((dom.composerToolbarRowCount ?? 1) - 1) * 0.06);
   const duplicateGroupPenalty = (dom.duplicateControlGroupCount ?? 0) * 0.05;
+  const chartFillPenalty =
+    dom.chartPanelFillRatio !== undefined ? Math.max(0, (0.85 - dom.chartPanelFillRatio) * 0.28) : 0;
   const coverageBonus =
     dom.viewportCoverageRatio >= 0.45 && dom.viewportCoverageRatio <= 0.92 ? 0.04 : -0.08;
   const compositionQuality = Number(
@@ -320,17 +355,21 @@ export function evaluateGuiSurfaceRubric(
           selectPenalty -
           overflowPenalty -
           composerRowPenalty -
-          duplicateGroupPenalty,
+          duplicateGroupPenalty -
+          chartFillPenalty,
       ),
     ).toFixed(4),
   );
 
-  // 5. styleConsistency: Plate 2 Romanesque theme cohesion, unified control chrome, zero light-theme/digital-slate leaks, zero skeletons
+  // 5. styleConsistency: Romanesque theme cohesion, Dual-Surface ANSI contrast, zero digital/skeleton leaks
   const noisePenalty = Math.max(0, (pixelSignals.noiseFloor - 8) * 0.01);
   const contrastLeakPenalty = Math.min(0.3, (dom.lightThemeContrastLeakCount ?? 0) * 0.05);
   const digitalLeakPenalty = Math.min(0.25, (dom.digitalColorLeakCount ?? 0) * 0.04);
   const skeletonPenalty = Math.min(0.25, (dom.skeletonCount ?? 0) * 0.06);
-  const backtickPenalty = Math.min(0.15, (dom.rawBacktickCount ?? 0) * 0.04);
+  const backtickPenalty = Math.min(
+    0.18,
+    (dom.rawBacktickCount ?? 0) * 0.04 + (dom.bracketedLabelCount ?? 0) * 0.04,
+  );
   const styleConsistency = Number(
     Math.max(
       0.2,
@@ -343,23 +382,16 @@ export function evaluateGuiSurfaceRubric(
           contrastLeakPenalty -
           digitalLeakPenalty -
           skeletonPenalty -
-          backtickPenalty,
+          backtickPenalty -
+          terminalPenalty,
       ),
     ).toFixed(4),
   );
 
-  return {
-    technicalQuality,
-    promptAdherence,
-    anatomicalAccuracy,
-    compositionQuality,
-    styleConsistency,
-  };
+  return { technicalQuality, promptAdherence, anatomicalAccuracy, compositionQuality, styleConsistency };
 }
 
-/**
- * Universal, zero-dependency Before/After Computer Vision Flywheel runner (`@ngi/platform-ssot`).
- */
+/** Universal, zero-dependency Before/After Computer Vision Flywheel runner (`@ngi/platform-ssot`). */
 export function runUniversalCvFlywheelPass(
   input: UniversalCvFlywheelInput,
 ): UniversalCvFlywheelVerdict {
@@ -385,30 +417,33 @@ export function runUniversalCvFlywheelPass(
   });
 
   const nextBootstrapDirectives: string[] = [];
+  const d = input.afterDom;
+  if ((d?.terminalStartupSpamCount ?? 0) > 0) {
+    nextBootstrapDirectives.push('Strip OSC 133 and shell hook startup spam from visible terminal output');
+  }
+  if ((d?.xtermHelperLeakCount ?? 0) > 0) {
+    nextBootstrapDirectives.push('Lock .xterm-helper-textarea to zero-box transparent containment');
+  }
+  if ((d?.terminalFontProportionalLeakCount ?? 0) > 0) {
+    nextBootstrapDirectives.push('Isolate terminal subtrees onto fixed-width --font-terminal-mono');
+  }
+  if ((d?.terminalContrastViolationCount ?? 0) > 0) {
+    nextBootstrapDirectives.push('Calibrate Dual-Surface ANSI foreground/background tokens to WCAG >= 4.5:1 (>= 7.0:1 AAA)');
+  }
   if (afterRubric.anatomicalAccuracy < 0.85) {
-    nextBootstrapDirectives.push(
-      'Eliminate raw emoji tokens and align toolbar control heights to uniform 28px/32px rhythm',
-    );
+    nextBootstrapDirectives.push('Eliminate raw emoji tokens and align toolbar control heights to uniform 28px/32px rhythm');
   }
   if (afterRubric.compositionQuality < 0.85) {
-    nextBootstrapDirectives.push(
-      'Replace unstyled native <select> elements with unified custom popover selectors',
-    );
+    nextBootstrapDirectives.push('Replace unstyled native <select> elements with unified custom popover selectors');
   }
   if (afterRubric.promptAdherence < 0.88) {
-    nextBootstrapDirectives.push(
-      'Register missing dock panels (terminal, urbs) and unfreeze embedded Urbs landmark telemetry',
-    );
+    nextBootstrapDirectives.push('Register missing dock panels (terminal, urbs) and enforce terminal invariant gates');
   }
   if (input.afterMetrics.edgeSharpness < 75) {
-    nextBootstrapDirectives.push(
-      'Sharpen canvas/SVG stroke contrast and crisp 1px dockview border hairlines',
-    );
+    nextBootstrapDirectives.push('Sharpen canvas/SVG stroke contrast and crisp 1px dockview border hairlines');
   }
   if (nextBootstrapDirectives.length === 0) {
-    nextBootstrapDirectives.push(
-      'Flywheel converged: promote After frame & verified DOM layout as new golden baseline',
-    );
+    nextBootstrapDirectives.push('Flywheel converged: promote After frame & verified DOM layout as new golden baseline');
   }
 
   return {

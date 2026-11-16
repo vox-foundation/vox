@@ -294,4 +294,51 @@ CREATE TABLE IF NOT EXISTS hitl_approvals (
 );
 CREATE INDEX IF NOT EXISTS idx_hitl_approvals_status ON hitl_approvals(status);
 CREATE INDEX IF NOT EXISTS idx_hitl_approvals_requested ON hitl_approvals(requested_at_ms);
+
+-- GSD (Get Shit Done) workflow suite persistence (Baseline v98): milestones, phases,
+-- requirements traceability, and Arca CAS-backed markdown documents under .planning/.
+CREATE TABLE IF NOT EXISTS gsd_milestones (
+    milestone_id    TEXT NOT NULL PRIMARY KEY,
+    title           TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'active',
+    start_phase     INTEGER NOT NULL DEFAULT 1,
+    end_phase       INTEGER NOT NULL DEFAULT 1,
+    created_at_ms   INTEGER NOT NULL,
+    updated_at_ms   INTEGER NOT NULL,
+    completed_at_ms INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS gsd_phases (
+    milestone_id    TEXT NOT NULL,
+    phase_number    INTEGER NOT NULL,
+    title           TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending',
+    wave_count      INTEGER NOT NULL DEFAULT 0,
+    plan_session_id TEXT,
+    updated_at_ms   INTEGER NOT NULL,
+    PRIMARY KEY (milestone_id, phase_number)
+);
+CREATE INDEX IF NOT EXISTS idx_gsd_phases_status ON gsd_phases(status);
+
+CREATE TABLE IF NOT EXISTS gsd_requirements (
+    req_id           TEXT NOT NULL PRIMARY KEY,
+    milestone_id     TEXT NOT NULL,
+    phase_number     INTEGER NOT NULL,
+    description      TEXT NOT NULL,
+    satisfied        INTEGER NOT NULL DEFAULT 0,
+    verification_ref TEXT,
+    updated_at_ms    INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gsd_documents (
+    doc_id          TEXT NOT NULL PRIMARY KEY,
+    milestone_id    TEXT NOT NULL,
+    phase_number    INTEGER,
+    kind            TEXT NOT NULL,
+    rel_path        TEXT NOT NULL,
+    cas_hash        TEXT NOT NULL,
+    byte_len        INTEGER NOT NULL DEFAULT 0,
+    updated_at_ms   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_gsd_documents_milestone ON gsd_documents(milestone_id, kind);
 ";

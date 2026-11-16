@@ -69,6 +69,12 @@ pub struct CheckpointState {
     /// (`#[serde(default)]` keeps old checkpoint files loadable).
     #[serde(default)]
     pub data_fingerprint: Option<String>,
+    /// Cumulative training tokens processed across all resumed segments of this run.
+    #[serde(default)]
+    pub total_tokens: usize,
+    /// Cumulative micro-steps executed across all resumed segments of this run.
+    #[serde(default)]
+    pub micro_steps_executed: u32,
 }
 
 /// Content fingerprint for a training data file (`train.jsonl` / `train_mixed.jsonl`),
@@ -201,6 +207,8 @@ mod tests {
             wall_seconds_elapsed: 120.5,
             saved_at_utc: CheckpointState::now_utc(),
             data_fingerprint: Some("abc123".to_string()),
+            total_tokens: 4096,
+            micro_steps_executed: 128,
         };
         state.save(&dir).unwrap();
         let loaded = CheckpointState::load(&dir).expect("should load back");
@@ -252,6 +260,8 @@ mod tests {
             wall_seconds_elapsed: 0.0,
             saved_at_utc: String::new(),
             data_fingerprint: None,
+            total_tokens: 0,
+            micro_steps_executed: 0,
         };
         let path = CheckpointState::path_in(&dir);
         std::fs::write(&path, serde_json::to_string(&state).unwrap()).unwrap();

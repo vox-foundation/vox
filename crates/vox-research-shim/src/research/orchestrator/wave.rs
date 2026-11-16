@@ -266,9 +266,9 @@ impl WaveExecutionPlan {
                         };
 
                         let id = v_a.claim.claim_id.rotate_left(32) ^ v_b.claim.claim_id;
-                        let disambiguation_query = Some(format!(
-                            "{} vs {} difference verification truth",
-                            v_a.claim.text, v_b.claim.text
+                        let disambiguation_query = Some(compact_disambiguation_query(
+                            &v_a.claim.text,
+                            Some(&v_b.claim.text),
                         ));
 
                         new_records.push(ContradictionRecord {
@@ -316,14 +316,31 @@ impl WaveExecutionPlan {
         self.unresolved_contradictions = preserved_records;
     }
 
-    /// Returns subqueries needed for Wave 2 disambiguation.
+    /// Returns subqueries needed for Wave 2 disambiguation and unresolved-claim gap filling.
     pub fn generate_disambiguation_subqueries(&self) -> Vec<String> {
-        self.unresolved_contradictions
+        let mut queries: Vec<String> = self
+            .unresolved_contradictions
             .iter()
             .filter(|c| matches!(c.status, ContradictionStatus::Unresolved))
             .filter_map(|c| c.disambiguation_query.clone())
-            .take(4)
-            .collect()
+            .take(3)
+            .collect();
+
+        if queries.len() < 3 && !self.should_early_terminate() {
+            for verdict in &self.resolved_verdicts {
+                if queries.len() >= 3 {
+                    break;
+                }
+                if matches!(verdict.verdict, Verdict::Supported) {
+                    continue;
+                }
+                let q = compact_disambiguation_query(&verdict.claim.text, None);
+                if !q.is_empty() && !queries.contains(&q) {
+                    queries.push(q);
+                }
+            }
+        }
+        queries
     }
 
     /// Compiler Sandbox Overrule Hierarchy for CodeGen research.
@@ -518,10 +535,77 @@ impl WaveExecutionPlan {
     }
 }
 
+fn compact_disambiguation_query(claim_a: &str, claim_b: Option<&str>) -> String {
+    const STOP: &[&str] = &[
+        "the", "and", "for", "that", "with", "this", "from", "are", "was", "were", "has", "have",
+        "had", "into", "over", "under", "when", "where", "which", "while", "than", "then", "also",
+        "such", "only", "both", "each", "more", "most", "some", "very", "can", "will", "may",
+        "does", "not", "never", "cannot",
+    ];
+    let mut terms: Vec<String> = Vec::new();
+    let max_a = if claim_b.is_some() { 6 } else { 11 };
+    for raw in claim_a.split_whitespace() {
+        let clean = raw
+            .trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '.')
+            .to_string();
+        let lower = clean.to_ascii_lowercase();
+        if clean.len() >= 3 && !STOP.contains(&lower.as_str()) && !terms.contains(&clean) {
+            terms.push(clean);
+            if terms.len() >= max_a {
+                break;
+            }
+        }
+    }
+    if let Some(other) = claim_b {
+        for raw in other.split_whitespace() {
+            let clean = raw
+                .trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '.')
+                .to_string();
+            let lower = clean.to_ascii_lowercase();
+            if clean.len() >= 3 && !STOP.contains(&lower.as_str()) && !terms.contains(&clean) {
+                terms.push(clean);
+                if terms.len() >= 11 {
+                    break;
+                }
+            }
+        }
+    }
+    if terms.is_empty() {
+        return String::new();
+    }
+    terms.push("empirical".to_string());
+    terms.join(" ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::research::claims::Claim;
+
+    #[test]
+    fn test_generate_disambiguation_subqueries_covers_unverified_claims() {
+        let mut plan = WaveExecutionPlan::new("wave-gap-test", 2);
+        plan.resolved_verdicts = vec![ClaimVerdict {
+            claim: Claim {
+                claim_id: 1,
+                text: "Argyrodite Li6PS5Cl exhibits critical current density above 2.0 mA/cm2 under stack pressure".into(),
+                is_numeric: true,
+                is_recent: false,
+                is_named_event: false,
+                salience_score: 0.9,
+            },
+            verdict: Verdict::Unverified,
+            confidence: 0.0,
+            supporting_count: 0,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        }];
+        let qs = plan.generate_disambiguation_subqueries();
+        assert_eq!(qs.len(), 1);
+        assert!(qs[0].contains("Li6PS5Cl"));
+        assert!(qs[0].split_whitespace().count() <= 13);
+    }
 
     #[test]
     fn test_multi_factor_stability_and_early_exit() {

@@ -43,11 +43,12 @@ pub use repo_catalog::{
     RepoCapability, RepoCatalog, RepoCatalogError, RepoCatalogRefreshResult, RepoContractStatus,
     RepoFileRead, RepoFileReadResponse, RepoHistoryEntry, RepoHistoryResponse,
     RepoQuerySkippedRepository, RepoTextMatch, RepoTextSearchResponse, RepositoryDescriptor,
-    ResolvedRepoCatalog, ResolvedRepositoryDescriptor, StandaloneSovereigntyReport,
-    default_federation_catalog, load_repo_catalog_from_repo, refresh_federated_symbol_graph,
-    refresh_repo_catalog, render_local_cargo_patch_block, repo_catalog_manifest_path,
-    repo_query_file, repo_query_history, repo_query_text, resolve_repo_catalog,
-    verify_cross_repo_contract_parity, verify_standalone_sovereignty,
+    ResolvedRepoCatalog, ResolvedRepositoryDescriptor, SatelliteSyncSummary,
+    StandaloneSovereigntyReport, default_federation_catalog, load_repo_catalog_from_repo,
+    refresh_federated_symbol_graph, refresh_repo_catalog, render_local_cargo_patch_block,
+    repo_catalog_manifest_path, repo_query_file, repo_query_history, repo_query_text,
+    resolve_repo_catalog, sync_federated_satellites, verify_cross_repo_contract_parity,
+    verify_standalone_sovereignty,
 };
 pub use repo_query_trace::{
     repo_query_file_with_plane, repo_query_history_with_plane, repo_query_text_with_plane,
@@ -153,4 +154,24 @@ pub struct RepositoryContext {
     pub has_vox_agents_dir: bool,
     /// Path to `Vox.toml` when present at `root`.
     pub vox_toml: Option<PathBuf>,
+}
+
+/// Lightweight leaf discovery, root-resolution, and capability primitives (`STRUCT-DAG-SPEED-01`).
+///
+/// Downstream crates that only need workspace root discovery or capability hints can import
+/// from `vox_repository::core` without coupling to `repo_catalog`, `federation`, or `skill_scaffold`.
+pub mod core {
+    pub use crate::RepositoryContext;
+    pub use crate::capabilities::{
+        RepoCapabilities, TaskCapabilityHints, merge_agent_capabilities, probe_capabilities,
+        probe_host_capabilities,
+    };
+    pub use crate::discover::{discover_repository, discover_repository_or_fallback};
+    pub use crate::error::RepositoryError;
+    pub use crate::git_root::find_git_work_tree;
+    pub use crate::id::compute_repository_id;
+    pub use crate::resolve::{
+        VOX_REPO_ROOT_ENV, find_cargo_workspace_root, find_cargo_workspace_root_from,
+        find_project_manifest_root, resolve_from_cargo_workspace, resolve_repo_root_for_ci,
+    };
 }

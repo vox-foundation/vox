@@ -102,12 +102,12 @@ impl UnregisteredLlmEnvDetector {
     }
 
     /// Secret-shaped names are owned by `EnvSecretShapeDetector`; standard Hugging Face cache/home
-    /// dirs (`HF_HUB_CACHE`, `HF_HOME`) are standard filesystem layout vars.
+    /// dirs (`HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`, `HF_HOME`) are standard filesystem layout vars.
     fn is_secret_or_cache_shaped(name: &str) -> bool {
         name.ends_with("_API_KEY")
             || name.ends_with("_TOKEN")
             || name.ends_with("_SECRET")
-            || matches!(name, "HF_HUB_CACHE" | "HF_HOME")
+            || matches!(name, "HF_HUB_CACHE" | "HUGGINGFACE_HUB_CACHE" | "HF_HOME")
     }
 
     fn is_registered(&self, name: &str) -> bool {

@@ -5,6 +5,7 @@ pub mod constrained;
 pub mod minicheck;
 pub mod pipeline;
 pub mod span;
+pub mod tier0_lexical;
 pub mod types;
 pub mod veriscore;
 

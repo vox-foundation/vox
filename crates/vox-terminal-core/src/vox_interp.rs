@@ -1,8 +1,7 @@
 //! Vox-native execution adapter — ported from `vox-cli/src/commands/repl.rs`.
 //!
 //! Calls `vox-compiler`'s pipeline to evaluate a Vox source string and returns
-//! a text rendering of the result. Enabled by the `vox-lang` cargo feature;
-//! available unconditionally in dev/test (vox-compiler is a dev-dep).
+//! a text rendering of the result when the `vox-lang` Cargo feature is enabled.
 
 use anyhow::{Result, anyhow};
 
@@ -11,6 +10,7 @@ use anyhow::{Result, anyhow};
 ///
 /// The caller is responsible for prepending any necessary declarations.
 /// `eval_line("fn main() -> Int { 40 + 2 }")` → `"42"`.
+#[cfg(feature = "vox-lang")]
 pub fn eval_line(src: &str) -> Result<String> {
     use vox_compiler::eval::Interpreter;
     use vox_compiler::pipeline::{PipelineOptions, run_frontend_str_with_options};
@@ -36,4 +36,12 @@ pub fn eval_line(src: &str) -> Result<String> {
     interp.run_module(&res.hir).map_err(|e| anyhow!("{e:?}"))?;
     let val = interp.call("main", vec![]).map_err(|e| anyhow!("{e:?}"))?;
     Ok(format!("{val:?}"))
+}
+
+/// Fallback diagnostic when `vox-terminal-core` is built without feature `vox-lang`.
+#[cfg(not(feature = "vox-lang"))]
+pub fn eval_line(_src: &str) -> Result<String> {
+    Err(anyhow!(
+        "inline .vox evaluation requires `vox-terminal-core` feature `vox-lang`"
+    ))
 }

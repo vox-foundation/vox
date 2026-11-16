@@ -1,0 +1,122 @@
+# Requirements: Milestone v7.5 (`axis-warp-terminal-v75`) — Roman Scriptorium Warp-Class Agentic Terminal, Stateful PTY Engine, Bidirectional Chat Harness & CV Flywheel Convergence
+
+**Defined:** 2026-11-13
+**Core Value:** The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree or federated sibling repositories with zero LLM split-brain, while remaining 100% functional offline/standalone with zero dependency on `vox-ops` and 100% transparent, disableable, strongly-typed telemetry.
+
+## v1 Requirements
+
+Requirements for Milestone v7.5 (`--ws axis-warp-terminal-v75`). Every requirement maps to exactly one roadmap phase (`Phases 441–446`).
+
+### 1. Stateful PTY & Lossless Streaming (`TERM-PTY`)
+
+- [x] **TERM-PTY-01**: Operator opens a terminal session in `zsh`, `bash`, `fish`, `pwsh`, or `nu` with zero echoed `OSC 633` startup hook lines, unpolluted shell history, accurate non-zero `$?`/`$LASTEXITCODE` reporting (fixing unhooked `__vox_trappost` and macOS `PROMPT_SP` `%`), and live `OSC 7` / `OSC 633;P;Cwd` directory updates via `tempfile::TempDir` launch shims.
+- [x] **TERM-PTY-02**: Operator and agent shell submissions execute inside the persistent stateful `PtyHandle` (preserving `cd`, exported env vars, virtualenvs, and interactive stdin across commands), with real `MasterPty::resize` (`SIGWINCH` / ConPTY `ResizePseudoConsole`) and structured `SIGINT` (`term.signal`) cancellation.
+- [x] **TERM-PTY-03**: Session byte streaming reassembles split multi-byte UTF-8 sequences across 4096-byte PTY reads without `U+FFFD` corruption, tracks `alacritty_terminal` `TermMode::ALT_SCREEN` (`?1049h`/`?1049l`) + `\r` progress-bar line overwrites, and streams `after_seq` deltas with automatic resync on broadcast lag (eliminating full 2 MiB `replay_utf8` re-writes).
+- [x] **TERM-PTY-04**: Operator attaches to any live daemon-hosted terminal session from CLI `vox term --attach <id>` and Axis GUI simultaneously via `SessionHost` (`resolve_session_host`) with live block and PTY byte continuity.
+
+### 2. Bidirectional Chat Harness & AST Security (`TERM-HARNESS`)
+
+- [x] **TERM-HARNESS-01**: Chat agent loop and MCP clients execute, inspect, stream, and send stdin to shared `SessionHost` sessions via `vox_terminal_exec`, `vox_terminal_read`, `vox_terminal_send_input`, and `vox_terminal_sessions` registered in `contracts/operations/catalog.v1.yaml` over `vox-orchestrator::terminal_bridge` (zero new workspace Cargo edges), supporting foreground execution and `Ctrl+B` / `background: true` promotion.
+- [x] **TERM-HARNESS-02**: Agent-dispatched PTY commands neutralize blocking pagers (`PAGER=cat`, `GIT_PAGER=cat`, `SYSTEMD_PAGER=cat`) and detect interactive prompt/alt-screen stalls (`[y/N]`, `Password:`, `?1049h`, foreground PGID idle stdin), transitioning blocks to `AwaitingInput` and surfacing interactive controls instead of deadlocking the agent turn.
+- [x] **TERM-HARNESS-03**: Every agent-issued terminal command and `Console` security/control selector (`L1`–`L5`, `Manual` / `Co-Pilot` / `Autopilot`) is synced via `term.security` / `term.control` RPCs and gated by an AST/lexical `ExecPolicyV1` (`contracts/terminal/exec-policy.v1.yaml`) + `classify_floor` check that blocks subshell `$()`, backtick, redirection, and wrapper-binary (`pwsh -EncodedCommand`, `find -exec`) bypasses.
+- [x] **TERM-HARNESS-04**: Referencing `@term`, `@term:last`, `@term:failed`, `@term:pinned`, `@term:<sid>#<id>:L<a-b>`, or clicking `Send to Agent` resolves exclusively through backend ANSI-stripped `vox-redact` (including macOS `/Users/<name>`, PEM keys, URL credentials, `AIza`/`hf_`/`npm_`) + Clavis exact-value secret scrubbing before entering any LLM prompt.
+
+### 3. Unified Block Canvas, Auto-TUI & Split Panes (`TERM-PANE`)
+
+- [x] **TERM-PANE-01**: `Console.tsx` (replacing the split stacked `BlockStreamView` + `TerminalTab` boxes) and `ChatSurface.tsx` (`DockWorkspaceShell` `TerminalDockPanel`, replacing mocked lines) share one `<TerminalSessionPane>`, while `ChatTranscript.tsx` renders live streaming `vox_terminal_*` block cards with 1-click "Open in Console".
+- [x] **TERM-PANE-02**: `<TerminalSessionPane>` loads `@xterm/xterm/css/xterm.css` and real `@xterm/addon-webgl` (`@xterm/addon-{search,web-links,unicode11,serialize}`, with graceful `onContextLoss` and headless `no-tauri` DOM fallback) and auto-switches in `<16 ms` to full-bleed interactive VT mode when `ALT_SCREEN` (`vim`, `lazygit`, `htop`) activates, restoring the Block Stream on exit.
+- [x] **TERM-PANE-03**: Virtualized Command Blocks (`@tanstack/react-virtual` + `sgrToSpans.ts`, zero `dangerouslySetInnerHTML`) display `cwd`, git branch, exit seal, and duration, and support collapse/expand, sticky command headers, per-block/session search (`Cmd/Ctrl+F`), bookmarking/pinning, and clickable `file:line:col` + localhost URL actions.
+- [x] **TERM-PANE-04**: Operator splits `Console` sessions into horizontal and vertical panes and manages multiple named session tabs displaying live `cwd` and foreground-process titles.
+
+### 4. Warp-Grade Universal Editor, Completions & Runbooks (`TERM-WARP`)
+
+- [x] **TERM-WARP-01**: Operator composes multi-line commands and prompts (`Shift+Enter`) in `ScriptoriumPromptEditor` with syntax highlighting and automatic/lockable intent detection across Shell, Agent (`?` / natural language), Nushell (`!nu`), `.vox` expressions, and `/slash` commands.
+- [x] **TERM-WARP-02**: Operator recalls and filters persistent `vox-redact`-scrubbed workspace command history via `Up`/`Down` arrow navigation and `Ctrl+R` fuzzy history search.
+- [x] **TERM-WARP-03**: Typing or pressing `Tab` in the terminal composer provides low-latency completions for `$PATH` executables, `cwd`-relative files/directories, `git` branches/tags, and CLI subcommands/flags (removing the `vox`-only prefix gate in `InputEditor.tsx`).
+- [x] **TERM-WARP-04**: Operator launches parameterized local git-tracked `.vox` & runnable Markdown Runbooks via `Cmd+P` and `DiscoveryRail`, inspects `!nu` / `.vox` JSON outputs in a sortable/filterable Scriptorium Ledger Table, and 1-click "Voxifies" nested subshells (`ssh`, `docker exec`, nested shells) with `OSC 633` hooks.
+
+### 5. Terminal-Native Agentic Mode & Trajectory Flywheel (`TERM-AGENT`)
+
+- [x] **TERM-AGENT-01**: Submitting `?prompt` or natural-language prose in the terminal streams a real multi-step agent turn and command plan through the model-agnostic `vox_actor_runtime::llm` facade (never vendor SDKs or static stubs).
+- [x] **TERM-AGENT-02**: Failed command blocks (`exit_code != 0`) display a 1-click *Explain / Fix Failed Block* action that attaches the redacted block + `cwd` context and streams a targeted diagnosis and runnable fix proposal.
+- [x] **TERM-AGENT-03**: Co-Pilot mode renders inline Roman wax-seal Command Approval Cards (`Approve`, `Edit & Run`, `Allow Pattern in Session`, `Reject + Steer`) in both `Console` and `Chat`, while any user keystroke or submit in `Autopilot` immediately transitions control mode to `Manual`.
+- [x] **TERM-AGENT-04**: Terminal `/budget`, `/model`, `/skills`, `/memory`, `/context`, `/clear`, and `/compact` slash commands query/mutate live orchestrator state, and completed sessions record redacted `vox-journal` → `curate` → `CorpusWriter` trajectories with per-block Accept/Reject/Correct feedback signals for MENS.
+
+### 6. Roman Scriptorium Theme & CV Flywheel Convergence (`TERM-ROMA-CV`)
+
+- [x] **TERM-ROMA-CV-01**: `index.css` and `themeContract.ts` define an allowlisted fixed-cell `--font-terminal-mono` (`'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace` — zero banned `Menlo`/`Monaco`/`Consolas`/`Courier`) and isolate `:not(.xterm):not(.xterm *)` from global `Palatino` `!important` and `main textarea` rules, passing `vox audit code` (`vox/ui/theme-contract-drift`) with `0` errors.
+- [x] **TERM-ROMA-CV-02**: `Console`, `BlockStreamView`, `ScriptoriumPromptEditor`, Approval Cards, and `terminalTheme.ts` implement the Dual-Surface Roman Scriptorium aesthetic (Carrara marble & burnished gold chrome + warm dark-bronze/obsidian WCAG >= 4.5:1 16-color ANSI viewport in `arcane`, synchronized across `slate`, `travertine`, and `high-contrast`), eliminating hardcoded `zinc-*`/`black` islands and the `1.03:1` `.text-brass` dark-on-dark defect.
+- [x] **TERM-ROMA-CV-03**: `audits.ts`, `cvFlywheel.ts`, and `cv-flywheel.spec.ts` enforce deterministic terminal CV invariants (`cursorBlink: false`, ANSI 16-color contrast >= 4.5:1, fixed-width cell alignment, zero visible `.xterm-helper-textarea`, zero raw `<select>` / emoji / bracket leaks, zero clipped controls).
+- [x] **TERM-ROMA-CV-04**: Multi-pass `CV_STAGE=before` → `Pass 1` → `Pass 2+` Playwright + `@ngi/platform-ssot` + VLM execution converges across standalone `Console` and `Chat` + `TerminalDockPanel` at `900×600`, `1100×720`, `1280×800`, `1440×900`, and `1920×1080` across all 4 theme profiles (`visualAfterScore >= 0.92`, `0` axe/overflow/clipping defects).
+
+### 7. Repo-Wide Build Contention Elimination & Broker Coalescing (`BUILD-CONTENTION`)
+
+- [x] **BUILD-CONTENTION-01**: `vox-cargo-shim` + `vox-build-queue` serialize builds per effective `CARGO_TARGET_DIR` via `FairQueue` **before** claiming a global machine slot (preventing 6 sleeping `target/.cargo-lock` waiters from hoarding global slots and masquerading as `wait=0ms` inside `ran_ms`), actually coalesce identical in-flight `(argv, env, target_dir)` `check`/`build`/`test` invocations by sharing the leader's exit status + output stream, and separate `target_lock_wait_ms` vs `global_slot_wait_ms` vs `compile_ran_ms` in `vox-broker stats` / `broker.log`.
+- [x] **BUILD-CONTENTION-02**: `vox-orchestrator` compiles and passes `--no-default-features` (`#[cfg(feature = "toestub-gate")]` guards on `victory.rs` and `orch_daemon/dei_dispatch.rs`), and `vox-terminal-core` gates `vox-compiler` (`47k LoC`) behind `vox-lang` while depending on `vox-orchestrator` with `default-features = false` (unified feature set matching `vox-orchestrator-mcp`), eliminating 180k-LoC `vox-corpus`/`vox-populi`/`jj-lib` cascade recompiles and feature-fingerprint thrashing.
+- [x] **BUILD-CONTENTION-03**: Multi-session / multi-workstream agent harnesses isolate `CARGO_TARGET_DIR` (or per-worktree checkout roots via `vox ci workstream-isolation-guard` / `.vox/agent-target` opt-in + automatic `sccache` wrapper detection when `sccache` is installed on `PATH`) and enforce `dev-loop-guard` rules against unbatched per-test Cargo lock storms.
+- [x] **BUILD-CONTENTION-04**: Headless/agent timeout wrapper (`vox-cargo-shim` queue-aware deadline or `VOX_BROKER_BUILD_TIMEOUT_SECS`) separates **queue wait time** from **active compile/test execution time**, eliminating `timeout 300s`/`900s` `exit 124` kills at `98%` (`Building 964/965`) caused by upstream queue wait.
+
+## v2 Requirements
+
+Deferred beyond Milestone v7.5 to keep v7.5 focused and latency-bounded.
+
+### Speculative & Remote Extensions
+
+- **TERM-FUT-01**: Speculative background MENS next-command ghost synthesis after every block exit once local curated terminal trajectory volume matures.
+- **TERM-FUT-02**: Capability-token authenticated remote mesh `SessionHost` attach across iroh QUIC Populi nodes.
+- **TERM-FUT-03**: Declarative multi-pane workspace boot layouts auto-spawning dev-server/watcher panes on project open.
+
+## Out of Scope
+
+Explicitly excluded to preserve Vox's 100% local-first/offline sovereignty, Apache-2.0 clean-room licensing, and architectural boundaries.
+
+| Feature | Reason |
+|---------|--------|
+| Mandatory cloud account, login gate, or SaaS settings sync | Violates Vox's 100% offline/standalone Core Value (`D24`, `ADR-023`). |
+| Cloud-hosted team "Warp Drive" secrets or public block permalink URLs | Risks secret/stack-trace leakage; Vox uses local Clavis (`vox-secrets`) and git-tracked `.vox` / Markdown runbooks. |
+| Full multi-tab code editor & file tree embedded inside `Console` | Duplicates Vox Axis's dedicated workbench surfaces and IDE integrations. |
+| Forking AGPLv3 Warp crates or native `warpui`/`wgpu` widget toolkits | Violates `D20` / `ADR-026` licensing and `AGENTS.md` pure-Rust/C build-toolchain & 4-theme Playwright CV invariants. |
+| Direct vendor LLM SDK calls (`api.anthropic.com`, `api.openai.com`, etc.) | Violates `AGENTS.md` Model-Agnostic LLM Boundary (`vox_actor_runtime::llm`). |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TERM-PTY-01 | Phase 441 | Complete |
+| TERM-PTY-02 | Phase 441 | Complete |
+| TERM-PTY-03 | Phase 441 | Complete |
+| TERM-PTY-04 | Phase 441 | Complete |
+| TERM-HARNESS-01 | Phase 442 | Complete |
+| TERM-HARNESS-02 | Phase 442 | Complete |
+| TERM-HARNESS-03 | Phase 442 | Complete |
+| TERM-HARNESS-04 | Phase 442 | Complete |
+| TERM-PANE-01 | Phase 443 | Complete |
+| TERM-PANE-02 | Phase 443 | Complete |
+| TERM-PANE-03 | Phase 443 | Complete |
+| TERM-PANE-04 | Phase 443 | Complete |
+| TERM-WARP-01 | Phase 444 | Complete |
+| TERM-WARP-02 | Phase 444 | Complete |
+| TERM-WARP-03 | Phase 444 | Complete |
+| TERM-WARP-04 | Phase 444 | Complete |
+| TERM-AGENT-01 | Phase 445 | Complete |
+| TERM-AGENT-02 | Phase 445 | Complete |
+| TERM-AGENT-03 | Phase 445 | Complete |
+| TERM-AGENT-04 | Phase 445 | Complete |
+| TERM-ROMA-CV-01 | Phase 446 | Complete |
+| TERM-ROMA-CV-02 | Phase 446 | Complete |
+| TERM-ROMA-CV-03 | Phase 446 | Complete |
+| TERM-ROMA-CV-04 | Phase 446 | Complete |
+| BUILD-CONTENTION-01 | Phase 447 | Complete |
+| BUILD-CONTENTION-02 | Phase 447 | Complete |
+| BUILD-CONTENTION-03 | Phase 447 | Complete |
+| BUILD-CONTENTION-04 | Phase 447 | Complete |
+
+**Coverage:**
+
+- v1 requirements: 28 total
+- Mapped to phases: 28
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-11-13*
+*Last updated: 2026-11-14 after adding Phase 447 (`BUILD-CONTENTION-01..04`)*

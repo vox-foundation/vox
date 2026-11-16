@@ -33,3 +33,33 @@ fn alternate_screen_does_not_panic() {
     grid.feed(b"\x1b[?1049l");
     let _ = grid.render_lines();
 }
+
+#[test]
+fn legacy_alt_screen_modes_47_1047_and_wide_char_spacer_width() {
+    let mut grid = VtGrid::new(8, 2);
+    assert!(!grid.is_alt_screen());
+
+    grid.feed(b"\x1b[?47hALT47");
+    assert!(grid.is_alt_screen(), "?47h must enter alt screen on VtGrid");
+    grid.feed(b"\x1b[?47l");
+    assert!(!grid.is_alt_screen(), "?47l must exit alt screen on VtGrid");
+
+    grid.feed(b"\x1b[?1047hALT1047");
+    assert!(
+        grid.is_alt_screen(),
+        "?1047h must enter alt screen on VtGrid"
+    );
+    grid.feed(b"\x1b[?1047l");
+    assert!(
+        !grid.is_alt_screen(),
+        "?1047l must exit alt screen on VtGrid"
+    );
+
+    // Wide glyph ('🦀' = 2 columns) + "ok" (2 columns) + 4 trailing blanks = 8 columns total.
+    // Skipping Flags::WIDE_CHAR_SPACER ensures we emit 7 chars ("🦀ok    "), not 8 chars ("🦀 ok    ").
+    grid.reset();
+    grid.feed("🦀ok".as_bytes());
+    let lines = grid.render_lines();
+    let row0: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
+    assert_eq!(row0, "🦀ok    ");
+}

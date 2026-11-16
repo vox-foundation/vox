@@ -434,6 +434,25 @@ impl BuiltinTypes {
                 is_deprecated: false,
             },
         );
+        // `import std.plot` and `import std.tensor` namespaces.
+        env.define(
+            "plot".into(),
+            Binding {
+                ty: Ty::Named("StdPlotNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+        env.define(
+            "tensor".into(),
+            Binding {
+                ty: Ty::Named("StdTensorNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
         // Plan dtype tokens for `astype`. These are not host numeric types.
         // `from_list` never produces `i32` or `f32`.
         for dtype in ["f64", "f32", "i64", "i32"] {
@@ -1914,6 +1933,63 @@ impl BuiltinTypes {
         }
         methods.insert("StdFrameNs".into(), frame_ns);
 
+        let frame_ty = Ty::Named("Frame".into());
+        let plot_ty = Ty::Named("Plot".into());
+        let mut plot_ns = std::collections::HashMap::new();
+        for chart in ["line", "scatter", "bar", "hist"] {
+            plot_ns.insert(
+                chart.to_string(),
+                Ty::Fn(vec![frame_ty.clone()], Box::new(plot_ty.clone())),
+            );
+        }
+        methods.insert("StdPlotNs".into(), plot_ns);
+
+        let mut plot_methods = std::collections::HashMap::new();
+        plot_methods.insert("x".into(), Ty::Fn(vec![Ty::Str], Box::new(plot_ty.clone())));
+        plot_methods.insert("y".into(), Ty::Fn(vec![Ty::Str], Box::new(plot_ty.clone())));
+        plot_methods.insert(
+            "title".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(plot_ty.clone())),
+        );
+        plot_methods.insert("legend".into(), Ty::Fn(vec![Ty::Bool], Box::new(plot_ty)));
+        plot_methods.insert(
+            "save".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
+            ),
+        );
+        methods.insert("Plot".into(), plot_methods);
+
+        let model_ty = Ty::Named("Model".into());
+        let mut tensor_ns = std::collections::HashMap::new();
+        tensor_ns.insert(
+            "load_exported".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(model_ty.clone()), Box::new(Ty::Str))),
+            ),
+        );
+        methods.insert("StdTensorNs".into(), tensor_ns);
+
+        let mut model_methods = std::collections::HashMap::new();
+        model_methods.insert(
+            "run".into(),
+            Ty::Fn(
+                vec![Ty::Array(Box::new(Ty::GenericParam(0)))],
+                Box::new(Ty::Result(
+                    Box::new(Ty::Array(Box::new(Ty::Named("f64".into())))),
+                    Box::new(Ty::Str),
+                )),
+            ),
+        );
+        model_methods.insert("device".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        model_methods.insert(
+            "to_device".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(model_ty)),
+        );
+        methods.insert("Model".into(), model_methods);
+
         Self { methods }
     }
 
@@ -2075,6 +2151,18 @@ impl BuiltinTypes {
         // `from_list` stays on `StdArrayNs`. `add` and `mul` are binary
         // operators, like the values `sub` and `div` produce, and are not methods.
         if let Ty::Array(_) = obj_ty {
+            if method == "reshape" {
+                return Some(Ty::Fn(
+                    vec![Ty::List(Box::new(Ty::Int))],
+                    Box::new(Ty::Array(Box::new(Ty::GenericParam(0)))),
+                ));
+            }
+            if method == "softmax" {
+                return Some(Ty::Fn(
+                    vec![Ty::Int],
+                    Box::new(Ty::Array(Box::new(Ty::GenericParam(0)))),
+                ));
+            }
             return crate::python_array_support::python_array_ops()
                 .iter()
                 .find(|op| op.name == method && !matches!(op.name, "from_list" | "add" | "mul"))

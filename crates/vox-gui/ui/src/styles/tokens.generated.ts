@@ -117,6 +117,7 @@ export const tokens = {
     "sans": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
     "serif": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
     "mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+    "terminal-mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace",
     "size": {
       "xs": "12px",
       "sm": "14px",
@@ -139,7 +140,8 @@ export const tokens = {
       "display": "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
       "sans": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
       "serif": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
-      "mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif"
+      "mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+      "terminal-mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace"
     }
   },
   "motion": {

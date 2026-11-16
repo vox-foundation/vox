@@ -450,6 +450,13 @@ impl Printer {
                     self.out.push_str(path);
                     self.out.push('"');
                 }
+                ImportPathKind::PyModule { alias, module } => {
+                    self.out.push_str("py ");
+                    self.out.push_str(alias);
+                    self.out.push_str(" from \"");
+                    self.out.push_str(module);
+                    self.out.push('"');
+                }
                 ImportPathKind::RustCrate(spec) => {
                     self.out.push_str("rust:");
                     self.out.push_str(&spec.crate_name);

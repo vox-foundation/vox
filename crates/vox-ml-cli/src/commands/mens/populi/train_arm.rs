@@ -159,9 +159,8 @@ pub async fn run_train(
             // TerminateOnDrop so a spot preemption / mid-flight error cleans up the
             // pod and a re-run with the same spoke+corpus does not double-provision.
             // We wire idempotency + TerminateOnDrop here over the resolver's public
-            // surface (resolve + dispatch_top). Full checkpoint-resume is deferred.
-            // TODO(b5-resume): wire sync_checkpoint_down / read_checkpoint_uri so a
-            // preempted job resumes from its last checkpoint instead of restarting.
+            // surface (resolve + dispatch_top). Full checkpoint-resume (`sync_checkpoint_down`
+            // / `read_checkpoint_uri`) is intentionally out of scope for this dispatch layer.
             let idem_key =
                 vox_populi::mens::cloud::make_idempotency_key(effective_domain, &corpus_hash);
             let state_dir = workspace_root
@@ -673,64 +672,114 @@ pub async fn run_train(
                 {
                     eprintln!("  {} HF ladder repos were not reserved: {e}", "⚠️".yellow());
                 }
-                let force_ungated =
-                    match vox_populi::mens::hub_sync::verify_publish_gates(&card_output_dir, false)
-                    {
-                        Ok(_) => false,
-                        Err(e) => {
-                            eprintln!(
-                                "  {} Eval gate did not pass ({e}); publishing an ungated baseline",
-                                "⚠️".yellow()
-                            );
-                            true
-                        }
-                    };
-                match vox_populi::mens::hub_sync::publish_adapter_run_dir(
+                let force_ungated = match vox_populi::mens::hub_sync::verify_publish_gates(
                     &card_output_dir,
-                    None,
                     false,
-                    force_ungated,
-                )
-                .await
-                {
-                    Ok(vox_populi::mens::hub_sync::PublishOutcome::Uploaded {
-                        repo_id,
-                        commit_oid,
-                        version,
-                        ..
-                    }) => {
-                        eprintln!(
-                            "  {} Auto-published adapter to Hugging Face Hub `{repo_id}` as {version} ({commit_oid})",
-                            "✓".green()
-                        );
-                    }
-                    Ok(vox_populi::mens::hub_sync::PublishOutcome::SkippedUnchanged {
-                        repo_id,
-                        ..
-                    }) => {
-                        eprintln!(
-                            "  {} HF Hub `{repo_id}` already up-to-date (hash match; skipped upload)",
-                            "✓".green()
-                        );
-                    }
+                ) {
+                    Ok(_) => false,
                     Err(e) => {
-                        eprintln!("  {} HF auto-publish skipped: {e}", "⚠️".yellow());
+                        eprintln!(
+                            "  {} Eval gate did not pass ({e}); checking Hub state before ungated baseline push",
+                            "⚠️".yellow()
+                        );
+                        true
                     }
-                }
-                if let Err(e) = vox_populi::mens::hub_sync::refresh_ladder_index(
-                    workspace_root.as_deref(),
-                    None,
-                    false,
-                )
-                .await
+                };
+                let skip_ungated_push = if force_ungated
+                    && let Ok(ns) = vox_populi::mens::hub_repo::resolve_namespace(ns_env.as_deref())
+                    && let Some(base_model) = meta.base_model.as_deref()
+                    && let Ok(repo_id) =
+                        vox_populi::mens::hub_repo::repo_id_for_size(&ns, base_model)
                 {
-                    eprintln!("  {} HF index refresh failed: {e}", "⚠️".yellow());
+                    let remote_gate_status =
+                        vox_populi::mens::hub_sync::fetch_remote_sync_manifest(&repo_id)
+                            .await
+                            .ok()
+                            .flatten()
+                            .map(|m| m.gate_status);
+                    if should_skip_ungated_overwrite(remote_gate_status.as_deref(), true) {
+                        eprintln!(
+                            "  {} Skipping ungated Hub auto-publish to `{repo_id}`: remote already holds a gated (`passed`) checkpoint; refreshing local cards only",
+                            "⚠️".yellow()
+                        );
+                        if let Err(e) = vox_populi::mens::hub_sync::sync_all_sizes(
+                            workspace_root.as_deref(),
+                            Some(&ns),
+                            false,
+                            false,
+                            false,
+                            false,
+                            None,
+                        )
+                        .await
+                        {
+                            eprintln!("  {} Local HF card refresh failed: {e}", "⚠️".yellow());
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                if !skip_ungated_push {
+                    match vox_populi::mens::hub_sync::publish_adapter_run_dir(
+                        &card_output_dir,
+                        None,
+                        false,
+                        force_ungated,
+                    )
+                    .await
+                    {
+                        Ok(vox_populi::mens::hub_sync::PublishOutcome::Uploaded {
+                            repo_id,
+                            commit_oid,
+                            version,
+                            ..
+                        }) => {
+                            eprintln!(
+                                "  {} Auto-published adapter to Hugging Face Hub `{repo_id}` as {version} ({commit_oid})",
+                                "✓".green()
+                            );
+                        }
+                        Ok(vox_populi::mens::hub_sync::PublishOutcome::SkippedUnchanged {
+                            repo_id,
+                            ..
+                        }) => {
+                            eprintln!(
+                                "  {} HF Hub `{repo_id}` already up-to-date (hash match; skipped upload)",
+                                "✓".green()
+                            );
+                        }
+                        Err(e) => {
+                            eprintln!("  {} HF auto-publish skipped: {e}", "⚠️".yellow());
+                        }
+                    }
+                    if let Err(e) = vox_populi::mens::hub_sync::refresh_ladder_index(
+                        workspace_root.as_deref(),
+                        None,
+                        false,
+                    )
+                    .await
+                    {
+                        eprintln!("  {} HF index refresh failed: {e}", "⚠️".yellow());
+                    }
                 }
             }
         }
     }
 
     train_res.map(|_| ())
+}
+
+/// Return `true` when an ungated training run (`force_ungated == true`) would overwrite an
+/// existing remote checkpoint that has already passed gates (`gate_status == "passed"`).
+#[cfg(any(feature = "gpu", feature = "mens-hf-hub", test))]
+pub(super) fn should_skip_ungated_overwrite(
+    remote_gate_status: Option<&str>,
+    force_ungated: bool,
+) -> bool {
+    force_ungated && remote_gate_status.is_some_and(|s| s.trim().eq_ignore_ascii_case("passed"))
 }
 
 /// The preset the run trained with, which the card records as `base_rung` and
@@ -797,6 +846,8 @@ fn write_local_adapter_card(
         training_manifest_digest: lineage.training_manifest_digest,
         training_syntax_fingerprint: fingerprint,
         syntax_fingerprint_kind: kind.to_string(),
+        train_lanes: Vec::new(),
+        spokes: Vec::new(),
     };
     card.validate()?;
     card.validate_lineage()?;
@@ -1306,5 +1357,14 @@ mod local_card_tests {
         let (d, _adapter, _train) = fixture("Qwen/Qwen3-8B");
         assert!(write_local_adapter_card(d.path(), None, &meta()).is_err());
         assert!(!d.path().join("adapter_card.json").exists());
+    }
+
+    #[test]
+    fn ungated_run_never_overwrites_remote_passed_checkpoint() {
+        assert!(super::should_skip_ungated_overwrite(Some("passed"), true));
+        assert!(super::should_skip_ungated_overwrite(Some(" PASSED "), true));
+        assert!(!super::should_skip_ungated_overwrite(Some("ungated"), true));
+        assert!(!super::should_skip_ungated_overwrite(None, true));
+        assert!(!super::should_skip_ungated_overwrite(Some("passed"), false));
     }
 }

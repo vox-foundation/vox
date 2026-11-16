@@ -54,6 +54,8 @@ and runs [`daemon_steps::DAEMON_STEPS`] through [`boot_plan::run_boot_plan`].
 |---|---|
 | `boot_plan` | — |
 | `daemon_steps` | — |
+| `term_bridge_impl` | — |
+| `term_dispatch` | — |
 
 ## Dependency Topology
 
@@ -100,4 +102,13 @@ graph {
 | `struct` | `daemon_steps::DaemonBootCtx` | `pub struct DaemonBootCtx` | [`crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L21-L36`](../../../crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L21-L36) | — |
 | `fn` | `daemon_steps::new` | `pub fn new(` | [`crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L39`](../../../crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L39) | — |
 | `fn` | `daemon_steps::plugins_install_dir` | `pub fn plugins_install_dir(env_value: Option<String>) -> PathBuf` | [`crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L75-L81`](../../../crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L75-L81) | `$VOX_PLUGINS_DIR` if set, else the platform-local default (moved verbatim from `async_main`). |
+| `fn` | `term_bridge_impl::scrub_three_stage` | `pub fn scrub_three_stage(raw: &str) -> String` | [`crates/vox-orchestrator-d/src/term_bridge_impl.rs#L29-L33`](../../../crates/vox-orchestrator-d/src/term_bridge_impl.rs#L29-L33) | Run all 3 terminal output scrubbing stages (`ECMA-48 + CR` → Clavis exact needles → `vox-redact`) before any text reaches MCP/chat/RPC consumers. |
+| `fn` | `term_bridge_impl::validate_daemon_agent_exec` | `pub fn validate_daemon_agent_exec(req: &TermExecRequest, cwd: &Path) -> Result<()>` | [`crates/vox-orchestrator-d/src/term_bridge_impl.rs#L36-L65`](../../../crates/vox-orchestrator-d/src/term_bridge_impl.rs#L36-L65) | Defense-in-depth daemon boundary AST + safety-floor validation (`WR-08`, `CR-05`). |
+| `struct` | `term_bridge_impl::LocalHostTerminalBridge` | `pub struct LocalHostTerminalBridge` | [`crates/vox-orchestrator-d/src/term_bridge_impl.rs#L110-L113`](../../../crates/vox-orchestrator-d/src/term_bridge_impl.rs#L110-L113) | Daemon-local [`TerminalBridge`] sharing the single live [`LocalHost`] with `TermDispatch`. |
+| `fn` | `term_bridge_impl::new` | `pub fn new(host: Arc<LocalHost>, default_cwd: Option<PathBuf>) -> Self` | [`crates/vox-orchestrator-d/src/term_bridge_impl.rs#L117-L119`](../../../crates/vox-orchestrator-d/src/term_bridge_impl.rs#L117-L119) | — |
+| `fn` | `term_bridge_impl::host` | `pub fn host(&self) -> &Arc<LocalHost>` | [`crates/vox-orchestrator-d/src/term_bridge_impl.rs#L122-L124`](../../../crates/vox-orchestrator-d/src/term_bridge_impl.rs#L122-L124) | — |
+| `struct` | `term_dispatch::TermDispatch` | `pub struct TermDispatch` | [`crates/vox-orchestrator-d/src/term_dispatch.rs#L31-L34`](../../../crates/vox-orchestrator-d/src/term_dispatch.rs#L31-L34) | — |
+| `fn` | `term_dispatch::new` | `pub fn new(host: Arc<LocalHost>) -> Self` | [`crates/vox-orchestrator-d/src/term_dispatch.rs#L37-L40`](../../../crates/vox-orchestrator-d/src/term_dispatch.rs#L37-L40) | — |
+| `fn` | `term_dispatch::with_bridge` | `pub fn with_bridge(host: Arc<LocalHost>, bridge: Arc<LocalHostTerminalBridge>) -> Self` | [`crates/vox-orchestrator-d/src/term_dispatch.rs#L42-L44`](../../../crates/vox-orchestrator-d/src/term_dispatch.rs#L42-L44) | — |
+| `fn` | `term_dispatch::run_agent_command` | `pub async fn run_agent_command(` | [`crates/vox-orchestrator-d/src/term_dispatch.rs#L51`](../../../crates/vox-orchestrator-d/src/term_dispatch.rs#L51) | Execute an agent-initiated terminal line in `session_id` gated by the Phase 12 safety floor (`classify_floor`). Refuses unapproved executions before opening any block; when approved, tags the resulting block with [`BlockOrigin::Agent`]. |
 

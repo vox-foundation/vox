@@ -50,8 +50,9 @@ pub fn run_measure() -> Result<()> {
 /// fixed `--seq-len`) that fits this host's real memory budget for the model
 /// at `model_dir`, using the exact same `sweep`/`plan_for` entry point
 /// `vox mens train`'s auto-sizing path consumes. Refuses (naming why) for an
-/// uncalibrated lane rather than guessing — e.g. `candle-metal` has no fitted
-/// row yet (see `memory_model`'s module doc comment).
+/// uncalibrated cell rather than guessing (e.g. `candle-metal` with
+/// `gradient_checkpointing=false` remains uncalibrated, whereas
+/// `gradient_checkpointing=true` is calibrated in `memory-model.v1.yaml`).
 pub fn run_sweep(
     model_dir: Option<PathBuf>,
     seq_len: u64,
@@ -80,7 +81,7 @@ pub fn run_sweep(
             BudgetSource::Cuda => Lane::CandleCuda,
         };
         let key = CalKey::new(lane, gradient_checkpointing)?;
-        let shape = ModelShape::from_model_dir(&model_dir)?;
+        let shape = ModelShape::from_model_dir_for_qlora(&model_dir)?;
         let models = MemoryModels::load_default()?;
         let budget = DeviceBudget {
             working_set_bytes: accel.working_set_bytes,
@@ -279,20 +280,20 @@ fn print_model_fit_verdict(
     })?;
     eprintln!("  {} Cached at {}", "✓".green(), files.cache_dir.display());
 
-    let shape = ModelShape::from_model_dir(&files.cache_dir)?;
+    let shape = ModelShape::from_model_dir_for_qlora(&files.cache_dir)?;
     let accel = query_accel_budget()
         .ok_or_else(|| anyhow::anyhow!("no accelerator budget available on this host"))?;
     let lane = match accel.source {
         BudgetSource::Metal => Lane::CandleMetal,
         BudgetSource::Cuda => Lane::CandleCuda,
     };
-    // Replicate `gpu.rs::run_gpu_training`'s auto-enable rule exactly
-    // (`gc_explicit || params_b_from_model_hint(model) >= 2.9`) — otherwise
-    // this "dry run of `vox mens train --model <repo_id>`" builds a
+    // Replicate `gpu.rs::wants_gradient_checkpointing` exactly
+    // (`gc_explicit || lane == Lane::CandleMetal || params_b >= 2.9`) —
+    // otherwise this "dry run of `vox mens train --model <repo_id>`" builds a
     // different `CalKey` than the real run, and can report the opposite
-    // verdict (Refused here, Fits there, or vice versa) for any model at or
-    // above the checkpointing threshold.
+    // verdict or fail with "uncalibrated gradient_checkpointing=false".
     let gradient_checkpointing = gradient_checkpointing
+        || lane == Lane::CandleMetal
         || vox_populi::mens::tensor::memory_budget::params_b_from_model_hint(repo_id)
             .map(|b| b >= 2.9)
             .unwrap_or(false);

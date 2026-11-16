@@ -7,6 +7,7 @@
 
 pub mod agent_types;
 pub mod clutch;
+pub mod gsd;
 pub mod merge_outcome;
 pub mod pricing;
 pub mod routing_values;
@@ -16,8 +17,15 @@ pub mod trust;
 pub mod vcs_capability;
 
 pub use clutch::{BudgetAggressiveness, ClutchProfile, QualityLevel, ResolvedClutch};
+pub use gsd::{
+    GsdDocument, GsdDocumentKind, GsdMilestone, GsdMilestoneStatus, GsdPhase, GsdPhaseStatus,
+    GsdPlanWave, GsdProgressSnapshot, GsdRequirement, GsdWaveTask,
+};
 pub use pricing::PricingSource;
 pub use routing_values::{CostPreference, RoutingProfile};
+pub use socrates_policy::{
+    CragEscalationPolicy, EscalationReason, ResearchContinuumMode, ResearchContinuumTier,
+};
 pub use task_priority::TaskPriority;
 pub use vcs_capability::{
     BranchCreate, BranchName, BranchNameError, RemoteId, WorkingTreeWrite, WorkspaceId,

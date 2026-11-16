@@ -33,7 +33,8 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: mockListen,
 }));
 
-vi.mock('../../../transport', () => ({
+vi.mock('../../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../transport')>()),
   feedbackList: vi.fn().mockResolvedValue({ needsYou: [], withheld: [] }),
   listenFeedbackChanged: vi.fn().mockResolvedValue(() => {}),
   hopperList: vi.fn().mockResolvedValue([]),

@@ -151,7 +151,7 @@ export function ArenaComparisonCard({
       className="mt-1 flex flex-col gap-2 rounded-xl border border-brass/35 bg-bg-elevated/70 p-3"
     >
       <div className="flex items-center justify-between border-b border-border-subtle pb-1.5 font-mono text-[11px]">
-        <span className="text-brass">⚔ Side-by-Side Arena Turn Comparison</span>
+        <span className="text-brass font-semibold">Side-by-Side Arena Turn Comparison</span>
         <span className="text-text-muted">Online Bradley-Terry + DPO Preference</span>
       </div>
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">

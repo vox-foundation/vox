@@ -25,6 +25,7 @@ pub mod training_loop {
     pub mod checkpoint;
     pub mod curriculum;
     pub mod encoding;
+    pub mod forward;
     pub mod logic;
     pub mod telem_helpers;
     pub mod types;

@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { MODEL_LIST_LIMIT } from '../../../config/constants';
 import { voxTransport } from '../../../transport';
+import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
+import { Slider } from '../../ui/Slider';
 import type { Toast } from '../../../types/tauri';
 
 // --- SelectionPolicy JSON shape (mirrors vox_orchestrator::models::SelectionPolicy) ---
@@ -62,12 +65,12 @@ function stepLabel(s: SelectionStep): string {
   return 'unknown step';
 }
 
-function stepIcon(s: SelectionStep): string {
-  if (s === 'prefer_free') return '○';
+function stepIcon(s: SelectionStep): React.ReactNode {
+  if (s === 'prefer_free') return <Icon.circle className="size-3 shrink-0" aria-hidden="true" />;
   if (typeof s === 'object') {
-    if ('emphasize_axis' in s) return '▲';
-    if ('pin_model' in s) return '◆';
-    if ('fallback_when' in s) return '⟲';
+    if ('emphasize_axis' in s) return <Icon.trendUp className="size-3 shrink-0" aria-hidden="true" />;
+    if ('pin_model' in s) return <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />;
+    if ('fallback_when' in s) return <Icon.refresh className="size-3 shrink-0" aria-hidden="true" />;
   }
   return '•';
 }
@@ -204,33 +207,33 @@ export function PriorityChainEditor({ pushToast }: Props) {
                 dragOver === i ? 'border-brass/50 bg-brass/5' : 'border-border-subtle'
               }`}
             >
-              <span aria-hidden="true" className="cursor-grab select-none font-mono text-[11px] text-text-muted" title="Drag to reorder">
-                ⠿
+              <span aria-hidden="true" className="inline-flex cursor-grab select-none items-center text-text-muted" title="Drag to reorder">
+                <Icon.gripVertical className="size-3.5" aria-hidden="true" />
               </span>
-              <span aria-hidden="true" className="font-mono text-[11px] text-brass">{stepIcon(s)}</span>
+              <span aria-hidden="true" className="inline-flex items-center font-mono text-[11px] text-brass">{stepIcon(s)}</span>
               <span className="font-mono text-[10px] text-text-muted">{i + 1}.</span>
               <span className="flex-1 text-[12px] text-text-secondary">{stepLabel(s)}</span>
-              <button type="button" className={BTN} disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Move step ${i + 1} up`} title="Move up">
-                ↑
+              <button type="button" className={`${BTN} inline-flex items-center justify-center`} disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Move step ${i + 1} up`} title="Move up">
+                <Icon.arrowUp className="size-3" aria-hidden="true" />
               </button>
               <button
                 type="button"
-                className={BTN}
+                className={`${BTN} inline-flex items-center justify-center`}
                 disabled={i === steps.length - 1}
                 onClick={() => move(i, i + 1)}
                 aria-label={`Move step ${i + 1} down`}
                 title="Move down"
               >
-                ↓
+                <Icon.arrowDown className="size-3" aria-hidden="true" />
               </button>
               <button
                 type="button"
-                className="rounded-sm border border-rose-500/20 bg-rose-500/4 px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
+                className="inline-flex items-center justify-center rounded-sm border border-rose-500/20 bg-rose-500/4 px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
                 onClick={() => removeStep(i)}
                 aria-label={`Remove step ${i + 1}`}
                 title="Remove step"
               >
-                ✕
+                <Icon.close className="size-3" aria-hidden="true" />
               </button>
             </li>
           ))}
@@ -298,31 +301,41 @@ function AddStepMenu({
     <div className="mt-3 space-y-2 rounded-md border border-border-subtle bg-black/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-display text-[10px] uppercase tracking-widest text-text-muted">Step type</span>
-        <select className={sel} value={kind} onChange={(e) => setKind(e.target.value as any)}>
-          <option value="emphasize_axis">Emphasize axis</option>
-          <option value="pin_model">Pin model</option>
-          <option value="prefer_free">Prefer free</option>
-          <option value="fallback_when">Fallback when…</option>
-        </select>
+        <VoxSelect
+          size="xs"
+          aria-label="Step type"
+          className={`w-40 ${sel}`}
+          value={kind}
+          onValueChange={(v) => setKind(v as typeof kind)}
+          options={[
+            { value: 'emphasize_axis', label: 'Emphasize axis' },
+            { value: 'pin_model', label: 'Pin model' },
+            { value: 'prefer_free', label: 'Prefer free' },
+            { value: 'fallback_when', label: 'Fallback when…' },
+          ]}
+        />
       </div>
 
       {kind === 'emphasize_axis' && (
         <div className="flex flex-wrap items-center gap-2">
-          <select className={sel} value={axis} onChange={(e) => setAxis(e.target.value as AxisKind)}>
-            {AXES.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-          <input
-            type="range"
+          <VoxSelect
+            size="xs"
+            aria-label="Axis"
+            className={`w-36 ${sel}`}
+            value={axis}
+            onValueChange={(v) => setAxis(v as AxisKind)}
+            options={AXES.map((a) => ({ value: a, label: a }))}
+          />
+          <Slider
+            ariaLabel="Axis weight"
             min={0}
             max={100}
-            value={weight}
-            onChange={(e) => setWeight(Number(e.target.value))}
-            aria-label="Axis weight"
-            className="vox-range h-1 w-40 appearance-none rounded-full"
+            step={1}
+            value={[weight]}
+            onValueChange={(vals) => {
+              if (vals[0] !== undefined) setWeight(vals[0]);
+            }}
+            className="w-40"
           />
           <span className="w-8 font-mono text-[11px] text-text-secondary">{weight}</span>
         </div>
@@ -331,13 +344,14 @@ function AddStepMenu({
       {kind === 'pin_model' && (
         <div className="flex flex-wrap items-center gap-2">
           {models.length > 0 ? (
-            <select className={`${sel} min-w-[16rem]`} value={pin} onChange={(e) => setPin(e.target.value)}>
-              {models.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            <VoxSelect
+              size="xs"
+              aria-label="Model to pin"
+              className={`w-64 ${sel}`}
+              value={pin}
+              onValueChange={setPin}
+              options={models.map((m) => ({ value: m, label: m }))}
+            />
           ) : (
             <input
               className={`${sel} min-w-[16rem]`}
@@ -358,14 +372,17 @@ function AddStepMenu({
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-display text-[10px] uppercase tracking-widest text-text-muted">When</span>
-            <select className={sel} value={fbCond} onChange={(e) => setFbCond(e.target.value as any)}>
-              {SIMPLE_CONDITIONS.map((c) => (
-                <option key={String(c)} value={String(c)}>
-                  {conditionLabel(c)}
-                </option>
-              ))}
-              <option value="cost">cost above $/call…</option>
-            </select>
+            <VoxSelect
+              size="xs"
+              aria-label="Fallback condition"
+              className={`w-48 ${sel}`}
+              value={fbCond}
+              onValueChange={(v) => setFbCond(v as typeof fbCond)}
+              options={[
+                ...SIMPLE_CONDITIONS.map((c) => ({ value: String(c), label: conditionLabel(c) })),
+                { value: 'cost', label: 'cost above $/call…' },
+              ]}
+            />
             {fbCond === 'cost' && (
               <input
                 type="number"
@@ -379,20 +396,28 @@ function AddStepMenu({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-display text-[10px] uppercase tracking-widest text-text-muted">Then</span>
-            <select className={sel} value={thenKind} onChange={(e) => setThenKind(e.target.value as any)}>
-              <option value="prefer_free">Prefer free</option>
-              <option value="pin_model">Pin model</option>
-              <option value="emphasize_axis">Emphasize axis</option>
-            </select>
+            <VoxSelect
+              size="xs"
+              aria-label="Fallback action"
+              className={`w-36 ${sel}`}
+              value={thenKind}
+              onValueChange={(v) => setThenKind(v as typeof thenKind)}
+              options={[
+                { value: 'prefer_free', label: 'Prefer free' },
+                { value: 'pin_model', label: 'Pin model' },
+                { value: 'emphasize_axis', label: 'Emphasize axis' },
+              ]}
+            />
             {thenKind === 'pin_model' &&
               (models.length > 0 ? (
-                <select className={`${sel} min-w-56`} value={thenPin} onChange={(e) => setThenPin(e.target.value)}>
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
+                <VoxSelect
+                  size="xs"
+                  aria-label="Fallback model to pin"
+                  className={`w-56 ${sel}`}
+                  value={thenPin}
+                  onValueChange={setThenPin}
+                  options={models.map((m) => ({ value: m, label: m }))}
+                />
               ) : (
                 <input
                   className={`${sel} min-w-56`}
@@ -404,21 +429,24 @@ function AddStepMenu({
               ))}
             {thenKind === 'emphasize_axis' && (
               <>
-                <select className={sel} value={thenAxis} onChange={(e) => setThenAxis(e.target.value as AxisKind)}>
-                  {AXES.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="range"
+                <VoxSelect
+                  size="xs"
+                  aria-label="Fallback axis"
+                  className={`w-36 ${sel}`}
+                  value={thenAxis}
+                  onValueChange={(v) => setThenAxis(v as AxisKind)}
+                  options={AXES.map((a) => ({ value: a, label: a }))}
+                />
+                <Slider
+                  ariaLabel="Fallback axis weight"
                   min={0}
                   max={100}
-                  value={thenWeight}
-                  onChange={(e) => setThenWeight(Number(e.target.value))}
-                  aria-label="Fallback axis weight"
-                  className="vox-range h-1 w-32 appearance-none rounded-full"
+                  step={1}
+                  value={[thenWeight]}
+                  onValueChange={(vals) => {
+                    if (vals[0] !== undefined) setThenWeight(vals[0]);
+                  }}
+                  className="w-32"
                 />
                 <span className="w-8 font-mono text-[11px] text-text-secondary">{thenWeight}</span>
               </>

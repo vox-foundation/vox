@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../../ui/Icons';
 
 export interface CodeGenVerificationDto {
   passed: boolean;
@@ -30,13 +31,23 @@ export function CodeGenVerificationCard({
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span
-            className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
+            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
               verification.passed
                 ? 'bg-emerald-500/20 text-emerald-300'
                 : 'bg-amber-500/20 text-amber-300'
             }`}
           >
-            {verification.passed ? '✓ Compiler Verified' : '⚠ Compile Diagnostics'}
+            {verification.passed ? (
+              <>
+                <Icon.check className="size-3 shrink-0" aria-hidden="true" />
+                <span>Compiler Verified</span>
+              </>
+            ) : (
+              <>
+                <Icon.alert className="size-3 shrink-0" aria-hidden="true" />
+                <span>Compile Diagnostics</span>
+              </>
+            )}
           </span>
           <span className="font-mono text-xs text-text-secondary">
             {verification.compiler ?? 'cargo check / rustc'}

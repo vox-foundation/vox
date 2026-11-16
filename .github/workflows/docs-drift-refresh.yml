@@ -1,0 +1,121 @@
+name: Docs Drift Refresh
+
+on:
+  schedule:
+    # Weekly Sunday 04:23 UTC — non-blocking refresh of docs freshness ledgers,
+    # reality findings, and external link triage (Phase 343-07 / 343-08).
+    - cron: '23 4 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  refresh-drift-reports:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/install-linux-system-deps
+
+      - uses: ./.github/actions/setup-rust
+
+      - name: Build vox CLI
+        run: cargo build -p vox-cli --locked
+
+      - name: Refresh docs freshness ledger
+        run: ./target/debug/vox audit docs-reality --update-ledger
+
+      - name: Refresh docs reality findings
+        run: ./target/debug/vox audit docs-reality
+
+      - name: Run external link checker (non-blocking)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          fail: false
+          output: lychee.json
+          args: --root-dir . --no-progress --max-retries 5 --retry-wait-time 5 --accept "200..=299,429" --timeout 40 --exclude-path docs/src/archive --exclude-path '\.claude/' --exclude-path 'assets/skills/' --exclude-path 'node_modules/' --exclude 'https://pricepertoken\.com/.*' --format json 'docs/src/**/*.md' README.md
+
+      - name: Triage lychee link failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f lychee.json ]; then
+            echo "::error::lychee did not produce lychee.json"
+            exit 1
+          fi
+          TRIAGE_DATE="$(date -u +%Y-%m-%d)"
+          export TRIAGE_DATE
+          LYCHEE_JSON=lychee.json \
+          LYCHEEIGNORE=.lycheeignore \
+          EXTERNAL_LINKS_OUT=contracts/reports/docs-freshness/external-links.v1.json \
+            ./target/debug/vox run --interp scripts/lychee-triage.vox -- --self-test
+          LYCHEE_JSON=lychee.json \
+          LYCHEEIGNORE=.lycheeignore \
+          EXTERNAL_LINKS_OUT=contracts/reports/docs-freshness/external-links.v1.json \
+            ./target/debug/vox run --interp scripts/lychee-triage.vox
+          rm -f lychee.json
+
+      - name: Stage drift reports and open draft PR (never auto-merge)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN || github.token }}
+          GH_REPO: ${{ github.repository }}
+          HAS_PAT: ${{ secrets.SSOT_AUTOREGEN_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          allowed_paths=(
+            "contracts/reports/docs-freshness/ledger.v1.json"
+            "contracts/reports/docs-freshness/findings.v1.json"
+            "contracts/reports/docs-freshness/metrics.v1.json"
+            "contracts/reports/docs-freshness/external-links.v1.json"
+            ".lycheeignore"
+          )
+          for p in "${allowed_paths[@]}"; do
+            if [ -e "$p" ]; then
+              git add "$p"
+            fi
+          done
+          unexpected=$(git diff --cached --name-only | grep -vE '^(contracts/reports/docs-freshness/(ledger|findings|metrics|external-links)\.v1\.json|\.lycheeignore)$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::unexpected staged paths in docs-drift-refresh: $unexpected"
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "Docs freshness ledgers, findings, and external links are up to date; no draft PR needed."
+            exit 0
+          fi
+          if [ "$HAS_PAT" != "true" ]; then
+            echo "::warning::SSOT_AUTOREGEN_TOKEN is not set; draft PR opened with GITHUB_TOKEN will not auto-trigger required checks."
+          fi
+          branch="bot/docs-drift-refresh"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$branch"
+          git commit -m "chore(docs): refresh weekly drift ledgers and link triage"
+          git push --force-with-lease "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}" || \
+            git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}"
+          existing_pr=$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$existing_pr" ]; then
+            gh pr create --draft --base main --head "$branch" \
+              --title "chore(docs): weekly docs drift refresh" \
+              --body "Automated non-blocking weekly refresh of docs freshness ledger, reality findings/metrics, external link failures, and proposed 403/429/5xx \`.lycheeignore\` entries. Human review required before marking Ready for Review."
+          else
+            echo "Updated existing draft PR #${existing_pr} on branch ${branch}."
+          fi

@@ -39,6 +39,7 @@ fn palette_includes_live_sessions() {
         blocks: 3,
         security_level: Default::default(),
         control_mode: Default::default(),
+        ..Default::default()
     }]);
     let results = palette.search("term-1");
     assert!(

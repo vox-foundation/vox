@@ -2,10 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { scrollAndFocusAnchor } from '../../../lib/anchorFocus';
 import { Glass } from '../../ui/Glass';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { Icon } from '../../ui/Icons';
-import { voxTransport } from '../../../transport';
+import { invokeCmd, listenEvent, voxTransport } from '../../../transport';
 import type { OrchestratorStatus, RoutingSummary, Toast } from '../../../types/tauri';
 import { DEFAULT_BUDGET_CAP_USD } from '../../../config/budget';
 import { PriorityChainEditor } from './PriorityChainEditor';
@@ -28,7 +26,11 @@ import { useBackendStatus } from '../../../hooks/useBackendStatus';
 import { SurfaceUnavailable } from '../../layout/SurfaceUnavailable';
 import { ServerConnectionSection } from './ServerConnectionSection';
 import { sectionLockedRemotely } from './settingsBackends';
+import { BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { VoxSelect } from '../../ui/Select';
+import { Slider } from '../../ui/Slider';
+import { WorkbenchPrimitivesPilotCard } from './WorkbenchPrimitivesPilotCard';
 import { decode } from '@msgpack/msgpack';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
@@ -78,13 +80,13 @@ const RowLabelContext = React.createContext<string | undefined>(undefined);
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
-      <div>
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+      <div className="min-w-0">
         <div className="font-display text-[12px] text-text-secondary">{label}</div>
         <div className="text-[11px] text-text-muted">{hint}</div>
       </div>
       <RowLabelContext.Provider value={label}>
-        <div className="shrink-0">{children}</div>
+        <div className="max-w-full shrink-0">{children}</div>
       </RowLabelContext.Provider>
     </div>
   );
@@ -121,14 +123,18 @@ function RangeInline({
   value: number; min: number; max: number; step?: number; prefix?: string; suffix?: string; onChange: (v: number) => void;
 }) {
   const label = React.useContext(RowLabelContext);
-  const pct = ((value - min) / (max - min)) * 100;
   return (
-    <div className="flex w-52 items-center gap-3">
-      <input
-        type="range" aria-label={label} min={min} max={max} step={step} value={value}
-        onChange={e => onChange(Number(e.target.value))}
-        className="vox-range flex-1 h-1.5 appearance-none rounded-full overflow-hidden border border-border-subtle"
-        style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, var(--color-overlay-hover) ${pct}%)` } as any}
+    <div className="flex w-44 max-w-full items-center gap-2.5 @sm/surface:w-52">
+      <Slider
+        ariaLabel={label ?? 'Setting value'}
+        min={min}
+        max={max}
+        step={step}
+        value={[value]}
+        onValueChange={(vals) => {
+          if (vals[0] !== undefined) onChange(vals[0]);
+        }}
+        className="flex-1"
       />
       <span className="w-14 text-right font-mono text-[11px] font-semibold text-text-secondary">{prefix}{value}{suffix}</span>
     </div>
@@ -200,8 +206,8 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const reload = useCallback(async () => {
     try {
       const [nodesRes, trustedList] = await Promise.all([
-        invoke<McpEnvelope<MeshNodesResult>>('invoke_mcp_tool', { tool: 'vox_mesh_nodes', args: {} }),
-        invoke<TrustedNodeDto[]>('list_trusted_nodes'),
+        invokeCmd<McpEnvelope<MeshNodesResult>>('invoke_mcp_tool', { tool: 'vox_mesh_nodes', args: {} }),
+        invokeCmd<TrustedNodeDto[]>('list_trusted_nodes'),
       ]);
       const m = nodesRes?.result ?? {};
       setMeta(m);
@@ -223,10 +229,10 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
     setBusy(n.id);
     try {
       if (isTrusted) {
-        await invoke<boolean>('untrust_mesh_node', { nodeId: n.id });
+        await invokeCmd<boolean>('untrust_mesh_node', { nodeId: n.id });
         pushToast({ tone: 'ok', title: 'Peer untrusted', body: n.id, cause: 'backend-ok' });
       } else {
-        await invoke<boolean>('trust_mesh_node', {
+        await invokeCmd<boolean>('trust_mesh_node', {
           nodeId: n.id,
           pubkeyHex: n.ed25519_pub_key_b64 ?? '',
           label: n.host_triple ?? null,
@@ -263,7 +269,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
             const r = aggregateMeshResources(nodes);
             if (!r.hasMetrics) return null;
             return (
-              <div className="grid grid-cols-4 gap-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-center">
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-center @2xl/surface:grid-cols-4">
                 <div><div className="text-[18px] text-text-primary">{r.readyCount}/{r.total}</div><div className="text-[9px] uppercase tracking-widest text-text-muted">nodes ready</div></div>
                 <div><div className="text-[18px] text-text-primary">{r.gpusFree}</div><div className="text-[9px] uppercase tracking-widest text-text-muted">GPUs free</div></div>
                 <div><div className="text-[18px] text-text-primary">{r.ramFreeGib.toFixed(0)} GiB</div><div className="text-[9px] uppercase tracking-widest text-text-muted">RAM free</div></div>
@@ -271,32 +277,36 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
               </div>
             );
           })()}
-          {nodes.map(p => {
-            const isTrusted = !!trusted[p.id];
-            const online = p.status === 'online';
-            return (
-              <div key={p.id} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle p-3">
-                <div className="flex items-center gap-3">
-                  <span className={`size-2 rounded-full ${online ? 'bg-[#7B8C32]' : 'bg-text-muted'}`} />
-                  <div className="leading-tight">
-                    <div className="font-mono text-[12px] text-text-primary break-all">{p.id}</div>
-                    <div className="font-mono text-[10px] text-text-muted">{(p.host_triple ?? '—')} · {(p.gpu_summary ?? '—')}</div>
+          <BentoScrollRegion ariaLabel="Mesh peer trust roster" className="max-h-96 pr-1">
+            <div className="grid grid-cols-1 gap-2 @4xl/surface:grid-cols-2">
+              {nodes.map(p => {
+                const isTrusted = !!trusted[p.id];
+                const online = p.status === 'online';
+                return (
+                  <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border-subtle bg-overlay-subtle p-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`size-2 shrink-0 rounded-full ${online ? 'bg-[#7B8C32]' : 'bg-text-muted'}`} />
+                      <div className="min-w-0 leading-tight">
+                        <div className="font-mono text-[12px] text-text-primary break-all">{p.id}</div>
+                        <div className="font-mono text-[10px] text-text-muted">{(p.host_triple ?? '—')} · {(p.gpu_summary ?? '—')}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+                        isTrusted ? 'bg-[#5B6B24]/25 text-[#DCE7B6]' : 'bg-bg-elevated/40 text-text-muted'
+                      }`}>{isTrusted ? 'trusted' : (p.trust_tier ?? 'untrusted')}</span>
+                      <button
+                        type="button"
+                        disabled={busy === p.id}
+                        onClick={() => toggleTrust(p)}
+                        className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+                      >{isTrusted ? 'untrust' : 'trust'}</button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-                    isTrusted ? 'bg-[#5B6B24]/25 text-[#DCE7B6]' : 'bg-bg-elevated/40 text-text-muted'
-                  }`}>{isTrusted ? 'trusted' : (p.trust_tier ?? 'untrusted')}</span>
-                  <button
-                    type="button"
-                    disabled={busy === p.id}
-                    onClick={() => toggleTrust(p)}
-                    className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
-                  >{isTrusted ? 'untrust' : 'trust'}</button>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          </BentoScrollRegion>
         </div>
       )}
     </>
@@ -313,7 +323,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
 
   const reload = useCallback(async () => {
     try {
-      setKey(await invoke<SigningKeyDto>('signing_key_status'));
+      setKey(await invokeCmd<SigningKeyDto>('signing_key_status'));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Could not load signing key', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -334,7 +344,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
     if (!password) return;
     setRotating(true);
     try {
-      const next = await invoke<SigningKeyDto>('rotate_signing_key', { password });
+      const next = await invokeCmd<SigningKeyDto>('rotate_signing_key', { password });
       setKey(next);
       pushToast({ tone: 'ok', title: `Key ${verb}d`, body: next.nodeId || next.fingerprint, cause: 'backend-ok' });
       if (present) {
@@ -457,8 +467,8 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   const reload = async () => {
     try {
       const [next, st] = await Promise.all([
-        invoke<SecretStatusDto[]>('list_secret_status'),
-        invoke<SecretsBackendStatusDto>('secrets_backend_status').catch(() => null),
+        invokeCmd<SecretStatusDto[]>('list_secret_status'),
+        invokeCmd<SecretsBackendStatusDto>('secrets_backend_status').catch(() => null),
       ]);
       setRows(next);
       if (st) setStatus(st);
@@ -523,7 +533,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   const migrate = async () => {
     setImportBusy(true);
     try {
-      const moved = await invoke<number>('migrate_auth_store');
+      const moved = await invokeCmd<number>('migrate_auth_store');
       pushToast({ tone: 'ok', title: 'Auth store migrated', body: `${moved} entr${moved === 1 ? 'y' : 'ies'} moved to vault`, cause: 'backend-ok' });
       await reload();
     } catch (err) {
@@ -536,7 +546,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   const runPreview = async () => {
     setImportBusy(true);
     try {
-      const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: false });
+      const res = await invokeCmd<ImportEnvResultDto>('import_env', { path: envPath || null, apply: false });
       setPreview(res);
       if (res.count === 0) {
         pushToast({ tone: 'warn', title: 'No managed secrets found', body: envPath || '.env', cause: 'validation' });
@@ -552,7 +562,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   const runImport = async () => {
     setImportBusy(true);
     try {
-      const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: true });
+      const res = await invokeCmd<ImportEnvResultDto>('import_env', { path: envPath || null, apply: true });
       setPreview(null);
       pushToast({ tone: 'ok', title: 'Secrets imported', body: `${res.count} value${res.count === 1 ? '' : 's'} stored in vault`, cause: 'backend-ok' });
       await reload();
@@ -568,7 +578,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
     if (!value) return;
     setBusy(key);
     try {
-      await invoke<boolean>('set_secret', { key, value });
+      await invokeCmd<boolean>('set_secret', { key, value });
       // Clear the field immediately — the value never lives in UI state beyond this.
       setDrafts(d => { const n = { ...d }; delete n[key]; return n; });
       pushToast({ tone: 'ok', title: 'Secret saved', body: key, cause: 'backend-ok' });
@@ -584,7 +594,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   const remove = async (key: string) => {
     setBusy(key);
     try {
-      await invoke<boolean>('remove_secret', { key });
+      await invokeCmd<boolean>('remove_secret', { key });
       pushToast({ tone: 'ok', title: 'Secret removed', body: key, cause: 'backend-ok' });
       await reload();
     } catch (err) {
@@ -595,11 +605,11 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
   };
 
   const renderSecretRow = (r: SecretStatusDto) => (
-    <div key={r.id} id={`secret-row-${r.canonicalEnv}`} data-testid={`secret-row-${r.canonicalEnv}`} className="rounded-md border border-border-subtle bg-overlay-subtle p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="leading-tight">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[12px] text-text-primary">{r.canonicalEnv}</span>
+    <div key={r.id} id={`secret-row-${r.canonicalEnv}`} data-testid={`secret-row-${r.canonicalEnv}`} className="min-w-0 rounded-md border border-border-subtle bg-overlay-subtle p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 leading-tight">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[12px] text-text-primary break-all">{r.canonicalEnv}</span>
             {r.required && (
               <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">required</span>
             )}
@@ -615,14 +625,14 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
           )}
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <input
           type="password"
           autoComplete="new-password"
           placeholder="Paste new value…"
           value={drafts[r.canonicalEnv] ?? ''}
           onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
-          className="flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
+          className="min-w-[8rem] flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
         />
         <button
           type="button"
@@ -680,7 +690,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
             value={envPath}
             placeholder="default .env (optional path)"
             onChange={e => { setEnvPath(e.target.value); setPreview(null); }}
-            className="min-w-[180px] flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
+            className="min-w-0 flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
           />
           <button
             type="button"
@@ -721,7 +731,7 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
       {loading ? (
         <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
       ) : (
-        <div className="mt-4 space-y-2">
+        <BentoScrollRegion ariaLabel="Managed secrets taxonomy" className="mt-4 max-h-[38rem] space-y-2 pr-1">
           {groups.map(g => {
             const isCollapsed = !!collapsed[g.slug];
             return (
@@ -729,10 +739,14 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
                 <button
                   type="button"
                   onClick={() => toggleGroup(g.slug)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-overlay-subtle"
+                  className="flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-left hover:bg-overlay-subtle"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[10px] text-text-muted">{isCollapsed ? '▸' : '▾'}</span>
+                    {isCollapsed ? (
+                      <Icon.chevR className="size-3 shrink-0 text-text-muted" aria-hidden="true" />
+                    ) : (
+                      <Icon.chevronDown className="size-3 shrink-0 text-text-muted" aria-hidden="true" />
+                    )}
                     <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-text-secondary">{g.slug}</span>
                     {g.needsAttention && (
                       <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">action needed</span>
@@ -743,14 +757,14 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
                   </span>
                 </button>
                 {!isCollapsed && (
-                  <div className="space-y-2 px-2 pb-2">
+                  <div className="grid grid-cols-1 gap-2 px-2 pb-2 @4xl/surface:grid-cols-2">
                     {g.items.map(renderSecretRow)}
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
+        </BentoScrollRegion>
       )}
     </>
   );
@@ -788,7 +802,7 @@ function LlmSpendMeter() {
   const [spend, setSpend] = useState<LlmSpendDto | null>(null);
   const reload = useCallback(async () => {
     try {
-      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
+      setSpend(await invokeCmd<LlmSpendDto>('get_llm_spend', {}));
     } catch {
       setSpend(null);
     }
@@ -796,7 +810,7 @@ function LlmSpendMeter() {
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => {
     // Guarded: listen() rejects outside Tauri (bare browser/tests).
-    const un = listen('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
+    const un = listenEvent('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
     return () => { un.then((f) => f?.()); };
   }, [reload]);
   if (!spend) return null;
@@ -822,7 +836,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
 
   const reload = useCallback(async () => {
     try {
-      const next = await invoke<UserConfigFieldDto[]>('get_user_config');
+      const next = await invokeCmd<UserConfigFieldDto[]>('get_user_config');
       setFields(next);
       setDrafts({});
     } catch (err) {
@@ -837,7 +851,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
   // changes (this GUI, env reload, or mesh sync). Re-pull the catalog on each event.
   useEffect(() => {
     // Guarded: listen() rejects outside Tauri (bare browser/tests).
-    const un = listen('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
+    const un = listenEvent('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
     return () => { un.then((f) => f?.()); };
   }, [reload]);
   useEffect(() => () => { if (savedToast.current) clearTimeout(savedToast.current); }, []);
@@ -845,7 +859,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
   const save = async (f: UserConfigFieldDto, value: string) => {
     setBusy(f.key);
     try {
-      await invoke('set_user_config', { key: f.key, value });
+      await invokeCmd('set_user_config', { key: f.key, value });
       if (savedToast.current) clearTimeout(savedToast.current);
       savedToast.current = setTimeout(() => {
         pushToast({ tone: 'ok', title: 'Setting saved', body: f.label, cause: 'backend-ok' });
@@ -861,7 +875,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
   const reset = async (f: UserConfigFieldDto) => {
     setBusy(f.key);
     try {
-      await invoke('reset_user_config', { key: f.key });
+      await invokeCmd('reset_user_config', { key: f.key });
       pushToast({ tone: 'ok', title: 'Reset to default', body: f.label, cause: 'backend-ok' });
       await reload();
     } catch (err) {
@@ -892,14 +906,14 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
       );
     }
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
           inputMode={f.kind === 'float' || f.kind === 'int' ? 'numeric' : 'text'}
           value={draftFor(f)}
           placeholder={f.default || '—'}
           onChange={e => setDrafts(d => ({ ...d, [f.key]: e.target.value }))}
-          className="w-56 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
+          className="w-40 max-w-full rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden @sm/surface:w-56"
         />
         <button
           type="button"
@@ -929,10 +943,10 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
           {groups.map(({ group, items }) => (
             <div key={group}>
               <div className="font-display text-[11px] uppercase tracking-[0.15em] text-text-muted">{group}</div>
-              <div className="mt-2 space-y-2">
+              <div className="mt-2 grid grid-cols-1 gap-2 @4xl/surface:grid-cols-2">
                 {items.map(f => (
                   <Row key={f.key} label={f.label} hint={f.hint}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {control(f)}
                       <button
                         type="button"
@@ -964,7 +978,7 @@ function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t:
   useEffect(() => {
     (async () => {
       try {
-        const c = await invoke<Record<string, unknown>>('get_llm_config');
+        const c = await invokeCmd<Record<string, unknown>>('get_llm_config');
         setCfg({
           maxConcurrentRequests: Number(c.max_concurrent_requests ?? 8),
           openrouterMaxConcurrent:
@@ -973,7 +987,7 @@ function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t:
         });
       } catch { /* defaults */ }
       try {
-        const s = await invoke<{ configured: boolean }>('openrouter_key_status');
+        const s = await invokeCmd<{ configured: boolean }>('openrouter_key_status');
         setKeyConfigured(s.configured);
       } catch { /* probe best-effort */ }
     })();
@@ -981,7 +995,7 @@ function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t:
 
   const save = (next: typeof cfg) => {
     setCfg(next);
-    invoke('set_llm_config', {
+    invokeCmd('set_llm_config', {
       config: {
         maxConcurrentRequests: next.maxConcurrentRequests,
         openrouterMaxConcurrent: next.openrouterMaxConcurrent,
@@ -994,7 +1008,7 @@ function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t:
     <>
       <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-llm')}</h2>
       <p className="mt-0.5 text-[11px] text-text-muted">Concurrency throttle for LLM egress. OpenRouter paid tier has no platform request cap, so parallelism is the real dial.</p>
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 @4xl/surface:grid-cols-2">
         <Row label="Max parallel LLM requests" hint="Global ceiling across all providers (AIMD throttle)">
           <RangeInline value={cfg.maxConcurrentRequests} min={1} max={64} onChange={v => save({ ...cfg, maxConcurrentRequests: v })} />
         </Row>
@@ -1062,7 +1076,7 @@ function SttSettingsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
 
   const reload = useCallback(async () => {
     try {
-      setFields(await invoke<SttConfigFieldDto[]>('get_stt_config'));
+      setFields(await invokeCmd<SttConfigFieldDto[]>('get_stt_config'));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Could not load voice settings', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -1075,7 +1089,7 @@ function SttSettingsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const save = async (key: string, value: string) => {
     setBusy(key);
     try {
-      await invoke('set_stt_config', { key, value });
+      await invokeCmd('set_stt_config', { key, value });
       await reload();
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -1091,7 +1105,7 @@ function SttSettingsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
       {loading ? (
         <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
       ) : (
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 @4xl/surface:grid-cols-2">
           {fields.map(f => (
             <Row key={f.key} label={f.label} hint={f.hint}>
               <div className="inline-flex flex-wrap items-center rounded-md border border-border-subtle bg-black/30 p-0.5">
@@ -1236,7 +1250,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       // Defer orchestrator persistence until real values are loaded, so we never
       // write defaults over a user's on-disk config before hydration completes.
       if (hydrated) {
-        await invoke('set_orchestrator_config', { config: next });
+        await invokeCmd('set_orchestrator_config', { config: next });
       }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -1254,7 +1268,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           voxTransport.getGuiPreference('gui.telemetry'),
           voxTransport.getGuiPreference('gui.sign'),
           voxTransport.getGuiPreference('gui.checkpointMins'),
-          invoke<Uint8Array>('get_orchestrator_status_bin').catch(() => null),
+          invokeCmd<Uint8Array>('get_orchestrator_status_bin').catch(() => null),
         ]);
         let orchPatch: Partial<SettingsState> = {};
         if (statusRaw) {
@@ -1287,7 +1301,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       try {
         // A backend with no [orchestrator] table answers null; read it as empty (the updater
         // below runs during render, so a throw here would take the whole surface down).
-        const cfg = (await invoke<Record<string, unknown> | null>('get_orchestrator_config')) ?? {};
+        const cfg = (await invokeCmd<Record<string, unknown> | null>('get_orchestrator_config')) ?? {};
         const num = (k: string) => (cfg[k] == null ? undefined : Number(cfg[k]));
         const bool = (k: string) => (cfg[k] == null ? undefined : Boolean(cfg[k]));
         setVals((prev) => ({
@@ -1313,7 +1327,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       }
     };
     hydrate();
-    invoke<{ enabled: boolean; mode: string }>('get_gamify_settings').then(setGamify).catch(() => {});
+    invokeCmd<{ enabled: boolean; mode: string }>('get_gamify_settings').then(setGamify).catch(() => {});
   }, []);
 
   const [gamify, setGamify] = useState<{ enabled: boolean; mode: string }>({ enabled: true, mode: 'balanced' });
@@ -1322,7 +1336,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     const next = { ...gamify, ...patch };
     setGamify(next);
     try {
-      await invoke('set_gamify_settings', { enabled: next.enabled, mode: next.mode });
+      await invokeCmd('set_gamify_settings', { enabled: next.enabled, mode: next.mode });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Gamify save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
@@ -1382,95 +1396,132 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
   )?.[0] ?? null;
 
   return (
-    <div className="grid grid-cols-12 gap-5">
+    <div className="@container/surface flex min-h-0 min-w-0 flex-col gap-4">
       <div role="status" aria-live="polite" className="sr-only">
         {prefAnnounce}
       </div>
-      <div className="col-span-12">
-        <RomanSurfaceHeader
-          domainTag="SYSTEM · SETTINGS"
-          title={useLabel('settings')}
-          headingLevel={2}
-          subtitle="LEX & STATUTA · CLAVIS SECRETS · ORCHESTRATOR POSTURE & ROUTING WEIGHTS"
-          waxSealBadge="CLAVIS SEALED"
-          icon={<Icon.shield className="size-4 text-[#F3E5AB]" />}
-          gauges={[
-            { label: 'Concurrency', valueText: `${vals.concurrency}`, ratio: Math.min(1, vals.concurrency / 16), tone: 'gold' },
-            { label: 'Budget Cap', valueText: `$${vals.capUsd}`, ratio: Math.min(1, vals.capUsd / 50), tone: 'emerald' },
-            { label: 'Doubt Floor', valueText: `${Math.round(vals.doubtThresh * 100)}%`, ratio: vals.doubtThresh, tone: 'gold' },
-          ]}
-        />
-      </div>
-      {/* Nav */}
-      <Glass
-        style={{
-          backgroundImage:
-            "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-        className="vox-marble-tablet col-span-12 md:col-span-3 p-3 border-2 border-[#C59B27]/85 shadow-[0_8px_22px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.92)]"
-      >
-        <input
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          placeholder="Search settings…"
-          aria-label="Search settings"
-          className="mb-2 w-full rounded-lg border border-[#A67C1E] bg-[#FDFBF7] px-2.5 py-1.5 text-[12px] font-medium text-[#1C140C] placeholder:text-[#7A6136] outline-hidden focus:border-[#8C6825]"
-        />
-        {filter.trim() ? (
-          <nav className="flex flex-col gap-1">
-            {searchSettings(filter).map(entry => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => { setSection(entry.section); setFilter(''); }}
-                className="flex flex-col rounded-lg px-3 py-2 text-left text-[#2B1F0F] hover:bg-white/70 hover:text-[#1C140C] focus:outline-hidden focus-visible:ring-1 focus-visible:ring-[#8C6825]"
-              >
-                <span className="text-[12px] font-semibold">{entry.label}</span>
-                <span className="text-[10px] text-[#5C441E]">{entry.hint}</span>
-              </button>
-            ))}
-            {searchSettings(filter).length === 0 && (
-              <p className="px-3 py-2 text-[11px] text-[#5C441E]">No settings match.</p>
+      <RomanSurfaceHeader
+        domainTag="SYSTEM · SETTINGS"
+        title={useLabel('settings')}
+        headingLevel={2}
+        subtitle="LEX & STATUTA · CLAVIS SECRETS · ORCHESTRATOR POSTURE & ROUTING WEIGHTS"
+        waxSealBadge="CLAVIS SEALED"
+        icon={<Icon.shield className="size-4 text-[#F3E5AB]" />}
+        gauges={[
+          {
+            label: 'Concurrency',
+            valueText: `${vals.concurrency}`,
+            ratio: Math.max(0, Math.min(1, vals.concurrency / 16)),
+            tone: 'gold',
+            purpose: 'Max concurrent agent ceiling',
+            actionHint: 'Open Scaling settings',
+            active: section === 'scaling',
+            onClick: () => {
+              setFilter('');
+              setSection('scaling');
+            },
+          },
+          {
+            label: 'Budget Cap',
+            valueText: `$${vals.capUsd}`,
+            ratio: Math.max(0, Math.min(1, vals.capUsd / 50)),
+            tone: 'emerald',
+            purpose: 'Global orchestrator USD cap',
+            actionHint: 'Open Orchestrator budget settings',
+            active: section === 'orchestrator',
+            onClick: () => {
+              setFilter('');
+              setSection('orchestrator');
+            },
+          },
+          {
+            label: 'Doubt Floor',
+            valueText: `${Math.round(vals.doubtThresh * 100)}%`,
+            ratio: Math.max(0, Math.min(1, vals.doubtThresh)),
+            tone: 'gold',
+            purpose: 'Auto-doubt confidence threshold',
+            actionHint: 'Open Model routing settings',
+            active: section === 'routing',
+            onClick: () => {
+              setFilter('');
+              setSection('routing');
+            },
+          },
+        ]}
+      />
+      <BentoGrid preset="hero" className="items-start">
+        {/* Nav */}
+        <Glass
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+          className="vox-marble-tablet min-w-0 p-3 border-2 border-[#C59B27]/85 shadow-[0_8px_22px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.92)] @3xl/surface:col-span-4 @5xl/surface:col-span-3"
+        >
+          <input
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Search settings…"
+            aria-label="Search settings"
+            className="mb-2 w-full rounded-lg border border-[#A67C1E] bg-[#FDFBF7] px-2.5 py-1.5 text-[12px] font-medium text-[#1C140C] placeholder:text-[#7A6136] outline-hidden focus:border-[#8C6825]"
+          />
+          <BentoScrollRegion ariaLabel="Settings navigation" className="max-h-[36rem] pr-0.5">
+            {filter.trim() ? (
+              <nav className="flex flex-col gap-1">
+                {searchSettings(filter).map(entry => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => { setSection(entry.section); setFilter(''); }}
+                    className="flex flex-col rounded-lg px-3 py-2 text-left text-[#2B1F0F] hover:bg-white/70 hover:text-[#1C140C] focus:outline-hidden focus-visible:ring-1 focus-visible:ring-[#8C6825]"
+                  >
+                    <span className="text-[12px] font-semibold">{entry.label}</span>
+                    <span className="text-[10px] text-[#5C441E]">{entry.hint}</span>
+                  </button>
+                ))}
+                {searchSettings(filter).length === 0 && (
+                  <p className="px-3 py-2 text-[11px] text-[#5C441E]">No settings match.</p>
+                )}
+              </nav>
+            ) : (
+              <nav className="flex flex-col gap-1">
+                {SECTIONS.map(s => {
+                  const IcoCmp = (Icon as any)[s.icon] ?? Icon.bolt;
+                  const on = section === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      data-testid={`settings-nav-${s.id}`}
+                      onClick={() => setSection(s.id)}
+                      className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors ${
+                        on
+                          ? 'border-[#9A7014] bg-linear-to-r from-[#F3E5AB] via-[#E5CE82] to-[#DFC878] text-[#1C140C] font-bold shadow-[0_2px_6px_rgba(28,20,12,0.18),inset_0_1px_0_rgba(255,255,255,0.9)]'
+                          : 'border-transparent text-text-secondary hover:border-border-strong hover:bg-overlay-hover hover:text-text-primary'
+                      }`}
+                    >
+                      <IcoCmp className={`size-4 shrink-0 ${on ? 'text-[#1C140C]' : 'text-[#6B5125]'}`} />
+                      <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
             )}
-          </nav>
-        ) : (
-        <nav className="flex flex-col gap-1">
-          {SECTIONS.map(s => {
-            const IcoCmp = (Icon as any)[s.icon] ?? Icon.bolt;
-            const on = section === s.id;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                data-testid={`settings-nav-${s.id}`}
-                onClick={() => setSection(s.id)}
-                className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition ${
-                  on
-                    ? 'border-[#9A7014] bg-linear-to-r from-[#F3E5AB] via-[#E5CE82] to-[#DFC878] text-[#1C140C] font-bold shadow-[0_2px_6px_rgba(28,20,12,0.18),inset_0_1px_0_rgba(255,255,255,0.9)]'
-                    : 'border-transparent text-text-secondary hover:border-border-strong hover:bg-overlay-hover hover:text-text-primary'
-                }`}
-              >
-                <IcoCmp className={`size-4 ${on ? 'text-[#1C140C]' : 'text-[#6B5125]'}`} />
-                <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase">{s.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        )}
-      </Glass>
+          </BentoScrollRegion>
+        </Glass>
 
-      {/* Content */}
-      <Glass className="col-span-12 md:col-span-9 p-5">
-        {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
-        {sectionLocked && section === 'runtime' && <LlmSpendMeter />}
-        {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
-        {shownSection === 'orchestrator' && (
-          <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-orchestrator')}</h2>
-            <p className="mt-0.5 text-[11px] text-text-muted">Global scheduling, budget, and verification policy</p>
-            <div className="mt-4 space-y-3">
+        {/* Content */}
+        <Glass className="min-w-0 p-4 @3xl/surface:col-span-8 @5xl/surface:col-span-9 @3xl/surface:p-5">
+          {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
+          {sectionLocked && section === 'runtime' && <LlmSpendMeter />}
+          {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
+          {shownSection === 'orchestrator' && (
+            <>
+              <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-orchestrator')}</h2>
+              <p className="mt-0.5 text-[11px] text-text-muted">Global scheduling, budget, and verification policy</p>
+              <div className="mt-4 grid grid-cols-1 gap-3 @4xl/surface:grid-cols-2">
               <Row label="Max concurrent agents" hint="Hard cap before scheduler back-pressure">
                 <RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />
               </Row>
@@ -1520,7 +1571,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-scaling')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Spawn and retire agents automatically based on queue load and local host resources</p>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 grid grid-cols-1 gap-3 @4xl/surface:grid-cols-2">
               <Row label="Auto-scaling" hint="Let the orchestrator add/remove agents dynamically">
                 <Toggle on={vals.scalingEnabled} onClick={() => update({ scalingEnabled: !vals.scalingEnabled })} />
               </Row>
@@ -1569,13 +1620,13 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             {/* Emphasis: presets + three labeled characteristic sliders */}
             <div className="mt-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
               <div className="font-display text-[12px] tracking-[0.12em] uppercase text-text-secondary">Emphasis</div>
-              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="mt-3 grid grid-cols-2 gap-2 @2xl/surface:grid-cols-4">
                 {EMPHASIS_PRESETS.map(([name, preset]) => (
                   <button
                     key={name}
                     type="button"
                     onClick={() => applyEmphasis(preset)}
-                    className={`rounded-lg border p-2 text-center transition ${
+                    className={`rounded-lg border p-2 text-center transition-colors ${
                       activePreset === name ? 'border-brass/40 bg-brass/5 text-text-primary' : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-white/15 hover:text-text-secondary'
                     }`}
                   >
@@ -1583,7 +1634,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                   </button>
                 ))}
               </div>
-              <div className="mt-3 space-y-3">
+              <div className="mt-3 grid grid-cols-1 gap-3 @4xl/surface:grid-cols-2">
                 <Row label="Intelligence" hint="Prefer higher-capability models">
                   <RangeInline value={emphasis.intelligence} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, intelligence: v })} />
                 </Row>
@@ -1599,13 +1650,23 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             <button
               type="button"
               onClick={() => setAdvanced(a => !a)}
-              className="mt-4 font-display text-[11px] uppercase tracking-[0.15em] text-text-muted hover:text-text-secondary"
+              className="mt-4 inline-flex items-center gap-1 font-display text-[11px] uppercase tracking-[0.15em] text-text-muted hover:text-text-secondary"
             >
-              {advanced ? '▾ Hide advanced axes' : '▸ Advanced (all 6 axes)'}
+              {advanced ? (
+                <>
+                  <Icon.chevronDown className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Hide advanced axes</span>
+                </>
+              ) : (
+                <>
+                  <Icon.chevR className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Advanced (all 6 axes)</span>
+                </>
+              )}
             </button>
 
             {advanced && (
-            <div className="mt-3 space-y-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 @4xl/surface:grid-cols-2">
               <Row label="Efficiency (cost)" hint="Prefer cheaper models when viable">
                 <RangeInline value={routing.efficiency} min={0} max={100} onChange={v => updateRouting({ efficiency: v })} />
               </Row>
@@ -1656,13 +1717,13 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-telemetry')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Where Vox sends spans, metrics, and traces</p>
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-1 gap-2 @xl/surface:grid-cols-3">
               {([['off', 'Off', 'Nothing leaves the device'], ['local', 'Local', 'OTLP → localhost:4317'], ['cloud', 'Cloud', 'Encrypted → vendor']] as [string, string, string][]).map(([id, l, h]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => update({ telemetry: id })}
-                  className={`rounded-xl border p-3 text-left transition ${
+                  className={`rounded-xl border p-3 text-left transition-colors ${
                     vals.telemetry === id ? 'border-brass/40 bg-brass/5' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
                   }`}
                 >
@@ -1672,8 +1733,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
               ))}
             </div>
             <div className="mt-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3" data-testid="community-intelligence-settings-card">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
                   <div className="font-display text-[12px] text-text-secondary">Community Intelligence Bundle (k &gt;= 20 · Ed25519 Signed)</div>
                   <div className="text-[11px] text-text-muted">
                     Bounded Empirical Bayes priors (±15% max weight delta) from ~/.vox/cache/community-intelligence.v1.json. Set VOX_COMMUNITY_INTELLIGENCE=off to disable independently of telemetry upload.
@@ -1693,32 +1754,34 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-keybinds')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Click a shortcut to rebind it. Press any key combination to set the new chord.</p>
-            <div className="mt-4 grid grid-cols-1 gap-1.5 md:grid-cols-2">
-              {ACTION_REGISTRY.map(a => (
-                <div key={a.id} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2">
-                  <span className="text-[12px] text-text-secondary">{a.label}</span>
-                  <button
-                    type="button"
-                    data-testid={`keybind-btn-${a.id}`}
-                    onClick={() => setCapturingId(capturingId === a.id ? null : a.id)}
-                    className={`rounded border px-2 py-0.5 font-mono text-[10px] transition ${
-                      capturingId === a.id
-                        ? 'border-brass/60 bg-brass/10 text-brass animate-pulse'
-                        : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
-                    }`}
-                  >
-                    {capturingId === a.id ? 'press keys…' : (keybindings[a.id] ?? DEFAULT_BINDINGS[a.id])}
-                  </button>
-                </div>
-              ))}
-            </div>
+            <BentoScrollRegion ariaLabel="Keyboard shortcuts" className="mt-4 max-h-[30rem] pr-1">
+              <div className="grid grid-cols-1 gap-1.5 @2xl/surface:grid-cols-2">
+                {ACTION_REGISTRY.map(a => (
+                  <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2">
+                    <span className="text-[12px] text-text-secondary">{a.label}</span>
+                    <button
+                      type="button"
+                      data-testid={`keybind-btn-${a.id}`}
+                      onClick={() => setCapturingId(capturingId === a.id ? null : a.id)}
+                      className={`rounded border px-2 py-0.5 font-mono text-[10px] transition-colors ${
+                        capturingId === a.id
+                          ? 'border-brass/60 bg-brass/10 text-brass animate-pulse'
+                          : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
+                      }`}
+                    >
+                      {capturingId === a.id ? 'press keys…' : (keybindings[a.id] ?? DEFAULT_BINDINGS[a.id])}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </BentoScrollRegion>
             <button
               type="button"
               onClick={() => {
                 setBindings(DEFAULT_BINDINGS);
                 setCapturingId(null);
               }}
-              className="mt-3 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-muted hover:text-text-secondary transition"
+              className="mt-3 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-muted hover:text-text-secondary transition-colors"
             >
               Reset to defaults
             </button>
@@ -1726,26 +1789,28 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         )}
 
         {shownSection === 'gamify' && (
-          <div className="space-y-3">
-            <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
+          <div className="grid grid-cols-1 gap-3 @4xl/surface:grid-cols-2">
+            <label className="flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Gamification enabled</span>
               <input type="checkbox" checked={gamify.enabled} onChange={e => updateGamify({ enabled: e.target.checked })} />
             </label>
-            <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
-              <span>Mode</span>
-              <select
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
+              <label htmlFor="settings-gamify-mode">Mode</label>
+              <VoxSelect
+                id="settings-gamify-mode"
                 aria-label="Gamification mode"
                 value={gamify.mode}
                 disabled={!gamify.enabled}
-                onChange={e => updateGamify({ mode: e.target.value })}
-                className="rounded-sm bg-black/40 px-2.5 py-1 pr-7 text-text-secondary"
-              >
-                <option value="balanced">Balanced</option>
-                <option value="serious">Serious (silent)</option>
-                <option value="learning">Learning</option>
-              </select>
-            </label>
-            <p className="text-[11px] text-text-muted">Serious mode keeps rewards active but hides overlays and hints.</p>
+                onValueChange={v => updateGamify({ mode: v })}
+                options={[
+                  { value: 'balanced', label: 'Balanced' },
+                  { value: 'serious', label: 'Serious (silent)' },
+                  { value: 'learning', label: 'Learning' },
+                ]}
+                className="w-44 max-w-full bg-black/40 text-text-secondary"
+              />
+            </div>
+            <p className="text-[11px] text-text-muted @4xl/surface:col-span-2">Serious mode keeps rewards active but hides overlays and hints.</p>
           </div>
         )}
 
@@ -1755,7 +1820,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             <p className="mt-0.5 text-[11px] text-text-muted">
               Select the unified Imperial Carrara White &amp; Gold aesthetic (default) or switch to the Minimalist Grey-Blue Slate dark mode for a distraction-free dark workspace.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 @2xl/surface:grid-cols-2 @6xl/surface:grid-cols-4">
               {[
                 {
                   id: 'arcane',
@@ -1842,7 +1907,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                       {contractReport.enforced ? 'ENFORCED · ZERO DRIFT' : 'DRIFT DETECTED'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-[11px]">
+                  <div className="grid grid-cols-1 gap-2 text-[11px] @xs/surface:grid-cols-2 @3xl/surface:grid-cols-4">
                     <div className="rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-2">
                       <div className="font-display text-[9px] uppercase tracking-wider text-text-muted">Active Profile</div>
                       <div className="mt-0.5 font-semibold text-text-primary truncate">{contractReport.activeThemeLabel}</div>
@@ -1869,6 +1934,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 </div>
               );
             })()}
+            <WorkbenchPrimitivesPilotCard />
           </>
         )}
 
@@ -1882,7 +1948,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             )}
           </>
         )}
-      </Glass>
+        </Glass>
+      </BentoGrid>
     </div>
   );
 }

@@ -52,6 +52,7 @@ Discover the logical repository root (Git work tree or fallback), compute a stab
 |---|---|
 | `gpu_inventory` | — |
 | `populi_toml` | — |
+| `core` | Lightweight leaf discovery, root-resolution, and capability primitives (`STRUCT-DAG-SPEED-01`).  Downstream crates that only need workspace root discovery or capability hints can import from `vox_repository::core` without coupling to `repo_catalog`, `federation`, or `skill_scaffold`. |
 
 ### Structs
 
@@ -77,22 +78,22 @@ graph {
     vox_cli_core -> vox_repository
     node vox_cli_research: "vox-cli-research"
     vox_cli_research -> vox_repository
-    node vox_codegen: "vox-codegen"
-    vox_codegen -> vox_repository
-    node vox_compiler: "vox-compiler"
-    vox_compiler -> vox_repository
-    node vox_corpus: "vox-corpus"
-    vox_corpus -> vox_repository
-    node vox_db: "vox-db"
-    vox_db -> vox_repository
-    node vox_doc_inventory: "vox-doc-inventory"
-    vox_doc_inventory -> vox_repository
     node vox_gui: "vox-gui"
     vox_gui -> vox_repository
     node vox_integration_tests: "vox-integration-tests"
     vox_integration_tests -> vox_repository
     node vox_ml_cli: "vox-ml-cli"
     vox_ml_cli -> vox_repository
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_repository
+    node vox_orchestrator_d: "vox-orchestrator-d"
+    vox_orchestrator_d -> vox_repository
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_repository
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    vox_plugin_populi_mesh -> vox_repository
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_repository
 }
 ```
 
@@ -104,17 +105,11 @@ graph {
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
-| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
-| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
-| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
-| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
-| [`vox-doc-inventory`](./vox-doc-inventory.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
-| [`vox-orchestrator-driver`](./vox-orchestrator-driver.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 | [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
 | [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
@@ -125,7 +120,7 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `RepositoryContext` | `pub struct RepositoryContext` | [`crates/vox-repository/src/lib.rs#L141-L156`](../../../crates/vox-repository/src/lib.rs#L141-L156) | Fully resolved repository context for tooling (MCP, sessions, affinity). |
+| `struct` | `RepositoryContext` | `pub struct RepositoryContext` | [`crates/vox-repository/src/lib.rs#L142-L157`](../../../crates/vox-repository/src/lib.rs#L142-L157) | Fully resolved repository context for tooling (MCP, sessions, affinity). |
 | `struct` | `gpu_inventory::GpuInventorySnapshot` | `pub struct GpuInventorySnapshot` | [`crates/vox-repository/src/gpu_inventory.rs#L10-L19`](../../../crates/vox-repository/src/gpu_inventory.rs#L10-L19) | Driver-visible NVIDIA inventory snapshot (Layer A — probe-backed). |
 | `fn` | `gpu_inventory::probe_nvidia_gpu_inventory_best_effort` | `pub fn probe_nvidia_gpu_inventory_best_effort() -> Option<GpuInventorySnapshot>` | [`crates/vox-repository/src/gpu_inventory.rs#L27-L29`](../../../crates/vox-repository/src/gpu_inventory.rs#L27-L29) | Probe NVIDIA GPUs via NVML.  NVML probing has moved to `vox-plugin-nvml-probe`. This stub always returns `None`. Callers should migrate to plugin-host dispatch via `VoxPlugin::as_hardware_probe()` to get live GPU inventory. |
 | `struct` | `populi_toml::VoxMeshTransport` | `pub struct VoxMeshTransport` | [`crates/vox-repository/src/populi_toml.rs#L13-L24`](../../../crates/vox-repository/src/populi_toml.rs#L13-L24) | Mesh transport options (TLS, WireGuard hints). |

@@ -322,7 +322,7 @@ fn collect_git_working_tree_diffs(root: &Path) -> HashMap<String, (Option<String
     let git_bin = std::env::var("VOX_GIT_BIN").unwrap_or_else(|_| "git".to_string());
 
     if let Ok(out) = Command::new(&git_bin)
-        .args(["status", "--porcelain"])
+        .args(["--no-optional-locks", "status", "--porcelain"])
         .current_dir(root)
         .output()
         && out.status.success()
@@ -356,7 +356,7 @@ fn collect_git_working_tree_diffs(root: &Path) -> HashMap<String, (Option<String
     }
 
     if let Ok(out) = Command::new(&git_bin)
-        .args(["diff", "--numstat", "HEAD"])
+        .args(["--no-optional-locks", "diff", "--numstat", "HEAD"])
         .current_dir(root)
         .output()
         && out.status.success()
@@ -390,13 +390,42 @@ fn collect_git_working_tree_diffs(root: &Path) -> HashMap<String, (Option<String
     map
 }
 
+const PRUNED_SCAN_DIRS: &[&str] = &[
+    "target",
+    "node_modules",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    "artifacts",
+    ".planning",
+    "coverage",
+    "playwright-report",
+    "test-results",
+];
+
+const MAX_LINE_COUNT_READ_BYTES: u64 = 512 * 1024;
+
 pub(crate) fn scan(root: &Path) -> TownScanDto {
     let mut files = Vec::new();
     let mut truncated = false;
     let git_diffs = collect_git_working_tree_diffs(root);
     let mut lang_lines: HashMap<&'static str, u64> = HashMap::new();
 
-    let walker = ignore::WalkBuilder::new(root).hidden(true).build();
+    let walker = ignore::WalkBuilder::new(root)
+        .hidden(true)
+        .filter_entry(|entry| {
+            if entry.depth() == 0 {
+                return true;
+            }
+            if entry.file_type().is_some_and(|ft| ft.is_dir())
+                && let Some(name) = entry.file_name().to_str()
+            {
+                return !PRUNED_SCAN_DIRS.contains(&name);
+            }
+            true
+        })
+        .build();
     for entry in walker.flatten() {
         if files.len() >= MAX_FILES {
             truncated = true;
@@ -419,9 +448,12 @@ pub(crate) fn scan(root: &Path) -> TownScanDto {
         {
             continue;
         }
-        let lines = std::fs::read_to_string(path)
-            .map(|c| c.lines().count() as u32)
-            .unwrap_or(0);
+        let lines = match entry.metadata() {
+            Ok(meta) if meta.len() > MAX_LINE_COUNT_READ_BYTES => (meta.len() / 45).max(1) as u32,
+            _ => std::fs::read_to_string(path)
+                .map(|c| c.lines().count() as u32)
+                .unwrap_or(0),
+        };
         let lang = language_for_path(&rel);
         if lang != "other" {
             *lang_lines.entry(lang).or_insert(0) += u64::from(lines.max(1));
@@ -446,7 +478,7 @@ pub(crate) fn scan(root: &Path) -> TownScanDto {
     let mut file_diffs = Vec::new();
     for c in &crates {
         for f in &c.files {
-            if file_diffs.len() >= 16 {
+            if file_diffs.len() >= 8 {
                 break;
             }
             if f.diff_added_lines > 0 || f.diff_deleted_lines > 0 || f.git_status.is_some() {
@@ -521,32 +553,38 @@ pub(crate) fn build_dependency_edges(
             continue;
         }
         let from_layer = layer_map.get(&c.name).copied();
+        let sampled_lines: Vec<String> = c
+            .files
+            .iter()
+            .take(24)
+            .filter_map(|file| std::fs::read_to_string(root.join(&file.path)).ok())
+            .flat_map(|text| {
+                text.lines()
+                    .take(60)
+                    .map(|l| l.trim().to_string())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
         for dep in &c.deps {
             let to_layer = layer_map.get(dep).copied();
             let snake_dep = dep.replace('-', "_");
             let mut symbols = BTreeSet::new();
             let mut call_site_count = 0u32;
 
-            for file in c.files.iter().take(24) {
-                let Ok(text) = std::fs::read_to_string(root.join(&file.path)) else {
-                    continue;
-                };
-                for line in text.lines().take(60) {
-                    let trimmed = line.trim();
-                    if trimmed.contains(&snake_dep) || trimmed.contains(dep.as_str()) {
-                        call_site_count = call_site_count.saturating_add(1);
-                        if symbols.len() < 4
-                            && (trimmed.starts_with("use ")
-                                || trimmed.starts_with("import ")
-                                || trimmed.starts_with("from "))
-                        {
-                            let cleaned = trimmed
-                                .trim_end_matches(';')
-                                .chars()
-                                .take(72)
-                                .collect::<String>();
-                            symbols.insert(cleaned);
-                        }
+            for trimmed in &sampled_lines {
+                if trimmed.contains(&snake_dep) || trimmed.contains(dep.as_str()) {
+                    call_site_count = call_site_count.saturating_add(1);
+                    if symbols.len() < 4
+                        && (trimmed.starts_with("use ")
+                            || trimmed.starts_with("import ")
+                            || trimmed.starts_with("from "))
+                    {
+                        let cleaned = trimmed
+                            .trim_end_matches(';')
+                            .chars()
+                            .take(72)
+                            .collect::<String>();
+                        symbols.insert(cleaned);
                     }
                 }
             }
@@ -593,7 +631,14 @@ pub fn inspect_file_diff_and_diagnostics(
     let git_bin = std::env::var("VOX_GIT_BIN").unwrap_or_else(|_| "git".to_string());
 
     let diff_out = Command::new(&git_bin)
-        .args(["diff", "--unified=3", "HEAD", "--", &rel])
+        .args([
+            "--no-optional-locks",
+            "diff",
+            "--unified=3",
+            "HEAD",
+            "--",
+            &rel,
+        ])
         .current_dir(root)
         .output()
         .map_err(|e| e.to_string())?;
@@ -624,7 +669,14 @@ pub fn inspect_file_diff_and_diagnostics(
     }
 
     let staged_out = Command::new(&git_bin)
-        .args(["diff", "--cached", "--name-only", "--", &rel])
+        .args([
+            "--no-optional-locks",
+            "diff",
+            "--cached",
+            "--name-only",
+            "--",
+            &rel,
+        ])
         .current_dir(root)
         .output()
         .ok();
@@ -670,6 +722,68 @@ pub fn revert_workspace_file(root: &Path, file_path: &str) -> Result<bool, Strin
 
 static CACHE: Mutex<Option<TownScanDto>> = Mutex::new(None);
 
+fn is_workspace_marker_dir(dir: &Path) -> bool {
+    if dir.join("Vox.toml").is_file() || dir.join("pnpm-workspace.yaml").is_file() {
+        return true;
+    }
+    std::fs::read_to_string(dir.join("Cargo.toml"))
+        .map(|s| s.contains("[workspace]"))
+        .unwrap_or(false)
+}
+
+fn is_project_marker_dir(dir: &Path) -> bool {
+    dir.join(".git").exists()
+        || dir.join("Cargo.toml").is_file()
+        || dir.join("package.json").is_file()
+        || dir.join("pyproject.toml").is_file()
+        || dir.join("go.mod").is_file()
+}
+
+pub(crate) fn resolve_workspace_root_from(
+    start: &Path,
+    fallback_manifest_root: Option<&Path>,
+) -> Result<std::path::PathBuf, String> {
+    let mut workspace_hit: Option<std::path::PathBuf> = None;
+    let mut project_hit: Option<std::path::PathBuf> = None;
+    for ancestor in start.ancestors() {
+        if ancestor.parent().is_none() {
+            break;
+        }
+        if is_workspace_marker_dir(ancestor) {
+            workspace_hit = Some(ancestor.to_path_buf());
+        }
+        if project_hit.is_none() && is_project_marker_dir(ancestor) {
+            project_hit = Some(ancestor.to_path_buf());
+        }
+    }
+    if let Some(ws) = workspace_hit.or(project_hit) {
+        return Ok(ws);
+    }
+    if let Some(fb) = fallback_manifest_root
+        && fb.is_dir()
+        && (is_workspace_marker_dir(fb) || is_project_marker_dir(fb))
+    {
+        return Ok(fb.to_path_buf());
+    }
+    Err("workspace root not found from current directory".to_string())
+}
+
+fn resolve_workspace_root() -> Result<std::path::PathBuf, String> {
+    if let Some(explicit) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose()
+    {
+        let p = std::path::PathBuf::from(explicit.trim());
+        if !explicit.trim().is_empty() && p.is_dir() {
+            return Ok(p);
+        }
+    }
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    let compile_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent);
+    resolve_workspace_root_from(&cwd, compile_root)
+}
+
 #[tauri::command]
 pub async fn workspace_town_scan() -> Result<TownScanDto, String> {
     let now = chrono::Utc::now().timestamp_millis();
@@ -678,7 +792,7 @@ pub async fn workspace_town_scan() -> Result<TownScanDto, String> {
     {
         return Ok(cached);
     }
-    let root = std::env::current_dir().map_err(|e| e.to_string())?;
+    let root = resolve_workspace_root()?;
     let fresh = tokio::task::spawn_blocking(move || scan(&root))
         .await
         .map_err(|e| e.to_string())?;
@@ -849,5 +963,33 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         assert!(inspect_file_diff_and_diagnostics(dir.path(), "../secret.txt").is_err());
         assert!(inspect_file_diff_and_diagnostics(dir.path(), "/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn resolve_workspace_root_walks_up_from_subcrate_and_avoids_filesystem_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let ws_root = dir.path().join("vox-ws");
+        let subcrate = ws_root.join("crates/vox-gui");
+        std::fs::create_dir_all(&subcrate).unwrap();
+        std::fs::write(
+            ws_root.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"crates/vox-gui\"]\n",
+        )
+        .unwrap();
+        std::fs::write(
+            subcrate.join("Cargo.toml"),
+            "[package]\nname = \"vox-gui\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            resolve_workspace_root_from(&subcrate, None).unwrap(),
+            ws_root
+        );
+        assert_eq!(
+            resolve_workspace_root_from(Path::new("/"), Some(&ws_root)).unwrap(),
+            ws_root
+        );
+        assert!(resolve_workspace_root_from(Path::new("/"), None).is_err());
     }
 }

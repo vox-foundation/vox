@@ -24,7 +24,7 @@ describe('SecretaryToast', () => {
     expect(screen.getByText(/Fix the authentication bug/)).toBeInTheDocument();
   });
 
-  it('calls onDismiss when ✕ button is clicked', () => {
+  it('calls onDismiss when Dismiss button is clicked', () => {
     const onDismiss = vi.fn();
     render(
       <SecretaryToast
@@ -34,7 +34,7 @@ describe('SecretaryToast', () => {
         onConfirm={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 

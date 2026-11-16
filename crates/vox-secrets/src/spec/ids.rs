@@ -539,6 +539,12 @@ pub enum SecretId {
     AnthropicTuningTemperature,
     AnthropicTuningTopP,
     VoxChatResearchEnabled,
+    /// OpenAlex API key (`VOX_OPENALEX_API_KEY`) for scholarly work-graph queries.
+    VoxOpenAlexApiKey,
+    /// Optional HTTP endpoint override (`VOX_MINICHECK_ENDPOINT`) for MiniCheck verification.
+    VoxMinicheckEndpoint,
+    /// Optional model ID override (`VOX_MINICHECK_MODEL`) for calibrated hybrid MiniCheck verification.
+    VoxMinicheckModel,
 }
 
 pub const ALL_CHAT_OPTIONALS: &[SecretId] = &[
@@ -643,6 +649,7 @@ impl SecretId {
             | SecretId::SonatypeGuideToken
             | SecretId::VoxDataCitePassword
             | SecretId::VoxOpenAlexEmail
+            | SecretId::VoxOpenAlexApiKey
             | SecretId::VoxSemanticScholarApiKey
             | SecretId::VoxOsfApiToken
             | SecretId::VoxArxivAccessToken
@@ -801,6 +808,20 @@ mod tests {
             SecretId::VoxResearchTrialSignerAllowlist,
         ] {
             assert_eq!(id.spec().id as u32, id as u32);
+        }
+    }
+
+    #[test]
+    fn scholarly_and_minicheck_ids_resolve_to_specs() {
+        for (id, expected_env) in [
+            (SecretId::VoxOpenAlexApiKey, "VOX_OPENALEX_API_KEY"),
+            (SecretId::VoxMinicheckEndpoint, "VOX_MINICHECK_ENDPOINT"),
+            (SecretId::VoxMinicheckModel, "VOX_MINICHECK_MODEL"),
+        ] {
+            let spec = id.spec();
+            assert_eq!(spec.id as u32, id as u32);
+            assert_eq!(spec.canonical_env, expected_env);
+            assert_eq!(spec.policy, crate::policy::SecretPolicy::optional_skip());
         }
     }
 }

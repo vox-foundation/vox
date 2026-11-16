@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dashboard } from '../surfaces/Dashboard/Dashboard';
+import { GsdStudioView } from '../surfaces/Gsd/GsdStudioView';
 import { AgentFlow } from '../surfaces/Flow/AgentFlow';
 import { Catalog } from '../surfaces/Catalog/Catalog';
 import { MemoryView } from '../surfaces/Memory/MemoryView';
@@ -159,6 +160,8 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
       return <RepositoryView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'mesh':
       return <MeshView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+    case 'gsd':
+      return <GsdStudioView pushToast={props.pushToast} onNavigate={props.onNavigate} />;
     case 'gamify':
       return <GamifyView pushToast={props.pushToast} onNavigate={props.onNavigate} />;
     case 'harness':

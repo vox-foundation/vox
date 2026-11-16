@@ -251,6 +251,35 @@ mod premium_alias_tests {
 
         assert!(registry.get("nonexistent-model").is_none());
     }
+
+    #[test]
+    fn bootstrap_catalog_costs_are_per_1k_not_per_1m() {
+        let cfg = ModelConfig::default();
+        let raw_json =
+            include_str!("../../../../contracts/orchestration/model-catalog.bootstrap.v1.json");
+        let raw_models: Vec<crate::models::ModelSpec> =
+            serde_json::from_str(raw_json).expect("Invalid raw bootstrap catalog");
+        for model in cfg.models.iter().chain(raw_models.iter()) {
+            assert!(
+                model.cost_per_1k < 0.50,
+                "{}: cost_per_1k={} looks like per-1M pricing",
+                model.id,
+                model.cost_per_1k
+            );
+            assert!(
+                model.cost_per_1k_input < 0.25,
+                "{}: cost_per_1k_input={} looks like per-1M pricing",
+                model.id,
+                model.cost_per_1k_input
+            );
+            assert!(
+                model.cost_per_1k_output < 0.50,
+                "{}: cost_per_1k_output={} looks like per-1M pricing",
+                model.id,
+                model.cost_per_1k_output
+            );
+        }
+    }
 }
 
 #[cfg(test)]

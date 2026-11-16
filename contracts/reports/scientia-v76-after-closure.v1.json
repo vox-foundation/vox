@@ -1,0 +1,161 @@
+{
+  "x-vox-version": 1,
+  "schema_version": 1,
+  "stage": "after",
+  "deterministic_seed": 20260447,
+  "six_axes": {
+    "performance": {
+      "simulated_fast_p50_ms": 610,
+      "simulated_deep_p95_ms": 5390,
+      "kv_cache_prefix_stability_ratio": 1.0,
+      "session_detail_ipc_payload_bytes": 19491,
+      "gui_cli_db_spawn_count": 0
+    },
+    "quality": {
+      "groundedness_mean": 0.875,
+      "citation_precision_mean": 0.875,
+      "multi_hop_bridge_recall_mean": 0.916667,
+      "domain_coverage_modes": [
+        "general",
+        "shopping",
+        "codegen",
+        "scholarly"
+      ]
+    },
+    "verification": {
+      "claim_precision": 1.0,
+      "contradiction_detection_recall": 1.0,
+      "contradiction_false_support_rate": 0.0,
+      "mock_verifier_fallback_rate": 0.0
+    },
+    "integration": {
+      "composer_continuum_fidelity_rate": 1.0,
+      "doc_publish_artifact_retention_rate": 1.0,
+      "sequenced_event_replay_supported": true
+    },
+    "socrates_calibration": {
+      "ece": 0.055333,
+      "brier_score": 0.006337,
+      "selective_abstention_f1": 1.0
+    },
+    "novelty_detection": {
+      "prior_art_recall_at_5": 1.0,
+      "false_novelty_rate": 0.0,
+      "embedder_l3_shared": true
+    }
+  },
+  "live_bug_reproductions": {
+    "composer_research_scope_overwritten": false,
+    "research_turn_waves_hardcoded_to_one": false,
+    "none_to_novel_false_positive_rate": 0.0,
+    "artifact_json_wiped_on_doc_publish": false,
+    "mock_verifier_fallback_rate": 0.0,
+    "contradiction_false_support_rate": 0.0,
+    "kv_cache_prefix_stability_ratio": 1.0,
+    "session_detail_ipc_payload_bytes": 19491,
+    "gui_cli_db_spawn_count": 0
+  },
+  "cassette_summary": {
+    "query_cases": 4,
+    "socrates_cases": 6,
+    "claim_pairs": 5,
+    "novelty_bundles": 3
+  },
+  "paired_comparison": {
+    "blinded_judge_protocol": true,
+    "before_report_path": "/Users/brbrainerd/dev/vox/contracts/reports/scientia-v76-before-baseline.v1.json",
+    "axes": [
+      {
+        "axis": "performance",
+        "label": "Performance & KV Stability",
+        "metric": "kv_cache_prefix_stability_ratio",
+        "before_value": 0.544548,
+        "after_value": 1.0,
+        "delta": 0.455452,
+        "higher_is_better": true,
+        "ci_low": 0.447984,
+        "ci_high": 1.0,
+        "ni_margin": 0.1,
+        "ni_verdict": "non_inferior",
+        "superior": true
+      },
+      {
+        "axis": "quality",
+        "label": "Quality & Groundedness",
+        "metric": "groundedness_mean",
+        "before_value": 0.25,
+        "after_value": 0.875,
+        "delta": 0.625,
+        "higher_is_better": true,
+        "ci_low": 0.085233,
+        "ci_high": 0.954413,
+        "ni_margin": 0.1,
+        "ni_verdict": "non_inferior",
+        "superior": true
+      },
+      {
+        "axis": "verification",
+        "label": "Verification & Contradiction",
+        "metric": "contradiction_detection_recall",
+        "before_value": 0.333333,
+        "after_value": 1.0,
+        "delta": 0.666667,
+        "higher_is_better": true,
+        "ci_low": -0.118182,
+        "ci_high": 0.769276,
+        "ni_margin": 0.1,
+        "ni_verdict": "inconclusive",
+        "superior": false
+      },
+      {
+        "axis": "integration",
+        "label": "Continuum Integration",
+        "metric": "composer_continuum_fidelity_rate",
+        "before_value": 0.0,
+        "after_value": 1.0,
+        "delta": 1.0,
+        "higher_is_better": true,
+        "ci_low": 0.085233,
+        "ci_high": 0.954413,
+        "ni_margin": 0.1,
+        "ni_verdict": "non_inferior",
+        "superior": true
+      },
+      {
+        "axis": "socrates_calibration",
+        "label": "Socrates Calibration",
+        "metric": "selective_abstention_f1",
+        "before_value": 0.8,
+        "after_value": 1.0,
+        "delta": 0.2,
+        "higher_is_better": true,
+        "ci_low": -0.246884,
+        "ci_high": 0.563503,
+        "ni_margin": 0.1,
+        "ni_verdict": "inconclusive",
+        "superior": false
+      },
+      {
+        "axis": "novelty_detection",
+        "label": "Novelty Detection",
+        "metric": "prior_art_recall_at_5",
+        "before_value": 0.5,
+        "after_value": 1.0,
+        "delta": 0.5,
+        "higher_is_better": true,
+        "ci_low": -0.290507,
+        "ci_high": 0.79234,
+        "ni_margin": 0.1,
+        "ni_verdict": "inconclusive",
+        "superior": false
+      }
+    ]
+  },
+  "lessons_summary": {
+    "quarantined_findings_count": 3,
+    "corroborated_promotions_count": 2,
+    "proposed_effort_rules_count": 2,
+    "auto_dpo_pairs_minted": 3,
+    "unreviewed_ssot_mutations": 0
+  }
+}

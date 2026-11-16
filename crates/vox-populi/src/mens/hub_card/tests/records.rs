@@ -73,7 +73,10 @@ fn hub_card_load_reads_records_and_rejects_retired_protocol() {
 
 #[tokio::test]
 async fn render_real_workspace_hub_cards_and_assets() {
-    let root = std::path::Path::new("/Users/brbrainerd/dev/vox-mens-compare");
+    let Some(root_os) = std::env::var_os("VOX_MENS_REAL_WORKSPACE_ROOT") else {
+        return;
+    };
+    let root = std::path::Path::new(&root_os);
     if !root.join("mens/runs").is_dir() {
         return;
     }
@@ -88,18 +91,18 @@ async fn render_real_workspace_hub_cards_and_assets() {
     )
     .await
     .unwrap();
-    assert_eq!(rows.len(), 6);
+    assert_eq!(rows.len(), 5);
     let cards_dir = root.join("mens/runs/hub_cards");
     assert!(
         cards_dir
-            .join("vox-mens-index/assets/overview.svg")
+            .join("vox-mens-index/assets/overview.jpg")
             .is_file(),
-        "missing overview.svg"
+        "missing overview.jpg"
     );
     assert!(
         cards_dir
-            .join("vox-mens-qwen3-4b/assets/scorecard.svg")
+            .join("vox-mens-qwen3.5-4b/assets/banner.jpg")
             .is_file(),
-        "missing 4b scorecard.svg"
+        "missing 4b banner.jpg"
     );
 }

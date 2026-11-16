@@ -36,7 +36,7 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 
 | Feature | Default / Enables |
 |---|---|
-| `ars` | dep:vox-openclaw-runtime, dep:vox-skill-discovery |
+| `ars` | — |
 | `broken_inference_stub` | — |
 | `coderabbit` | dep:vox-cli-review |
 | `codex` | — |
@@ -44,7 +44,7 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 | `database` | vox-corpus/database |
 | `default` | keyring-store, script-execution |
 | `dei` | — |
-| `execution-api` | script-execution, dep:tokio-stream |
+| `execution-api` | script-execution |
 | `extras-ludus` | vox-gamify, dep:vox-code-audit |
 | `fuzzy-search` | dep:nucleo |
 | `gui` | — |
@@ -52,14 +52,14 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 | `keyring-store` | dep:keyring |
 | `live` | — |
 | `ludus-hud` | extras-ludus |
-| `mcp-server` | vox-orchestrator/populi-transport, vox-orchestrator-mcp/populi-transport, dep:rmcp |
+| `mcp-server` | vox-orchestrator/populi-transport, vox-orchestrator-mcp/populi-transport |
 | `mens-dei` | dei, database |
 | `oratio` | — |
-| `scientia-social` | vox-publisher/scientia-reddit, vox-publisher/scientia-twitter, vox-publisher/scientia-linkedin, vox-publisher/scientia-mastodon, vox-publisher/scientia-bluesky, vox-publisher/scientia-discord, vox-publisher/scientia-opencollective, vox-publisher/live-api-canary, vox-orchestrator/news-publish |
+| `scientia-social` | dep:vox-publisher, vox-publisher/scientia-reddit, vox-publisher/scientia-twitter, vox-publisher/scientia-linkedin, vox-publisher/scientia-mastodon, vox-publisher/scientia-bluesky, vox-publisher/scientia-discord, vox-publisher/scientia-opencollective, vox-publisher/live-api-canary, vox-orchestrator/news-publish |
 | `script-execution` | dep:xxhash-rust, dep:landlock, dep:win32job |
 | `stub-check` | dep:vox-code-audit, vox-gamify, completion-toestub |
 | `vox-gamify` | dep:vox-gamify |
-| `workflow-runtime` | mens-dei, dep:vox-workflow-runtime |
+| `workflow-runtime` | mens-dei |
 
 ## Workspace Dependencies
 
@@ -79,7 +79,6 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 | [`vox-codegen`](./vox-codegen.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
-| [`vox-constrained-gen`](./vox-constrained-gen.generated.md) | Normal |
 | [`vox-container`](./vox-container.generated.md) | Normal |
 | [`vox-corpus`](./vox-corpus.generated.md) | Normal |
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
@@ -88,8 +87,6 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 | [`vox-doc-inventory`](./vox-doc-inventory.generated.md) | Normal |
 | [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Normal |
 | [`vox-drift-check`](./vox-drift-check.generated.md) | Normal |
-| [`vox-effort-audit`](./vox-effort-audit.generated.md) | Normal |
-| [`vox-effort-route`](./vox-effort-route.generated.md) | Normal |
 | [`vox-eval`](./vox-eval.generated.md) | Normal |
 | [`vox-foundation`](./vox-foundation.generated.md) | Normal |
 | [`vox-gamify`](./vox-gamify.generated.md) | Normal |
@@ -101,40 +98,28 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Normal |
 | [`vox-llm-egress`](./vox-llm-egress.generated.md) | Normal |
 | [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | Normal |
-| [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
-| [`vox-oauth-pkce`](./vox-oauth-pkce.generated.md) | Normal |
-| [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Normal |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Normal |
-| [`vox-orchestrator-driver`](./vox-orchestrator-driver.generated.md) | Normal |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Normal |
 | [`vox-package`](./vox-package.generated.md) | Normal |
-| [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
 | [`vox-plugin-catalog`](./vox-plugin-catalog.generated.md) | Normal |
 | [`vox-plugin-host`](./vox-plugin-host.generated.md) | Normal |
-| [`vox-plugin-types`](./vox-plugin-types.generated.md) | Normal |
 | [`vox-populi`](./vox-populi.generated.md) | Normal |
 | [`vox-project-scaffold`](./vox-project-scaffold.generated.md) | Normal |
 | [`vox-publisher`](./vox-publisher.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
-| [`vox-research-events`](./vox-research-events.generated.md) | Normal |
-| [`vox-research-shim`](./vox-research-shim.generated.md) | Normal |
 | [`vox-rn-codegen`](./vox-rn-codegen.generated.md) | Normal |
-| [`vox-rule-pack`](./vox-rule-pack.generated.md) | Normal |
-| [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Normal |
-| [`vox-scientia`](./vox-scientia.generated.md) | Normal |
 | [`vox-search`](./vox-search.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`vox-skill-discovery`](./vox-skill-discovery.generated.md) | Normal |
-| [`vox-skills`](./vox-skills.generated.md) | Normal |
-| [`vox-sql`](./vox-sql.generated.md) | Normal |
 | [`vox-tauri-codegen`](./vox-tauri-codegen.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
 | [`vox-telemetry-otlp`](./vox-telemetry-otlp.generated.md) | Normal |
 | [`vox-term`](./vox-term.generated.md) | Normal |
-| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Development |
+| [`vox-effort-audit`](./vox-effort-audit.generated.md) | Development |
+| [`vox-effort-route`](./vox-effort-route.generated.md) | Development |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Development |
-| [`vox-sql`](./vox-sql.generated.md) | Development |
+| [`vox-publisher`](./vox-publisher.generated.md) | Development |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Development |
 | [`vox-build-meta`](./vox-build-meta.generated.md) | Build |
 
 ## Public API Surface
@@ -143,6 +128,7 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 
 | Module | Description |
 |---|---|
+| `argv_normalize` | — |
 | `cli_actions` | — |
 | `cli_args` | — |
 | `command_catalog` | — |
@@ -247,12 +233,26 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `enum` | `CompletionShell` | `pub enum CompletionShell` | [`crates/vox-cli/src/lib.rs#L90-L99`](../../../crates/vox-cli/src/lib.rs#L90-L99) | — |
-| `struct` | `VoxCliRoot` | `pub struct VoxCliRoot` | [`crates/vox-cli/src/lib.rs#L123-L130`](../../../crates/vox-cli/src/lib.rs#L123-L130) | — |
-| `enum` | `Cli` | `pub enum Cli` | [`crates/vox-cli/src/lib.rs#L135`](../../../crates/vox-cli/src/lib.rs#L135) | Collection of subcommands exposing all features of the `vox` binary. |
-| `fn` | `init_telemetry_sinks` | `pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>)` | [`crates/vox-cli/src/lib.rs#L742-L745`](../../../crates/vox-cli/src/lib.rs#L742-L745) | Register the process-wide telemetry sinks.  `db` is `Some` when the workspace journey DB opened successfully at startup. |
-| `fn` | `run_vox_cli` | `pub async fn run_vox_cli() -> anyhow::Result<()>` | [`crates/vox-cli/src/lib.rs#L825-L828`](../../../crates/vox-cli/src/lib.rs#L825-L828) | Run the `vox` CLI (parsed from `std::env::args`). |
-| `fn` | `run_vox_cli_from_parsed` | `pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()>` | [`crates/vox-cli/src/lib.rs#L832-L856`](../../../crates/vox-cli/src/lib.rs#L832-L856) | Run after parsing a [`VoxCliRoot`]: global env hints (`VOX_CLI_*`, `RUST_LOG`), [`init_tracing_for_cli`], then dispatch. |
+| `enum` | `CompletionShell` | `pub enum CompletionShell` | [`crates/vox-cli/src/lib.rs#L91-L100`](../../../crates/vox-cli/src/lib.rs#L91-L100) | — |
+| `struct` | `VoxCliRoot` | `pub struct VoxCliRoot` | [`crates/vox-cli/src/lib.rs#L126-L133`](../../../crates/vox-cli/src/lib.rs#L126-L133) | — |
+| `enum` | `Cli` | `pub enum Cli` | [`crates/vox-cli/src/lib.rs#L138`](../../../crates/vox-cli/src/lib.rs#L138) | Collection of subcommands exposing all features of the `vox` binary. |
+| `fn` | `init_telemetry_sinks` | `pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>)` | [`crates/vox-cli/src/lib.rs#L758-L761`](../../../crates/vox-cli/src/lib.rs#L758-L761) | Register the process-wide telemetry sinks.  `db` is `Some` when the workspace journey DB opened successfully at startup. |
+| `fn` | `run_vox_cli` | `pub async fn run_vox_cli() -> anyhow::Result<()>` | [`crates/vox-cli/src/lib.rs#L841-L844`](../../../crates/vox-cli/src/lib.rs#L841-L844) | Run the `vox` CLI (parsed from `std::env::args`). |
+| `fn` | `run_vox_cli_from_parsed` | `pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()>` | [`crates/vox-cli/src/lib.rs#L848-L872`](../../../crates/vox-cli/src/lib.rs#L848-L872) | Run after parsing a [`VoxCliRoot`]: global env hints (`VOX_CLI_*`, `RUST_LOG`), [`init_tracing_for_cli`], then dispatch. |
+| `enum` | `argv_normalize::RecoveryKind` | `pub enum RecoveryKind` | [`crates/vox-cli/src/argv_normalize.rs#L28-L34`](../../../crates/vox-cli/src/argv_normalize.rs#L28-L34) | — |
+| `struct` | `argv_normalize::RecoveryCandidate` | `pub struct RecoveryCandidate` | [`crates/vox-cli/src/argv_normalize.rs#L37-L44`](../../../crates/vox-cli/src/argv_normalize.rs#L37-L44) | — |
+| `enum` | `argv_normalize::RecoveryOutcome` | `pub enum RecoveryOutcome` | [`crates/vox-cli/src/argv_normalize.rs#L47-L51`](../../../crates/vox-cli/src/argv_normalize.rs#L47-L51) | — |
+| `enum` | `argv_normalize::CallerPersona` | `pub enum CallerPersona` | [`crates/vox-cli/src/argv_normalize.rs#L54-L57`](../../../crates/vox-cli/src/argv_normalize.rs#L54-L57) | — |
+| `struct` | `argv_normalize::CliErrorRecovery` | `pub struct CliErrorRecovery` | [`crates/vox-cli/src/argv_normalize.rs#L60-L68`](../../../crates/vox-cli/src/argv_normalize.rs#L60-L68) | — |
+| `enum` | `argv_normalize::ExecutionDecision` | `pub enum ExecutionDecision` | [`crates/vox-cli/src/argv_normalize.rs#L71-L75`](../../../crates/vox-cli/src/argv_normalize.rs#L71-L75) | — |
+| `fn` | `argv_normalize::lookup_side_effect_class` | `pub fn lookup_side_effect_class(path: &[String]) -> String` | [`crates/vox-cli/src/argv_normalize.rs#L163-L181`](../../../crates/vox-cli/src/argv_normalize.rs#L163-L181) | Lookup `side_effect_class` conservatively: defaults to `"local_mutation"` when unmapped so unannotated mutating commands never auto-execute. |
+| `fn` | `argv_normalize::classify_recovery` | `pub fn classify_recovery(raw_args: &[String]) -> RecoveryOutcome` | [`crates/vox-cli/src/argv_normalize.rs#L264`](../../../crates/vox-cli/src/argv_normalize.rs#L264) | — |
+| `fn` | `argv_normalize::detect_with` | `pub fn detect_with(` | [`crates/vox-cli/src/argv_normalize.rs#L652`](../../../crates/vox-cli/src/argv_normalize.rs#L652) | — |
+| `fn` | `argv_normalize::detect` | `pub fn detect(raw_args: &[String]) -> Self` | [`crates/vox-cli/src/argv_normalize.rs#L668-L683`](../../../crates/vox-cli/src/argv_normalize.rs#L668-L683) | — |
+| `fn` | `argv_normalize::decide_execution` | `pub fn decide_execution(` | [`crates/vox-cli/src/argv_normalize.rs#L696`](../../../crates/vox-cli/src/argv_normalize.rs#L696) | — |
+| `fn` | `argv_normalize::format_recovery_diagnostic` | `pub fn format_recovery_diagnostic(recovery: &CliErrorRecovery, json_mode: bool) -> String` | [`crates/vox-cli/src/argv_normalize.rs#L753-L778`](../../../crates/vox-cli/src/argv_normalize.rs#L753-L778) | — |
+| `fn` | `argv_normalize::build_ml_delegation_args` | `pub fn build_ml_delegation_args(args: &[String]) -> Option<(String, Vec<String>)>` | [`crates/vox-cli/src/argv_normalize.rs#L782-L829`](../../../crates/vox-cli/src/argv_normalize.rs#L782-L829) | Extract ML delegation subcommand and preserved flags (including any leading `GlobalOpts` flags passed before `mens`/`oratio`/`speech`/`populi`/`mesh`/`train`/`quantize`). |
+| `fn` | `argv_normalize::parse_cli_with_tolerance` | `pub fn parse_cli_with_tolerance() -> VoxCliRoot` | [`crates/vox-cli/src/argv_normalize.rs#L833-L896`](../../../crates/vox-cli/src/argv_normalize.rs#L833-L896) | Parse `VoxCliRoot` from `std::env::args()`, keeping the happy path at ~0 ms overhead and applying deterministic tolerance + dual-persona safety gating only on clap parse errors. |
 | `enum` | `cli_actions::ArchitectAction` | `pub enum ArchitectAction` | [`crates/vox-cli/src/cli_actions.rs#L5-L20`](../../../crates/vox-cli/src/cli_actions.rs#L5-L20) | Subcommands for `vox architect` (requires `--features codex` or `stub-check`). |
 | `enum` | `cli_actions::WorkflowAction` | `pub enum WorkflowAction` | [`crates/vox-cli/src/cli_actions.rs#L23-L64`](../../../crates/vox-cli/src/cli_actions.rs#L23-L64) | — |
 | `enum` | `cli_args::BuildTargetArg` | `pub enum BuildTargetArg` | [`crates/vox-cli/src/cli_args.rs#L16-L28`](../../../crates/vox-cli/src/cli_args.rs#L16-L28) | Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.  `fullstack` is the default build mode. Use `--target=server` for Rust-only (no `dist/` TS), or `--target=client` for Library-shaped TS (`vox-client.ts`, `openapi.json`, …; no `target/generated/`), or `--target=mobile` for React Native + Expo TS that runs through `@vox/runtime-rn`. |
@@ -278,18 +278,4 @@ graph {
 | `enum` | `cli_args::UpgradeReleaseProvider` | `pub enum UpgradeReleaseProvider` | [`crates/vox-cli/src/cli_args.rs#L503-L511`](../../../crates/vox-cli/src/cli_args.rs#L503-L511) | Binary release host for `vox upgrade --source release` (`VOX_UPGRADE_PROVIDER`). |
 | `struct` | `cli_args::UpgradeToolchainArgs` | `pub struct UpgradeToolchainArgs` | [`crates/vox-cli/src/cli_args.rs#L515-L564`](../../../crates/vox-cli/src/cli_args.rs#L515-L564) | `vox upgrade` — toolchain only (never `Vox.toml` / `vox.lock`). |
 | `struct` | `cli_args::GenerateArgs` | `pub struct GenerateArgs` | [`crates/vox-cli/src/cli_args.rs#L568-L588`](../../../crates/vox-cli/src/cli_args.rs#L568-L588) | `vox generate` — generate Vox code from a natural-language prompt. |
-| `enum` | `command_catalog::CatalogFormat` | `pub enum CatalogFormat` | [`crates/vox-cli/src/command_catalog.rs#L10-L13`](../../../crates/vox-cli/src/command_catalog.rs#L10-L13) | — |
-| `enum` | `command_catalog::ArgValueKind` | `pub enum ArgValueKind` | [`crates/vox-cli/src/command_catalog.rs#L20-L27`](../../../crates/vox-cli/src/command_catalog.rs#L20-L27) | Typed argument kind for GUI form generation, derived from the clap action. |
-| `struct` | `command_catalog::CommandCatalogArgument` | `pub struct CommandCatalogArgument` | [`crates/vox-cli/src/command_catalog.rs#L30-L45`](../../../crates/vox-cli/src/command_catalog.rs#L30-L45) | — |
-| `struct` | `command_catalog::CommandCatalogEntry` | `pub struct CommandCatalogEntry` | [`crates/vox-cli/src/command_catalog.rs#L48-L63`](../../../crates/vox-cli/src/command_catalog.rs#L48-L63) | — |
-| `struct` | `command_catalog::CommandCatalog` | `pub struct CommandCatalog` | [`crates/vox-cli/src/command_catalog.rs#L66-L69`](../../../crates/vox-cli/src/command_catalog.rs#L66-L69) | — |
-| `fn` | `command_catalog::feature_gated_group_names` | `pub fn feature_gated_group_names() -> Vec<(&'static str, &'static str)>` | [`crates/vox-cli/src/command_catalog.rs#L82-L94`](../../../crates/vox-cli/src/command_catalog.rs#L82-L94) | Top-level command groups that exist only behind a compile-time feature gate and are therefore absent from a default (non-`dei`) binary's clap command tree.  `build_catalog()` reflects over `VoxCliRoot::command()`, which is built at compile time, so `#[cfg(feature = "dei")]` clap variants (`crates/vox-cli/src/lib.rs`) are invisible to any consumer derived from the catalog (e.g. the GUI surface-registry gate). Callers that must reason about the *full* command surface — not just what this build compiled in — should union these `(group, feature)` pairs with the compiled groups.  Returns `(group_name, feature_flag)` pairs. The names are the clap-derived (lowercased) top-level command names. |
-| `fn` | `command_catalog::build_catalog` | `pub fn build_catalog() -> CommandCatalog` | [`crates/vox-cli/src/command_catalog.rs#L96-L124`](../../../crates/vox-cli/src/command_catalog.rs#L96-L124) | — |
-| `fn` | `command_catalog::render_text` | `pub fn render_text(entries: &[CommandCatalogEntry]) -> String` | [`crates/vox-cli/src/command_catalog.rs#L144-L163`](../../../crates/vox-cli/src/command_catalog.rs#L144-L163) | — |
-| `fn` | `command_catalog::render_nushell_completions` | `pub fn render_nushell_completions(catalog: &CommandCatalog) -> String` | [`crates/vox-cli/src/command_catalog.rs#L166-L226`](../../../crates/vox-cli/src/command_catalog.rs#L166-L226) | Renders dynamic Nushell completion signatures (`extern "vox" [...]` and `extern "vox <subcommand>" [...]`). |
-| `fn` | `command_catalog::select_entries` | `pub fn select_entries(` | [`crates/vox-cli/src/command_catalog.rs#L228`](../../../crates/vox-cli/src/command_catalog.rs#L228) | — |
-| `fn` | `command_catalog::search_entries` | `pub fn search_entries(` | [`crates/vox-cli/src/command_catalog.rs#L267`](../../../crates/vox-cli/src/command_catalog.rs#L267) | Filter and rank `entries` by fuzzy match against `pattern`.  Candidates are built from `command`, all `aliases`, and `about` so that alias-only matches (e.g. `"fab"` → `vox fabrica`) are surfaced. Returns entries sorted by descending score; zero-score entries excluded.  Falls back to case-insensitive substring filter when `fuzzy-search` is disabled. |
-| `struct` | `command_catalog::SearchResult` | `pub struct SearchResult` | [`crates/vox-cli/src/command_catalog.rs#L283-L291`](../../../crates/vox-cli/src/command_catalog.rs#L283-L291) | A search hit carrying both the matched entry and its match score.  `score` is non-zero when the `fuzzy-search` feature is enabled (nucleo score; higher = better match) and `0` for the substring-fallback path (where ordering is preserved from the input). |
-| `fn` | `command_catalog::search_entries_scored` | `pub fn search_entries_scored(` | [`crates/vox-cli/src/command_catalog.rs#L295`](../../../crates/vox-cli/src/command_catalog.rs#L295) | Same as [`search_entries`] but returns scores and match attribution for JSON output and richer rendering. |
-| `struct` | `command_catalog::SearchOutput` | `pub struct SearchOutput` | [`crates/vox-cli/src/command_catalog.rs#L356-L361`](../../../crates/vox-cli/src/command_catalog.rs#L356-L361) | JSON wrapper for search-mode output (richer than [`CommandCatalog`]). |
 

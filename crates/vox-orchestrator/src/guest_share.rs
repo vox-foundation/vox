@@ -42,6 +42,10 @@ pub enum GuestShareError {
     PendingMessageNotFound,
 }
 
+fn default_guest_scope() -> String {
+    "suggest_prompt".to_string()
+}
+
 /// Signed guest invite token record.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GuestInviteRecord {
@@ -49,12 +53,18 @@ pub struct GuestInviteRecord {
     pub invite_id: String,
     /// Target thread ID.
     pub thread_id: String,
+    /// Permission scope (`"suggest_prompt"` or `"read_only"`).
+    #[serde(default = "default_guest_scope")]
+    pub scope: String,
     /// Expiration timestamp in Unix milliseconds.
     pub expires_at_ms: u64,
     /// Hex-encoded BLAKE3 `keyed_hash` MAC over `invite_id:thread_id:expires_at_ms`.
     pub signature_hex: String,
     /// Browser session ID that redeemed this invite (`None` until first redemption).
     pub redeemed_by_session_id: Option<String>,
+    /// Whether the invite has been revoked by the host.
+    #[serde(default)]
+    pub revoked: bool,
 }
 
 /// Moderation state of a guest-submitted prompt.
@@ -138,16 +148,37 @@ impl GuestShareService {
         thread_id: impl Into<String>,
         now_ms: u64,
     ) -> GuestInviteRecord {
+        self.create_invite_with_options(
+            invite_id,
+            thread_id,
+            default_guest_scope(),
+            now_ms,
+            GUEST_SHARE_TTL_MS,
+        )
+    }
+
+    /// Mint a 128-bit BLAKE3-MAC guest invite token with explicit permission scope and TTL.
+    pub fn create_invite_with_options(
+        &mut self,
+        invite_id: impl Into<String>,
+        thread_id: impl Into<String>,
+        scope: impl Into<String>,
+        now_ms: u64,
+        ttl_ms: u64,
+    ) -> GuestInviteRecord {
         let invite_id = invite_id.into();
         let thread_id = thread_id.into();
-        let expires_at_ms = now_ms.saturating_add(GUEST_SHARE_TTL_MS);
+        let scope = scope.into();
+        let expires_at_ms = now_ms.saturating_add(ttl_ms);
         let signature_hex = self.compute_mac_hex(&invite_id, &thread_id, expires_at_ms);
         let record = GuestInviteRecord {
             invite_id: invite_id.clone(),
             thread_id,
+            scope,
             expires_at_ms,
             signature_hex,
             redeemed_by_session_id: None,
+            revoked: false,
         };
         self.invites.insert(invite_id, record.clone());
         record
@@ -268,6 +299,32 @@ impl GuestShareService {
         msg.status = GuestMessageModerationStatus::Dismissed;
         Ok(msg.clone())
     }
+
+    /// List invites, optionally filtered by `thread_id`, sorted deterministically by `invite_id`.
+    #[must_use]
+    pub fn list_invites(&self, thread_id: Option<&str>) -> Vec<GuestInviteRecord> {
+        let mut out: Vec<GuestInviteRecord> = self
+            .invites
+            .values()
+            .filter(|inv| thread_id.is_none_or(|tid| inv.thread_id == tid))
+            .cloned()
+            .collect();
+        out.sort_by(|a, b| a.invite_id.cmp(&b.invite_id));
+        out
+    }
+
+    /// List guest messages, optionally filtered by `thread_id`, sorted deterministically by `message_id`.
+    #[must_use]
+    pub fn list_pending_messages(&self, thread_id: Option<&str>) -> Vec<GuestPendingMessage> {
+        let mut out: Vec<GuestPendingMessage> = self
+            .pending_messages
+            .iter()
+            .filter(|msg| thread_id.is_none_or(|tid| msg.thread_id == tid))
+            .cloned()
+            .collect();
+        out.sort_by(|a, b| a.message_id.cmp(&b.message_id));
+        out
+    }
 }
 
 #[cfg(test)]
@@ -321,5 +378,41 @@ mod tests {
             "Now allowed after approval",
         )
         .expect("slot freed after approval");
+    }
+
+    #[test]
+    fn list_invites_and_pending_messages_filter_and_sort_deterministically() {
+        let mut svc = GuestShareService::with_signing_key([9u8; 32]);
+        let now = 1_700_000_000_000;
+        let inv_b = svc.create_invite("inv-b", "thread-2", now);
+        let inv_a = svc.create_invite("inv-a", "thread-1", now);
+
+        svc.redeem_invite("inv-b", &inv_b.signature_hex, "browser-2", now + 10)
+            .expect("redeem inv-b");
+        svc.redeem_invite("inv-a", &inv_a.signature_hex, "browser-1", now + 20)
+            .expect("redeem inv-a");
+
+        svc.submit_guest_message("msg-z", "thread-2", "browser-2", "Bob", "Prompt Z")
+            .expect("submit msg-z");
+        svc.submit_guest_message("msg-a", "thread-1", "browser-1", "Alice", "Prompt A")
+            .expect("submit msg-a");
+
+        let all_invites = svc.list_invites(None);
+        assert_eq!(all_invites.len(), 2);
+        assert_eq!(all_invites[0].invite_id, "inv-a");
+        assert_eq!(all_invites[1].invite_id, "inv-b");
+
+        let t1_invites = svc.list_invites(Some("thread-1"));
+        assert_eq!(t1_invites.len(), 1);
+        assert_eq!(t1_invites[0].invite_id, "inv-a");
+
+        let all_msgs = svc.list_pending_messages(None);
+        assert_eq!(all_msgs.len(), 2);
+        assert_eq!(all_msgs[0].message_id, "msg-a");
+        assert_eq!(all_msgs[1].message_id, "msg-z");
+
+        let t2_msgs = svc.list_pending_messages(Some("thread-2"));
+        assert_eq!(t2_msgs.len(), 1);
+        assert_eq!(t2_msgs[0].message_id, "msg-z");
     }
 }

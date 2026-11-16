@@ -28,7 +28,7 @@ vox-db = { workspace = true, features = ["host-integration"], optional = true }
 vox-secrets = { workspace = true, optional = true }
 vox-ast = { workspace = true }
 turso = { workspace = true, optional = true }
-sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio"], optional = true }
+sqlx = { workspace = true, features = ["runtime-tokio"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["sync"], optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }

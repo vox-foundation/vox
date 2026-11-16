@@ -21,7 +21,8 @@ const { mockInvoke, defaultMockInvokeImpl, mockListModels } = vi.hoisted(() => {
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
-vi.mock('../../../transport', () => ({
+vi.mock('../../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../transport')>()),
   voxTransport: { listModels: (...a: unknown[]) => mockListModels(...a) },
 }));
 
@@ -153,7 +154,8 @@ describe('Loquela', () => {
     fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
     fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
     fireEvent.change(screen.getByLabelText('Acceptance criteria'), { target: { value: 'toggle persists' } });
-    fireEvent.change(screen.getByLabelText('Effort'), { target: { value: 'urgent' } });
+    fireEvent.click(screen.getByLabelText('Effort'));
+    fireEvent.click(screen.getByRole('option', { name: /urgent/i }));
     const ta = screen.getByLabelText('Task composer');
     fireEvent.change(ta, { target: { value: 'add a theme switch' } });
     fireEvent.keyDown(ta, { key: 'Enter' });
@@ -217,7 +219,7 @@ describe('Loquela', () => {
   it('the Run button carries its own keyboard-shortcut hint, with no other disconnected shortcut hint elsewhere', () => {
     renderLoquela();
     const runButton = screen.getByRole('button', { name: /^run/i });
-    expect(runButton).toHaveTextContent('↵');
+    expect(runButton.querySelector('kbd [data-icon="keycap-enter"]')).toBeTruthy();
     // Reproduces a live bug: a bare "⌘↵" kbd hint used to render alone at
     // the end of the toolbar row, disconnected from any button — it must
     // not exist anywhere outside the Run button now.
@@ -389,7 +391,7 @@ describe('Loquela', () => {
     fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
     const ta = screen.getByLabelText('Task composer');
     fireEvent.change(ta, { target: { value: '/verify' } });
-    fireEvent.click(screen.getByRole('button', { name: /\/verify/i }));
+    fireEvent.click(screen.getByRole('option', { name: /\/verify/i }));
     expect(screen.getByLabelText('Interaction mode')).toHaveTextContent(/verify/i);
   });
 
@@ -484,7 +486,7 @@ describe('Loquela', () => {
   it('the Run button aria text and its visible shortcut hint agree', () => {
     renderLoquela();
     const run = screen.getByRole('button', { name: 'Run (Enter)' });
-    expect(run.querySelector('kbd')?.textContent).toBe('↵');
+    expect(run.querySelector('kbd [data-icon="keycap-enter"]')).toBeTruthy();
   });
 
   it('offers Plan as a send mode, labels the trigger with it, and submits execution_mode "plan"', () => {
@@ -585,15 +587,17 @@ describe('Loquela', () => {
 
   it('supports unified Oversight 1..5 control, @kb scope selector, and Atlas click-to-@ mention insertion (Phases 18, 30, 44)', () => {
     renderLoquela();
-    const oversightSelect = screen.getByTestId('loquela-oversight-select') as HTMLSelectElement;
-    expect(oversightSelect.value).toBe('balanced');
-    fireEvent.change(oversightSelect, { target: { value: 'cautious' } });
-    expect(oversightSelect.value).toBe('cautious');
+    const oversightSelect = screen.getByTestId('loquela-oversight-select');
+    expect(oversightSelect).toHaveTextContent('Ovs 3: Balanced');
+    fireEvent.click(oversightSelect);
+    fireEvent.click(screen.getByRole('option', { name: 'Ovs 4: Cautious' }));
+    expect(oversightSelect).toHaveTextContent('Ovs 4: Cautious');
 
-    const kbSelect = screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement;
-    expect(kbSelect.value).toBe('auto');
-    fireEvent.change(kbSelect, { target: { value: 'verified' } });
-    expect(kbSelect.value).toBe('verified');
+    const kbSelect = screen.getByTestId('loquela-kb-scope-select');
+    expect(kbSelect).toHaveTextContent('@kb:auto');
+    fireEvent.click(kbSelect);
+    fireEvent.click(screen.getByRole('option', { name: '@kb:verified' }));
+    expect(kbSelect).toHaveTextContent('@kb:verified');
 
     fireEvent(
       window,
@@ -647,11 +651,11 @@ describe('Loquela', () => {
 
     // Alt+O cycles Oversight (balanced -> cautious) and Alt+K cycles @kb scope (auto -> docs -> code)
     fireEvent.keyDown(ta, { key: 'o', altKey: true });
-    expect((screen.getByTestId('loquela-oversight-select') as HTMLSelectElement).value).toBe('cautious');
+    expect(screen.getByTestId('loquela-oversight-select')).toHaveTextContent('Ovs 4: Cautious');
     fireEvent.keyDown(ta, { key: 'k', altKey: true });
-    expect((screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement).value).toBe('docs');
+    expect(screen.getByTestId('loquela-kb-scope-select')).toHaveTextContent('@kb:docs');
     fireEvent.keyDown(ta, { key: 'k', altKey: true });
-    expect((screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement).value).toBe('code');
+    expect(screen.getByTestId('loquela-kb-scope-select')).toHaveTextContent('@kb:code');
 
     // Verify live posture badge reflects the real-time state
     expect(screen.getByTestId('loquela-live-posture-badge')).toHaveTextContent(
@@ -689,7 +693,7 @@ describe('Loquela', () => {
     expect(screen.getByRole('radio', { name: 'Balanced' })).toHaveAttribute('aria-checked', 'true');
 
     fireEvent.click(screen.getByTestId('loquela-hud-cycle-kb'));
-    expect((screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement).value).toBe('docs');
+    expect(screen.getByTestId('loquela-kb-scope-select')).toHaveTextContent('@kb:docs');
 
     fireEvent.keyDown(ta, { key: 'Escape' });
     expect(screen.queryByTestId('loquela-keybind-hud-panel')).toBeNull();

@@ -41,6 +41,13 @@ retry = 6
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
+[target.aarch64-apple-darwin]
+# Strip unreachable functions and their DWARF __eh_frame unwind entries at link
+# time so large workspace binaries stay under macOS ld's 16 MiB compact-unwind
+# ceiling (`ld: __eh_frame section too large (max 16MB)`). Do NOT set
+# panic=abort here (guarded by release_build.rs for catch_unwind safety).
+rustflags = ["-C", "link-arg=-Wl,-dead_strip"]
+
 [target.x86_64-pc-windows-msvc]
 # lld-link (LLVM 22, on PATH) — ADOPTED 2026-06-30. The historical "permission-denied
 # overwriting a locked test binary" error was the zombie-test-process / orphan class

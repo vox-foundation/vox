@@ -26,7 +26,7 @@ signed envelope is forward-compat for the mesh-replicated Option C, which is def
 
 **Anti-goals (binding).** No custom crypto (Ed25519 / X25519 / JWE / BLAKE3 only via `vox-crypto`). No blockchain or token economy (kudos is a local-then-gossip ledger). No TEE-first (TEE is a Phase 6 stub). No onion routing. No transitive web-of-trust (paired peers + GitHub attestation are binary gates). No public SaaS multi-tenant control plane. Reputation is a *signal*, not a *capability* — it can deprioritize but never bypass the binary attestation gate.
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
+**Working directory.** Worktree at `.claude/worktrees/zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
 
 **Vox project rule.** No `.ps1` / `.sh` / `.py` automation glue. Any required automation is `.vox`.
 

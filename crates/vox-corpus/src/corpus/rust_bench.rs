@@ -265,6 +265,9 @@ pub mod controls {
 mod tests {
     use super::*;
 
+    const BENCH_ITEM_TIMEOUT: Duration = Duration::from_secs(30);
+    const BENCH_LOOP_TIMEOUT: Duration = Duration::from_secs(2);
+
     fn sample_items() -> Vec<RustBenchItem> {
         vec![
             RustBenchItem {
@@ -395,7 +398,7 @@ mod tests {
     fn test_run_item_lifecycle() {
         let target_dir = tempfile::tempdir().unwrap();
         let opts = RunOpts {
-            timeout: Duration::from_secs(30),
+            timeout: BENCH_ITEM_TIMEOUT,
             target_dir: target_dir.path().to_path_buf(),
         };
         let items = sample_items();
@@ -430,7 +433,7 @@ mod tests {
 
         // 5. Infinite loop times out
         let timeout_opts = RunOpts {
-            timeout: Duration::from_secs(2),
+            timeout: BENCH_LOOP_TIMEOUT,
             target_dir: target_dir.path().to_path_buf(),
         };
         let loop_code = "pub fn clamp_val(val: i64, _min: i64, _max: i64) -> i64 { loop {} }";
@@ -443,7 +446,7 @@ mod tests {
         let items = sample_items();
         let target_dir = tempfile::tempdir().unwrap();
         let opts = RunOpts {
-            timeout: Duration::from_secs(30),
+            timeout: BENCH_ITEM_TIMEOUT,
             target_dir: target_dir.path().to_path_buf(),
         };
 
@@ -496,7 +499,7 @@ mod tests {
     /// Run with: `cargo test -p vox-corpus --lib rust_bench_control_matrix -- --ignored`
     /// Wall-clock: ~3-6 minutes.
     #[test]
-    #[ignore]
+    #[ignore = "owner:corpus sunset:never soak: compiles 60 rustc control crates (~3-6 min); run manually with --ignored"]
     fn rust_bench_control_matrix() {
         let path =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/data/rust_bench/items.v1.jsonl");
@@ -505,7 +508,7 @@ mod tests {
 
         let target_dir = tempfile::tempdir().unwrap();
         let opts = RunOpts {
-            timeout: Duration::from_secs(30),
+            timeout: BENCH_ITEM_TIMEOUT,
             target_dir: target_dir.path().to_path_buf(),
         };
 

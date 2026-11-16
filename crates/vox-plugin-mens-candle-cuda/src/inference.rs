@@ -27,9 +27,10 @@ pub struct InferenceEngine {
     pub model: InferenceModel,
     pub tokenizer: Tokenizer,
     pub device: Device,
-    /// Stop tokens read from the model's own `config.json` at load. Empty when
-    /// the config carries none — generation then runs to `max_tokens`.
+    /// Stop tokens read from the model's own `config.json` / `generation_config.json`
+    /// at load. Empty when neither carries one — generation then runs to `max_tokens`.
     pub eos_token_ids: Vec<u32>,
+    pub(crate) user_no_think_switch: bool,
 }
 
 pub enum InferenceModel {
@@ -74,7 +75,9 @@ use vox_plugin_mens_candle_core::inference_device::{
 // `adapter_deltas_must_be_folded` (previously forked byte-for-byte in this
 // file and the Metal plugin's `inference.rs`). See that module's docs for why
 // a base-only directory used to be a hard error here.
-use vox_plugin_mens_candle_core::weight_resolution::resolve_weights;
+use vox_plugin_mens_candle_core::weight_resolution::{
+    adapter_deltas_must_be_folded, resolve_weights,
+};
 
 fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf> {
     let manifest = model_dir.join("adapter_manifest.json");
@@ -110,7 +113,7 @@ pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf>
 // both plugins) with a comment here claiming the copies were "kept
 // byte-for-byte in sync ... by hand". There is nothing left to keep in sync:
 // all four call sites now use the one definition.
-use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq;
+use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq_with_llama3_scaling;
 
 impl InferenceEngine {
     pub fn load(model_dir: &Path, device_kind: &crate::device::DeviceKind) -> Result<Self> {
@@ -194,16 +197,41 @@ impl InferenceEngine {
         };
 
         let config_path = model_dir.join("config.json");
-        let (mut layout, eos_token_ids) = if config_path.is_file() {
-            let s = std::fs::read_to_string(&config_path)
-                .map_err(|e| anyhow::anyhow!("read config.json: {e}"))?;
-            (
-                crate::hf_layout::HfTransformerLayout::from_config_json_str(&s)?,
-                eos_token_ids(&s),
-            )
-        } else {
+        if !config_path.is_file() {
             anyhow::bail!("config.json missing in {}", model_dir.display());
-        };
+        }
+        let config_raw = std::fs::read_to_string(&config_path)
+            .map_err(|e| anyhow::anyhow!("read config.json: {e}"))?;
+        let mut layout = crate::hf_layout::HfTransformerLayout::from_config_json_str(&config_raw)?;
+        let zero_centered = layout.uses_zero_centered_rmsnorm();
+        let user_no_think_switch = vox_eval::qwen_reasoning::model_uses_no_think_user_switch(
+            if !layout.model_type.is_empty() {
+                Some(layout.model_type.as_str())
+            } else {
+                model_dir.file_name().and_then(|s| s.to_str())
+            },
+        );
+        let mut eos_token_ids = eos_token_ids(&config_raw);
+        let gen_cfg_path = model_dir.join("generation_config.json");
+        if gen_cfg_path.is_file()
+            && let Ok(gen_raw) = std::fs::read_to_string(&gen_cfg_path)
+        {
+            for id in self::eos_token_ids(&gen_raw) {
+                if !eos_token_ids.contains(&id) {
+                    eos_token_ids.push(id);
+                }
+            }
+        }
+        if let Some(im_end_id) = _tokenizer.token_to_id("<|im_end|>")
+            && !eos_token_ids.contains(&im_end_id)
+        {
+            eos_token_ids.push(im_end_id);
+        }
+        let rms_norm_eps =
+            crate::hf_layout::HfTransformerLayout::parse_rms_norm_eps_str(&config_raw)
+                .unwrap_or(1e-6);
+        let llama3_rope =
+            crate::hf_layout::HfTransformerLayout::parse_llama3_rope_scaling_str(&config_raw);
 
         if layout.architecture == HfArchitecture::Qwen35 {
             let p = format!("{}.0.input_layernorm.weight", layout.namespace_prefix);
@@ -221,14 +249,16 @@ impl InferenceEngine {
             let head_dim = layout.head_dim.unwrap_or(layout.hidden_size / n_heads);
             for i in 0..layout.num_hidden_layers {
                 let p = format!("{}.{}", layout.namespace_prefix, i);
-                let ln1 = candle_nn::RmsNorm::new(
+                let ln1 = vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
                     get_tensor(&format!("{p}.input_layernorm.weight"))?,
-                    1e-6,
-                );
-                let ln2 = candle_nn::RmsNorm::new(
+                    rms_norm_eps,
+                    zero_centered,
+                )?;
+                let ln2 = vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
                     get_tensor(&format!("{p}.post_attention_layernorm.weight"))?,
-                    1e-6,
-                );
+                    rms_norm_eps,
+                    zero_centered,
+                )?;
                 let layer_type = layout
                     .layer_types
                     .get(i)
@@ -253,17 +283,15 @@ impl InferenceEngine {
                         &qlora_cfg,
                         &_device,
                     )?;
-                    let b_proj = QuantizedLinear::from_weight(
-                        &linear_weight(&format!("{p}.linear_attn.in_proj_b.weight"))?,
-                        None,
-                        &qlora_cfg,
-                        &_device,
+                    let b_proj = crate::model::LinearProj::from_tensor(
+                        (&linear_weight(&format!("{p}.linear_attn.in_proj_b.weight"))?)
+                            .to_dtype(candle_core::DType::F32)?
+                            .to_device(&_device)?,
                     )?;
-                    let a_proj = QuantizedLinear::from_weight(
-                        &linear_weight(&format!("{p}.linear_attn.in_proj_a.weight"))?,
-                        None,
-                        &qlora_cfg,
-                        &_device,
+                    let a_proj = crate::model::LinearProj::from_tensor(
+                        (&linear_weight(&format!("{p}.linear_attn.in_proj_a.weight"))?)
+                            .to_dtype(candle_core::DType::F32)?
+                            .to_device(&_device)?,
                     )?;
                     let out_proj = QuantizedLinear::from_weight(
                         &linear_weight(&format!("{p}.linear_attn.out_proj.weight"))?,
@@ -296,7 +324,7 @@ impl InferenceEngine {
                         a_log: get_tensor(&format!("{p}.linear_attn.A_log"))?,
                         norm: candle_nn::RmsNorm::new(
                             get_tensor(&format!("{p}.linear_attn.norm.weight"))?,
-                            1e-6,
+                            rms_norm_eps,
                         ),
                         num_k_heads: key_heads,
                         num_v_heads: value_heads,
@@ -339,10 +367,24 @@ impl InferenceEngine {
                     // qkv biases above.
                     let q_norm = get_tensor(&format!("{p}.self_attn.q_norm.weight"))
                         .ok()
-                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                        .map(|w| {
+                            vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
+                                w,
+                                rms_norm_eps,
+                                zero_centered,
+                            )
+                        })
+                        .transpose()?;
                     let k_norm = get_tensor(&format!("{p}.self_attn.k_norm.weight"))
                         .ok()
-                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                        .map(|w| {
+                            vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
+                                w,
+                                rms_norm_eps,
+                                zero_centered,
+                            )
+                        })
+                        .transpose()?;
                     Qwen35AttentionBlock::Full(Qwen2Attention {
                         q_proj,
                         k_proj,
@@ -383,11 +425,23 @@ impl InferenceEngine {
                 // trainer synthesizes it from `config.rope_theta` (see candle_qlora_train::
                 // synthesize_rope_inv_freq). Inference MUST do the same or the forward runs
                 // with zero positional encoding and emits token-salad. Match the trainer.
+                let rope_base = if layer_type == "linear_attention" {
+                    layout.linear_key_head_dim.unwrap_or(head_dim)
+                } else {
+                    head_dim
+                };
+                let rope_dim = layout.effective_rope_dim(rope_base);
                 let inv_freq = get_tensor(&format!("{p}.self_attn.rotary_emb.inv_freq"))
                     .or_else(|_| get_tensor(&format!("{p}.linear_attn.rotary_emb.inv_freq")))
                     .ok()
                     .or_else(|| {
-                        synthesize_rope_inv_freq(head_dim, layout.rope_theta, &_device).ok()
+                        synthesize_rope_inv_freq_with_llama3_scaling(
+                            rope_dim,
+                            layout.rope_theta,
+                            llama3_rope,
+                            &_device,
+                        )
+                        .ok()
                     });
 
                 layers.push(Qwen35Layer {
@@ -398,15 +452,20 @@ impl InferenceEngine {
                     inv_freq,
                 });
             }
-            let norm = candle_nn::RmsNorm::new(
+            let norm = vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
                 get_tensor("model.language_model.norm.weight")
                     .or_else(|_| get_tensor("model.norm.weight"))?,
-                1e-6,
+                rms_norm_eps,
+                zero_centered,
+            )?;
+            let lm_head_candidates = lm_head_key_candidates(
+                layout.tie_word_embeddings,
+                adapter_deltas_must_be_folded(model_dir),
             );
             let lm_head = QuantizedLinear::from_weight(
-                &linear_weight("lm_head.weight").or_else(|_| {
-                    linear_weight("model.language_model.embed_tokens.weight")
-                        .or_else(|_| linear_weight("model.embed_tokens.weight"))
+                &linear_weight(lm_head_candidates[0]).or_else(|_| {
+                    linear_weight(lm_head_candidates[1])
+                        .or_else(|_| linear_weight(lm_head_candidates[2]))
                 })?,
                 None,
                 &qlora_cfg,
@@ -439,6 +498,7 @@ impl InferenceEngine {
             tokenizer: _tokenizer,
             device: _device,
             eos_token_ids,
+            user_no_think_switch,
         })
     }
 
@@ -495,7 +555,12 @@ impl InferenceEngine {
         check_output_mode(req.output_mode.as_deref())?;
         let lane = resolve_lane(req.lane.as_deref())?;
 
-        let prompt = assemble_prompt(req.system.as_deref(), &req.prompt, lane);
+        let prompt = assemble_prompt_with_switch(
+            req.system.as_deref(),
+            &req.prompt,
+            lane,
+            self.user_no_think_switch,
+        );
 
         let generated = self.generate(
             &prompt,
@@ -537,33 +602,25 @@ impl InferenceEngine {
         let mut generated = String::new();
         let mut rng = generation_rng(seed);
 
-        let uses_linear_attention = match &self.model {
-            InferenceModel::Qwen35(model) => model.uses_linear_attention(),
-        };
+        // KV + recurrent conv-state cached decoding: the prompt is forwarded ONCE
+        // (the prefill at position 0), and each subsequent step forwards only the
+        // single sampled token while carrying KV (full attention) and short-conv +
+        // recurrent state (linear attention) across steps.
         let mut cache = match &self.model {
             InferenceModel::Qwen35(model) => model.empty_cache(),
         };
         let mut pos = 0usize;
-        let mut context = prompt_tokens.clone();
         let mut step_input = prompt_tokens;
 
         for _ in 0..max_tokens {
-            let logits = if uses_linear_attention {
-                let input = Tensor::new(context.as_slice(), &self.device)?.unsqueeze(0)?;
-                match &self.model {
-                    InferenceModel::Qwen35(model) => model.forward(&input)?,
+            let submitted = step_input.len();
+            let input = Tensor::new(step_input.as_slice(), &self.device)?.unsqueeze(0)?;
+            let logits = match &self.model {
+                InferenceModel::Qwen35(model) => {
+                    model.forward_cached_last_token(&input, pos, &mut cache)?
                 }
-            } else {
-                let submitted = step_input.len();
-                let input = Tensor::new(step_input.as_slice(), &self.device)?.unsqueeze(0)?;
-                let logits = match &self.model {
-                    InferenceModel::Qwen35(model) => {
-                        model.forward_cached(&input, pos, &mut cache)?
-                    }
-                };
-                pos += submitted;
-                logits
             };
+            pos += submitted;
             let logits = logits.squeeze(0)?;
             let seq = logits.dim(0)?;
             let logits = logits.narrow(0, seq.saturating_sub(1), 1)?.squeeze(0)?;
@@ -579,11 +636,7 @@ impl InferenceEngine {
             if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
                 generated.push_str(&char_str);
             }
-            if uses_linear_attention {
-                context.push(next_token);
-            } else {
-                step_input = vec![next_token];
-            }
+            step_input = vec![next_token];
         }
 
         Ok(generated)
@@ -620,6 +673,18 @@ const LM_HEAD_KEYS: [&str; 3] = [
     "model.language_model.embed_tokens.weight",
     "model.embed_tokens.weight",
 ];
+
+fn lm_head_key_candidates(tie_word_embeddings: bool, fold_deltas: bool) -> [&'static str; 3] {
+    if tie_word_embeddings && fold_deltas {
+        [
+            "model.language_model.embed_tokens.weight",
+            "model.embed_tokens.weight",
+            "lm_head.weight",
+        ]
+    } else {
+        LM_HEAD_KEYS
+    }
+}
 
 /// Every transformer-block base key the load path must fetch through
 /// `linear_weight` — i.e. every linear projection LoRA can train, for this
@@ -844,7 +909,12 @@ fn resolve_lane(lane: Option<&str>) -> Result<Lane> {
 /// open a bare thinking turn. A prompt that is already ChatML (eval-local, chat
 /// completions) is kept as-is for every lane, gaining the system turn only if it
 /// has none.
-fn assemble_prompt(system: Option<&str>, prompt: &str, lane: Lane) -> String {
+pub(crate) fn assemble_prompt_with_switch(
+    system: Option<&str>,
+    prompt: &str,
+    lane: Lane,
+    user_no_think_switch: bool,
+) -> String {
     let system = system.filter(|s| !s.is_empty());
     let system_turn = |s: &str| format!("<|im_start|>system\n{s}<|im_end|>\n");
     if prompt.starts_with("<|im_start|>") {
@@ -856,10 +926,12 @@ fn assemble_prompt(system: Option<&str>, prompt: &str, lane: Lane) -> String {
         };
     }
     // Codegen uses the non-thinking prefix training supervises (`/no_think` plus a
-    // prefilled empty think block); hub and agent leave the assistant turn open.
-    // An already-ChatML prompt (thinking-mode eval, chat completions) is returned
-    // above unchanged.
-    let cfg = vox_plugin_mens_candle_core::config::ChatmlConfig::default();
+    // prefilled empty think block when `user_no_think_switch` is true); hub and agent
+    // leave the assistant turn open. An already-ChatML prompt is returned above unchanged.
+    let cfg = vox_plugin_mens_candle_core::config::ChatmlConfig {
+        user_no_think_switch,
+        ..Default::default()
+    };
     let wrapped = vox_plugin_mens_candle_core::training_text::chatml_prefix_for_lane(
         system.unwrap_or(""),
         prompt,
@@ -877,6 +949,11 @@ fn assemble_prompt(system: Option<&str>, prompt: &str, lane: Lane) -> String {
     }
 }
 
+#[cfg(test)]
+fn assemble_prompt(system: Option<&str>, prompt: &str, lane: Lane) -> String {
+    assemble_prompt_with_switch(system, prompt, lane, true)
+}
+
 /// Entry point called from `backend.rs` `run_inference`.
 ///
 /// `model_dir_json` is a JSON string with a `"model_dir"` field pointing to the
@@ -890,9 +967,9 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        assemble_prompt, check_output_mode, compute_dtype_for_device, generation_rng,
-        ranked_logits, resolve_adapter_manifest_path, resolve_lane, sample_next_token,
-        weight_sources,
+        assemble_prompt, assemble_prompt_with_switch, check_output_mode, compute_dtype_for_device,
+        generation_rng, ranked_logits, resolve_adapter_manifest_path, resolve_lane,
+        sample_next_token, weight_sources,
     };
     use vox_eval::qwen_reasoning::Lane;
     use vox_plugin_mens_candle_core::weight_resolution::adapter_deltas_must_be_folded;
@@ -1460,5 +1537,117 @@ mod tests {
         .to_vec1::<f32>()
         .expect("to_vec1");
         assert_eq!(loaded, vec![1.0f32, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn lm_head_key_candidates_respects_tied_embeddings_and_merged_state() {
+        assert_eq!(
+            super::lm_head_key_candidates(true, true),
+            [
+                "model.language_model.embed_tokens.weight",
+                "model.embed_tokens.weight",
+                "lm_head.weight",
+            ],
+            "unmerged tied checkpoints must resolve embed_tokens before redundant lm_head.weight"
+        );
+        for (tied, fold_deltas) in [(false, true), (true, false), (false, false)] {
+            assert_eq!(
+                super::lm_head_key_candidates(tied, fold_deltas),
+                super::LM_HEAD_KEYS,
+                "untied or already-merged runs must resolve lm_head.weight first ({tied}, {fold_deltas})"
+            );
+        }
+    }
+
+    #[test]
+    fn assemble_prompt_with_switch_omits_no_think_when_disabled() {
+        let on = assemble_prompt_with_switch(Some("SYS"), "hello", Lane::Codegen, true);
+        let off = assemble_prompt_with_switch(Some("SYS"), "hello", Lane::Codegen, false);
+        assert!(on.contains("/no_think"), "{on}");
+        assert!(!off.contains("/no_think"), "{off}");
+        assert!(off.contains("<think>\n\n</think>\n"), "{off}");
+    }
+
+    #[test]
+    fn generate_handles_hybrid_linear_attention_beyond_one_token() {
+        use super::{InferenceEngine, InferenceModel};
+        use crate::model::{
+            LinearProj, Qwen2MLP, Qwen35AttentionBlock, Qwen35Layer, Qwen35LinearAttention,
+            Qwen35Model,
+        };
+        use candle_core::{DType, Device, Tensor};
+        use candle_nn::RmsNorm;
+        use qlora_rs::QuantizedLinear;
+        use qlora_rs::qlora::QLoraConfig;
+        use qlora_rs::quantization::ComputeDType;
+        use tokenizers::Tokenizer;
+
+        let dev = Device::Cpu;
+        let d = 64usize;
+        let num_k_heads = 1usize;
+        let num_v_heads = 2usize;
+        let head_k_dim = 4usize;
+        let head_v_dim = 4usize;
+        let qkv_dim = 2 * num_k_heads * head_k_dim + num_v_heads * head_v_dim;
+        let value_dim = num_v_heads * head_v_dim;
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = ComputeDType::F32;
+        let qlin = |d_out: usize, d_in: usize| {
+            let w = Tensor::zeros((d_out, d_in), DType::F32, &dev).unwrap();
+            QuantizedLinear::from_weight(&w, None, &cfg, &dev).unwrap()
+        };
+        let fp32_lin = |d_out: usize, d_in: usize| {
+            let w = Tensor::zeros((d_out, d_in), DType::F32, &dev).unwrap();
+            LinearProj::from_tensor(w).unwrap()
+        };
+        let norm = |n: usize| RmsNorm::new(Tensor::ones(n, DType::F32, &dev).unwrap(), 1e-6);
+        let mlp = || Qwen2MLP {
+            gate_proj: qlin(d * 2, d),
+            up_proj: qlin(d * 2, d),
+            down_proj: qlin(d, d * 2),
+        };
+        let linear = Qwen35Layer {
+            input_layernorm: norm(d),
+            attention: Qwen35AttentionBlock::Linear(Qwen35LinearAttention {
+                qkv_proj: qlin(qkv_dim, d),
+                z_proj: qlin(value_dim, d),
+                b_proj: fp32_lin(num_v_heads, d),
+                a_proj: fp32_lin(num_v_heads, d),
+                out_proj: qlin(d, value_dim),
+                conv_weight: Tensor::zeros((qkv_dim, 4), DType::F32, &dev).unwrap(),
+                dt_bias: Tensor::zeros(num_v_heads, DType::F32, &dev).unwrap(),
+                a_log: Tensor::zeros(num_v_heads, DType::F32, &dev).unwrap(),
+                norm: norm(head_v_dim),
+                num_k_heads,
+                num_v_heads,
+                head_k_dim,
+                head_v_dim,
+            }),
+            post_attention_layernorm: norm(d),
+            mlp: mlp(),
+            inv_freq: None,
+        };
+        let model = Qwen35Model {
+            embed_tokens: Tensor::zeros((8, d), DType::F32, &dev).unwrap(),
+            layers: vec![linear],
+            norm: norm(d),
+            lm_head: qlin(8, d),
+        };
+
+        let tok_json = br#"{"version":"1.0","truncation":null,"padding":null,"added_tokens":[],"normalizer":null,"pre_tokenizer":{"type":"Whitespace"},"post_processor":null,"decoder":null,"model":{"type":"WordLevel","vocab":{"a":0,"<unk>":1},"unk_token":"<unk>"}}"#;
+        let tokenizer = Tokenizer::from_bytes(tok_json).expect("valid minimal tokenizer JSON");
+
+        let mut engine = InferenceEngine {
+            model: InferenceModel::Qwen35(model),
+            tokenizer,
+            device: dev,
+            eos_token_ids: Vec::new(),
+            user_no_think_switch: true,
+        };
+
+        let out = engine
+            .generate("a", 3, 0.0, 1, None, Some(42))
+            .expect("hybrid linear-attention model must generate >1 tokens without error");
+        assert!(!out.is_empty());
     }
 }

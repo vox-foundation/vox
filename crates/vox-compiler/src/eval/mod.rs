@@ -8,10 +8,12 @@ pub mod db;
 pub mod env;
 pub mod expr;
 pub mod frame_plan;
+pub mod plot_plan;
 pub mod python;
 pub mod repo;
 pub mod shell_stdlib;
 pub mod stmt;
+pub mod tensor_model;
 pub mod value;
 
 use crate::hir::nodes::HirModule;
@@ -219,6 +221,10 @@ pub struct Interpreter {
     python_project: Option<python::PythonProject>,
     /// Lazy worker host. Created on the first `python.version()` when a project is set.
     python_host: Option<python::Host>,
+    /// Cached Python environment versions and lock hash from worker startup.
+    pub(crate) python_env_metadata: Option<serde_json::Value>,
+    /// Hashed Tier 2 Python escape-hatch telemetry events observed during this run.
+    pub python_escape_telemetry: Vec<serde_json::Value>,
     pub activity_hook: Option<crate::eval::activity_hook::ActivityHook>,
     /// Durable call-site ordinals installed from the loaded HIR.
     pub call_ordinals: std::collections::HashMap<crate::ast::span::Span, u32>,
@@ -459,6 +465,8 @@ impl Interpreter {
             python_unverified_fns: std::collections::HashSet::new(),
             python_project: None,
             python_host: None,
+            python_env_metadata: None,
+            python_escape_telemetry: Vec::new(),
             activity_hook: None,
             call_ordinals: std::collections::HashMap::new(),
             call_keys: std::collections::HashMap::new(),
@@ -536,6 +544,22 @@ impl Interpreter {
                 self.scope.set("frame".to_string(), ns.clone());
                 self.module_scope.set("frame".to_string(), ns);
             }
+            if imp.module_path == ["std"] && imp.item == "plot" {
+                let ns = VoxValue::object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("plot".into()),
+                )]);
+                self.scope.set("plot".to_string(), ns.clone());
+                self.module_scope.set("plot".to_string(), ns);
+            }
+            if imp.module_path == ["std"] && imp.item == "tensor" {
+                let ns = VoxValue::object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("tensor".into()),
+                )]);
+                self.scope.set("tensor".to_string(), ns.clone());
+                self.module_scope.set("tensor".to_string(), ns);
+            }
             if let Some(rel_path) = imp.local_file_path.as_ref() {
                 self.resolve_local_file_import(rel_path, imp.local_file_alias.as_deref())?;
             }
@@ -548,6 +572,15 @@ impl Interpreter {
                 self.scope.set(variant.name.clone(), val.clone());
                 self.module_scope.set(variant.name.clone(), val);
             }
+        }
+
+        for py_imp in &module.py_imports {
+            let val = VoxValue::PyModule {
+                alias: py_imp.alias.clone(),
+                module: py_imp.module.clone(),
+            };
+            self.scope.set(py_imp.alias.clone(), val.clone());
+            self.module_scope.set(py_imp.alias.clone(), val);
         }
 
         // Register all functions in both scopes.

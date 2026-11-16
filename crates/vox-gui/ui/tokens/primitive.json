@@ -49,6 +49,7 @@
     "sans": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
     "serif": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
     "mono": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
+    "terminal-mono": { "value": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace" },
     "size": {
       "xs": { "value": "12px" }, "sm": { "value": "14px" }, "base": { "value": "16px" },
       "lg": { "value": "18px" }, "xl": { "value": "24px" }, "2xl": { "value": "32px" }
@@ -61,7 +62,8 @@
       "display": { "value": "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif" },
       "sans": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
       "serif": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
-      "mono": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" }
+      "mono": { "value": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif" },
+      "terminal-mono": { "value": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace" }
     }
   },
   "motion": {

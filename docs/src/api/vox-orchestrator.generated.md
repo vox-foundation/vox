@@ -72,7 +72,7 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `json-schema` | vox-repository/json-schema |
 | `lsp` | dep:tower-lsp-server |
 | `news-publish` | dep:vox-publisher, vox-publisher/scientia-reddit, vox-publisher/scientia-youtube, vox-publisher/scholarly-external-jobs |
-| `oratio-rerank` | dep:vox-speech |
+| `oratio-rerank` | — |
 | `populi-transport` | dep:vox-populi, vox-populi/transport, dep:aes-gcm, dep:vox-mesh-transport, dep:iroh |
 | `runtime` | vox-actor-runtime, vox-populi/mens, lsp |
 | `system-metrics` | dep:sysinfo |
@@ -114,7 +114,6 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-skill-runtime`](./vox-skill-runtime.generated.md) | Normal |
 | [`vox-skills`](./vox-skills.generated.md) | Normal |
-| [`vox-speech`](./vox-speech.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
 | [`vox-vcs`](./vox-vcs.generated.md) | Normal |
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Development |
@@ -221,6 +220,7 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `socrates` | Socrates evidence gate and shared task context types. |
 | `state` | Serializable orchestrator state snapshots for UI and persistence. |
 | `summary` | Rolling summarization of agent interactions. |
+| `terminal_bridge` | Orchestrator-layer terminal session bridge (`TerminalBridge`) and fallback adapters. |
 | `tool_receipt` | Cryptographic receipts for tool execution grounding. |
 | `topology` | — |
 | `types` | Core identifiers, tasks, messages, and shared value types. |

@@ -69,6 +69,10 @@ pub struct CurriculumSchedule {
     pub curriculum_phases: Option<Vec<String>>,
 }
 
+fn default_user_no_think_switch() -> bool {
+    true
+}
+
 /// Dynamic ChatML separator configuration (registry-driven).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatmlConfig {
@@ -77,6 +81,10 @@ pub struct ChatmlConfig {
     pub role_system: String,
     pub role_user: String,
     pub role_assistant: String,
+    /// Emit Qwen3.0's `" /no_think"` suffix on direct-answer user turns.
+    /// Defaults to `true` for Qwen3.0 compatibility; disabled for Qwen3.5/3.8/Granite.
+    #[serde(default = "default_user_no_think_switch")]
+    pub user_no_think_switch: bool,
 }
 
 impl Default for ChatmlConfig {
@@ -87,6 +95,7 @@ impl Default for ChatmlConfig {
             role_system: "system".to_string(),
             role_user: "user".to_string(),
             role_assistant: "assistant".to_string(),
+            user_no_think_switch: true,
         }
     }
 }
@@ -186,6 +195,19 @@ pub struct LoraTrainingConfig {
     /// optimizer-step boundaries. Metal only; the CUDA plugin ignores it.
     #[serde(default)]
     pub max_runtime_secs: Option<u64>,
+    /// Exclude tied `lm_head` from trainable LoRA adapters to protect pretraining
+    /// representations and reasoning performance at `<=4B` scales.
+    #[serde(default)]
+    pub lora_exclude_lm_head: bool,
+    /// Enable rank-stabilized LoRA (`rsLoRA`: `alpha / sqrt(rank)` scaling).
+    #[serde(default)]
+    pub use_rslora: bool,
+    /// Normalize backward loss by valid supervised tokens across each `grad_accum` window.
+    #[serde(default)]
+    pub token_normalized_grad_accum: bool,
+    /// Pack multiple sequences into `seq_len` bins with block-diagonal causal masks and RoPE reset.
+    #[serde(default)]
+    pub sequence_packing: bool,
 }
 
 impl Default for LoraTrainingConfig {
@@ -243,6 +265,10 @@ impl Default for LoraTrainingConfig {
             launch_argv: Vec::new(),
             gradient_checkpointing: false,
             max_runtime_secs: None,
+            lora_exclude_lm_head: false,
+            use_rslora: false,
+            token_normalized_grad_accum: false,
+            sequence_packing: false,
         }
     }
 }
@@ -378,6 +404,7 @@ mod semcov_wave26_tests {
             role_system: "sys".to_string(),
             role_user: "human".to_string(),
             role_assistant: "gpt".to_string(),
+            user_no_think_switch: false,
         };
         let json = serde_json::to_string(&cfg).unwrap();
         let back: ChatmlConfig = serde_json::from_str(&json).unwrap();

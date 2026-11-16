@@ -10092,7 +10092,91 @@ operations:
 - surface: vox-cli
   path:
   - plan
+  - complete-milestone
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
   - create
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
+  - discuss-phase
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
+  - docs
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
+  - execute-phase
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
+  - new-milestone
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
+  - plan-phase
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
+  - progress
   status: active
   latin_ns: null
   product_lane: ai
@@ -10117,6 +10201,18 @@ operations:
   path:
   - plan
   - status
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - plan
+  - verify-work
   status: active
   latin_ns: null
   product_lane: ai

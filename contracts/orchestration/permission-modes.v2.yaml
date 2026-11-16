@@ -84,6 +84,27 @@ risk_classes:
       are not confined to the VCS-tracked workspace, so this can never be
       treated as reversible regardless of what the command happens to do.
 
+  - tool: vox_terminal_exec
+    class: destructive
+    reversible: false
+    always_requires_approval: false
+    floor: null
+    rationale: >
+      Stateful PTY shell execution in an Axis terminal session. Gated by both
+      the outer PermissionMode matrix (parks in Ask/AcceptEdits; passes through
+      under AcceptAll to the session-level TermControlMode + SecurityTier +
+      ExecPolicyV1 gate) and SHELL_COMMAND_TOOLS history-rewrite floor checks.
+
+  - tool: vox_terminal_send_input
+    class: destructive
+    reversible: false
+    always_requires_approval: false
+    floor: null
+    rationale: >
+      Interactive stdin injection into a running Axis PTY terminal block.
+      Irreversible once delivered to a child process; credential prompts fail
+      closed unconditionally with CREDENTIAL_PROMPT_USER_ONLY.
+
   - tool: vox_deploy
     class: destructive
     reversible: false

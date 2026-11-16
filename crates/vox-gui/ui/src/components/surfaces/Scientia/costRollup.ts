@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /** One row of `by_provider` from `vox scientia cost`. */
 export interface CostByProvider {
@@ -32,7 +32,7 @@ export interface CostRollup {
  * failure so the caller can surface a toast.
  */
 export async function fetchCostRollup(): Promise<CostRollup> {
-  return invoke<CostRollup>('scientia_cost_rollup');
+  return invokeCmd<CostRollup>('scientia_cost_rollup');
 }
 
 function usd(n: number): string {

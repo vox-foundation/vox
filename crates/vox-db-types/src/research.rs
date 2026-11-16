@@ -218,6 +218,64 @@ pub struct DomainReputationRecord {
     pub updated_at_ms: i64,
 }
 
+/// Input parameters for inserting or updating a discovered source in a research session.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NewResearchSessionSource {
+    pub session_id: i64,
+    pub wave: i64,
+    pub url: String,
+    pub title: String,
+    pub snippet: String,
+    pub provider: String,
+    pub domain: String,
+    pub relevance_score: f64,
+    pub created_at_ms: i64,
+}
+
+/// Persisted source row for a research session (`research_session_sources`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ResearchSessionSourceRecord {
+    pub id: i64,
+    pub session_id: i64,
+    pub wave: i64,
+    pub url: String,
+    pub title: String,
+    pub snippet: String,
+    pub provider: String,
+    pub domain: String,
+    pub relevance_score: f64,
+    pub created_at_ms: i64,
+}
+
+/// One cursor-paginated claim row joined to its latest non-span verdict.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionClaimPageItem {
+    pub row_id: i64,
+    pub claim_id: i64,
+    pub session_id: i64,
+    pub text: String,
+    pub verdict: Option<String>,
+    pub confidence: Option<f64>,
+    pub verifier_model: Option<String>,
+    pub created_at_ms: i64,
+}
+
+/// Deterministic cursor-paginated page of claims for a research session.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionClaimsPage {
+    pub items: Vec<SessionClaimPageItem>,
+    pub next_cursor: Option<i64>,
+    pub total_count: i64,
+}
+
+/// Deterministic cursor-paginated page of sources for a research session.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionSourcesPage {
+    pub items: Vec<ResearchSessionSourceRecord>,
+    pub next_cursor: Option<i64>,
+    pub total_count: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,5 +310,60 @@ mod tests {
             assert_eq!(reporter.to_string(), s);
             assert_eq!(MisguidanceReporter::from_str(s).unwrap(), reporter);
         }
+    }
+
+    #[test]
+    fn test_session_page_dtos_serde_roundtrip() {
+        let src = NewResearchSessionSource {
+            session_id: 7,
+            wave: 2,
+            url: "https://arxiv.org/abs/2601.00001".to_string(),
+            title: "Paper Title".to_string(),
+            snippet: "Abstract snippet".to_string(),
+            provider: "arxiv".to_string(),
+            domain: "arxiv.org".to_string(),
+            relevance_score: 0.91,
+            created_at_ms: 1700000000000,
+        };
+        let rec = ResearchSessionSourceRecord {
+            id: 42,
+            session_id: src.session_id,
+            wave: src.wave,
+            url: src.url.clone(),
+            title: src.title.clone(),
+            snippet: src.snippet.clone(),
+            provider: src.provider.clone(),
+            domain: src.domain.clone(),
+            relevance_score: src.relevance_score,
+            created_at_ms: src.created_at_ms,
+        };
+        let sources_page = SessionSourcesPage {
+            items: vec![rec],
+            next_cursor: Some(42),
+            total_count: 100,
+        };
+        let json = serde_json::to_string(&sources_page).expect("serialize sources_page");
+        let decoded: SessionSourcesPage =
+            serde_json::from_str(&json).expect("deserialize sources_page");
+        assert_eq!(decoded, sources_page);
+
+        let claims_page = SessionClaimsPage {
+            items: vec![SessionClaimPageItem {
+                row_id: 11,
+                claim_id: 998877,
+                session_id: 7,
+                text: "Latency dropped by 35%.".to_string(),
+                verdict: Some("Supported".to_string()),
+                confidence: Some(0.88),
+                verifier_model: Some("minicheck-v1".to_string()),
+                created_at_ms: 1700000000123,
+            }],
+            next_cursor: None,
+            total_count: 1,
+        };
+        let cjson = serde_json::to_string(&claims_page).expect("serialize claims_page");
+        let cdecoded: SessionClaimsPage =
+            serde_json::from_str(&cjson).expect("deserialize claims_page");
+        assert_eq!(cdecoded, claims_page);
     }
 }

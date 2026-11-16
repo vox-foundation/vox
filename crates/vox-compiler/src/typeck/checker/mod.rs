@@ -24,6 +24,23 @@ pub struct Checker<'a> {
     current_caps: Vec<HirCapability>,
 }
 
+fn ty_contains_py_object(ty: &Ty) -> bool {
+    match ty {
+        Ty::Named(n) => n == "PyObject",
+        Ty::List(inner)
+        | Ty::Array(inner)
+        | Ty::Option(inner)
+        | Ty::Stream(inner)
+        | Ty::Set(inner) => ty_contains_py_object(inner),
+        Ty::Result(ok, err) | Ty::Map(ok, err) => {
+            ty_contains_py_object(ok) || ty_contains_py_object(err)
+        }
+        Ty::Tuple(items) => items.iter().any(ty_contains_py_object),
+        Ty::Record(fields) => fields.iter().any(|(_, t)| ty_contains_py_object(t)),
+        _ => false,
+    }
+}
+
 pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
     match expr {
         HirExpr::IntLit(_, s)
@@ -167,6 +184,33 @@ impl<'a> Checker<'a> {
             let resolved = self.uf.resolve(&ret_ty);
             if !matches!(resolved, Ty::TypeVar(_)) {
                 f.return_type = Some(resolved.to_hir_type());
+            }
+        }
+
+        if f.is_pub
+            || matches!(
+                f.durability,
+                Some(crate::hir::DurabilityKind::Activity | crate::hir::DurabilityKind::Workflow)
+            )
+        {
+            let resolved_ret = self.uf.resolve(&ret_ty);
+            let param_has_py_object = f.params.iter().any(|p| {
+                p.type_ann
+                    .as_ref()
+                    .is_some_and(|t| ty_contains_py_object(&resolve_hir_type(t, self.env)))
+            });
+            if param_has_py_object || ty_contains_py_object(&resolved_ret) {
+                self.diags.push(
+                    Diagnostic::error(
+                        "Opaque `PyObject` cannot cross a `pub fn`, `@activity`, or `workflow` boundary; decode it with `.decode(...)` first."
+                            .into(),
+                        f.span,
+                        self.source,
+                    )
+                    .with_suggestion(
+                        "Decode the `PyObject` with `.decode(...)` before returning or accepting it across module/workflow boundaries.",
+                    ),
+                );
             }
         }
 

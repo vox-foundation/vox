@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
+import { extractClaims, listPublicationClaims } from '../../../api/scientia';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
-
-interface ExecuteOutput {
-  exit_code: number;
-  stdout: string;
-  stderr: string;
-}
 
 export interface ClaimRow {
   claim_id: number;
@@ -50,9 +44,8 @@ export interface ClaimsViewProps extends Partial<SurfaceDecoratorProps> {
 }
 
 /**
- * Scientia claims ledger: extract a publication's atomic claims (VeriScore →
- * atomic → span → MiniCheck) and view them with verdicts. Every command routes
- * through the shared `execute_command` path (the runAction seam).
+ * Scientia claims ledger: extract a publication's atomic claims (VeriScore ->
+ * atomic -> span -> MiniCheck) and view them with verdicts via typed daemon RPCs.
  */
 export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
   const [publicationId, setPublicationId] = useState('');
@@ -62,21 +55,12 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
 
   const toast = pushToast ?? (() => {});
 
-  const run = (path: string[]): Promise<ExecuteOutput> =>
-    invoke<ExecuteOutput>('execute_command', { path, args: { publication_id: publicationId } });
-
   const loadClaims = async () => {
     if (!publicationId.trim()) return;
     setBusy(true);
     try {
-      const out = await run(['scientia', 'claims']);
-      if (out.exit_code !== 0) {
-        toast({ tone: 'warn', title: 'Load claims failed', body: out.stderr || `exit ${out.exit_code}`, cause: 'backend-error' });
-        setClaims([]);
-      } else {
-        const parsed = JSON.parse(out.stdout) as { claims?: ClaimRow[] };
-        setClaims(parsed.claims ?? []);
-      }
+      const out = await listPublicationClaims(publicationId.trim());
+      setClaims(out.claims ?? []);
     } catch (err) {
       toast({ tone: 'warn', title: 'Load claims failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       setClaims([]);
@@ -89,16 +73,14 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
     if (!publicationId.trim()) return;
     setBusy(true);
     try {
-      const out = await run(['scientia', 'publication-extract-claims']);
+      const out = await extractClaims(publicationId.trim());
       toast({
-        tone: out.exit_code === 0 ? 'ok' : 'warn',
+        tone: 'ok',
         title: 'Claim extraction',
-        body: out.exit_code === 0 ? 'Extraction complete' : out.stderr || `exit ${out.exit_code}`,
-        cause: out.exit_code === 0 ? 'backend-ok' : 'backend-error',
+        body: `Extracted ${out.total_atomic} claims (${out.supported} supported)`,
+        cause: 'backend-ok',
       });
-      if (out.exit_code === 0) {
-        await loadClaims();
-      }
+      await loadClaims();
     } catch (err) {
       toast({ tone: 'warn', title: 'Extraction failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {

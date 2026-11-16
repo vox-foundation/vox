@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { GroundingCheckToggle } from './GroundingCheckToggle';
@@ -67,10 +67,12 @@ describe('grounding_check_enabled submit-payload wiring', () => {
   });
 
   it('the wired field name matches what the backend orchestrator parses off SUBMIT_TASK params', () => {
-    const orchSrc = readFileSync(
-      path.resolve(__dirname, '../../../../../../vox-orchestrator/src/orch_daemon/mod.rs'),
-      'utf8',
-    );
+    const localOrch = path.resolve(__dirname, '../../../../../../vox-orchestrator/src/orch_daemon/mod.rs');
+    const voxRoot = process.env.VOX_ROOT ?? path.resolve(__dirname, '../../../../../../../../vox');
+    const orchPath = existsSync(localOrch)
+      ? localOrch
+      : path.resolve(voxRoot, 'crates/vox-orchestrator/src/orch_daemon/mod.rs');
+    const orchSrc = readFileSync(orchPath, 'utf8');
     expect(orchSrc).toMatch(/\.get\("grounding_check_enabled"\)/);
   });
 });

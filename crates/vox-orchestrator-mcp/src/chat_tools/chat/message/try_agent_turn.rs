@@ -109,11 +109,11 @@ pub(super) async fn try_run_agent_turn(
             ..Default::default()
         },
     );
-    let choice = match crate::llm_bridge::resolve_mcp_chat_model_with_rationale(
+    let mut choice = match crate::llm_bridge::resolve_mcp_chat_model_with_rationale(
         state,
         user_prompt,
         pref.as_deref(),
-        resolution_template,
+        resolution_template.clone(),
         Some(session_id),
     )
     .await
@@ -136,6 +136,74 @@ pub(super) async fn try_run_agent_turn(
             return None;
         }
     };
+
+    let can_fallback_from_local = pref.is_none()
+        && choice.pinned.is_none()
+        && tier.map(str::trim) != Some("local")
+        && !vox_orchestrator::route_policy::inference_privacy_local_only_from_env();
+
+    // Warm the VoxLocal port cache (`:11434` vs `:11435`) before mapping to
+    // `LlmConfig`, and fall back to cloud when an unpinned local endpoint is
+    // unreachable instead of failing on `127.0.0.1:11434/v1/chat/completions`.
+    let local_probe_err: Option<String> = match choice.model.provider_type {
+        vox_orchestrator::models::ProviderType::VoxLocal => {
+            crate::llm_bridge::providers::probe_vox_local_health(&state.http_client)
+                .await
+                .err()
+                .map(|e| e.message)
+        }
+        vox_orchestrator::models::ProviderType::Ollama
+        | vox_orchestrator::models::ProviderType::PopuliMesh
+            if can_fallback_from_local =>
+        {
+            crate::llm_bridge::providers::probe_ollama_tags(&state.http_client)
+                .await
+                .err()
+                .map(|e| e.message)
+        }
+        _ => None,
+    };
+
+    if let Some(probe_msg) = local_probe_err {
+        if can_fallback_from_local {
+            let mut cloud_template = resolution_template;
+            cloud_template.exclude_local_http = true;
+            match crate::llm_bridge::resolve_mcp_chat_model_with_rationale(
+                state,
+                user_prompt,
+                None,
+                cloud_template,
+                Some(session_id),
+            )
+            .await
+            {
+                Ok(mut cloud_choice) => {
+                    let base_reason = cloud_choice
+                        .rationale
+                        .unwrap_or_else(|| "cloud fallback".to_string());
+                    cloud_choice.rationale = Some(format!(
+                        "{base_reason} (local {} unreachable)",
+                        choice.model.id
+                    ));
+                    choice = cloud_choice;
+                }
+                Err(cloud_err) => {
+                    let explicit_vox_local = matches!(
+                        choice.model.provider_type,
+                        vox_orchestrator::models::ProviderType::VoxLocal
+                    ) && std::env::var("VOX_LOCAL_ENDPOINT")
+                        .ok()
+                        .is_some_and(|s| !s.trim().is_empty());
+                    if !explicit_vox_local {
+                        return Some(Err(format!(
+                            "Local inference is not running ({probe_msg}) and no cloud model is available ({cloud_err})"
+                        )));
+                    }
+                }
+            }
+        }
+    }
+
     let model = choice.model;
     let is_free = choice.is_free;
     let selection_reason = choice.rationale;

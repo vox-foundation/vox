@@ -1,10 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import { IsolationPanel } from './IsolationPanel';
-import { conflictRows, type IsolationStatus, type IsolationStrategy } from './isolationHelpers';
+import {
+  ISOLATION_STRATEGIES,
+  conflictRows,
+  defaultStrategy,
+  perAgentRows,
+  type IsolationStatus,
+  type IsolationStrategy,
+} from './isolationHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useLabel } from '../../../hooks/useLanguage';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
 import type { Toast } from '../../../types/tauri';
@@ -22,7 +30,7 @@ interface ExecuteOutput {
 }
 
 async function run(path: string[], argv: string[] = []): Promise<ExecuteOutput> {
-  return invoke<ExecuteOutput>('execute_command', {
+  return invokeCmd<ExecuteOutput>('execute_command', {
     path,
     args: { __argv: argv },
   });
@@ -37,10 +45,11 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
   const [isolation, setIsolation] = useState<IsolationStatus | null>(null);
   const [isolationBusy, setIsolationBusy] = useState(false);
   const [isolationError, setIsolationError] = useState<string | null>(null);
+  const [probeFilter, setProbeFilter] = useState<'all' | 'vcs' | 'check'>('all');
 
   const refetchIsolation = useCallback(async () => {
     try {
-      const status = await invoke<IsolationStatus>('get_vcs_isolation');
+      const status = await invokeCmd<IsolationStatus>('get_vcs_isolation');
       setIsolation(status);
       setIsolationError(null);
     } catch (err) {
@@ -59,7 +68,7 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
     async (strategy: IsolationStrategy) => {
       setIsolationBusy(true);
       try {
-        const status = await invoke<IsolationStatus>('set_vcs_isolation_strategy', {
+        const status = await invokeCmd<IsolationStatus>('set_vcs_isolation_strategy', {
           default: strategy,
           agentId: null,
           strategy: null,
@@ -123,35 +132,62 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
   }
 
   const conflictCount = conflictRows(isolation).length;
-  const agentCount = Object.keys(isolation?.per_agent ?? {}).length;
+  const agentRows = perAgentRows(isolation);
+  const agentCount = agentRows.length;
+  const isolatedCount = agentRows.filter((a) => a.strategy !== 'shared_branch').length;
+  const currStrat = defaultStrategy(isolation);
+  const stratIdx = Math.max(0, ISOLATION_STRATEGIES.indexOf(currStrat));
   const GitIcon = (Icon as Record<string, any>).git ?? Icon.branch;
 
   const repoGauges = [
     {
       label: 'Roots',
-      valueText: '1 Poly',
-      ratio: 0.33,
+      valueText: `${agentCount} Lanes`,
+      ratio: agentCount > 0 ? isolatedCount / agentCount : 0,
       tone: 'gold' as const,
-      purpose: 'Active polyrepo workspace roots ledger',
+      purpose: 'Isolated per-agent VCS lanes out of active agent lanes',
+      actionHint:
+        probeFilter === 'vcs'
+          ? 'Click to show all workspace probes'
+          : 'Click to filter probes to VCS status and diff',
+      active: probeFilter === 'vcs',
+      onClick: () => setProbeFilter((f) => (f === 'vcs' ? 'all' : 'vcs')),
     },
     {
       label: 'Modified',
       valueText: conflictCount > 0 ? `${conflictCount} Conf` : 'Clean',
-      ratio: conflictCount > 0 ? 0.75 : 0.15,
+      ratio:
+        isolation === null || conflictCount === 0
+          ? 0
+          : Math.min(1, conflictCount / Math.max(1, conflictCount + agentCount)),
       tone: conflictCount > 0 ? ('crimson' as const) : ('emerald' as const),
       purpose: 'Working tree modifications and active conflict rows',
+      actionHint:
+        probeFilter === 'check'
+          ? 'Click to show all workspace probes'
+          : 'Click to filter probes to compiler and workspace checks',
+      active: probeFilter === 'check',
+      onClick: () => setProbeFilter((f) => (f === 'check' ? 'all' : 'check')),
     },
     {
       label: 'Isolation',
-      valueText: (isolation?.strategy_default ?? 'shared_branch').replace('_', ' '),
-      ratio: 0.65,
+      valueText: currStrat.replace(/_/g, ' '),
+      ratio: isolation === null ? 0 : (stratIdx + 1) / ISOLATION_STRATEGIES.length,
       tone: 'gold' as const,
       purpose: 'VCS agent isolation strategy default',
+      actionHint: 'Click to cycle default VCS isolation strategy',
+      active: currStrat !== 'shared_branch',
+      onClick: () => {
+        if (!isolationBusy) {
+          const next = ISOLATION_STRATEGIES[(stratIdx + 1) % ISOLATION_STRATEGIES.length]!;
+          void handleSetDefault(next);
+        }
+      },
     },
   ];
 
   return (
-    <section className="space-y-4 rounded-xl border border-[#D4AF37]/40 bg-bg-surface p-4">
+    <section className="@container/surface flex min-h-0 min-w-0 flex-col gap-3.5 rounded-xl border border-[#D4AF37]/40 bg-bg-surface p-3.5 @2xl/surface:p-4">
       <RomanSurfaceHeader
         domainTag="WORKSPACE · REPOSITORY"
         title="Repository Polyrepo & JJ VCS Ledger"
@@ -160,107 +196,127 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
         icon={<GitIcon className="size-5 text-text-primary" />}
         gauges={repoGauges}
       />
-      <div
-        style={{
-          backgroundImage:
-            'linear-gradient(90deg, rgba(248,243,233,0.95) 0%, rgba(235,224,205,0.93) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-[#C59B27] px-3 py-2 text-[#1C140C] shadow-[0_3px_10px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]"
-      >
-        <h2 className="font-display text-xs font-bold text-[#1C140C] tracking-wider uppercase">{useLabel('repo-harness')}</h2>
-        <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
-          <span className="rounded border border-[#8C6825] bg-bg-elevated px-2 py-0.5 text-text-secondary">
-            DEFAULT: <strong className="text-text-primary uppercase">{isolation?.strategy_default ?? 'shared_branch'}</strong>
-          </span>
-          <span className="rounded border border-[#8C6825] bg-bg-elevated px-2 py-0.5 text-text-secondary">
-            AGENTLANES: <strong className="text-text-primary">{agentCount}</strong>
-          </span>
-          <span className={`rounded border px-2 py-0.5 ${conflictCount > 0 ? 'border-amber-500/50 bg-amber-500/15 text-amber-800' : 'border-emerald-600/50 bg-emerald-500/15 text-emerald-700'}`}>
-            CONFLICTS: <strong>{conflictCount}</strong>
-          </span>
-        </div>
-      </div>
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        <button
-          type="button"
-          style={{
-            backgroundImage:
-              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
-            backgroundSize: 'cover',
-          }}
-          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
-          disabled={busy}
-          onClick={() => runAction('Workspace status', ['status'])}
-        >
-          <span>Workspace status</span>
-          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">vox status</span>
-        </button>
-        <button
-          type="button"
-          style={{
-            backgroundImage:
-              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
-            backgroundSize: 'cover',
-          }}
-          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
-          disabled={busy}
-          onClick={() => runAction('Repository health', ['check', 'workspace'])}
-        >
-          <span>Repo health check</span>
-          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">vox check workspace</span>
-        </button>
-        <button
-          type="button"
-          style={{
-            backgroundImage:
-              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
-            backgroundSize: 'cover',
-          }}
-          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
-          disabled={busy}
-          onClick={() => runAction('Vox check', ['check'])}
-        >
-          <span className="font-mono text-[#1C140C]">Run Vox Check</span>
-          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">typecheck + lint</span>
-        </button>
-        <button
-          type="button"
-          aria-label="`vox diff`"
-          style={{
-            backgroundImage:
-              'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
-            backgroundSize: 'cover',
-          }}
-          className="flex items-center justify-between rounded-lg border-2 border-[#C59B27] px-3.5 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
-          disabled={busy}
-          onClick={() => runAction('List changed files', ['diff'])}
-        >
-          <span className="font-mono text-[#1C140C]">Inspect Git Diff</span>
-          <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">working tree</span>
-        </button>
-      </div>
-      <pre
-        aria-label="Command output"
-        aria-live="polite"
-        aria-busy={busy}
-        className="max-h-[420px] overflow-auto rounded-lg border-2 border-[#C59B27] bg-bg-elevated p-3 font-mono text-xs text-text-primary shadow-inner"
-      >
-        {output}
-      </pre>
-      <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
-        <IsolationPanel
-          status={isolation}
-          onSetDefault={handleSetDefault}
-          busy={isolationBusy}
-          unavailableNote={
-            isolationError
-              ? `Live isolation status unavailable: ${isolationError}`
-              : 'Live isolation status is loading from the orchestrator daemon…'
-          }
-        />
-      </div>
+      <BentoGrid preset="hero">
+        <BentoCard span="hero-main" className="gap-3">
+          <div
+            style={{
+              backgroundImage:
+                'linear-gradient(90deg, rgba(248,243,233,0.95) 0%, rgba(235,224,205,0.93) 100%), url(/assets/romanesque/white-marble-frieze-banner.jpg)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-[#C59B27] px-3 py-2 text-[#1C140C] shadow-[0_3px_10px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]"
+          >
+            <h2 className="font-display text-xs font-bold text-[#1C140C] tracking-wider uppercase">{useLabel('repo-harness')}</h2>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
+              <span className="rounded border border-[#8C6825] bg-bg-elevated px-2 py-0.5 text-text-secondary">
+                DEFAULT: <strong className="text-text-primary uppercase">{isolation?.strategy_default ?? 'shared_branch'}</strong>
+              </span>
+              <span className="rounded border border-[#8C6825] bg-bg-elevated px-2 py-0.5 text-text-secondary">
+                AGENTLANES: <strong className="text-text-primary">{agentCount}</strong>
+              </span>
+              <span className={`rounded border px-2 py-0.5 ${conflictCount > 0 ? 'border-amber-500/50 bg-amber-500/15 text-amber-800' : 'border-emerald-600/50 bg-emerald-500/15 text-emerald-700'}`}>
+                CONFLICTS: <strong>{conflictCount}</strong>
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 @lg/surface:grid-cols-2">
+            {(probeFilter === 'all' || probeFilter === 'vcs') && (
+              <button
+                type="button"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+                  backgroundSize: 'cover',
+                }}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-1.5 rounded-lg border-2 border-[#C59B27] px-3 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
+                disabled={busy}
+                onClick={() => runAction('Workspace status', ['status'])}
+              >
+                <span>Workspace status</span>
+                <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">vox status</span>
+              </button>
+            )}
+            {(probeFilter === 'all' || probeFilter === 'check') && (
+              <button
+                type="button"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+                  backgroundSize: 'cover',
+                }}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-1.5 rounded-lg border-2 border-[#C59B27] px-3 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
+                disabled={busy}
+                onClick={() => runAction('Repository health', ['check', 'workspace'])}
+              >
+                <span>Repo health check</span>
+                <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">vox check workspace</span>
+              </button>
+            )}
+            {(probeFilter === 'all' || probeFilter === 'check') && (
+              <button
+                type="button"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+                  backgroundSize: 'cover',
+                }}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-1.5 rounded-lg border-2 border-[#C59B27] px-3 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
+                disabled={busy}
+                onClick={() => runAction('Vox check', ['check'])}
+              >
+                <span className="font-mono text-[#1C140C]">Run Vox Check</span>
+                <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">typecheck + lint</span>
+              </button>
+            )}
+            {(probeFilter === 'all' || probeFilter === 'vcs') && (
+              <button
+                type="button"
+                aria-label="`vox diff`"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(180deg, rgba(250,246,237,0.96) 0%, rgba(236,226,207,0.95) 100%), url(/assets/romanesque/travertine-parchment-tablet.jpg)',
+                  backgroundSize: 'cover',
+                }}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-1.5 rounded-lg border-2 border-[#C59B27] px-3 py-2.5 text-left text-sm font-bold text-[#1C140C] shadow-sm transition hover:border-[#8C6825]"
+                disabled={busy}
+                onClick={() => runAction('List changed files', ['diff'])}
+              >
+                <span className="font-mono text-[#1C140C]">Inspect Git Diff</span>
+                <span className="rounded border border-[#8C6825] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-primary">working tree</span>
+              </button>
+            )}
+          </div>
+          <BentoScrollRegion
+            ariaLabel="Workspace probe stream"
+            className="max-h-[380px] rounded-lg border-2 border-[#C59B27] bg-bg-elevated shadow-inner"
+          >
+            <pre
+              aria-label="Command output"
+              aria-live="polite"
+              aria-busy={busy}
+              className="p-3 font-mono text-xs whitespace-pre-wrap break-words text-text-primary"
+            >
+              {output}
+            </pre>
+          </BentoScrollRegion>
+        </BentoCard>
+
+        <BentoCard span="hero-rail" className="gap-2 bg-overlay-subtle">
+          <BentoScrollRegion ariaLabel="VCS agent isolation status" className="max-h-[480px]">
+            <IsolationPanel
+              status={isolation}
+              onSetDefault={handleSetDefault}
+              busy={isolationBusy}
+              unavailableNote={
+                isolationError
+                  ? `Live isolation status unavailable: ${isolationError}`
+                  : 'Live isolation status is loading from the orchestrator daemon…'
+              }
+            />
+          </BentoScrollRegion>
+        </BentoCard>
+      </BentoGrid>
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getResearchEngineStatus, type ResearchEngineStatusDto } from '../surfaces/Research/researchActions';
+import { Icon } from '../ui/Icons';
 
 export interface StatusBarClusterProps {
   onOpenDrawer?: () => void;
@@ -71,11 +72,23 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
         aria-label="Research & Engine Status"
         className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
       >
-        <span className="uppercase tracking-[0.08em] text-text-muted max-[639px]:sr-only">Research</span>
-        <span className="font-mono tabular-nums text-text-secondary">
-          {activeLane === 'deep' ? '🔬 Deep' : activeLane === 'fast' ? '⚡ Fast' : 'unknown'}
+        <span className="uppercase tracking-[0.08em] text-text-muted max-[1039px]:sr-only">Research</span>
+        <span className="inline-flex items-center gap-1 font-mono tabular-nums text-text-secondary">
+          {activeLane === 'deep' ? (
+            <>
+              <Icon.search className="size-3 text-brass shrink-0" aria-hidden="true" />
+              <span>Deep</span>
+            </>
+          ) : activeLane === 'fast' ? (
+            <>
+              <Icon.bolt className="size-3 text-brass shrink-0" aria-hidden="true" />
+              <span>Fast</span>
+            </>
+          ) : (
+            'unknown'
+          )}
           {tavilyQuota && tavilyRemaining !== null ? (
-            <span className="max-[639px]:hidden">{` · ${tavilyRemaining}/${tavilyQuota.units_limit}`}</span>
+            <span className="max-[1099px]:hidden">{` · ${tavilyRemaining}/${tavilyQuota.units_limit}`}</span>
           ) : null}
         </span>
       </button>
@@ -124,11 +137,13 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
               <div>
                 <div className="font-medium text-text-muted uppercase text-[11px] tracking-[0.08em]">Lane</div>
                 <div className="font-mono text-[11px] space-y-0.5">
-                  <div className={activeLane === 'fast' ? 'text-brass font-semibold' : 'text-text-muted'}>
-                    ⚡ Fast (≤{seconds(status.fast_timeout_ms)})
+                  <div className={`flex items-center gap-1 ${activeLane === 'fast' ? 'text-brass font-semibold' : 'text-text-muted'}`}>
+                    <Icon.bolt className="size-3 shrink-0" aria-hidden="true" />
+                    <span>{`Fast (≤${seconds(status.fast_timeout_ms)})`}</span>
                   </div>
-                  <div className={activeLane === 'deep' ? 'text-brass font-semibold' : 'text-text-muted'}>
-                    🔬 Deep (≤{seconds(status.deep_timeout_ms)})
+                  <div className={`flex items-center gap-1 ${activeLane === 'deep' ? 'text-brass font-semibold' : 'text-text-muted'}`}>
+                    <Icon.search className="size-3 shrink-0" aria-hidden="true" />
+                    <span>{`Deep (≤${seconds(status.deep_timeout_ms)})`}</span>
                   </div>
                 </div>
               </div>
@@ -142,9 +157,10 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
                 setIsOpen(false);
                 onOpenDrawer();
               }}
-              className="w-full rounded border border-brass/40 bg-brass/10 hover:bg-brass/20 text-brass py-1 text-[11px] font-medium transition-colors text-center"
+              className="inline-flex w-full items-center justify-center gap-1 rounded border border-brass/40 bg-brass/10 hover:bg-brass/20 text-brass py-1 text-[11px] font-medium transition-colors text-center"
             >
-              Configure Engines &amp; Keys ↗
+              <span>Configure Engines &amp; Keys</span>
+              <Icon.externalLink className="size-3 shrink-0" aria-hidden="true" />
             </button>
           )}
         </div>

@@ -80,11 +80,14 @@ fn index_frontmatter_parses_with_required_keys() {
         "license",
         "library_name",
         "pipeline_tag",
+        "spaces",
         "tags",
         "language",
     ] {
         assert!(!fm[key].is_null(), "missing `{key}`");
     }
+    assert!(md.contains("assets/overview.jpg"), "missing overview.jpg");
+    assert!(!md.contains(".svg"), "index card must not reference .svg");
     assert!(
         fm["tags"]
             .as_sequence()
@@ -137,12 +140,11 @@ fn index_grid_has_one_row_per_size_and_one_column_per_spoke() {
     }
     let by_size = |s: &str| rows.iter().find(|r| r[0] == s).unwrap().clone();
     let trained = 1; // the one trained spoke column
-    assert_eq!(by_size("0.6B")[trained], "failed");
-    assert_eq!(by_size("1.7B")[trained], "needs re-gate");
+    assert_eq!(by_size("0.8B")[trained], "failed");
+    assert_eq!(by_size("2B")[trained], "needs re-gate");
     assert_eq!(by_size("4B")[trained], "passed");
-    assert_eq!(by_size("8B")[trained], "needs re-gate");
-    assert_eq!(by_size("14B")[trained], "not evaluated");
-    assert_eq!(by_size("32B")[trained], "not trained");
+    assert_eq!(by_size("9B")[trained], "not evaluated");
+    assert_eq!(by_size("27B")[trained], "not trained");
 }
 
 #[test]
@@ -150,13 +152,13 @@ fn index_hub_and_repo_cells_keep_their_wording() {
     let (header, rows) = grid(&full_ladder());
     let hub = header.len() - 2;
     let row = |s: &str| rows.iter().find(|r| r[0] == s).unwrap().clone();
-    assert_eq!(row("0.6B")[hub], "`v5` on Hub; local run differs");
+    assert_eq!(row("0.8B")[hub], "`v5` on Hub; local run differs");
     assert_eq!(row("4B")[hub], "published `v2`");
-    assert_eq!(row("14B")[hub], "not published");
-    assert_eq!(row("32B")[hub], "no weights");
+    assert_eq!(row("9B")[hub], "not published");
+    assert_eq!(row("27B")[hub], "no weights");
     assert_eq!(
         row("4B")[hub + 1],
-        "[ns/vox-mens-qwen3-4b](https://huggingface.co/ns/vox-mens-qwen3-4b)"
+        "[ns/vox-mens-qwen3.5-4b](https://huggingface.co/ns/vox-mens-qwen3.5-4b)"
     );
 }
 
@@ -311,7 +313,7 @@ fn index_names_no_pick_while_regates_pending() {
         "{which}"
     );
     // Every trained size whose gate is not passed is named, in ladder order.
-    let trained = [SIZES[0], SIZES[1], SIZES[2], SIZES[3], SIZES[4]];
+    let trained = [SIZES[0], SIZES[1], SIZES[2], SIZES[3]];
     assert!(
         which.contains(&format!(
             "Sizes whose gate is not passed: {}.",
@@ -320,7 +322,7 @@ fn index_names_no_pick_while_regates_pending() {
         "{which}"
     );
     assert!(
-        !which.contains(SIZES[5]),
+        !which.contains(SIZES[4]),
         "the untrained size is not pending"
     );
 
@@ -347,22 +349,21 @@ fn whats_next_from_records() {
         .filter(|s| s.status == SpokeStatus::Planned)
         .collect();
     // One item per pending trained size, then one per planned spoke.
-    assert_eq!(items.len(), 4 + planned.len(), "{next}");
+    assert_eq!(items.len(), 3 + planned.len(), "{next}");
     let item_of = |size: &str| {
         items
             .iter()
             .find(|i| i.starts_with(&format!("**{size}**:")))
             .unwrap_or_else(|| panic!("no item for {size}: {next}"))
     };
-    let (failed, stale, passed_stale, re_gate, missing) =
-        (SIZES[0], SIZES[1], SIZES[2], SIZES[3], SIZES[4]);
+    let (failed, stale, passed_rung, missing) = (SIZES[0], SIZES[1], SIZES[2], SIZES[3]);
     assert!(
         items
             .iter()
-            .all(|i| !i.starts_with(&format!("**{passed_stale}**")))
+            .all(|i| !i.starts_with(&format!("**{passed_rung}**")))
     );
 
-    // 1.7B: the re-gate and the re-evaluation, with its yaml estimate.
+    // 2B: the re-gate and the re-evaluation, with its yaml estimate.
     let it = item_of(stale);
     assert!(
         it.contains("vox mens eval-collateral-damage") && it.contains("vox mens eval-local"),
@@ -377,14 +378,20 @@ fn whats_next_from_records() {
             && it.contains(&format!("Basis: {}", eta.basis)),
         "{it}"
     );
-    // 8B: only the re-gate (its adapter evidence is current).
-    let it = item_of(re_gate);
+    // 4B (when unpassed in no-passed ladder): only the re-gate (its adapter evidence is current).
+    let tmp_np = tempfile::tempdir().unwrap();
+    let md_np = render(&ladder_entries_no_passed(tmp_np.path()));
+    let next_np = section(&md_np, "What's next");
+    let it_np = next_np
+        .split("\n- ")
+        .find(|i| i.starts_with(&format!("**{passed_rung}**:")))
+        .expect("4B item when unpassed");
     assert!(
-        it.contains("vox mens eval-collateral-damage") && !it.contains("eval-local"),
-        "{it}"
+        it_np.contains("vox mens eval-collateral-damage") && !it_np.contains("eval-local"),
+        "{it_np}"
     );
-    assert!(it.contains("This is an estimate"), "{it}");
-    // 14B: the missing records, with its own estimate.
+    assert!(it_np.contains("This is an estimate"), "{it_np}");
+    // 9B: the missing records, with its own estimate.
     let it = item_of(missing);
     assert!(
         it.contains("produce the records that are missing for")
@@ -449,7 +456,7 @@ fn whats_next_names_a_stale_passed_size_with_only_the_re_evaluation() {
 fn whats_next_is_empty_of_sizes_when_nothing_is_pending() {
     let tmp = tempfile::tempdir().unwrap();
     let mut entries = ladder_entries(tmp.path());
-    entries.retain(|(r, _)| r.size == SIZES[2] || r.size == SIZES[5]);
+    entries.retain(|(r, _)| r.size == SIZES[2] || r.size == SIZES[4]);
     let next = section(&render(&entries), "What's next").to_string();
     assert!(!next.contains(&format!("**{}**", SIZES[2])), "{next}");
     assert!(next.contains("- **harness: tool-selection**"), "{next}");
@@ -459,10 +466,11 @@ fn whats_next_is_empty_of_sizes_when_nothing_is_pending() {
 fn comparison_uses_current_protocol_only() {
     let tmp = tempfile::tempdir().unwrap();
     let mut entries = ladder_entries(tmp.path());
-    // 8B's held-out reports are rewritten under a retired protocol and reloaded.
+    // 9B's held-out reports are rewritten under a retired protocol and reloaded.
+    let run_rel = crate::mens::hub_repo::local_run_dir_for_size(SIZES[3]).unwrap();
     let run = tmp
         .path()
-        .join(format!("qwen3-{}", SIZES[3].to_ascii_lowercase()));
+        .join(run_rel.strip_prefix("mens/runs/").unwrap_or(&run_rel));
     for f in ["heldout_base_nothink.json", "heldout_adapter_nothink.json"] {
         let p = run.join("evidence").join(f);
         let mut v: serde_json::Value =
@@ -483,10 +491,10 @@ fn comparison_uses_current_protocol_only() {
         .map(cells)
         .collect();
     let sizes: Vec<&str> = rows.iter().map(|r| r[0].as_str()).collect();
-    // 8B (retired protocol) and 32B (no reports) are absent; every row names its size.
-    assert_eq!(sizes, [SIZES[0], SIZES[1], SIZES[2], SIZES[4]]);
+    // 9B (retired protocol) and 27B (no reports) are absent; every row names its size.
+    assert_eq!(sizes, [SIZES[0], SIZES[1], SIZES[2]]);
     let row = |s: &str| rows.iter().find(|r| r[0] == s).unwrap();
-    // 1.7B's adapter checkpoint predates the serving-path field: base cell, dash.
+    // 2B's adapter checkpoint predates the serving-path field: base cell, dash.
     assert_ne!(row(SIZES[1])[1], "not recorded");
     assert_eq!(row(SIZES[1])[2], "—");
     assert_ne!(row(SIZES[2])[2], "—");

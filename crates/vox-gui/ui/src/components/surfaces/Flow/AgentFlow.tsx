@@ -5,6 +5,7 @@ import { Agent } from '../../../types/dashboard';
 import { phaseStroke, viz } from '../../../lib/visualTokens';
 import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
 import { Icon } from '../../ui/Icons';
+import { DiegeticFxStage } from '../../fx/DiegeticFxStage';
 
 interface GraphNode {
   id: string;
@@ -145,7 +146,11 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
         </>
       ) : (
         <div className="mt-2 text-[11.5px] font-medium text-[#3B2E1E]">
-          Root coordinator · routes all task fan-out via file-affinity policy (`crates/vox-orchestrator/src/`).
+          Root coordinator · routes all task fan-out via file-affinity policy (
+          <code className="rounded bg-bg-elevated px-1 py-0.5 font-mono text-[10px] text-text-primary">
+            crates/vox-orchestrator/src/
+          </code>
+          ).
         </div>
       )}
     </div>
@@ -252,9 +257,15 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
           src="/assets/romanesque/aqueduct-sluice-cascade-bg.jpg"
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-55 select-none"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-82 select-none"
         />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,246,238,0.18)_0%,rgba(243,235,220,0.45)_100%)]" />
+        <DiegeticFxStage
+          preset="aqueduct-dag"
+          activeBoost={isLive ? 1.35 : 0.45}
+          intensity={1.15}
+          testId="agent-flow-fx-stage"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,246,238,0.08)_0%,rgba(243,235,220,0.32)_100%)]" />
 
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -277,15 +288,14 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             </filter>
           </defs>
 
-          {/* Concentric Brass Astrolabe Orbit Rings around Praetorium Root */}
+          {/* Concentric Engraved Brass Astrolabe Orbit Rings around Praetorium Root */}
           <circle
             cx={W * 0.5}
             cy={H * 0.42}
             r={Math.min(W, H) * 0.32}
             fill="none"
-            stroke="rgba(212, 175, 55, 0.28)"
-            strokeWidth="1.5"
-            strokeDasharray="6 6"
+            stroke="rgba(212, 175, 55, 0.24)"
+            strokeWidth="1.2"
           />
           <circle
             cx={W * 0.5}
@@ -296,7 +306,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             strokeWidth="1.2"
           />
 
-          {/* Aqueduct Hydraulic Conduit Edges */}
+          {/* Aqueduct Hydraulic Conduit Edges (smooth laminar flow + glowing pulse bead, zero dashed lines) */}
           {g.edges.map((e, i) => {
             const a = nodeAt(e.from);
             const b = nodeAt(e.to);
@@ -306,28 +316,25 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             const mx = (pa.x + pb.x) / 2;
             const my = (pa.y + pb.y) / 2 + 34;
             const d = `M ${pa.x} ${pa.y} Q ${mx} ${my} ${pb.x} ${pb.y}`;
+            const dur = `${(2.1 - Math.min(1.0, e.flow * 0.8)).toFixed(2)}s`;
             return (
               <g key={i}>
                 {/* Outer Carved Stone Aqueduct Channel */}
-                <path d={d} stroke="rgba(184, 134, 11, 0.28)" strokeWidth="7" fill="none" />
-                <path d={d} stroke="rgba(212, 175, 55, 0.38)" strokeWidth="4.2" fill="none" />
-                {/* Animated Hydraulic Token Stream */}
+                <path d={d} stroke="rgba(184, 134, 11, 0.26)" strokeWidth="7" strokeLinecap="round" fill="none" />
+                <path d={d} stroke="rgba(212, 175, 55, 0.36)" strokeWidth="4.2" strokeLinecap="round" fill="none" />
+                {/* Continuous Laminar Sunlit Water/Token Ribbon */}
                 <path
                   d={d}
                   stroke="url(#ag-edge-grad)"
-                  strokeWidth={2.2 + e.flow * 2.0}
-                  strokeOpacity="0.96"
+                  strokeWidth={2.0 + e.flow * 1.8}
+                  strokeOpacity="0.92"
+                  strokeLinecap="round"
                   fill="none"
-                  strokeDasharray="10 8"
-                >
-                  <animate
-                    attributeName="stroke-dashoffset"
-                    from="36"
-                    to="0"
-                    dur={`${(1.6 - Math.min(0.8, e.flow * 0.7)).toFixed(2)}s`}
-                    repeatCount="indefinite"
-                  />
-                </path>
+                />
+                {/* Travelling Sunlit Telemetry Pulse Bead */}
+                <circle r={3.6 + e.flow * 1.2} fill="#FFF8DC" stroke="#D4AF37" strokeWidth="1.1">
+                  <animateMotion dur={dur} repeatCount="indefinite" path={d} />
+                </circle>
               </g>
             );
           })}
@@ -391,8 +398,8 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                   cx={x} cy={y} r={r - 5}
                   fill="none"
                   stroke="#8C6825"
-                  strokeOpacity={0.55}
-                  strokeDasharray="3 4"
+                  strokeOpacity={0.38}
+                  strokeWidth={1.0}
                   style={{ transformOrigin: `${x}px ${y}px` }}
                 />
                 <text
@@ -467,42 +474,46 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 type="button"
                 tabIndex={0}
                 onClick={() =>
-                  setFlowReceipt(`⚔ Dispatched sub-agent task to ${selectedNode.label} via file-affinity router`)
+                  setFlowReceipt(`Dispatched sub-agent task to ${selectedNode.label} via file-affinity router`)
                 }
-                className="rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C]"
+                className="inline-flex items-center gap-1 rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C] hover:border-[#8C6214]"
               >
-                [⚔ Dispatch Sub-Agent]
+                <Icon.gladiusShield className="size-2.5 text-[#8C6214]" aria-hidden="true" />
+                <span>Dispatch Sub-Agent</span>
               </button>
               <button
                 type="button"
                 tabIndex={0}
                 onClick={() =>
-                  setFlowReceipt(`🌊 Rerouted ${selectedNode.label} stream to Cursus I Fast Local MENS`)
+                  setFlowReceipt(`Rerouted ${selectedNode.label} stream to Cursus I Fast Local MENS`)
                 }
-                className="rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C]"
+                className="inline-flex items-center gap-1 rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C] hover:border-[#8C6214]"
               >
-                [🌊 Reroute Aqueduct Tier]
+                <Icon.aqueductArch className="size-2.5 text-[#8C6214]" aria-hidden="true" />
+                <span>Reroute Aqueduct Tier</span>
               </button>
               <button
                 type="button"
                 tabIndex={0}
                 onClick={() =>
-                  setFlowReceipt(`🔍 Captured BLAKE3 tool-call trace for ${selectedNode.label}`)
+                  setFlowReceipt(`Captured BLAKE3 tool-call trace for ${selectedNode.label}`)
                 }
-                className="rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C]"
+                className="inline-flex items-center gap-1 rounded border border-[#C59B27]/85 bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1C140C] hover:border-[#8C6214]"
               >
-                [🔍 Inspect Trace]
+                <Icon.search className="size-2.5 text-[#8C6214]" aria-hidden="true" />
+                <span>Inspect Trace</span>
               </button>
               <button
                 type="button"
                 tabIndex={0}
                 onClick={() => {
                   setFlowYieldXp((xp) => xp + 150);
-                  setFlowReceipt(`🏆 Claimed +150 XP · +12 Denarii from ${selectedNode.label} verification!`);
+                  setFlowReceipt(`Claimed +150 XP · +12 Denarii from ${selectedNode.label} verification`);
                 }}
-                className="rounded border border-[#B38728] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208]"
+                className="inline-flex items-center gap-1 rounded border border-[#B38728] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208] hover:brightness-105"
               >
-                [🏆 Claim Yield +{flowYieldXp} XP]
+                <Icon.laurelWreath className="size-2.5 text-[#785312]" aria-hidden="true" />
+                <span>Claim Yield +{flowYieldXp} XP</span>
               </button>
             </div>
             {flowReceipt && (

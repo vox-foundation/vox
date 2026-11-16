@@ -1,4 +1,5 @@
 # Mix configuration for research domain
+include_lanes: [vox_research_expert, vox_docs_qa, vox_codegen]
 output: mens/data/train_mixed_research.jsonl
 sources:
   - path: target/dogfood/research_pairs.validated.jsonl

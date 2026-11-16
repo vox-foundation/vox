@@ -1,27 +1,27 @@
 [package]
 name = "vox-terminal-core"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
 description = "UI-agnostic terminal+agent engine shared by vox-term (ratatui TUI) and the Axis GUI Console."
-license = "Apache-2.0"
+license.workspace = true
 
 [features]
 default = []
-# Placeholder: vox-lang will gate vox-compiler once feature-cfg gating is wired.
-vox-lang = []
+# Gates inline `.vox` evaluation via vox-compiler (~47k LoC); off by default for fast TUI/PTY builds.
+vox-lang = ["dep:vox-compiler"]
 
 [dependencies]
+alacritty_terminal = { workspace = true }
 serde        = { workspace = true, features = ["derive"] }
+tempfile     = { workspace = true }
 tokio        = { workspace = true, features = ["sync", "rt", "macros"] }
 portable-pty = { workspace = true }
 anyhow       = { workspace = true }
 async-trait  = { workspace = true }
 base64       = { workspace = true }
-# vox-compiler is ~47k LoC; included directly for now.
-# TODO: make optional behind vox-lang feature once feature-cfg wiring is done.
-vox-compiler     = { path = "../vox-compiler" }
-vox-journal      = { path = "../vox-journal" }
-vox-orchestrator = { path = "../vox-orchestrator" }
+vox-compiler     = { workspace = true, optional = true }
+vox-journal      = { workspace = true }
+vox-orchestrator = { path = "../vox-orchestrator", default-features = false }
 serde_json       = { workspace = true }
 vox-redact       = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }

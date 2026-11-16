@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
-import { Glass } from '../../ui/Glass';
+import { cn } from '../../../lib/cn';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { Icon } from '../../ui/Icons';
 import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { buildGroupTree, needsAttention, overallWorst, statusForRow } from './policyTree';
-import { policySetEnabled, policyEdit } from '../../../transport';
+import { invokeCmd, policySetEnabled, policyEdit } from '../../../transport';
 import type { PolicyRow, PolicyDetail, PolicyStatus, BranchInfo, RunStatus } from './types';
 import type { Toast } from '../../../types/tauri';
 
@@ -17,7 +17,18 @@ const STATUS_DOT: Record<RunStatus, string> = {
   pass: 'bg-emerald-400',
   not_run: 'bg-text-muted',
 };
-const STATUS_GLYPH: Record<RunStatus, string> = { fail: '●', warn: '▲', pass: '✓', not_run: '—' };
+function StatusGlyph({ status }: { status: RunStatus }) {
+  switch (status) {
+    case 'fail':
+      return <Icon.circleDot className="size-2.5 shrink-0" aria-hidden="true" />;
+    case 'warn':
+      return <Icon.trendUp className="size-2.5 shrink-0" aria-hidden="true" />;
+    case 'pass':
+      return <Icon.check className="size-2.5 shrink-0" aria-hidden="true" />;
+    case 'not_run':
+      return <span aria-hidden="true">—</span>;
+  }
+}
 
 function StatusCount({ counts }: { counts: Record<RunStatus, number> }) {
   return (
@@ -26,7 +37,8 @@ function StatusCount({ counts }: { counts: Record<RunStatus, number> }) {
         .filter(s => counts[s] > 0)
         .map(s => (
           <span key={s} className={`flex items-center gap-0.5 ${s === 'fail' ? 'text-red-400' : s === 'warn' ? 'text-amber-300' : s === 'pass' ? 'text-emerald-300' : 'text-text-muted'}`}>
-            {STATUS_GLYPH[s]}{counts[s]}
+            <StatusGlyph status={s} />
+            {counts[s]}
           </span>
         ))}
     </span>
@@ -51,17 +63,18 @@ export function PoliciesView({
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [ruleFilter, setRuleFilter] = useState<'all' | 'attention' | 'blocking'>('all');
 
   // Load catalog + branches once.
   useEffect(() => {
-    invoke<PolicyRow[]>('policy_list', { domain: null, group: null })
+    invokeCmd<PolicyRow[]>('policy_list', { domain: null, group: null })
       .then(r => {
         const list = Array.isArray(r) ? r : [];
         setRows(list);
         if (list.length) setSelectedId(prev => prev ?? list[0].id);
       })
       .catch(err => pushToast({ tone: 'error', title: 'Policy catalog failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
-    invoke<BranchInfo[]>('list_branches')
+    invokeCmd<BranchInfo[]>('list_branches')
       .then(b => { setBranches(b); setSelectedBranches(b.filter(x => x.isCurrent).map(x => x.branch)); })
       .catch(() => setBranches([]));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- load policy catalog once on mount
@@ -70,7 +83,7 @@ export function PoliciesView({
   // Reload status when the branch selection changes.
   useEffect(() => {
     if (selectedBranches.length === 0) { setStatus([]); return; }
-    invoke<PolicyStatus[]>('policy_status', { branches: selectedBranches })
+    invokeCmd<PolicyStatus[]>('policy_status', { branches: selectedBranches })
       .then(setStatus)
       .catch(() => setStatus([]));
   }, [selectedBranches]);
@@ -83,19 +96,37 @@ export function PoliciesView({
       { rule_id: selectedId },
       { enabled: gamifyEnabled },
     );
-    invoke<PolicyDetail>('policy_show', { id: selectedId })
+    invokeCmd<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
       .catch(err => pushToast({ tone: 'error', title: 'Detail failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch rule detail only when selectedId changes
   }, [selectedId]);
 
-  const tree = useMemo(() => buildGroupTree(rows, status, selectedBranches), [rows, status, selectedBranches]);
   const attention = useMemo(() => needsAttention(rows, status, selectedBranches), [rows, status, selectedBranches]);
+  const filteredRows = useMemo(
+    () =>
+      ruleFilter === 'attention'
+        ? attention
+        : ruleFilter === 'blocking'
+          ? rows.filter((r) => r.blocking)
+          : rows,
+    [rows, attention, ruleFilter],
+  );
+  const tree = useMemo(
+    () => buildGroupTree(filteredRows, status, selectedBranches),
+    [filteredRows, status, selectedBranches],
+  );
   const worst = useMemo(() => overallWorst(rows, status, selectedBranches), [rows, status, selectedBranches]);
+  const enabledCount = useMemo(() => rows.filter((r) => r.enabled).length, [rows]);
+  const blockingCount = useMemo(() => rows.filter((r) => r.blocking).length, [rows]);
+  const passingCount = useMemo(
+    () => rows.filter((r) => statusForRow(r.id, status, selectedBranches) === 'pass').length,
+    [rows, status, selectedBranches],
+  );
 
   const refresh = () => {
     if (!selectedId) return;
-    invoke<PolicyDetail>('policy_show', { id: selectedId })
+    invokeCmd<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
       .catch(err => pushToast({ tone: 'error', title: 'Detail failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   };
@@ -106,7 +137,7 @@ export function PoliciesView({
     setCollapsedGroups(prev => ({ ...prev, [g]: !prev[g] }));
 
   return (
-    <div className="flex flex-col gap-3 h-full min-h-0 p-4">
+    <div className="@container/surface flex h-full min-h-0 min-w-0 flex-col gap-3 p-3 @2xl/surface:p-4">
       <RomanSurfaceHeader
         domainTag="REVIEW · POLICIES"
         title="Governance Policy Ledger & Architectural Rules"
@@ -117,31 +148,67 @@ export function PoliciesView({
           {
             label: 'POLICIES',
             valueText: `${rows.length}`,
-            ratio: 1,
+            ratio: rows.length > 0 ? enabledCount / rows.length : 0,
             tone: 'gold',
-            purpose: 'Total registered governance policy rules',
+            purpose: 'Enabled governance policy rules out of total registered catalog',
+            actionHint: 'Click to show all policy rules in rail',
+            active: ruleFilter === 'all' && rows.length > 0,
+            onClick: () => {
+              setRuleFilter('all');
+              setRailCollapsed(false);
+            },
           },
           {
             label: 'ATTENTION',
             valueText: `${attention.length}`,
-            ratio: Math.min(1, attention.length / 5),
+            ratio: rows.length > 0 ? attention.length / rows.length : 0,
             tone: attention.length > 0 ? 'crimson' : 'emerald',
             purpose: 'Policies failing or needing immediate attention',
+            actionHint:
+              ruleFilter === 'attention'
+                ? 'Click to show all policy rules'
+                : 'Click to filter policy tree to rules needing attention',
+            active: ruleFilter === 'attention',
+            onClick: () => {
+              setRailCollapsed(false);
+              setRuleFilter((f) => (f === 'attention' ? 'all' : 'attention'));
+              if (attention[0]) setSelectedId(attention[0].id);
+            },
           },
           {
             label: 'STATUS',
             valueText: worst.toUpperCase(),
-            ratio: 1,
+            ratio:
+              rows.length === 0
+                ? 0
+                : status.length > 0
+                  ? passingCount / rows.length
+                  : blockingCount / rows.length,
             tone: worst === 'pass' ? 'emerald' : worst === 'warn' ? 'gold' : 'crimson',
-            purpose: 'Overall governance policy evaluation status',
+            purpose: 'Overall governance policy evaluation status and CI-blocking share',
+            actionHint:
+              ruleFilter === 'blocking'
+                ? 'Click to show all policy rules'
+                : 'Click to filter policy tree to CI-blocking rules',
+            active: ruleFilter === 'blocking',
+            onClick: () => {
+              setRailCollapsed(false);
+              setRuleFilter((f) => (f === 'blocking' ? 'all' : 'blocking'));
+            },
           },
         ]}
       />
-      <div className="flex gap-4 flex-1 min-h-0">
-      {/* ── SECONDARY: group rail (collapsible, mirrors Sidebar rail widths) ── */}
-      <nav aria-label="Policy tree" className="shrink-0 transition-[width] duration-200" style={{ width: railCollapsed ? 56 : 300 }}>
-        <Glass className="flex h-full flex-col p-3 gap-3 overflow-hidden">
-          <div className="flex items-center justify-between">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 @3xl/surface:flex-row @3xl/surface:gap-4">
+      {/* SECONDARY: group rail (collapsible, stacks in <768px / 320px docks) */}
+      <nav
+        aria-label="Policy tree"
+        className={cn(
+          'min-w-0 transition-[width] duration-200 @3xl/surface:shrink-0',
+          railCollapsed ? 'w-full @3xl/surface:w-14' : 'w-full @3xl/surface:w-[300px]',
+        )}
+      >
+        <BentoCard className="h-full gap-3 overflow-hidden p-3">
+          <div className="flex items-center justify-between gap-2">
             {!railCollapsed && (
               <span className="font-display text-[10px] uppercase tracking-[0.28em] text-text-muted">
                 Policies <span className={`ml-1 inline-block size-1.5 rounded-full align-middle ${STATUS_DOT[worst]}`} />
@@ -151,7 +218,7 @@ export function PoliciesView({
               aria-label={railCollapsed ? 'Expand policy rail' : 'Collapse policy rail'}
               aria-expanded={!railCollapsed}
               title={railCollapsed ? 'Expand' : 'Collapse'}
-              className="flex size-6 items-center justify-center rounded-md border border-border-subtle text-text-muted hover:bg-overlay-subtle hover:text-text-primary">
+              className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border-subtle text-text-muted hover:bg-overlay-subtle hover:text-text-primary">
               <Icon.chevL aria-hidden="true" className={`size-3 transition-transform ${railCollapsed ? 'rotate-180' : ''}`} />
             </button>
           </div>
@@ -164,14 +231,15 @@ export function PoliciesView({
                   <button key={b.branch} type="button" onClick={() => toggleBranch(b.branch)}
                     aria-pressed={selectedBranches.includes(b.branch)}
                     aria-label={`Branch: ${b.branch}`}
-                    className={`rounded-full px-2 py-0.5 font-mono text-[9px] border ${selectedBranches.includes(b.branch) ? 'border-brass/40 bg-brass/10 text-brass' : 'border-border-subtle text-text-muted hover:text-text-secondary'}`}>
-                    {b.branch}{b.isCurrent ? ' ◆' : ''}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] border ${selectedBranches.includes(b.branch) ? 'border-brass/40 bg-brass/10 text-brass' : 'border-border-subtle text-text-muted hover:text-text-secondary'}`}>
+                    <span>{b.branch}</span>
+                    {b.isCurrent && <Icon.waxSeal className="size-2.5 shrink-0" aria-hidden="true" />}
                   </button>
                 ))}
                 {branches.length === 0 && <span className="font-mono text-[9px] text-text-muted">no git worktrees</span>}
               </div>
 
-              {/* ⚠ Needs attention — gracefully shrinks to an all-clear strip */}
+              {/* Needs attention — shrinks to an all-clear strip */}
               <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-2">
                 {attention.length === 0 ? (
                   <div className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-300/80">
@@ -179,7 +247,10 @@ export function PoliciesView({
                   </div>
                 ) : (
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-display text-[9px] uppercase tracking-[0.2em] text-red-300/90">⚠ Needs attention ({attention.length})</span>
+                    <span className="inline-flex items-center gap-1 font-display text-[9px] uppercase tracking-[0.2em] text-red-300/90">
+                      <Icon.alert className="size-3 shrink-0" aria-hidden="true" />
+                      <span>Needs attention ({attention.length})</span>
+                    </span>
                     {attention.map(r => (
                       <button key={r.id} type="button" onClick={() => setSelectedId(r.id)}
                         className="text-left font-mono text-[10px] text-text-secondary hover:text-red-200 truncate">{r.id}</button>
@@ -189,7 +260,10 @@ export function PoliciesView({
               </div>
 
               {/* Group tree with status-colored counts */}
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+              <BentoScrollRegion
+                ariaLabel="Policy rule groups"
+                className="flex max-h-56 flex-1 flex-col gap-1 @3xl/surface:max-h-none"
+              >
                 {tree.map(node => {
                   const open = !collapsedGroups[node.group];
                   return (
@@ -221,38 +295,44 @@ export function PoliciesView({
                     </div>
                   );
                 })}
-              </div>
+              </BentoScrollRegion>
             </>
           )}
-        </Glass>
+        </BentoCard>
       </nav>
 
-      {/* ── PRIMARY: rule detail + contents (largest pane) ── */}
-      <section aria-label="Policy detail" className="flex-1 min-w-0">
-        <Glass className="flex h-full flex-col p-5 gap-4 overflow-y-auto custom-scrollbar">
+      {/* PRIMARY: rule detail + contents (largest pane) */}
+      <section aria-label="Policy detail" className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <BentoCard className="h-full overflow-hidden p-0">
+          <BentoScrollRegion
+            ariaLabel="Selected rule inspector"
+            className="flex h-full flex-col gap-4 p-4 @2xl/surface:p-5"
+          >
           {!detail ? (
             <div className="m-auto font-mono text-xs text-text-muted">select a policy</div>
           ) : (
             <>
-              <header className="flex items-start justify-between gap-4 border-b border-border-subtle pb-3">
+              <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border-subtle pb-3">
                 <div className="min-w-0">
                   <div className="font-mono text-sm text-text-primary truncate">{detail.id}</div>
                   <div className="font-display text-[11px] text-text-muted">{detail.title}</div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button type="button"
                     disabled={detail.protected}
                     title={detail.protected ? 'Protected policies cannot be edited' : 'Edit title and description'}
                     onClick={() => { setEditTitle(detail.title); setEditDesc(detail.description); setEditOpen(o => !o); }}
                     className={`flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] ${detail.protected ? 'text-text-muted opacity-50 cursor-not-allowed' : 'text-text-secondary hover:text-text-primary hover:bg-overlay-subtle'}`}>
-                    ✎ Edit
+                    <Icon.penQuill className="size-3 shrink-0" aria-hidden="true" />
+                    <span>Edit</span>
                   </button>
                   <button type="button"
                     disabled={detail.protected}
                     title={detail.protected ? 'Protected policies cannot be toggled' : (detail.enabled ? 'Disable this policy' : 'Enable this policy')}
                     onClick={() => policySetEnabled(detail.id, !detail.enabled).then(refresh)}
                     className={`flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] ${detail.protected ? 'text-text-muted opacity-50 cursor-not-allowed' : 'text-text-secondary hover:text-text-primary hover:bg-overlay-subtle'}`}>
-                    ⏻ {detail.enabled ? 'Disable' : 'Enable'}
+                    <Icon.power className="size-3 shrink-0" aria-hidden="true" />
+                    <span>{detail.enabled ? 'Disable' : 'Enable'}</span>
                   </button>
                 </div>
               </header>
@@ -315,11 +395,12 @@ export function PoliciesView({
                   <button
                     type="button"
                     onClick={() => {
-                      void invoke('open_locator', { locator: { kind: 'file', value: detail.docs } }).catch(() => {});
+                      void invokeCmd('open_locator', { locator: { kind: 'file', value: detail.docs } }).catch(() => {});
                     }}
-                    className="w-fit rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20"
+                    className="inline-flex w-fit items-center gap-1 rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20"
                   >
-                    {detail.docs} ↗
+                    <span>{detail.docs}</span>
+                    <Icon.externalLink className="size-3 shrink-0" aria-hidden="true" />
                   </button>
                 )}
               </section>
@@ -341,32 +422,32 @@ export function PoliciesView({
                 </div>
               </section>
 
-              <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <div className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
+              <BentoGrid preset="triad" className="gap-2.5">
+                <div className="min-w-0 rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">CLI Invocation</div>
                   <div className="mt-1 font-mono text-[11px] text-[#F3E5AB]">vox audit code</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">--rule {detail.id}</div>
+                  <div className="mt-0.5 truncate font-mono text-[10px] text-[#D6CEBF]">--rule {detail.id}</div>
                 </div>
-                <div className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
+                <div className="min-w-0 rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">Severity Tier</div>
                   <div className="mt-1 font-mono text-[11px] uppercase text-[#F3E5AB]">{detail.severity ?? 'info'}</div>
                   <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">
                     {detail.blocking ? 'Blocks CI merge' : 'Advisory warning'}
                   </div>
                 </div>
-                <div className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
+                <div className="min-w-0 rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-2.5">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-[#D4AF37]">Detector Ref</div>
                   <div className="mt-1 truncate font-mono text-[11px] text-emerald-300">{detail.sourceRef}</div>
                   <div className="mt-0.5 font-mono text-[10px] text-[#D6CEBF]">{detail.sourceKind}</div>
                 </div>
-              </section>
+              </BentoGrid>
 
               <section
                 data-testid="policy-enforcement-deck"
-                className="mt-auto grid grid-cols-1 gap-3 border-t border-[#D4AF37]/25 pt-4 sm:grid-cols-2"
+                className="mt-auto grid grid-cols-1 gap-3 border-t border-[#D4AF37]/25 pt-4 @xl/surface:grid-cols-2"
               >
-                <div className="rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3">
-                  <div className="flex items-center justify-between">
+                <div className="min-w-0 rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
                     <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Enforcement Gate</span>
                     <RomanWaxSealBadge
                       label={detail.blocking ? 'Blocking' : 'Advisory'}
@@ -377,8 +458,8 @@ export function PoliciesView({
                     Evaluated by <code className="text-[#F3E5AB]">vox audit code</code> and <code className="text-[#F3E5AB]">vox ci pre-push</code> across selected worktree branches.
                   </p>
                 </div>
-                <div className="rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3">
-                  <div className="flex items-center justify-between">
+                <div className="min-w-0 rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
                     <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Rule Provenance</span>
                     <RomanWaxSealBadge label={detail.origin} tone="emerald" />
                   </div>
@@ -389,7 +470,8 @@ export function PoliciesView({
               </section>
             </>
           )}
-        </Glass>
+          </BentoScrollRegion>
+        </BentoCard>
       </section>
       </div>
     </div>

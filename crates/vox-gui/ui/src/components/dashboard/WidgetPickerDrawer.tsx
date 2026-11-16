@@ -3,6 +3,7 @@ import type { DashboardLayout, DashboardWidgetKind } from '../../lib/dashboardLa
 import { availableWidgetKinds, widgetKindLabel } from '../../lib/dashboardLayout';
 import { DASHBOARD_SECTIONS, surfacesForSection, type DashboardSection } from '../../lib/dashboardSections';
 import { labelFor, currentLang } from '../../lib/lexicon';
+import { Icon } from '../ui/Icons';
 
 export interface WidgetPickerDrawerProps {
   layout: DashboardLayout;
@@ -47,9 +48,9 @@ export function WidgetPickerDrawer({ layout, open, onClose, onAdd, onAddSurface 
           type="button"
           aria-label="Close widget picker"
           onClick={onClose}
-          className="rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary"
+          className="inline-flex items-center justify-center rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary"
         >
-          ✕
+          <Icon.close className="size-3.5" aria-hidden="true" />
         </button>
       </div>
 

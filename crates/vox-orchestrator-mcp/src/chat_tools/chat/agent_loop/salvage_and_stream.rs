@@ -264,7 +264,10 @@ pub fn try_parse_streaming_read_prefetch(
 #[must_use]
 pub(crate) fn looks_like_streamed_tool_call_envelope(accumulated_content: &str) -> bool {
     let trimmed = accumulated_content.trim_start();
-    if trimmed.starts_with("<tool_call>") || trimmed.starts_with("```tool:") {
+    if trimmed.starts_with("<tool_call>")
+        || trimmed.starts_with("<function=")
+        || trimmed.starts_with("```tool:")
+    {
         return true;
     }
     let body = trimmed
@@ -395,6 +398,41 @@ fn collect_salvaged_from_value(
     }
 }
 
+fn collect_xml_function_calls(s: &str, tool_defs: &[LlmToolDef], out: &mut Vec<serde_json::Value>) {
+    static FN_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let fn_re = FN_RE.get_or_init(|| {
+        regex::Regex::new(r"(?s)<function=([A-Za-z0-9_.:-]+)\s*>(.*?)</function>")
+            .expect("static xml function regex")
+    });
+    static PARAM_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let param_re = PARAM_RE.get_or_init(|| {
+        regex::Regex::new(r"(?s)<parameter=([A-Za-z0-9_.-]+)\s*>(.*?)</parameter>")
+            .expect("static xml parameter regex")
+    });
+    for caps in fn_re.captures_iter(s) {
+        let name = caps[1].trim();
+        if name.is_empty() {
+            continue;
+        }
+        let mut args = serde_json::Map::new();
+        for p in param_re.captures_iter(&caps[2]) {
+            let key = p[1].trim();
+            if key.is_empty() {
+                continue;
+            }
+            let val_trimmed = p[2].trim();
+            let val = serde_json::from_str::<serde_json::Value>(val_trimmed)
+                .unwrap_or_else(|_| serde_json::Value::String(val_trimmed.to_string()));
+            args.insert(key.to_string(), val);
+        }
+        let synthetic = serde_json::json!({
+            "name": name,
+            "arguments": serde_json::Value::Object(args),
+        });
+        collect_salvaged_from_value(&synthetic, tool_defs, out);
+    }
+}
+
 /// Phase 165 (`SOTA-UNIVERSAL-SALVAGE-01..03`): Multi-format and multi-call salvage parser.
 /// Extracts all valid tool calls embedded in prose (`<tool_call>...</tool_call>`, fenced JSON
 /// blocks, JSON arrays `[{...}, {...}]`, or bare JSON objects) across OpenAI, Anthropic, MENS,
@@ -422,8 +460,12 @@ pub(crate) fn salvage_tool_calls_from_text(
             .unwrap_or(caps[1].trim())
             .trim_end_matches("```")
             .trim();
+        let before = out.len();
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(inner) {
             collect_salvaged_from_value(&v, tool_defs, &mut out);
+        }
+        if out.len() == before {
+            collect_xml_function_calls(inner, tool_defs, &mut out);
         }
     }
     if !out.is_empty() {
@@ -473,8 +515,12 @@ pub(crate) fn salvage_tool_calls_from_text(
     });
     for caps in fence_re.captures_iter(text) {
         let inner = caps[1].trim();
+        let before = out.len();
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(inner) {
             collect_salvaged_from_value(&v, tool_defs, &mut out);
+        }
+        if out.len() == before {
+            collect_xml_function_calls(inner, tool_defs, &mut out);
         }
     }
     if !out.is_empty() {
@@ -507,6 +553,12 @@ pub(crate) fn salvage_tool_calls_from_text(
         }
         idx += 1;
     }
+    if !out.is_empty() {
+        return out;
+    }
+
+    // Tier 5: Bare Qwen3.5 XML `<function=...><parameter=...>...</function>` fallback
+    collect_xml_function_calls(text, tool_defs, &mut out);
     out
 }
 
@@ -573,5 +625,83 @@ mod t3_salvage_tests {
         assert_eq!(salvaged.len(), 1);
         assert_eq!(salvaged[0]["name"], "vox_read_file");
         assert_eq!(salvaged[0]["arguments"]["path"], "Cargo.toml");
+    }
+
+    #[test]
+    fn salvage_cases_agree() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let raw =
+            std::fs::read_to_string(root.join("mens/data/agent_episodes/salvage-cases.v1.jsonl"))
+                .expect("salvage-cases.v1.jsonl");
+        let cat = crate::tool_catalog::catalog_for(crate::tool_catalog::AGENT_EPISODE_TOOL_NAMES)
+            .expect("agent episode tool catalog");
+        let tool_defs: Vec<LlmToolDef> = cat["tools"]
+            .as_array()
+            .expect("tools array")
+            .iter()
+            .map(|t| LlmToolDef {
+                name: t["name"].as_str().expect("name").to_string(),
+                description: t["description"].as_str().map(str::to_string),
+                parameters: t["input_schema"].clone(),
+            })
+            .collect();
+
+        let mut count = 0usize;
+        for line in raw.lines().filter(|l| !l.trim().is_empty()) {
+            let v: serde_json::Value = serde_json::from_str(line).expect("valid salvage case");
+            let id = v["id"].as_str().expect("id");
+            let input = v["raw"].as_str().expect("raw");
+            let expected = v.get("expect").filter(|e| !e.is_null());
+            let salvaged = salvage_tool_calls_from_text(input, &tool_defs);
+            match expected {
+                None => assert!(
+                    salvaged.is_empty(),
+                    "case {id}: expected no salvaged call, got {salvaged:?}"
+                ),
+                Some(exp) => {
+                    assert!(
+                        !salvaged.is_empty(),
+                        "case {id}: expected tool call {}, got none",
+                        exp["name"]
+                    );
+                    assert_eq!(salvaged[0]["name"], exp["name"], "case {id} name mismatch");
+                    assert_eq!(
+                        salvaged[0]["arguments"], exp["arguments"],
+                        "case {id} arguments mismatch"
+                    );
+                }
+            }
+            count += 1;
+        }
+        assert!(
+            count >= 10,
+            "expected >=10 shared salvage cases, got {count}"
+        );
+    }
+
+    #[test]
+    fn salvages_qwen35_xml_function_calls_and_detects_stream_envelope() {
+        let bare = "<function=vox_read_file><parameter=path>Cargo.toml</parameter><parameter=limit>25</parameter></function>";
+        assert!(looks_like_streamed_tool_call_envelope(bare));
+        let wrapped = format!("<tool_call>\n{bare}\n</tool_call>");
+        assert!(looks_like_streamed_tool_call_envelope(&wrapped));
+
+        let tool_defs = vec![LlmToolDef {
+            name: "vox_read_file".to_string(),
+            description: Some("Read a file".to_string()),
+            parameters: serde_json::json!({"type": "object"}),
+        }];
+
+        let from_wrapped = salvage_tool_calls_from_text(&wrapped, &tool_defs);
+        assert_eq!(from_wrapped.len(), 1);
+        assert_eq!(from_wrapped[0]["name"], "vox_read_file");
+        assert_eq!(from_wrapped[0]["arguments"]["path"], "Cargo.toml");
+        assert_eq!(from_wrapped[0]["arguments"]["limit"], 25);
+
+        let from_bare =
+            salvage_tool_calls_from_text(&format!("Inspecting file:\n{bare}"), &tool_defs);
+        assert_eq!(from_bare.len(), 1);
+        assert_eq!(from_bare[0]["name"], "vox_read_file");
+        assert_eq!(from_bare[0]["arguments"]["path"], "Cargo.toml");
     }
 }

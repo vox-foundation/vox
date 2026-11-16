@@ -70,7 +70,8 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 
 // Mock voxTransport — SettingsView calls getRoutingSummaryLive on mount.
-vi.mock('../../../transport', () => ({
+vi.mock('../../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../transport')>()),
   voxTransport: {
     getRoutingSummaryLive: vi.fn().mockResolvedValue({ routing_priority: null }),
     setRoutingPriority: vi.fn().mockResolvedValue(undefined),

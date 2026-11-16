@@ -19,9 +19,9 @@ pub use catalog::{
 };
 pub use federation::{
     ContractDrift, ContractFileDigest, CrossRepoParityReport, FederatedCrateNode, FederatedEdge,
-    FederatedGraphSummary, RepoContractStatus, StandaloneSovereigntyReport,
+    FederatedGraphSummary, RepoContractStatus, SatelliteSyncSummary, StandaloneSovereigntyReport,
     default_federation_catalog, refresh_federated_symbol_graph, render_local_cargo_patch_block,
-    verify_cross_repo_contract_parity, verify_standalone_sovereignty,
+    sync_federated_satellites, verify_cross_repo_contract_parity, verify_standalone_sovereignty,
 };
 pub use query::{repo_query_file, repo_query_history, repo_query_text};
 pub use types::{

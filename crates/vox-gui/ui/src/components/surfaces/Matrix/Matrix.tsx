@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import { Glass } from '../../ui/Glass';
 import { Pill, PHASE_TONE } from '../../ui/Pill';
 import { phaseFill, phaseStroke } from '../../../lib/visualTokens';
@@ -118,7 +118,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
 
   const refresh = useCallback(async () => {
     try {
-      const cells = await invoke<RoutingIntention[]>('get_routing_intentions');
+      const cells = await invokeCmd<RoutingIntention[]>('get_routing_intentions');
       setIntentions(Array.isArray(cells) ? cells : []);
       setSel(prev => (prev && cells.some(c => c.id === prev) ? prev : cells[0]?.id));
     } catch (err) {
@@ -139,7 +139,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
   const nudge = useCallback(async (axis: RoutingIntention, direction: 'promote' | 'doubt') => {
     setBusy(true);
     try {
-      await invoke('nudge_routing_intention', { axis: axis.id, direction });
+      await invokeCmd('nudge_routing_intention', { axis: axis.id, direction });
       void recordGamifyGuiEvent(
         'palette_navigation',
         { axis: axis.id, direction, surface: 'matrix' },

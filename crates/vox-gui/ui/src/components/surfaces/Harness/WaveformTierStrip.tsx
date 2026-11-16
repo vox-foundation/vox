@@ -50,10 +50,21 @@ export function WaveformTierStrip({
   condensed = false,
   onSelectTier,
 }: WaveformTierStripProps) {
+  const [focusedTier, setFocusedTier] = React.useState<HarnessTierId | null>(null);
+  const [stagesOpen, setStagesOpen] = React.useState(false);
+
+  const throughputRatio =
+    snapshot.throughputTokPerSec <= 0 || snapshot.waveformBars.length === 0
+      ? 0
+      : Math.min(
+          1,
+          snapshot.waveformBars.reduce((acc, v) => acc + v, 0) / snapshot.waveformBars.length,
+        );
+
   return (
     <div
       data-testid="harness-waveform-tier-strip"
-      className="space-y-1.5 rounded-xl border border-[#C59B27]/40 bg-bg-surface p-2 font-mono text-[11px] text-text-primary shadow-sm"
+      className="@container space-y-1.5 rounded-xl border border-[#C59B27]/40 bg-bg-surface p-2 font-mono text-[11px] text-text-primary shadow-sm"
     >
       {/* Top Row: 3 Symmetrical Roman Brass Dial Gauges (Concept Art Option B) + Live Waveform */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-1.5">
@@ -61,25 +72,44 @@ export function WaveformTierStrip({
           <RomanBrassGauge
             label="THROUGHPUT"
             valueText={`${snapshot.throughputTokPerSec} tok/s`}
-            ratio={Math.min(1, Math.max(0.18, snapshot.throughputTokPerSec / 320))}
+            ratio={throughputRatio}
             tone="gold"
             purpose="Live token generation velocity across local MENS and cloud tiers."
+            actionHint="Click to highlight Tier 1 fast local MENS interceptor"
+            active={focusedTier === 'intercept'}
+            onClick={() => {
+              setFocusedTier((prev) => (prev === 'intercept' ? null : 'intercept'));
+              onSelectTier?.('intercept');
+            }}
           />
 
           <RomanBrassGauge
             label="BLAKE3 CACHE"
             valueText={`${snapshot.cacheHitPct}%`}
-            ratio={snapshot.cacheHitPct / 100}
+            ratio={snapshot.cacheHitPct > 0 ? snapshot.cacheHitPct / 100 : 0}
             tone="gold"
             purpose="BLAKE3 content-addressed cache hit rate for prompt tokens and AST digests."
+            actionHint="Click to highlight Tier 2 hybrid graph fan-out"
+            active={focusedTier === 'fanout'}
+            onClick={() => {
+              setFocusedTier((prev) => (prev === 'fanout' ? null : 'fanout'));
+              onSelectTier?.('fanout');
+            }}
           />
 
           <RomanBrassGauge
             label="THRIFT"
             valueText={`-${snapshot.tokenSavingsPct}% ($${snapshot.tokenSavingsPct > 0 ? snapshot.savedUsd.toFixed(2) : '0.00'})`}
-            ratio={snapshot.tokenSavingsPct / 100}
+            ratio={snapshot.tokenSavingsPct > 0 ? snapshot.tokenSavingsPct / 100 : 0}
             tone="emerald"
             purpose="Token and dollar savings from compression, prompt caching, and local MENS execution."
+            actionHint="Click to toggle 5-stage sluice gates and Tier 3 verifier"
+            active={focusedTier === 'verifier' || stagesOpen}
+            onClick={() => {
+              setFocusedTier((prev) => (prev === 'verifier' ? null : 'verifier'));
+              setStagesOpen((prev) => !prev);
+              onSelectTier?.('verifier');
+            }}
           />
         </div>
 
@@ -115,7 +145,7 @@ export function WaveformTierStrip({
       </div>
 
       {/* Middle Row: 3-Tier Model Cascade Sluice Cards */}
-      <div className={`grid gap-2 ${condensed ? 'grid-cols-1' : 'grid-cols-3'}`}>
+      <div className={`grid gap-2 ${condensed ? 'grid-cols-1' : 'grid-cols-1 @[560px]:grid-cols-3'}`}>
         {snapshot.tiers.map((tier) => {
           const isInteractive = Boolean(onSelectTier);
           const meta = TIER_METADATA[tier.tierId] ?? {
@@ -139,6 +169,8 @@ export function WaveformTierStrip({
                 backgroundPosition: 'center',
               }}
               className={`vox-marble-tablet flex w-full flex-col items-start justify-between rounded-lg border-2 border-[#C59B27]/85 p-2 text-left text-[#1C140C] transition shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)] ${
+                focusedTier === tier.tierId ? 'ring-2 ring-[#8C6825]' : ''
+              } ${
                 isInteractive
                   ? 'cursor-pointer hover:border-[#8C6825] hover:shadow-[0_4px_16px_rgba(212,175,55,0.35)]'
                   : 'cursor-default'
@@ -181,10 +213,15 @@ export function WaveformTierStrip({
 
       {/* Bottom Row: Progressive-Disclosure 5 Stage Progress Sluices */}
       {!condensed && (
-        <details className="group pt-0.5">
+        <details
+          open={stagesOpen}
+          onToggle={(e) => setStagesOpen((e.currentTarget as HTMLDetailsElement).open)}
+          className="group pt-0.5"
+        >
           <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-border-subtle bg-bg-elevated px-2.5 py-1 text-[9.5px] text-text-secondary hover:border-[#D4AF37]/40 hover:text-text-primary">
-            <span className="font-display uppercase tracking-wider">
-              ▸ Pipeline Stage Gates (5-Stage Sluice Breakdown)
+            <span className="inline-flex items-center gap-1 font-display uppercase tracking-wider">
+              <Icon.chevR className="size-3 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />
+              <span>Pipeline Stage Gates (5-Stage Sluice Breakdown)</span>
             </span>
             <span className="text-brass">100% Verified</span>
           </summary>
@@ -203,7 +240,7 @@ export function WaveformTierStrip({
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-sm bg-bg-elevated border border-border-subtle">
                   <div
-                    className={`h-full transition-all duration-300 ${
+                    className={`h-full transition-[width] duration-300 ${
                       st.active
                         ? 'bg-gradient-to-r from-[#B4881A] to-[#F3E5AB] shadow-[0_0_6px_rgba(212,175,55,0.4)]'
                         : 'bg-[#5C4B2B]'

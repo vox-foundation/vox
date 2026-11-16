@@ -118,11 +118,37 @@ impl OpenAlexClient {
             return Ok(Vec::new());
         }
 
+        super::trust::openalex_limiter().acquire().await;
+
+        let resolved_email = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenAlexEmail);
+        let mailto = resolved_email
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("research@vox.computer");
+
+        let resolved_api_key =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenAlexApiKey);
+        let effective_key = api_key
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                resolved_api_key
+                    .expose()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+            });
+
         let base = base_url.unwrap_or(DEFAULT_OPENALEX_BASE_URL);
         let base_clean = base.trim_end_matches('/');
         let base_clean = base_clean.strip_suffix("/works").unwrap_or(base_clean);
+        let mailto_param = if mailto == "research@vox.computer" {
+            "research@vox.computer".to_string()
+        } else {
+            urlencoding::encode(mailto).into_owned()
+        };
         let url = format!(
-            "{base_clean}/works?search={}&per-page={}&mailto=research@vox.computer",
+            "{base_clean}/works?search={}&per-page={}&mailto={mailto_param}",
             urlencoding::encode(query.trim()),
             limit
         );
@@ -130,12 +156,14 @@ impl OpenAlexClient {
         debug!(url = %url, query = query, "Firing OpenAlex search");
 
         let client = vox_http_client::client();
-        let mut req = client.get(&url);
-        if let Some(key) = api_key {
-            let trimmed_key = key.trim();
-            if !trimmed_key.is_empty() {
-                req = req.header("api-key", trimmed_key);
-            }
+        let mut req = client
+            .get(&url)
+            .timeout(super::trust::SCHOLARLY_HTTP_TIMEOUT);
+        if let Some(trimmed_key) = effective_key {
+            req = req.header("api-key", trimmed_key).header(
+                reqwest::header::AUTHORIZATION,
+                format!("Bearer {trimmed_key}"),
+            );
         }
 
         let resp = req.send().await?;
@@ -187,5 +215,41 @@ mod tests {
             .await
             .expect("search");
         assert!(hits.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_injects_polite_mailto_and_bearer_auth() {
+        use wiremock::matchers::{header, method, path, query_param};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/works"))
+            .and(query_param("search", "epistemic grounding"))
+            .and(query_param("per-page", "2"))
+            .and(header("api-key", "oa_key_789"))
+            .and(header("authorization", "Bearer oa_key_789"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "results": [
+                    {
+                        "id": "https://openalex.org/W42",
+                        "title": "Epistemic Grounding Study",
+                        "primary_location": { "landing_page_url": "https://example.org/w42" }
+                    }
+                ]
+            })))
+            .mount(&server)
+            .await;
+
+        let hits = OpenAlexClient::search(
+            "epistemic grounding",
+            2,
+            Some(&server.uri()),
+            Some("oa_key_789"),
+        )
+        .await
+        .expect("openalex search succeeds");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].title, "Epistemic Grounding Study");
     }
 }

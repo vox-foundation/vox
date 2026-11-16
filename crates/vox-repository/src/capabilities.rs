@@ -88,6 +88,7 @@ pub struct RepoCapabilities {
 }
 
 /// Probe capabilities for files under `root`.
+#[inline(never)]
 pub fn probe_capabilities(root: &Path, in_git_work_tree: bool) -> RepoCapabilities {
     let cargo_toml = root.join("Cargo.toml");
     let mut cargo_workspace = false;
@@ -113,6 +114,7 @@ pub fn probe_capabilities(root: &Path, in_git_work_tree: bool) -> RepoCapabiliti
 
 /// Snapshot of the current process host (best-effort, no extra crates required on the default build).
 #[must_use]
+#[inline(never)]
 pub fn probe_host_capabilities() -> TaskCapabilityHints {
     let mut h = TaskCapabilityHints {
         cpu_cores: std::thread::available_parallelism()
@@ -128,6 +130,7 @@ pub fn probe_host_capabilities() -> TaskCapabilityHints {
 
 /// Merge operator [`TaskCapabilityHints`] from config with a host [`probe_host_capabilities`] snapshot.
 #[must_use]
+#[inline(never)]
 pub fn merge_agent_capabilities(
     config: &TaskCapabilityHints,
     probed: TaskCapabilityHints,

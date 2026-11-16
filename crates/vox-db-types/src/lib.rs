@@ -39,9 +39,10 @@ pub use store_types::*;
 pub mod research;
 pub use research::{
     CachedClaimVerdict, ClaimsPendingCounts, DomainReputationRecord, MisguidanceReporter,
-    RecordMisguidanceParams, ResearchArtifactRecord, ResearchDefectClass,
-    ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord, ResearchSessionSummary,
-    ScientiaClaimWithVerdict,
+    NewResearchSessionSource, RecordMisguidanceParams, ResearchArtifactRecord, ResearchDefectClass,
+    ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord,
+    ResearchSessionSourceRecord, ResearchSessionSummary, ScientiaClaimWithVerdict,
+    SessionClaimPageItem, SessionClaimsPage, SessionSourcesPage,
 };
 
 /// Alias kept for back-compat (`vox_db::MemoryParams`).

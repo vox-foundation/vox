@@ -38,7 +38,7 @@ P3-T6) and `Hp-T5` (HopperInboxProjection, bundled with P3-T9). See SSOT §3.5 a
 
 **Anti-goals.** No blockchain. No consensus protocol (we use lock-leader from Phase 0 for write-side races). No custom signature scheme — Ed25519 from `vox-crypto` only.
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
+**Working directory.** Worktree at `.claude/worktrees/zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
 
 ---
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { VoxSelect } from '../../ui/Select';
 import {
   listHarnessIssues,
   recordHarnessIssueDecision,
@@ -107,26 +108,30 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-display text-sm uppercase tracking-wide text-text-secondary">Harness Issues</h2>
         <div className="flex items-center gap-2">
-          <select
+          <VoxSelect
+            size="xs"
             aria-label="Filter by status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="rounded-sm border border-border-subtle bg-transparent px-2 py-1 text-xs text-text-secondary"
-          >
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="dismissed">Dismissed</option>
-          </select>
-          <select
+            onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            options={[
+              { value: 'pending', label: 'Pending' },
+              { value: 'confirmed', label: 'Confirmed' },
+              { value: 'dismissed', label: 'Dismissed' },
+            ]}
+            className="w-32 border-border-subtle bg-transparent text-xs text-text-secondary"
+          />
+          <VoxSelect
+            size="xs"
             aria-label="Filter by source"
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
-            className="rounded-sm border border-border-subtle bg-transparent px-2 py-1 text-xs text-text-secondary"
-          >
-            <option value="all">All sources</option>
-            <option value="chat_session">Chat sessions</option>
-            <option value="corpus_scan">Corpus scan</option>
-          </select>
+            onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}
+            options={[
+              { value: 'all', label: 'All sources' },
+              { value: 'chat_session', label: 'Chat sessions' },
+              { value: 'corpus_scan', label: 'Corpus scan' },
+            ]}
+            className="w-36 border-border-subtle bg-transparent text-xs text-text-secondary"
+          />
           <button
             type="button"
             onClick={scan}

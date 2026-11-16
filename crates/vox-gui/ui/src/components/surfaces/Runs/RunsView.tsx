@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { StatusPill } from '../../ui/StatusPill';
 import { DataTable } from '../../ui/DataTable';
-import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { RUNS_POLL_MS, RUNS_LIST_LIMIT, SCOREBOARD_WINDOW_DAYS } from '../../../config/constants';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
@@ -53,13 +54,15 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [fetchedRun, setFetchedRun] = useState<RunRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [highSuccessOnly, setHighSuccessOnly] = useState(false);
+  const [runStatusFilter, setRunStatusFilter] = useState<'all' | 'completed' | 'failed'>('all');
   const rewardedRunIds = useRef<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     try {
-      const sb = await invoke<ScoreboardRow[]>('get_model_scoreboard', { windowDays: SCOREBOARD_WINDOW_DAYS });
+      const sb = await invokeCmd<ScoreboardRow[]>('get_model_scoreboard', { windowDays: SCOREBOARD_WINDOW_DAYS });
       setScoreboard(sb);
-      const recent = await invoke<RunRow[]>('list_gui_runs', { limit: RUNS_LIST_LIMIT });
+      const recent = await invokeCmd<RunRow[]>('list_gui_runs', { limit: RUNS_LIST_LIMIT });
       setRuns(recent);
       for (const run of recent) {
         if (isRunCompleted(run.status) && !rewardedRunIds.current.has(run.run_id)) {
@@ -71,7 +74,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
           );
         }
       }
-      const summary = await invoke<any>('get_routing_summary_live');
+      const summary = await invokeCmd<any>('get_routing_summary_live');
       setDecision(summary?.decision_preview ?? null);
     } catch (err) {
       pushToast({ tone: 'error', title: 'Runs load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -94,7 +97,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       return;
     }
     let cancelled = false;
-    invoke<RunRow | null>('get_gui_run', { runId: selectedRunId })
+    invokeCmd<RunRow | null>('get_gui_run', { runId: selectedRunId })
       .then((row) => {
         if (!cancelled && row) setFetchedRun(row);
       })
@@ -184,10 +187,77 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
     },
   ];
 
+  const avgSuccess =
+    scoreboard.length > 0
+      ? scoreboard.reduce((acc, r) => acc + r.success_rate, 0) / scoreboard.length
+      : 0;
+  const completedCount = runs.filter((r) => isRunCompleted(r.status)).length;
+  const failedCount = runs.filter((r) => /fail|error/i.test(r.status)).length;
+  const displayedScoreboard = highSuccessOnly
+    ? scoreboard.filter((r) => r.success_rate > 0.9)
+    : scoreboard;
+  const displayedRuns =
+    runStatusFilter === 'completed'
+      ? runs.filter((r) => isRunCompleted(r.status))
+      : runStatusFilter === 'failed'
+        ? runs.filter((r) => /fail|error/i.test(r.status))
+        : runs;
+
   return (
-    <div className="grid grid-cols-12 content-start gap-5 p-4 h-full overflow-auto">
+    <div className="@container/surface flex min-h-0 min-w-0 flex-col gap-4 p-4">
+      {!embedded && (
+        <RomanSurfaceHeader
+          domainTag="COMPUTE · WORKFLOW TELEMETRY"
+          title="Workflow Runs & Model Scoreboard"
+          subtitle="Inspect 7-day empirical model success rates, p50 latency, and live workflow step receipts."
+          waxSealBadge="TELEMETRY LIVE"
+          icon={<Icon.bolt className="size-5 text-text-primary" aria-hidden="true" />}
+          gauges={[
+            {
+              label: 'Models',
+              valueText: `${scoreboard.length}`,
+              ratio: scoreboard.length > 0 ? Math.max(0, Math.min(1, avgSuccess)) : 0,
+              tone: 'gold',
+              purpose: 'Mean 7-day empirical model success rate across categories',
+              actionHint: highSuccessOnly
+                ? 'Click to show all tracked models'
+                : 'Click to filter scoreboard to models >90% success',
+              active: highSuccessOnly,
+              onClick: () => setHighSuccessOnly((v) => !v),
+            },
+            {
+              label: 'Runs',
+              valueText: `${completedCount}/${runs.length}`,
+              ratio: runs.length > 0 ? completedCount / runs.length : 0,
+              tone: 'emerald',
+              purpose: 'Completed workflow runs out of loaded recent activity',
+              actionHint:
+                runStatusFilter === 'completed'
+                  ? 'Click to show all workflow runs'
+                  : 'Click to filter recent activity to completed runs',
+              active: runStatusFilter === 'completed',
+              onClick: () =>
+                setRunStatusFilter((f) => (f === 'completed' ? 'all' : 'completed')),
+            },
+            {
+              label: 'Failed',
+              valueText: `${failedCount}`,
+              ratio: runs.length > 0 ? failedCount / runs.length : 0,
+              tone: failedCount > 0 ? 'crimson' : 'emerald',
+              purpose: 'Workflow runs ending with failure status',
+              actionHint:
+                runStatusFilter === 'failed'
+                  ? 'Click to show all workflow runs'
+                  : 'Click to filter recent activity to failed runs',
+              active: runStatusFilter === 'failed',
+              onClick: () =>
+                setRunStatusFilter((f) => (f === 'failed' ? 'all' : 'failed')),
+            },
+          ]}
+        />
+      )}
       {decision && (
-        <Glass className="col-span-12 p-3">
+        <Glass className="p-3">
           <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Latest Route Decision</div>
           <div className="mt-1 font-mono text-xs text-text-secondary">{decision.selected_model}</div>
           <div className="text-[10px] text-text-muted mt-1">
@@ -199,73 +269,79 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
         </Glass>
       )}
 
-      <div className="col-span-12 xl:col-span-7 flex flex-col gap-3">
-        <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Model Scoreboard (7d)</h2>
-        <DataTable
-          rows={scoreboard}
-          columns={scoreboardCols}
-          getRowId={r => `${r.model_id}-${r.task_category}`}
-          loading={loading}
-          density="compact"
-          emptyState={
-            <EmptyState 
-              variant="no-data" 
-              title="No model runs tracked yet" 
-              description="Scoreboard data accumulates dynamically once agents complete routing workflows."
+      <BentoGrid preset="hero" className="items-start">
+        <BentoCard as="section" span="hero-main" className="gap-3">
+          <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Model Scoreboard (7d)</h2>
+          <BentoScrollRegion ariaLabel="Model scoreboard 7-day results" className="max-h-[32rem]">
+            <DataTable
+              rows={displayedScoreboard}
+              columns={scoreboardCols}
+              getRowId={r => `${r.model_id}-${r.task_category}`}
+              loading={loading}
+              density="compact"
+              emptyState={
+                <EmptyState
+                  variant="no-data"
+                  title="No model runs tracked yet"
+                  description="Scoreboard data accumulates dynamically once agents complete routing workflows."
+                />
+              }
             />
-          }
-        />
-      </div>
+          </BentoScrollRegion>
+        </BentoCard>
 
-      <div className="col-span-12 xl:col-span-5 flex flex-col gap-3">
-        <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Recent Activity</h2>
-        <DataTable
-          rows={runs}
-          columns={runsCols}
-          getRowId={r => r.run_id}
-          loading={loading}
-          density="compact"
-          emptyState={
-            <EmptyState 
-              variant="no-data" 
-              title="No recent workflows" 
-              description="A list of task executions and model calls appears here dynamically."
+        <BentoCard as="section" span="hero-rail" className="gap-3">
+          <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Recent Activity</h2>
+          <BentoScrollRegion ariaLabel="Recent workflow runs" className="max-h-[24rem]">
+            <DataTable
+              rows={displayedRuns}
+              columns={runsCols}
+              getRowId={r => r.run_id}
+              loading={loading}
+              density="compact"
+              emptyState={
+                <EmptyState
+                  variant="no-data"
+                  title="No recent workflows"
+                  description="A list of task executions and model calls appears here dynamically."
+                />
+              }
             />
-          }
-        />
-        {selectedRun && (
-          <Glass size="sm" className="mt-2 rounded-lg border border-border-subtle bg-black/30 p-3">
-            <div className="font-display text-[10px] tracking-[0.2em] uppercase text-text-muted">Run Details</div>
-            <div className="mt-2 text-[11px] text-text-secondary">{selectedRun.workflow_name}</div>
-            <div className="font-mono text-[10px] text-text-muted mt-1">{selectedRun.run_id}</div>
-            <div className="text-[10px] text-text-muted mt-1">
-              status={selectedRun.status} · steps={selectedRun.completed_steps}/{selectedRun.planned_steps}
-            </div>
-            <div className="text-[10px] text-text-muted mt-1">
-              updated={new Date(selectedRun.updated_at_ms).toLocaleString()}
-            </div>
-            {selectedRun.command && (
-              <div className="font-mono text-[10px] text-text-muted mt-1 break-all">
-                cmd={selectedRun.command}
-              </div>
-            )}
-            {selectedRun.model || selectedRun.cost_usd != null ? (
+          </BentoScrollRegion>
+          {selectedRun && (
+            <Glass size="sm" className="mt-1 rounded-lg border border-border-subtle bg-bg-elevated p-3">
+              <div className="font-display text-[10px] tracking-[0.2em] uppercase text-text-muted">Run Details</div>
+              <div className="mt-2 text-[11px] text-text-secondary">{selectedRun.workflow_name}</div>
+              <div className="font-mono text-[10px] text-text-muted mt-1">{selectedRun.run_id}</div>
               <div className="text-[10px] text-text-muted mt-1">
-                {selectedRun.model ? `model=${selectedRun.model}` : null}
-                {selectedRun.model && selectedRun.cost_usd != null ? ' · ' : null}
-                {selectedRun.cost_usd != null ? `cost=$${selectedRun.cost_usd.toFixed(4)}` : null}
+                status={selectedRun.status} · steps={selectedRun.completed_steps}/{selectedRun.planned_steps}
               </div>
-            ) : null}
-            {selectedRun.last_error ? (
-              <pre className="mt-2 whitespace-pre-wrap rounded-sm border border-rose-300/20 bg-rose-950/20 p-2 text-[10px] text-rose-200">
-                {selectedRun.last_error}
-              </pre>
-            ) : (
-              <div className="mt-2 text-[10px] text-emerald-300">No recorded error for this run.</div>
-            )}
-          </Glass>
-        )}
-      </div>
+              <div className="text-[10px] text-text-muted mt-1">
+                updated={new Date(selectedRun.updated_at_ms).toLocaleString()}
+              </div>
+              {selectedRun.command && (
+                <div className="font-mono text-[10px] text-text-muted mt-1 break-all">
+                  cmd={selectedRun.command}
+                </div>
+              )}
+              {selectedRun.model || selectedRun.cost_usd != null ? (
+                <div className="text-[10px] text-text-muted mt-1">
+                  {selectedRun.model ? `model=${selectedRun.model}` : null}
+                  {selectedRun.model && selectedRun.cost_usd != null ? ' · ' : null}
+                  {selectedRun.cost_usd != null ? `cost=$${selectedRun.cost_usd.toFixed(4)}` : null}
+                </div>
+              ) : null}
+              {selectedRun.last_error ? (
+                <pre className="mt-2 whitespace-pre-wrap rounded-sm border border-rose-300/20 bg-rose-950/20 p-2 text-[10px] text-rose-200">
+                  {selectedRun.last_error}
+                </pre>
+              ) : (
+                <div className="mt-2 text-[10px] text-emerald-300">No recorded error for this run.</div>
+              )}
+            </Glass>
+          )}
+        </BentoCard>
+      </BentoGrid>
     </div>
   );
 }

@@ -329,6 +329,50 @@ pub fn call_mlx_gemm(
     let m = effective_m;
     let b = effective_batch;
 
+    // Fast coalesced M=1 GEMV path for single-token decode `[1, K] @ [N, K]^T`:
+    // avoids 32x32 tiled GEMM's 31/32 empty M rows, strided B loads, and 2*K/16
+    // threadgroup barriers per projection.
+    if b == 1 && m == 1 && !a_trans && b_trans && k >= 32 && n >= 1 {
+        let gemv_name = match dtype {
+            GemmDType::F32 => "gemv_nt_f32",
+            GemmDType::F16 => "gemv_nt_f16",
+            GemmDType::BF16 => "gemv_nt_bf16",
+        };
+        let pipeline = kernels.load_pipeline(device, Source::Gemm, gemv_name)?;
+        let encoder = ep.encoder();
+        let encoder: &ComputeCommandEncoder = encoder.as_ref();
+        encoder.set_compute_pipeline_state(&pipeline);
+        let n_i32 = n as i32;
+        let k_i32 = k as i32;
+        set_params!(
+            encoder,
+            (
+                (lhs_buffer, lhs_offset),
+                (rhs_buffer, rhs_offset),
+                output,
+                n_i32,
+                k_i32,
+                ldb
+            )
+        );
+        const ROWS_PER_TG: usize = 16; // 4 simdgroups * 4 rows/simdgroup
+        let grid_size = MTLSize {
+            width: n.div_ceil(ROWS_PER_TG),
+            height: 1,
+            depth: 1,
+        };
+        let group_size = MTLSize {
+            width: 128,
+            height: 1,
+            depth: 1,
+        };
+        encoder.use_resource(lhs_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(rhs_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(output, MTLResourceUsage::Write);
+        encoder.dispatch_thread_groups(grid_size, group_size);
+        return Ok(());
+    }
+
     // Dynamic tile selection based on matrix dimensions, dtype, transpose mode, and device type
     // Reference: MLX GEMM_TPARAM_MACRO in matmul.cpp
     let device_type = device.device_type();
@@ -449,6 +493,154 @@ pub fn call_mlx_gemm(
     };
     encoder.use_resource(lhs_buffer, MTLResourceUsage::Read);
     encoder.use_resource(rhs_buffer, MTLResourceUsage::Read);
+    encoder.use_resource(output, MTLResourceUsage::Write);
+    encoder.dispatch_thread_groups(grid_size, group_size);
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn call_nf4_gemv(
+    device: &Device,
+    ep: impl EncoderProvider,
+    kernels: &Kernels,
+    dtype: GemmDType,
+    (m, n, k): (usize, usize, usize),
+    lhs_offset: usize,
+    lhs_buffer: &Buffer,
+    q_offset: usize,
+    q_buffer: &Buffer,
+    scales_offset: usize,
+    scales_buffer: &Buffer,
+    output: &Buffer,
+) -> Result<(), MetalKernelError> {
+    if m == 1 {
+        let name = match dtype {
+            GemmDType::F32 => "nf4_gemv_f32",
+            GemmDType::F16 => "nf4_gemv_f16",
+            GemmDType::BF16 => "nf4_gemv_bf16",
+        };
+        let pipeline = kernels.load_pipeline(device, Source::Gemm, name)?;
+        let encoder = ep.encoder();
+        let encoder: &ComputeCommandEncoder = encoder.as_ref();
+        encoder.set_compute_pipeline_state(&pipeline);
+        set_params!(
+            encoder,
+            (
+                (lhs_buffer, lhs_offset),
+                (q_buffer, q_offset),
+                (scales_buffer, scales_offset),
+                output,
+                n as i32,
+                k as i32
+            )
+        );
+        let grid_size = MTLSize {
+            width: n.div_ceil(16),
+            height: 1,
+            depth: 1,
+        };
+        let group_size = MTLSize {
+            width: 32,
+            height: 4,
+            depth: 1,
+        };
+        encoder.use_resource(lhs_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(q_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(scales_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(output, MTLResourceUsage::Write);
+        encoder.dispatch_thread_groups(grid_size, group_size);
+        Ok(())
+    } else {
+        let name = match (dtype, m) {
+            (GemmDType::F32, 2..=4) => "nf4_gemv_batch4_f32",
+            (GemmDType::F32, 5..=8) => "nf4_gemv_batch8_f32",
+            (GemmDType::F32, _) => "nf4_gemv_batch16_f32",
+            (GemmDType::F16, 2..=4) => "nf4_gemv_batch4_f16",
+            (GemmDType::F16, 5..=8) => "nf4_gemv_batch8_f16",
+            (GemmDType::F16, _) => "nf4_gemv_batch16_f16",
+            (GemmDType::BF16, 2..=4) => "nf4_gemv_batch4_bf16",
+            (GemmDType::BF16, 5..=8) => "nf4_gemv_batch8_bf16",
+            (GemmDType::BF16, _) => "nf4_gemv_batch16_bf16",
+        };
+        let pipeline = kernels.load_pipeline(device, Source::Gemm, name)?;
+        let encoder = ep.encoder();
+        let encoder: &ComputeCommandEncoder = encoder.as_ref();
+        encoder.set_compute_pipeline_state(&pipeline);
+        set_params!(
+            encoder,
+            (
+                (lhs_buffer, lhs_offset),
+                (q_buffer, q_offset),
+                (scales_buffer, scales_offset),
+                output,
+                m as i32,
+                n as i32,
+                k as i32
+            )
+        );
+        let grid_size = MTLSize {
+            width: n.div_ceil(8),
+            height: 1,
+            depth: 1,
+        };
+        let group_size = MTLSize {
+            width: 32,
+            height: 4,
+            depth: 1,
+        };
+        encoder.use_resource(lhs_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(q_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(scales_buffer, MTLResourceUsage::Read);
+        encoder.use_resource(output, MTLResourceUsage::Write);
+        encoder.dispatch_thread_groups(grid_size, group_size);
+        Ok(())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn call_nf4_dequant(
+    device: &Device,
+    ep: impl EncoderProvider,
+    kernels: &Kernels,
+    dtype: GemmDType,
+    num_bytes: usize,
+    q_offset: usize,
+    q_buffer: &Buffer,
+    scales_offset: usize,
+    scales_buffer: &Buffer,
+    output: &Buffer,
+) -> Result<(), MetalKernelError> {
+    let name = match dtype {
+        GemmDType::F32 => "nf4_dequant_f32",
+        GemmDType::F16 => "nf4_dequant_f16",
+        GemmDType::BF16 => "nf4_dequant_bf16",
+    };
+    let pipeline = kernels.load_pipeline(device, Source::Gemm, name)?;
+    let encoder = ep.encoder();
+    let encoder: &ComputeCommandEncoder = encoder.as_ref();
+    encoder.set_compute_pipeline_state(&pipeline);
+    set_params!(
+        encoder,
+        (
+            (q_buffer, q_offset),
+            (scales_buffer, scales_offset),
+            output,
+            num_bytes as u32
+        )
+    );
+    let group_width = 256usize;
+    let grid_size = MTLSize {
+        width: num_bytes.div_ceil(group_width),
+        height: 1,
+        depth: 1,
+    };
+    let group_size = MTLSize {
+        width: group_width,
+        height: 1,
+        depth: 1,
+    };
+    encoder.use_resource(q_buffer, MTLResourceUsage::Read);
+    encoder.use_resource(scales_buffer, MTLResourceUsage::Read);
     encoder.use_resource(output, MTLResourceUsage::Write);
     encoder.dispatch_thread_groups(grid_size, group_size);
     Ok(())

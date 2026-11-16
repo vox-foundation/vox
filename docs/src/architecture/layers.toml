@@ -116,6 +116,36 @@ crate    = "vox-telemetry-otlp"
 forbidden = ["vox-orchestrator", "vox-cli", "vox-gui"]
 reason   = "egress crate must not depend up into surfaces; surfaces register it, not vice-versa"
 
+[[forbidden_deps]]
+crate    = "vox-compiler"
+forbidden = ["vox-repository"]
+reason   = "Phase 405: vox-compiler (32 dependents) must stay decoupled from vox-repository catalog/federation churn"
+
+[[forbidden_deps]]
+crate    = "vox-db"
+forbidden = ["vox-repository"]
+reason   = "Phase 405: vox-db (44 dependents) must stay decoupled from vox-repository catalog/federation churn"
+
+[[forbidden_deps]]
+crate    = "vox-codegen"
+forbidden = ["vox-repository"]
+reason   = "Phase 405: vox-codegen must stay decoupled from vox-repository"
+
+[[forbidden_deps]]
+crate    = "vox-doc-inventory"
+forbidden = ["vox-repository"]
+reason   = "Phase 405: vox-doc-inventory must stay decoupled from vox-repository"
+
+[[forbidden_deps]]
+crate    = "vox-corpus"
+forbidden = ["vox-repository"]
+reason   = "Phase 405: vox-corpus must stay decoupled from vox-repository"
+
+[[forbidden_deps]]
+crate    = "vox-orchestrator-driver"
+forbidden = ["vox-repository"]
+reason   = "Phase 405: vox-orchestrator-driver must stay decoupled from vox-repository"
+
 [crates]
 vox-scientia = { layer = 3, staleness_exempt = true, max_loc = 15_000 }  # umbrella: +8 SCIENTIA sub-crates folded in (was ~2.5K, now ~8.8K)
 
@@ -140,7 +170,7 @@ vox-language-surface  = { layer = 1 }   # SSOT for keyword/decorator/builtin sur
 vox-redact            = { layer = 1 }   # conservative PII/secret redaction (regex + serde_json only); consumed by vox-terminal-core (L3) and vox-orchestrator-mcp (L3)
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1, staleness_exempt = true }
-vox-secrets           = { layer = 1, max_dependents = 34 }  # 34 direct consumers (all call resolve_secret), reconciled 2026-09-27 to the live crate_edges-style count. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
+vox-secrets           = { layer = 1, max_dependents = 35 }  # 35 direct consumers (all call resolve_secret), reconciled 2026-11-13 to match contracts/ci/fan-in-snapshot.v1.json. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
@@ -271,7 +301,7 @@ vox-plugin-runtime-wasm      = { layer = 4, kind = "plugin" }
 vox-plugin-webhook           = { layer = 4, kind = "plugin" }
 
 # ── L5 — surfaces ─────────────────────────────────────────────────────────────
-vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000, max_workspace_deps = 60 }
+vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000, max_workspace_deps = 50 }
 vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-cli-tests         = { layer = 5, kind = "test-only" }
 vox-cli-ci             = { layer = 5, kind = "library", max_loc = 15_000 }

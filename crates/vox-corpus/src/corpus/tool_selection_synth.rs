@@ -5,6 +5,7 @@
 //! All data is derived from a static tool catalog — no LLM completions.
 
 /// One tool-selection SFT row.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ToolSelectionRow {
     pub task: String,
     pub candidate_tools: Vec<String>,
@@ -248,6 +249,34 @@ pub fn generate_tool_selection_rows(n: usize) -> Vec<ToolSelectionRow> {
     rows
 }
 
+/// Write synthesized tool-selection rows to a JSONL file, creating parent directories if needed.
+pub fn write_tool_selection_jsonl(
+    rows: &[ToolSelectionRow],
+    output_path: &std::path::Path,
+) -> anyhow::Result<usize> {
+    write_jsonl_rows(rows, output_path)
+}
+
+pub(crate) fn write_jsonl_rows<T: serde::Serialize>(
+    rows: &[T],
+    output_path: &std::path::Path,
+) -> anyhow::Result<usize> {
+    use std::io::Write as _;
+    if let Some(parent) = output_path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
+    }
+    let file = std::fs::File::create(output_path)?;
+    let mut writer = std::io::BufWriter::new(file);
+    for row in rows {
+        serde_json::to_writer(&mut writer, row)?;
+        writer.write_all(b"\n")?;
+    }
+    writer.flush()?;
+    Ok(rows.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +298,36 @@ mod tests {
         let rows = generate_tool_selection_rows(10);
         for r in &rows {
             assert!(!r.task.is_empty());
+        }
+    }
+
+    #[test]
+    fn zero_leakage_against_agent_episodes_eval() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let eval_path = root.join("mens/data/agent_episodes/episodes.v1.jsonl");
+        let raw = std::fs::read_to_string(&eval_path).expect("read episodes.v1.jsonl");
+        let held_out: std::collections::HashSet<String> = raw
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .filter_map(|l| {
+                let v: serde_json::Value = serde_json::from_str(l).ok()?;
+                v.get("user_request")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.trim().to_ascii_lowercase())
+            })
+            .collect();
+        assert!(!held_out.is_empty());
+        let rows = generate_tool_selection_rows(TOOL_CATALOG.len() * 2);
+        for r in &rows {
+            let norm = r.task.trim().to_ascii_lowercase();
+            assert!(
+                !held_out.contains(&norm),
+                "tool-selection synthetic task leaked held-out agent episode prompt: {}",
+                r.task
+            );
         }
     }
 }

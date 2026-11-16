@@ -1,0 +1,211 @@
+// ---
+// title: "List Accumulator, 2D Grid, and Float Ratio Idioms"
+// description: "Idiomatic Vox loops with range(start, end), for val, idx in list, Option-returning index match, 2D list[list[int]] traversal, and float() division."
+// syntax_version: "0.6.0"
+// status: golden
+// category: example
+// constructs: [fn, for, range, while, match, list, float, let_mut, @test]
+// last_validated: 2026-11-15
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: intermediate
+// ---
+// @training_prompt: Write idiomatic Vox list, range, 2D grid, and float-ratio functions using range(start, end), for v, i in list, match xs[i], and float() casts.
+
+/// Sum all positive integers strictly below `limit` that are divisible by 4 or 7.
+fn sum_divisible_by_four_or_seven(limit: int) to int {
+    if limit <= 1 {
+        return 0
+    }
+    let mut total: int = 0
+    for n in range(1, limit) {
+        if n % 4 is 0 or n % 7 is 0 {
+            total = total + n
+        }
+    }
+    return total
+}
+
+/// Sum elements of `nums` located at odd indices (1, 3, 5, ...).
+fn sum_odd_positions(nums: list[int]) to int {
+    let mut total: int = 0
+    for val, idx in nums {
+        if idx % 2 is 1 {
+            total = total + val
+        }
+    }
+    return total
+}
+
+/// Return a new list containing `items` in reverse order without mutating the caller's list.
+fn reversed_copy(items: list[int]) to list[int] {
+    let mut out: list[int] = []
+    let mut idx: int = len(items) - 1
+    while idx >= 0 {
+        match items[idx] {
+            Some(v) => out.push(v)
+            None => continue
+        }
+        idx = idx - 1
+    }
+    return out
+}
+
+/// Merge two equal-length integer lists `left` and `right` by summing paired elements at each index.
+fn zip_pair_sums(left: list[int], right: list[int]) to list[int] {
+    let n: int = len(left)
+    let mut out: list[int] = []
+    for i in range(n) {
+        match left[i] {
+            Some(a) => {
+                match right[i] {
+                    Some(b) => out.push(a + b)
+                    None => continue
+                }
+            }
+            None => continue
+        }
+    }
+    return out
+}
+
+/// Return the length of the longest consecutive run of equal integers in `nums`.
+fn longest_equal_streak(nums: list[int]) to int {
+    if len(nums) is 0 {
+        return 0
+    }
+    let mut best: int = 1
+    let mut cur: int = 1
+    for i in range(1, len(nums)) {
+        match nums[i] {
+            Some(now) => {
+                match nums[i - 1] {
+                    Some(prev) => {
+                        if now is prev {
+                            cur = cur + 1
+                            if cur > best {
+                                best = cur
+                            }
+                        } else {
+                            cur = 1
+                        }
+                    }
+                    None => continue
+                }
+            }
+            None => continue
+        }
+    }
+    return best
+}
+
+/// Compute the total of every row in a 2D integer grid `grid`.
+fn grid_row_totals(grid: list[list[int]]) to list[int] {
+    let mut totals: list[int] = []
+    for row in grid {
+        let mut row_sum: int = 0
+        for cell in row {
+            row_sum = row_sum + cell
+        }
+        totals.push(row_sum)
+    }
+    return totals
+}
+
+/// Compute the maximum value in each column of a rectangular non-empty 2D integer grid `grid`.
+fn grid_column_maxima(grid: list[list[int]]) to list[int] {
+    if len(grid) is 0 {
+        return []
+    }
+    let cols: int = match grid[0] {
+        Some(first_row) => len(first_row)
+        None => 0
+    }
+    let mut maxima: list[int] = []
+    for c in range(cols) {
+        let mut col_max: int = 0
+        let mut seeded: bool = false
+        for row in grid {
+            match row[c] {
+                Some(v) => {
+                    if not seeded or v > col_max {
+                        col_max = v
+                        seeded = true
+                    }
+                }
+                None => continue
+            }
+        }
+        maxima.push(col_max)
+    }
+    return maxima
+}
+
+/// Check whether every diagonal entry `grid[i][i]` in a square grid is positive.
+fn grid_diagonal_all_positive(grid: list[list[int]]) to bool {
+    let n: int = len(grid)
+    for i in range(n) {
+        match grid[i] {
+            Some(row) => {
+                match row[i] {
+                    Some(v) => {
+                        if v <= 0 {
+                            return false
+                        }
+                    }
+                    None => return false
+                }
+            }
+            None => return false
+        }
+    }
+    return true
+}
+
+/// Compute the factor-scaled mean of `scores` weighted by `factors` as a `float`.
+fn scaled_score_mean(scores: list[int], factors: list[int]) to float {
+    let n: int = len(scores)
+    let mut num: int = 0
+    let mut den: int = 0
+    for i in range(n) {
+        match scores[i] {
+            Some(s) => {
+                match factors[i] {
+                    Some(f) => {
+                        num = num + s * f
+                        den = den + f
+                    }
+                    None => continue
+                }
+            }
+            None => continue
+        }
+    }
+    if den is 0 {
+        return 0.0
+    }
+    return float(num) / float(den)
+}
+
+@test
+fn test_list_accumulator_idioms() to Unit {
+    assert(sum_divisible_by_four_or_seven(12) is 19)
+    assert(sum_odd_positions([10, 3, 20, 7, 30]) is 10)
+    assert(reversed_copy([1, 2, 3, 4]) is [4, 3, 2, 1])
+    assert(zip_pair_sums([1, 2, 3], [10, 20, 30]) is [11, 22, 33])
+    assert(longest_equal_streak([2, 2, 5, 5, 5, 1]) is 3)
+    let g: list[list[int]] = [[1, 4, 2], [3, 2, 6], [0, 5, 9]]
+    assert(grid_row_totals(g) is [7, 11, 14])
+    assert(grid_column_maxima(g) is [3, 5, 9])
+    assert(grid_diagonal_all_positive(g) is true)
+    let avg = scaled_score_mean([10, 20], [1, 3])
+    assert(avg > 17.4)
+    assert(avg < 17.6)
+}
+
+// EXPECT: list_accumulator_idioms ok
+pub fn main() {
+    assert(sum_divisible_by_four_or_seven(12) is 19)
+    assert(reversed_copy([1, 2, 3, 4]) is [4, 3, 2, 1])
+    print("list_accumulator_idioms ok")
+}

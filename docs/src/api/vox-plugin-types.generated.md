@@ -54,8 +54,6 @@ Re-exported by `vox-plugin-api` (manifest types) and `vox-plugin-host`
 graph {
     direction: right
     node vox_plugin_types: "vox-plugin-types"
-    node vox_cli: "vox-cli"
-    vox_cli -> vox_plugin_types
     node vox_cli_ci: "vox-cli-ci"
     vox_cli_ci -> vox_plugin_types
     node vox_cli_research: "vox-cli-research"
@@ -79,7 +77,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |

@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { familyKey, VERSIONED_CLOUD_MODEL_ID } from './modelFamily';
 
-// src/lib -> src -> ui -> vox-gui -> crates -> repo root
+// src/lib -> src -> ui -> vox-gui -> crates -> repo root (or sibling VOX_ROOT in vox-axis)
 const here = dirname(fileURLToPath(import.meta.url));
-const BOOTSTRAP = resolve(here, '../../../../../contracts/orchestration/model-catalog.bootstrap.v1.json');
+const localBootstrap = resolve(here, '../../../../../contracts/orchestration/model-catalog.bootstrap.v1.json');
+const voxRoot = process.env.VOX_ROOT ?? resolve(here, '../../../../../../vox');
+const BOOTSTRAP = existsSync(localBootstrap)
+  ? localBootstrap
+  : resolve(voxRoot, 'contracts/orchestration/model-catalog.bootstrap.v1.json');
 const catalogIds = (): string[] =>
   (JSON.parse(readFileSync(BOOTSTRAP, 'utf8')) as Array<{ id: string }>).map((e) => e.id);
 

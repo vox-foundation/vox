@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 
@@ -27,6 +27,11 @@ describe('DiscoveryRail', () => {
     localStorage.clear();
     recordMock.mockClear();
     recordGamifyMock.mockClear();
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 });
   });
 
   it('renders help for the active action id', async () => {
@@ -95,5 +100,62 @@ describe('DiscoveryRail', () => {
 
     await user.click(screen.getByRole('button', { name: /collapse discovery rail/i }));
     expect(localStorage.getItem('gui.console.discovery_rail_collapsed.v1')).toBe('true');
+  });
+
+  it('defaults to Action Help tab, switches to Runbooks tab without guillemets, and survives partial transport mocks', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <LanguageProvider>
+        <DiscoveryRail actionId="vox.scientia.review" nowMs={1000} />
+      </LanguageProvider>,
+    );
+    await waitFor(() => expect(screen.getByText('Review queued nanopubs')).toBeTruthy());
+
+    // Zero guillemets in rendered output
+    expect(container.textContent).not.toContain('«');
+    expect(container.textContent).not.toContain('»');
+
+    const helpTab = screen.getByTestId('discovery-tab-help');
+    const runbooksTab = screen.getByTestId('discovery-tab-runbooks');
+    expect(helpTab.getAttribute('aria-selected')).toBe('true');
+    expect(runbooksTab.getAttribute('aria-selected')).toBe('false');
+    expect(screen.queryByTestId('term-runbook-panel')).toBeNull();
+
+    await user.click(runbooksTab);
+    expect(runbooksTab.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('term-runbook-panel')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('No workspace runbooks discovered')).toBeTruthy());
+  });
+
+  it('auto-collapses below 980px into w-8 strip, renders size-6 SVG chevrons, overlays below 1100px, and auto-collapses on resize', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 900 });
+    render(<LanguageProvider><DiscoveryRail actionId="vox.scientia.review" nowMs={1000} /></LanguageProvider>);
+
+    const collapsedAside = screen.getByTestId('discovery-rail');
+    expect(collapsedAside.className).toContain('w-8');
+    const restoreBtn = screen.getByTestId('discovery-rail-restore-button');
+    expect(restoreBtn.className).toContain('size-6');
+    expect(restoreBtn.querySelector('svg')).toBeTruthy();
+
+    await user.click(restoreBtn);
+    const expandedAside = await screen.findByTestId('discovery-rail');
+    expect(expandedAside.className).toContain('max-[1099px]:absolute');
+    expect(expandedAside.className).toContain('max-[1099px]:z-20');
+    const hideBtn = screen.getByTestId('discovery-rail-hide-button');
+    expect(hideBtn.className).toContain('size-6');
+    expect(hideBtn.querySelector('svg')).toBeTruthy();
+    expect(expandedAside.getAttribute('style') ?? '').not.toContain('#');
+
+    cleanup();
+    localStorage.clear();
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 });
+    render(<LanguageProvider><DiscoveryRail actionId="vox.scientia.review" nowMs={1000} /></LanguageProvider>);
+    expect(screen.getByTestId('discovery-rail-hide-button')).toBeTruthy();
+    act(() => {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 900 });
+      window.dispatchEvent(new Event('resize'));
+    });
+    await waitFor(() => expect(screen.getByTestId('discovery-rail-restore-button')).toBeTruthy());
   });
 });

@@ -262,6 +262,8 @@ pub enum HostCall {
         result: VoxValue,
         /// True only when the body panicked or returned `_Panic`.
         failed: bool,
+        /// Python worker versions and `uv.lock` hash observed during the activity, if any.
+        python_env: Option<serde_json::Value>,
     },
     Patch {
         change_id: String,
@@ -362,6 +364,7 @@ pub(crate) fn dispatch_activity(
                             name: name.to_string(),
                             result: VoxValue::Null,
                             failed,
+                            python_env: interp.python_env_metadata.clone(),
                         });
                         return Err(e);
                     }
@@ -371,6 +374,7 @@ pub(crate) fn dispatch_activity(
                     name: name.to_string(),
                     result: result.clone(),
                     failed,
+                    python_env: interp.python_env_metadata.clone(),
                 })? {
                     HostDecision::Park(reason) => Err(EvalError::WorkflowParked(reason)),
                     HostDecision::Replay(value) => Ok(value),

@@ -36,4 +36,4 @@ Do NOT write code, scaffold, or invoke an implementation skill until a design ch
 
 ## Terminal State
 
-The next skill after brainstorming is `writing-plans`. Do not jump to other implementation skills first.
+The next skill after brainstorming is `gsd-spec-phase` or `gsd-plan-phase`. Do not jump to implementation skills before a GSD spec/plan exists.

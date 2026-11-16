@@ -65,21 +65,82 @@ fn research_hits_from_search_execution(execution: SearchExecution) -> Vec<Resear
     out
 }
 
+/// Maximum trust score granted to synthesized memory entries (`<= 0.20`) so
+/// model-generated prior research cannot self-corroborate future research waves (VERI-04).
+pub(crate) const UNTRUSTED_SYNTHESIS_TRUST_CAP: f64 = 0.15;
+
+/// Returns `true` when a local/memory line carries `untrusted_synthesis` provenance
+/// or originates from prior synthesized research without human primary approval.
+#[must_use]
+pub(crate) fn is_untrusted_synthesis_line(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    if lower.contains("human_approved_primary") {
+        return false;
+    }
+    lower.contains("untrusted_synthesis")
+        || lower.contains("research_session:")
+        || lower.contains("memory_type:research_result")
+        || lower.contains("\"memory_type\":\"research_result\"")
+}
+
+/// Returns `true` when a [`super::super::types::Citation`] originates from
+/// `untrusted_synthesis` memory and must be excluded from corroboration counting.
+#[must_use]
+pub(crate) fn is_untrusted_synthesis_citation(citation: &super::super::types::Citation) -> bool {
+    is_untrusted_synthesis_line(&citation.url)
+        || is_untrusted_synthesis_line(&citation.title)
+        || is_untrusted_synthesis_line(&citation.snippet)
+}
+
+fn is_noisy_build_or_binary_local_ref(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    lower.contains("docs-astro/public/")
+        || lower.contains("/target/")
+        || lower.ends_with(".png")
+        || lower.ends_with(".jpg")
+        || lower.ends_with(".jpeg")
+        || lower.ends_with(".webp")
+        || lower.ends_with(".svg")
+        || lower.ends_with(".ico")
+        || lower.ends_with(".woff2")
+}
+
 fn append_local_lines(
     out: &mut Vec<ResearchHit>,
     title_prefix: &str,
     url_prefix: &str,
     lines: Vec<String>,
 ) {
+    let base_score = match title_prefix {
+        "chunk" | "rrf" | "knowledge" | "qdrant" => 0.78,
+        "memory" => 0.68,
+        "repo" | "symbol" => 0.48,
+        _ => 0.60,
+    };
     for (idx, line) in lines.into_iter().enumerate() {
-        let (url, title) = local_line_ref(&line, title_prefix, url_prefix, idx);
+        let (mut url, mut title) = local_line_ref(&line, title_prefix, url_prefix, idx);
+        if is_noisy_build_or_binary_local_ref(&url) {
+            continue;
+        }
+        let is_tainted = is_untrusted_synthesis_line(&line);
+        let trust_score = if is_tainted {
+            if !url.contains("untrusted_synthesis") {
+                url = format!("{url}#origin=untrusted_synthesis");
+            }
+            if !title.contains("untrusted_synthesis") {
+                title = format!("{title}[origin:untrusted_synthesis]");
+            }
+            UNTRUSTED_SYNTHESIS_TRUST_CAP
+        } else {
+            1.0
+        };
         out.push(ResearchHit {
             url,
             title,
             snippet: line,
-            score: 0.65,
+            score: if is_tainted { 0.20 } else { base_score },
             http_status: 0,
-            trust_score: 1.0,
+            trust_score,
             raw_content: String::new(),
         });
     }
@@ -387,6 +448,57 @@ pub(super) async fn gather_web_hits_for_plan(
     )
 }
 
+fn hydrate_local_repo_hit_excerpt(repo_root: &std::path::Path, hit: &mut ResearchHit) {
+    if !hit.raw_content.is_empty() {
+        return;
+    }
+    let rel = hit
+        .url
+        .strip_prefix("repo://")
+        .filter(|s| !s.starts_with("symbol/"))
+        .or_else(|| hit.url.strip_prefix("vox://rrf/"));
+    let Some(rel_str) = rel else {
+        return;
+    };
+    let clean_rel = rel_str
+        .split('#')
+        .next()
+        .unwrap_or(rel_str)
+        .trim_start_matches('/');
+    if clean_rel.is_empty() || clean_rel.contains("..") {
+        return;
+    }
+    let candidate = repo_root.join(clean_rel);
+    let Ok(canon_root) = repo_root.canonicalize() else {
+        return;
+    };
+    let Ok(canon_file) = candidate.canonicalize() else {
+        return;
+    };
+    if !canon_file.starts_with(&canon_root) || !canon_file.is_file() {
+        return;
+    }
+    let Ok(content) = std::fs::read_to_string(&canon_file) else {
+        return;
+    };
+    let excerpt: String = content.chars().take(2400).collect();
+    if excerpt.trim().is_empty() {
+        return;
+    }
+    if hit.snippet.chars().count() < 240 {
+        let compact: String = excerpt
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .take(14)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let snip_head: String = compact.chars().take(600).collect();
+        hit.snippet = format!("{} — {}", hit.snippet, snip_head);
+    }
+    hit.raw_content = excerpt;
+}
+
 pub(super) async fn gather_local_hits_for_plan(
     ctx: &SearchRuntimeContext,
     query: &ResearchQuery,
@@ -417,7 +529,8 @@ pub(super) async fn gather_local_hits_for_plan(
         {
             Ok((execution, _diagnostics, _search_plan)) => {
                 let mut got = 0usize;
-                for hit in research_hits_from_search_execution(execution) {
+                for mut hit in research_hits_from_search_execution(execution) {
+                    hydrate_local_repo_hit_excerpt(&ctx.repo_root, &mut hit);
                     if seen_urls.insert(hit.url.clone()) {
                         all_hits.push(hit);
                         got += 1;
@@ -686,5 +799,129 @@ mod tests {
             "http://www.example.com/"
         ));
         assert!(host_matches_site_scope("https://example.com", ""));
+    }
+
+    #[test]
+    fn untrusted_synthesis_memory_lines_capped_below_primary_trust() {
+        use super::{UNTRUSTED_SYNTHESIS_TRUST_CAP, append_local_lines};
+
+        let mut hits = Vec::new();
+        append_local_lines(
+            &mut hits,
+            "memory",
+            "vox://memory",
+            vec![
+                "[research_session:42] [origin:untrusted_synthesis] Prior synthesized report claim"
+                    .to_string(),
+                "[doc:primary] [origin:human_approved_primary] Curated primary architectural fact"
+                    .to_string(),
+            ],
+        );
+
+        assert_eq!(hits.len(), 2);
+        assert!(
+            hits[0].trust_score <= 0.20,
+            "untrusted_synthesis hit must be capped <= 0.20, got {}",
+            hits[0].trust_score
+        );
+        assert_eq!(hits[0].trust_score, UNTRUSTED_SYNTHESIS_TRUST_CAP);
+        assert_ne!(hits[0].trust_score, 1.0);
+        assert_eq!(hits[1].trust_score, 1.0);
+    }
+
+    #[test]
+    fn untrusted_synthesis_memory_entries_cannot_inflate_corroboration_counts() {
+        use super::append_local_lines;
+        use crate::research::claims::Claim;
+        use crate::research::orchestrator::pipeline::compute_corroboration_counts;
+        use crate::research::types::Citation;
+        use crate::research::verifier::{ClaimVerdict, EvidenceSpan, SpanType, Verdict};
+
+        let mut memory_hits = Vec::new();
+        append_local_lines(
+            &mut memory_hits,
+            "memory",
+            "vox://memory",
+            vec!["[origin:untrusted_synthesis] Model-generated prior synthesis".to_string()],
+        );
+        let tainted_hit = &memory_hits[0];
+
+        let citations = vec![
+            Citation {
+                source_id: 0,
+                url: tainted_hit.url.clone(),
+                title: tainted_hit.title.clone(),
+                snippet: tainted_hit.snippet.clone(),
+                confidence: tainted_hit.score,
+            },
+            Citation {
+                source_id: 1,
+                url: "https://arxiv.org/abs/2501.00001".to_string(),
+                title: "Primary Paper".to_string(),
+                snippet: "Grounded primary evidence".to_string(),
+                confidence: 0.92,
+            },
+        ];
+
+        // Claim 10 is supported ONLY by untrusted_synthesis memory (source_id 0) -> count MUST be 0.
+        // Claim 20 is supported by both untrusted_synthesis (0) and primary paper (1) -> count MUST be 1, not 2.
+        let verdicts = vec![
+            ClaimVerdict {
+                claim: Claim {
+                    claim_id: 10,
+                    text: "Self-referential claim".to_string(),
+                    is_numeric: false,
+                    is_recent: false,
+                    is_named_event: false,
+                    salience_score: 0.5,
+                },
+                verdict: Verdict::Supported,
+                confidence: 0.9,
+                supporting_count: 1,
+                contradicting_count: 0,
+                evidence_spans: vec![EvidenceSpan {
+                    source_id: 0,
+                    span_start: 0,
+                    span_end: 10,
+                    text: "Model-generated".to_string(),
+                    span_type: SpanType::Supporting,
+                }],
+                resample_stability: 1.0,
+            },
+            ClaimVerdict {
+                claim: Claim {
+                    claim_id: 20,
+                    text: "Primary-backed claim".to_string(),
+                    is_numeric: false,
+                    is_recent: false,
+                    is_named_event: false,
+                    salience_score: 0.5,
+                },
+                verdict: Verdict::Supported,
+                confidence: 0.9,
+                supporting_count: 2,
+                contradicting_count: 0,
+                evidence_spans: vec![
+                    EvidenceSpan {
+                        source_id: 0,
+                        span_start: 0,
+                        span_end: 10,
+                        text: "Model-generated".to_string(),
+                        span_type: SpanType::Supporting,
+                    },
+                    EvidenceSpan {
+                        source_id: 1,
+                        span_start: 0,
+                        span_end: 10,
+                        text: "Grounded primary".to_string(),
+                        span_type: SpanType::Supporting,
+                    },
+                ],
+                resample_stability: 1.0,
+            },
+        ];
+
+        let counts = compute_corroboration_counts(&citations, &verdicts);
+        assert_eq!(counts, vec![(10, 0), (20, 1)]);
     }
 }

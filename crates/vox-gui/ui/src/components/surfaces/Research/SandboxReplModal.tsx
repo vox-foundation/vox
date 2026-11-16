@@ -5,6 +5,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../../ui/Dialog';
+import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { executeSandboxProbe, type SandboxProbeOutcome } from './researchActions';
 
@@ -66,9 +68,9 @@ export function SandboxReplModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-text-muted hover:text-text-secondary text-lg leading-none px-2 py-1 rounded"
+            className="inline-flex items-center justify-center text-text-muted hover:text-text-secondary text-lg leading-none px-2 py-1 rounded"
           >
-            ✕
+            <Icon.close className="size-4 shrink-0" aria-hidden="true" />
           </button>
         </div>
 
@@ -77,19 +79,17 @@ export function SandboxReplModal({
             <label htmlFor="sandbox-lang-select" className="text-xs font-medium text-text-secondary">
               Language:
             </label>
-            <select
+            <VoxSelect
               id="sandbox-lang-select"
               aria-label="Language"
               value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className="rounded border border-border-subtle bg-black/50 px-2 py-1 text-xs text-text-primary outline-none focus:border-brass/50"
-            >
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <option key={lang.value} value={lang.value}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
+              onValueChange={setLanguage}
+              options={SUPPORTED_LANGUAGES.map((lang) => ({
+                value: lang.value,
+                label: lang.label,
+              }))}
+              className="w-36 border-border-subtle bg-black/50 text-xs text-text-primary"
+            />
           </div>
 
           <div>

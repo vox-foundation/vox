@@ -2,6 +2,13 @@
 //! Replaces the confidence-gate heuristic that fired web research on "hi" (D1).
 
 use serde::Serialize;
+use vox_orchestrator_types::socrates_policy::{
+    CragEscalationPolicy, ResearchContinuumMode, ResearchContinuumTier,
+};
+use vox_research_shim::research::types::{ResearchDomainMode, ResearchScope};
+
+pub const MIN_RESEARCH_WAVES: usize = 1;
+pub const MAX_RESEARCH_WAVES: usize = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -14,9 +21,28 @@ pub enum ResearchMode {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ResearchIntent {
     pub mode: ResearchMode,
+    pub continuum_mode: ResearchContinuumMode,
+    pub initial_tier: ResearchContinuumTier,
+    pub scope: ResearchScope,
+    pub domain_mode: ResearchDomainMode,
+    pub site_scope: Option<String>,
+    pub waves: usize,
     pub explicit: bool,
     pub reasons: Vec<String>,
     pub query: String,
+}
+
+/// Parameters controlling continuum research classification.
+#[derive(Debug, Clone, Default)]
+pub struct ResearchIntentParams<'a> {
+    pub prompt: &'a str,
+    pub research_mode: Option<&'a str>,
+    pub force_research: Option<bool>,
+    pub research_scope: Option<&'a str>,
+    pub domain_mode: Option<&'a str>,
+    pub site_scope: Option<&'a str>,
+    pub waves: Option<usize>,
+    pub socrates: Option<&'a vox_orchestrator::socrates::SocratesGateOutcome>,
 }
 
 const GREETINGS: &[&str] = &[
@@ -122,9 +148,76 @@ const QUESTION_WORDS: &[&str] = &[
     "how many", "how much",
 ];
 
-fn intent(mode: ResearchMode, explicit: bool, reason: String, query: &str) -> ResearchIntent {
+fn parse_scope(scope: Option<&str>) -> ResearchScope {
+    match scope.map(|s| s.trim().to_ascii_lowercase()).as_deref() {
+        Some("local") => ResearchScope::Local,
+        Some("both") => ResearchScope::Both,
+        _ => ResearchScope::Web,
+    }
+}
+
+fn parse_domain_mode(domain: Option<&str>) -> ResearchDomainMode {
+    domain
+        .and_then(|d| d.trim().parse::<ResearchDomainMode>().ok())
+        .unwrap_or_default()
+}
+
+fn parse_site_scope(site: Option<&str>) -> Option<String> {
+    site.map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+fn clamp_waves(waves: Option<usize>, mode: ResearchMode) -> usize {
+    match waves {
+        Some(w) => w.clamp(MIN_RESEARCH_WAVES, MAX_RESEARCH_WAVES),
+        None if mode == ResearchMode::Deep => {
+            usize::from(CragEscalationPolicy::default().max_auto_waves)
+                .clamp(MIN_RESEARCH_WAVES, MAX_RESEARCH_WAVES)
+        }
+        None => MIN_RESEARCH_WAVES,
+    }
+}
+
+fn build_intent(
+    mode: ResearchMode,
+    continuum_mode: ResearchContinuumMode,
+    explicit: bool,
+    reason: String,
+    query: &str,
+    scope: ResearchScope,
+    domain_mode: ResearchDomainMode,
+    site_scope: Option<String>,
+    waves_override: Option<usize>,
+) -> ResearchIntent {
+    let policy = CragEscalationPolicy::default();
+    let initial_tier = match continuum_mode {
+        ResearchContinuumMode::Off => ResearchContinuumTier::Direct,
+        ResearchContinuumMode::Fast => ResearchContinuumTier::QuickWeb,
+        ResearchContinuumMode::Deep => ResearchContinuumTier::DeepMultiWave,
+        ResearchContinuumMode::Auto => match mode {
+            ResearchMode::Deep => ResearchContinuumTier::DeepMultiWave,
+            ResearchMode::Quick => ResearchContinuumTier::QuickWeb,
+            ResearchMode::None => {
+                if explicit
+                    || reason.starts_with("skip:")
+                    || reason.starts_with("local knowledge-base")
+                {
+                    ResearchContinuumTier::Direct
+                } else {
+                    policy.initial_tier_for_mode(ResearchContinuumMode::Auto)
+                }
+            }
+        },
+    };
     ResearchIntent {
         mode,
+        continuum_mode,
+        initial_tier,
+        scope,
+        domain_mode,
+        site_scope,
+        waves: clamp_waves(waves_override, mode),
         explicit,
         reasons: vec![reason],
         query: query.trim().to_string(),
@@ -194,21 +287,101 @@ pub fn classify_research_intent_with_socrates(
     scope: Option<&str>,
     socrates: Option<&vox_orchestrator::socrates::SocratesGateOutcome>,
 ) -> ResearchIntent {
-    let trimmed = prompt.trim();
-    let lower = trimmed.to_ascii_lowercase();
+    classify_research_intent_from_params(ResearchIntentParams {
+        prompt,
+        research_mode: None,
+        force_research: force,
+        research_scope: scope,
+        domain_mode: None,
+        site_scope: None,
+        waves: None,
+        socrates,
+    })
+}
 
-    // 1. Explicit.
-    if scope.is_some_and(|s| s.eq_ignore_ascii_case("none")) {
-        return intent(
+/// Classify research intent using full orthogonal continuum controls (`research_mode`,
+/// `research_scope`, `domain_mode`, `site_scope`, `waves`) and optional Socrates outcome.
+pub fn classify_research_intent_from_params(params: ResearchIntentParams<'_>) -> ResearchIntent {
+    let trimmed = params.prompt.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    let scope_val = parse_scope(params.research_scope);
+    let domain_mode = parse_domain_mode(params.domain_mode);
+    let site_scope = parse_site_scope(params.site_scope);
+    let make = |mode: ResearchMode,
+                continuum_mode: ResearchContinuumMode,
+                explicit: bool,
+                reason: String,
+                query: &str| {
+        build_intent(
+            mode,
+            continuum_mode,
+            explicit,
+            reason,
+            query,
+            scope_val.clone(),
+            domain_mode,
+            site_scope.clone(),
+            params.waves,
+        )
+    };
+
+    // 0. Explicit continuum research_mode override (`off | auto | fast | deep`).
+    let explicit_continuum = params
+        .research_mode
+        .and_then(|raw| raw.trim().parse::<ResearchContinuumMode>().ok());
+    if let Some(cmode) = explicit_continuum {
+        match cmode {
+            ResearchContinuumMode::Off => {
+                return make(
+                    ResearchMode::None,
+                    ResearchContinuumMode::Off,
+                    true,
+                    "explicit: research_mode=off".into(),
+                    trimmed,
+                );
+            }
+            ResearchContinuumMode::Fast => {
+                let q = strip_command(trimmed, "/research").unwrap_or(trimmed);
+                return make(
+                    ResearchMode::Quick,
+                    ResearchContinuumMode::Fast,
+                    true,
+                    "explicit: research_mode=fast".into(),
+                    q,
+                );
+            }
+            ResearchContinuumMode::Deep => {
+                let q = strip_command(trimmed, "/deepresearch").unwrap_or(trimmed);
+                return make(
+                    ResearchMode::Deep,
+                    ResearchContinuumMode::Deep,
+                    true,
+                    "explicit: research_mode=deep".into(),
+                    q,
+                );
+            }
+            ResearchContinuumMode::Auto => {}
+        }
+    }
+
+    // 1. Explicit slash commands, force flags, and legacy scope aliases (only when research_mode is None).
+    if params.research_mode.is_none()
+        && params
+            .research_scope
+            .is_some_and(|s| s.trim().eq_ignore_ascii_case("none"))
+    {
+        return make(
             ResearchMode::None,
+            ResearchContinuumMode::Off,
             true,
             "explicit: scope=none".into(),
             trimmed,
         );
     }
     if let Some(rest) = strip_command(trimmed, "/deepresearch") {
-        return intent(
+        return make(
             ResearchMode::Deep,
+            ResearchContinuumMode::Deep,
             true,
             "explicit: /deepresearch".into(),
             rest,
@@ -218,40 +391,65 @@ pub fn classify_research_intent_with_socrates(
         || lower.starts_with("/research-search")
         || lower.starts_with("/research --search")
     {
-        return intent(
+        return make(
             ResearchMode::None,
+            ResearchContinuumMode::Off,
             true,
             "local knowledge-base search (/research search)".into(),
             trimmed,
         );
     }
     if let Some(rest) = strip_command(trimmed, "/research") {
-        return intent(
+        return make(
             ResearchMode::Quick,
+            ResearchContinuumMode::Fast,
             true,
             "explicit: /research".into(),
             rest,
         );
     }
-    match force {
+    match params.force_research {
         Some(true) => {
-            let deep = scope.is_some_and(|s| s.eq_ignore_ascii_case("deep"));
-            let mode = if deep {
-                ResearchMode::Deep
+            let deep = params
+                .research_scope
+                .is_some_and(|s| s.trim().eq_ignore_ascii_case("deep"));
+            let (mode, cmode) = if deep {
+                (ResearchMode::Deep, ResearchContinuumMode::Deep)
             } else {
-                ResearchMode::Quick
+                (ResearchMode::Quick, ResearchContinuumMode::Fast)
             };
-            return intent(mode, true, "explicit: force_research".into(), trimmed);
+            return make(
+                mode,
+                cmode,
+                true,
+                "explicit: force_research".into(),
+                trimmed,
+            );
         }
         Some(false) => {
-            return intent(
+            return make(
                 ResearchMode::None,
+                ResearchContinuumMode::Off,
                 true,
                 "explicit: force_research=false".into(),
                 trimmed,
             );
         }
-        None => {}
+        None => {
+            if params.research_mode.is_none()
+                && params
+                    .research_scope
+                    .is_some_and(|s| s.trim().eq_ignore_ascii_case("deep"))
+            {
+                return make(
+                    ResearchMode::Deep,
+                    ResearchContinuumMode::Deep,
+                    true,
+                    "legacy: research_scope=deep".into(),
+                    trimmed,
+                );
+            }
+        }
     }
 
     // 2. Skip trivial or code-local work before Socrates or deep analysis.
@@ -265,32 +463,36 @@ pub fn classify_research_intent_with_socrates(
         .iter()
         .any(|g| bare == *g || (bare.starts_with(&format!("{g} ")) && words.len() <= 4))
     {
-        return intent(
+        return make(
             ResearchMode::None,
+            ResearchContinuumMode::Auto,
             false,
             "skip: greeting / small talk".into(),
             trimmed,
         );
     }
     if words.len() < 3 {
-        return intent(
+        return make(
             ResearchMode::None,
+            ResearchContinuumMode::Auto,
             false,
             "skip: fewer than 3 words".into(),
             trimmed,
         );
     }
     if trimmed.contains("```") || words.iter().any(|w| looks_like_path(w)) {
-        return intent(
+        return make(
             ResearchMode::None,
+            ResearchContinuumMode::Auto,
             false,
             "skip: references code or files".into(),
             trimmed,
         );
     }
     if CODE_VERBS.iter().any(|v| lower.starts_with(v)) {
-        return intent(
+        return make(
             ResearchMode::None,
+            ResearchContinuumMode::Auto,
             false,
             "skip: coding / edit request".into(),
             trimmed,
@@ -302,8 +504,9 @@ pub fn classify_research_intent_with_socrates(
         .iter()
         .find(|c| normalized.contains(&format!(" {c} ")))
     {
-        return intent(
+        return make(
             ResearchMode::None,
+            ResearchContinuumMode::Auto,
             false,
             format!("skip: refers to this codebase (\"{cue}\")"),
             trimmed,
@@ -311,7 +514,7 @@ pub fn classify_research_intent_with_socrates(
     }
 
     // 3. Socrates autonomous gate evaluation (when available).
-    if let Some(outcome) = socrates {
+    if let Some(outcome) = params.socrates {
         if outcome.research_decision.should_research {
             let mode = match outcome.band {
                 vox_orchestrator_types::socrates_policy::RiskBand::Low => ResearchMode::Deep,
@@ -322,8 +525,9 @@ pub fn classify_research_intent_with_socrates(
                 .suggested_query
                 .as_deref()
                 .unwrap_or(trimmed);
-            return intent(
+            return make(
                 mode,
+                ResearchContinuumMode::Auto,
                 false,
                 format!(
                     "socrates auto: {} (band: {:?}, conf: {:.2})",
@@ -334,8 +538,9 @@ pub fn classify_research_intent_with_socrates(
         } else if outcome.band == vox_orchestrator_types::socrates_policy::RiskBand::High
             && outcome.confidence >= 0.70
         {
-            return intent(
+            return make(
                 ResearchMode::None,
+                ResearchContinuumMode::Auto,
                 false,
                 format!(
                     "socrates auto: grounded in knowledge (conf: {:.2})",
@@ -349,18 +554,20 @@ pub fn classify_research_intent_with_socrates(
     // 4. Deep cues.
     let padded = format!(" {lower} ");
     if let Some(cue) = DEEP_CUES.iter().find(|c| padded.contains(*c)) {
-        return intent(
+        return make(
             ResearchMode::Deep,
+            ResearchContinuumMode::Auto,
             false,
             format!("comparative / survey cue: \"{}\"", cue.trim()),
             trimmed,
         );
     }
 
-    // 4. Quick.
+    // 5. Quick.
     if let Some(cue) = EVIDENCE_CUES.iter().find(|c| padded.contains(*c)) {
-        return intent(
+        return make(
             ResearchMode::Quick,
+            ResearchContinuumMode::Auto,
             false,
             format!("evidence request: \"{}\"", cue.trim()),
             trimmed,
@@ -376,15 +583,22 @@ pub fn classify_research_intent_with_socrates(
         .map(|c| (*c).to_string())
         .or_else(|| has_recent_year(&lower).then(|| "a recent year".to_string()));
     if let (true, Some(cue)) = (is_question, time_cue) {
-        return intent(
+        return make(
             ResearchMode::Quick,
+            ResearchContinuumMode::Auto,
             false,
             format!("question + time-sensitive cue: \"{cue}\""),
             trimmed,
         );
     }
 
-    intent(ResearchMode::None, false, "no research cue".into(), trimmed)
+    make(
+        ResearchMode::None,
+        ResearchContinuumMode::Auto,
+        false,
+        "no research cue".into(),
+        trimmed,
+    )
 }
 
 #[cfg(test)]
@@ -615,5 +829,78 @@ mod tests {
         );
         assert_eq!(intent_none.mode, ResearchMode::None);
         assert!(intent_none.reasons[0].contains("grounded in knowledge"));
+    }
+
+    #[test]
+    fn continuum_params_preserve_mode_scope_domain_and_clamp_waves() {
+        let deep_local = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "audit crag architecture",
+            research_mode: Some("deep"),
+            research_scope: Some("local"),
+            domain_mode: Some("scholarly"),
+            site_scope: Some("arxiv.org"),
+            waves: Some(99),
+            ..Default::default()
+        });
+        assert_eq!(deep_local.mode, ResearchMode::Deep);
+        assert_eq!(deep_local.continuum_mode, ResearchContinuumMode::Deep);
+        assert_eq!(
+            deep_local.initial_tier,
+            ResearchContinuumTier::DeepMultiWave
+        );
+        assert_eq!(deep_local.scope, ResearchScope::Local);
+        assert_eq!(deep_local.domain_mode, ResearchDomainMode::Scholarly);
+        assert_eq!(deep_local.site_scope.as_deref(), Some("arxiv.org"));
+        assert_eq!(deep_local.waves, 5);
+
+        let zero_waves = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "audit crag",
+            research_mode: Some("fast"),
+            research_scope: Some("both"),
+            domain_mode: Some("codegen"),
+            waves: Some(0),
+            ..Default::default()
+        });
+        assert_eq!(zero_waves.mode, ResearchMode::Quick);
+        assert_eq!(zero_waves.continuum_mode, ResearchContinuumMode::Fast);
+        assert_eq!(zero_waves.initial_tier, ResearchContinuumTier::QuickWeb);
+        assert_eq!(zero_waves.scope, ResearchScope::Both);
+        assert_eq!(zero_waves.domain_mode, ResearchDomainMode::CodeGen);
+        assert_eq!(zero_waves.waves, 1);
+
+        let deep_default_waves = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "survey prior art",
+            research_mode: Some("deep"),
+            ..Default::default()
+        });
+        assert_eq!(deep_default_waves.waves, 3);
+
+        let off = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "compare a vs b",
+            research_mode: Some("off"),
+            force_research: Some(true),
+            ..Default::default()
+        });
+        assert_eq!(off.mode, ResearchMode::None);
+        assert_eq!(off.continuum_mode, ResearchContinuumMode::Off);
+        assert_eq!(off.initial_tier, ResearchContinuumTier::Direct);
+
+        // Greetings in auto mode stay on Direct (must not auto-trigger CRAG).
+        let greeting = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "hi",
+            research_mode: Some("auto"),
+            ..Default::default()
+        });
+        assert_eq!(greeting.mode, ResearchMode::None);
+        assert_eq!(greeting.initial_tier, ResearchContinuumTier::Direct);
+
+        // Non-trivial general auto turn starts at LocalRag when no cues force quick/deep.
+        let general_auto = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "summarize our internal policy document",
+            research_mode: Some("auto"),
+            ..Default::default()
+        });
+        assert_eq!(general_auto.mode, ResearchMode::None);
+        assert_eq!(general_auto.initial_tier, ResearchContinuumTier::LocalRag);
     }
 }

@@ -29,6 +29,7 @@ pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
 mod eval_local_prompt;
+pub(crate) mod eval_spoke;
 #[cfg(feature = "gpu")]
 pub(crate) mod item_checkpoint;
 #[cfg(feature = "gpu")]
@@ -44,6 +45,10 @@ mod pipeline;
 pub mod plugin_heal;
 #[cfg(feature = "gpu")]
 pub(crate) mod reasoning_compare;
+#[cfg(all(test, not(feature = "gpu"), feature = "mens-base"))]
+#[allow(dead_code)]
+#[path = "reasoning_compare/detect.rs"]
+mod reasoning_compare_detect;
 #[cfg(feature = "gpu")]
 pub(crate) mod reasoning_eval;
 #[cfg(feature = "mens-base")]

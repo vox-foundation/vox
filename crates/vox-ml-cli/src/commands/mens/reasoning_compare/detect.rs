@@ -160,38 +160,11 @@ fn same_dir(a: &Path, b: &Path) -> bool {
     matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
 }
 
-/// `config.json`, `tokenizer.json`, and every weight shard are files. With a
-/// `model.safetensors.index.json`, every distinct `weight_map` value must be a
-/// plain file name present in the snapshot; otherwise `model.safetensors` must be.
+/// `config.json`, `tokenizer.json`, and every text-tower weight shard are files
+/// (skipping vision/MTP-only shards in `model.safetensors.index.json`).
 /// A dangling symlink is not a file, so a partial download is incomplete.
-fn snapshot_complete(snap: &Path) -> bool {
-    if !(snap.join("config.json").is_file() && snap.join("tokenizer.json").is_file()) {
-        return false;
-    }
-    let index = snap.join("model.safetensors.index.json");
-    if std::fs::symlink_metadata(&index).is_err() {
-        return snap.join("model.safetensors").is_file();
-    }
-    let Some(v) = read_json(&index) else {
-        return false;
-    };
-    let Some(map) = v.get("weight_map").and_then(serde_json::Value::as_object) else {
-        return false;
-    };
-    let Some(shards) = map
-        .values()
-        .map(serde_json::Value::as_str)
-        .collect::<Option<std::collections::BTreeSet<&str>>>()
-    else {
-        return false;
-    };
-    let plain = |s: &str| {
-        matches!(
-            Path::new(s).components().collect::<Vec<_>>().as_slice(),
-            [std::path::Component::Normal(_)]
-        )
-    };
-    !shards.is_empty() && shards.iter().all(|s| plain(s) && snap.join(s).is_file())
+pub(crate) fn snapshot_complete(snap: &Path) -> bool {
+    vox_populi::mens::hub::is_snapshot_complete(snap)
 }
 
 #[cfg(test)]
@@ -354,14 +327,37 @@ pub(crate) mod tests {
             "one shard still missing"
         );
         std::fs::write(snap.join(SHARDS[1]), b"").expect("shard 2");
-        assert_eq!(detect_8b(hub.path(), &adapter), None);
-        // An index entry that escapes the snapshot never counts.
-        write_index_keep(&snap, &["../escape.safetensors"]);
+        match detect_inputs(hub.path(), &BaseLabel::from_pin(PIN_8B), Some(&adapter)) {
+            Detected::Ready {
+                base,
+                snapshot,
+                adapter: a,
+            } => {
+                assert_eq!(base, BaseLabel::from_pin(PIN_8B));
+                assert_eq!(snapshot, snap);
+                assert_eq!(a, adapter);
+            }
+            other => panic!("expected Ready for complete indexed snapshot, got {other:?}"),
+        }
+        // Any index entry that escapes or nests inside/outside the snapshot never counts.
         std::fs::write(snap.join("../escape.safetensors"), b"").expect("outside file");
-        assert_eq!(
-            detect_8b(hub.path(), &adapter),
-            Some(AbsenceReason::BaseSnapshotIncomplete)
-        );
+        std::fs::create_dir_all(snap.join("sub")).expect("subdir");
+        std::fs::write(snap.join("sub/escape.safetensors"), b"").expect("nested file");
+        let abs_escape = hub.path().join("abs_escape.safetensors");
+        std::fs::write(&abs_escape, b"").expect("abs file");
+        let abs_str = abs_escape.display().to_string();
+        for bad_shard in [
+            "../escape.safetensors",
+            "sub/escape.safetensors",
+            abs_str.as_str(),
+        ] {
+            write_index_keep(&snap, &[bad_shard]);
+            assert_eq!(
+                detect_8b(hub.path(), &adapter),
+                Some(AbsenceReason::BaseSnapshotIncomplete),
+                "escaped shard path must be incomplete: {bad_shard}"
+            );
+        }
     }
 
     fn write_index_keep(snap: &Path, shards: &[&str]) {
@@ -495,5 +491,37 @@ pub(crate) mod tests {
             Some("/home/u/.cache/huggingface/hub")
         );
         assert_eq!(root(None, HubEnv::default()), None);
+    }
+
+    #[test]
+    fn vlm_snapshot_complete_skips_vision_only_shards() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("config.json"), b"{}").expect("write config");
+        std::fs::write(dir.path().join("tokenizer.json"), b"{}").expect("write tokenizer");
+        let index = serde_json::json!({
+            "metadata": {},
+            "weight_map": {
+                "model.language_model.embed_tokens.weight": "model-00001-of-00002.safetensors",
+                "model.visual.patch_embed.proj.weight": "model-00002-of-00002.safetensors",
+            }
+        });
+        std::fs::write(
+            dir.path().join("model.safetensors.index.json"),
+            index.to_string(),
+        )
+        .expect("write index");
+        let shard1 = dir.path().join("model-00001-of-00002.safetensors");
+        std::fs::write(&shard1, b"").expect("write shard 1");
+
+        assert!(
+            snapshot_complete(dir.path()),
+            "snapshot with text-tower shard present and vision-only shard absent must be complete"
+        );
+
+        std::fs::remove_file(&shard1).expect("remove shard 1");
+        assert!(
+            !snapshot_complete(dir.path()),
+            "removing text-tower shard 1 must make snapshot incomplete"
+        );
     }
 }

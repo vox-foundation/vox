@@ -16,6 +16,8 @@ export interface SlashEntry {
 // The 8 verbs previously hardcoded in Loquela.tsx (LQ_SLASH), moved here so
 // they can be unit-tested and merged with dynamic skill entries.
 export const BUILTIN_SLASH: SlashEntry[] = [
+  { cmd: '/gsd',     desc: 'Open GSD milestone, phase, and wave studio', icon: 'flow',   kind: 'builtin' },
+  { cmd: '/gsd-new-milestone', desc: 'Initialize a new GSD milestone and roadmap', icon: 'flow', kind: 'builtin' },
   { cmd: '/plan',     desc: 'Draft a multi-step plan without executing',   icon: 'flow',   kind: 'builtin' },
   { cmd: '/spawn',    desc: 'Spin up a sub-agent on this branch',          icon: 'agent',  kind: 'builtin' },
   { cmd: '/audit',    desc: 'Socrates citation + invariant audit on file', icon: 'shield', kind: 'builtin' },

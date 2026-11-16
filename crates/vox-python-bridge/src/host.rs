@@ -15,6 +15,8 @@ use crate::frame::{read_frame, write_frame};
 use crate::{BridgeConfig, BridgeError, HandleRef, Reply};
 
 const INTERRUPT_GRACE: Duration = Duration::from_secs(5);
+const STDERR_DRAIN_TIMEOUT: Duration = Duration::from_millis(50);
+const KILL_REAP_TIMEOUT: Duration = Duration::from_secs(2);
 
 struct LiveWorker {
     child: Child,
@@ -225,8 +227,7 @@ impl Bridge {
         };
         let mut buf = [0u8; 4096];
         loop {
-            match tokio::time::timeout(Duration::from_millis(50), live.stderr.read(&mut buf)).await
-            {
+            match tokio::time::timeout(STDERR_DRAIN_TIMEOUT, live.stderr.read(&mut buf)).await {
                 Ok(Ok(0)) | Err(_) => break,
                 Ok(Err(_)) => break,
                 Ok(Ok(n)) => {
@@ -310,11 +311,11 @@ async fn interrupt_and_reap(live: &mut LiveWorker) {
         match live.child.try_wait() {
             Ok(Some(_)) | Err(_) => return,
             Ok(None) if Instant::now() >= deadline => break,
-            Ok(None) => tokio::time::sleep(Duration::from_millis(50)).await,
+            Ok(None) => tokio::time::sleep(STDERR_DRAIN_TIMEOUT).await,
         }
     }
     let _ = live.child.start_kill();
-    let _ = tokio::time::timeout(Duration::from_secs(2), live.child.wait()).await;
+    let _ = tokio::time::timeout(KILL_REAP_TIMEOUT, live.child.wait()).await;
 }
 
 #[cfg(unix)]

@@ -111,6 +111,8 @@ fn render_log(root: &Path, n: usize) -> String {
 /// whether any of the broker's own state is present.
 fn broker_has_run(root: &Path) -> bool {
     root.join("slots").is_dir()
+        || root.join("targets").is_dir()
+        || root.join("inflight").is_dir()
         || root.join("metrics.jsonl").is_file()
         || root.join("broker.log").is_file()
 }
@@ -243,10 +245,16 @@ mod tests {
             argv_hash: 1,
             env_hash: 2,
             would_coalesce: false,
+            target_wait_ms: 0,
+            slot_wait_ms: 0,
+            compile_ms: 5,
+            coalesced_hit: false,
+            timed_out: false,
         };
         vox_build_queue::metrics::append(&tmp.path().join("metrics.jsonl"), &rec).unwrap();
         let out = render_stats(tmp.path());
         assert!(out.contains("builds=1"), "got: {out}");
+        assert!(out.contains("coalesced=0"), "got: {out}");
     }
 
     #[test]

@@ -55,4 +55,48 @@ describe('ResearchDagCanvas', () => {
     expect(screen.getByTestId('dag-node-inspector')).toBeInTheDocument();
     expect(screen.getByText(/Corroborated across 3 independent domains/i)).toBeInTheDocument();
   });
+
+  it('clusters >80 nodes by wave initially and expands a wave on click', () => {
+    const nodes = Array.from({ length: 250 }, (_, idx) => {
+      const wave = idx % 5;
+      return {
+        id: `n-${idx}`,
+        label: `Claim Node ${idx}`,
+        wave,
+        kind: 'claim' as const,
+        status: (idx % 7 === 0 ? 'contradicted' : idx % 2 === 0 ? 'verified' : 'pending') as
+          | 'verified'
+          | 'contradicted'
+          | 'pending',
+        confidence: 0.85,
+        excerpt: `Evidence excerpt ${idx}`,
+      };
+    });
+    const edges = nodes.slice(1).map((n, idx) => ({
+      srcId: nodes[idx]!.id,
+      dstId: n.id,
+      relation: (n.status === 'contradicted' ? 'contradicts' : 'supports') as 'supports' | 'contradicts',
+    }));
+
+    const { container } = render(<ResearchDagCanvas nodes={nodes} edges={edges} />);
+
+    expect(screen.getByTestId('dag-clustered-container')).toBeInTheDocument();
+    for (let w = 0; w < 5; w++) {
+      expect(screen.getByTestId(`dag-wave-cluster-${w}`)).toBeInTheDocument();
+    }
+    expect(container.querySelectorAll('[data-testid^="dag-node-"]')).toHaveLength(0);
+
+    fireEvent.click(screen.getByTestId('dag-wave-toggle-2'));
+    expect(screen.getByTestId('dag-wave-toggle-2')).toHaveAttribute('aria-expanded', 'true');
+
+    const mountedNodes = container.querySelectorAll('[data-testid^="dag-node-n-"]');
+    expect(mountedNodes.length).toBe(50);
+
+    fireEvent.click(screen.getByTestId('dag-node-n-2'));
+    expect(screen.getByTestId('dag-node-inspector')).toBeInTheDocument();
+    expect(screen.getByText(/Evidence excerpt 2/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('dag-collapse-all-waves'));
+    expect(container.querySelectorAll('[data-testid^="dag-node-n-"]')).toHaveLength(0);
+  });
 });

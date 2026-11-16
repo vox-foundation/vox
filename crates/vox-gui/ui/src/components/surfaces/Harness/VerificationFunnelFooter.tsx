@@ -196,8 +196,9 @@ export function VerificationFunnelFooter({
                   LUDUS {snapshot.ludusYield.thriftRankLabel}
                 </span>
               </div>
-              <span className="font-mono font-semibold text-emerald-700">
-                +{snapshot.ludusYield.xpEarned} XP · +{snapshot.ludusYield.crystalsEarned} ◆
+              <span className="inline-flex items-center gap-1 font-mono font-semibold text-emerald-700">
+                <span>+{snapshot.ludusYield.xpEarned} XP · +{snapshot.ludusYield.crystalsEarned}</span>
+                <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />
               </span>
             </div>
           </RomanTooltip>

@@ -143,6 +143,7 @@ fn slug_matches_site_ids() {
         "shared-training-settings",
         "why-peft-cannot-load-the-adapters",
         "how-the-cards-are-made",
+        "vox-and-python-bindings",
         "links",
     ];
     assert_eq!(
@@ -214,9 +215,9 @@ fn frontmatter_matches_hf_rules() {
 #[test]
 fn hf_rules_reject_bad_metadata() {
     let rules = hf_rules();
-    let md = named(&ladder_cards(), "vox-mens-qwen3-4b");
+    let md = named(&ladder_cards(), "vox-mens-qwen3.5-4b");
     let good = frontmatter_of(&md).expect("frontmatter");
-    assert_eq!(kind_of("vox-mens-qwen3-4b", &md), Kind::Trained);
+    assert_eq!(kind_of("vox-mens-qwen3.5-4b", &md), Kind::Trained);
     assert_eq!(
         check_hf_metadata(&good, &rules, Kind::Trained),
         Vec::<String>::new()
@@ -236,6 +237,10 @@ fn hf_rules_reject_bad_metadata() {
         "base_model_relation",
     );
     bad(&|fm| fm["extra"] = "x".into(), "unknown key `extra`");
+    bad(
+        &|fm| fm["library_name"] = "unsupported-lib".into(),
+        "library_name",
+    );
     let metric = |fm: &mut Value| {
         let m = &mut fm["model-index"][0]["results"][0]["metrics"][0];
         assert!(m.get("value").is_some(), "fixture card has a metric value");
@@ -400,15 +405,28 @@ fn the_ladder_passes_all_four_lints_and_inspects_something() {
 }
 
 /// Run by 339-10 on the real rendered cards (`vox mens hub sync` output, never pushed):
-/// `VOX_HUB_CARDS_DIR=<abs path to mens/runs/hub_cards> cargo test -p vox-populi --features
+/// `VOX_HUB_CARDS_DIR=mens/runs/hub_cards cargo test -p vox-populi --features
 /// mens-hf-hub --lib lints_hold_on_rendered_cards_dir -- --ignored`.
 #[test]
-#[ignore = "needs VOX_HUB_CARDS_DIR, the directory of rendered cards"]
+#[ignore = "owner:mens sunset:never external-fixture: needs VOX_HUB_CARDS_DIR, the directory of rendered cards"]
 fn lints_hold_on_rendered_cards_dir() {
     use crate::mens::hub_card::repo_name;
-    let dir = std::env::var_os("VOX_HUB_CARDS_DIR")
-        .map(std::path::PathBuf::from)
-        .expect("set VOX_HUB_CARDS_DIR to the directory `vox mens hub sync` renders cards into");
+    let raw_dir =
+        std::path::PathBuf::from(std::env::var_os("VOX_HUB_CARDS_DIR").expect(
+            "set VOX_HUB_CARDS_DIR to the directory `vox mens hub sync` renders cards into",
+        ));
+    let dir = if raw_dir.is_relative() && !raw_dir.exists() {
+        let candidate = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(&raw_dir);
+        if candidate.exists() {
+            candidate
+        } else {
+            raw_dir
+        }
+    } else {
+        raw_dir
+    };
     let mut names: Vec<String> = SIZES.iter().map(|s| repo_name(s)).collect();
     names.push("vox-mens-index".into());
     let (mut cards, mut missing) = (Vec::new(), Vec::new());

@@ -15,7 +15,6 @@ vox-ast = { workspace = true }
 vox-eval = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-language-surface = { workspace = true }
-vox-repository = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 strsim = { workspace = true }
@@ -23,9 +22,6 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 miette = { workspace = true }
 sha3 = { workspace = true }
-flate2 = "1.1.9"
-bzip2 = { workspace = true }
-zstd = { workspace = true }
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
 vox-secrets.workspace = true
@@ -60,8 +56,8 @@ serde_yaml = { workspace = true }
 serde_yaml = { workspace = true }
 jsonschema = { workspace = true }
 serial_test = { workspace = true }
-vox-jsonschema-util = { path = "../vox-jsonschema-util" }
-vox-test-harness = { path = "../vox-test-harness" }
+vox-jsonschema-util = { workspace = true }
+vox-test-harness = { workspace = true }
 insta = { workspace = true }
 criterion = { workspace = true }
 proptest = { workspace = true }

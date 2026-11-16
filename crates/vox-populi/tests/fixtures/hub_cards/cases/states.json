@@ -101,21 +101,231 @@
       ]
     }
   },
-  "not_evaluated_14b": {
+  "needs_re_gate_2b": {
     "train-record.json": {
       "schema": "vox_mens_train_record_v1",
       "status": "trained",
       "reason": null,
-      "size": "14B",
-      "pin": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
-      "preset": "qwen3_24g",
+      "size": "2B",
+      "pin": "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+      "preset": "qwen3_5_2b",
+      "epochs": 1,
+      "seq_len": 3072,
+      "optimizer_steps": 138,
+      "micro_steps": 1108,
+      "final_loss_ema": 0.6170382260365842,
+      "avg_train_loss": 0.8323303496862021,
+      "peak_mb": 27007,
+      "peak_source": "run_summary",
+      "train_wall_secs": 14998.448630625,
+      "truncated_rows": 34,
+      "host": "Apple Silicon GPU"
+    },
+    "gate_receipt.json": {
+      "schema": "vox_mens_gate_receipt_v1",
+      "timestamp_unix": 1793831659,
+      "run_dir": "mens/runs/qwen3.5-2b",
+      "policy": "mens/config/eval-gates-ladder.yaml",
+      "overall_passed": true,
+      "gates": [
+        {
+          "name": "leakage",
+          "passed": true,
+          "block": true,
+          "message": "no bench-answer / corpus-completion n-gram overlap detected"
+        },
+        {
+          "name": "anti_stub",
+          "passed": true,
+          "block": true,
+          "message": "anti_stub_pass=1.000 (min=0.920) placeholder_rate=0.000 (max=0.080) trivial_rate=0.000 (max=0.080) richness_mean=0.125 (min=0.125) [metrics:RecomputedFromSamples]"
+        },
+        {
+          "name": "pass_at_k",
+          "passed": true,
+          "block": true,
+          "message": "pass@1=0.327 (min=0.250) pass@k=0.327 (min=0.250; k=1 collapses to pass@1) baseline(pass@1=0.058,pass@k=0.058) max_drop=0.030"
+        },
+        {
+          "name": "review_recurrence",
+          "passed": true,
+          "block": false,
+          "message": "review_metrics.json absent \u2014 review pipeline not run (not blocking until a producer exists): mens/runs/qwen3.5-2b/review_metrics.json"
+        },
+        {
+          "name": "collateral_damage",
+          "passed": true,
+          "block": true,
+          "message": "status=pass failed_on=- fail_fast=true"
+        }
+      ]
+    },
+    "collateral_damage_report.json": {
+      "status": "pass",
+      "failed_on": null,
+      "threshold": 0.05,
+      "reports": [
+        {
+          "benchmark": "gsm8k_think",
+          "pre": 0.59375,
+          "post": 0.875,
+          "degradation": 0.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false,
+          "slice": true,
+          "n": 32
+        },
+        {
+          "benchmark": "gsm8k_think_init",
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation": 0.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false,
+          "slice": true,
+          "n": 32
+        },
+        {
+          "benchmark": "math500_think",
+          "pre": 0.1875,
+          "post": 0.40625,
+          "degradation": 0.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false,
+          "slice": true,
+          "n": 32
+        },
+        {
+          "benchmark": "math500_think_init",
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation": 0.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false,
+          "slice": true,
+          "n": 32
+        },
+        {
+          "benchmark": "vox_think",
+          "pre": 0.65625,
+          "post": 0.65625,
+          "degradation": 0.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false,
+          "slice": true,
+          "n": 32
+        },
+        {
+          "benchmark": "vox_think_init",
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation": 0.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false,
+          "slice": true,
+          "n": 32
+        }
+      ],
+      "reasoning_slices": {
+        "scope_note": "The reasoning benches gsm8k_think, math500_think and vox_think are fixed 32-item slices, not full GSM8K or MATH-500 results. The 5% relative bar applies to these 32 items only.",
+        "slice_size": 32,
+        "benches": {
+          "gsm8k_think": {
+            "n": 32,
+            "accuracy": {
+              "pre": 0.59375,
+              "post": 0.875,
+              "degradation_rate": 0.0,
+              "exceeds_threshold": false
+            },
+            "think_initiation": {
+              "pre": 1.0,
+              "post": 1.0,
+              "degradation_rate": 0.0,
+              "exceeds_threshold": false
+            }
+          },
+          "math500_think": {
+            "n": 32,
+            "accuracy": {
+              "pre": 0.1875,
+              "post": 0.40625,
+              "degradation_rate": 0.0,
+              "exceeds_threshold": false
+            },
+            "think_initiation": {
+              "pre": 1.0,
+              "post": 1.0,
+              "degradation_rate": 0.0,
+              "exceeds_threshold": false
+            }
+          },
+          "vox_think": {
+            "n": 32,
+            "accuracy": {
+              "pre": 0.65625,
+              "post": 0.65625,
+              "degradation_rate": 0.0,
+              "exceeds_threshold": false
+            },
+            "think_initiation": {
+              "pre": 1.0,
+              "post": 1.0,
+              "degradation_rate": 0.0,
+              "exceeds_threshold": false
+            }
+          }
+        }
+      },
+      "fail_fast_order": [
+        "gsm8k_think",
+        "math500_think",
+        "vox_think"
+      ],
+      "not_run": [],
+      "fail_fast": true
+    },
+    "training_manifest.json": {
+      "base_model": "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+      "provenance_license_class": "apache-2.0",
+      "rank": 16,
+      "alpha": 32.0,
+      "seq_len": 3072,
+      "epochs": 1,
+      "git_sha": "c56e13a33",
+      "seed": 42,
+      "finetune_contract_digest": "404e192183366aab",
+      "execution_kernel": "candle_qlora",
+      "candle_qlora_training_steps_executed": 138,
+      "manifest_schema_version": 5
+    },
+    "run_summary.json": {
+      "schema": "vox_mens_run_summary_v1",
+      "base_model": "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+      "optimizer_step_count": 138,
+      "avg_train_loss": 0.8323303496862021,
+      "avg_val_loss_last_epoch": 0.772137012819038,
+      "total_tokens": 2711427,
+      "final_loss_ema": 0.6170382260365842,
+      "truncated_rows": 34,
+      "wall_secs": 14998.448630625
+    }
+  },
+  "not_evaluated_9b": {
+    "train-record.json": {
+      "schema": "vox_mens_train_record_v1",
+      "status": "trained",
+      "reason": null,
+      "size": "9B",
+      "pin": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "preset": "qwen3_5_9b",
       "epochs": 1,
       "seq_len": 3072,
       "optimizer_steps": 138,
       "micro_steps": 1108,
       "final_loss_ema": 0.5008707672109152,
       "avg_train_loss": 0.6634956896332492,
-      "peak_mb": 63076,
+      "peak_mb": 24576,
       "peak_source": "run_summary",
       "train_wall_secs": 64699.248874792,
       "truncated_rows": 34,
@@ -123,7 +333,7 @@
     },
     "run_summary.json": {
       "schema": "vox_mens_run_summary_v1",
-      "base_model": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+      "base_model": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
       "optimizer_step_count": 138,
       "avg_train_loss": 0.6634956896332492,
       "avg_val_loss_last_epoch": 0.606127206390299,
@@ -133,7 +343,7 @@
       "wall_secs": 64699.248874792
     },
     "training_manifest.json": {
-      "base_model": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+      "base_model": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
       "provenance_license_class": "apache-2.0",
       "rank": 32,
       "alpha": 64.0,
@@ -147,14 +357,14 @@
       "manifest_schema_version": 5
     }
   },
-  "not_trained_32b": {
+  "not_trained_27b": {
     "train-record.json": {
       "schema": "vox_mens_train_record_v1",
       "status": "not_trained",
-      "reason": "above non-fitting 4B (D-06)",
-      "size": "32B",
-      "pin": "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
-      "preset": "qwen3_96g",
+      "reason": "above 9B staging (v7.7)",
+      "size": "27B",
+      "pin": "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+      "preset": "qwen3_8_27b",
       "epochs": 1,
       "seq_len": 3072
     }

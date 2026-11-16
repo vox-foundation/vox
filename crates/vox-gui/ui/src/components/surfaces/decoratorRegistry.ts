@@ -1,10 +1,11 @@
 import React from 'react';
-import { CommandCardsView, SurfaceCard } from './CommandCardsView';
 import { ScientiaSurface } from './Scientia/ScientiaSurface';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
 import { SubAgentsView } from './SubAgents/SubAgentsView';
 import { MensTrainingView } from './Models/MensTrainingView';
+import { OratioStudioView } from './Oratio/OratioStudioView';
+import { PopuliMeshBentoView } from './Populi/PopuliMeshBentoView';
 import type { Toast } from '../../types/tauri';
 
 /**
@@ -19,17 +20,6 @@ export interface SurfaceDecoratorProps {
   gamifyEnabled?: boolean;
 }
 
-/** Build a read-only command-cards decorator for a Tier-3 CLI surface. */
-function commandSurface(
-  title: string,
-  subtitle: string,
-  cards: SurfaceCard[]
-): React.ComponentType<SurfaceDecoratorProps> {
-  return function Surface({ pushToast }: SurfaceDecoratorProps) {
-    return React.createElement(CommandCardsView, { title, subtitle, cards, pushToast });
-  };
-}
-
 /**
  * Surface key → decorator. `App.tsx::renderView` consults this before its
  * built-in switch, so promoting a surface to a decorated view is a one-line
@@ -42,15 +32,9 @@ export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecora
   // user actually selected (`get_active_model`) to check a real fit, not a
   // static arg-free command — see `Models/MensTrainingView.tsx`.
   mens: MensTrainingView,
-  populi: commandSurface('Vox Populi', 'Distributed mesh network', [
-    { key: 'status', title: 'Mesh Status', description: 'Network health + overlay diagnostics', path: ['populi', 'status'] },
-    { key: 'registry', title: 'Local Snapshot', description: 'On-disk registry + environment', path: ['populi', 'registry-snapshot'] },
-  ]),
+  populi: PopuliMeshBentoView,
   research: ResearchView,
   publications: PublicationsView,
-  oratio: commandSurface('Vox Oratio', 'Speech-to-code runtime', [
-    { key: 'doctor', title: 'Runtime Health', description: 'Oratio runtime + configuration diagnostics', path: ['oratio', 'doctor'] },
-    { key: 'status', title: 'Backend Status', description: 'Available backends + passthrough modes', path: ['oratio', 'status'] },
-  ]),
+  oratio: OratioStudioView,
   'sub-agents': SubAgentsView,
 };

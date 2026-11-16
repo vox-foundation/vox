@@ -597,6 +597,12 @@ pub const REPO_GRAPHIFY_SRC_CACHE_DIR: &str = ".vox/cache/graphify-src";
 pub const REPO_CORPUS_HEAL_PAIRS_FILE: &str = ".vox/corpus/heal_pairs.jsonl";
 /// `.vox/db/vox.db` — repo-scoped database path (distinct from the user data-dir DB).
 pub const REPO_DB_PATH: &str = ".vox/db/vox.db";
+/// `.vox/salvage/` prefix — local quarantined/salvaged scratch artifacts skipped by format/lint sweeps.
+pub const REPO_SALVAGE_DIR_PREFIX: &str = ".vox/salvage/";
+/// `.vox/python/pyproject.toml` — managed uv Python bridge project manifest.
+pub const REPO_PYTHON_PYPROJECT_FILE: &str = ".vox/python/pyproject.toml";
+/// `.vox/python/.venv/bin/python` — managed Posix uv virtualenv interpreter path.
+pub const REPO_PYTHON_VENV_BIN: &str = ".vox/python/.venv/bin/python";
 
 /// MCP session persistence: `.vox/sessions/<repository_id>` (relative to repository root).
 pub fn mcp_sessions_dir(repository_id: &str) -> PathBuf {

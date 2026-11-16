@@ -130,7 +130,8 @@ describe('HarnessIssuesPanel', () => {
     render(<HarnessIssuesPanel pushToast={vi.fn()} />);
     await screen.findByText('Golden example foo.vox references a retired API');
 
-    fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'confirmed' } });
+    fireEvent.click(screen.getByLabelText('Filter by status'));
+    fireEvent.click(screen.getByRole('option', { name: 'Confirmed' }));
     await screen.findByText('Confirmed but the fix proposal never landed');
 
     fireEvent.click(screen.getByText('Retry propose fix'));
@@ -154,7 +155,8 @@ describe('HarnessIssuesPanel', () => {
     render(<HarnessIssuesPanel pushToast={vi.fn()} />);
     await screen.findByText('Golden example foo.vox references a retired API');
 
-    fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'confirmed' } });
+    fireEvent.click(screen.getByLabelText('Filter by status'));
+    fireEvent.click(screen.getByRole('option', { name: 'Confirmed' }));
     await screen.findByText('Confirmed but the fix proposal never landed');
 
     expect(screen.queryByText('Retry propose fix')).toBeNull();

@@ -1,15 +1,79 @@
 # Milestones
 
-## v6.8 Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits, `crates.io` Wave 2/3 (`33` Crates), Rich Roman Visual READMEs & Adversarial Cross-Repo README Audit (Shipped: 2026-11-10)
+## v7.5 Roman Scriptorium Warp-Class Agentic Terminal, Stateful PTY Engine, Bidirectional Chat Harness & CV Flywheel Convergence (Shipped: 2026-11-15)
 
-**Phases completed:** 8 phases (`Phases 394–401`), 8 plans, 32/32 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`399-REVIEW.md`](phases/399-end-to-end-flywheel-scorecard-and-ssot/399-REVIEW.md))
-**Archive:** [`milestones/v6.8-ROADMAP.md`](milestones/v6.8-ROADMAP.md) | [`milestones/v6.8-REQUIREMENTS.md`](milestones/v6.8-REQUIREMENTS.md) | [`contracts/reports/v68-defactoring-flywheel-scorecard.v1.json`](../contracts/reports/v68-defactoring-flywheel-scorecard.v1.json)
+**Phases completed:** 7 phases (`Phases 441–447`), 29 plans, 65 tasks, 28/28 requirements verified (`100%`) — `/gsd-code-review --fix` applied across `441–447` ([`446-REVIEW.md`](workstreams/axis-warp-terminal-v75/milestones/v7.5-phases/446-roman-scriptorium-theme-and-cv-flywheel/446-REVIEW.md), [`446-REVIEW-FIX.md`](workstreams/axis-warp-terminal-v75/milestones/v7.5-phases/446-roman-scriptorium-theme-and-cv-flywheel/446-REVIEW-FIX.md))
+**Archive:** [`v7.5-ROADMAP.md`](workstreams/axis-warp-terminal-v75/milestones/v7.5-ROADMAP.md) | [`v7.5-REQUIREMENTS.md`](workstreams/axis-warp-terminal-v75/milestones/v7.5-REQUIREMENTS.md) | [`v7.5-phases/`](workstreams/axis-warp-terminal-v75/milestones/v7.5-phases/)
 
 **Key accomplishments:**
+
+- **Zero-Spam Stateful PTY & Lossless Streaming (`Phase 441`):** Eliminated load echo spam across 5 shells (`zsh`, `bash`, `fish`, `pwsh`, `nu`) using `TempDir` launch shims, persistent stateful `PtyHandle` + `MasterPty::resize` (`TIOCSWINSZ`/ConPTY) + `TermSignal::Interrupt`, 3-byte `Utf8StreamDecoder`, `alacritty_terminal` `VtShadow` `ALT_SCREEN`, `after_seq` delta streaming, and `vox term --attach`.
+- **AST Exec-Policy Gate & Bidirectional Chat Harness (`Phase 442`):** Exposed `vox_terminal_{exec,read,send_input,sessions}` over `vox-orchestrator::terminal_bridge` (`catalog.v1.yaml`), quote-aware POSIX/PowerShell `ExecPolicyV1` + `classify_floor` (`L1–L5`), non-subshell pager neutralization + `1,500 ms` interactive stall detection (`AwaitingInput`), and 3-stage ANSI-stripped `vox-redact` + Clavis `@term` scrubbing.
+- **Unified `<TerminalSessionPane>`, WebGL2 `@xterm`, Auto-TUI & Split Panes (`Phase 443`):** Replaced duplicate Console/Dock layouts with unified `<TerminalSessionPane>` + `<Console>`, real `@xterm/addon-{webgl,search,web-links,unicode11,serialize}`, `<16 ms` `ALT_SCREEN` switches, `@tanstack/react-virtual` SGR command blocks (`zero dangerouslySetInnerHTML`), `react-resizable-panels` split panes, and inline `<ChatTerminalBlockCard>`.
+- **Warp-Grade Editor, Completions, History & Local Runbooks (`Phase 444`):** Built multi-line `ScriptoriumPromptEditor`, persistent redacted `HistoryStore` (`Ctrl+R`), sub-50ms `$PATH`/file/git/CLI-flag `CompletionEngine`, TanStack Table `JsonLedgerTable`, `.vox`/Markdown Runbooks (`Cmd+P` + `DiscoveryRail`), and 1-click `Voxify Subshell`.
+- **Terminal-Native Agentic Mode & MENS Flywheel (`Phase 445`):** Wired model-agnostic streaming `?prompt` / `Explain & Fix Failed Block` via `vox_actor_runtime::llm`, Co-Pilot wax-seal `TerminalApprovalCard` (`Approve`, `Edit & Run`, `Allow Pattern`, `Reject + Steer`), `Autopilot -> Manual` preemption, live `/budget`/`/model`/`/skills`/`/memory`/`/context`/`/clear`/`/compact`, and redacted MENS trajectory curation.
+- **Dual-Surface Roman Scriptorium Theme & 5×4 CV Flywheel (`Phase 446` + `--fix`):** Enforced `--font-terminal-mono` (`23/23` semantic CSS vars) + `:not(.xterm)` containment, calibrated `64` Dual-Surface WCAG ANSI-16 colors, fixed `@xterm/xterm@6.0.0` `unicode11CharProperties` cell width encoding, converged `112/112` Playwright + VLM cells across `5` viewports × `4` themes (`minVisualAfterScore: 0.9284`, `minVlmOverallScore: 0.9506`), and promoted `warp-roman-terminal-v75-research-2026.md` (`status: "current"`).
+- **Repo-Wide Build Contention Elimination (`Phase 447`):** Added target-first `FairQueue`, Windows-safe flight coalescing, split `target_lock_wait_ms`/`global_slot_wait_ms`/`compile_ran_ms` broker stats, automatic `sccache` + workstream target isolation, post-queue `VOX_BROKER_RUN_TIMEOUT_SECS`, `--no-default-features` `vox-orchestrator`, and `vox-lang` decoupling in `vox-terminal-core`.
+
+---
+
+## v7.4 Vox Axis End-to-End Live Control Wiring, Zero-Emoji Icon/Graphic System, shadcn/Tailwind v4 Ecosystem Upgrade & Concept-Art Bento CV Flywheel (Shipped: 2026-11-14)
+
+**Phases completed:** 6 phases (`Phases 431–436`), 6 plans, 24/24 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`436-REVIEW.md`](workstreams/axis-live-functional-v74/milestones/v7.4-phases/436-concept-cv-convergence/436-REVIEW.md), [`436-REVIEW-FIX.md`](workstreams/axis-live-functional-v74/milestones/v7.4-phases/436-concept-cv-convergence/436-REVIEW-FIX.md))
+**Archive:** [`v7.4-ROADMAP.md`](workstreams/axis-live-functional-v74/milestones/v7.4-ROADMAP.md) | [`v7.4-REQUIREMENTS.md`](workstreams/axis-live-functional-v74/milestones/v7.4-REQUIREMENTS.md) | [`v7.4-MILESTONE-AUDIT.md`](workstreams/axis-live-functional-v74/milestones/v7.4-MILESTONE-AUDIT.md) | [`v7.4-phases/`](workstreams/axis-live-functional-v74/milestones/v7.4-phases/)
+
+**Key accomplishments:**
+
+- **Dual-Theme CSS Escape Hatches, Portal Z-Index Ladder & `data-slot` Radix/shadcn Kit (`Phase 431`):** Upgraded `crates/vox-gui/ui` to unified `radix-ui@^1.8.1`, `class-variance-authority`, `tw-animate-css`, `cmdk`, `react-resizable-panels`, `@tanstack/react-table`, `lucide-react`, and Tailwind v4 (`4.3.5`); scoped `index.css` `:not([data-slot])` selectors + scrim guards; shipped 20+ `data-slot` primitives including tactile SVG `RomanRotaryKnob` across all 4 Style Dictionary themes (`arcane`, `glacier`, `slate`, `high-contrast`).
+- **Zero-Emoji & Zero-Dingbat Vector Semiotics + Generated Plates (`Phase 432`):** Purged raw pictographic emojis and BMP dingbats across 50+ JSX files and both Canvas 2D renderers (`worldRenderer.ts`, `hydraulicNetwork.ts`), replacing them with `<VoxIcon strokeWidth={1.5} />`, bespoke Romanesque SVGs (`Icons.tsx`), Canvas `Path2D` badges (`canvasVectorBadges.ts`), and generated crests/medallions, locked by un-exempted `zeroEmojiAndDingbat.test.ts` and Playwright DOM glyph audits (`rawEmojiCount === 0`).
+- **Rust/MCP Seam Closure, Single `voxTransport` Funnel & Honest IPC Contract (`Phase 433` + `--fix`):** Hardened `t3_wave3_tools.rs` with downward-only `authorize_wave3_call` clamping, canonical path/slug/quarantine containment, signed `token` & `read_only` enforcement on `guest_share_submit`, and zero backend paper fallbacks; added atomic path-scrubbed `mercatus.rs` config saves and idempotent-only local daemon retries (`calls.rs`); reduced direct `invoke` (`38 -> 0`) and `listen` (`8 -> 0`) allowlists to `0` (`ipcBoundaries.test.ts`).
+- **End-to-End Live Control, Rotary Knob, Brass Gauge & Recharts Scrubbing (`Phase 434`):** Wired all 11 client-only controls to live backend mutations with sequence-guarded snapshot rollback, hydrated ~65 `<RomanBrassGauge>` dials and `ContextWindowMeter.tsx` from empirical backend DTOs with click-to-filter actions, eliminated `100%` of raw `<select>` and `<input type="range">` controls, and added Recharts `<Brush>` scrubbing + persisted `.v4` workbench layouts.
+- **`@container` Concept-Art Bento Compaction & Purpose-Built `Oratio`/`Populi` Studios (`Phase 435`):** Shipped `@container/surface`, `<BentoGrid>`, overflow-aware `<BentoScrollRegion>`, and imperative `useGroupRef()` `MasterDetailWorkbench` splitters (`Sheet` drawer fallback `<960px`), replacing CLI `<pre>` dumps with `OratioStudioView` and `PopuliMeshBentoView` across Tier A (6 surfaces) and Tier B (18 surfaces).
+- **Dual-Theme Bento Concept-Art Plates, Open-Portal Accessibility & Multi-Pass CV Flywheel (`Phase 436` + `--fix`):** Generated 4 dual-theme Bento/Studio concept-art plates (`v74-concept-*.jpg`), upgraded `audits.ts` (`oklch()` digital color leak detection + open Radix portal Axe scanning) and `vlmVisionFlywheel.ts`, passed `live-controls-v74.spec.ts` (`5/5` including rollback & toast scrubbing), converged `9/9` CV Flywheel suites (`visualAfterScore` `0.9250–0.9665`, `vlmOverallScore` `0.9235–0.9535`), and remediated `19/19` adversarial code review findings (`370/370` Vitest suites, `0` `knip`/`toestub` issues).
+
+---
+
+## v7.1 Public Release Readiness, Zero-Red Gate Convergence & Codebase Hygiene (Shipped: 2026-11-13)
+
+**Phases completed:** 6 phases (`Phases 413–418`), 6 plans, 24/24 requirements verified (`100%`)
+**Receipts:** [`v7.1-MILESTONE-AUDIT.md`](v7.1-MILESTONE-AUDIT.md) | [`contracts/reports/v71-public-readiness-scorecard.v1.json`](../contracts/reports/v71-public-readiness-scorecard.v1.json) | [`contracts/reports/v71-atomic-commit-slices.v1.json`](../contracts/reports/v71-atomic-commit-slices.v1.json)
+
+**Key accomplishments:**
+
+- **Pre-Push & CI Gate Zero-Red Convergence (`Phase 413`):** Excluded vendored Edition-2021 `patches/**` from Edition-2024 `rustfmt` sweeps (`vox ci pre-push` & `scripts/fmt.vox`), reconciled `layers.toml` + `fan-in-snapshot.v1.json` + `crate-edges.allow.v1.json`, routed `VOX_REPO_ROOT` through `vox_repository::core`, regenerated `crate-graph.v1.json` + DB baseline digest, and synced `events.v1.yaml` with `../vox-ops`.
+- **Root Hygiene, Salvage Purge, CWD Bug Fix & Backlog Slicing (`Phase 414`):** Purged stray root/salvage artifacts, fixed the CWD-relative `mens/` path bug in `vox-ml-cli` (`12/12` regression tests), reconciled `link_checker.yml` + 12 Dependabot PR dispositions, and generated `v71-atomic-commit-slices.v1.json`.
+- **4-Repo Federation Truth Reconciliation (`Phase 415`):** Aligned `.vox/repositories.yaml`, `federation.rs`, and `monorepo-to-multirepo-flywheel-ssot-2026.md` with hybrid monorepo (`vox-gui`, `docs-astro`) + sibling (`../vox-ops`) disk topology (`8/8` `federation_tests`, `4/4` `cross-repo-parity`, `404`-node `federated-symbol-graph`).
+- **`toestub` & `vox-drift-check` Signal Restoration (`Phase 416`):** Excluded `workspace-hack` + fixtures from `arch/workspace_drift` (`544+` → `0` errors), migrated internal `Cargo.toml` manifests to `{ workspace = true }`, eliminated all `11` non-`god_object` `toestub` errors across 117 crates, and burned down all `vox-drift-check` warnings (`37`/`41` → `0`).
+- **Test Suite Hardening & Open `WINDOWS.md` Closure (`Phase 417`):** Exposed `reasoning_compare/detect.rs` (`11/11` default features) and `spoke_base_resolver.rs` (`29/29` zero features; `4/4` YAML contract under `--features mens`), closed `.planning/WINDOWS.md` (`open_count: 0`), re-wired `vox_actor_runtime::feedback` (`1/1`), and reached `0` violations under `vox ci ignored-test-age --mode enforce` (`101` tests).
+- **Public Front-Door & Release Governance Refresh (`Phase 418`):** Rewrote `RELEASE_NOTES.md` for `0.6.0`, updated `CHANGELOG.md` and `CONTRIBUTING.md`, verified `vox-doc-pipeline --lint-only` + `voxup` (`111/111` tests, `33/33` `crates/_public.toml` packages), and published `v71-public-readiness-scorecard.v1.json`.
+
+---
+
+## v6.9 Build Velocity, Structural DAG Decoupling, Apple Silicon Linker Optimization & MENS Multi-Spoke Corpus/QLoRA Pipeline (Shipped: 2026-11-12)
+
+**Phases completed:** 2 phases (`Phases 405–406`), 3 plans, 11/11 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`405-REVIEW.md`](phases/405-structural-dependency-dag-decoupling-and-cli-binary-split/405-REVIEW.md), [`405-REVIEW-FIX.md`](phases/405-structural-dependency-dag-decoupling-and-cli-binary-split/405-REVIEW-FIX.md), [`406-REVIEW.md`](phases/406-mens-multi-spoke-corpus-fidelity-compiler-verified-rft-dpo-s/406-REVIEW.md), [`406-REVIEW-FIX.md`](phases/406-mens-multi-spoke-corpus-fidelity-compiler-verified-rft-dpo-s/406-REVIEW-FIX.md))
+**Archive:** [`milestones/v6.9-ROADMAP.md`](milestones/v6.9-ROADMAP.md) | [`milestones/v6.9-REQUIREMENTS.md`](milestones/v6.9-REQUIREMENTS.md) | [`milestones/v6.9-phases/`](milestones/v6.9-phases/) | [`v6.9-MILESTONE-AUDIT.md`](v6.9-MILESTONE-AUDIT.md) | [`contracts/reports/v68-structural-dag-speedup.v1.json`](../contracts/reports/v68-structural-dag-speedup.v1.json)
+
+**Key accomplishments:**
+
+- **Keystone DAG Decoupling & Incremental Blast Reduction (`Phase 405`):** Exposed pure leaf facade `vox_repository::core` + Rule-3 inline defactoring to sever `vox-repository` from `vox-compiler`, `vox-db`, `vox-codegen`, `vox-doc-inventory`, `vox-corpus`, and `vox-orchestrator-driver` (`vox-repository` non-dev fan-in `13`); applied `21` `#[inline(never)]` compilation firewalls; pruned zombie/test-only `[dependencies]` (`vox-cli` `max_workspace_deps` `60 -> 50`); cut a 1-line `crates/vox-repository/src/repo_catalog/federation.rs` probe rebuild on `vox-compiler`/`vox-db` to `4.10s` (`0` crates recompiled vs. `43` crates / `89.0s` before); configured `-Wl,-dead_strip` on `aarch64-apple-darwin` guarded by `dev_loop_guard`; and shipped O(1) `CargoDepHygieneDetector` (`vox/cargo/dep-hygiene`, including TOML inline-comment and sub-table header enforcement).
+- **MENS Multi-Spoke Corpus Fidelity & Packed QLoRA Pipeline (`Phase 406`):** Contextualized `extract_docs.rs` Q&A/code prompts with heading breadcrumbs, compiler checks, `resolve_doc_confine_root` relational link confinement, and retired `fn ... ) -> ` return syntax filtering (`28/28` `extract_docs` passing, zero compiler warnings); added cohesive `.vox` synthesis (`extract_vox`, `10/10`) and fence-aware compiler-verified DPO (`dpo.rs`, `12/12`); validated explicit `include_lanes` across all 5 spoke mixes (`spoke_validate --features mens`, `9/9`); shipped `token_norm_window_scale`, `build_packed_mask_and_doc_ids`, and `forward_packed` block-diagonal masking on `Device::Cpu`; wired `--lora-exclude-lm-head` and `--use-rslora` (`effective_lora_alpha` verified & logged); and enforced strictly workspace-relative `corpus_threshold` paths (`5/5`).
+
+---
+
+## v6.8 Physical Multi-Repo Extraction (`~/dev/vox-ops`, `vox-axis`, `voxlang.org`), Default Cargo Graph Pruning, Next-Tier Keystone Splits, `crates.io` Wave 2/3 (`33` Crates), Rich Roman Visual READMEs, Public Rollout Path Portability & Federated Mirror Auto-Sync (Shipped: 2026-11-12)
+
+**Phases completed:** 11 phases (`Phases 394–404`), 13 plans, 44/44 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`399-REVIEW.md`](phases/399-end-to-end-flywheel-scorecard-and-ssot/399-REVIEW.md), [`404-REVIEW.md`](phases/404-federated-mirror-autosync-and-standalone-satellite-verification/404-REVIEW.md), [`404-REVIEW-FIX.md`](phases/404-federated-mirror-autosync-and-standalone-satellite-verification/404-REVIEW-FIX.md))
+**Archive:** [`milestones/v6.8-ROADMAP.md`](milestones/v6.8-ROADMAP.md) | [`milestones/v6.8-REQUIREMENTS.md`](milestones/v6.8-REQUIREMENTS.md) | [`milestones/v6.8-phases/`](milestones/v6.8-phases/) | [`contracts/reports/v68-defactoring-flywheel-scorecard.v1.json`](../contracts/reports/v68-defactoring-flywheel-scorecard.v1.json)
+
+**Key accomplishments:**
+
 - **Physical 4-Repository Federation (`Phases 394, 395, 398`):** Created and verified standalone sibling repositories `/Users/brbrainerd/dev/vox-ops` (private telemetry & cloud GPU ops), `/Users/brbrainerd/dev/vox-axis` (Tauri 2 operator GUI), and `/Users/brbrainerd/dev/voxlang.org` (Astro/Starlight docs + Coolify `/v1/eval` sandbox) alongside `/Users/brbrainerd/dev/vox`, with `4/4` present repositories passing `vox ci cross-repo-parity` (`55` shared contracts) and `vox ci federated-symbol-graph`.
 - **Next-Tier Keystone Splits & Compilation Firewalls (`Phase 396`):** Extracted `vox-repository-core`, `vox-search-core`, and `vox-scientia-core` and applied `#[inline(never)]` compilation boundaries across `vox-orchestrator`, `vox-compiler`, `vox-db`, `vox-populi`, `vox-publisher`, and `vox-scientia`, cutting warm incremental check times across leaf crates by `28%–89%` (`vox-orchestrator` `119.0s -> 11.53s`, `vox-compiler` `55.6s -> 1.65s`, `vox-db` `43.5s -> 1.78s`).
 - **Standalone `crates.io` Wave 2 & 3 Expansion (`15` → `33` Crates, `Phase 397`):** Prepared and verified 33 standalone publishable crates (`crates/_public.toml`), passing `vox ci publish-dry-run` (`33/33`).
-- **Rich Visual READMEs, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Graphics, Adversarial 46-README Audit & Footnoted Prior-Art Attribution (`Phases 400–401`):** Replaced stale Sept 4 dark screenshots with 50 Nov 9 (`v6.6`) Sunlit Imperial Roman Carrara White & Gold Playwright captures (featuring the `VRBS ROMA` 3D/2.5D Simulator, `AQVAEDUCTUS` hydraulic cascade, Multi-Dock Chat, and 4-profile theme switcher), rebuilt all 7 animated `.webp` tours and all 7 Roman White/Gold `.webp` schematics (zero SVGs), audited and fixed all 8 stale sub-crate/app READMEs, added `README-SYNC-MAP` domain ownership, and added footnoted prior-art references (`[^1]`..`[^13]`).
+- **Rich Visual READMEs, `v6.6` Sunlit Imperial Roman Carrara White & Gold + `VRBS ROMA` Simulator Graphics, Adversarial 46-README Audit & `voxlang.org` Suite Portal (`Phases 400–402`):** Synced 50 Nov 9 (`v6.6`) Sunlit Imperial Roman Carrara White & Gold Playwright captures, rebuilt all 7 animated `.webp` tours and all 7 Roman White/Gold `.webp` schematics (zero SVGs), fixed all 8 stale sub-crate/app READMEs, added `README-SYNC-MAP` + prior-art footnotes (`[^1]`..`[^13]`), upgraded `docs/src/index.mdx` and `how-to-axis-workbench.md` with Light (`arcane`) vs. Dark (`slate`) showcase cards, and verified `cv-flywheel.spec.ts` (`7/7`, `0` `axeViolations`) and `docs-astro` Playwright specs (`15/15`, `919` pages built).
+- **Public Rollout Path Portability & Hardcoded Abs-Dir Guard (`Phase 403`):** Scrubbed machine-local hardcoded absolute directories across scripts, GUI CV flywheel specs/reports, Rust tests, contracts, and 17 `docs/src/` files; shipped `vox/fs/hardcoded-abs-dir` (`vox-code-audit`), `drift/hardcoded-abs-dir` (`vox-drift-check`, `CACHE_VERSION = 3`), and `lefthook.yml` pre-commit gating (`403-REVIEW.md`, `403-VERIFICATION.md`, `403-UAT.md`).
+- **Federated Mirror Auto-Sync & Sibling Satellite Verification (`Phase 404`):** Wired `sync_federated_satellites` / `vox ci cross-repo-parity --sync`, canonicalized sibling root fallback (`resolve_external_satellite_root`), error-propagated `sync_dir_checked`, `6/6` `federation_tests`, and verified standalone builds/tests across `vox-axis` (`360/360` Vitest), `voxlang.org` (`919` Astro pages), `vox-ops` (`7/7` Cargo), and `vox` (`4/4` present repos, `55` contracts).
 
 ---
 
@@ -19,6 +83,7 @@
 **Archive:** [`milestones/v6.7-ROADMAP.md`](milestones/v6.7-ROADMAP.md) | [`milestones/v6.7-REQUIREMENTS.md`](milestones/v6.7-REQUIREMENTS.md)
 
 **Key accomplishments:**
+
 - **Zero Dev-Dependency Cycles (`Phase 387`):** Severed all 5 dev-dependency back-edge loops across the 20-crate and 2-crate SCCs (`allowed_cycles: []` enforced by `vox ci dep-cycles --deny-new`) and added `touches_90d` + `churn_compile_pain_score` to `contracts/ci/crate-build-map.v1.json`.
 - **Top Keystone Splits (`Phases 388–389`):** Extracted `vox-mcp-Dispatch`, `vox-orchestrator-models` Part B4, and `vox-cli-core` (`vox-orchestrator-mcp` `157.9s -> 15.83s`, `vox-cli` `47.4s -> 6.32s`).
 - **Standalone `crates.io` Tier 1–3 Gate (`Phase 390`):** Eliminated `workspace-hack` and escaping `include_str!` blockers across publishable crates and shipped `vox ci publish-dry-run`.
@@ -33,11 +98,39 @@
 **Archive:** [`milestones/v6.4-ROADMAP.md`](milestones/v6.4-ROADMAP.md) | [`milestones/v6.4-REQUIREMENTS.md`](milestones/v6.4-REQUIREMENTS.md)
 
 **Key accomplishments:**
+
 - **Circular `ORCHESTRATOR` Bubble Cutoff Fix & Single-Line `Explorer` Controls (`Phase 373`):** Enlarged the `ORCHESTRATOR` circular hub medallion (`r=66` in `AgentFlow.tsx`) and widened the `ORCHESTRATOR` DAG node (`width=136` in `NeedsYouSurface.tsx`) for zero text cutoff; made `OPEN FORM`, `EXPLAIN CAPABILITY`, `OPEN DOCS` strictly single-line (`ExplorerTree.tsx`, `Button.tsx`) and slimmed `= GENERIC FORM` (`CapabilityBadge.tsx`) into a compact single-line Roman pill.
 - **Non-Procedural Painted Roman Monument Simulator & Live File/Folder Aqueduct Streams (`Phase 374`):** Removed procedural 2D polygon building drawing from `worldRenderer.ts`; wired `LudusSandbox.tsx` to `urbs-white-gold-citadel-bg.jpg`, generated painted monument portraits (`monument-pantheon-orchestrator.jpg`, `monument-temple-compiler.jpg`, `monument-library-knowledge.jpg`, `monument-colosseum-harness.jpg`), real-time active file/folder badges (`src/parser.rs`, `gamify/LudusSandbox.tsx`, `src/turso.rs`, `src/qlora.rs`, `models/select.rs`, `src/mesh.rs`), and animated SVG golden aqueduct streams.
 - **Full-Body Sunlit White/Cream Carrara Marble & Burnished Gold Theme + Architectural Watermark & Frieze Footer (`Phase 375`):** Converted `Backdrop.tsx`, `Glass.tsx`, and `index.css` across all 32 surfaces to the Sunlit White/Cream Carrara Marble & Burnished Gold aesthetic (`#FAF6EE` / `#F5EFE2` / `#EFE6D5`, `#C59B27` borders, `#1C140C` espresso ink) with subtle Vitruvian architectural watermark (`carrara-page-watermark-bg.jpg`) and bottom Roman frieze (`roman-architectural-frieze-footer.jpg`).
 - **Universal Roman Typography Enforcement & Zero Monospace/Courier/Arial Purge (`Phase 376`):** Remapped `--font-mono`, `--font-family-mono`, `.font-mono`, `pre`, `code`, and all SVG/Canvas font declarations to `'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif` (`tabular-nums`) and `'Cinzel', 'Palatino', Georgia, serif`.
 - **Multi-Resolution Built-In Gemini Vision + Playwright CV Flywheel Verification (`Phase 377`):** Verified all 32 `SURFACE_REGISTRY` surfaces across `1280×800`, `1440×900`, and `1920×1080` via Playwright + `@ngi/platform-ssot` CV Flywheel (`0` `axeViolations`, `0` `clippedInteractiveCount`, `0` `overlappingControlPairs`, `0` `digitalColorLeakCount`), built-in Gemini vision inspection, and zero-warning production bundle build.
+
+---
+
+## v5.7 Vox ↔ Python Bridge, Tolerant CLI Ergonomics, Docs Parity/SSOT & MENS Crucible Studio (Shipped: 2026-11-13)
+
+**Phases completed:** 12 realized phases (`Phases 324–331, 333, 342–343, 345` across `324–333, 342–345`), 35 plans, `33/34` checklist items + `324-VERIFICATION.md` verified (`v5.7-MILESTONE-AUDIT.md`)
+**Archive:** [`milestones/v5.7-ROADMAP.md`](milestones/v5.7-ROADMAP.md) | [`milestones/v5.7-REQUIREMENTS.md`](milestones/v5.7-REQUIREMENTS.md) | [`v5.7-MILESTONE-AUDIT.md`](v5.7-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Effects, Bridge Runtime & `std.array` on numpy (`Phases 324–326`):** Enforced `@uses`/`uses` capability gates + `workflow` rejection (`EFF-01..03`), launched sandboxed uv-locked `vox-python-bridge` worker (`BR-01..04`, `GOV-01`), and shipped typed lazy `std.array` ops on numpy (`ARR-01..04`).
+- **`std.frame` (polars), `std.plot` & `std.tensor`, and Tier 2 Escape Hatch (`Phases 327–329`):** Implemented lazy `std.frame` pipelines on polars (`FRM-01..03`), `std.plot` PNG export & `std.tensor` `.pt2` inference (`PLT-01`, `TNS-01..02`), and contextual `import py <alias> from "<module>"` + lock-stamped `.vox.pyi` sidecars + `Denied`-policy blocking + `vox/python/unverified-call` / hashed `python.escape_call` + `py_tier1_calls`/`py_tier2_calls` + `vox py bind` + all 4 `py_*` goldens in ladder/budget contracts (`PYX-01..04`, `K-01`).
+- **DB Interop, Tolerant CLI & Gated Qwen3 Releases (`Phases 330–331, 333`):** Shipped `vox db introspect --emit vox` + `schema_owner = "external"` (`DBI-01..03`), deterministic `<1.5 ms` `argv_normalize` recovery + `contracts/cli/semantic-aliases.v1.json` (`CLI-TOL-01..04`), and shared-recipe Qwen3 QLoRA + `vox mens merge-qlora` release gating (`REL-01..04`).
+- **Docs Authoring Parity/SSOT & MENS Crucible Studio (`Phases 342–343, 345`):** Upgraded `docs-astro` to Astro `7.4.5` / Starlight `0.42.9` with `starlight-links-validator` (`DOCS-PARITY-01..04`), automated docs drift gates (`DOCS-DRIFT-01..06`), and Option A MENS Crucible Studio UI + Tauri plumbing (`MENS-STUDIO-01..04`).
+
+---
+
+## v5.6 Reasoning Where the Lane Needs It (Shipped: 2026-11-13)
+
+**Phases completed:** 11 phases (`Phases 313–323`), 22 plans, 25/25 requirements verified (`100%`)
+**Archive:** [`milestones/v5.6-ROADMAP.md`](milestones/v5.6-ROADMAP.md) | [`milestones/v5.6-REQUIREMENTS.md`](milestones/v5.6-REQUIREMENTS.md) | [`milestones/v5.6-phases/`](milestones/v5.6-phases/) | [`v5.6-MILESTONE-AUDIT.md`](v5.6-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Lane Prefix & Serve Gate (`Phases 313–316`):** Enforced `/no_think` + empty think blocks on codegen spokes vs. full chain-of-thought on hub/agent spokes (`LANE-01..02`), checked in pinned GSM8K / MATH-500 / Vox slices with fail-closed zero-score protection (`BENCH-01..03`), and gated `vox mens serve` on collateral reports (`GATE-01..02`).
+- **Qwen3 Size Ladder, Live VRAM / Mesh Selection & Harness (`Phases 317–321`):** Pinned all six dense Qwen3 sizes (`SIZE-01`), built live Metal/CUDA free-memory & mesh-wide selection (`SIZE-02`, `MESH-01`), trained fitting sizes (`SIZE-03`), and reported before/after reasoning and intelligence scores (`HARN-01`, `BENCH-04`).
+- **Calibrated Turn Decisions + ChatARC (`Phase 322`) & Starlight MDX Parity (`Phase 323`):** Wired versioned turn decision packs and ChatARC shortlist selection (`DEC-01..04`, `CAT-01..02`), and made `.mdx` + Starlight components first-class across `vox-kb-facets`, `vox-search`, `vox-doc-pipeline`, and MENS corpus extraction (`MDX-INGEST-01..03`, `MDX-CONV-01..03`).
 
 ---
 
@@ -49,6 +142,7 @@
 **Goal:** Extract the next tier of t3code CI/oxlint/agent-ops gems beyond v5.4 — PR vouch trust, privileged preview trust-split, live transfer-budget measurement + job-matrix outputs, wall-clock/real-wait/test-in-loop/frame-wait detectors, host-runtime + schema-hoist + knip dual deepen + DOM-env discipline, and true sidecar fingerprint hashing.
 
 **Key deliverables (planned):**
+
 - **Trust (`Phase 307`):** VOUCHED SSOT + pr-vouch labels
 - **Preview policy (`Phase 308`):** deploy-vs-cleanup trust-split CI audit
 - **Live CI (`Phase 309`):** real transfer artifacts + per-job change outputs
@@ -57,7 +151,6 @@
 - **Closure (`Phase 312`):** fingerprint hash compare, surface-graph regen, scorecard
 
 ---
-
 
 ## v5.4 T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening (Shipped: 2026-10-25)
 

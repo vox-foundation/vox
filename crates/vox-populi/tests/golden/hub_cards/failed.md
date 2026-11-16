@@ -3,17 +3,24 @@ license: apache-2.0
 base_model: Qwen/Qwen3-0.6B
 base_model_relation: adapter
 base_model_revision: c1899de289a04d12100db370d81485cdf75e47ca
-library_name: vox
+library_name: peft
 pipeline_tag: text-generation
 language:
 - en
+datasets:
+- ns/vox-mens-eval-vox-lang-bench
+- ns/vox-mens-data-vox-lang
+spaces:
+- ns/vox-mens-playground
 tags:
 - vox
 - vox-mens
 - qwen3
 - qlora
+- rslora
 - candle
 - code
+- conversational
 - spoke-vox-lang
 - gate-failed
 model-index:
@@ -43,11 +50,17 @@ widget:
 
 0.6B is [trained](https://voxlang.org/reference/mens-models/#state-legend), its spoke is [vox-lang](https://voxlang.org/reference/mens-models/#hub-and-spoke) and its gate is [failed](https://voxlang.org/reference/mens-models/#state-legend): the collateral check refused 0.6B: “the collateral report status is `fail` on `gsm8k_think`”.
 
-![Qwen3-0.6B scorecard](assets/scorecard.svg)
+![Vox MENS Qwen3-0.6B banner](assets/banner.jpg)
+
+Try the Qwen3-0.6B (`0.6B`) checkpoint live in the [Vox MENS Playground Space](https://huggingface.co/spaces/ns/vox-mens-playground?model=ns/vox-mens-qwen3-0.6b).
+
+## What it does
+
+Qwen3-0.6B (`0.6B`) is a specialized coding model for the [Vox programming language](https://voxlang.org) — a full-stack, AI-native language where database tables, backend endpoints, reactive web UI components, and typed AI agents live in one compiler-checked `.vox` file. Before publishing, Qwen3-0.6B (`0.6B`) must improve real Vox compiler checks on held-out prompts without losing general software engineering accuracy.
 
 ## Why this size
 
-The smallest rung, aimed at machines with very little memory, including CPU-only boxes. It suits quick completions and short single-function edits where reply time matters more than depth. Step up when it loses the thread of a multi-step task; there is no smaller size to step down to. The measured training peak for 0.6B is 15319 MiB (`peak_source`: run_summary), and no serving memory figure has been measured for it.
+The ultra-lightweight 0.6B entry model runs easily on everyday CPUs, edge devices, and laptops with minimal memory. Use 0.6B when instant autocomplete, quick syntax questions, and fast continuous checks matter more than deep multi-file reasoning. Step up to 2B or 4B whenever you start editing multiple connected functions across a file. The measured training peak for 0.6B is 15319 MiB (`peak_source`: run_summary), and no serving memory figure has been measured for it.
 
 ## Examples
 
@@ -160,16 +173,111 @@ fn reverse_list(items: list[int]) to list[int] {
 
 ## Use it
 
-The 0.6B adapter sits on the base pin `Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca`, and this command downloads it after checking the BLAKE3 hash of every file in `hf_sync_manifest.json`.
+This page currently distributes the 0.6B trained add-on on `Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca` while the release review is unfinished, and the files are available from the Files tab or with this download command.
 
 ```bash
-vox mens hub pull --size 0.6B --namespace ns --allow-ungated
+vox mens hub download --repo ns/vox-mens-qwen3-0.6b --output-dir mens/runs/qwen3-0.6b
 ```
 
-`vox mens serve` loads the 0.6B adapter only from a run directory that holds a passing collateral report and a passing `gate_receipt.json`, so the pull needs `--allow-ungated` and no serving example is given.
+`vox mens serve` loads the 0.6B add-on only from a run directory that holds a passing collateral report and a passing `gate_receipt.json`, so no serving example is given while review is pending.
+## Vox and Python
 
-The docs page explains [why the 0.6B adapter cannot be loaded with transformers or PEFT](https://voxlang.org/reference/mens-models/#why-peft-cannot-load-the-adapters).
+Beginners can write and run their first `.vox` file alongside Qwen3-0.6B (`0.6B`) in under a minute, or call `ns/vox-mens-qwen3-0.6b` from Python and Rust.
 
+**Try Vox in 60 seconds (0.6B)**
+
+[Vox](https://voxlang.org) keeps your data model, backend queries, mutations, and helpers in one compiler-checked file so Qwen3-0.6B (`0.6B`) can edit your whole feature cleanly:
+
+```vox
+table Note {
+    title: str
+    done: bool
+}
+
+query list_notes() to Result[list[Note], str] {
+    return db.Note.all()
+}
+
+mutation add_note(title: str) to Result[int, str] {
+    return db.Note.insert({ title: title, done: false })
+}
+
+fn format_status(done: bool) to str {
+    if done { return "done" }
+    return "open"
+}
+```
+
+Type-check and run your first program locally while Qwen3-0.6B (`0.6B`) assists in the same workspace:
+
+```bash
+vox check main.vox
+vox run --interp main.vox
+vox llm prompt "Add an archive mutation to main.vox"
+```
+
+**Use 0.6B from Vox and Rust**
+
+Inside a Vox workspace or Rust crate, route chat requests to `ns/vox-mens-qwen3-0.6b` through `vox_actor_runtime::llm::llm_chat` instead of hardcoding provider URLs:
+
+```bash
+export HF_CHAT_MODEL="ns/vox-mens-qwen3-0.6b"
+export HF_TOKEN="hf_your_token_here"
+export VOX_POPULI_LOCAL_OLLAMA_URL="http://127.0.0.1:11435"
+```
+
+```rust
+use vox_actor_runtime::inference_env::resolve_huggingface_router;
+use vox_actor_runtime::model_resolution::{RouteResolutionInput, resolve_chat_provider_route};
+
+// Build a model-agnostic route to ns/vox-mens-qwen3-0.6b via Hugging Face Router or local MENS:
+let hf_endpoint = resolve_huggingface_router("ns/vox-mens-qwen3-0.6b");
+```
+
+**Use 0.6B from Python**
+
+Call `ns/vox-mens-qwen3-0.6b` with the standard `openai` Python client through Hugging Face Inference Providers or a local OpenAI-compatible `vox mens serve` endpoint:
+
+```python
+import os
+from openai import OpenAI
+
+# Cloud inference via Hugging Face Router (:auto selects the fastest available host)
+client = OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key=os.environ["HF_TOKEN"],
+)
+# Or target your local machine after running `vox mens serve`:
+# client = OpenAI(base_url="http://127.0.0.1:11435/v1", api_key="local")
+
+reply = client.chat.completions.create(
+    model="ns/vox-mens-qwen3-0.6b:auto",
+    messages=[{"role": "user", "content": "Write a Vox query that returns open Note rows."}],
+)
+print(reply.choices[0].message.content)
+```
+
+Manage Python dependencies cleanly inside a Vox project for Qwen3-0.6B (`0.6B`) using `[python]` in `Vox.toml` and `vox py`:
+
+```toml
+# Vox.toml
+[python]
+version = "3.12"
+packages = ["openai", "transformers", "peft"]
+```
+
+```bash
+vox py sync
+vox py doctor
+vox py bind openai
+```
+
+Generate a typed Python client from a Vox service API backed by Qwen3-0.6B (`0.6B`) using OpenAPI:
+
+```bash
+vox emit openapi src/main.vox --out dist/openapi.json
+openapi-python-client generate --path dist/openapi.json
+```
 ## Results
 
 | Result for 0.6B | [Held-out pass@1](https://voxlang.org/reference/mens-models/#held-out-pass-rate) | [Collateral accuracy](https://voxlang.org/reference/mens-models/#collateral-damage) | [McNemar p-value](https://voxlang.org/reference/mens-models/#why-mcnemar) |
@@ -187,6 +295,6 @@ The release gate record for 0.6B is [`gate_receipt.json`](https://huggingface.co
 
 ## Files
 
-The 0.6B repository holds `candle_qlora_adapter.safetensors`, the adapter, training and gate manifests and records, `evidence/`, and `hf_sync_manifest.json` with the BLAKE3 hash of every file.
+The 0.6B repository holds `peft/` Hugging Face PEFT adapter files alongside `candle_qlora_adapter.safetensors`, tokenizer and `chat_template.jinja`, `.eval_results/vox_mens_eval.yaml`, `external_serving_handoff_v1.json`, training and gate manifests and records, `evidence/`, and `hf_sync_manifest.json` with the BLAKE3 hash of every file.
 
 This card is generated by `vox mens hub sync`; the [ladder index](https://huggingface.co/ns/vox-mens-index) lists the other sizes and [how the cards are made](https://voxlang.org/reference/mens-models/#how-the-cards-are-made) is on the docs page.

@@ -14,10 +14,10 @@
     "publishable_crates_io_v68": 33,
     "federated_repos_on_disk": 4,
     "federated_repos": [
-      "/Users/brbrainerd/dev/vox",
-      "/Users/brbrainerd/dev/vox-ops",
-      "/Users/brbrainerd/dev/vox-axis",
-      "/Users/brbrainerd/dev/voxlang.org"
+      ".",
+      "../vox-ops",
+      "../vox-axis",
+      "../voxlang.org"
     ],
     "shared_contract_files_verified": 55,
     "pre_push_duration_ms_before": 120000,

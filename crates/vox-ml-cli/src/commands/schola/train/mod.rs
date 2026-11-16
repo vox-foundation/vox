@@ -21,4 +21,12 @@ pub struct TrainRunOpts {
     pub json: bool,
     /// `--max-runtime-secs`: local run cap, forwarded to the trainer config.
     pub max_runtime_secs: Option<u64>,
+    /// `--lora-exclude-lm-head`: keep `lm_head` frozen outside LoRA adapters.
+    pub lora_exclude_lm_head: bool,
+    /// `--use-rslora`: enable `alpha / sqrt(rank)` rsLoRA scaling.
+    pub use_rslora: bool,
+    /// `--token-normalized-grad-accum`: scale window loss by valid supervised tokens.
+    pub token_normalized_grad_accum: bool,
+    /// `--sequence-packing`: pack sequences with block-diagonal causal masks & RoPE reset.
+    pub sequence_packing: bool,
 }

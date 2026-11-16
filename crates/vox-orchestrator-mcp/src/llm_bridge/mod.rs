@@ -12,7 +12,7 @@ mod model_route_policy;
 mod provider_adapter;
 mod provider_auth;
 mod provider_endpoints;
-mod providers;
+pub(crate) mod providers;
 pub mod tool_selection;
 
 /// Single agent id for MCP-hosted LLM usage accounting (not per-tool agents).

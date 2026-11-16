@@ -16,7 +16,9 @@ pub mod publication_format;
 pub mod schema_types;
 
 pub use emitter::{NoopEmitter, ResearchEventEmitter};
-pub use events::{ResearchEvent, ResearchEventKind};
+pub use events::{
+    ResearchEvent, ResearchEventKind, ResearchEventSequencer, SequencedResearchEvent,
+};
 pub use observation::{
     KeywordObservationClassifier, LearnedProfileRow, ObservationClass, PenaltyRecord,
     ScientiaObservationClassifier, ScientiaWeightExtension,
@@ -30,6 +32,6 @@ pub use publication_format::{
 };
 pub use schema_types::{
     DiscoverySignal, DiscoverySignalFamily, DiscoverySignalStrength, EvidencePackV1,
-    FindingCandidateClass, FindingCandidateV1, NoveltyEvidenceBundle, SignalProvenance,
-    WorthinessSignalsV2,
+    FindingCandidateClass, FindingCandidateV1, NormalizedHit, NoveltyEvidenceBundle, NoveltySource,
+    OverlapSummary, QueryTrace, RecencyBucket, SignalProvenance, WorthinessSignalsV2,
 };

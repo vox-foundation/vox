@@ -10,7 +10,7 @@ on:
     workflows:
       - Benchmarks (nightly, vox-compiler)
       - Cross-Platform Check (Windows + macOS + Ubuntu)
-      - Docs Link Checker
+      - Docs Drift Refresh
       - OS Compatibility Report
       - Setup Pipeline E2E
       - Build & Push vox-eval Docker Image

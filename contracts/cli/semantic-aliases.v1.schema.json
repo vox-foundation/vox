@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/schemas/cli-semantic-aliases.v1.schema.json",
+  "title": "Vox CLI Semantic Aliases Lockfile",
+  "type": "object",
+  "required": ["schema_version", "generated_from", "min_cosine_similarity", "min_cosine_margin", "antonym_banlist", "verb_aliases", "noun_aliases", "foreign_idioms", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "generated_from": { "type": "string", "minLength": 1 },
+    "min_cosine_similarity": { "type": "number", "minimum": 0, "maximum": 1 },
+    "min_cosine_margin": { "type": "number", "minimum": 0, "maximum": 1 },
+    "antonym_banlist": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 },
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "verb_aliases": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "noun_aliases": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "foreign_idioms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["trigger", "canonical_path", "insert_args", "cosine_similarity", "cosine_margin"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+          "canonical_path": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+          "insert_args": { "type": "array", "items": { "type": "string" } },
+          "cosine_similarity": { "type": "number" },
+          "cosine_margin": { "type": "number" }
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["alias", "slot", "canonical_target", "source", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "alias": { "type": "string", "minLength": 1 },
+          "slot": { "type": "string", "enum": ["verb", "noun", "idiom"] },
+          "canonical_target": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+          "source": { "type": "string", "enum": ["curated", "catalog", "llm_mined"] },
+          "status": { "type": "string", "enum": ["auto_alias", "ambiguous"] },
+          "cosine_similarity": { "type": "number" },
+          "cosine_margin": { "type": "number" }
+        }
+      }
+    }
+  }
+}

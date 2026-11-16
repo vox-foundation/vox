@@ -5,3 +5,5 @@
 
 pub mod boot_plan;
 pub mod daemon_steps;
+pub mod term_bridge_impl;
+pub mod term_dispatch;

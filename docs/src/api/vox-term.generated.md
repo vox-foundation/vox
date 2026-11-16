@@ -30,6 +30,13 @@ Headless-capable ratatui TUI front-end for vox-terminal-core.
 Re-exported so integration tests (`tests/`) can access modules.
 
 
+## Features
+
+| Feature | Default / Enables |
+|---|---|
+| `default` | — |
+| `vox-lang` | vox-terminal-core/vox-lang |
+
 ## Workspace Dependencies
 
 | Dependency | Kind |
@@ -74,18 +81,25 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `app::TermCliArgs` | `pub struct TermCliArgs` | [`crates/vox-term/src/app.rs#L35-L38`](../../../crates/vox-term/src/app.rs#L35-L38) | Parsed CLI flags for `vox-term` (`--attach <session_id>`, `--local`). |
-| `fn` | `app::parse_iter` | `pub fn parse_iter<I, S>(args: I) -> Self` | [`crates/vox-term/src/app.rs#L41`](../../../crates/vox-term/src/app.rs#L41) | — |
-| `fn` | `app::from_env` | `pub fn from_env() -> Self` | [`crates/vox-term/src/app.rs#L65-L67`](../../../crates/vox-term/src/app.rs#L65-L67) | — |
-| `fn` | `app::resolve_host` | `pub async fn resolve_host(force_local: bool) -> std::sync::Arc<dyn SessionHost>` | [`crates/vox-term/src/app.rs#L72-L74`](../../../crates/vox-term/src/app.rs#L72-L74) | Resolve the active [`SessionHost`]: connects to `vox-orchestrator-d` when reachable (unless `force_local` is true) and falls back to an in-process `LocalHost`. |
-| `fn` | `app::run` | `pub fn run() -> Result<()>` | [`crates/vox-term/src/app.rs#L103-L213`](../../../crates/vox-term/src/app.rs#L103-L213) | Entry-point for the TUI. Headless-safe: degrades to plain stdout under TERM=dumb. Per-keystroke dispatch logic (`InputBox::submit` -> `Session::submit`) is covered by `crates/vox-term/tests/dispatch.rs` and the `session::tests` module; this loop itself is an interactive event loop over a real terminal and isn't unit-testable. See `contracts/toestub/suppressions.v1.json`. |
+| `struct` | `app::TermCliArgs` | `pub struct TermCliArgs` | [`crates/vox-term/src/app.rs#L39-L42`](../../../crates/vox-term/src/app.rs#L39-L42) | Parsed CLI flags for `vox-term` (`--attach [session_id]`, `--local`). |
+| `fn` | `app::parse_iter` | `pub fn parse_iter<I, S>(args: I) -> Self` | [`crates/vox-term/src/app.rs#L45`](../../../crates/vox-term/src/app.rs#L45) | — |
+| `fn` | `app::from_env` | `pub fn from_env() -> Self` | [`crates/vox-term/src/app.rs#L82-L84`](../../../crates/vox-term/src/app.rs#L82-L84) | — |
+| `fn` | `app::resolve_host` | `pub async fn resolve_host(force_local: bool) -> std::sync::Arc<dyn SessionHost>` | [`crates/vox-term/src/app.rs#L89-L91`](../../../crates/vox-term/src/app.rs#L89-L91) | Resolve the active [`SessionHost`]: connects to `vox-orchestrator-d` when reachable (unless `force_local` is true) and falls back to an in-process `LocalHost`. |
+| `fn` | `app::pick_latest_session_id` | `pub fn pick_latest_session_id(sessions: &[SessionInfo]) -> Option<String>` | [`crates/vox-term/src/app.rs#L95-L112`](../../../crates/vox-term/src/app.rs#L95-L112) | Select the newest session ID, ordering `term-{n}` sessions by numeric suffix (`10 > 9`) rather than lexicographically (`"term-9" > "term-10"`). |
+| `fn` | `app::attach_or_open_session` | `pub async fn attach_or_open_session(` | [`crates/vox-term/src/app.rs#L116`](../../../crates/vox-term/src/app.rs#L116) | Attach to an existing session (`Some("latest")` or `Some(id)`) or open and attach to a fresh session (`None`) on `host`. |
+| `fn` | `app::apply_session_event` | `pub async fn apply_session_event(` | [`crates/vox-term/src/app.rs#L160`](../../../crates/vox-term/src/app.rs#L160) | Apply one [`SessionEvent`] onto `vox-term`'s local view state completely in-place (zero `host.attach` RPC round-trips on normal block lifecycles, preventing output duplication and orphaned daemon subscription streams). |
+| `fn` | `app::key_event_to_vt_bytes` | `pub fn key_event_to_vt_bytes(key: &KeyEvent) -> Option<Vec<u8>>` | [`crates/vox-term/src/app.rs#L294-L325`](../../../crates/vox-term/src/app.rs#L294-L325) | Translate a crossterm [`KeyEvent`] into raw VT input bytes, ignoring key-release events. |
+| `fn` | `app::run_with_args` | `pub async fn run_with_args(args: TermCliArgs) -> Result<()>` | [`crates/vox-term/src/app.rs#L328`](../../../crates/vox-term/src/app.rs#L328) | Async entry-point for `vox term` / `vox-term` driving a [`SessionHost`] session. |
+| `fn` | `app::run` | `pub fn run() -> Result<()>` | [`crates/vox-term/src/app.rs#L553-L562`](../../../crates/vox-term/src/app.rs#L553-L562) | Synchronous entry-point for standalone `vox-term` (`crates/vox-term/src/main.rs`). |
 | `struct` | `term_setup::TermSetup` | `pub struct TermSetup` | [`crates/vox-term/src/term_setup.rs#L15-L17`](../../../crates/vox-term/src/term_setup.rs#L15-L17) | RAII guard: enters raw mode + alternate screen; restores both on drop. |
 | `fn` | `term_setup::new` | `pub fn new() -> anyhow::Result<Self>` | [`crates/vox-term/src/term_setup.rs#L24-L28`](../../../crates/vox-term/src/term_setup.rs#L24-L28) | Enter raw mode and the alternate screen.  Returns `Err` if the terminal does not support raw mode (e.g. `TERM=dumb`, pipe, CI). Callers should degrade gracefully. |
 | `fn` | `theme::is_dumb_terminal` | `pub fn is_dumb_terminal() -> bool` | [`crates/vox-term/src/theme.rs#L25-L27`](../../../crates/vox-term/src/theme.rs#L25-L27) | Returns `true` when the terminal is known-dumb (no color/glyph support). |
 | `fn` | `theme::prompt_glyph` | `pub fn prompt_glyph() -> &'static str` | [`crates/vox-term/src/theme.rs#L30-L36`](../../../crates/vox-term/src/theme.rs#L30-L36) | Prompt glyph — ASCII fallback under dumb terminals. |
-| `struct` | `vt::VtGrid` | `pub struct VtGrid` | [`crates/vox-term/src/vt.rs#L48-L53`](../../../crates/vox-term/src/vt.rs#L48-L53) | A VT100/VT220 terminal grid backed by `alacritty_terminal`. |
-| `fn` | `vt::new` | `pub fn new(cols: u16, rows: u16) -> Self` | [`crates/vox-term/src/vt.rs#L56-L68`](../../../crates/vox-term/src/vt.rs#L56-L68) | — |
-| `fn` | `vt::feed` | `pub fn feed(&mut self, bytes: &[u8])` | [`crates/vox-term/src/vt.rs#L71-L73`](../../../crates/vox-term/src/vt.rs#L71-L73) | Feed raw bytes (PTY output) into the VT grid. |
-| `fn` | `vt::resize` | `pub fn resize(&mut self, cols: u16, rows: u16)` | [`crates/vox-term/src/vt.rs#L76-L84`](../../../crates/vox-term/src/vt.rs#L76-L84) | Resize the grid. |
-| `fn` | `vt::render_lines` | `pub fn render_lines(&self) -> Vec<RLine<'static>>` | [`crates/vox-term/src/vt.rs#L87-L117`](../../../crates/vox-term/src/vt.rs#L87-L117) | Project the visible screen into ratatui `Line`s with styled `Span`s. |
+| `struct` | `vt::VtGrid` | `pub struct VtGrid` | [`crates/vox-term/src/vt.rs#L48-L54`](../../../crates/vox-term/src/vt.rs#L48-L54) | A VT100/VT220 terminal grid backed by `alacritty_terminal`. |
+| `fn` | `vt::new` | `pub fn new(cols: u16, rows: u16) -> Self` | [`crates/vox-term/src/vt.rs#L57-L69`](../../../crates/vox-term/src/vt.rs#L57-L69) | — |
+| `fn` | `vt::feed` | `pub fn feed(&mut self, bytes: &[u8])` | [`crates/vox-term/src/vt.rs#L73-L80`](../../../crates/vox-term/src/vt.rs#L73-L80) | Feed raw bytes (PTY output) into the VT grid, keeping legacy `?47` / `?1047` alternate-screen transitions synchronized with `VtShadow`. |
+| `fn` | `vt::resize` | `pub fn resize(&mut self, cols: u16, rows: u16)` | [`crates/vox-term/src/vt.rs#L83-L90`](../../../crates/vox-term/src/vt.rs#L83-L90) | Resize the grid, clamping dimensions to at least `1×1` (`T-441-02`). |
+| `fn` | `vt::is_alt_screen` | `pub fn is_alt_screen(&self) -> bool` | [`crates/vox-term/src/vt.rs#L93-L95`](../../../crates/vox-term/src/vt.rs#L93-L95) | True when the VT grid is currently in alternate-screen mode (`TermMode::ALT_SCREEN`). |
+| `fn` | `vt::reset` | `pub fn reset(&mut self)` | [`crates/vox-term/src/vt.rs#L98-L106`](../../../crates/vox-term/src/vt.rs#L98-L106) | Recreate the terminal grid and VT parser from scratch before feeding a full snapshot. |
+| `fn` | `vt::render_lines` | `pub fn render_lines(&self) -> Vec<RLine<'static>>` | [`crates/vox-term/src/vt.rs#L109-L142`](../../../crates/vox-term/src/vt.rs#L109-L142) | Project the visible screen into ratatui `Line`s with styled `Span`s. |
 

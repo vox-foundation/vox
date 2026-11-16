@@ -48,6 +48,20 @@ pub fn parse_drift_allow_comments(content: &str) -> HashMap<String, HashSet<usiz
     let mut out: HashMap<String, HashSet<usize>> = HashMap::new();
     for (idx, line) in content.lines().enumerate() {
         let line_no = idx + 1; // 1-indexed
+        if let Some(arch_start) = line.find("vox-arch-check: allow abs-path") {
+            let prefix_trimmed = line[..arch_start].trim_end();
+            if prefix_trimmed.ends_with("//")
+                || prefix_trimmed.ends_with("///")
+                || prefix_trimmed.ends_with("//!")
+                || prefix_trimmed.ends_with("/*")
+                || prefix_trimmed.ends_with("/**")
+                || prefix_trimmed.ends_with('#')
+            {
+                let bucket = out.entry("hardcoded-abs-dir".to_string()).or_default();
+                bucket.insert(line_no);
+                bucket.insert(line_no + 1);
+            }
+        }
         let Some(start) = line.find("drift-allow(") else {
             continue;
         };
@@ -169,5 +183,14 @@ mod tests {
         assert!(is_allowed_at(&f, "drift/timeout-literal", 42));
         assert!(is_allowed_at(&f, "timeout-literal", 42));
         assert!(!is_allowed_at(&f, "timeout-literal", 43));
+    }
+
+    #[test]
+    fn parse_drift_allow_recognizes_vox_arch_check_abs_path() {
+        let src = "// vox-arch-check: allow abs-path\nlet p = r\"C:\\Users\\Default\";\n";
+        let allowed = parse_drift_allow_comments(src);
+        let set = allowed.get("hardcoded-abs-dir").unwrap();
+        assert!(set.contains(&1));
+        assert!(set.contains(&2));
     }
 }

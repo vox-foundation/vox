@@ -24,3 +24,11 @@ anti_stub:
   max_trivial_placeholder_event_rate: 0.08
   min_construct_richness_mean: 0.125
   block: true
+
+suites:
+  vox_lang_bench:
+    report_file: suite_report.vox_lang_bench.json
+    min_problem_count: 1
+    min_pass_rate: 0.25
+    block: false
+    require_report: false

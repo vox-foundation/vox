@@ -28,7 +28,7 @@
 <!-- BEGIN GENERATED capability-index: vox ci capability-index --write -->
 ## Capabilities (generated from the capability index)
 - Compiler: 30 CLI commands, 11 MCP tools, 0 GUI surfaces
-- Orchestrator & agents: 28 CLI commands, 82 MCP tools, 2 GUI surfaces
+- Orchestrator & agents: 36 CLI commands, 90 MCP tools, 3 GUI surfaces
 - Mesh / Populi: 6 CLI commands, 3 MCP tools, 2 GUI surfaces
 - ML / Mens: 53 CLI commands, 0 MCP tools, 2 GUI surfaces
 - Research / Scientia: 78 CLI commands, 68 MCP tools, 2 GUI surfaces
@@ -43,7 +43,7 @@
 - Gamification: 50 CLI commands, 16 MCP tools, 1 GUI surfaces
 - Build & deploy: 27 CLI commands, 0 MCP tools, 0 GUI surfaces
 - Docs: 0 CLI commands, 0 MCP tools, 0 GUI surfaces
-- Platform (other): 48 CLI commands, 119 MCP tools, 3 GUI surfaces
+- Platform (other): 48 CLI commands, 127 MCP tools, 3 GUI surfaces
 
 - [MCP tool reference](https://voxlang.org/reference/mcp-tool-registry-contract/): every MCP tool, its schema and contract
 - [GUI navigation](https://voxlang.org/reference/gui-navigation/): desktop app surfaces and how to reach them

@@ -32,6 +32,9 @@ pub struct HirModule {
     pub imports: Vec<HirImport>,
     /// Rust crate imports declared in source.
     pub rust_imports: Vec<HirRustImport>,
+    /// Tier 2 Python module escape-hatch imports declared in source.
+    #[serde(default)]
+    pub py_imports: Vec<HirPyImport>,
     /// Functions and `@component` bodies.
     pub functions: Vec<HirFn>,
     /// Algebraic and struct types.
@@ -169,6 +172,7 @@ pub struct HirModule {
 pub struct SemanticHirModule {
     pub imports: Vec<HirImport>,
     pub rust_imports: Vec<HirRustImport>,
+    pub py_imports: Vec<HirPyImport>,
     pub functions: Vec<HirFn>,
     pub types: Vec<HirTypeDef>,
 
@@ -196,6 +200,7 @@ impl HirModule {
         vec![
             ("imports", HirFieldOwnership::SemanticCore),
             ("rust_imports", HirFieldOwnership::SemanticCore),
+            ("py_imports", HirFieldOwnership::SemanticCore),
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
             ("tests", HirFieldOwnership::SemanticCore),
@@ -234,6 +239,7 @@ impl HirModule {
         SemanticHirModule {
             imports: self.imports.clone(),
             rust_imports: self.rust_imports.clone(),
+            py_imports: self.py_imports.clone(),
             functions: self.functions.clone(),
             types: self.types.clone(),
 
@@ -319,6 +325,17 @@ pub struct HirRustImport {
     pub git: Option<String>,
     /// Optional git revision / branch hint.
     pub rev: Option<String>,
+    /// Span in source.
+    pub span: Span,
+}
+
+/// A Tier 2 Python module import declaration (`import py <alias> from "<module>"`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct HirPyImport {
+    /// Local alias bound in Vox scope.
+    pub alias: String,
+    /// Python dotted module path (e.g. `scipy.signal`).
+    pub module: String,
     /// Span in source.
     pub span: Span,
 }

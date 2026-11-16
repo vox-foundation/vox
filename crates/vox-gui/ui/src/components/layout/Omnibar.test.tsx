@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import React from 'react';
 import { clearSearchableRegistry, registerSearchable } from '../../lib/searchableRegistry';
 
@@ -95,6 +95,13 @@ vi.mock('../../hooks/useCapabilityIndex', async () => {
 
 import { Omnibar } from './Omnibar';
 import { Toasts } from '../ui/Toasts';
+import { voxTransport, type TermRunbookDto } from '../../transport';
+import {
+  onOpenRunbook,
+  onTerminalCommand,
+  publishTerminalBridgeState,
+  resetTerminalBridgeForTests,
+} from '../../lib/terminalBridge';
 import type { CommandCatalogEntry } from '../../types/catalog';
 
 const noop = () => {};
@@ -293,7 +300,8 @@ describe('Omnibar', () => {
       const onOpenCatalogForm = vi.fn();
       renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['features'])] });
       const row = await type('vox features');
-      expect(row.textContent).toContain('↵ runs');
+      expect(row.textContent).toContain('runs');
+      expect(row.querySelector('[data-icon="keycap-enter"]')).toBeTruthy();
       fireEvent.keyDown(window, { key: 'Enter' });
       expect(onRunCli).toHaveBeenCalledWith(['features']);
       expect(onOpenCatalogForm).not.toHaveBeenCalled();
@@ -304,7 +312,8 @@ describe('Omnibar', () => {
       const onOpenCatalogForm = vi.fn();
       renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['check'])] });
       const row = await type('vox check');
-      expect(row.textContent).toContain('↵ opens form');
+      expect(row.textContent).toContain('opens form');
+      expect(row.querySelector('[data-icon="keycap-enter"]')).toBeTruthy();
       fireEvent.keyDown(window, { key: 'Enter' });
       expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
       expect(onRunCli).not.toHaveBeenCalled();
@@ -336,7 +345,8 @@ describe('Omnibar', () => {
       const onExplain = vi.fn();
       renderOmnibar({ onRunCli, onExplain, catalog: [] });
       const row = await type('vox features');
-      expect(row.textContent).toContain('↵ explains');
+      expect(row.textContent).toContain('explains');
+      expect(row.querySelector('[data-icon="keycap-enter"]')).toBeTruthy();
       fireEvent.keyDown(window, { key: 'Enter' });
       expect(onExplain).toHaveBeenCalledWith('cli.features');
       expect(onRunCli).not.toHaveBeenCalled();
@@ -519,6 +529,151 @@ describe('Omnibar', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'View full output' }));
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Cmd+P Runbooks (TERM-WARP-04)', () => {
+    const sampleRunbooks: TermRunbookDto[] = [
+      {
+        id: 'rb-setup',
+        title: 'Setup Workspace',
+        description: 'Bootstrap git hooks and tools',
+        path: 'scripts/setup.vox',
+        kind: 'vox',
+        command_template: 'vox run scripts/setup.vox',
+        params: [],
+        tags: ['bootstrap'],
+      },
+      {
+        id: 'rb-deploy',
+        title: 'Deploy Environment',
+        description: 'Deploy build to target stage',
+        path: 'scripts/deploy.vox',
+        kind: 'vox',
+        command_template: 'vox run scripts/deploy.vox {{env}}',
+        params: [
+          {
+            name: 'env',
+            default_value: 'dev',
+            description: 'Target environment',
+            options: [],
+          },
+        ],
+        tags: ['release'],
+      },
+    ];
+
+    beforeEach(() => {
+      resetTerminalBridgeForTests();
+      (voxTransport as unknown as { termRunbooksList?: () => Promise<TermRunbookDto[]> }).termRunbooksList =
+        vi.fn().mockResolvedValue(sampleRunbooks);
+    });
+
+    it('dispatches 0-param runbook immediately via requestTerminalCommand and navigates to console', async () => {
+      const onNavigate = vi.fn();
+      const onClose = vi.fn();
+      const receivedCommands: string[] = [];
+      const unsub = onTerminalCommand((cmd) => receivedCommands.push(cmd));
+
+      try {
+        renderOmnibar({ onNavigate, onClose });
+        fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'setup.vox' } });
+        const row = await screen.findByTestId('omnibar-runbook-row-rb-setup');
+        expect(screen.queryByText(/No matches/i)).toBeNull();
+
+        fireEvent.click(row);
+        expect(onNavigate).toHaveBeenCalledWith('console');
+        expect(receivedCommands).toEqual(['vox run scripts/setup.vox']);
+        expect(onClose).toHaveBeenCalledTimes(1);
+      } finally {
+        unsub();
+        delete (voxTransport as unknown as { termRunbooksList?: unknown }).termRunbooksList;
+      }
+    });
+
+    it('opens omnibar-runbook-params sheet for parameterized runbooks and shell-escapes {{param}} values on Run & Insert', async () => {
+      const onNavigate = vi.fn();
+      const onClose = vi.fn();
+      const receivedCommands: string[] = [];
+      const receivedInsertions: unknown[] = [];
+      const unsubCmd = onTerminalCommand((cmd) => receivedCommands.push(cmd));
+      const unsubOpen = onOpenRunbook((req) => receivedInsertions.push(req));
+
+      try {
+        renderOmnibar({ onNavigate, onClose });
+        fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'deploy.vox' } });
+        const row = await screen.findByTestId('omnibar-runbook-row-rb-deploy');
+        fireEvent.click(row);
+
+        expect(screen.getByTestId('omnibar-runbook-params')).toBeTruthy();
+        const envInput = screen.getByTestId('omnibar-runbook-param-env') as HTMLInputElement;
+        fireEvent.change(envInput, { target: { value: 'staging-1' } });
+
+        fireEvent.click(screen.getByTestId('term-runbook-run'));
+        expect(onNavigate).toHaveBeenCalledWith('console');
+        expect(receivedCommands).toEqual(['vox run scripts/deploy.vox staging-1']);
+        expect(onClose).toHaveBeenCalledTimes(1);
+
+        // Also verify malicious input shell-quoting + Escape back + Insert into Prompt
+        onNavigate.mockClear();
+        onClose.mockClear();
+        cleanup();
+        renderOmnibar({ onNavigate, onClose });
+        fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'deploy.vox' } });
+        fireEvent.click(await screen.findByTestId('omnibar-runbook-row-rb-deploy'));
+
+        // Escape returns from params sheet without closing Omnibar
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByTestId('omnibar-runbook-params')).toBeNull();
+        expect(onClose).not.toHaveBeenCalled();
+
+        fireEvent.click(await screen.findByTestId('omnibar-runbook-row-rb-deploy'));
+        fireEvent.change(screen.getByTestId('omnibar-runbook-param-env'), {
+          target: { value: 'prod; rm -rf /' },
+        });
+        fireEvent.click(screen.getByTestId('term-runbook-insert'));
+        expect(onNavigate).toHaveBeenCalledWith('console');
+        expect(receivedInsertions).toEqual([
+          {
+            runbookId: 'rb-deploy',
+            command: "vox run scripts/deploy.vox 'prod; rm -rf /'",
+            mode: 'insert',
+          },
+        ]);
+      } finally {
+        unsubCmd();
+        unsubOpen();
+        delete (voxTransport as unknown as { termRunbooksList?: unknown }).termRunbooksList;
+      }
+    });
+
+    it('forwards active terminal cwd and activates runbooks via keyboard Enter navigation', async () => {
+      const onNavigate = vi.fn();
+      const onClose = vi.fn();
+      const receivedCommands: string[] = [];
+      const unsub = onTerminalCommand((cmd) => receivedCommands.push(cmd));
+      const listSpy = vi.fn().mockResolvedValue(sampleRunbooks);
+      (voxTransport as unknown as { termRunbooksList?: unknown }).termRunbooksList = listSpy;
+      publishTerminalBridgeState({ cwd: '/workspace/subpkg' });
+
+      try {
+        renderOmnibar({ onNavigate, onClose });
+        const input = screen.getByPlaceholderText(/search/i);
+        fireEvent.change(input, { target: { value: 'setup.vox' } });
+        const row = await screen.findByTestId('omnibar-runbook-row-rb-setup');
+        expect(listSpy).toHaveBeenCalledWith('/workspace/subpkg');
+
+        fireEvent.keyDown(window, { key: 'ArrowDown' });
+        expect(row.getAttribute('aria-current')).toBe('true');
+
+        fireEvent.keyDown(window, { key: 'Enter' });
+        expect(onNavigate).toHaveBeenCalledWith('console');
+        expect(receivedCommands).toEqual(['vox run scripts/setup.vox']);
+        expect(onClose).toHaveBeenCalledTimes(1);
+      } finally {
+        unsub();
+        delete (voxTransport as unknown as { termRunbooksList?: unknown }).termRunbooksList;
+      }
+    });
   });
 
 });

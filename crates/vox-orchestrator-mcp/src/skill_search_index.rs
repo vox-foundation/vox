@@ -157,13 +157,13 @@ mod tests {
     fn skill_search_ranks_description_semantically() {
         let idx = SkillSearchIndex::from_manifests(&[
             manifest(
-                "systematic-debugging",
+                "gsd-debug",
                 "Debug failing tests: find root cause before fixing",
             ),
-            manifest("writing-plans", "Implementation plan authoring"),
+            manifest("gsd-plan-phase", "Implementation plan authoring"),
         ]);
         let hits = idx.search("debug failing test", 3);
         assert!(!hits.is_empty());
-        assert_eq!(hits[0].id, "systematic-debugging");
+        assert_eq!(hits[0].id, "gsd-debug");
     }
 }

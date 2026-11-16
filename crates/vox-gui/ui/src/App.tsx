@@ -6,7 +6,6 @@ import {
   isContextExceededError,
   stripRateLimitedPrefix,
 } from './lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
 import { renderSurfaceContent } from './components/layout/surfaceComponents';
@@ -59,7 +58,7 @@ import { buildChatTurn } from './lib/buildChatTurn';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame, type ExecuteOutput } from './transport';
+import { invokeCmd, voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame, type ExecuteOutput, type UnlistenFn } from './transport';
 import { useQuery } from '@tanstack/react-query';
 import { railRoutingFromSummary } from './lib/routingSummary';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
@@ -68,7 +67,6 @@ import { noticeFromToast, noticeFromAgentEvent, type SeverityFrame } from './lib
 import { useKeybinds, useKeybindings, useShortcutHelpKey } from './hooks/useKeybinds';
 import { isMacPlatform, paletteActionRows } from './lib/keybinds';
 import { ShortcutSheet } from './components/layout/ShortcutSheet';
-import { type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
 import {
@@ -113,7 +111,7 @@ import {
 } from './config/constants';
 import { budgetStateFromStatus, DEFAULT_BUDGET_CAP_USD } from './config/budget';
 import { nextId, nextGuiRunId, newBackgroundSessionId } from './lib/ids';
-import { slashCommandBase } from './lib/slashRouter';
+import { slashCommandBase, isGsdSlashCommand } from './lib/slashRouter';
 import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
 import type { LudusProfile } from './lib/ludus';
@@ -128,6 +126,7 @@ import {
 type View =
   | 'dashboard'
   | 'flow'
+  | 'gsd'
   | 'catalog'
   | 'matrix'
   | 'memory'
@@ -471,7 +470,7 @@ export default function App() {
     let cancelled = false;
     Promise.all([
       voxTransport.listModels(MODEL_LIST_LIMIT),
-      invoke<ProviderStatus[]>('inference_provider_status').catch(() => [] as ProviderStatus[]),
+      invokeCmd<ProviderStatus[]>('inference_provider_status').catch(() => [] as ProviderStatus[]),
     ])
       .then(([models, statuses]) => {
         if (cancelled || !Array.isArray(models)) return;
@@ -639,7 +638,7 @@ export default function App() {
       setChatTaskCounts({});
       return () => { cancelled = true; };
     }
-    invoke<Record<string, number>>('plan_open_task_counts', { sessionIds: ids })
+    invokeCmd<Record<string, number>>('plan_open_task_counts', { sessionIds: ids })
       .then((counts) => { if (!cancelled) setChatTaskCounts(counts); })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -652,7 +651,7 @@ export default function App() {
   // it rarely changes mid-session and isn't worth a refetch per message.
   const budgetWarnThresholdPctRef = useRef<number | null>(null);
   useEffect(() => {
-    invoke<Array<{ key: string; currentValue: string }>>('get_user_config')
+    invokeCmd<Array<{ key: string; currentValue: string }>>('get_user_config')
       .then((fields) => {
         const field = fields?.find((f) => f.key === 'budget_warn_threshold_pct');
         if (field) {
@@ -677,7 +676,7 @@ export default function App() {
       return;
     }
     let cancelled = false;
-    invoke<{ plan_session_id: string; plan_version: number } | null>(
+    invokeCmd<{ plan_session_id: string; plan_version: number } | null>(
       'latest_plan_session_for_chat',
       { sessionId: activeSessionId },
     )
@@ -712,7 +711,7 @@ export default function App() {
     }
     let cancelled = false;
     const refresh = () => {
-      invoke<{ sessionUsd: number }>('get_llm_spend', { sessionId: activeSessionId })
+      invokeCmd<{ sessionUsd: number }>('get_llm_spend', { sessionId: activeSessionId })
         .then((spend) => {
           if (cancelled) return;
           if (spend && Number.isFinite(spend.sessionUsd)) {
@@ -737,7 +736,7 @@ export default function App() {
     if (budgetWarnedRef.current) return;
     const threshold = budgetWarnThresholdPctRef.current;
     if (threshold == null) return;
-    invoke<{ sessionUsd: number; dayUsd: number; totalUsd: number; dailyBudgetUsd: number; perSessionBudgetUsd: number }>(
+    invokeCmd<{ sessionUsd: number; dayUsd: number; totalUsd: number; dailyBudgetUsd: number; perSessionBudgetUsd: number }>(
       'get_llm_spend',
       { sessionId },
     )
@@ -838,11 +837,11 @@ export default function App() {
     voxTransport.getCatalog().then((catalog: CommandCatalog) => {
       if (catalog?.entries) setData(prev => ({ ...prev, skills: catalog.entries }));
     }).catch((e: unknown) => { console.debug('[App] getCatalog failed (skills palette disabled):', e); });
-    invoke<{ display?: string; version?: string }>('get_build_info')
+    invokeCmd<{ display?: string; version?: string }>('get_build_info')
       .then((info) => setAppVersion(info.display ?? info.version ?? 'unknown'))
       .catch(() => setAppVersion('unknown'));
 
-    invoke<string>('get_initial_view').then((view) => {
+    invokeCmd<string>('get_initial_view').then((view) => {
       const fromHash = parseViewFromLocation(window.location);
       // VG-2: a fresh load on #view=search opens the Omnibar instead of the
       // retired Search surface.
@@ -874,12 +873,12 @@ export default function App() {
       }
     }).catch(() => {});
 
-    invoke<Session[]>('chat_list_sessions', { limit: 1 })
+    invokeCmd<Session[]>('chat_list_sessions', { limit: 1 })
       .then((sessions) => {
         if (sessions?.[0]?.session_id) {
           setActiveSessionId(sessions[0].session_id);
         } else {
-          invoke<Session>('chat_create_session', { title: 'Chat' })
+          invokeCmd<Session>('chat_create_session', { title: 'Chat' })
             .then((s) => {
               if (s?.session_id) {
                 setActiveSessionId(s.session_id);
@@ -942,12 +941,12 @@ export default function App() {
     const refresh = async () => {
       try {
         const [rows, branchInfos] = await Promise.all([
-          invoke<PolicyRow[]>('policy_list', { domain: null, group: null }),
-          invoke<BranchInfo[]>('list_branches').catch(() => [] as BranchInfo[]),
+          invokeCmd<PolicyRow[]>('policy_list', { domain: null, group: null }),
+          invokeCmd<BranchInfo[]>('list_branches').catch(() => [] as BranchInfo[]),
         ]);
         const branches = branchInfos.filter(b => b.isCurrent).map(b => b.branch);
         const sel = branches.length ? branches : ['HEAD'];
-        const status = await invoke<PolicyStatus[]>('policy_status', { branches: sel }).catch(() => [] as PolicyStatus[]);
+        const status = await invokeCmd<PolicyStatus[]>('policy_status', { branches: sel }).catch(() => [] as PolicyStatus[]);
         if (cancelled) return;
         setPolicyBadge({ status: overallWorst(rows, status, sel), count: worstCount(rows, status, sel) });
       } catch {
@@ -1037,7 +1036,7 @@ export default function App() {
   const executeIpcWithRun = useCallback(async <T,>(command: string, payload: Record<string, unknown>, workflowName: string, onRun?: (runId: string) => void): Promise<T> => {
     const runId = nextGuiRunId();
     onRun?.(runId);
-    await invoke('start_gui_run', {
+    await invokeCmd('start_gui_run', {
       input: {
         run_id: runId,
         workflow_name: workflowName,
@@ -1046,8 +1045,8 @@ export default function App() {
     });
     let finished = false;
     try {
-      const result = await invoke<T>(command, payload);
-      await invoke('finish_gui_run', {
+      const result = await invokeCmd<T>(command, payload);
+      await invokeCmd('finish_gui_run', {
         runId: runId,
         success: true,
         completedSteps: 1,
@@ -1058,7 +1057,7 @@ export default function App() {
       return result;
     } catch (err) {
       if (!finished) {
-        await invoke('finish_gui_run', {
+        await invokeCmd('finish_gui_run', {
           runId: runId,
           success: false,
           completedSteps: 0,
@@ -1140,7 +1139,7 @@ export default function App() {
   useEffect(() => {
     if (!achievementsOpen || !gamifySettings.enabled) return;
     let cancelled = false;
-    invoke<LudusProfile>('get_ludus_profile')
+    invokeCmd<LudusProfile>('get_ludus_profile')
       .then((p) => {
         if (!cancelled) setLudusProfile(p);
       })
@@ -1202,7 +1201,7 @@ export default function App() {
   const hydrateChatSession = useCallback(async (sessionId: string) => {
     if (!sessionId) return;
     try {
-      const rows = await invoke<
+      const rows = await invokeCmd<
         Array<{
           id: number;
           role: string;
@@ -1250,7 +1249,7 @@ export default function App() {
     setDiffOpen(true);
     setDiffLoading(true);
     try {
-      const text = await invoke<string>('get_task_diff', { path: path ?? null });
+      const text = await invokeCmd<string>('get_task_diff', { path: path ?? null });
       setDiffText(text);
     } catch (err) {
       setDiffText('');
@@ -1334,7 +1333,7 @@ export default function App() {
       chatSendInFlightRef.current.add(sessionId);
     }
 
-    invoke('chat_append_message', {
+    invokeCmd('chat_append_message', {
       input: userAppendInput(sessionId, payload.description),
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
     recordGamifyGuiEvent('chat_message_sent', { session_id: sessionId }, { enabled: gamifySettings.enabled });
@@ -1515,7 +1514,7 @@ export default function App() {
     }
     if (base === '/compact') {
       const targetSessionId = activeSessionId || 'default';
-      void invoke<McpInvokeResult>('invoke_mcp_tool', {
+      void invokeCmd<McpInvokeResult>('invoke_mcp_tool', {
         tool: 'vox_chat_compact_up_to',
         args: { session_id: targetSessionId, direction: 'up_to' },
       })
@@ -1562,6 +1561,46 @@ export default function App() {
         // silently desync that store from the GUI transcript.
         session_id: newBackgroundSessionId(),
       });
+      return true;
+    }
+    if (isGsdSlashCommand(base)) {
+      const rest = cmd.slice(base.length).trim();
+      navigateTo('gsd');
+      if (base === '/gsd' && !rest) {
+        return true;
+      }
+      ctx.setText('');
+      void (async () => {
+        try {
+          if (base === '/gsd-new-milestone') {
+            const parts = rest.split(/\s+/).filter(Boolean);
+            const version = parts[0] || 'v7.1';
+            const title = parts.slice(1).join(' ') || `Milestone ${version}`;
+            await invokeCmd('gsd_new_milestone', {
+              input: { version, title, start_phase: 1, phases: 3 },
+            });
+            pushToast({ tone: 'ok', title: `Milestone ${version} initialized`, body: title, cause: 'backend-ok' });
+          } else if (base === '/gsd-plan-phase') {
+            const phase = Number(rest.split(/\s+/)[0]) || 1;
+            await invokeCmd('gsd_plan_phase', { phase });
+            pushToast({ tone: 'ok', title: `Planned GSD Phase ${phase}`, cause: 'backend-ok' });
+          } else if (base === '/gsd-execute-phase') {
+            const phase = Number(rest.split(/\s+/)[0]) || 1;
+            await invokeCmd('gsd_execute_phase', { phase });
+            pushToast({ tone: 'ok', title: `Executing GSD Phase ${phase}`, cause: 'backend-ok' });
+          } else if (base === '/gsd-verify-work') {
+            const phase = Number(rest.split(/\s+/)[0]) || 1;
+            await invokeCmd('gsd_verify_work', { phase, passed: true, evidence: 'Verified via slash command' });
+            pushToast({ tone: 'ok', title: `Verified GSD Phase ${phase}`, cause: 'backend-ok' });
+          } else {
+            await invokeCmd('gsd_status', {});
+            const toolName = `vox_${base.slice(1).replace(/-/g, '_')}`;
+            pushToast({ tone: 'ok', title: `Dispatched ${base}`, body: rest || `Opened GSD Studio (${toolName})`, cause: 'backend-ok' });
+          }
+        } catch (err) {
+          pushToast({ tone: 'warn', title: `${base} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
+        }
+      })();
       return true;
     }
     if (base === '/plan') {
@@ -1613,7 +1652,7 @@ export default function App() {
     if (base === '/rollback') {
       void (async () => {
         try {
-          const res = await invoke<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_undo', args: {} });
+          const res = await invokeCmd<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_undo', args: {} });
           const failed = !res || res.is_error;
           pushToast({
             tone: failed ? 'warn' : 'ok',
@@ -1638,7 +1677,7 @@ export default function App() {
     if (base === '/audit') {
       void (async () => {
         try {
-          const out = await invoke<{ exit_code: number; stdout: string; stderr: string }>('execute_command', {
+          const out = await invokeCmd<{ exit_code: number; stdout: string; stderr: string }>('execute_command', {
             path: ['check'],
             args: { __argv: [] },
           });
@@ -1655,7 +1694,7 @@ export default function App() {
           });
         } catch {
           try {
-            const res = await invoke<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_check', args: {} });
+            const res = await invokeCmd<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_check', args: {} });
             const failed = !res || res.is_error;
             const rawResult = res && typeof res.result === 'string' ? res.result : JSON.stringify(res?.result);
             const body = !res
@@ -1706,7 +1745,7 @@ export default function App() {
         persisted.add(m.id);
         const content = assistantPersistContent(m);
         if (!content.trim()) continue;
-        invoke('chat_append_message', {
+        invokeCmd('chat_append_message', {
           input: {
             session_id: sessionId,
             role: 'assistant',
@@ -1810,7 +1849,7 @@ export default function App() {
 
   const handleAckAlert = useCallback(async (note: LudusAlert) => {
     setData(prev => ({ ...prev, alerts: prev.alerts.filter(x => x.id !== note.id) }));
-    await invoke('ack_ludus_notification', { notificationId: note.id })
+    await invokeCmd('ack_ludus_notification', { notificationId: note.id })
       .catch((err) => pushToast({ tone: 'warn', title: 'Alert ack failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   }, [pushToast]);
 
@@ -1918,7 +1957,7 @@ export default function App() {
   const handleInterruptTask = useCallback(
     (taskId?: number) => {
       if (taskId == null || !Number.isFinite(taskId)) return;
-      invoke('interrupt_orchestrator_task', { taskId })
+      invokeCmd('interrupt_orchestrator_task', { taskId })
         .then(() => pushToast({ tone: 'info', title: 'Interrupting task', body: `Task #${taskId}`, cause: 'backend-ok' }))
         .catch((err) => pushToast({ tone: 'warn', title: 'Interrupt failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
     },
@@ -1930,8 +1969,9 @@ export default function App() {
     session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
     model_override: p.model_override ?? chatModelOverride,
     grounding_check_enabled: groundingCheckEnabled,
-    force_research: researchMode === 'off' ? false : researchMode === 'auto' ? null : true,
-    research_scope: researchMode === 'deep' ? 'deep' : researchMode === 'fast' ? 'quick' : researchMode === 'auto' ? 'auto' : null,
+    force_research: p.force_research ?? (researchMode === 'off' ? false : researchMode === 'auto' ? null : true),
+    research_mode: p.research_mode ?? researchMode,
+    research_scope: p.research_scope ?? null,
   }), [handleLoquelaSubmit, activeSessionId, chatModelOverride, groundingCheckEnabled, researchMode]);
 
   // Stable setters object so AxisDriveHost's drive://request effect does not
@@ -2127,8 +2167,8 @@ export default function App() {
           // still shown as archived until an unrelated re-render caught it up.
           chatSessionsApi.unarchiveSession(sessionId)
             .then(() => Promise.all([
-              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
-              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
+              invokeCmd<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
+              invokeCmd<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
             ]))
             .then(([active, all]) => setArchivedSessions(all.filter(s => !active.some(a => a.session_id === s.session_id))))
             .catch(err => pushToast({ tone: 'warn', title: 'Unarchive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
@@ -2138,8 +2178,8 @@ export default function App() {
           setShowArchivedSessions(next);
           if (next) {
             Promise.all([
-              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
-              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
+              invokeCmd<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
+              invokeCmd<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
             ])
               .then(([active, all]) => setArchivedSessions(all.filter(s => !active.some(a => a.session_id === s.session_id))))
               .catch(err => pushToast({ tone: 'warn', title: 'Load archived sessions failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
@@ -2147,7 +2187,7 @@ export default function App() {
         }}
         onTaskBadgeClick={(sessionId: string) => {
           const bindGen = ++planBindGenRef.current;
-          invoke<{ plan_session_id: string; plan_version: number } | null>('latest_plan_session_for_chat', { sessionId })
+          invokeCmd<{ plan_session_id: string; plan_version: number } | null>('latest_plan_session_for_chat', { sessionId })
             .then(latest => {
               // A null result (badge showed a stale nonzero count, or the session's plan
               // was archived/retracted between render and click) is a silent no-op by

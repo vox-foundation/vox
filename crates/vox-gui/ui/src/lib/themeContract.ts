@@ -81,6 +81,7 @@ export const REQUIRED_SEMANTIC_CSS_VARS = [
   '--font-serif',
   '--font-display',
   '--font-mono',
+  '--font-terminal-mono',
 ] as const;
 
 export const BANNED_HARDCODED_DARK_BROWN_HEXES = [
@@ -160,6 +161,7 @@ export const THEME_CONTRACT = {
         '--font-serif': "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         '--font-display': "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
         '--font-mono': "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+        '--font-terminal-mono': "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace",
       },
     } satisfies ThemeProfileSpec,
     slate: {
@@ -193,6 +195,7 @@ export const THEME_CONTRACT = {
         '--font-serif': "'Palatino', 'Palatino Linotype', Georgia, serif",
         '--font-display': "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         '--font-mono': "ui-monospace, 'SFMono-Regular', 'JetBrains Mono', monospace",
+        '--font-terminal-mono': "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace",
       },
     } satisfies ThemeProfileSpec,
     'high-contrast': {
@@ -225,6 +228,7 @@ export const THEME_CONTRACT = {
         '--font-serif': "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         '--font-display': "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
         '--font-mono': "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+        '--font-terminal-mono': "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace",
       },
     } satisfies ThemeProfileSpec,
     glacier: {
@@ -258,6 +262,7 @@ export const THEME_CONTRACT = {
         '--font-serif': "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         '--font-display': "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
         '--font-mono': "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+        '--font-terminal-mono': "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace",
       },
     } satisfies ThemeProfileSpec,
   },

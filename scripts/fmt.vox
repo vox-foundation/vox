@@ -55,7 +55,15 @@ fn is_root_rustfmt_toml(p: str) to bool {
 }
 
 fn skip_tombstone(p: str) to bool {
-    if norm(p).contains("/vox-plugin-cloud/") {
+    let n = norm(p);
+    if n.contains("/vox-plugin-cloud/") {
+        return true;
+    }
+    if n.starts_with("patches/") or n.contains("/patches/") {
+        return true;
+    }
+    // drift-allow(vox-path-literal): .vox script cannot import Rust vox_config::paths
+    if n.starts_with(".vox/salvage/") or n.contains("/.vox/salvage/") {
         return true;
     }
     return false;

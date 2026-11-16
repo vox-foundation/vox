@@ -2,6 +2,8 @@ use std::sync::Arc;
 use tokio::sync::Notify;
 use tokio::time::{Duration, timeout};
 
+const DEFAULT_BARRIER_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// A simple waitable barrier to replace `sleep` in tests.
 #[derive(Clone, Default)]
 pub struct TestBarrier {
@@ -21,7 +23,7 @@ impl TestBarrier {
     /// Waits for a signal, with a default 5-second timeout to prevent
     /// tests from hanging indefinitely in CI.
     pub async fn wait(&self) -> bool {
-        self.wait_with_timeout(Duration::from_secs(5)).await
+        self.wait_with_timeout(DEFAULT_BARRIER_TIMEOUT).await
     }
 
     /// Waits for a signal with a specific timeout.
@@ -38,6 +40,7 @@ mod semcov_wave4_tests {
     /// Short delay used to simulate a signal arriving (or not) well inside/after
     /// the barrier's timeout window, local to this test module.
     const SIGNAL_DELAY: Duration = Duration::from_millis(10);
+    const TEST_BARRIER_WAIT: Duration = Duration::from_millis(500);
 
     #[tokio::test]
     async fn wait_with_timeout_returns_true_on_signal() {
@@ -47,7 +50,7 @@ mod semcov_wave4_tests {
             tokio::time::sleep(SIGNAL_DELAY).await;
             b2.signal();
         });
-        let result = barrier.wait_with_timeout(Duration::from_millis(500)).await;
+        let result = barrier.wait_with_timeout(TEST_BARRIER_WAIT).await;
         handle.await.unwrap();
         assert!(
             result,
@@ -71,7 +74,7 @@ mod semcov_wave4_tests {
             tokio::time::sleep(Duration::from_millis(5)).await;
             b2.signal();
         });
-        let result = barrier.wait_with_timeout(Duration::from_millis(500)).await;
+        let result = barrier.wait_with_timeout(TEST_BARRIER_WAIT).await;
         assert!(result);
     }
 

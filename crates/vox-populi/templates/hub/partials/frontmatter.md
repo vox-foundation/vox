@@ -1,21 +1,41 @@
 ---
 license: {{ f.license }}
 base_model: {{ f.base_repo }}
-base_model_relation: adapter
+base_model_relation: {% if f.is_complete_model() %}finetune{% else %}adapter{% endif %}
 {%- if !f.base_rev.is_empty() %}
 base_model_revision: {{ f.base_rev }}
 {%- endif %}
-library_name: vox
+library_name: {% if f.inference_provider_ready %}transformers{% else if f.has_peft_adapter %}peft{% else %}vox{% endif %}
 pipeline_tag: text-generation
 language:
 - en
+{%- if !f.datasets.is_empty() %}
+datasets:
+{%- for d in f.datasets %}
+- {{ d }}
+{%- endfor %}
+{%- endif %}
+spaces:
+- {{ f.playground_space_id }}
 tags:
 - vox
 - vox-mens
-- qwen3
+- {{ f.family_tag() }}
+{%- if f.model_family == "qwen3.5" %}
+- qwen3_5
+- gated-delta-networks
+{%- endif %}
 - qlora
+{%- if f.trained %}
+- rslora
+{%- endif %}
 - candle
 - code
+- conversational
+{%- if f.inference_provider_ready %}
+- text-generation-inference
+- vllm
+{%- endif %}
 {%- if f.trained %}
 {%- if let Some(sp) = f.spoke %}
 - spoke-{{ sp.id }}

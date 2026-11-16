@@ -12,17 +12,17 @@ authorship_model: "claude-opus-4-6"
 # Monorepo-to-Multirepo Defactoring & Build-Time Flywheel SSOT
 
 <!-- kb:summary -->
-This document records the canonical architecture and measured before/after metrics for the Milestone v6.7 and v6.8 monorepo defactoring flywheel. Across two consecutive milestones, Vox eliminated all five workspace dev-dependency back-edge cycles, cut incremental and check compile times by 50% to 96% across the top 14 churn-weighted keystones, expanded standalone `crates.io` publishable packages from 7 to 33 verified crates, cut local `vox ci pre-push` execution to 1.07 seconds, reclaimed 191 GiB across `~/dev` worktrees, and established a four-repository physical topology (`vox`, `vox-ops`, `vox-axis`, `voxlang.org`) with zero LLM split-brain.
+This document records the canonical architecture and measured before/after metrics for the Milestone v6.7 and v6.8 monorepo defactoring flywheel. Across two consecutive milestones, Vox eliminated all five workspace dev-dependency back-edge cycles, cut incremental and check compile times by 50% to 96% across the top 14 churn-weighted keystones, expanded standalone `crates.io` publishable packages from 7 to 33 verified crates, cut local `vox ci pre-push` execution to 1.07 seconds, reclaimed 191 GiB across `~/dev` worktrees, and established a hybrid four-repository federation topology (`vox` monorepo hosting canonical `crates/vox-gui` and `docs-astro` surfaces, `../vox-ops` private sibling repository, and optional external sibling mirrors `../vox-axis` and `../voxlang.org`) with zero LLM split-brain.
 <!-- /kb:summary -->
 
-## 1. Four-Repository Physical Topology (`~/dev`)
+## 1. Hybrid Four-Repository Federation Topology (`.vox/repositories.yaml`)
 
-| Repository | Path on Disk | Visibility | Role | Shared Contract Directories |
-|---|---|---|---|---|
-| **`vox`** | `/Users/brbrainerd/dev/vox` | Public (`Apache-2.0`) | `core` — Compiler, runtime, orchestrator, MCP server, CLI (`default-members = ["crates/vox-cli"]`), and 33 `crates.io` crates | `contracts/wire/`, `contracts/ipc/`, `contracts/telemetry/` |
-| **`vox-ops`** | `/Users/brbrainerd/dev/vox-ops` | Private (`LicenseRef-VoxOps-Proprietary`) | `private-ops` — Cloud GPU provider adapters (`vox-plugin-cloud`), private OTLP/telemetry receiver (`vox-ops-telemetry-ingest`), fleet ops | `contracts/wire/`, `contracts/ipc/`, `contracts/telemetry/` |
-| **`vox-axis`** | `/Users/brbrainerd/dev/vox-axis` (`crates/vox-gui`) | Public / Dual | `gui-surface` — Tauri 2 + React/Vite desktop workbench | `contracts/gui/`, `contracts/telemetry/` |
-| **`voxlang.org`** | `/Users/brbrainerd/dev/voxlang.org` (`docs-astro`) | Public | `docs-site` — Astro 7 + Starlight 0.42 documentation portal | `contracts/documentation/` |
+| Repository ID | Canonical Root (`root_path`) | Optional Sibling Checkout | Visibility | Role | Shared Contract Directories |
+|---|---|---|---|---|---|
+| **`vox`** | `.` | — | Public (`Apache-2.0`) | `core` — Compiler, runtime, orchestrator, MCP server, CLI (`default-members = ["crates/vox-cli"]`), and 33 `crates.io` crates | `contracts/wire/`, `contracts/ipc/`, `contracts/telemetry/`, `contracts/gui/`, `contracts/documentation/` |
+| **`vox-ops`** | `../vox-ops` (`optional: true`) | `../vox-ops` | Private (`LicenseRef-VoxOps-Proprietary`) | `private-ops` — Cloud GPU provider adapters (`vox-plugin-cloud`), private OTLP/telemetry receiver (`vox-ops-telemetry-ingest`), fleet ops (gracefully skipped on public clones) | `contracts/wire/`, `contracts/ipc/`, `contracts/telemetry/` |
+| **`vox-axis`** | `crates/vox-gui` | `../vox-axis` (auto-synced mirror when present) | Public / Dual | `gui-surface` — Tauri 2 + React/Vite desktop workbench | `contracts/gui/`, `contracts/telemetry/` |
+| **`voxlang.org`** | `docs-astro` | `../voxlang.org` (auto-synced mirror when present) | Public | `docs-site` — Astro 7 + Starlight 0.42 documentation portal | `contracts/documentation/` |
 
 ## 2. Measured Compile-Time & Velocity Flywheel (`v6.6` → `v6.8`)
 

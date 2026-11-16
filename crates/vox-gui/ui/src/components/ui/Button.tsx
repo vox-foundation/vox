@@ -1,63 +1,77 @@
-// src/components/ui/Button.tsx
 import React from 'react';
-import { Slot } from '@radix-ui/react-slot';
+import { Slot as SlotPrimitive } from 'radix-ui';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { Loader2 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 
-const VARIANT_CLASS = {
-  primary: 'bg-brass text-bg-base hover:bg-brass-light active:bg-brass-dark disabled:opacity-50',
-  secondary: 'bg-overlay-subtle text-text-primary hover:bg-overlay-subtle active:bg-overlay-subtle',
-  ghost: 'bg-transparent text-text-muted hover:text-text-primary hover:bg-overlay-subtle',
-  outline: 'bg-transparent border border-border-subtle text-text-secondary hover:bg-overlay-subtle',
-  danger: 'bg-red-500 text-white hover:bg-red-600 active:bg-red-700',
-};
+const buttonVariants = cva(
+  'inline-flex items-center justify-center font-medium tracking-wide transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass disabled:pointer-events-none disabled:opacity-50',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-brass text-primary-foreground hover:bg-brass-light active:bg-brass-dark',
+        secondary: 'bg-overlay-subtle text-text-primary hover:bg-overlay-subtle active:bg-overlay-subtle',
+        ghost: 'bg-transparent text-text-muted hover:text-text-primary hover:bg-overlay-subtle',
+        outline: 'bg-transparent border border-border-subtle text-text-secondary hover:bg-overlay-subtle hover:text-text-primary',
+        danger: 'bg-red-500 text-destructive-foreground hover:bg-red-600 active:bg-red-700',
+        roman: 'bg-primary text-primary-foreground border border-border-strong shadow-xs hover:opacity-95 active:opacity-90',
+        subtle: 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent',
+        link: 'bg-transparent text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        xs: 'px-2 py-0.5 text-[10px] h-6 rounded-sm whitespace-nowrap shrink-0',
+        sm: 'px-2.5 py-0.5 text-[10.5px] h-7 rounded-md whitespace-nowrap shrink-0',
+        md: 'px-3.5 py-1.5 text-[12.5px] h-9 rounded-lg whitespace-nowrap shrink-0',
+        lg: 'px-4.5 py-2 text-[14.5px] h-11 rounded-xl whitespace-nowrap shrink-0',
+        icon: 'size-8 p-0 flex items-center justify-center rounded-lg shrink-0',
+      },
+    },
+    defaultVariants: {
+      variant: 'secondary',
+      size: 'md',
+    },
+  }
+);
 
-const SIZE_CLASS = {
-  xs: 'px-2 py-0.5 text-[10px] h-6 rounded-sm whitespace-nowrap shrink-0',
-  sm: 'px-2.5 py-0.5 text-[10.5px] h-7 rounded-md whitespace-nowrap shrink-0',
-  md: 'px-3.5 py-1.5 text-[12.5px] h-9 rounded-lg whitespace-nowrap shrink-0',
-  lg: 'px-4.5 py-2 text-[14.5px] h-11 rounded-xl whitespace-nowrap shrink-0',
-  icon: 'size-8 p-0 flex items-center justify-center rounded-lg shrink-0',
-};
-
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: keyof typeof VARIANT_CLASS;
-  size?: keyof typeof SIZE_CLASS;
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
   loading?: boolean;
   icon?: React.ReactNode;
   trailingIcon?: React.ReactNode;
   asChild?: boolean;
 }
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ 
-    variant = 'secondary', 
-    size = 'md', 
-    loading = false, 
-    icon, 
-    trailingIcon, 
-    asChild = false, 
-    className, 
-    type = 'button', 
-    children, 
-    disabled,
-    ...props 
-  }, ref) => {
-    const Comp = asChild ? Slot : 'button';
-    
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      variant = 'secondary',
+      size = 'md',
+      loading = false,
+      icon,
+      trailingIcon,
+      asChild = false,
+      className,
+      type = 'button',
+      children,
+      disabled,
+      ...props
+    },
+    ref
+  ) => {
+    const mergedClassName = cn(buttonVariants({ variant, size }), className);
+
     if (asChild) {
       return (
-        <Slot
+        <SlotPrimitive.Root
           ref={ref}
-          className={cn(
-            "inline-flex items-center justify-center font-medium tracking-wide transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass",
-            VARIANT_CLASS[variant],
-            SIZE_CLASS[size],
-            className
-          )}
+          data-slot="button"
+          data-variant={variant ?? 'secondary'}
+          className={mergedClassName}
           {...props}
         >
           {children}
-        </Slot>
+        </SlotPrimitive.Root>
       );
     }
 
@@ -65,20 +79,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         type={type}
+        data-slot="button"
+        data-variant={variant ?? 'secondary'}
         disabled={loading || disabled}
-        className={cn(
-          "inline-flex items-center justify-center font-medium tracking-wide transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass",
-          VARIANT_CLASS[variant],
-          SIZE_CLASS[size],
-          className
-        )}
+        className={mergedClassName}
         {...props}
       >
         {loading ? (
-          <svg className="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-current" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
+          <Loader2 className="-ml-1 mr-2 size-3.5 shrink-0 animate-spin text-current" strokeWidth={1.75} aria-hidden="true" />
         ) : icon ? (
           <span className="mr-1.5 flex items-center">{icon}</span>
         ) : null}
@@ -90,3 +98,5 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
+
+export { Button, buttonVariants };

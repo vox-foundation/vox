@@ -19,7 +19,7 @@ pub(crate) const SIZE_TRAIN_SUBDIR: &str = "size_train";
 /// Schema identifier written on every `size_train` JSON record.
 pub(crate) const SIZE_TRAIN_SCHEMA: &str = "size_train.v1";
 
-const QWEN3_SIZE_ORDER: &[&str] = &["0.6B", "1.7B", "4B", "8B", "14B", "32B"];
+const QWEN3_SIZE_ORDER: &[&str] = &["0.6B", "1.7B", "2B", "4B", "8B", "9B", "14B", "27B", "32B"];
 
 /// Parsed `vox mens size-train` arguments.
 pub(crate) struct SizeTrainArgs {
@@ -32,7 +32,10 @@ pub(crate) struct SizeTrainArgs {
 fn size_token_for_label(label: &BaseLabel) -> &str {
     label
         .repo_id
-        .strip_prefix("Qwen/Qwen3-")
+        .strip_prefix("Qwen/Qwen3.8-")
+        .or_else(|| label.repo_id.strip_prefix("Qwen/Qwen3.5-"))
+        .or_else(|| label.repo_id.strip_prefix("Qwen/Qwen3-"))
+        .or_else(|| label.repo_id.strip_prefix("Qwen/"))
         .unwrap_or(&label.repo_id)
 }
 
@@ -160,18 +163,19 @@ pub(crate) fn write_one_size_train(
     Ok(out)
 }
 
-/// Write one `size_train.v1` record per `qwen3_code` QLoRA size, smallest measured `floor_mb` first,
-/// followed by unmeasured rows in `QWEN3_SIZE_TOKENS` order.
-pub(crate) fn write_size_train_records(
+/// Write one `size_train.v1` record per QLoRA size in `ladder_key`, smallest measured `floor_mb`
+/// first, followed by unmeasured rows in `QWEN3_SIZE_ORDER` order.
+pub(crate) fn write_size_train_records_for_ladder(
     overlay: &HashMap<String, Vec<TrainBase>>,
+    ladder_key: &str,
     free_mb: u32,
     hub_root: &Path,
     runs_root: &Path,
     adapters: &HashMap<String, PathBuf>,
 ) -> Result<Vec<PathBuf>> {
     let rows = overlay
-        .get("qwen3_code")
-        .ok_or_else(|| anyhow::anyhow!("overlay missing qwen3_codespoke"))?;
+        .get(ladder_key)
+        .ok_or_else(|| anyhow::anyhow!("overlay missing {ladder_key} spoke"))?;
 
     let mut measured: Vec<&TrainBase> = Vec::new();
     let mut unmeasured: Vec<&TrainBase> = Vec::new();
@@ -205,6 +209,25 @@ pub(crate) fn write_size_train_records(
         written.push(path);
     }
     Ok(written)
+}
+
+/// Write one `size_train.v1` record per `qwen3_code` QLoRA size, smallest measured `floor_mb` first,
+/// followed by unmeasured rows in `QWEN3_SIZE_ORDER` order.
+pub(crate) fn write_size_train_records(
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    free_mb: u32,
+    hub_root: &Path,
+    runs_root: &Path,
+    adapters: &HashMap<String, PathBuf>,
+) -> Result<Vec<PathBuf>> {
+    write_size_train_records_for_ladder(
+        overlay,
+        "qwen3_code",
+        free_mb,
+        hub_root,
+        runs_root,
+        adapters,
+    )
 }
 
 /// Take one free-memory reading via `read_free_mb`, load the overlay from `overlay_root`,
@@ -561,5 +584,193 @@ mod tests {
             assert_eq!(v["reason"], "floor_unmeasured");
             assert_eq!(v["floor_measured"], false);
         }
+    }
+
+    #[test]
+    fn size_token_for_label_handles_qwen3_5_and_qwen3_8_families() {
+        assert_eq!(
+            size_token_for_label(&BaseLabel::from_pin(
+                "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc"
+            )),
+            "2B"
+        );
+        assert_eq!(
+            size_token_for_label(&BaseLabel::from_pin(
+                "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+            )),
+            "4B"
+        );
+        assert_eq!(
+            size_token_for_label(&BaseLabel::from_pin(
+                "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a"
+            )),
+            "9B"
+        );
+        assert_eq!(
+            size_token_for_label(&BaseLabel::from_pin(
+                "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0"
+            )),
+            "27B"
+        );
+        assert_eq!(size_token_for_label(&BaseLabel::from_pin(PIN_8B)), "8B");
+        assert_eq!(
+            size_token_for_label(&BaseLabel::from_pin("Qwen/Qwen3Guard-Gen-0.6B")),
+            "Qwen3Guard-Gen-0.6B"
+        );
+        assert_eq!(
+            size_token_for_label(&BaseLabel::from_pin("org/Custom-7B")),
+            "org/Custom-7B"
+        );
+    }
+
+    #[test]
+    fn size_train_records_for_qwen3_5_code_ladder() {
+        let overlay = load_overlay(&repo_root()).unwrap();
+        let hub = tempfile::tempdir().unwrap();
+        let runs = tempfile::tempdir().unwrap();
+        let adapters = HashMap::new();
+
+        let paths = write_size_train_records_for_ladder(
+            &overlay,
+            "qwen3_5_code",
+            48000,
+            hub.path(),
+            runs.path(),
+            &adapters,
+        )
+        .unwrap();
+
+        let names: Vec<String> = paths
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            names,
+            vec![
+                "Qwen3.5-2B-15852e8c1636.json",
+                "Qwen3.5-4B-851bf6e806ef.json",
+                "Qwen3.5-9B-c20223623576.json",
+                "Qwen3.8-27B-37561816e66b.json",
+            ]
+        );
+
+        let expected = [
+            (
+                0usize,
+                "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+                "2B",
+            ),
+            (
+                1,
+                "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+                "4B",
+            ),
+            (
+                2,
+                "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+                "9B",
+            ),
+            (
+                3,
+                "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+                "27B",
+            ),
+        ];
+        for (idx, pin, size_tok) in expected {
+            let v = read_json(&paths[idx]);
+            assert_eq!(v["schema"], "size_train.v1");
+            assert_eq!(v["status"], "not_trained");
+            assert_eq!(v["hf_id"], pin);
+            assert_eq!(v["size_token"], size_tok);
+            assert_eq!(v["free_mb"], 48000);
+            let floor_mb = v["floor_mb"]
+                .as_u64()
+                .expect("measured qwen3_5_code rungs emit numeric floor_mb");
+            if idx < 3 {
+                assert!(floor_mb <= 48000, "{size_tok}: {floor_mb}");
+                assert_eq!(v["reason"], "base_snapshot_absent");
+            } else {
+                assert!(floor_mb > 48000, "{size_tok}: {floor_mb}");
+                assert_eq!(v["reason"], "does_not_fit");
+            }
+        }
+
+        assert!(
+            write_size_train_records_for_ladder(
+                &overlay,
+                "missing_ladder",
+                48000,
+                hub.path(),
+                runs.path(),
+                &adapters,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn size_train_records_for_qwen3_5_code_measured_order_and_fit() {
+        let mut overlay = HashMap::new();
+        let make_row = |hf_id: &str, floor_mb: u32| TrainBase {
+            hf_id: hf_id.to_string(),
+            floor_mb,
+            methods: vec!["qlora".to_string()],
+            license: Some("apache-2.0".to_string()),
+            attribution_required: false,
+            floor_measured: true,
+            measured_on: Some("test-gpu".to_string()),
+            peak_mb: Some(floor_mb),
+        };
+        overlay.insert(
+            "qwen3_5_code".to_string(),
+            vec![
+                make_row(
+                    "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+                    68000,
+                ),
+                make_row(
+                    "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+                    34500,
+                ),
+                make_row(
+                    "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+                    24000,
+                ),
+                make_row(
+                    "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+                    42000,
+                ),
+            ],
+        );
+
+        let hub = tempfile::tempdir().unwrap();
+        let runs = tempfile::tempdir().unwrap();
+        let adapters = HashMap::new();
+        let paths = write_size_train_records_for_ladder(
+            &overlay,
+            "qwen3_5_code",
+            48000,
+            hub.path(),
+            runs.path(),
+            &adapters,
+        )
+        .unwrap();
+
+        let tokens: Vec<String> = paths
+            .iter()
+            .map(|p| read_json(p)["size_token"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(tokens, vec!["2B", "4B", "9B", "27B"]);
+
+        for idx in [0usize, 1, 2] {
+            let v = read_json(&paths[idx]);
+            assert_eq!(v["status"], "not_trained");
+            assert_eq!(v["reason"], "base_snapshot_absent");
+        }
+        let v_27b = read_json(&paths[3]);
+        assert_eq!(v_27b["status"], "not_trained");
+        assert_eq!(v_27b["reason"], "does_not_fit");
+        assert_eq!(v_27b["floor_mb"], 68000);
+        assert_eq!(v_27b["free_mb"], 48000);
     }
 }

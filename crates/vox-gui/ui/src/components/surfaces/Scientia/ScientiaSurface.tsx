@@ -1,31 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScientiaDashboard } from './ScientiaDashboard';
 import { ClaimsView } from './ClaimsView';
 import { HarnessIssuesPanel } from './HarnessIssuesPanel';
 import { DiscoveryInbox } from './DiscoveryInbox';
 import { DiscoveryReview } from './DiscoveryReview';
+import { WorthinessRadarPanel } from './WorthinessRadarPanel';
+import { DirectPublicationDrawer } from './DirectPublicationDrawer';
+import { BeforeAfterAuditInspector } from './BeforeAfterAuditInspector';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
+
+export { WorthinessRadarPanel, DirectPublicationDrawer, BeforeAfterAuditInspector };
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'inbox', label: 'Inbox' },
   { id: 'studio', label: 'Studio & Review' },
   { id: 'claims', label: 'Claims' },
+  { id: 'audit', label: 'Audit Diff' },
   { id: 'harness', label: 'Harness Issues' },
 ] as const;
 
 type ScientiaTab = typeof TABS[number]['id'];
 
 /**
- * Findings surface (view key `scientia`). Absorbs the former `claims` surface
- * as a tab — both shared the identical 12-command set and Scientia component
- * dir (gui-ia-blueprint §4 MERGE: claims + knowledge-surface → scientia).
+ * Findings surface (view key `scientia`). Unifies the Scientia queue dashboard,
+ * continuous discovery inbox, 6-axis worthiness studio & direct publication flywheel,
+ * atomic claims ledger, and harness issue proposals.
  */
 export function ScientiaSurface(props: SurfaceDecoratorProps) {
   const [tab, setTab] = useState<ScientiaTab>('dashboard');
   const ScientiaIcon = (Icon as any).scientia ?? Icon.beaker;
+
+  useEffect(() => {
+    const onOpenStudio = () => {
+      setTab('studio');
+    };
+    window.addEventListener('vox://scientia-open-studio', onOpenStudio);
+    return () => window.removeEventListener('vox://scientia-open-studio', onOpenStudio);
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-col gap-3 p-4">
@@ -69,6 +83,10 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
         </div>
       ) : tab === 'claims' ? (
         <ClaimsView {...props} />
+      ) : tab === 'audit' ? (
+        <div className="pt-1">
+          <BeforeAfterAuditInspector />
+        </div>
       ) : (
         <HarnessIssuesPanel {...props} />
       )}

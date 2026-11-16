@@ -218,7 +218,7 @@ fn px(half: i64) -> String {
 /// Writes the static contact sheet to `$CONTACT_SHEET_OUT`: each of the ten diagrams in a light
 /// and a dark pane that differ only in the `--sl-*` token values.
 #[test]
-#[ignore = "one-shot generator: set CONTACT_SHEET_OUT"]
+#[ignore = "owner:diagram sunset:never one-shot: generator requires CONTACT_SHEET_OUT"]
 fn contact_sheet() {
     let Ok(out) = std::env::var("CONTACT_SHEET_OUT") else {
         panic!(

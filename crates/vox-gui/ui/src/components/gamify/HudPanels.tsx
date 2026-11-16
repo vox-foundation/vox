@@ -51,7 +51,7 @@ export const RomanBrassGauge: React.FC<RomanBrassGaugeProps> = ({
 };
 
 export interface HudPanelsProps {
-  /** Real LLM spend USD (from get_llm_spend); null = unknown → render "—". */
+  /** Real LLM spend USD (from get_llm_spend); null = unknown, renders em-dash. */
   treasuryUsd?: number | null;
   spendUsd?: number | null;
   energy: number;
@@ -81,6 +81,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
   const spendText = rawSpend === null ? '—' : `$${rawSpend.toFixed(2)}`;
   const currentSpeed = simPaused ? 0 : (simSpeed !== undefined ? simSpeed : (speed ?? 1));
   const isPaused = currentSpeed === 0;
+  const nextCycledSpeed = currentSpeed === 0 ? 1 : currentSpeed === 1 ? 3 : 0;
 
   if (embedded) {
     return (
@@ -95,7 +96,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
         >
           <button
             type="button"
-            onClick={() => onNavigate?.('vox-cost-analytics')}
+            onClick={() => onNavigate?.('mercatus')}
             className="flex shrink-0 items-center gap-1 border-r border-[#C59B27]/45 pr-1.5 hover:text-[#78520E] transition"
           >
             <Icon.denariusCoin className="size-2.5 text-[#8C6825]" aria-hidden="true" />
@@ -113,7 +114,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
         >
           <button
             type="button"
-            onClick={() => onNavigate?.('vox-Ludus-view')}
+            onClick={() => onNavigate?.('tasks')}
             className="flex shrink-0 items-center gap-1 border-r border-[#C59B27]/45 pr-1.5 hover:text-[#78520E] transition"
           >
             <Icon.brazierTorch className="size-2.5 text-[#92400E]" aria-hidden="true" />
@@ -176,7 +177,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
               valueText={spendText}
               percent={rawSpend === null ? 12 : Math.min(100, Math.max(12, rawSpend * 20))}
               accent="gold"
-              onClick={() => onNavigate?.('vox-cost-analytics')}
+              onClick={() => onNavigate?.('mercatus')}
             />
           </div>
         </RomanTooltip>
@@ -191,9 +192,9 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
         className="flex flex-col items-center justify-center px-1.5 py-0.5 border-x border-[#C59B27]/55 bg-gradient-to-b from-[#FAF6EE] to-[#E8DEC8] rounded-xs select-none"
         aria-hidden="true"
       >
-        <span className="font-serif text-[6.5px] text-[#78520E]">▲</span>
+        <Icon.trendUp className="size-2.5 text-[#78520E]" aria-hidden="true" />
         <span className="font-display text-[9px] font-bold text-[#1C140C] tracking-widest">I</span>
-        <span className="font-serif text-[6.5px] text-[#78520E]">▼</span>
+        <Icon.trendDown className="size-2.5 text-[#78520E]" aria-hidden="true" />
       </div>
 
       {/* Gauge 2: Energy Capacity */}
@@ -211,7 +212,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
               percent={maxEnergy > 0 ? (energy / maxEnergy) * 100 : 80}
               accent="emerald"
               tone="emerald"
-              onClick={() => onNavigate?.('vox-operations-hub')}
+              onClick={() => onNavigate?.('tasks')}
             />
           </div>
         </RomanTooltip>
@@ -226,9 +227,9 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
         className="flex flex-col items-center justify-center px-1.5 py-0.5 border-x border-[#C59B27]/55 bg-gradient-to-b from-[#FAF6EE] to-[#E8DEC8] rounded-xs select-none"
         aria-hidden="true"
       >
-        <span className="font-serif text-[6.5px] text-[#78520E]">▲</span>
+        <Icon.trendUp className="size-2.5 text-[#78520E]" aria-hidden="true" />
         <span className="font-display text-[9px] font-bold text-[#1C140C] tracking-widest">III</span>
-        <span className="font-serif text-[6.5px] text-[#78520E]">▼</span>
+        <Icon.trendDown className="size-2.5 text-[#78520E]" aria-hidden="true" />
       </div>
 
       {/* Gauge 3: Speed dial with compact 0x, 1x, 3x buttons */}
@@ -236,7 +237,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
         <RomanTooltip
           title="Simulation Clock Speed"
           purpose="Simulation clock speed for architectural animations, citizen movement, and hydraulic particle flows."
-          actionHint="Use speed buttons beside dial to adjust rate"
+          actionHint="Click dial to cycle speed (0x, 1x, 3x) or use buttons beside dial"
         >
           <div>
             <RomanBrassGauge
@@ -245,11 +246,15 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
               valueText={isPaused ? '0x' : `${currentSpeed}x`}
               percent={isPaused ? 5 : currentSpeed === 1 ? 50 : 95}
               accent="amber"
+              onClick={() => onSetSpeed(nextCycledSpeed)}
             />
           </div>
         </RomanTooltip>
         <div className="flex flex-col gap-0.5">
-          <span className="font-display text-[7.5px] font-bold uppercase tracking-wider text-[#4A3718]">Clock</span>
+          <span className="inline-flex items-center gap-0.5 font-display text-[7.5px] font-bold uppercase tracking-wider text-[#4A3718]">
+            <span>Clock</span>
+            <Icon.arrowRight className="size-2.5 text-[#78520E]" aria-hidden="true" />
+          </span>
           <div className="flex items-center gap-1">
             {[0, 1, 3].map((s) => (
               <RomanTooltip
@@ -262,7 +267,7 @@ export const HudPanels: React.FC<HudPanelsProps> = ({
                   type="button"
                   title={s === 0 ? 'Pause simulation' : `${s}x speed`}
                   onClick={() => onSetSpeed(s)}
-                  className={`px-1.5 py-0.5 rounded font-mono text-[9.5px] transition-all ${
+                  className={`px-1.5 py-0.5 rounded font-mono text-[9.5px] transition-colors ${
                     currentSpeed === s
                       ? 'border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C] font-bold shadow-[0_0_8px_rgba(212,175,55,0.35)]'
                       : 'border border-[#C59B27]/55 bg-[#FAF6EE] text-[#3B2A18] hover:border-[#8C6825] hover:bg-[#EFE6D5]'

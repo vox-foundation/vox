@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import { useOnboardingGate, ONBOARDING_REPLAY_EVENT } from './useOnboardingGate';
 import { KeysSecretsSection } from '../Settings/SettingsView';
 import type { Toast } from '../../../types/tauri';
@@ -56,13 +56,13 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   useEffect(() => {
     (async () => {
       try {
-        const secrets = await invoke<SecretStatusRow[]>('list_secret_status');
+        const secrets = await invokeCmd<SecretStatusRow[]>('list_secret_status');
         setSecretCount(secrets.filter((s) => s.isPresent).length);
       } catch {
         setSecretCount(0);
       }
       try {
-        const providers = await invoke<ProviderStatusRow[]>('inference_provider_status');
+        const providers = await invokeCmd<ProviderStatusRow[]>('inference_provider_status');
         setLocalModelCount(providers.filter((p) => p.is_local && p.local_reachable === true).length);
       } catch {
         setLocalModelCount(0);
@@ -118,7 +118,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   const handleHasKeyDone = async () => {
     setHasKeyWarning(null);
     try {
-      const secrets = await invoke<SecretStatusRow[]>('list_secret_status');
+      const secrets = await invokeCmd<SecretStatusRow[]>('list_secret_status');
       if (secrets.some((s) => s.isPresent)) {
         setScreen('budget');
         return;
@@ -133,7 +133,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   const handleLocalModelDone = async () => {
     setLocalModelWarning(null);
     try {
-      const providers = await invoke<ProviderStatusRow[]>('inference_provider_status');
+      const providers = await invokeCmd<ProviderStatusRow[]>('inference_provider_status');
       if (providers.some((p) => p.is_local && p.local_reachable === true)) {
         setScreen('budget');
         return;
@@ -149,7 +149,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
     setOauthError(null);
     setOauthFallbackUrl(null);
     try {
-      const result = await invoke<{ success: boolean; error: string | null; fallbackUrl: string | null }>('oauth_login_openrouter');
+      const result = await invokeCmd<{ success: boolean; error: string | null; fallbackUrl: string | null }>('oauth_login_openrouter');
       if (!result.success) {
         setOauthError(result.error ?? 'Unknown error');
         setOauthFallbackUrl(result.fallbackUrl ?? null);
@@ -157,7 +157,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
         return;
       }
       setScreen('verifying');
-      const works = await invoke<boolean>('verify_openrouter_key').catch(() => false);
+      const works = await invokeCmd<boolean>('verify_openrouter_key').catch(() => false);
       if (works) {
         setScreen('budget');
       } else {
@@ -328,7 +328,7 @@ function BudgetSetupScreen({
   useEffect(() => {
     (async () => {
       try {
-        const fields = await invoke<UserConfigFieldDto[]>('get_user_config');
+        const fields = await invokeCmd<UserConfigFieldDto[]>('get_user_config');
         const byKey = Object.fromEntries(fields.map((f) => [f.key, f.currentValue]));
         if (byKey.daily_budget_usd) setDaily(byKey.daily_budget_usd);
         if (byKey.per_session_budget_usd) setPerSession(byKey.per_session_budget_usd);
@@ -346,9 +346,9 @@ function BudgetSetupScreen({
     if (busy) return;
     setBusy(true);
     try {
-      await invoke('set_user_config', { key: 'daily_budget_usd', value: daily });
-      await invoke('set_user_config', { key: 'per_session_budget_usd', value: perSession });
-      await invoke('set_user_config', { key: 'budget_warn_threshold_pct', value: String(Number(warnPct) / 100) });
+      await invokeCmd('set_user_config', { key: 'daily_budget_usd', value: daily });
+      await invokeCmd('set_user_config', { key: 'per_session_budget_usd', value: perSession });
+      await invokeCmd('set_user_config', { key: 'budget_warn_threshold_pct', value: String(Number(warnPct) / 100) });
       onContinue();
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Could not save spending limits', body: sanitizeErrorForToast(err), cause: 'backend-error' });

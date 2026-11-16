@@ -247,6 +247,7 @@ describe('VoxGraphStatusPanel', () => {
       },
     });
     renderWithClient(<VoxGraphStatusPanel />);
+    mockInvoke.mockClear();
 
     fireEvent.change(screen.getByLabelText('Staleness TTL in days'), { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save TTL' }));
@@ -307,6 +308,39 @@ describe('VoxGraphStatusPanel', () => {
         '@file:crates/vox-compiler/src/lib.rs',
       );
     });
+  });
+
+  it('surfaces sanitized error alert when vox_search_rebuild returns is_error: true and supports keyboard shard selection', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        corpora: [
+          STALE_CORPUS,
+          { ...STALE_CORPUS, corpus_id: 'docs-kb', title: 'Docs KB', is_fresh: true, stale_reasons: [] },
+        ],
+      },
+    });
+    mockInvoke.mockImplementation((cmd: string, payload?: { tool?: string }) => {
+      if (cmd === 'invoke_mcp_tool' && payload?.tool === 'vox_search_rebuild') {
+        return Promise.resolve({
+          tool: 'vox_search_rebuild',
+          is_error: true,
+          result: { success: false, error: 'rebuild index: lock busy' },
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    const docsShardBtn = screen.getByRole('button', { name: 'Docs KB' });
+    expect(docsShardBtn).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(docsShardBtn);
+    expect(docsShardBtn).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rebuild repo-code-graph' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/rebuild index: lock busy/);
   });
 });
 

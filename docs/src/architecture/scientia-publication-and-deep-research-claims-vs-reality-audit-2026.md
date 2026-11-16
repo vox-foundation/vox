@@ -169,3 +169,40 @@ graph {
     - Add `Discovery Inbox`, `Worthiness & Review`, and `Manuscript & Archive Studio` tabs directly inside `ScientiaSurface.tsx`.
     - Add a 1-click **"Promote to Publication Manifest"** button on every `DiscoveryInbox.tsx` candidate and completed `ResearchView.tsx` session.
     - Add interactive stage progression controls on `PublicationsView.tsx` and `DiscoveryReview.tsx` (`Extract & Verify Claims`, `Compute Novelty Bundle`, `Run Critic Gate`, `Preview IMRaD / LaTeX`, `Run Artifact Replay`, and `Archive to Zenodo / OpenReview`) with a visual 6-axis **Worthiness Radar / Meter** (`Epistemic`, `Novelty`, `Replayability`, `Signal-to-Noise`, `Venue Fit`, `Claim Grounding`).
+
+---
+
+## 4. Deep Research v76 Closure & Measured Before-vs-After Baseline (2026-11-15)
+
+Milestone `scientia-deep-research-v76` (Phases 447–452) closed all 9 reproduced live probes verified between [`contracts/reports/scientia-v76-before-baseline.v1.json`](../../../contracts/reports/scientia-v76-before-baseline.v1.json) (`deterministic_seed: 20260447`, `stage: "before"`) and [`contracts/reports/scientia-v76-after-closure.v1.json`](../../../contracts/reports/scientia-v76-after-closure.v1.json) (`stage: "after"`):
+
+### 4.1 Paired Six-Axis Comparison (`vox scientia v76-audit --stage after`)
+
+| Axis | Metric | Before | After | Delta | NI Verdict | Superior |
+|---|---|---|---|---|---|---|
+| Performance & KV Stability | `kv_cache_prefix_stability_ratio` | `0.544548` | `1.0` | `+0.455452` | `non_inferior` | `true` |
+| Quality & Groundedness | `groundedness_mean` | `0.25` | `0.875` | `+0.625` | `non_inferior` | `true` |
+| Verification & Contradiction | `contradiction_detection_recall` | `0.333333` | `1.0` | `+0.666667` | `inconclusive` (`n=5` pairs) | `false` |
+| Continuum Integration | `composer_continuum_fidelity_rate` | `0.0` | `1.0` | `+1.0` | `non_inferior` | `true` |
+| Socrates Calibration | `selective_abstention_f1` | `0.8` | `1.0` | `+0.2` | `inconclusive` (`n=6` cases) | `false` |
+| Novelty Detection | `prior_art_recall_at_5` | `0.5` | `1.0` | `+0.5` | `inconclusive` (`n=3` bundles) | `false` |
+
+Additional measured six-axis improvements: `session_detail_ipc_payload_bytes` `140517` → `19491`; `gui_cli_db_spawn_count` `3` → `0`; `citation_precision_mean` `1.0` → `0.875`; `multi_hop_bridge_recall_mean` `0.833333` → `0.916667`; `claim_precision` `0.5` → `1.0`; `ece` `0.198333` → `0.055333`; `brier_score` `0.159417` → `0.006337`; `doc_publish_artifact_retention_rate` `0.0` → `1.0`; `false_novelty_rate` `1.0` → `0.0`.
+
+### 4.2 Closed Live Bug Probes (9 / 9 Resolved)
+
+1. `composer_research_scope_overwritten`: `true` → `false`
+2. `research_turn_waves_hardcoded_to_one`: `true` → `false`
+3. `none_to_novel_false_positive_rate`: `1.0` → `0.0`
+4. `artifact_json_wiped_on_doc_publish`: `true` → `false`
+5. `mock_verifier_fallback_rate`: `1.0` → `0.0`
+6. `contradiction_false_support_rate`: `0.666667` → `0.0`
+7. `kv_cache_prefix_stability_ratio`: `0.544548` → `1.0`
+8. `session_detail_ipc_payload_bytes`: `140517` → `19491`
+9. `gui_cli_db_spawn_count`: `3` → `0`
+
+Lessons staging & corroboration summary: `quarantined_findings_count: 3`, `corroborated_promotions_count: 2`, `proposed_effort_rules_count: 2`, `auto_dpo_pairs_minted: 3`, `unreviewed_ssot_mutations: 0`.
+
+## 5. Related Follow-On Research
+
+- [Swarm Observability, Causal Agent Steering, and Hybrid Populi Mesh Research (2026)](swarm-observability-and-populi-mesh-research-2026.md) — post-`v7.6` live multi-wave benchmark audit (`LIVE-01..LIVE-05`), comparative harness mapping, and the **Vox Concilium & Populi** GUI observatory design.

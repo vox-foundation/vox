@@ -75,6 +75,10 @@ pub struct CurriculumSchedule {
     pub curriculum_phases: Option<Vec<String>>,
 }
 
+fn default_user_no_think_switch() -> bool {
+    true
+}
+
 /// Dynamic ChatML separator configuration (registry-driven).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatmlConfig {
@@ -83,6 +87,10 @@ pub struct ChatmlConfig {
     pub role_system: String,
     pub role_user: String,
     pub role_assistant: String,
+    /// Emit Qwen3.0's `" /no_think"` suffix on direct-answer user turns.
+    /// Defaults to `true` for Qwen3.0 compatibility; disabled for Qwen3.5/3.8/Granite.
+    #[serde(default = "default_user_no_think_switch")]
+    pub user_no_think_switch: bool,
 }
 
 impl Default for ChatmlConfig {
@@ -93,6 +101,7 @@ impl Default for ChatmlConfig {
             role_system: "system".to_string(),
             role_user: "user".to_string(),
             role_assistant: "assistant".to_string(),
+            user_no_think_switch: true,
         }
     }
 }
@@ -187,6 +196,10 @@ pub struct LoraTrainingConfig {
     /// Default off (1.5B fits without it); segment count via `VOX_MENS_GC_SEGMENTS`.
     #[serde(default)]
     pub gradient_checkpointing: bool,
+    /// Local run cap in seconds, measured from the start of the training loop (model load excluded);
+    /// checked at optimizer-step boundaries.
+    #[serde(default)]
+    pub max_runtime_secs: Option<u64>,
     /// Provenance: content fingerprint of the resolved training data file, filled
     /// in by each backend right after loading `pairs` (never by the caller — hence
     /// `#[serde(default)]`). Compared against a resumed checkpoint's own
@@ -195,6 +208,18 @@ pub struct LoraTrainingConfig {
     /// from a 6,754-row mix silently resumed against an 883-row corpus).
     #[serde(default)]
     pub data_fingerprint: Option<String>,
+    /// Exclude tied `lm_head` from trainable LoRA adapters to preserve base logits.
+    #[serde(default)]
+    pub lora_exclude_lm_head: bool,
+    /// Enable rank-stabilized LoRA (`rsLoRA`: `alpha / sqrt(rank)` scaling).
+    #[serde(default)]
+    pub use_rslora: bool,
+    /// Normalize backward loss by valid supervised tokens across each `grad_accum` window.
+    #[serde(default)]
+    pub token_normalized_grad_accum: bool,
+    /// Pack multiple sequences into `seq_len` bins with block-diagonal causal masks and RoPE reset.
+    #[serde(default)]
+    pub sequence_packing: bool,
 }
 
 impl Default for LoraTrainingConfig {
@@ -251,7 +276,12 @@ impl Default for LoraTrainingConfig {
             reward_hook: None,
             launch_argv: Vec::new(),
             gradient_checkpointing: false,
+            max_runtime_secs: None,
             data_fingerprint: None,
+            lora_exclude_lm_head: false,
+            use_rslora: false,
+            token_normalized_grad_accum: false,
+            sequence_packing: false,
         }
     }
 }
@@ -277,5 +307,22 @@ mod tests {
     #[test]
     fn launch_argv_defaults_empty() {
         assert!(LoraTrainingConfig::default().launch_argv.is_empty());
+    }
+
+    #[test]
+    fn max_runtime_secs_round_trips_and_defaults_none() {
+        let mut cfg = LoraTrainingConfig::default();
+        assert_eq!(cfg.max_runtime_secs, None);
+        cfg.max_runtime_secs = Some(5);
+        let json = serde_json::to_string(&cfg).expect("serialize");
+        let parsed: LoraTrainingConfig = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed.max_runtime_secs, Some(5));
+
+        let mut raw: serde_json::Value = serde_json::from_str(&json).expect("value");
+        raw.as_object_mut()
+            .expect("object")
+            .remove("max_runtime_secs");
+        let omitted: LoraTrainingConfig = serde_json::from_value(raw).expect("omitted default");
+        assert_eq!(omitted.max_runtime_secs, None);
     }
 }

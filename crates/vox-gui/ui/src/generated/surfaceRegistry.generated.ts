@@ -84,7 +84,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'models', cliGroup: 'model', mcpNamespace: null, tier: 'live_backend', navLabel: 'Models', navIcon: 'cpu', navGroup: 'compute', parentSurface: 'compute' },
   { viewKey: null, cliGroup: 'new', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'openclaw', mcpNamespace: null, tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
-  { viewKey: null, cliGroup: 'plan', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
+  { viewKey: 'gsd', cliGroup: 'plan', mcpNamespace: null, tier: 'live_backend', navLabel: 'GSD', navIcon: 'flow', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: null, cliGroup: 'play', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'plugin', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'pm', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },

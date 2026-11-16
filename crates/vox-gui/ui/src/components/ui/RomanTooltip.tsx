@@ -1,5 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+
+export interface RomanTooltipMetric {
+  label: string;
+  value: string;
+  tone?: 'gold' | 'emerald' | 'crimson';
+}
 
 export interface RomanTooltipProps {
   /** Plain-English title of the feature, button, or surface */
@@ -12,6 +18,14 @@ export interface RomanTooltipProps {
   shortcut?: string;
   /** Optional live status pill text */
   statusBadge?: string;
+  /** Optional bespoke Roman architectural building plate shown in the tooltip header */
+  previewImageSrc?: string;
+  /** Optional Roman tier / crate inscription tag shown over the architectural plate */
+  crateBadge?: string;
+  /** Optional structured live telemetry badges for interactive buildings */
+  metrics?: readonly RomanTooltipMetric[];
+  /** Optional external hover state (e.g. when hovering a building footprint on canvas) */
+  forceOpen?: boolean;
   /** Preferred placement */
   placement?: 'top' | 'bottom' | 'right' | 'left';
   children: React.ReactElement;
@@ -20,9 +34,9 @@ export interface RomanTooltipProps {
 }
 
 /**
- * Plate 2 Romanesque Progressive-Disclosure Tooltip.
+ * Plate 2 Romanesque Progressive-Disclosure & Architectural Monument Tooltip.
  * Renders a carved Carrara marble & burnished brass tablet in a portal explaining
- * what an interactive control is for and what clicking it does in plain English.
+ * what an interactive control or monument is for, its live activity status, and player guidance.
  */
 export function RomanTooltip({
   title,
@@ -30,44 +44,64 @@ export function RomanTooltip({
   actionHint,
   shortcut,
   statusBadge,
+  previewImageSrc,
+  crateBadge,
+  metrics,
+  forceOpen = false,
   placement = 'top',
   children,
   className = 'inline-flex',
   disabled = false,
 }: RomanTooltipProps) {
   const [open, setOpen] = useState(false);
+  const isVisible = (open || forceOpen) && !disabled;
   const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLSpanElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const computePosition = () => {
+  const tooltipWidth = previewImageSrc ? 304 : 276;
+
+  const computePosition = useCallback(() => {
     const el = triggerRef.current;
     if (!el || typeof window === 'undefined') return;
     const rect = el.getBoundingClientRect();
-    const width = 268;
-    const height = actionHint ? 112 : 84;
-    const pad = 10;
+    const measuredH = tooltipRef.current?.offsetHeight ?? 0;
+    const estimatedH =
+      (previewImageSrc ? 104 : 0) +
+      (metrics && metrics.length > 0 ? 34 : 0) +
+      (actionHint ? 124 : 88);
+    const height = measuredH > 24 ? measuredH : estimatedH;
+    const width = tooltipWidth;
+    const pad = 12;
 
-    let top = rect.top - height - 8;
+    let top = rect.top - height - 10;
     let left = rect.left + rect.width / 2 - width / 2;
 
     if (placement === 'bottom') {
-      top = rect.bottom + 8;
+      top = rect.bottom + 10;
     } else if (placement === 'right') {
       top = rect.top + rect.height / 2 - height / 2;
-      left = rect.right + 10;
+      left = rect.right + 12;
     } else if (placement === 'left') {
       top = rect.top + rect.height / 2 - height / 2;
-      left = rect.left - width - 10;
+      left = rect.left - width - 12;
     }
 
-    if (top < pad) top = Math.min(window.innerHeight - height - pad, rect.bottom + 8);
-    if (top + height > window.innerHeight - pad) top = Math.max(pad, rect.top - height - 8);
+    if (top < pad) {
+      top = Math.min(window.innerHeight - height - pad, rect.bottom + 10);
+    }
+    if (top + height > window.innerHeight - pad) {
+      top = Math.max(pad, rect.top - height - 10);
+    }
+    if (top < pad) top = pad;
     if (left < pad) left = pad;
-    if (left + width > window.innerWidth - pad) left = Math.max(pad, window.innerWidth - width - pad);
+    if (left + width > window.innerWidth - pad) {
+      left = Math.max(pad, window.innerWidth - width - pad);
+    }
 
     setCoords({ top, left });
-  };
+  }, [actionHint, metrics, placement, previewImageSrc, tooltipWidth]);
 
   const handleEnter = () => {
     if (disabled) return;
@@ -76,13 +110,19 @@ export function RomanTooltip({
     timerRef.current = setTimeout(() => {
       computePosition();
       setOpen(true);
-    }, 140);
+    }, 95);
   };
 
   const handleLeave = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     setOpen(false);
   };
+
+  useEffect(() => {
+    if (isVisible) {
+      computePosition();
+    }
+  }, [isVisible, computePosition]);
 
   useEffect(() => {
     if (disabled && open) {
@@ -109,40 +149,99 @@ export function RomanTooltip({
       className={className}
     >
       {children}
-      {open &&
-        !disabled &&
+      {isVisible &&
         typeof document !== 'undefined' &&
         createPortal(
           <div
+            ref={tooltipRef}
             role="tooltip"
             data-testid="roman-progressive-tooltip"
-            style={{ top: `${coords.top}px`, left: `${coords.left}px`, width: '268px' }}
-            className="vox-marble-tablet fixed z-[99999] pointer-events-none rounded-lg border-2 border-border-strong bg-bg-surface p-2.5 text-left text-text-primary shadow-[0_12px_28px_rgba(28,20,12,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] animate-in fade-in-0 zoom-in-95 duration-150"
+            style={{ top: `${coords.top}px`, left: `${coords.left}px`, width: `${tooltipWidth}px` }}
+            className="vox-marble-tablet fixed z-(--z-tooltip) pointer-events-none overflow-hidden rounded-xl border-2 border-[#C59B27] bg-bg-surface text-left text-text-primary shadow-[0_16px_36px_rgba(28,20,12,0.42),0_0_22px_rgba(212,175,55,0.28),inset_0_1px_0_rgba(255,255,255,0.95)] animate-in fade-in-0 zoom-in-95 duration-150"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1.5 mb-1.5">
-              <span className="font-display text-[11px] font-bold uppercase tracking-[0.12em] text-text-primary truncate">
-                {title}
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
-                {statusBadge && (
-                  <span className="rounded border border-(--color-status-pass) bg-(--color-status-pass)/15 px-1.5 py-0.5 font-display text-[9px] font-bold text-(--color-status-pass)">
-                    {statusBadge}
-                  </span>
-                )}
-                {shortcut && (
-                  <kbd className="rounded border border-border-strong bg-bg-elevated px-1.5 py-0.5 font-mono text-[9px] font-bold text-text-primary">
-                    {shortcut}
-                  </kbd>
-                )}
-              </div>
-            </div>
-            <p className="font-serif text-[11.5px] leading-snug text-text-secondary">{purpose}</p>
-            {actionHint && (
-              <div className="mt-1.5 flex items-center gap-1.5 rounded border border-border-subtle bg-bg-elevated px-2 py-1 text-[10px] text-text-primary">
-                <span className="inline-block size-1.5 rounded-full bg-(--color-status-pass) animate-pulse shrink-0" />
-                <span className="truncate font-semibold">{actionHint}</span>
+            {previewImageSrc && (
+              <div className="relative h-28 w-full overflow-hidden border-b border-[#C59B27]/75">
+                <img
+                  src={previewImageSrc}
+                  alt=""
+                  aria-hidden="true"
+                  data-testid="roman-tooltip-monument-art"
+                  className="h-full w-full object-cover object-center"
+                />
+                <div
+                  aria-hidden="true"
+                  style={{
+                    background:
+                      'linear-gradient(to top, rgba(28,20,12,0.52) 0%, rgba(28,20,12,0.08) 46%, rgba(28,20,12,0) 100%)',
+                  }}
+                  className="pointer-events-none absolute inset-0"
+                />
+                <div className="absolute inset-x-2 bottom-1.5 flex items-center justify-between gap-1.5">
+                  {crateBadge && (
+                    <span className="rounded border border-border-strong bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-wide text-text-primary shadow-sm">
+                      {crateBadge}
+                    </span>
+                  )}
+                  {statusBadge && (
+                    <span className="inline-flex items-center gap-1 rounded border border-border-strong bg-bg-surface px-1.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-text-primary shadow-sm">
+                      <span className="size-1.5 rounded-full bg-(--color-status-pass) animate-pulse" />
+                      <span>{statusBadge}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             )}
+            <div className="p-2.5">
+              <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1.5 mb-1.5">
+                <span className="font-display text-[11px] font-bold uppercase tracking-[0.11em] text-text-primary leading-tight">
+                  {title}
+                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {!previewImageSrc && statusBadge && (
+                    <span className="rounded border border-(--color-status-pass) bg-(--color-status-pass)/15 px-1.5 py-0.5 font-display text-[9px] font-bold text-(--color-status-pass)">
+                      {statusBadge}
+                    </span>
+                  )}
+                  {shortcut && (
+                    <kbd className="rounded border border-border-strong bg-bg-elevated px-1.5 py-0.5 font-mono text-[9px] font-bold text-text-primary">
+                      {shortcut}
+                    </kbd>
+                  )}
+                </div>
+              </div>
+              <p className="font-serif text-[11px] leading-snug text-text-secondary">{purpose}</p>
+              {metrics && metrics.length > 0 && (
+                <div className="mt-2 grid grid-cols-3 gap-1">
+                  {metrics.map((m) => (
+                    <div
+                      key={m.label}
+                      className="rounded border border-[#C59B27]/45 bg-bg-elevated px-1.5 py-1 text-center"
+                    >
+                      <div className="font-display text-[7.5px] font-bold uppercase tracking-wider text-text-muted">
+                        {m.label}
+                      </div>
+                      <div
+                        className={`font-mono text-[9px] font-bold leading-tight break-words ${
+                          m.tone === 'emerald'
+                            ? 'text-(--color-status-pass)'
+                            : m.tone === 'crimson'
+                              ? 'text-(--color-status-fail)'
+                              : 'text-text-primary'
+                        }`}
+                      >
+                        {m.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {actionHint && (
+                <div className="mt-2 flex items-start gap-1.5 rounded-md border border-[#C59B27]/55 bg-bg-elevated px-2 py-1.5 text-[10px] text-text-primary">
+                  <span className="mt-1 inline-block size-1.5 rounded-full bg-(--color-status-pass) animate-pulse shrink-0" />
+                  <span className="font-semibold leading-snug">{actionHint}</span>
+                </div>
+              )}
+            </div>
           </div>,
           document.body,
         )}
@@ -197,6 +296,8 @@ export function RomanBrassGauge({
   ratio,
   tone = 'gold',
   purpose,
+  actionHint,
+  active,
   onClick,
 }: {
   label: string;
@@ -204,6 +305,8 @@ export function RomanBrassGauge({
   ratio: number;
   tone?: 'gold' | 'emerald' | 'crimson';
   purpose?: string;
+  actionHint?: string;
+  active?: boolean;
   onClick?: () => void;
 }) {
   const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
@@ -225,8 +328,13 @@ export function RomanBrassGauge({
     <button
       type="button"
       data-roman-gauge="true"
+      aria-pressed={onClick && active !== undefined ? active : undefined}
       onClick={onClick}
-      className={`vox-animate-dial-breathe group relative flex items-center gap-2 rounded-lg border-2 border-border-strong bg-bg-surface px-2.5 py-1 text-text-primary shadow-[0_3px_10px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.25)] transition-all duration-200 ${
+      className={`vox-animate-dial-breathe group relative flex items-center gap-2 rounded-lg border-2 bg-bg-surface px-2.5 py-1 text-text-primary shadow-[0_3px_10px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.25)] transition-[border-color,transform] duration-200 ${
+        active
+          ? 'border-(--color-accent-default) ring-1 ring-(--color-accent-default)/50'
+          : 'border-border-strong'
+      } ${
         onClick ? 'cursor-pointer hover:border-(--color-accent-default) hover:-translate-y-0.5' : 'cursor-default'
       }`}
     >
@@ -255,7 +363,7 @@ export function RomanBrassGauge({
           strokeLinecap="round"
           strokeDasharray="62.8"
           strokeDashoffset={62.8 * (1 - clamped)}
-          className="transition-all duration-700 ease-out"
+          className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
         {/* Engraved Roman dial tick marks */}
         {[-75, -45, -15, 15, 45, 75].map((deg) => (
@@ -283,9 +391,13 @@ export function RomanBrassGauge({
     </button>
   );
 
-  if (!purpose) return body;
+  if (!purpose && !actionHint) return body;
   return (
-    <RomanTooltip title={`${label}: ${valueText}`} purpose={purpose}>
+    <RomanTooltip
+      title={`${label}: ${valueText}`}
+      purpose={purpose ?? `${label} telemetry`}
+      actionHint={actionHint}
+    >
       {body}
     </RomanTooltip>
   );

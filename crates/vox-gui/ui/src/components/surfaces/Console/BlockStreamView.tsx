@@ -1,11 +1,28 @@
 import React from 'react';
-import type { TermBlockDto, TermBlockOrigin } from '../../../transport';
-import { Button } from '../../ui/Button';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import type { OpenLocator, TermBlockDto } from '../../../transport';
+import { EmptyState } from '../../ui/EmptyState';
+import { Icon } from '../../ui/Icons';
+import {
+  BlockCard,
+  TERMINAL_MONO_STYLE,
+  isStructuredBlock,
+  type ExtendedTermBlockDto,
+} from './BlockCard';
+
+export { isStructuredBlock };
+export type { ExtendedTermBlockDto };
+
+const VIRTUALIZE_THRESHOLD = 24;
 
 export interface BlockStreamViewProps {
-  blocks: TermBlockDto[];
+  blocks: ExtendedTermBlockDto[];
   pinnedBlockIds?: number[];
   focusedBlockId?: number | null;
+  compact?: boolean;
+  clearedEmpty?: boolean;
+  searchQuery?: string;
+  activeSearchBlockId?: number | null;
   onCopyCommand: (block: TermBlockDto) => void;
   onCopyOutput: (block: TermBlockDto) => void;
   onRerun: (block: TermBlockDto) => void;
@@ -13,54 +30,27 @@ export interface BlockStreamViewProps {
   onAskAgent: (block: TermBlockDto) => void;
   onFocusInChat?: (block: TermBlockDto, lineRange?: string) => void;
   onSelectBlock?: (blockId: number) => void;
-}
-
-function formatOriginLabel(origin: TermBlockOrigin | undefined): string {
-  if (!origin) return 'user';
-  if (typeof origin === 'string') return origin;
-  if (origin.kind === 'agent') return `agent:${origin.agent_id}`;
-  return 'user';
-}
-
-function isAgentOrigin(origin: TermBlockOrigin | undefined): boolean {
-  if (!origin) return false;
-  if (typeof origin === 'string') return origin === 'agent';
-  return origin.kind === 'agent';
-}
-
-function formatStatusLabel(block: TermBlockDto): string {
-  if (block.status === 'Running') return 'running';
-  if (block.status === 'Cancelled') return 'cancelled';
-  if (block.exit_code !== null && block.exit_code !== undefined) {
-    return `exit ${block.exit_code}`;
-  }
-  return block.status === 'Failed' ? 'failed' : 'ok';
-}
-
-export function isStructuredBlock(input: string, outputText: string): boolean {
-  const trimmedInput = input.trim();
-  if (trimmedInput.startsWith('!nu') || trimmedInput.startsWith('/nu')) {
-    return true;
-  }
-  const trimmedOutput = outputText.trim();
-  if (
-    (trimmedOutput.startsWith('{') && trimmedOutput.endsWith('}')) ||
-    (trimmedOutput.startsWith('[') && trimmedOutput.endsWith(']'))
-  ) {
-    try {
-      JSON.parse(trimmedOutput);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  return false;
+  onSendStdin?: (block: TermBlockDto, line: string) => void;
+  onPromoteBg?: (block: TermBlockDto) => void;
+  onInterrupt?: (block: TermBlockDto) => void;
+  onOpenLocator?: (locator: OpenLocator) => void;
+  onExplainFixBlock?: (block: TermBlockDto, mode?: 'explain' | 'fix') => void;
+  diagnosingBlockId?: number | null;
+  onRunProposedCommand?: (cmd: string, sourceBlockId?: number) => void;
+  onInsertInPrompt?: (cmd: string) => void;
+  onOpenSecrets?: () => void;
+  onCancelAgentTurn?: (block: TermBlockDto) => void;
+  onFeedback?: (block: TermBlockDto, verdict: 'accepted' | 'rejected' | 'corrected', correctedCommand?: string) => Promise<boolean | void> | boolean | void;
 }
 
 export function BlockStreamView({
   blocks,
   pinnedBlockIds = [],
   focusedBlockId = null,
+  compact = false,
+  clearedEmpty = false,
+  searchQuery,
+  activeSearchBlockId = null,
   onCopyCommand,
   onCopyOutput,
   onRerun,
@@ -68,178 +58,171 @@ export function BlockStreamView({
   onAskAgent,
   onFocusInChat,
   onSelectBlock,
+  onSendStdin,
+  onPromoteBg,
+  onInterrupt,
+  onOpenLocator,
+  onExplainFixBlock,
+  diagnosingBlockId = null,
+  onRunProposedCommand,
+  onInsertInPrompt,
+  onOpenSecrets,
+  onCancelAgentTurn,
+  onFeedback,
 }: BlockStreamViewProps) {
   const containerRef = React.useRef<HTMLElement | null>(null);
+  const prevCountRef = React.useRef<number>(blocks.length);
+
+  const virtualizer = useVirtualizer({
+    count: blocks.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 136,
+    overscan: 6,
+    observeElementRect: (instance, cb) => {
+      const el = instance.scrollElement;
+      if (!el) return;
+      const emit = () => {
+        const rect = el.getBoundingClientRect();
+        const width = el.clientWidth || el.offsetWidth || rect.width || 0;
+        const height = el.clientHeight || el.offsetHeight || rect.height || 0;
+        cb({ width: Math.round(width), height: Math.round(height) });
+      };
+      emit();
+      if (typeof ResizeObserver === 'undefined') return;
+      const ro = new ResizeObserver(() => emit());
+      ro.observe(el);
+      return () => ro.disconnect();
+    },
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
+  const isVirtualized =
+    blocks.length > VIRTUALIZE_THRESHOLD &&
+    (containerRef.current?.clientHeight ?? 0) > 0 &&
+    virtualItems.length > 0;
 
   React.useEffect(() => {
-    if (containerRef.current) {
+    if (blocks.length > prevCountRef.current && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
+    prevCountRef.current = blocks.length;
   }, [blocks.length]);
+
+  React.useEffect(() => {
+    const targetId = activeSearchBlockId ?? focusedBlockId;
+    if (targetId == null) return;
+    const idx = blocks.findIndex((b) => b.id === targetId);
+    if (idx < 0) return;
+    if (isVirtualized) {
+      virtualizer.scrollToIndex(idx, { align: 'auto' });
+    } else {
+      const el = containerRef.current?.querySelector<HTMLElement>(`[data-block-id="${targetId}"]`);
+      el?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [activeSearchBlockId, focusedBlockId, blocks, isVirtualized, virtualizer]);
+
+  const handleRetryAgentTurn = React.useCallback(
+    (agentBlock: TermBlockDto) => {
+      const match = agentBlock.input.match(/^\?\s*(explain|fix)\s+block\s+#(\d+)/i);
+      if (match && onExplainFixBlock) {
+        const target = blocks.find((b) => b.id === Number(match[2]));
+        if (target) {
+          if (match[1]!.toLowerCase() === 'explain') onExplainFixBlock(target, 'explain');
+          else onExplainFixBlock(target);
+          return;
+        }
+      }
+      onRerun(agentBlock);
+    },
+    [blocks, onExplainFixBlock, onRerun],
+  );
+
+  const renderCard = (block: ExtendedTermBlockDto) => {
+    const isPinned = pinnedBlockIds.includes(block.id) || Boolean(block.pinned);
+    const isFocused = focusedBlockId === block.id || activeSearchBlockId === block.id;
+    return (
+      <BlockCard
+        key={block.id}
+        block={block}
+        isPinned={isPinned}
+        isFocused={isFocused}
+        compact={compact}
+        searchQuery={searchQuery}
+        onCopyCommand={onCopyCommand}
+        onCopyOutput={onCopyOutput}
+        onRerun={onRerun}
+        onPin={onPin}
+        onAskAgent={onAskAgent}
+        onFocusInChat={onFocusInChat}
+        onSelectBlock={onSelectBlock}
+        onSendStdin={onSendStdin}
+        onPromoteBg={onPromoteBg}
+        onInterrupt={onInterrupt}
+        onOpenLocator={onOpenLocator}
+        onExplainFixBlock={onExplainFixBlock}
+        diagnosingBlockId={diagnosingBlockId}
+        onRunProposedCommand={onRunProposedCommand}
+        onInsertInPrompt={onInsertInPrompt}
+        onOpenSecrets={onOpenSecrets}
+        onRetryAgentTurn={handleRetryAgentTurn}
+        onCancelAgentTurn={onCancelAgentTurn}
+        onFeedback={onFeedback}
+      />
+    );
+  };
 
   return (
     <section
       ref={containerRef}
+      tabIndex={0}
       data-testid="block-stream-view"
       aria-label="command blocks"
-      className="flex max-h-[340px] shrink-0 flex-col gap-2 overflow-y-auto border-b border-white/10 px-3 py-2 text-xs scroll-smooth"
+      className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-2 text-xs"
     >
       {blocks.length === 0 ? (
-        <div className="py-2 text-center text-[11px] text-zinc-400 font-mono">
-          No command blocks recorded yet. Enter a command below.
+        <EmptyState
+          icon={<Icon.terminal className="size-6 text-text-muted" aria-hidden="true" />}
+          title={clearedEmpty ? 'Session viewport cleared' : 'Terminal session ready'}
+          description={
+            clearedEmpty
+              ? 'Cleared unpinned blocks from view while preserving scrubbed session history in the terminal journal. Enter a command, ?prompt, or /slash command below.'
+              : 'No command blocks recorded yet. Enter a shell command below or press Cmd+J to focus the prompt.'
+          }
+        />
+      ) : isVirtualized ? (
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            position: 'relative',
+            width: '100%',
+          }}
+        >
+          {virtualItems.map((vItem) => {
+            const block = blocks[vItem.index];
+            if (!block) return null;
+            return (
+              <div
+                key={block.id}
+                data-index={vItem.index}
+                ref={(el) => {
+                  if (el && el.offsetHeight > 0) virtualizer.measureElement(el);
+                }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${vItem.start}px)`,
+                }}
+                className="pb-2"
+              >
+                {renderCard(block)}
+              </div>
+            );
+          })}
         </div>
       ) : (
-        blocks.map((block) => {
-          const originLabel = formatOriginLabel(block.origin);
-          const agentOrigin = isAgentOrigin(block.origin);
-          const statusLabel = formatStatusLabel(block);
-          const durationMs =
-            block.ended_ms !== null && block.ended_ms >= block.started_ms
-              ? `${block.ended_ms - block.started_ms}ms`
-              : null;
-          const outputText = block.output.map((c) => c.text).join('');
-          const isPinned = pinnedBlockIds.includes(block.id);
-          const isFocused = focusedBlockId === block.id;
-          const isStructured = isStructuredBlock(block.input, outputText);
-          let displayOutput = outputText;
-          if (isStructured && outputText.trim()) {
-            try {
-              const parsed = JSON.parse(outputText.trim());
-              displayOutput = JSON.stringify(parsed, null, 2);
-            } catch {
-              // preserve original output
-            }
-          }
-
-          return (
-            <div
-              key={block.id}
-              data-testid="term-block-card"
-              data-block-id={String(block.id)}
-              data-pinned={isPinned ? 'true' : 'false'}
-              data-focused={isFocused ? 'true' : 'false'}
-              onClick={() => onSelectBlock?.(block.id)}
-              className={`flex flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-colors ${
-                isPinned
-                  ? 'border-amber-400/80 bg-amber-950/25 shadow-[0_0_12px_rgba(251,191,36,0.12)]'
-                  : isFocused
-                    ? 'border-cyan/60 bg-cyan-950/20 ring-1 ring-cyan/50'
-                    : 'border-white/10 bg-zinc-950/70 hover:border-white/20'
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-1">
-                <div className="flex items-center gap-1.5 font-mono">
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${
-                      agentOrigin
-                        ? 'border border-amber-500/30 bg-amber-500/20 text-amber-300'
-                        : 'border border-white/10 bg-white/10 text-zinc-300'
-                    }`}
-                  >
-                    {originLabel}
-                  </span>
-                  {isStructured && (
-                    <span
-                      data-testid="term-block-structured-badge"
-                      className="rounded border border-cyan/40 bg-cyan/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-cyan"
-                    >
-                      structured json
-                    </span>
-                  )}
-                  <span className="font-semibold text-zinc-100">{`$ ${block.input}`}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[11px] font-mono">
-                  <span
-                    className={`font-semibold ${
-                      block.status === 'Failed' || (block.exit_code ?? 0) !== 0
-                        ? 'text-red-400'
-                        : 'text-emerald-400'
-                    }`}
-                  >
-                    {statusLabel}
-                  </span>
-                  {durationMs && <span className="text-zinc-400">{durationMs}</span>}
-                </div>
-              </div>
-              {displayOutput && (
-                <pre className="max-h-28 overflow-y-auto whitespace-pre-wrap rounded bg-black/50 p-2 font-mono text-[11px] text-zinc-300 border border-white/5">
-                  {displayOutput}
-                </pre>
-              )}
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => onCopyCommand(block)}
-                  className="h-5 px-2 py-0 text-[10px] text-zinc-400 hover:text-zinc-100 border border-white/10 hover:border-white/25 rounded"
-                >
-                  Copy cmd
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => onCopyOutput(block)}
-                  className="h-5 px-2 py-0 text-[10px] text-zinc-400 hover:text-zinc-100 border border-white/10 hover:border-white/25 rounded"
-                >
-                  Copy output
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => onRerun(block)}
-                  className="h-5 px-2 py-0 text-[10px] text-zinc-400 hover:text-zinc-100 border border-white/10 hover:border-white/25 rounded"
-                >
-                  Re-run
-                </Button>
-                <Button
-                  variant={isPinned ? 'primary' : 'ghost'}
-                  size="xs"
-                  onClick={() => onPin(block)}
-                  className={`h-5 px-2 py-0 text-[10px] rounded border ${
-                    isPinned
-                      ? 'border-amber-400/80 bg-amber-500/25 text-amber-300 font-semibold'
-                      : 'text-zinc-400 hover:text-zinc-100 border-white/10 hover:border-white/25'
-                  }`}
-                >
-                  {isPinned ? 'Pinned' : 'Pin'}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  data-testid="term-block-focus-chat"
-                  onClick={() => {
-                    const sel =
-                      typeof window !== 'undefined'
-                        ? window.getSelection()?.toString()?.trim()
-                        : undefined;
-                    let lineRange: string | undefined = undefined;
-                    if (sel && displayOutput.includes(sel)) {
-                      const allLines = displayOutput.split('\n');
-                      const selLines = sel.split('\n');
-                      const startIdx = allLines.findIndex((l) => l.includes(selLines[0]));
-                      if (startIdx >= 0) {
-                        const endIdx = startIdx + selLines.length - 1;
-                        lineRange = `L${startIdx + 1}-${endIdx + 1}`;
-                      }
-                    }
-                    onFocusInChat?.(block, lineRange);
-                  }}
-                  className="h-5 px-2 py-0 text-[10px] text-cyan hover:text-cyan-200 border border-cyan/30 hover:border-cyan/50 rounded font-medium"
-                >
-                  Focus in Chat
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => onAskAgent(block)}
-                  className="h-5 px-2 py-0 text-[10px] text-cyan hover:text-cyan-light border border-cyan/30 hover:border-cyan/50 bg-cyan/10 rounded font-medium"
-                >
-                  Ask Agent
-                </Button>
-              </div>
-            </div>
-          );
-        })
+        blocks.map(renderCard)
       )}
     </section>
   );

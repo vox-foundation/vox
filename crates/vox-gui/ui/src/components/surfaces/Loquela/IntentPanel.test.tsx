@@ -21,7 +21,8 @@ describe('IntentPanel', () => {
     expect(onChange).toHaveBeenCalledWith({ constraints: "don't touch auth" });
     fireEvent.change(screen.getByLabelText('Acceptance criteria'), { target: { value: 'toggle persists' } });
     expect(onChange).toHaveBeenCalledWith({ acceptance: 'toggle persists' });
-    fireEvent.change(screen.getByLabelText('Effort'), { target: { value: 'urgent' } });
+    fireEvent.click(screen.getByLabelText('Effort'));
+    fireEvent.click(screen.getByRole('option', { name: /urgent/i }));
     expect(onChange).toHaveBeenCalledWith({ effort: 'urgent' });
   });
 });

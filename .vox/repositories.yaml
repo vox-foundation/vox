@@ -1,3 +1,7 @@
+# Vox Hybrid 4-Repository Federation Catalog (SSOT)
+# - `vox` (`.`): Core public monorepo workspace.
+# - `vox-ops` (`../vox-ops`, `optional: true`): Standalone private sibling repository; gracefully skipped when absent on public clones.
+# - `vox-axis` (`crates/vox-gui`) & `voxlang.org` (`docs-astro`): Canonical in-monorepo roots; `vox_repository::federation` automatically promotes external sibling checkouts (`../vox-axis`, `../voxlang.org`) as mirror targets when present on disk.
 schema_version: 1
 primary_repository_id: vox
 repositories:
@@ -16,6 +20,8 @@ repositories:
       - contracts/wire/
       - contracts/ipc/
       - contracts/telemetry/
+      - contracts/gui/
+      - contracts/documentation/
     cargo_patch_crates: []
 
   - repository_id: vox-ops

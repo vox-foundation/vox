@@ -23,6 +23,15 @@ pub struct ConfigDims {
     pub vocab_size: usize,
 }
 
+/// Llama-3.1 piecewise RoPE frequency scaling parameters (`rope_scaling.rope_type == "llama3"`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Llama3RopeScaling {
+    pub factor: f64,
+    pub low_freq_factor: f64,
+    pub high_freq_factor: f64,
+    pub original_max_position_embeddings: usize,
+}
+
 /// Structured transformer layout from HF `config.json` (GPT-2, Qwen2-style, qwen3_5-style).
 #[derive(Debug, Clone, PartialEq)]
 pub struct HfTransformerLayout {
@@ -65,16 +74,47 @@ pub struct HfTransformerLayout {
     pub dims: ConfigDims,
 }
 
-/// True for tensor keys belonging to Qwen3.8-27B's vision tower
-/// (`model.visual.*`) or its multi-token-prediction head (`mtp.*`) — neither
+/// True for tensor keys belonging to VLM vision towers
+/// (`model.visual.*`, `visual.*`) or multi-token-prediction heads (`mtp.*`, `model.mtp.*`) — neither
 /// is part of the text tower this crate extracts a layout for, and neither
 /// should be requested, downloaded, or validated against by a text-only
 /// QLoRA loader.
 pub fn is_vision_or_mtp_key(key: &str) -> bool {
-    key.starts_with("model.visual.") || key.starts_with("mtp.")
+    key.starts_with("model.visual.")
+        || key.starts_with("visual.")
+        || key.starts_with("mtp.")
+        || key.starts_with("model.mtp.")
 }
 
 impl HfTransformerLayout {
+    /// True when attention, layernorm, and final RMSNorm layers use Qwen3.5+ zero-centered `(1.0 + weight)` scaling.
+    ///
+    /// Note: `linear_attn.norm` (`Qwen3_5RMSNormGated`) remains `1.0`-centered even when this is `true`,
+    /// while dense `qwen3`, `qwen2`, `llama`, `mistral`, `granite`, and `gpt2` stay `1.0`-centered everywhere.
+    pub fn uses_zero_centered_rmsnorm(&self) -> bool {
+        let mt = self.model_type.to_ascii_lowercase();
+        mt.starts_with("qwen3_5")
+            || mt.starts_with("qwen3_6")
+            || mt.starts_with("qwen3_8")
+            || mt.starts_with("qwen3_next")
+            || self.layer_types.iter().any(|t| t == "linear_attention")
+    }
+
+    /// Effective per-head rotary dimension honoring `partial_rotary_factor` (e.g. `256 * 0.25 = 64`),
+    /// rounded down to an even number and clamped to `[2, head_dim]`.
+    pub fn effective_rope_dim(&self, head_dim: usize) -> usize {
+        if head_dim < 2 {
+            return head_dim;
+        }
+        match self.rope_partial_rotary_factor {
+            Some(f) if f.is_finite() && f > 0.0 && f < 1.0 => {
+                let raw = (head_dim as f64 * f).round() as usize;
+                let even = (raw / 2) * 2;
+                even.clamp(2, head_dim)
+            }
+            _ => head_dim,
+        }
+    }
     /// Parse `config.json` at `path` into a structured layout.
     pub fn from_config_path(path: &Path) -> anyhow::Result<Self> {
         let raw =
@@ -88,13 +128,76 @@ impl HfTransformerLayout {
         Self::from_value(&v)
     }
 
+    /// Extract `rms_norm_eps` from a `config.json` string (`text_config` first, then root).
+    pub fn parse_rms_norm_eps_str(raw: &str) -> Option<f64> {
+        let v: Value = serde_json::from_str(raw).ok()?;
+        let arch = classify_hf_architecture(&v);
+        let cfg_source = qwen35_text_config(&v, arch).unwrap_or(&v);
+        json_f64(cfg_source, "rms_norm_eps").or_else(|| json_f64(&v, "rms_norm_eps"))
+    }
+
+    /// Extract `rms_norm_eps` from `config.json` at `path`.
+    pub fn parse_rms_norm_eps_path(path: &Path) -> Option<f64> {
+        let raw = read_utf8_path_capped(path).ok()?;
+        Self::parse_rms_norm_eps_str(&raw)
+    }
+
+    /// Extract Llama-3.1 RoPE scaling (`rope_scaling.rope_type == "llama3"`) from `config.json`.
+    pub fn parse_llama3_rope_scaling_str(raw: &str) -> Option<Llama3RopeScaling> {
+        let v: Value = serde_json::from_str(raw).ok()?;
+        let arch = classify_hf_architecture(&v);
+        let cfg_source = qwen35_text_config(&v, arch).unwrap_or(&v);
+        let rs = cfg_source
+            .get("rope_scaling")
+            .filter(|x| x.is_object())
+            .or_else(|| v.get("rope_scaling").filter(|x| x.is_object()))?;
+        let rope_type = rs
+            .get("rope_type")
+            .or_else(|| rs.get("type"))
+            .and_then(|x| x.as_str())?;
+        if !rope_type.eq_ignore_ascii_case("llama3") {
+            return None;
+        }
+        let factor = json_f64(rs, "factor")?;
+        let low_freq_factor = json_f64(rs, "low_freq_factor")?;
+        let high_freq_factor = json_f64(rs, "high_freq_factor")?;
+        let original_max_position_embeddings = json_usize(rs, "original_max_position_embeddings")?;
+        if !(factor.is_finite()
+            && low_freq_factor.is_finite()
+            && high_freq_factor.is_finite()
+            && factor > 0.0
+            && high_freq_factor > low_freq_factor
+            && original_max_position_embeddings > 0)
+        {
+            return None;
+        }
+        Some(Llama3RopeScaling {
+            factor,
+            low_freq_factor,
+            high_freq_factor,
+            original_max_position_embeddings,
+        })
+    }
+
+    /// Extract Llama-3.1 RoPE scaling from `config.json` at `path`.
+    pub fn parse_llama3_rope_scaling_path(path: &Path) -> Option<Llama3RopeScaling> {
+        let raw = read_utf8_path_capped(path).ok()?;
+        Self::parse_llama3_rope_scaling_str(&raw)
+    }
+
     fn from_value(v: &Value) -> anyhow::Result<Self> {
         let architecture = classify_hf_architecture(v);
-        let model_type = v
-            .get("model_type")
+        let tc = qwen35_text_config(v, architecture);
+        let root_model_type = v.get("model_type").and_then(|x| x.as_str()).unwrap_or("");
+        let tc_model_type = tc
+            .and_then(|c| c.get("model_type"))
             .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .to_string();
+            .unwrap_or("");
+        let model_type = if !tc_model_type.is_empty() {
+            tc_model_type.to_string()
+        } else {
+            root_model_type.to_string()
+        };
         let model_l = model_type.to_lowercase();
 
         // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="Qwen/Qwen3-8B"
@@ -278,7 +381,23 @@ fn qwen35_text_config(v: &Value, architecture: HfArchitecture) -> Option<&Value>
     if architecture == HfArchitecture::Qwen35 {
         return v.get("text_config");
     }
-    None
+    let model_l = v
+        .get("model_type")
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let arch_l = v
+        .get("architectures")
+        .and_then(|a| a.as_array())
+        .and_then(|a| a.first())
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if model_l == "gpt2" || arch_l.contains("gpt2") {
+        return None;
+    }
+    v.get("text_config")
+        .filter(|tc| tc.is_object() && tc.get("hidden_size").is_some())
 }
 
 fn qwen35_rope_parameters(v: &Value) -> Option<&Value> {
@@ -324,10 +443,23 @@ fn classify_hf_architecture(v: &Value) -> HfArchitecture {
         .and_then(|a| a.first())
         .and_then(|x| x.as_str())
         .unwrap_or("");
-    let model_type = v.get("model_type").and_then(|x| x.as_str()).unwrap_or("");
+    let model_type = v
+        .get("model_type")
+        .and_then(|x| x.as_str())
+        .or_else(|| {
+            v.get("text_config")
+                .and_then(|tc| tc.get("model_type"))
+                .and_then(|x| x.as_str())
+        })
+        .unwrap_or("");
     let arch_l = arch.to_lowercase();
     let model_l = model_type.to_lowercase();
-    if model_l == "qwen3_5" || model_l == "qwen35" || model_l.contains("qwen3") {
+    if model_l == "qwen3_5"
+        || model_l == "qwen35"
+        || model_l == "qwen3_8"
+        || model_l == "qwen3_next"
+        || model_l.contains("qwen3")
+    {
         return HfArchitecture::Qwen35;
     }
     if arch_l.contains("qwen3") {
@@ -340,6 +472,9 @@ fn classify_hf_architecture(v: &Value) -> HfArchitecture {
         return HfArchitecture::Qwen35;
     }
     if arch_l.contains("mistral") || model_l.contains("mistral") {
+        return HfArchitecture::Qwen35;
+    }
+    if arch_l.contains("granite") || model_l.contains("granite") {
         return HfArchitecture::Qwen35;
     }
     HfArchitecture::Gpt2
@@ -974,5 +1109,91 @@ mod semcov_wave5_tests {
         assert_eq!(layout.namespace_prefix, "h");
         assert_eq!(layout.num_key_value_heads, 12);
         assert_eq!(layout.layer_types, vec!["full_attention"; 12]);
+    }
+
+    #[test]
+    fn parses_hermes3_llama3_1_70b_rms_norm_eps_and_rope_scaling() {
+        let raw = r#"{
+            "model_type": "llama",
+            "architectures": ["LlamaForCausalLM"],
+            "hidden_size": 8192,
+            "num_attention_heads": 64,
+            "num_key_value_heads": 8,
+            "num_hidden_layers": 80,
+            "vocab_size": 128256,
+            "rms_norm_eps": 1e-5,
+            "rope_theta": 500000.0,
+            "rope_scaling": {
+                "rope_type": "llama3",
+                "factor": 8.0,
+                "low_freq_factor": 1.0,
+                "high_freq_factor": 4.0,
+                "original_max_position_embeddings": 8192
+            }
+        }"#;
+        assert_eq!(HfTransformerLayout::parse_rms_norm_eps_str(raw), Some(1e-5));
+        assert_eq!(
+            HfTransformerLayout::parse_llama3_rope_scaling_str(raw),
+            Some(super::Llama3RopeScaling {
+                factor: 8.0,
+                low_freq_factor: 1.0,
+                high_freq_factor: 4.0,
+                original_max_position_embeddings: 8192,
+            })
+        );
+    }
+
+    #[test]
+    fn qwen3_null_rope_scaling_and_rms_norm_eps() {
+        let raw = r#"{
+            "model_type": "qwen3",
+            "architectures": ["Qwen3ForCausalLM"],
+            "hidden_size": 4096,
+            "num_attention_heads": 32,
+            "num_hidden_layers": 36,
+            "vocab_size": 151936,
+            "rms_norm_eps": 1e-6,
+            "rope_scaling": null
+        }"#;
+        assert_eq!(HfTransformerLayout::parse_rms_norm_eps_str(raw), Some(1e-6));
+        assert_eq!(
+            HfTransformerLayout::parse_llama3_rope_scaling_str(raw),
+            None
+        );
+    }
+
+    #[test]
+    fn uses_zero_centered_rmsnorm_distinguishes_qwen35_from_qwen3_and_granite() {
+        let q35 = HfTransformerLayout::from_config_json_str(
+            r#"{"model_type":"qwen3_5","text_config":{"model_type":"qwen3_5_text","hidden_size":2048,"num_attention_heads":8,"num_hidden_layers":4,"vocab_size":248320,"rope_parameters":{"rope_theta":10000000.0,"partial_rotary_factor":0.25}}}"#,
+        )
+        .unwrap();
+        assert!(q35.uses_zero_centered_rmsnorm());
+        assert_eq!(q35.effective_rope_dim(256), 64);
+
+        let q3 = HfTransformerLayout::from_config_json_str(
+            r#"{"model_type":"qwen3","architectures":["Qwen3ForCausalLM"],"hidden_size":4096,"num_attention_heads":32,"num_hidden_layers":36,"vocab_size":151936}"#,
+        )
+        .unwrap();
+        assert!(!q3.uses_zero_centered_rmsnorm());
+        assert_eq!(q3.effective_rope_dim(128), 128);
+
+        let granite = HfTransformerLayout::from_config_json_str(
+            r#"{"model_type":"granite","architectures":["GraniteForCausalLM"],"hidden_size":4096,"num_attention_heads":32,"num_hidden_layers":32,"vocab_size":49152}"#,
+        )
+        .unwrap();
+        assert_eq!(granite.architecture, HfArchitecture::Qwen35);
+        assert!(!granite.uses_zero_centered_rmsnorm());
+    }
+
+    #[test]
+    fn is_vision_or_mtp_key_covers_all_vlm_and_mtp_prefixes() {
+        assert!(is_vision_or_mtp_key("model.visual.blocks.0.attn.weight"));
+        assert!(is_vision_or_mtp_key("visual.patch_embed.proj.weight"));
+        assert!(is_vision_or_mtp_key("mtp.layers.0.fc.weight"));
+        assert!(is_vision_or_mtp_key("model.mtp.fc.weight"));
+        assert!(!is_vision_or_mtp_key(
+            "model.language_model.layers.0.linear_attn.in_proj_a.weight"
+        ));
     }
 }

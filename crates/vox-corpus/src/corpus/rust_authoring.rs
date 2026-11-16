@@ -311,6 +311,50 @@ mod tests {
             assert_eq!(p["category"], "rust_authoring");
         }
     }
+
+    #[test]
+    fn zero_leakage_against_rust_bench() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let bench_path = root.join("mens/data/rust_bench/items.v1.jsonl");
+        let raw = std::fs::read_to_string(&bench_path).expect("read rust_bench items.v1.jsonl");
+        let mut prompts = Vec::new();
+        let mut sigs = Vec::new();
+        for line in raw.lines().filter(|l| !l.trim().is_empty()) {
+            let v: serde_json::Value = serde_json::from_str(line).expect("valid rust_bench JSON");
+            if let Some(p) = v.get("prompt").and_then(|s| s.as_str()) {
+                prompts.push(p.trim().to_ascii_lowercase());
+            }
+            if let Some(s) = v.get("signature").and_then(|s| s.as_str()) {
+                sigs.push(s.trim().to_string());
+            }
+        }
+        assert!(!prompts.is_empty() && !sigs.is_empty());
+
+        let pairs = corpus_from_workspace(root).expect("corpus_from_workspace");
+        for pair in &pairs {
+            let msgs = pair["messages"].as_array().expect("messages array");
+            let user_txt = msgs[0]["content"]
+                .as_str()
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            let asst_txt = msgs[1]["content"].as_str().unwrap_or_default();
+            for p in &prompts {
+                assert!(
+                    !user_txt.contains(p.as_str()),
+                    "rust_authoring prompt leaked rust_bench prompt"
+                );
+            }
+            for s in &sigs {
+                assert!(
+                    !asst_txt.contains(s.as_str()),
+                    "rust_authoring completion leaked rust_bench signature: {s}"
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]

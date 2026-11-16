@@ -1,135 +1,365 @@
 {
   "ssotVersion": "2026.10.19-v3.5",
   "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
-  "capturedAt": "2026-10-19T17:19:45.000Z",
+  "capturedAt": "2026-11-14T02:38:57.912Z",
   "surfaces": {
     "chat-default": {
       "surfaceId": "chat-default",
       "stage": "before",
       "screenshotPath": "artifacts/cv-flywheel/chat-default-before.png",
       "pixelSignals": {
-        "edgeSharpness": 87.8,
-        "luminanceContrast": 14.5,
-        "noiseFloor": 5.3,
-        "meanLuminance": 15.2
+        "edgeSharpness": 99,
+        "luminanceContrast": 27.2,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8861
       },
       "domAudit": {
         "surfaceId": "chat-default",
         "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
         "clippedInteractiveCount": 0,
         "overlappingControlPairs": 0,
-        "unstyledNativeSelectCount": 2,
-        "controlHeightSpreadPx": 6,
-        "rawEmojiCount": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.859,
-        "axeViolations": 1
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 1,
+        "composerToolbarHeightPx": 28,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 5,
+        "discoveredSubTabLabels": [
+          "Focus",
+          "Split Code",
+          "Multi-Agent",
+          "All",
+          "Tasks",
+          "Context",
+          "Routing"
+        ],
+        "discoveredPopoverTriggers": [
+          "loquela-posture-trigger",
+          "loquela-keybind-hud-toggle",
+          "Risk: Moderate — click to configure",
+          "Choose skill",
+          "Structured intent",
+          "Research mode: Auto (Socrates)",
+          "Choose model tier",
+          "Choose send mode"
+        ],
+        "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.785,
-        "promptAdherence": 0.86,
-        "anatomicalAccuracy": 0.96,
-        "compositionQuality": 0.92,
-        "styleConsistency": 0.66
+        "technicalQuality": 0.5746,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.84,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.89
       },
-      "weightedRubricScore": 0.8503
+      "weightedRubricScore": 0.8327
     },
     "loquela-knobs": {
       "surfaceId": "loquela-knobs",
       "stage": "before",
       "screenshotPath": "artifacts/cv-flywheel/loquela-knobs-before.png",
       "pixelSignals": {
-        "edgeSharpness": 93.4,
-        "luminanceContrast": 15.0,
-        "noiseFloor": 5.4,
-        "meanLuminance": 15.6
+        "edgeSharpness": 99,
+        "luminanceContrast": 28.1,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.8863
       },
       "domAudit": {
         "surfaceId": "loquela-knobs",
         "outerOverflowPx": 0,
-        "clippedInteractiveCount": 1,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
         "overlappingControlPairs": 0,
-        "unstyledNativeSelectCount": 2,
-        "controlHeightSpreadPx": 6,
-        "rawEmojiCount": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
         "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.859,
-        "axeViolations": 1
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 1,
+        "composerToolbarHeightPx": 29,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 5,
+        "discoveredSubTabLabels": [
+          "Focus",
+          "Split Code",
+          "Multi-Agent",
+          "All",
+          "Tasks",
+          "Context",
+          "Routing"
+        ],
+        "discoveredPopoverTriggers": [
+          "loquela-posture-trigger",
+          "loquela-keybind-hud-toggle",
+          "Risk: Moderate — click to configure",
+          "Choose skill",
+          "Structured intent",
+          "Research mode: Auto (Socrates)",
+          "Choose model tier",
+          "Choose send mode"
+        ],
+        "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.808,
-        "promptAdherence": 0.86,
-        "anatomicalAccuracy": 0.82,
-        "compositionQuality": 0.92,
-        "styleConsistency": 0.66
+        "technicalQuality": 0.5766,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.84,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.89
       },
-      "weightedRubricScore": 0.828
+      "weightedRubricScore": 0.8331
     },
     "chat-dock-multi": {
       "surfaceId": "chat-dock-multi",
       "stage": "before",
       "screenshotPath": "artifacts/cv-flywheel/chat-dock-multi-before.png",
       "pixelSignals": {
-        "edgeSharpness": 95.1,
-        "luminanceContrast": 15.6,
-        "noiseFloor": 5.5,
-        "meanLuminance": 15.8
+        "edgeSharpness": 99,
+        "luminanceContrast": 56.2,
+        "noiseFloor": 4.5,
+        "meanLuminance": 0.8449
       },
       "domAudit": {
         "surfaceId": "chat-dock-multi",
         "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
         "clippedInteractiveCount": 0,
         "overlappingControlPairs": 0,
-        "unstyledNativeSelectCount": 2,
-        "controlHeightSpreadPx": 6,
-        "rawEmojiCount": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
         "unlitLandmarkCount": 0,
-        "missingDockPanelIds": ["terminal", "urbs"],
-        "viewportCoverageRatio": 0.859,
-        "axeViolations": 1
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 2,
+        "composerToolbarHeightPx": 60,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 0.935,
+        "bracketedLabelCount": 5,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 5,
+        "discoveredSubTabLabels": [
+          "Focus",
+          "Split Code",
+          "Multi-Agent"
+        ],
+        "discoveredPopoverTriggers": [
+          "loquela-posture-trigger",
+          "loquela-keybind-hud-toggle",
+          "Risk: Moderate — click to configure",
+          "Choose skill",
+          "Structured intent",
+          "Research mode: Auto (Socrates)",
+          "Choose model tier",
+          "Choose send mode"
+        ],
+        "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.818,
-        "promptAdherence": 0.66,
-        "anatomicalAccuracy": 0.96,
-        "compositionQuality": 0.92,
-        "styleConsistency": 0.66
+        "technicalQuality": 0.6419,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.84,
+        "compositionQuality": 0.9,
+        "styleConsistency": 0.71
       },
-      "weightedRubricScore": 0.7985
+      "weightedRubricScore": 0.8225
+    },
+    "chat-multidock-900x600": {
+      "surfaceId": "chat-multidock-900x600",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/chat-multidock-900x600-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 42.8,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.8601
+      },
+      "domAudit": {
+        "surfaceId": "chat-multidock-900x600",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.758,
+        "composerToolbarRowCount": 2,
+        "composerToolbarHeightPx": 60,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 5,
+        "statusBarClippedSegmentCount": 4,
+        "sidebarTruncatedLabelCount": 5,
+        "discoveredSubTabLabels": [
+          "Focus",
+          "Split Code",
+          "Multi-Agent"
+        ],
+        "discoveredPopoverTriggers": [
+          "loquela-posture-trigger",
+          "loquela-keybind-hud-toggle",
+          "Risk: Moderate — click to configure",
+          "Choose skill",
+          "Structured intent",
+          "Research mode: Auto (Socrates)",
+          "Choose model tier",
+          "Choose send mode"
+        ],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.6072,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.84,
+        "compositionQuality": 0.9,
+        "styleConsistency": 0.71
+      },
+      "weightedRubricScore": 0.8138
+    },
+    "chat-multidock-1100x720": {
+      "surfaceId": "chat-multidock-1100x720",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/chat-multidock-1100x720-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 54.9,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.841
+      },
+      "domAudit": {
+        "surfaceId": "chat-multidock-1100x720",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.8,
+        "composerToolbarRowCount": 2,
+        "composerToolbarHeightPx": 60,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 0.934,
+        "bracketedLabelCount": 5,
+        "statusBarClippedSegmentCount": 3,
+        "sidebarTruncatedLabelCount": 5,
+        "discoveredSubTabLabels": [
+          "Focus",
+          "Split Code",
+          "Multi-Agent"
+        ],
+        "discoveredPopoverTriggers": [
+          "loquela-posture-trigger",
+          "loquela-keybind-hud-toggle",
+          "Risk: Moderate — click to configure",
+          "Choose skill",
+          "Structured intent",
+          "Research mode: Auto (Socrates)",
+          "Choose model tier",
+          "Choose send mode"
+        ],
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.6355,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.84,
+        "compositionQuality": 0.9,
+        "styleConsistency": 0.71
+      },
+      "weightedRubricScore": 0.8209
     },
     "urbs-civilization": {
       "surfaceId": "urbs-civilization",
       "stage": "before",
       "screenshotPath": "artifacts/cv-flywheel/urbs-civilization-before.png",
       "pixelSignals": {
-        "edgeSharpness": 79.5,
-        "luminanceContrast": 17.3,
-        "noiseFloor": 5.1,
-        "meanLuminance": 16.4
+        "edgeSharpness": 99,
+        "luminanceContrast": 85.2,
+        "noiseFloor": 5,
+        "meanLuminance": 0.6974
       },
       "domAudit": {
         "surfaceId": "urbs-civilization",
         "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
         "clippedInteractiveCount": 0,
         "overlappingControlPairs": 0,
         "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
         "controlHeightSpreadPx": 0,
-        "rawEmojiCount": 2,
-        "unlitLandmarkCount": 2,
+        "rawEmojiCount": 5,
+        "unlitLandmarkCount": 0,
         "missingDockPanelIds": [],
-        "viewportCoverageRatio": 0.859,
+        "viewportCoverageRatio": 0.845,
+        "composerToolbarRowCount": 0,
+        "composerToolbarHeightPx": 0,
+        "duplicateControlGroupCount": 0,
+        "skeletonCount": 0,
+        "rawBacktickCount": 0,
+        "digitalColorLeakCount": 0,
+        "chartPanelFillRatio": 1,
+        "bracketedLabelCount": 0,
+        "statusBarClippedSegmentCount": 0,
+        "sidebarTruncatedLabelCount": 0,
+        "discoveredSubTabLabels": [
+          "Settings",
+          "Gamify"
+        ],
+        "discoveredPopoverTriggers": [],
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.779,
-        "promptAdherence": 0.74,
-        "anatomicalAccuracy": 0.96,
-        "compositionQuality": 0.92,
-        "styleConsistency": 0.76
+        "technicalQuality": 0.9469,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.66,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.8
       },
-      "weightedRubricScore": 0.8228
+      "weightedRubricScore": 0.8807
     }
   }
 }

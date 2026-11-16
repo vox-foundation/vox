@@ -9,7 +9,13 @@ use vox_cli_core::scientia::ScoutOutput;
 use vox_db::VoxDb;
 use vox_db::store::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 use vox_research_events::ResearchEvent;
-use vox_scientia::producers::{ProducerContext, ProducerRegistry};
+use vox_research_events::schema_types::{
+    DiscoverySignalFamily, FindingCandidateV1, WorthinessProfile,
+};
+use vox_scientia::inspect_bridge::novelty::NoveltyVerdict;
+use vox_scientia::producers::{
+    ProducerContext, ProducerRegistry, WorthinessSignalsV2, evaluate_worthiness_v2,
+};
 
 /// Entry point invoked from `commands::scientia`.
 pub async fn run(
@@ -69,7 +75,8 @@ pub async fn run(
 }
 
 /// Persist `FindingCandidateProposed` events as `scientia_finding_candidates`
-/// rows. Returns the count of newly inserted rows (idempotent re-runs return 0).
+/// rows and promote only two-stage Novelty x Utility `strong_candidate` rows
+/// into `scientia_discovery_inbox`. Returns newly inserted ledger count.
 async fn persist_new_candidates(
     codex: &VoxDb,
     events: &[ResearchEvent],
@@ -80,23 +87,55 @@ async fn persist_new_candidates(
         if let ResearchEvent::FindingCandidateProposed {
             finding_id,
             worthiness_score,
+            finding_candidate,
             ..
         } = ev
         {
             let class = class_from_finding_id(finding_id);
             let producer = producer_from_finding_id(finding_id);
+            let candidate_parsed: Option<FindingCandidateV1> = finding_candidate
+                .as_ref()
+                .and_then(|v| serde_json::from_value::<FindingCandidateV1>(v.clone()).ok());
+            let signals_v2 = derive_worthiness_signals_v2(
+                finding_id,
+                *worthiness_score,
+                candidate_parsed.as_ref(),
+                producer,
+            );
+            let eval = evaluate_worthiness_v2(&signals_v2);
+            let internal_signals_json = candidate_parsed
+                .as_ref()
+                .and_then(|fc| serde_json::to_string(&fc.internal_signals).ok())
+                .unwrap_or_else(|| internal_signals_json_for_producer(producer));
+
             let row = FindingCandidateRow {
                 candidate_id: finding_id.clone(),
                 candidate_class: class,
-                publication_id: None,
-                title_hint: None,
-                internal_signals_json: internal_signals_json_for_producer(producer),
-                novelty_evidence_bundle_id: None,
-                worthiness_decision_ref: None,
-                confidence_json: Some(format!(
-                    r#"{{"signal_strength":{}}}"#,
-                    sane_float(*worthiness_score)
+                publication_id: candidate_parsed
+                    .as_ref()
+                    .and_then(|fc| fc.publication_id.clone()),
+                title_hint: candidate_parsed
+                    .as_ref()
+                    .and_then(|fc| fc.title_hint.clone()),
+                internal_signals_json,
+                novelty_evidence_bundle_id: candidate_parsed
+                    .as_ref()
+                    .and_then(|fc| fc.novelty_evidence_bundle_id.clone()),
+                worthiness_decision_ref: Some(format!(
+                    "worthiness-v2:{}",
+                    eval.tier.as_intake_tier_str()
                 )),
+                confidence_json: Some(
+                    serde_json::json!({
+                        "signal_strength": sane_float(*worthiness_score),
+                        "novelty_score": eval.novelty_score,
+                        "utility_score": eval.utility_score,
+                        "composite_score": eval.composite_score,
+                        "novelty_passed": eval.novelty_passed,
+                        "utility_passed": eval.utility_passed,
+                    })
+                    .to_string(),
+                ),
                 repository_id: None,
                 producer_name: producer.to_string(),
                 signal_fingerprint: finding_id.clone(),
@@ -104,7 +143,41 @@ async fn persist_new_candidates(
                 updated_at_ms: now_ms,
             };
             match codex.insert_finding_candidate(&row).await {
-                Ok(InsertOutcome::Inserted) => inserted += 1,
+                Ok(InsertOutcome::Inserted) => {
+                    inserted += 1;
+                    if eval.should_surface_to_inbox() {
+                        let signal_codes: Vec<String> = candidate_parsed
+                            .as_ref()
+                            .map(|fc| {
+                                fc.internal_signals
+                                    .iter()
+                                    .map(|s| s.code.clone())
+                                    .collect::<Vec<_>>()
+                            })
+                            .filter(|codes| !codes.is_empty())
+                            .unwrap_or_else(|| vec!["WORTHINESS_V2_STRONG".to_string()]);
+                        let codes_json = serde_json::to_string(&signal_codes)
+                            .unwrap_or_else(|_| "[\"WORTHINESS_V2_STRONG\"]".to_string());
+                        let target_id = row
+                            .publication_id
+                            .as_deref()
+                            .unwrap_or(row.candidate_id.as_str());
+                        if let Err(e) = codex
+                            .insert_discovery_inbox(
+                                target_id,
+                                now_ms,
+                                eval.tier.as_intake_tier_str(),
+                                &codes_json,
+                            )
+                            .await
+                        {
+                            return Err(anyhow::anyhow!(
+                                "scout: insert_discovery_inbox({}): {e}",
+                                target_id
+                            ));
+                        }
+                    }
+                }
                 Ok(InsertOutcome::AlreadySeen) => {}
                 Err(e) => {
                     return Err(anyhow::anyhow!(
@@ -116,6 +189,96 @@ async fn persist_new_candidates(
         }
     }
     Ok(inserted)
+}
+
+fn derive_worthiness_signals_v2(
+    finding_id: &str,
+    worthiness_score: f64,
+    candidate: Option<&FindingCandidateV1>,
+    producer: &str,
+) -> WorthinessSignalsV2 {
+    let score = sane_float(worthiness_score).clamp(0.0, 1.0);
+    let signals = candidate
+        .map(|fc| fc.internal_signals.as_slice())
+        .unwrap_or(&[]);
+
+    let has_not_novel_signal = signals.iter().any(|s| {
+        let lc = s.code.to_ascii_lowercase();
+        let ls = s.summary.to_ascii_lowercase();
+        lc.contains("not_novel") || ls.contains("prior_art_not_novel")
+    });
+    let has_possibly_novel_signal = signals.iter().any(|s| {
+        let lc = s.code.to_ascii_lowercase();
+        lc.contains("possibly_novel")
+    });
+
+    let (novelty_verdict, novelty_score) = if has_not_novel_signal {
+        (
+            NoveltyVerdict::NotNovel {
+                closest_hit_uri: String::new(),
+                similarity: 0.9,
+            },
+            0.0,
+        )
+    } else if has_possibly_novel_signal {
+        (NoveltyVerdict::PossiblyNovel { closest_score: 0.6 }, 0.4)
+    } else {
+        (NoveltyVerdict::Novel, score)
+    };
+
+    let empirical_delta = matches!(producer, "bench_history" | "mens_training_run")
+        || signals.iter().any(|s| {
+            matches!(
+                s.family,
+                DiscoverySignalFamily::BenchmarkPair | DiscoverySignalFamily::MensScorecard
+            ) || s.code.to_ascii_uppercase().contains("DELTA")
+                || s.code.to_ascii_uppercase().contains("BENCH")
+        });
+
+    let ci_improvement = producer == "test_corpus"
+        || signals
+            .iter()
+            .any(|s| s.family == DiscoverySignalFamily::EvalGate);
+
+    let repro_from_conf = candidate
+        .and_then(|fc| fc.confidence.as_ref())
+        .and_then(|c| c.reproducibility_support)
+        .is_some_and(|r| r >= 0.70);
+    let reproducibility_proof = repro_from_conf
+        || signals
+            .iter()
+            .any(|s| s.family == DiscoverySignalFamily::ReproducibilityArtifact);
+
+    let regression_fix = signals.iter().any(|s| {
+        let lc = s.code.to_ascii_lowercase();
+        let ls = s.summary.to_ascii_lowercase();
+        lc.contains("regression") || ls.contains("regression fix")
+    });
+
+    let claim_grounding = candidate
+        .and_then(|fc| fc.confidence.as_ref())
+        .and_then(|c| c.signal_strength)
+        .map(|v| sane_float(v).clamp(0.0, 1.0))
+        .unwrap_or_else(|| {
+            if matches!(producer, "bench_history" | "mens_training_run")
+                || finding_id.contains("-bench-")
+            {
+                score
+            } else {
+                0.0
+            }
+        });
+
+    WorthinessSignalsV2 {
+        novelty_verdict,
+        novelty_score,
+        empirical_delta,
+        ci_improvement,
+        reproducibility_proof,
+        regression_fix,
+        claim_grounding,
+        profile: WorthinessProfile::Repository,
+    }
 }
 
 fn matches_class_filter(ev: &ResearchEvent, class_filter: Option<&str>) -> bool {
@@ -156,8 +319,12 @@ fn producer_from_finding_id(id: &str) -> &'static str {
     // bench_history; the second token "bench" distinguishes the latter.)
     if id.contains("-bench-") {
         "bench_history"
-    } else if id.contains("-trust-") {
+    } else if id.contains("-trust-") || id.contains("-socrates-") {
         "socrates_telemetry"
+    } else if id.contains("-mens-") {
+        "mens_training_run"
+    } else if id.contains("-test-") {
+        "test_corpus"
     } else {
         "commit_graph"
     }
@@ -304,5 +471,25 @@ mod tests {
         let json = internal_signals_json_for_producer("commit_graph");
         assert!(json.contains("code_uniqueness"));
         assert_eq!(internal_signals_json_for_producer("bench_history"), "[]");
+    }
+
+    #[test]
+    fn worthiness_v2_gating_holds_low_utility_noise_and_surfaces_verified_delta() {
+        // Low-utility commit_graph churn stays in ledger (not surfaced to discovery_inbox)
+        let low_util =
+            derive_worthiness_signals_v2("algimp-2026-05-15-abcdef01", 0.90, None, "commit_graph");
+        let low_eval = evaluate_worthiness_v2(&low_util);
+        assert!(!low_eval.should_surface_to_inbox());
+
+        // Verified benchmark delta passes two-stage Novelty x Utility gate
+        let strong_bench = derive_worthiness_signals_v2(
+            "algimp-2026-05-15-bench-12345678",
+            0.85,
+            None,
+            "bench_history",
+        );
+        let strong_eval = evaluate_worthiness_v2(&strong_bench);
+        assert!(strong_eval.should_surface_to_inbox());
+        assert_eq!(strong_eval.tier.as_intake_tier_str(), "strong_candidate");
     }
 }

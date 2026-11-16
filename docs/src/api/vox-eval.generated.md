@@ -42,6 +42,8 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `corpus_score` | — |
 | `corpus_stats` | — |
 | `decode_protocol` | — |
+| `episode` | — |
+| `episode_controls` | — |
 | `gate_state` | — |
 | `ladder_before_after` | — |
 | `mens` | — |
@@ -52,6 +54,7 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `reasoning_slice` | — |
 | `report` | — |
 | `sequential_mcnemar` | — |
+| `suite_report` | — |
 | `trial_flywheel` | — |
 
 ### Structs
@@ -124,21 +127,21 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `EvalMetrics` | `pub struct EvalMetrics` | [`crates/vox-eval/src/lib.rs#L29-L40`](../../../crates/vox-eval/src/lib.rs#L29-L40) | Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage). |
-| `fn` | `format_validity_score` | `pub fn format_validity_score(response: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L51-L61`](../../../crates/vox-eval/src/lib.rs#L51-L61) | Scores model output based on whether it starts with common refusal prefixes. |
-| `fn` | `is_safety_rejection` | `pub fn is_safety_rejection(response: &str) -> bool` | [`crates/vox-eval/src/lib.rs#L64-L67`](../../../crates/vox-eval/src/lib.rs#L64-L67) | Returns `true` if the text matches known unsafe prompt-injection heuristics. |
-| `fn` | `detect_constructs` | `pub fn detect_constructs(code: &str) -> Vec<&'static str>` | [`crates/vox-eval/src/lib.rs#L198-L206`](../../../crates/vox-eval/src/lib.rs#L198-L206) | Returns construct names whose regex matches at least once in `code`. |
-| `fn` | `construct_coverage_score` | `pub fn construct_coverage_score(code: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L213-L217`](../../../crates/vox-eval/src/lib.rs#L213-L217) | — |
-| `fn` | `scope_compliance_score` | `pub fn scope_compliance_score(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L227-L242`](../../../crates/vox-eval/src/lib.rs#L227-L242) | Bounded-domain heuristic for docs / examples: `1.0` when no high-risk escape patterns appear.  Used by `vox doctor --scope` as a coarse guardrail (not a full security audit). |
-| `struct` | `CollateralDamageReport` | `pub struct CollateralDamageReport` | [`crates/vox-eval/src/lib.rs#L266-L279`](../../../crates/vox-eval/src/lib.rs#L266-L279) | Result of evaluating collateral damage on a held-out benchmark. |
-| `struct` | `CollateralDamageConfig` | `pub struct CollateralDamageConfig` | [`crates/vox-eval/src/lib.rs#L283-L286`](../../../crates/vox-eval/src/lib.rs#L283-L286) | Configuration for collateral damage evaluation. |
-| `fn` | `eval_collateral_damage` | `pub fn eval_collateral_damage(` | [`crates/vox-eval/src/lib.rs#L304`](../../../crates/vox-eval/src/lib.rs#L304) | Evaluate collateral damage by comparing pre/post training scores on a held-out benchmark.  Research (Continual Learning §catastrophic-forgetting) proves that fine-tuning without held-out evaluation hides regression. This function computes the degradation rate and recommends blocking promotion if it exceeds the threshold.  `eval_fn` is a caller-supplied closure that evaluates the model against the benchmark and returns a score in `[0.0, 1.0]`. |
-| `fn` | `eval_collateral_damage_suite` | `pub fn eval_collateral_damage_suite(` | [`crates/vox-eval/src/lib.rs#L330`](../../../crates/vox-eval/src/lib.rs#L330) | Evaluate collateral damage across multiple benchmarks. Returns `Err` with the first benchmark that exceeds the threshold. |
-| `fn` | `cargo_build_reward` | `pub fn cargo_build_reward(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L348-L385`](../../../crates/vox-eval/src/lib.rs#L348-L385) | Compilation-driven feedback for Rust code. Spawns a lightweight `cargo check` in a temporary directory containing the provided snippet. Returns 1.0 if it passes, 0.0 otherwise. |
-| `fn` | `cargo_test_reward` | `pub fn cargo_test_reward(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L390-L427`](../../../crates/vox-eval/src/lib.rs#L390-L427) | Test-driven feedback for Rust code. Spawns a lightweight `cargo test` in a temporary directory containing the provided snippet. Returns 1.0 if it passes, 0.0 otherwise. |
-| `struct` | `SemanticEntropyReport` | `pub struct SemanticEntropyReport` | [`crates/vox-eval/src/lib.rs#L485-L492`](../../../crates/vox-eval/src/lib.rs#L485-L492) | Result of evaluating semantic entropy (diversity) of model samples. |
-| `fn` | `eval_semantic_entropy` | `pub fn eval_semantic_entropy(outputs: &[String], collapse_threshold: f64) -> SemanticEntropyReport` | [`crates/vox-eval/src/lib.rs#L499-L552`](../../../crates/vox-eval/src/lib.rs#L499-L552) | Sample `n` outputs from the model for the same prompt, extract code, and measure structural diversity based on a pseudo-AST hash.  This avoids a circular dependency on the full vox-compiler by using a regex-based structural "shape" extraction. |
-| `fn` | `extract_vox_code` | `pub fn extract_vox_code(response: &str) -> Option<String>` | [`crates/vox-eval/src/lib.rs#L555-L562`](../../../crates/vox-eval/src/lib.rs#L555-L562) | Heuristic code extractor for triple-backticked blocks. |
+| `struct` | `EvalMetrics` | `pub struct EvalMetrics` | [`crates/vox-eval/src/lib.rs#L32-L43`](../../../crates/vox-eval/src/lib.rs#L32-L43) | Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage). |
+| `fn` | `format_validity_score` | `pub fn format_validity_score(response: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L54-L64`](../../../crates/vox-eval/src/lib.rs#L54-L64) | Scores model output based on whether it starts with common refusal prefixes. |
+| `fn` | `is_safety_rejection` | `pub fn is_safety_rejection(response: &str) -> bool` | [`crates/vox-eval/src/lib.rs#L67-L70`](../../../crates/vox-eval/src/lib.rs#L67-L70) | Returns `true` if the text matches known unsafe prompt-injection heuristics. |
+| `fn` | `detect_constructs` | `pub fn detect_constructs(code: &str) -> Vec<&'static str>` | [`crates/vox-eval/src/lib.rs#L201-L209`](../../../crates/vox-eval/src/lib.rs#L201-L209) | Returns construct names whose regex matches at least once in `code`. |
+| `fn` | `construct_coverage_score` | `pub fn construct_coverage_score(code: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L216-L220`](../../../crates/vox-eval/src/lib.rs#L216-L220) | — |
+| `fn` | `scope_compliance_score` | `pub fn scope_compliance_score(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L230-L245`](../../../crates/vox-eval/src/lib.rs#L230-L245) | Bounded-domain heuristic for docs / examples: `1.0` when no high-risk escape patterns appear.  Used by `vox doctor --scope` as a coarse guardrail (not a full security audit). |
+| `struct` | `CollateralDamageReport` | `pub struct CollateralDamageReport` | [`crates/vox-eval/src/lib.rs#L269-L282`](../../../crates/vox-eval/src/lib.rs#L269-L282) | Result of evaluating collateral damage on a held-out benchmark. |
+| `struct` | `CollateralDamageConfig` | `pub struct CollateralDamageConfig` | [`crates/vox-eval/src/lib.rs#L286-L289`](../../../crates/vox-eval/src/lib.rs#L286-L289) | Configuration for collateral damage evaluation. |
+| `fn` | `eval_collateral_damage` | `pub fn eval_collateral_damage(` | [`crates/vox-eval/src/lib.rs#L307`](../../../crates/vox-eval/src/lib.rs#L307) | Evaluate collateral damage by comparing pre/post training scores on a held-out benchmark.  Research (Continual Learning §catastrophic-forgetting) proves that fine-tuning without held-out evaluation hides regression. This function computes the degradation rate and recommends blocking promotion if it exceeds the threshold.  `eval_fn` is a caller-supplied closure that evaluates the model against the benchmark and returns a score in `[0.0, 1.0]`. |
+| `fn` | `eval_collateral_damage_suite` | `pub fn eval_collateral_damage_suite(` | [`crates/vox-eval/src/lib.rs#L333`](../../../crates/vox-eval/src/lib.rs#L333) | Evaluate collateral damage across multiple benchmarks. Returns `Err` with the first benchmark that exceeds the threshold. |
+| `fn` | `cargo_build_reward` | `pub fn cargo_build_reward(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L351-L388`](../../../crates/vox-eval/src/lib.rs#L351-L388) | Compilation-driven feedback for Rust code. Spawns a lightweight `cargo check` in a temporary directory containing the provided snippet. Returns 1.0 if it passes, 0.0 otherwise. |
+| `fn` | `cargo_test_reward` | `pub fn cargo_test_reward(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L393-L430`](../../../crates/vox-eval/src/lib.rs#L393-L430) | Test-driven feedback for Rust code. Spawns a lightweight `cargo test` in a temporary directory containing the provided snippet. Returns 1.0 if it passes, 0.0 otherwise. |
+| `struct` | `SemanticEntropyReport` | `pub struct SemanticEntropyReport` | [`crates/vox-eval/src/lib.rs#L488-L495`](../../../crates/vox-eval/src/lib.rs#L488-L495) | Result of evaluating semantic entropy (diversity) of model samples. |
+| `fn` | `eval_semantic_entropy` | `pub fn eval_semantic_entropy(outputs: &[String], collapse_threshold: f64) -> SemanticEntropyReport` | [`crates/vox-eval/src/lib.rs#L502-L555`](../../../crates/vox-eval/src/lib.rs#L502-L555) | Sample `n` outputs from the model for the same prompt, extract code, and measure structural diversity based on a pseudo-AST hash.  This avoids a circular dependency on the full vox-compiler by using a regex-based structural "shape" extraction. |
+| `fn` | `extract_vox_code` | `pub fn extract_vox_code(response: &str) -> Option<String>` | [`crates/vox-eval/src/lib.rs#L558-L565`](../../../crates/vox-eval/src/lib.rs#L558-L565) | Heuristic code extractor for triple-backticked blocks. |
 | `struct` | `collateral_evidence::CollateralRequirement` | `pub struct CollateralRequirement` | [`crates/vox-eval/src/collateral_evidence.rs#L11-L20`](../../../crates/vox-eval/src/collateral_evidence.rs#L11-L20) | Current collateral gating requirements against which a report is evaluated. |
 | `fn` | `collateral_evidence::from_policy_json` | `pub fn from_policy_json(value: &serde_json::Value) -> Result<Self, String>` | [`crates/vox-eval/src/collateral_evidence.rs#L24-L64`](../../../crates/vox-eval/src/collateral_evidence.rs#L24-L64) | Parse from `eval-gates-ladder.yaml` loaded as a JSON/YAML Value. |
 | `enum` | `collateral_evidence::CollateralRefusal` | `pub enum CollateralRefusal` | [`crates/vox-eval/src/collateral_evidence.rs#L69-L74`](../../../crates/vox-eval/src/collateral_evidence.rs#L69-L74) | Refusal reason when a collateral report cannot be accepted as evidence. |

@@ -2,3 +2,11 @@
 supervised_ratio:
   min_pct: 10.0
   block: true
+
+suites:
+  rust_bench:
+    report_file: suite_report.rust_bench.json
+    min_problem_count: 10
+    min_pass_rate: 0.20
+    block: false
+    require_report: false

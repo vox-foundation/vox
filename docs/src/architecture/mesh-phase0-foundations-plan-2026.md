@@ -35,7 +35,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. Spe
 
 > **Bundled scope note.** P0-T8 also lands the three new hopper `AgentEvent` variants (`TaskReprioritized`, `HopperItemAdmitted`, `HopperItemOverridden`, plus the `ReprioritizationActor` placeholder enum) from the unified-task-hopper SSOT §3.5 Hp-T2 — both touch `crates/vox-orchestrator/src/events.rs`, so we land them in one PR.
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\zealous-ardinghelli-b01e11`. All paths in this plan are relative to the repo root.
+**Working directory.** Worktree at `.claude/worktrees/zealous-ardinghelli-b01e11`. All paths in this plan are relative to the repo root.
 
 ---
 

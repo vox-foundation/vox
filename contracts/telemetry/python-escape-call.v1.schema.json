@@ -1,0 +1,15 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/telemetry/python-escape-call.v1.schema.json",
+  "title": "Tier 2 Python escape-hatch call telemetry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event", "module_hash", "symbol_hash", "tier"],
+  "properties": {
+    "event": { "const": "python.escape_call" },
+    "module_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "symbol_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "tier": { "type": "string", "enum": ["curated", "sidecar", "unverified"] }
+  }
+}

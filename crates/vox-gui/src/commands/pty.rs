@@ -1,70 +1,51 @@
 //! Per-tab PTY sessions for the Vox Console. Each tab owns one PTY running the
 //! user's shell; bytes stream to the UI as Tauri events, input is written back.
 //! Windows spawns use ConPTY via portable-pty (no flashing console windows).
-//!
-//! Pure logic (`default_shell`, `shell_integration_snippet`) lives in
-//! `vox-terminal-core::pty`. This module owns only the Tauri command wrappers.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use tauri::Emitter;
+use tauri::State;
 use vox_terminal_core::pty::{PtyHandle, spawn_pty};
-use vox_terminal_core::{
-    Block, DaemonHost, LocalHost, OpenSpec, SessionEvent, SessionHost, SessionInfo,
-};
+use vox_terminal_core::{BlockId, LocalHost, OpenSpec, SessionHost, SessionInfo};
 
-// Re-export pure helpers so existing call sites in this crate still compile.
+use super::daemon::PersistentDaemon;
+use super::mens_serve::MensServeState;
+use crate::remote::backend::BackendState;
+
+pub mod agent;
+#[cfg(test)]
+mod agent_tests;
+pub mod approvals;
+pub mod slash;
+#[cfg(test)]
+mod tests;
+pub(crate) mod warp;
+
+pub use approvals::{
+    TermAttachmentDto, TermEventPayload, TermOutputPayload, term_attachment_dto_and_decoder,
+};
+#[cfg(test)]
+pub use approvals::{term_attachment_dto_from_attachment, term_attachment_dto_from_parts};
 pub use vox_terminal_core::pty::default_shell;
 
-/// Tauri event carrying a chunk of PTY output. Payload: { tab_id, data }.
 pub const PTY_OUTPUT_EVENT: &str = "vox://pty-output";
-/// Tauri event signalling a PTY exited. Payload: { tab_id }.
 pub const PTY_EXIT_EVENT: &str = "vox://pty-exit";
-/// Tauri event carrying a sequenced chunk of SessionHost output.
 pub const TERM_OUTPUT_EVENT: &str = "vox://term-output";
-/// Tauri event carrying a structured SessionHost lifecycle event.
 pub const TERM_EVENT_EVENT: &str = "vox://term-event";
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-pub struct TermAttachmentDto {
-    pub session_id: String,
-    pub blocks: Vec<Block>,
-    pub replay_utf8: String,
-    pub seq: u64,
-}
-
-#[derive(serde::Serialize, Clone, Debug)]
-pub struct TermOutputPayload {
-    pub session_id: String,
-    pub seq: u64,
-    pub data: String,
-}
-
-#[derive(serde::Serialize, Clone, Debug)]
-pub struct TermEventPayload {
-    pub session_id: String,
-    pub event: SessionEvent,
-}
-
-pub fn term_attachment_dto_from_parts(
-    session_id: &str,
-    blocks: Vec<Block>,
-    replay_bytes: &[u8],
-    seq: u64,
-) -> TermAttachmentDto {
-    TermAttachmentDto {
-        session_id: session_id.to_string(),
-        blocks,
-        replay_utf8: String::from_utf8_lossy(replay_bytes).into_owned(),
-        seq,
-    }
+pub(super) fn decode_stream_chunk(
+    decoder: &mut vox_terminal_core::Utf8StreamDecoder,
+    bytes: &[u8],
+) -> String {
+    decoder.push(bytes)
 }
 
 /// Registry of live PTY sessions and the shared `SessionHost` bridge. Managed by Tauri state.
 pub struct PtyManager {
     sessions: Mutex<HashMap<String, PtyHandle>>,
-    local_host: Arc<LocalHost>,
+    pub(super) local_host: Arc<LocalHost>,
+    pub(super) agent_turns: Arc<agent::AgentTurnTracker>,
     attached_forwarders: Mutex<HashMap<String, tokio::task::AbortHandle>>,
 }
 
@@ -72,7 +53,8 @@ impl Default for PtyManager {
     fn default() -> Self {
         Self {
             sessions: Mutex::new(HashMap::new()),
-            local_host: Arc::new(LocalHost::default()),
+            local_host: Arc::new(approvals::build_local_host_with_journal()),
+            agent_turns: Arc::new(agent::AgentTurnTracker::default()),
             attached_forwarders: Mutex::new(HashMap::new()),
         }
     }
@@ -98,68 +80,31 @@ impl PtyManager {
         self.local_host.clone()
     }
 
-    pub async fn host_for(
-        &self,
-        daemon: &Arc<super::daemon::PersistentDaemon>,
-    ) -> Arc<dyn SessionHost> {
-        if let Ok(addr) = daemon.ensure().await {
-            let client = match daemon.token().await {
-                Some(tok) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, tok),
-                None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
-            };
-            return Arc::new(DaemonHost::new(client));
-        }
-        self.local_host.clone()
+    pub async fn host_for(&self, daemon: &Arc<PersistentDaemon>) -> Arc<dyn SessionHost> {
+        approvals::resolve_session_host(&self.local_host, daemon).await
     }
-}
-
-#[derive(serde::Serialize, Clone)]
-struct PtyChunk {
-    tab_id: String,
-    data: String,
-}
-
-#[derive(serde::Serialize, Clone)]
-struct PtyExit {
-    tab_id: String,
 }
 
 #[tauri::command]
 pub fn pty_spawn(
     app: tauri::AppHandle,
-    manager: tauri::State<'_, PtyManager>,
+    manager: State<'_, PtyManager>,
     tab_id: String,
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
-    let shell = default_shell();
-    let (handle, mut rx) = spawn_pty(&shell, cols, rows).map_err(|e| e.to_string())?;
-
-    // Kill any existing session for this tab before replacing.
+    let (handle, rx) = spawn_pty(&default_shell(), cols, rows).map_err(|e| e.to_string())?;
     if let Some(mut old) = lock(&manager.sessions).remove(&tab_id) {
         old.kill();
     }
     lock(&manager.sessions).insert(tab_id.clone(), handle);
-
-    // Forward byte stream from core's mpsc to Tauri events.
-    let app_handle = app.clone();
-    let id = tab_id.clone();
-    tokio::spawn(async move {
-        while let Some(bytes) = rx.recv().await {
-            let chunk = PtyChunk {
-                tab_id: id.clone(),
-                data: String::from_utf8_lossy(&bytes).to_string(),
-            };
-            let _ = app_handle.emit(PTY_OUTPUT_EVENT, chunk);
-        }
-        let _ = app_handle.emit(PTY_EXIT_EVENT, PtyExit { tab_id: id });
-    });
+    warp::spawn_pty_forwarder(app, tab_id, rx);
     Ok(())
 }
 
 #[tauri::command]
 pub fn pty_write(
-    manager: tauri::State<'_, PtyManager>,
+    manager: State<'_, PtyManager>,
     tab_id: String,
     data: String,
 ) -> Result<(), String> {
@@ -169,7 +114,7 @@ pub fn pty_write(
 }
 
 #[tauri::command]
-pub fn pty_close(manager: tauri::State<'_, PtyManager>, tab_id: String) -> Result<(), String> {
+pub fn pty_close(manager: State<'_, PtyManager>, tab_id: String) -> Result<(), String> {
     if let Some(mut handle) = lock(&manager.sessions).remove(&tab_id) {
         handle.kill();
     }
@@ -178,214 +123,331 @@ pub fn pty_close(manager: tauri::State<'_, PtyManager>, tab_id: String) -> Resul
 
 #[tauri::command]
 pub async fn term_session_open(
-    manager: tauri::State<'_, PtyManager>,
-    daemon: tauri::State<'_, Arc<super::daemon::PersistentDaemon>>,
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
     cols: u16,
     rows: u16,
     shell: Option<String>,
 ) -> Result<String, String> {
-    let host = manager.host_for(daemon.inner()).await;
-    host.open(OpenSpec { cols, rows, shell })
+    let h = manager.host_for(daemon.inner()).await;
+    h.open(OpenSpec { cols, rows, shell })
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn term_session_list(
-    manager: tauri::State<'_, PtyManager>,
-    daemon: tauri::State<'_, Arc<super::daemon::PersistentDaemon>>,
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
 ) -> Result<Vec<SessionInfo>, String> {
-    let host = manager.host_for(daemon.inner()).await;
-    host.list().await.map_err(|e| e.to_string())
+    let h = manager.host_for(daemon.inner()).await;
+    h.list().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn term_session_attach(
     app: tauri::AppHandle,
-    manager: tauri::State<'_, PtyManager>,
-    daemon: tauri::State<'_, Arc<super::daemon::PersistentDaemon>>,
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
     session_id: String,
+    after_seq: Option<u64>,
 ) -> Result<TermAttachmentDto, String> {
     let host = manager.host_for(daemon.inner()).await;
-    let mut att = host.attach(&session_id).await.map_err(|e| e.to_string())?;
-    let dto = term_attachment_dto_from_parts(&session_id, att.blocks, &att.replay, att.seq);
-
+    let att = host
+        .attach(&session_id, after_seq)
+        .await
+        .map_err(|e| e.to_string())?;
+    let (dto, decoder) = term_attachment_dto_and_decoder(&session_id, &att);
     if let Some(prev) = lock(&manager.attached_forwarders).remove(&session_id) {
         prev.abort();
     }
-
-    let sid = session_id.clone();
-    let app_handle = app.clone();
-    let jh = tokio::spawn(async move {
-        loop {
-            tokio::select! {
-                chunk = att.output.recv() => {
-                    let Ok(c) = chunk else { break };
-                    let payload = TermOutputPayload {
-                        session_id: sid.clone(),
-                        seq: c.seq,
-                        data: String::from_utf8_lossy(&c.bytes).into_owned(),
-                    };
-                    let _ = app_handle.emit(TERM_OUTPUT_EVENT, payload);
-                }
-                ev = att.events.recv() => {
-                    let Ok(event) = ev else { break };
-                    let payload = TermEventPayload {
-                        session_id: sid.clone(),
-                        event,
-                    };
-                    let _ = app_handle.emit(TERM_EVENT_EVENT, payload);
-                }
-            }
-        }
-    });
-
-    lock(&manager.attached_forwarders).insert(session_id, jh.abort_handle());
-
+    let handle = warp::spawn_term_forwarder(app, host, session_id.clone(), att, decoder, dto.seq);
+    lock(&manager.attached_forwarders).insert(session_id, handle);
     Ok(dto)
 }
 
 #[tauri::command]
 pub async fn term_session_input(
-    manager: tauri::State<'_, PtyManager>,
-    daemon: tauri::State<'_, Arc<super::daemon::PersistentDaemon>>,
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
     session_id: String,
     data: String,
 ) -> Result<(), String> {
-    let host = manager.host_for(daemon.inner()).await;
-    host.input(&session_id, data.as_bytes())
+    let h = manager.host_for(daemon.inner()).await;
+    h.input(&session_id, data.as_bytes())
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn term_session_submit(
-    manager: tauri::State<'_, PtyManager>,
-    daemon: tauri::State<'_, Arc<super::daemon::PersistentDaemon>>,
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
     session_id: String,
     line: String,
 ) -> Result<u64, String> {
-    let host = manager.host_for(daemon.inner()).await;
-    let bid = host
-        .submit(&session_id, &line)
+    let h = manager.host_for(daemon.inner()).await;
+    h.submit(&session_id, &line)
         .await
-        .map_err(|e| e.to_string())?;
-    Ok(bid.0)
+        .map(|b| b.0)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn term_session_resize(
-    manager: tauri::State<'_, PtyManager>,
-    daemon: tauri::State<'_, Arc<super::daemon::PersistentDaemon>>,
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
     session_id: String,
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
-    let host = manager.host_for(daemon.inner()).await;
-    host.resize(&session_id, cols, rows)
+    let h = manager.host_for(daemon.inner()).await;
+    h.resize(&session_id, cols, rows)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn term_session_close(
-    manager: tauri::State<'_, PtyManager>,
-    daemon: tauri::State<'_, Arc<super::daemon::PersistentDaemon>>,
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
     session_id: String,
 ) -> Result<(), String> {
     if let Some(prev) = lock(&manager.attached_forwarders).remove(&session_id) {
         prev.abort();
     }
-    let host = manager.host_for(daemon.inner()).await;
-    host.close(&session_id).await.map_err(|e| e.to_string())
+    let h = manager.host_for(daemon.inner()).await;
+    h.close(&session_id).await.map_err(|e| e.to_string())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use vox_terminal_core::pty::shell_integration_snippet;
+#[tauri::command]
+pub async fn term_session_set_security(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    session_id: String,
+    security_level: String,
+) -> Result<(), String> {
+    let level = warp::parse_security_level(&security_level)?;
+    let h = manager.host_for(daemon.inner()).await;
+    h.set_security_level(&session_id, level)
+        .await
+        .map_err(|e| e.to_string())
+}
 
-    #[test]
-    fn default_shell_is_nonempty() {
-        assert!(!default_shell().is_empty());
-    }
+#[tauri::command]
+pub async fn term_session_set_control(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    session_id: String,
+    control_mode: String,
+) -> Result<(), String> {
+    let mode = warp::parse_control_mode(&control_mode)?;
+    let h = manager.host_for(daemon.inner()).await;
+    h.set_control_mode(&session_id, mode)
+        .await
+        .map_err(|e| e.to_string())
+}
 
-    #[test]
-    fn manager_starts_empty() {
-        let m = PtyManager::default();
-        assert_eq!(m.count(), 0);
-        assert!(!m.has("tab-1"));
-    }
+#[tauri::command]
+pub async fn term_session_pin(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    session_id: String,
+    block_id: u64,
+    pinned: bool,
+) -> Result<(), String> {
+    let h = manager.host_for(daemon.inner()).await;
+    h.pin_block(&session_id, BlockId(block_id), pinned)
+        .await
+        .map_err(|e| e.to_string())
+}
 
-    #[test]
-    fn integration_snippet_supports_pwsh_and_bash() {
-        assert!(shell_integration_snippet("pwsh").is_some());
-        assert!(shell_integration_snippet("powershell.exe").is_some());
-        // vox-arch-check: allow abs-path
-        assert!(shell_integration_snippet("/usr/bin/bash").is_some());
-    }
+#[tauri::command]
+pub async fn term_session_promote_bg(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    session_id: String,
+    block_id: Option<u64>,
+) -> Result<bool, String> {
+    let h = manager.host_for(daemon.inner()).await;
+    warp::promote_bg_on_host(h.as_ref(), &session_id, block_id).await
+}
 
-    #[test]
-    fn integration_snippet_skips_unknown_shells() {
-        // zsh/fish gained OSC 633 integration in vox-terminal-core's Track 6
-        // (Nushell effort) — see shell_integration_snippet's own doc comment
-        // and test module in crates/vox-terminal-core/src/pty.rs. cmd.exe has
-        // no OSC 633 support and stays unsupported.
-        assert!(shell_integration_snippet("cmd.exe").is_none());
-    }
+#[tauri::command]
+pub async fn term_history_record(
+    warp: State<'_, warp::PtyWarpState>,
+    command: String,
+    cwd: Option<String>,
+    exit_code: Option<i32>,
+) -> Result<bool, String> {
+    let st = warp.inner().clone();
+    tokio::task::spawn_blocking(move || warp::history_record_impl(&st, command, cwd, exit_code))
+        .await
+        .map_err(|e| e.to_string())?
+}
 
-    #[test]
-    fn integration_snippet_supports_zsh_and_fish() {
-        assert!(shell_integration_snippet("zsh").is_some());
-        assert!(shell_integration_snippet("fish").is_some());
-    }
+#[tauri::command]
+pub fn term_history_query(
+    warp: State<'_, warp::PtyWarpState>,
+    query: Option<String>,
+    cwd: Option<String>,
+    limit: Option<usize>,
+) -> Vec<vox_terminal_core::HistoryEntry> {
+    warp::history_query_impl(warp.inner(), query, cwd, limit)
+}
 
-    #[test]
-    fn snippets_emit_633_markers() {
-        assert!(shell_integration_snippet("pwsh").unwrap().contains("]633;"));
-        assert!(shell_integration_snippet("bash").unwrap().contains("]633;"));
-    }
+#[tauri::command]
+pub async fn term_history_clear(warp: State<'_, warp::PtyWarpState>) -> Result<(), String> {
+    let st = warp.inner().clone();
+    tokio::task::spawn_blocking(move || warp::history_clear_impl(&st))
+        .await
+        .map_err(|e| e.to_string())?
+}
 
-    #[test]
-    fn pwsh_snippet_uses_real_last_exit_code() {
-        let s = shell_integration_snippet("pwsh").unwrap();
-        assert!(s.contains("$LASTEXITCODE"), "must read the real exit code");
-        assert!(!s.contains("__VoxLastExit"), "stale exit var removed");
-    }
+#[tauri::command]
+pub async fn term_complete(
+    warp: State<'_, warp::PtyWarpState>,
+    line: String,
+    cursor: usize,
+    cwd: Option<String>,
+    shell_mode: Option<String>,
+    limit: Option<usize>,
+) -> Result<Vec<vox_terminal_core::TermCompletionItem>, String> {
+    let st = warp.inner().clone();
+    let req = vox_terminal_core::TermCompletionRequest {
+        line,
+        cursor,
+        cwd,
+        shell_mode,
+        limit,
+    };
+    tokio::task::spawn_blocking(move || warp::complete_impl(&st, req))
+        .await
+        .map_err(|e| e.to_string())
+}
 
-    #[test]
-    fn bash_snippet_preserves_user_hooks() {
-        let s = shell_integration_snippet("bash").unwrap();
-        assert!(
-            s.contains("__VOX_PREV_PROMPT_COMMAND"),
-            "chains PROMPT_COMMAND"
-        );
-        assert!(s.contains("trap -p DEBUG"), "preserves the DEBUG trap");
-    }
+#[tauri::command]
+pub async fn term_runbooks_list(
+    cwd: Option<String>,
+) -> Result<Vec<vox_terminal_core::RunbookDescriptor>, String> {
+    tokio::task::spawn_blocking(move || warp::runbooks_list_impl(cwd))
+        .await
+        .map_err(|e| e.to_string())
+}
 
-    #[test]
-    fn uppercase_exe_suffix_is_stripped() {
-        assert!(shell_integration_snippet("PowerShell.EXE").is_some());
-    }
+#[tauri::command]
+pub async fn term_session_voxify(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    session_id: String,
+    shell_hint: Option<String>,
+) -> Result<(), String> {
+    warp::session_voxify_impl(manager.inner(), daemon.inner(), session_id, shell_hint).await
+}
 
-    #[tokio::test]
-    async fn local_fallback_session_host_lifecycle() {
-        let m = PtyManager::default();
-        let host = m.resolve_local_host();
-        let sid = host
-            .open(OpenSpec {
-                cols: 80,
-                rows: 24,
-                shell: None,
-            })
-            .await
-            .unwrap();
-        let listed = host.list().await.unwrap();
-        assert!(listed.iter().any(|s| s.id == sid));
-        let dto = term_attachment_dto_from_parts(&sid, vec![], b"hello", 7);
-        assert_eq!(dto.session_id, sid);
-        assert_eq!(dto.replay_utf8, "hello");
-        assert_eq!(dto.seq, 7);
-        host.close(&sid).await.unwrap();
-    }
+#[tauri::command]
+pub async fn term_agent_prompt(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    backend: State<'_, Arc<BackendState>>,
+    mens_serve: State<'_, Arc<MensServeState>>,
+    session_id: String,
+    prompt: String,
+) -> Result<agent::TermAgentTurnResponse, String> {
+    let (h, b) = (
+        manager.host_for(daemon.inner()).await,
+        backend.current().await,
+    );
+    agent::term_agent_prompt_impl(
+        h,
+        &b,
+        mens_serve.running_port(),
+        &manager.agent_turns,
+        session_id,
+        prompt,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn term_agent_explain_fix(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    backend: State<'_, Arc<BackendState>>,
+    mens_serve: State<'_, Arc<MensServeState>>,
+    session_id: String,
+    block_id: u64,
+    mode: String,
+) -> Result<agent::TermAgentTurnResponse, String> {
+    let (h, b) = (
+        manager.host_for(daemon.inner()).await,
+        backend.current().await,
+    );
+    agent::term_agent_explain_fix_impl(
+        h,
+        &b,
+        mens_serve.running_port(),
+        &manager.agent_turns,
+        session_id,
+        block_id,
+        mode,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn term_agent_cancel(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    session_id: String,
+    block_id: u64,
+) -> Result<bool, String> {
+    let h = manager.host_for(daemon.inner()).await;
+    agent::term_agent_cancel_impl(h, &manager.agent_turns, session_id, block_id).await
+}
+
+#[tauri::command]
+pub async fn term_slash_exec(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    backend: State<'_, Arc<BackendState>>,
+    mens_serve: State<'_, Arc<MensServeState>>,
+    session_id: String,
+    raw_line: String,
+) -> Result<slash::TermSlashResponse, String> {
+    let (h, b) = (
+        manager.host_for(daemon.inner()).await,
+        backend.current().await,
+    );
+    slash::term_slash_exec_impl(
+        h,
+        &b,
+        mens_serve.running_port(),
+        &manager.agent_turns,
+        session_id,
+        raw_line,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn term_block_feedback(
+    manager: State<'_, PtyManager>,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+    session_id: String,
+    block_id: u64,
+    verdict: String,
+    corrected_command: Option<String>,
+    original_command: Option<String>,
+) -> Result<approvals::TermFeedbackResponse, String> {
+    let h = manager.host_for(daemon.inner()).await;
+    approvals::term_block_feedback_impl(
+        h,
+        session_id,
+        block_id,
+        verdict,
+        corrected_command,
+        original_command,
+    )
+    .await
 }

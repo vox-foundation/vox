@@ -63,6 +63,7 @@ mod tests {
                 tokenizer,
                 device: dev,
                 eos_token_ids: Vec::new(),
+                user_no_think_switch: true,
             }),
             model_path: "unused".to_string(),
             trainer: None,

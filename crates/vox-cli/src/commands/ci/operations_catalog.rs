@@ -178,6 +178,12 @@ pub struct CliProjection {
     pub ref_cli_required: Option<bool>,
     #[serde(default)]
     pub reachability_required: Option<bool>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub verb_aliases: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub noun_aliases: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub foreign_idioms: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -376,6 +382,7 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
         if let Some(lane) = &op.product_lane {
             row.product_lane = lane.clone();
         }
+        let prev_cli = prev_by_id.get(&row.id).and_then(|p| p.cli.as_ref());
         row.cli = Some(CliProjection {
             path: op.path.clone(),
             status: op.status.clone(),
@@ -385,6 +392,11 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
             catalog_group: op.catalog_group.clone(),
             ref_cli_required: Some(op.ref_cli_required),
             reachability_required: op.reachability_required,
+            verb_aliases: prev_cli.map(|c| c.verb_aliases.clone()).unwrap_or_default(),
+            noun_aliases: prev_cli.map(|c| c.noun_aliases.clone()).unwrap_or_default(),
+            foreign_idioms: prev_cli
+                .map(|c| c.foreign_idioms.clone())
+                .unwrap_or_default(),
         });
     }
 
@@ -1173,6 +1185,9 @@ mod tests {
                 catalog_group: None,
                 ref_cli_required: None,
                 reachability_required: None,
+                verb_aliases: Vec::new(),
+                noun_aliases: Vec::new(),
+                foreign_idioms: Vec::new(),
             }),
         }
     }

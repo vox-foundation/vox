@@ -1,5 +1,6 @@
 import React from 'react';
 import { STATUS_TONE, StatusToneKind } from '../../styles/tokens';
+import { Icon } from './Icons';
 import { cn } from '../../lib/cn';
 
 export interface StatusPillProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -10,22 +11,22 @@ export interface StatusPillProps extends React.HTMLAttributes<HTMLSpanElement> {
   icon?: React.ReactNode;
 }
 
-const DEFAULT_GLYPHS: Record<StatusToneKind, string> = {
-  pass: '✓',
+const DEFAULT_GLYPHS: Record<StatusToneKind, React.ReactNode> = {
+  pass: <Icon.check className="size-3 shrink-0" aria-hidden="true" />,
   fail: '!',
   warn: '?',
   info: 'i',
   neutral: '·',
-  accent: '◆',
-  Executing: '◆',
-  Verifying: '◆',
-  Planning: '◆',
+  accent: <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />,
+  Executing: <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />,
+  Verifying: <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />,
+  Planning: <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />,
   Paused: '·',
-  Validated: '✓',
+  Validated: <Icon.check className="size-3 shrink-0" aria-hidden="true" />,
   Doubted: '?',
-  Speculative: '◆',
-  Active: '◆',
-  Root: '◆',
+  Speculative: <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />,
+  Active: <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />,
+  Root: <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />,
 };
 
 const SIZE_CLASS = {
@@ -64,7 +65,7 @@ export function StatusPill({
           <span className={cn("absolute inset-0 rounded-full animate-vox-ping opacity-60", toneStyle.dot)} />
         )}
       </span>
-      {icon || <span className="font-mono">{glyph}</span>}
+      {icon || (typeof glyph === 'string' ? <span className="font-mono" aria-hidden="true">{glyph}</span> : glyph)}
       <span>{label || tone}</span>
     </span>
   );

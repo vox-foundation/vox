@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
-import { Glass } from '../../ui/Glass';
+import { invokeCmd } from '../../../transport';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { Icon } from '../../ui/Icons';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { mapDiscoveredSkills, type DiscoveredSkill } from './discovery';
@@ -46,7 +46,7 @@ type Tab = 'installed' | 'marketplace' | 'discovered';
 // no dedicated Tauri command. Mutating calls (install/remove/uninstall) flow through
 // the daemon's HITL approval gate automatically.
 async function callTool<T = any>(tool: string, args: Record<string, any> = {}): Promise<{ is_error: boolean; result: any }> {
-  return invoke<{ tool: string; is_error: boolean; result: T }>('invoke_mcp_tool', { tool, args });
+  return invokeCmd<{ tool: string; is_error: boolean; result: T }>('invoke_mcp_tool', { tool, args });
 }
 
 // MCP envelopes wrap payloads as { success, data }. Pull .data, tolerating
@@ -58,6 +58,7 @@ function unwrap(result: any): any {
 
 export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
   const [tab, setTab] = useState<Tab>('installed');
+  const [installedFilter, setInstalledFilter] = useState<'all' | 'skills' | 'plugins'>('all');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -258,32 +259,59 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
     </button>
   );
 
+  const installedTotal = skills.length + plugins.length;
+  const activeDiscovered = discovered.filter((d) => d.installed).length;
+
   const skillsGauges = [
     {
       label: 'Installed',
       valueText: `${skills.length} Active`,
-      ratio: Math.min(1, skills.length / 10),
+      ratio: installedTotal > 0 ? skills.length / installedTotal : 0,
       tone: 'gold' as const,
       purpose: 'Installed agentskills.io and custom skill packages',
+      actionHint:
+        tab === 'installed' && installedFilter === 'skills'
+          ? 'Click to show both skills and plugins'
+          : 'Click to filter Installed tab to skills',
+      active: tab === 'installed' && installedFilter === 'skills',
+      onClick: () => {
+        setTab('installed');
+        setInstalledFilter((f) => (tab === 'installed' && f === 'skills' ? 'all' : 'skills'));
+      },
     },
     {
       label: 'Plugins',
       valueText: `${plugins.length} Active`,
-      ratio: Math.min(1, plugins.length / 5),
+      ratio: installedTotal > 0 ? plugins.length / installedTotal : 0,
       tone: 'emerald' as const,
       purpose: 'Active compiled and script plugin extensions',
+      actionHint:
+        tab === 'installed' && installedFilter === 'plugins'
+          ? 'Click to show both skills and plugins'
+          : 'Click to filter Installed tab to plugins',
+      active: tab === 'installed' && installedFilter === 'plugins',
+      onClick: () => {
+        setTab('installed');
+        setInstalledFilter((f) => (tab === 'installed' && f === 'plugins' ? 'all' : 'plugins'));
+      },
     },
     {
       label: 'Discovered',
       valueText: `${discovered.length} Roots`,
-      ratio: Math.min(1, discovered.length / 15),
+      ratio: discovered.length > 0 ? activeDiscovered / discovered.length : 0,
       tone: 'gold' as const,
-      purpose: 'Discovered skills in workspace and user directories',
+      purpose: 'Active SKILL.md roots out of discovered workspace and user directories',
+      actionHint:
+        tab === 'discovered'
+          ? 'Click to return to Installed view'
+          : 'Click to open Discovered skills tab',
+      active: tab === 'discovered',
+      onClick: () => setTab((t) => (t === 'discovered' ? 'installed' : 'discovered')),
     },
   ];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="@container/surface flex min-h-0 min-w-0 flex-col gap-3.5">
       <RomanSurfaceHeader
         domainTag="COMMANDS · SKILLS & PLUGINS"
         title="Plugin & Agent Capability Registry"
@@ -292,102 +320,107 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
         icon={<Icon.puzzle className="size-5 text-[#F3E5AB]" />}
         gauges={skillsGauges}
       />
-      <div className="grid grid-cols-12 gap-5">
-        <Glass className={`${detail ? 'col-span-8' : 'col-span-12'} p-4 overflow-auto`}>
-        <div
-          style={{
-            backgroundImage:
-              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-          className="vox-marble-tablet mb-3 flex items-center gap-2 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
-        >
-          <span className="flex size-7 items-center justify-center rounded-lg border border-[#A67C1E] bg-[#EFE6D2] text-[#785312]">
-            <Icon.catalog className="size-4" aria-hidden="true" />
-          </span>
-          <div className="font-display text-sm font-bold tracking-widest uppercase text-[#1C140C]">Skills &amp; Plugins</div>
-          <div className="ml-4 flex items-center gap-1" role="tablist" aria-label="Skills and plugins views">
-            <TabButton id="installed" label="Installed" />
-            <TabButton id="marketplace" label="Marketplace" />
-            <TabButton id="discovered" label="Discovered" />
-          </div>
-          <button
-            type="button"
-            aria-label="Refresh list"
-            onClick={() =>
-              tab === 'installed'
-                ? refreshInstalled()
-                : tab === 'marketplace'
-                  ? refreshMarketplace()
-                  : refreshDiscovered()
-            }
-            className="ml-auto flex items-center gap-1.5 rounded-md border border-[#A67C1E] bg-[#EFE6D2] px-2 py-1 font-mono text-[10px] font-semibold text-[#2B1F0F] hover:bg-white"
+      <BentoGrid preset="hero">
+        <BentoCard span={detail ? 'hero-main' : 'full'} className="gap-3 p-3.5 @2xl/surface:p-4">
+          <div
+            style={{
+              backgroundImage:
+                "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+            className="vox-marble-tablet flex flex-wrap items-center gap-2 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
           >
-            <Icon.refresh className="size-3" aria-hidden="true" /> refresh
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="text-sm text-text-muted">Loading…</div>
-        ) : tab === 'discovered' ? (
-          <DiscoveredTab
-            discovered={discovered}
-            busy={busy}
-            addSource={addSource}
-            setAddSource={setAddSource}
-            onAdd={addSkill}
-            onRemove={removeSkill}
-            onSkillUse={(id) => showSkillUse(id)}
-          />
-        ) : tab === 'installed' ? (
-          <InstalledTab
-            skills={skills}
-            plugins={plugins}
-            busy={busy}
-            onUninstallSkill={(id) =>
-              doAction(id, 'vox_skill_uninstall', { id }, 'Skill uninstalled')
-            }
-            onRemovePlugin={(id) => doAction(id, 'vox_plugin_remove', { id }, 'Plugin removed')}
-            onSkillInfo={(id) => showSkillInfo(id)}
-            onPluginInfo={(id) => showPluginInfo(id)}
-          />
-        ) : (
-          <MarketplaceTab
-            catalogPlugins={catalogPlugins}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            runSearch={runSearch}
-            searchHits={searchHits}
-            busy={busy}
-            onInstallPlugin={(id) =>
-              doAction(id, 'vox_plugin_install', { id }, 'Plugin installed')
-            }
-            onPluginInfo={(id) => showPluginInfo(id)}
-            onInstallSkill={(id) =>
-              doAction(id, 'vox_skill_install', { id }, 'Skill installed')
-            }
-            onSkillInfo={(id) => showSkillInfo(id)}
-          />
-        )}
-      </Glass>
-      {detail && (
-        <Glass className="col-span-4 p-4 overflow-auto">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-display text-[11px] tracking-widest uppercase text-text-muted">Detail</span>
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#A67C1E] bg-[#EFE6D2] text-[#785312]">
+              <Icon.catalog className="size-4" aria-hidden="true" />
+            </span>
+            <div className="font-display text-sm font-bold tracking-widest uppercase text-[#1C140C]">Skills &amp; Plugins</div>
+            <div className="flex flex-wrap items-center gap-1 @xl/surface:ml-2" role="tablist" aria-label="Skills and plugins views">
+              <TabButton id="installed" label="Installed" />
+              <TabButton id="marketplace" label="Marketplace" />
+              <TabButton id="discovered" label="Discovered" />
+            </div>
             <button
               type="button"
-              aria-label="Close detail panel"
-              onClick={() => setDetail(null)}
-              className="flex items-center rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+              aria-label="Refresh list"
+              onClick={() =>
+                tab === 'installed'
+                  ? refreshInstalled()
+                  : tab === 'marketplace'
+                    ? refreshMarketplace()
+                    : refreshDiscovered()
+              }
+              className="ml-auto flex items-center gap-1.5 rounded-md border border-[#A67C1E] bg-[#EFE6D2] px-2 py-1 font-mono text-[10px] font-semibold text-[#2B1F0F] hover:bg-white"
             >
-              ✕
+              <Icon.refresh className="size-3" aria-hidden="true" /> refresh
             </button>
           </div>
-          <SkillDetailPanel detail={detail} />
-        </Glass>
-      )}
-      </div>
+
+          <BentoScrollRegion ariaLabel="Skills and plugins registry list" className="max-h-[68vh] pr-1">
+            {loading ? (
+              <div className="text-sm text-text-muted">Loading…</div>
+            ) : tab === 'discovered' ? (
+              <DiscoveredTab
+                discovered={discovered}
+                busy={busy}
+                addSource={addSource}
+                setAddSource={setAddSource}
+                onAdd={addSkill}
+                onRemove={removeSkill}
+                onSkillUse={(id) => showSkillUse(id)}
+              />
+            ) : tab === 'installed' ? (
+              <InstalledTab
+                skills={skills}
+                plugins={plugins}
+                sectionFilter={installedFilter}
+                busy={busy}
+                onUninstallSkill={(id) =>
+                  doAction(id, 'vox_skill_uninstall', { id }, 'Skill uninstalled')
+                }
+                onRemovePlugin={(id) => doAction(id, 'vox_plugin_remove', { id }, 'Plugin removed')}
+                onSkillInfo={(id) => showSkillInfo(id)}
+                onPluginInfo={(id) => showPluginInfo(id)}
+              />
+            ) : (
+              <MarketplaceTab
+                catalogPlugins={catalogPlugins}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                runSearch={runSearch}
+                searchHits={searchHits}
+                busy={busy}
+                onInstallPlugin={(id) =>
+                  doAction(id, 'vox_plugin_install', { id }, 'Plugin installed')
+                }
+                onPluginInfo={(id) => showPluginInfo(id)}
+                onInstallSkill={(id) =>
+                  doAction(id, 'vox_skill_install', { id }, 'Skill installed')
+                }
+                onSkillInfo={(id) => showSkillInfo(id)}
+              />
+            )}
+          </BentoScrollRegion>
+        </BentoCard>
+        {detail && (
+          <BentoCard span="hero-rail" className="gap-3 p-3.5 @2xl/surface:p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-display text-[11px] tracking-widest uppercase text-text-muted">Detail</span>
+              <button
+                type="button"
+                aria-label="Close detail panel"
+                onClick={() => setDetail(null)}
+                className="flex items-center rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+              >
+                <Icon.close className="size-3.5" aria-hidden="true" />
+              </button>
+            </div>
+            <BentoScrollRegion ariaLabel="Selected skill or plugin inspector" className="max-h-[68vh] pr-1">
+              <SkillDetailPanel detail={detail} />
+            </BentoScrollRegion>
+          </BentoCard>
+        )}
+      </BentoGrid>
     </div>
   );
 }
@@ -396,58 +429,63 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
 function InstalledTab(props: {
   skills: SkillInfo[];
   plugins: PluginRow[];
+  sectionFilter: 'all' | 'skills' | 'plugins';
   busy: string | null;
   onUninstallSkill: (id: string) => void;
   onRemovePlugin: (id: string) => void;
   onSkillInfo: (id: string) => void;
   onPluginInfo: (id: string) => void;
 }) {
-  const { skills, plugins, busy, onUninstallSkill, onRemovePlugin, onSkillInfo, onPluginInfo } = props;
+  const { skills, plugins, sectionFilter, busy, onUninstallSkill, onRemovePlugin, onSkillInfo, onPluginInfo } = props;
   return (
     <div className="flex flex-col gap-5">
-      <Section title="Skills" count={skills.length}>
-        {skills.length === 0 ? (
-          <Empty text="No skills installed." />
-        ) : (
-          skills.map((s) => (
-            <Row
-              key={s.id}
-              id={s.id}
-              title={s.name || s.id}
-              subtitle={s.description}
-              version={s.version}
-              tags={[s.source, ...(s.tags || []), ...(s.permissions || []).map((p) => `perm:${p}`)]}
-              busy={busy === s.id}
-              actions={[
-                { label: 'Info', onClick: () => onSkillInfo(s.id), tone: 'neutral' },
-                { label: 'Uninstall', onClick: () => onUninstallSkill(s.id), tone: 'danger' },
-              ]}
-            />
-          ))
-        )}
-      </Section>
+      {(sectionFilter === 'all' || sectionFilter === 'skills') && (
+        <Section title="Skills" count={skills.length}>
+          {skills.length === 0 ? (
+            <Empty text="No skills installed." />
+          ) : (
+            skills.map((s) => (
+              <Row
+                key={s.id}
+                id={s.id}
+                title={s.name || s.id}
+                subtitle={s.description}
+                version={s.version}
+                tags={[s.source, ...(s.tags || []), ...(s.permissions || []).map((p) => `perm:${p}`)]}
+                busy={busy === s.id}
+                actions={[
+                  { label: 'Info', onClick: () => onSkillInfo(s.id), tone: 'neutral' },
+                  { label: 'Uninstall', onClick: () => onUninstallSkill(s.id), tone: 'danger' },
+                ]}
+              />
+            ))
+          )}
+        </Section>
+      )}
 
-      <Section title="Plugins" count={plugins.length}>
-        {plugins.length === 0 ? (
-          <Empty text="No plugins installed." />
-        ) : (
-          plugins.map((p) => (
-            <Row
-              key={p.id}
-              id={p.id}
-              title={p.id}
-              subtitle={p.install_dir}
-              version={p.version}
-              tags={[p.payload_kind]}
-              busy={busy === p.id}
-              actions={[
-                { label: 'Info', onClick: () => onPluginInfo(p.id), tone: 'neutral' },
-                { label: 'Remove', onClick: () => onRemovePlugin(p.id), tone: 'danger' },
-              ]}
-            />
-          ))
-        )}
-      </Section>
+      {(sectionFilter === 'all' || sectionFilter === 'plugins') && (
+        <Section title="Plugins" count={plugins.length}>
+          {plugins.length === 0 ? (
+            <Empty text="No plugins installed." />
+          ) : (
+            plugins.map((p) => (
+              <Row
+                key={p.id}
+                id={p.id}
+                title={p.id}
+                subtitle={p.install_dir}
+                version={p.version}
+                tags={[p.payload_kind]}
+                busy={busy === p.id}
+                actions={[
+                  { label: 'Info', onClick: () => onPluginInfo(p.id), tone: 'neutral' },
+                  { label: 'Remove', onClick: () => onRemovePlugin(p.id), tone: 'danger' },
+                ]}
+              />
+            ))
+          )}
+        </Section>
+      )}
     </div>
   );
 }
@@ -469,24 +507,29 @@ function MarketplaceTab(props: {
     props;
   return (
     <div className="flex flex-col gap-5">
-      <Section title="Skill search" count={searchHits.length}>
-        <div className="mb-2 flex items-center gap-2">
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && runSearch()}
-            placeholder="Search for skills…"
-            aria-label="Search for skills"
-            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
-          />
-          <button
-            type="button"
-            onClick={runSearch}
-            className="flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-text-secondary hover:bg-overlay-subtle"
-          >
-            <Icon.search className="size-3.5" aria-hidden="true" /> Search
-          </button>
-        </div>
+      <Section
+        title="Skill search"
+        count={searchHits.length}
+        toolbar={
+          <div className="mb-2.5 flex flex-wrap items-center gap-2">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && runSearch()}
+              placeholder="Search for skills…"
+              aria-label="Search for skills"
+              className="min-w-[160px] flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
+            />
+            <button
+              type="button"
+              onClick={runSearch}
+              className="flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-text-secondary hover:bg-overlay-subtle"
+            >
+              <Icon.search className="size-3.5" aria-hidden="true" /> Search
+            </button>
+          </div>
+        }
+      >
         {searchHits.map((s) => (
           <Row
             key={s.id}
@@ -551,14 +594,14 @@ function DiscoveredTab(props: {
     <div className="flex flex-col gap-5">
       <div>
         <div className="mb-2 font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Add from URL or path</div>
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <input
             value={addSource}
             onChange={(e) => setAddSource(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onAdd()}
             placeholder="https://github.com/owner/repo  or  C:/path/to/skill"
             aria-label="Skill git URL or path"
-            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
+            className="min-w-[160px] flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
           />
           <button
             type="button"
@@ -613,20 +656,31 @@ function DiscoveredTab(props: {
 }
 
 // ── Shared bits ──────────────────────────────────────────────────────────────
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+function Section({
+  title,
+  count,
+  toolbar,
+  children,
+}: {
+  title: string;
+  count: number;
+  toolbar?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="mb-2 flex items-center gap-2">
         <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">{title}</div>
         <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">{count}</span>
       </div>
-      <div className="flex flex-col gap-2">{children}</div>
+      {toolbar}
+      <div className="grid grid-cols-1 gap-2.5 @2xl/surface:grid-cols-2 @5xl/surface:grid-cols-3">{children}</div>
     </div>
   );
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-xs text-text-muted">{text}</div>;
+  return <div className="col-span-full rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-xs text-text-muted">{text}</div>;
 }
 
 interface Action {
@@ -652,9 +706,9 @@ function Row(props: {
         ? 'border-rose-400/30 bg-rose-400/10 text-rose-300 hover:bg-rose-400/20'
         : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:bg-overlay-subtle';
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-overlay-subtle p-3 sm:flex-row sm:items-center sm:justify-between">
+    <BentoCard className="justify-between gap-3 bg-overlay-subtle p-3">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs text-brass">{title}</span>
           {version ? <span className="font-mono text-[10px] text-text-muted">{version}</span> : null}
         </div>
@@ -671,7 +725,7 @@ function Row(props: {
         ) : null}
       </div>
       {actions.length > 0 ? (
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {actions.map((a) => (
             <button
               key={a.label}
@@ -687,6 +741,6 @@ function Row(props: {
           ))}
         </div>
       ) : null}
-    </div>
+    </BentoCard>
   );
 }

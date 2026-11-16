@@ -87,9 +87,9 @@
       {
         "id": "orchestrator",
         "label": "Orchestrator & agents",
-        "cli": 28,
-        "mcp": 82,
-        "surfaces": 2
+        "cli": 36,
+        "mcp": 90,
+        "surfaces": 3
       },
       {
         "id": "mesh",
@@ -193,7 +193,7 @@
         "id": "platform",
         "label": "Platform (other)",
         "cli": 48,
-        "mcp": 119,
+        "mcp": 127,
         "surfaces": 3
       }
     ]

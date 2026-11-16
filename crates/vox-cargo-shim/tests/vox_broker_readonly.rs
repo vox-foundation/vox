@@ -78,3 +78,32 @@ fn log_reads_last_n_lines_without_disturbing_the_file() {
     let after = fs::read_to_string(broker_home.join("broker.log")).unwrap();
     assert_eq!(after, "l1\nl2\nl3\nl4\nl5\n");
 }
+
+#[test]
+fn stats_reads_mixed_8_and_13_field_metrics_without_creating_dirs() {
+    let tmp = tempfile::tempdir().unwrap();
+    let broker_home = tmp.path().join("broker");
+    fs::create_dir_all(&broker_home).unwrap();
+    let mixed = concat!(
+        r#"{"ts_ms":10,"worktree":"wt","subcmd":"check","queue_wait_ms":0,"ran_ms":150,"argv_hash":1,"env_hash":2,"would_coalesce":false}"#,
+        "\n",
+        r#"{"ts_ms":20,"worktree":"wt","subcmd":"check","queue_wait_ms":400,"ran_ms":0,"argv_hash":1,"env_hash":2,"would_coalesce":true,"target_wait_ms":400,"slot_wait_ms":0,"compile_ms":0,"coalesced_hit":true,"timed_out":false}"#,
+        "\n"
+    );
+    fs::write(broker_home.join("metrics.jsonl"), mixed).unwrap();
+
+    let out = Command::new(broker_bin())
+        .arg("stats")
+        .env("VOX_BROKER_HOME", &broker_home)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stats failed: {out:?}");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("builds=2"), "got: {stdout}");
+    assert!(stdout.contains("target_p95=400ms"), "got: {stdout}");
+    assert!(stdout.contains("coalesced=1"), "got: {stdout}");
+    assert!(
+        !broker_home.join("targets").exists() && !broker_home.join("inflight").exists(),
+        "vox-broker stats must not create targets/ or inflight/ directories"
+    );
+}

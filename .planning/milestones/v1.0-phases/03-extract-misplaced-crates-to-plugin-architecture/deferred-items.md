@@ -9,6 +9,7 @@
   -> `vox-populi/mens-train` -> `mens-hf-hub`) and `vox-ml-cli --features quantize`. The failure does not depend on
   vox-quantize, which is not in the `mens-hf-hub` graph. Fix: fill both fields on the local-dir path, e.g. probe
   `tokenizer_config.json` / `chat_template.jinja` next to `config.json` the same way the tokenizer is probed.
+  status: acknowledged
 
 ## From 03-05 (2026-09-26)
 
@@ -18,6 +19,7 @@
   checkout fails with `error: no bin target named vox-ml-cli in vox-cli package`. The `vox` sidecar
   autobuilds fine. 03-05 built it by hand (`cargo build -p vox-ml-cli --release --bin vox-ml-cli`, copied
   to `target/release/vox-ml-cli-<triple>`). Fix: pick the package per binary name.
+  status: acknowledged
 
 ## Resolution status (2026-09-26, phase close-out)
 
@@ -64,3 +66,4 @@
   `graphify/mod.rs` + command-registry changes, which are still idle.
 - **Still open — webhook auth for GitHub/Slack/Discord:** the listener accepts only `Authorization: Bearer`;
   those providers need a relay that adds the header, or per-source HMAC verification as a second path.
+  status: acknowledged

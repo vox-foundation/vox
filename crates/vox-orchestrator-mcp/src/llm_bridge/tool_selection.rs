@@ -257,8 +257,14 @@ pub fn spoke_priority_tools(
             "vox_repo_query_text",
             "vox_validate_file",
             "vox_git_status",
+            "vox_terminal_exec",
+            "vox_terminal_read",
         ],
         OrganicSpokeKind::StructuredShell => &[
+            "vox_terminal_exec",
+            "vox_terminal_read",
+            "vox_terminal_send_input",
+            "vox_terminal_sessions",
             "vox_repo_status",
             "vox_repo_query_file",
             "vox_repo_query_text",
@@ -282,6 +288,8 @@ pub fn spoke_priority_tools(
             "vox_verify_task_claims",
             "vox_repo_status",
             "vox_git_status",
+            "vox_terminal_exec",
+            "vox_terminal_read",
         ],
         OrganicSpokeKind::SpeechToCode => &[
             "vox_apply_structured_edit",
@@ -325,6 +333,8 @@ const CORE_DAILY_DRIVER_TOOLS: &[&str] = &[
     "vox_spawn_agent",
     "vox_submit_task",
     "vox_task_status",
+    "vox_terminal_exec",
+    "vox_terminal_read",
     "vox_validate_file",
     "vox_validate_mermaid",
     "vox_kb_search",
@@ -993,5 +1003,50 @@ mod tests {
                 assert!(is_wire_safe_name(name), "{name} offered for {prompt:?}");
             }
         }
+    }
+
+    #[test]
+    fn terminal_tools_surface_in_ranked_selection_and_respect_plan_read_only_mode() {
+        let reg = new_registry_arc();
+        let ctx = TurnContext {
+            max_tools: DEFAULT_RANKED_MAX_TOOLS,
+            exclude_name_prefixes: vec!["vox_chat_"],
+            ..TurnContext::default()
+        };
+        let (selected, _spoke, _mode) = select_tools_for_turn_ranked(
+            TOOL_REGISTRY,
+            &reg,
+            &ctx,
+            "run pwd and inspect the active terminal session output",
+            None,
+        );
+        let names: HashSet<&str> = selected.iter().map(|t| t.name).collect();
+        assert!(names.contains("vox_terminal_exec"), "{names:?}");
+        assert!(names.contains("vox_terminal_read"), "{names:?}");
+
+        let plan_ctx = TurnContext {
+            permission_mode: Some(READ_ONLY_PERMISSION_MODE.to_string()),
+            max_tools: 100,
+            exclude_name_prefixes: vec!["vox_chat_"],
+            ..TurnContext::default()
+        };
+        let (plan_selected, _, _) = select_tools_for_turn_ranked(
+            TOOL_REGISTRY,
+            &reg,
+            &plan_ctx,
+            "inspect terminal sessions and output",
+            None,
+        );
+        let plan_names: HashSet<&str> = plan_selected.iter().map(|t| t.name).collect();
+        assert!(plan_names.contains("vox_terminal_read"), "{plan_names:?}");
+        assert!(
+            plan_names.contains("vox_terminal_sessions"),
+            "{plan_names:?}"
+        );
+        assert!(!plan_names.contains("vox_terminal_exec"), "{plan_names:?}");
+        assert!(
+            !plan_names.contains("vox_terminal_send_input"),
+            "{plan_names:?}"
+        );
     }
 }

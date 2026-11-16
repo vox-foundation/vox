@@ -8,11 +8,29 @@
 use regex::Regex;
 use std::sync::OnceLock;
 
+static RE_PEM: OnceLock<Regex> = OnceLock::new();
+static RE_URL_CRED: OnceLock<Regex> = OnceLock::new();
 static RE_EMAIL: OnceLock<Regex> = OnceLock::new();
 static RE_API_KEY: OnceLock<Regex> = OnceLock::new();
 static RE_TOKEN: OnceLock<Regex> = OnceLock::new();
 static RE_IPV4: OnceLock<Regex> = OnceLock::new();
 static RE_HOME: OnceLock<Regex> = OnceLock::new();
+
+fn re_pem() -> &'static Regex {
+    RE_PEM.get_or_init(|| {
+        Regex::new(
+            r"(?s)-----BEGIN [A-Z0-9 _\-]*PRIVATE KEY-----.*?-----END [A-Z0-9 _\-]*PRIVATE KEY-----",
+        )
+        .expect("valid pem regex")
+    })
+}
+
+fn re_url_cred() -> &'static Regex {
+    RE_URL_CRED.get_or_init(|| {
+        Regex::new(r"([a-zA-Z][a-zA-Z0-9+.\-]*://[^/\s:@]+:)([^@\s/]+)@")
+            .expect("valid url cred regex")
+    })
+}
 
 fn re_email() -> &'static Regex {
     RE_EMAIL
@@ -39,8 +57,9 @@ fn re_ipv4() -> &'static Regex {
 
 fn re_home() -> &'static Regex {
     RE_HOME.get_or_init(|| {
-        // Matches /home/<user>/... or C:\Users\<user>\...
-        Regex::new(r"(?:/home/[^/\s]+|[A-Za-z]:\\Users\\[^\\]+)").unwrap()
+        // Matches /Users/<user>, /home/<user>, or C:\Users\<user> (starts with `(?:` so no-hardcoded-abs-path stays clean).
+        Regex::new(r"(?:/(?:Users|home)/[^/\s]+|[A-Za-z]:\\Users\\[^\\\s]+)")
+            .expect("valid home regex")
     })
 }
 
@@ -51,21 +70,30 @@ fn re_token() -> &'static Regex {
         Regex::new(
             r"(?x)
             \b(?:
-              gh[posru]_[A-Za-z0-9]{20,}      # GitHub PAT / OAuth / server / refresh
-            | github_pat_[A-Za-z0-9_]{20,}     # GitHub fine-grained PAT
-            | sk-[A-Za-z0-9-]{20,}             # OpenAI-style secret key
-            | xox[baprs]-[A-Za-z0-9-]{10,}     # Slack tokens
-            | AKIA[0-9A-Z]{16}                 # AWS access key id
+              AIza[0-9A-Za-z\-_]{35}
+            | hf_[A-Za-z0-9]{30,}\b
+            | npm_[A-Za-z0-9]{30,}\b
+            | gh[posru]_[A-Za-z0-9]{20,}\b                # GitHub PAT / OAuth / server / refresh
+            | github_pat_[A-Za-z0-9_]{20,}\b               # GitHub fine-grained PAT
+            | sk-ant-[A-Za-z0-9\-_]{20,}                   # Anthropic secret key
+            | sk-(?:proj-|svcacct-)?[A-Za-z0-9_\-]{20,}    # OpenAI-style secret key
+            | xox[baprs]-[A-Za-z0-9-]{10,}                 # Slack tokens
+            | AKIA[0-9A-Z]{16}\b                           # AWS access key id
             | eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}  # JWT
-            )\b",
+            )",
         )
-        .unwrap()
+        .expect("valid token regex")
     })
 }
 
 /// Redact PII/secret patterns in free text. Conservative: unknown patterns pass through.
 pub fn redact_owned(text: &str) -> String {
-    let s = re_email().replace_all(text, "[REDACTED_EMAIL]");
+    if text.is_empty() {
+        return String::new();
+    }
+    let s = re_pem().replace_all(text, "[REDACTED_PEM]");
+    let s = re_url_cred().replace_all(&s, "${1}[REDACTED_CRED]@");
+    let s = re_email().replace_all(&s, "[REDACTED_EMAIL]");
     let s = re_api_key().replace_all(&s, "[REDACTED_KEY]");
     let s = re_token().replace_all(&s, "[REDACTED_KEY]");
     let s = re_ipv4().replace_all(&s, "[REDACTED_IP]");
@@ -200,5 +228,58 @@ mod tests {
         );
         assert_eq!(out["list"][1], json!("ok"));
         assert_eq!(out["count"], json!(3));
+    }
+
+    #[test]
+    fn home_paths_redacted_across_macos_linux_windows() {
+        // vox-arch-check: allow abs-path
+        let mac = redact_owned("key at /Users/alice/.ssh/id_ed25519 loaded");
+        assert_eq!(mac, "key at ~[REDACTED_PATH]/.ssh/id_ed25519 loaded");
+
+        // vox-arch-check: allow abs-path
+        let linux = redact_owned("cwd=/home/bob/project ok");
+        assert_eq!(linux, "cwd=~[REDACTED_PATH]/project ok");
+
+        // vox-arch-check: allow abs-path
+        let win = redact_owned(r"reading C:\Users\carol\secrets.txt and C:\Users\dave done");
+        assert_eq!(
+            win,
+            r"reading ~[REDACTED_PATH]\secrets.txt and ~[REDACTED_PATH] done"
+        );
+    }
+
+    #[test]
+    fn pem_url_credentials_and_expanded_vendor_tokens_redacted() {
+        let pem = "header\n-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n-----END OPENSSH PRIVATE KEY-----\nfooter";
+        assert_eq!(redact_owned(pem), "header\n[REDACTED_PEM]\nfooter");
+
+        let rsa_pem =
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA\n-----END RSA PRIVATE KEY-----";
+        assert_eq!(redact_owned(rsa_pem), "[REDACTED_PEM]");
+
+        let url = "connecting to https://admin:s3cr3tPass!@db.internal.org:5432/app now";
+        assert_eq!(
+            redact_owned(url),
+            "connecting to https://admin:[REDACTED_CRED]@db.internal.org:5432/app now"
+        );
+
+        let tokens = [
+            "AIzaSyDaGmWKa4JsXZ-HjGw7ISLn_3namBGewQe",
+            "hf_abcdefghijklmnopqrstuvwxyz01234567",
+            "npm_abcdefghijklmnopqrstuvwxyz01234567",
+            "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            "github_pat_11ABCDEFG0123456789_abcdefghijklmnop",
+            "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123",
+            "sk-proj-abcdefghijklmnopqrstuvwxyz012345",
+        ];
+        for tok in tokens {
+            let out = redact_owned(&format!("val={tok} end"));
+            assert_eq!(
+                out, "val=[REDACTED_KEY] end",
+                "token failed to redact: {tok}"
+            );
+        }
+
+        assert_eq!(redact_owned(""), "");
     }
 }

@@ -1,0 +1,96 @@
+{
+  "schema": "vox_mens_calibration_record_v1",
+  "notes": "Nov 2026 candle-metal (gradient_checkpointing=true, chunked Gated DeltaNet DELTANET_CHUNK_SIZE=64) PeakSampler calibration and Qwen3.5/Qwen3.8 ladder floor measurements on Apple M5 Max. Slope act_bytes_per_lht = 162.48240311940512 B/(layer*hidden*token) is fitted by calibration::fit_a_lane from Qwen/Qwen3.5-2B at tokens_per_step 512 and 2048. Exactly 6 Fits records appear under `records` so only Qwen/Qwen3.5-2B carries multiple distinct tokens_per_step values. All paths are workspace-relative.",
+  "records": [
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3.5-2B",
+      "artifact_bytes": 4548221488,
+      "layers": 24,
+      "hidden": 2048,
+      "tokens_per_step": 512,
+      "outcome": "Fits",
+      "peak_bytes": 9633126196,
+      "source_run": "target/mens-cal/2b-s512/run_summary.json (run_id 20261114T061547Z, global_step=2, optimizer_step_count=2, wall_secs=5.595)"
+    },
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3.5-2B",
+      "artifact_bytes": 4548221488,
+      "layers": 24,
+      "hidden": 2048,
+      "tokens_per_step": 1024,
+      "outcome": "Fits",
+      "peak_bytes": 19649785102,
+      "source_run": "target/mens-cal/2b-preset/run_summary.json (run_id 20261114T062637Z, global_step=2, optimizer_step_count=1, grad_accum=2, wall_secs=6.393)"
+    },
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3.5-2B",
+      "artifact_bytes": 4548221488,
+      "layers": 24,
+      "hidden": 2048,
+      "tokens_per_step": 2048,
+      "outcome": "Fits",
+      "peak_bytes": 21900136876,
+      "source_run": "target/mens-cal/2b-s2048/run_summary.json (run_id 20261114T062604Z, global_step=1, optimizer_step_count=1, wall_secs=12.721)"
+    },
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3.5-4B",
+      "artifact_bytes": 9319828096,
+      "layers": 32,
+      "hidden": 2560,
+      "tokens_per_step": 1024,
+      "outcome": "Fits",
+      "peak_bytes": 34697153390,
+      "source_run": "target/mens-cal/4b-preset/run_summary.json (run_id 20261114T062700Z, global_step=2, optimizer_step_count=1, grad_accum=2, wall_secs=20.434)"
+    },
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3.5-9B",
+      "artifact_bytes": 19306310880,
+      "layers": 32,
+      "hidden": 4096,
+      "tokens_per_step": 1024,
+      "outcome": "Fits",
+      "peak_bytes": 35281560652,
+      "source_run": "target/mens-cal/9b-preset/run_summary.json (run_id 20261114T063014Z, global_step=1, optimizer_step_count=1, wall_secs=14.011)"
+    },
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3.8-27B",
+      "artifact_bytes": 55563006776,
+      "layers": 64,
+      "hidden": 5120,
+      "tokens_per_step": 1024,
+      "outcome": "Fits",
+      "peak_bytes": 77073260172,
+      "source_run": "target/mens-cal/27b-s1024/run_summary.json (run_id 20261114T064946Z, global_step=1, optimizer_step_count=1, wall_secs=41.399)"
+    }
+  ],
+  "spill_observations": [
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3.8-27B",
+      "artifact_bytes": 55563006776,
+      "layers": 64,
+      "hidden": 5120,
+      "tokens_per_step": 2048,
+      "outcome": "WorkingSetSpill",
+      "peak_bytes": 118280866252,
+      "peak_mib": 112802,
+      "static_working_set_bytes": 115448725504,
+      "max_single_alloc_bytes": 86586540032,
+      "wall_secs": 143.425,
+      "source_run": "target/mens-cal/27b-preset/run_summary.json (run_id 20261114T063120Z, global_step=1, optimizer_step_count=1)"
+    }
+  ]
+}

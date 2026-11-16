@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../transport';
 import { sanitizeErrorForToast } from '../../lib/backendGuard';
 import type { Toast } from '../../types/tauri';
 import { RomanSurfaceHeader, RomanWaxSealBadge } from '../ui/RomanSurfaceHeader';
 import { RomanMedallion } from '../ui/RomanTooltip';
-import { Icon } from '../ui/Icons';
+import { Icon, KeycapIcon } from '../ui/Icons';
+import { DiegeticFxStage, type DiegeticFxPreset } from '../fx/DiegeticFxStage';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -36,6 +37,8 @@ interface CommandCardsViewProps {
   subtitle: string;
   cards: SurfaceCard[];
   pushToast: (item: Toast) => void;
+  fxPreset?: DiegeticFxPreset;
+  fxCaption?: string;
 }
 
 /**
@@ -48,9 +51,17 @@ interface CommandCardsViewProps {
  * `serve` never exits — see `Models/MensServePanel.tsx` for the supervised
  * child-process pattern that one needs instead.
  */
-export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandCardsViewProps) {
+export function CommandCardsView({
+  title,
+  subtitle,
+  cards,
+  pushToast,
+  fxPreset,
+  fxCaption,
+}: CommandCardsViewProps) {
   const [results, setResults] = useState<Record<string, CardResult>>({});
   const [loading, setLoading] = useState(false);
+  const [cardFilter, setCardFilter] = useState<'all' | 'healthy' | 'failing'>('all');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -58,7 +69,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
     await Promise.all(
       cards.map(async (card) => {
         try {
-          const out = await invoke<ExecuteOutput>('execute_command', {
+          const out = await invokeCmd<ExecuteOutput>('execute_command', {
             path: card.path,
             args: { __argv: card.argv ?? [] },
           });
@@ -87,9 +98,20 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
     refresh();
   }, [refresh]);
 
+  const settledCount = Object.keys(results).length;
   const healthyCount = Object.values(results).filter(
     (r) => r.kind === 'ok' && r.out.exit_code === 0,
   ).length;
+  const failedCount = Object.values(results).filter(
+    (r) => r.kind === 'error' || (r.kind === 'ok' && r.out.exit_code !== 0),
+  ).length;
+  const visibleCards = cards.filter((card) => {
+    if (cardFilter === 'all') return true;
+    const r = results[card.key];
+    if (!r) return false;
+    const isHealthy = r.kind === 'ok' && r.out.exit_code === 0;
+    return cardFilter === 'healthy' ? isHealthy : !isHealthy;
+  });
 
   return (
     <section className="space-y-4">
@@ -103,14 +125,38 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
           {
             label: 'Probes',
             valueText: `${healthyCount}/${cards.length} OK`,
-            ratio: cards.length > 0 ? healthyCount / cards.length : 1,
-            tone: 'emerald',
+            ratio: cards.length > 0 ? healthyCount / cards.length : 0,
+            tone: failedCount > 0 ? 'crimson' : 'emerald',
+            purpose: 'Read-only CLI diagnostic probes completing cleanly (exit 0)',
+            actionHint:
+              cardFilter === 'healthy'
+                ? 'Click to show all diagnostic cards'
+                : 'Click to filter cards to healthy CLI probes',
+            active: cardFilter === 'healthy',
+            onClick: () => setCardFilter((f) => (f === 'healthy' ? 'all' : 'healthy')),
           },
           {
             label: 'Seam',
-            valueText: 'Tier-3 CLI',
-            ratio: 0.9,
+            valueText: `${settledCount}/${cards.length} CLI`,
+            ratio: cards.length > 0 ? settledCount / cards.length : 0,
             tone: 'gold',
+            purpose: 'Tier-3 execute_command responses settled in this diagnostic sweep',
+            actionHint:
+              cardFilter === 'failing'
+                ? 'Click to show all diagnostic cards'
+                : failedCount > 0
+                  ? 'Click to filter cards to failing CLI probes'
+                  : 'Click to re-run CLI diagnostic probes',
+            active: cardFilter === 'failing',
+            onClick: () => {
+              if (cardFilter === 'failing') {
+                setCardFilter('all');
+              } else if (failedCount > 0) {
+                setCardFilter('failing');
+              } else if (!loading) {
+                void refresh();
+              }
+            },
           },
         ]}
         actions={
@@ -124,8 +170,67 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
           </button>
         }
       />
+      {fxPreset && (
+        <div
+          data-testid="command-cards-fx-banner"
+          className="relative h-36 w-full overflow-hidden rounded-xl border-2 border-[#C59B27]/85 bg-[#F5EFE2] shadow-[0_8px_22px_rgba(28,20,12,0.22)]"
+        >
+          <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-78"
+            style={{
+              backgroundImage:
+                fxPreset === 'voice-harmonics'
+                  ? "url('/assets/romanesque/carrara-acanthus-header-band.jpg')"
+                  : "url('/assets/romanesque/aqueduct-sluice-cascade-bg.jpg')",
+            }}
+          />
+          <DiegeticFxStage
+            preset={fxPreset}
+            activeBoost={1.35}
+            intensity={1.2}
+            testId={`command-cards-fx-${fxPreset}`}
+          />
+          <div className="relative z-10 flex h-full flex-col justify-between p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="rounded border border-[#C59B27]/80 bg-[#FAF6EE]/92 px-2.5 py-0.5 font-display text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#1C140C]">
+                {fxCaption ?? 'LIVE TELEMETRY HARMONIC STAGE'}
+              </span>
+              <RomanWaxSealBadge
+                label={fxPreset === 'voice-harmonics' ? 'ORATIO · VAD + ASR' : 'POPULI · QUIC MESH'}
+                tone="emerald"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(fxPreset === 'voice-harmonics'
+                ? [
+                    ['Acoustic Frame', '16 kHz · PCM16'],
+                    ['VAD Gate', '22 ms Silero'],
+                    ['Decode Path', 'Local Whisper / Cloud'],
+                  ]
+                : [
+                    ['Overlay Mesh', 'QUIC + TLS 1.3'],
+                    ['Attestation', 'Ed25519 Peer Seal'],
+                    ['Gossip Cadence', '250 ms Heartbeat'],
+                  ]
+              ).map(([k, v]) => (
+                <div
+                  key={k}
+                  className="rounded-lg border border-[#C59B27]/65 bg-[#FAF6EE]/90 px-2.5 py-1 text-[#1C140C]"
+                >
+                  <div className="font-display text-[8px] font-bold uppercase tracking-widest text-[#6B4C12]">
+                    {k}
+                  </div>
+                  <div className="font-mono text-[10px] font-semibold text-[#1C140C] truncate">
+                    {v}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid gap-3 lg:grid-cols-2">
-        {cards.map((card) => {
+        {visibleCards.map((card) => {
           const r = results[card.key];
           return (
             <div
@@ -238,7 +343,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
             <RomanWaxSealBadge label="SSOT Sync" />
           </div>
           <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-[#2B2013]">
-            Need additional flags or interactive parameters? Open the full Command Catalog (<code className="rounded bg-bg-elevated px-1 py-0.5 text-text-primary">⌘K</code>) to configure arguments.
+            Need additional flags or interactive parameters? Open the full Command Catalog (<code className="inline-flex items-center gap-0.5 rounded bg-bg-elevated px-1 py-0.5 text-text-primary"><KeycapIcon keyName="Mod" className="size-2.5 inline-block shrink-0" /><span>K</span></code>) to configure arguments.
           </p>
         </div>
       </div>

@@ -20,6 +20,13 @@ export interface ReviewState {
    * 'empty'/'error' subsume screenshots-variants.spec.ts; 'none' captures
    * true no-backend browser mode (BackendBanner regression). */
   mock?: MockKind;
+  /** Window flags seeded before initial page load so mount-time IPC calls observe them. */
+  initFlags?: Record<string, boolean>;
+}
+
+export interface TerminalCvStateSpec extends ReviewState {
+  surface: 'console' | 'chat';
+  initFlags?: Record<string, boolean>;
 }
 
 const DEFAULT: ReviewState = { name: 'default' };
@@ -38,6 +45,129 @@ const VARIANT_SURFACES = new Set([
 export const SURFACE_STATES: Record<string, ReviewState[]> = Object.fromEntries(
   discoverAllGuiSurfacesAndPanels().registeredViewKeys.map((k) => [k, [DEFAULT]]),
 );
+
+const CHAT_TERMINAL_DOCK_STATE: TerminalCvStateSpec = {
+  name: 'chat-terminal-dock',
+  surface: 'chat',
+  initFlags: { __MOCK_CHAT_TERM_DOCK__: true },
+  setup: async (p) => {
+    await p.evaluate(() => {
+      (window as any).__MOCK_CHAT_TERM_DOCK__ = true;
+    });
+    const dock = p.getByTestId('chat-dock-terminal');
+    if (!(await dock.isVisible())) {
+      await p.getByRole('button', { name: 'Panels', exact: true }).click({ timeout: 5_000 });
+      await p.getByTestId('dock-preset-engineering').click({ timeout: 5_000 });
+    }
+    await dock.waitFor({ state: 'visible', timeout: 5_000 });
+  },
+};
+
+const CONSOLE_CV_STATES: TerminalCvStateSpec[] = [
+  {
+    name: 'block-stream-ansi',
+    surface: 'console',
+    setup: async (p) => {
+      await p.getByTestId('term-session-bar').first().waitFor({ state: 'visible', timeout: 5_000 });
+      await p.getByTestId('term-block-output').first().waitFor({ state: 'visible', timeout: 5_000 });
+      await p.evaluate(() => {
+        const stream = document.querySelector<HTMLElement>('[data-testid="block-stream-view"]');
+        if (stream) stream.scrollTop = 0;
+      });
+    },
+  },
+  {
+    name: 'split-panes',
+    surface: 'console',
+    setup: async (p) => {
+      await p.getByTestId('term-split-right').first().click({ timeout: 5_000 });
+      await p.locator('[data-testid="terminal-session-pane"]').nth(1).waitFor({ state: 'visible', timeout: 5_000 });
+    },
+  },
+  {
+    name: 'history-search-open',
+    surface: 'console',
+    setup: async (p) => {
+      await p.getByLabel('console input').first().focus({ timeout: 5_000 });
+      await p.keyboard.press('Control+r');
+      await p.getByTestId('term-history-search').waitFor({ state: 'visible', timeout: 5_000 });
+    },
+  },
+  {
+    name: 'json-ledger-table',
+    surface: 'console',
+    setup: async (p) => {
+      await p.getByTestId('term-ledger-tab-table').first().click({ timeout: 5_000 });
+      await p.getByTestId('term-ledger-table').first().waitFor({ state: 'visible', timeout: 5_000 });
+    },
+  },
+  {
+    name: 'runbooks-open',
+    surface: 'console',
+    setup: async (p) => {
+      const restoreBtn = p.getByTestId('discovery-rail-restore-button');
+      if (await restoreBtn.isVisible()) {
+        await restoreBtn.click({ timeout: 5_000 });
+      }
+      await p.getByTestId('discovery-tab-runbooks').click({ timeout: 5_000 });
+      await p.getByTestId('term-runbook-panel').waitFor({ state: 'visible', timeout: 5_000 });
+      await p.locator('[data-testid^="term-runbook-card-"]').first().waitFor({ state: 'visible', timeout: 5_000 });
+      await p.evaluate(() => {
+        const stream = document.querySelector<HTMLElement>('[data-testid="block-stream-view"]');
+        if (stream) stream.scrollTop = 0;
+      });
+    },
+  },
+  {
+    name: 'approval-card-pending',
+    surface: 'console',
+    initFlags: { __MOCK_TERM_APPROVAL_ACTIVE__: true },
+    setup: async (p) => {
+      await p.evaluate(() => {
+        (window as any).__MOCK_TERM_APPROVAL_ACTIVE__ = true;
+      });
+      await p.getByTestId('term-session-bar').first().waitFor({ state: 'visible', timeout: 5_000 });
+      await p.getByTestId('term-approval-card').first().waitFor({ state: 'visible', timeout: 5_000 });
+    },
+  },
+  {
+    name: 'auto-tui-alt-screen',
+    surface: 'console',
+    initFlags: { __VOX_E2E_REAL_XTERM__: true, __MOCK_TERM_ALT_SCREEN__: true },
+    setup: async (p) => {
+      await p.evaluate(() => {
+        (window as any).__VOX_E2E_REAL_XTERM__ = true;
+        (window as any).__MOCK_TERM_ALT_SCREEN__ = true;
+      });
+      const vp = p.getByTestId('terminal-viewport').first();
+      if (!(await vp.isVisible())) {
+        await p.getByTestId('term-view-mode-toggle').first().click({ timeout: 5_000 });
+      }
+      await p.locator('[data-testid="terminal-viewport"] .xterm').first().waitFor({ state: 'visible', timeout: 5_000 });
+      await p.waitForFunction(
+        () => {
+          const rows = document.querySelector('[data-testid="terminal-viewport"] .xterm-rows');
+          return Boolean(rows && (rows.textContent || '').trim().length > 10);
+        },
+        undefined,
+        { timeout: 5_000 },
+      );
+    },
+  },
+];
+
+export const TERMINAL_CV_STATES: TerminalCvStateSpec[] = [
+  ...CONSOLE_CV_STATES,
+  CHAT_TERMINAL_DOCK_STATE,
+];
+
+SURFACE_STATES['console'] = CONSOLE_CV_STATES.map(({ name, setup, viewports, mock, initFlags }) => ({
+  name,
+  ...(setup ? { setup } : {}),
+  ...(viewports ? { viewports } : {}),
+  ...(mock ? { mock } : {}),
+  ...(initFlags ? { initFlags } : {}),
+}));
 
 SURFACE_STATES['chat'] = [
   DEFAULT,
@@ -68,6 +198,11 @@ SURFACE_STATES['chat'] = [
         'A deliberately long composer draft that should wrap across multiple lines and reveal any clipping or overlap issues in the dock '.repeat(2),
       );
     },
+  },
+  {
+    name: CHAT_TERMINAL_DOCK_STATE.name,
+    setup: CHAT_TERMINAL_DOCK_STATE.setup,
+    ...(CHAT_TERMINAL_DOCK_STATE.initFlags ? { initFlags: CHAT_TERMINAL_DOCK_STATE.initFlags } : {}),
   },
   ...VARIANT,
 ];
@@ -146,6 +281,8 @@ SURFACE_STATES['mens'] = [
     },
   },
 ];
+
+SURFACE_STATES['gsd'] = [DEFAULT];
 
 for (const k of VARIANT_SURFACES) {
   if (!SURFACE_STATES[k].some((s) => s.name === 'empty')) SURFACE_STATES[k].push(...VARIANT);

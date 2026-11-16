@@ -40,9 +40,7 @@ async fn test_eval_executes_real_research_pipeline_not_web_lines() {
             "Rust enforces memory safety through ownership, borrowing, and lifetimes at compile time."
                 .into(),
         ),
-        domain_mode: None,
-        expected_sources: None,
-        is_adversarial: None,
+        ..Default::default()
     };
 
     let sample = evaluate_single_query_pipeline("run-001", &item, &ctx, None, &config)

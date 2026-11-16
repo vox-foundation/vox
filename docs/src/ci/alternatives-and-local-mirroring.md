@@ -59,7 +59,7 @@ substitute for `ubuntu-latest`.
 **Fit for this repo:**
 
 - Strong fit for the GH-hosted exceptions (`docs-quality.yml`,
-  `link_checker.yml`, `vox-vscode-extension`, `visualizer-ingest-smoke`,
+  `docs-drift-refresh.yml`, `vox-vscode-extension`, `visualizer-ingest-smoke`,
   `web-vite-build-smoke`). These are small, Linux-only, and well-suited to a
   catalog image.
 - Weak fit for self-hosted-labelled jobs. `act` matches `runs-on: ubuntu-latest`
@@ -241,7 +241,7 @@ These are sequenced by "smallest diff with biggest signal" first.
 
 1. **Adopt `act` as an opt-in pre-push lane** for the GH-hosted exception
    workflows only. Add `vox ci pre-push --act` that runs `docs-quality`,
-   `link_checker`, `visualizer-ingest-smoke`, `web-vite-build-smoke`, and
+   `docs-drift-refresh`, `visualizer-ingest-smoke`, `web-vite-build-smoke`, and
    `vox-vscode-extension` against `act` with cached `~/.cache/act` +
    bind-mounted `~/.cargo`. Catches the failures that today only surface
    after push.

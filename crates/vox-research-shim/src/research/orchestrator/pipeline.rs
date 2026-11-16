@@ -57,8 +57,32 @@ pub async fn run_research_with_context_and_session(
     config: &ResearchConfig,
     precreated_session_id: Option<i64>,
 ) -> Result<ResearchResult> {
-    super::super::metering::scope(run_research_metered(
+    run_research_with_warm_seed(
         query,
+        Vec::new(),
+        search_ctx,
+        db,
+        config,
+        precreated_session_id,
+    )
+    .await
+}
+
+/// Runs deep/multi-wave research starting from prior warm-seeded hits (e.g., CRAG escalation
+/// from a fast/quick tier) so already gathered evidence participates in deduplication,
+/// scoring, verification, and synthesis.
+#[inline(never)]
+pub async fn run_research_with_warm_seed(
+    query: ResearchQuery,
+    warm_seed_hits: Vec<ResearchHit>,
+    search_ctx: Option<&SearchRuntimeContext>,
+    db: Option<&Codex>,
+    config: &ResearchConfig,
+    precreated_session_id: Option<i64>,
+) -> Result<ResearchResult> {
+    super::super::metering::scope(run_research_metered_with_seed(
+        query,
+        warm_seed_hits,
         search_ctx,
         db,
         config,
@@ -68,8 +92,9 @@ pub async fn run_research_with_context_and_session(
 }
 
 #[inline(never)]
-async fn run_research_metered(
+async fn run_research_metered_with_seed(
     mut query: ResearchQuery,
+    warm_seed_hits: Vec<ResearchHit>,
     search_ctx: Option<&SearchRuntimeContext>,
     db: Option<&Codex>,
     config: &ResearchConfig,
@@ -82,7 +107,8 @@ async fn run_research_metered(
     // Phase 1 re-enables after vox_db gains get_retrieval_config.
     let persist_enabled = true;
 
-    if let Some(db) = db
+    if warm_seed_hits.is_empty()
+        && let Some(db) = db
         && result_cache_enabled(config)
         && let Some(mut cached) = research_cache_short_circuit(&query, db, config).await
     {
@@ -174,27 +200,11 @@ async fn run_research_metered(
         .unwrap_or_else(|_| passthrough_plan(&query, true))
     };
 
-    match query.domain_mode {
-        ResearchDomainMode::Shopping => {
-            let domain_queries =
-                super::super::domain::shopping::generate_shopping_subqueries(&query.query);
-            for sq in domain_queries {
-                if !plan.subqueries.contains(&sq) {
-                    plan.subqueries.push(sq);
-                }
-            }
-        }
-        ResearchDomainMode::CodeGen => {
-            let domain_queries =
-                super::super::domain::codegen::generate_codegen_subqueries(&query.query);
-            for sq in domain_queries {
-                if !plan.subqueries.contains(&sq) {
-                    plan.subqueries.push(sq);
-                }
-            }
-        }
-        ResearchDomainMode::General => {}
-    }
+    super::domain_modes::extend_domain_subqueries(
+        query.domain_mode,
+        &query.query,
+        &mut plan.subqueries,
+    );
     emit_research_event(
         config,
         db,
@@ -232,6 +242,7 @@ async fn run_research_metered(
     );
 
     let mut all_hits: Vec<ResearchHit> = Vec::new();
+    merge_warm_seed_hits(&mut all_hits, warm_seed_hits);
     let mut subqueries_with_hits = 0;
     let mut total_dropped_count = 0usize;
     let mut total_sources_attempted = 0usize;
@@ -281,9 +292,7 @@ async fn run_research_metered(
 
     dedupe_hits_by_url(&mut all_hits);
 
-    if query.domain_mode == ResearchDomainMode::Shopping {
-        super::super::domain::shopping::deboost_affiliate_spam(&mut all_hits);
-    }
+    super::domain_modes::post_process_domain_hits(query.domain_mode, &mut all_hits);
 
     all_hits.sort_by(|a, b| {
         b.score
@@ -607,6 +616,18 @@ async fn run_research_metered(
         );
 
         for wave_idx in 2..=query.waves {
+            // Check if early exit criteria met before launching wave
+            if wp.should_early_terminate() {
+                wp.termination_reason = Some(super::wave::TerminationReason::StabilityThresholdMet);
+                tracing::info!(
+                    session_id,
+                    wave_idx,
+                    stability = wp.compute_stability(),
+                    "Multi-wave research met early termination stability threshold"
+                );
+                break;
+            }
+
             wp.current_wave = wave_idx;
             emit_research_event(
                 config,
@@ -619,18 +640,6 @@ async fn run_research_metered(
                     recorded_at_ms: now_ms_i64(),
                 },
             );
-
-            // Check if early exit criteria met before launching wave
-            if wp.should_early_terminate() {
-                wp.termination_reason = Some(super::wave::TerminationReason::StabilityThresholdMet);
-                tracing::info!(
-                    session_id,
-                    wave_idx,
-                    stability = wp.compute_stability(),
-                    "Multi-wave research met early termination stability threshold"
-                );
-                break;
-            }
 
             report_progress(
                 format!(
@@ -900,19 +909,8 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         "Synthesizing final research report...".to_string(),
         Some(0.85),
     );
-    let synthesis_query = match query.domain_mode {
-        ResearchDomainMode::Shopping => format!(
-            "{}\n\n{}",
-            query.query,
-            super::super::domain::shopping::shopping_synthesis_instructions()
-        ),
-        ResearchDomainMode::CodeGen => format!(
-            "{}\n\n{}",
-            query.query,
-            super::super::domain::codegen::codegen_synthesis_instructions()
-        ),
-        ResearchDomainMode::General => query.query.clone(),
-    };
+    let synthesis_query =
+        super::domain_modes::decorate_synthesis_query(query.domain_mode, &query.query);
     let (mut answer, winning_synthesis_model) = match synthesize_answer_with_llm(SynthesisParams {
         query: &synthesis_query,
         hits: &all_hits,
@@ -1153,19 +1151,14 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
                 .await;
         }
         let session_label = format!("research_session:{session_id}");
-        let mem_meta = serde_json::json!({
-            "query": query.query,
-            "quality_score": result.research_metadata.quality_score,
-            "confidence": result.research_metadata.confidence,
-            "source_count": result.sources.len(),
-        })
-        .to_string();
+        let (tagged_memory_content, mem_meta) =
+            tag_research_memory_provenance(&report_markdown, &query.query, &result);
         let _ = db
             .save_memory(vox_db::SaveMemoryParams {
                 agent_id: "vox-research",
                 session_id: &session_label,
                 memory_type: "research_result",
-                content: &report_markdown,
+                content: &tagged_memory_content,
                 metadata: Some(&mem_meta),
                 importance: (result.research_metadata.quality_score as f64 / 100.0).clamp(0.1, 1.0),
                 vcs_snapshot_id: None,
@@ -1173,12 +1166,18 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
             .await;
 
         let usage = &result.research_metadata.usage;
+        let cost_domain = match query.domain_mode {
+            ResearchDomainMode::General => "general",
+            ResearchDomainMode::Shopping => "shopping",
+            ResearchDomainMode::CodeGen => "codegen",
+            ResearchDomainMode::Scholarly => "scholarly",
+        };
         let _ = db
             .insert_scientia_cost_telemetry(
                 "vox-research",
                 &session_label,
                 "vox-workspace",
-                "scholarly",
+                cost_domain,
                 Some(&result.research_metadata.provider),
                 Some(&result.research_metadata.synthesis_model),
                 Some(usage.prompt_tokens as i64),
@@ -1375,13 +1374,53 @@ fn audit_citations(
     }
 }
 
+fn has_human_approved_primary_evidence(result: &ResearchResult) -> bool {
+    !result.sources.is_empty()
+        && result.sources.iter().any(|s| {
+            s.raw_content.contains("[origin:human_approved_primary]")
+                || s.snippet.contains("[origin:human_approved_primary]")
+                || s.url.starts_with("vox://attested/")
+        })
+}
+
+pub(crate) fn tag_research_memory_provenance(
+    report_markdown: &str,
+    query_text: &str,
+    result: &ResearchResult,
+) -> (String, String) {
+    let origin = if has_human_approved_primary_evidence(result) {
+        "human_approved_primary"
+    } else {
+        "untrusted_synthesis"
+    };
+    let tagged_content = if origin == "untrusted_synthesis"
+        && !report_markdown.contains("[origin:untrusted_synthesis]")
+    {
+        format!("[origin:untrusted_synthesis]\n{report_markdown}")
+    } else {
+        report_markdown.to_string()
+    };
+    let mem_meta = serde_json::json!({
+        "query": query_text,
+        "origin": origin,
+        "quality_score": result.research_metadata.quality_score,
+        "confidence": result.research_metadata.confidence,
+        "source_count": result.sources.len(),
+    })
+    .to_string();
+    (tagged_content, mem_meta)
+}
+
 /// For each verified claim, counts the number of distinct-domain citations
 /// whose evidence spans support it (see `vox_search::corroboration`) — a
 /// domain-agnostic trust fallback for hits with no DOI/academic venue
 /// signal. Mirrors `audit_citations`'s evidence-span matching: a citation
 /// counts as supporting a claim when it has a `Supporting`-type evidence
 /// span with a matching `source_id` for that claim.
-fn compute_corroboration_counts(
+///
+/// Excludes `untrusted_synthesis` memory entries so model-generated prior
+/// research cannot self-corroborate future research waves (VERI-04).
+pub(crate) fn compute_corroboration_counts(
     citations: &[Citation],
     verdicts: &[super::super::verifier::ClaimVerdict],
 ) -> Vec<(u64, usize)> {
@@ -1394,13 +1433,21 @@ fn compute_corroboration_counts(
                 .filter(|span| span.span_type == super::super::verifier::SpanType::Supporting)
                 .map(|span| span.source_id)
                 .collect();
-            let hits: Vec<vox_search::corroboration::CorroboratingHit> = citations
+            let eligible_supporting_citations: Vec<&Citation> = citations
                 .iter()
-                .map(|citation| vox_search::corroboration::CorroboratingHit {
-                    url: citation.url.clone(),
-                    supports_claim: supporting_source_ids.contains(&citation.source_id),
+                .filter(|citation| {
+                    supporting_source_ids.contains(&citation.source_id)
+                        && !super::web_gather::is_untrusted_synthesis_citation(citation)
                 })
                 .collect();
+            let hits: Vec<vox_search::corroboration::CorroboratingHit> =
+                eligible_supporting_citations
+                    .iter()
+                    .map(|citation| vox_search::corroboration::CorroboratingHit {
+                        url: citation.url.clone(),
+                        supports_claim: true,
+                    })
+                    .collect();
             let mut count = vox_search::corroboration::count_corroboration(
                 &verdict.claim.claim_id.to_string(),
                 &hits,
@@ -1408,7 +1455,16 @@ fn compute_corroboration_counts(
             .count();
             // Preserve honest domain corroboration count: if zero distinct web domains were verified,
             // report 0 or the citation hit count without forging multi-domain corroboration.
-            if count == 0 && verdict.verdict == super::super::verifier::Verdict::Supported {
+            // Never allow untrusted_synthesis memory citations to inflate corroboration to 1.
+            let has_non_tainted_support = if citations.is_empty() {
+                verdict.supporting_count > 0
+            } else {
+                !eligible_supporting_citations.is_empty()
+            };
+            if count == 0
+                && verdict.verdict == super::super::verifier::Verdict::Supported
+                && has_non_tainted_support
+            {
                 count = verdict.supporting_count.min(1);
             }
             (verdict.claim.claim_id, count)
@@ -1523,10 +1579,82 @@ fn fast_lane_plan(query: &ResearchQuery) -> ResearchPlan {
     passthrough_plan(query, false)
 }
 
+/// Appends warm-seeded hits from an earlier continuum tier into `all_hits`, skipping hits
+/// that have already been collected with an identical URL and higher or equal score.
+fn merge_warm_seed_hits(all_hits: &mut Vec<ResearchHit>, warm_seed_hits: Vec<ResearchHit>) {
+    for hit in warm_seed_hits {
+        if hit.url.trim().is_empty() && hit.snippet.trim().is_empty() {
+            continue;
+        }
+        if let Some(existing) = all_hits.iter_mut().find(|h| h.url == hit.url) {
+            if hit.score > existing.score {
+                *existing = hit;
+            }
+        } else {
+            all_hits.push(hit);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::super::verifier::{EvidenceSpan, SpanType, Verdict};
     use super::*;
+
+    #[test]
+    fn merge_warm_seed_hits_preserves_and_deduplicates_by_highest_score() {
+        let mut all_hits = vec![ResearchHit {
+            url: "https://docs.rs/vox".to_string(),
+            title: "Docs".to_string(),
+            snippet: "old".to_string(),
+            score: 0.5,
+            http_status: 200,
+            trust_score: 0.5,
+            raw_content: String::new(),
+        }];
+        let seeds = vec![
+            ResearchHit {
+                url: "https://docs.rs/vox".to_string(),
+                title: "Docs".to_string(),
+                snippet: "higher-score warm hit".to_string(),
+                score: 0.9,
+                http_status: 200,
+                trust_score: 0.9,
+                raw_content: String::new(),
+            },
+            ResearchHit {
+                url: "https://arxiv.org/abs/2501.00001".to_string(),
+                title: "Paper".to_string(),
+                snippet: "new seed".to_string(),
+                score: 0.85,
+                http_status: 200,
+                trust_score: 0.85,
+                raw_content: String::new(),
+            },
+        ];
+        merge_warm_seed_hits(&mut all_hits, seeds);
+        assert_eq!(all_hits.len(), 2);
+        assert_eq!(all_hits[0].snippet, "higher-score warm hit");
+        assert_eq!(all_hits[1].url, "https://arxiv.org/abs/2501.00001");
+    }
+
+    #[test]
+    fn domain_modes_wire_subqueries_and_synthesis_for_all_variants() {
+        let mut subqueries = vec!["base".to_string()];
+        super::super::domain_modes::extend_domain_subqueries(
+            ResearchDomainMode::Scholarly,
+            "socrates crag",
+            &mut subqueries,
+        );
+        assert!(subqueries.len() > 1);
+        assert!(
+            super::super::domain_modes::decorate_synthesis_query(
+                ResearchDomainMode::Scholarly,
+                "socrates crag"
+            )
+            .contains("SCHOLARLY LITERATURE")
+        );
+    }
 
     fn fast_query(text: &str) -> ResearchQuery {
         ResearchQuery {
@@ -1985,5 +2113,41 @@ mod tests {
         let rows = wait_for_metric(&db, sid, "scientia.finding_candidate_proposed").await;
         assert_eq!(rows.len(), 1);
         assert!(rows[0].as_deref().is_some_and(|m| m.contains(CANARY)));
+    }
+
+    #[test]
+    fn tag_research_memory_provenance_marks_untrusted_synthesis_unless_human_approved() {
+        let result = ResearchResult {
+            answer: "Synthesized conclusion".to_string(),
+            sources: vec![],
+            citations: vec![],
+            research_metadata: sample_metadata(),
+        };
+        let (tagged_md, meta_json) =
+            tag_research_memory_provenance("# Report\n\nBody", "test query", &result);
+        assert!(tagged_md.starts_with("[origin:untrusted_synthesis]\n"));
+        let parsed: serde_json::Value = serde_json::from_str(&meta_json).expect("valid json");
+        assert_eq!(parsed["origin"], "untrusted_synthesis");
+
+        let approved_result = ResearchResult {
+            answer: "Approved conclusion".to_string(),
+            sources: vec![ResearchHit {
+                url: "vox://attested/doc-1".to_string(),
+                title: "Attested Primary".to_string(),
+                snippet: "[origin:human_approved_primary] Verified".to_string(),
+                score: 1.0,
+                http_status: 200,
+                trust_score: 1.0,
+                raw_content: String::new(),
+            }],
+            citations: vec![],
+            research_metadata: sample_metadata(),
+        };
+        let (approved_md, approved_meta_json) =
+            tag_research_memory_provenance("# Report\n\nBody", "test query", &approved_result);
+        assert!(!approved_md.contains("[origin:untrusted_synthesis]"));
+        let approved_parsed: serde_json::Value =
+            serde_json::from_str(&approved_meta_json).expect("valid json");
+        assert_eq!(approved_parsed["origin"], "human_approved_primary");
     }
 }

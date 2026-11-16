@@ -12,7 +12,14 @@ pub use vox_orchestrator_mcp::gui_ops::dto::research::{
 };
 
 use crate::remote::backend::BackendState;
-use crate::remote::calls::{BackendCalls, api_data, path_with_query};
+use crate::remote::calls::{BackendCalls, api_data, encode_component, path_with_query};
+
+fn publication_path(publication_id: &str, suffix: &str) -> String {
+    format!(
+        "/scientia/publications/{}/{suffix}",
+        encode_component(publication_id)
+    )
+}
 
 pub(crate) async fn list_sessions_impl<B: BackendCalls>(
     b: &B,
@@ -58,6 +65,118 @@ pub(crate) async fn scientia_cost_rollup_impl<B: BackendCalls>(
     api_data(b.api_v2_get("/scientia/cost").await?)
 }
 
+pub(crate) async fn promote_scientia_candidate_impl<B: BackendCalls>(
+    b: &B,
+    candidate_id: &str,
+    venue: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    let base = format!(
+        "/scientia/candidates/{}/promote",
+        encode_component(candidate_id)
+    );
+    let path = path_with_query(
+        &base,
+        &[("venue", venue.filter(|s| !s.is_empty()).map(str::to_string))],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+pub(crate) async fn scientia_publication_manuscript_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+) -> Result<serde_json::Value, String> {
+    api_data(
+        b.api_v2_get(&publication_path(publication_id, "manuscript"))
+            .await?,
+    )
+}
+
+pub(crate) async fn scientia_publication_latex_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+) -> Result<serde_json::Value, String> {
+    api_data(
+        b.api_v2_get(&publication_path(publication_id, "latex"))
+            .await?,
+    )
+}
+
+pub(crate) async fn scientia_publication_finding_page_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+) -> Result<serde_json::Value, String> {
+    api_data(
+        b.api_v2_get(&publication_path(publication_id, "finding-page"))
+            .await?,
+    )
+}
+
+pub(crate) async fn scientia_publication_extract_claims_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+) -> Result<serde_json::Value, String> {
+    api_data(
+        b.api_v2_get(&publication_path(publication_id, "extract-claims"))
+            .await?,
+    )
+}
+
+pub(crate) async fn scientia_publication_replay_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+    measured_score: Option<f64>,
+) -> Result<serde_json::Value, String> {
+    let base = publication_path(publication_id, "replay");
+    let path = path_with_query(
+        &base,
+        &[("measured_score", measured_score.map(|s| s.to_string()))],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+pub(crate) async fn scientia_publication_claims_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+) -> Result<serde_json::Value, String> {
+    api_data(
+        b.api_v2_get(&publication_path(publication_id, "claims"))
+            .await?,
+    )
+}
+
+pub(crate) async fn scientia_publication_venue_recommend_impl<B: BackendCalls>(
+    b: &B,
+    candidate_class: &str,
+) -> Result<serde_json::Value, String> {
+    let path = path_with_query(
+        "/scientia/venue-recommend",
+        &[("candidate_class", Some(candidate_class.to_string()))],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+pub(crate) async fn scientia_publication_flywheel_advance_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+    target_stage: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    let base = publication_path(publication_id, "flywheel-advance");
+    let path = path_with_query(
+        &base,
+        &[(
+            "target_stage",
+            target_stage.filter(|s| !s.is_empty()).map(str::to_string),
+        )],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+pub(crate) async fn scientia_v76_audit_diff_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<serde_json::Value, String> {
+    api_data(b.api_v2_get("/scientia/v76-audit-diff").await?)
+}
+
 #[tauri::command]
 pub async fn list_research_sessions(
     backend: State<'_, Arc<BackendState>>,
@@ -97,6 +216,94 @@ pub async fn scientia_cost_rollup(
     backend: State<'_, Arc<BackendState>>,
 ) -> Result<vox_scientia::dashboard::cost::CostRollup, String> {
     scientia_cost_rollup_impl(&backend.current().await).await
+}
+
+#[tauri::command]
+pub async fn promote_scientia_candidate(
+    backend: State<'_, Arc<BackendState>>,
+    candidate_id: String,
+    venue: Option<String>,
+) -> Result<serde_json::Value, String> {
+    promote_scientia_candidate_impl(&backend.current().await, &candidate_id, venue.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_manuscript(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_manuscript_impl(&backend.current().await, &publication_id).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_latex(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_latex_impl(&backend.current().await, &publication_id).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_finding_page(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_finding_page_impl(&backend.current().await, &publication_id).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_extract_claims(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_extract_claims_impl(&backend.current().await, &publication_id).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_replay(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+    measured_score: Option<f64>,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_replay_impl(&backend.current().await, &publication_id, measured_score)
+        .await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_claims(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_claims_impl(&backend.current().await, &publication_id).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_venue_recommend(
+    backend: State<'_, Arc<BackendState>>,
+    candidate_class: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_venue_recommend_impl(&backend.current().await, &candidate_class).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_flywheel_advance(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+    target_stage: Option<String>,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_flywheel_advance_impl(
+        &backend.current().await,
+        &publication_id,
+        target_stage.as_deref(),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn scientia_v76_audit_diff(
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<serde_json::Value, String> {
+    scientia_v76_audit_diff_impl(&backend.current().await).await
 }
 
 // ── Live Scientia-queue push bridge (F2) ─────────────────────────────────────
@@ -319,5 +526,119 @@ mod tests {
         assert!(scientia_cost_rollup_impl(&b).await.is_err());
         let keys: Vec<String> = b.calls().into_iter().map(|(k, _)| k).collect();
         assert_eq!(keys, vec!["get:/scientia/queue", "get:/scientia/cost"]);
+    }
+
+    #[tokio::test]
+    async fn studio_publication_pipeline_commands_encode_paths_and_hit_daemon_routes() {
+        let b = FakeBackend::new()
+            .on_get(
+                "/scientia/candidates/cand%2F1/promote?venue=neurips_workshop",
+                Ok(json!({ "v": 1, "data": { "ok": true, "publication_id": "pub-1" } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/manuscript",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "markdown": "# IMRaD" } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/latex",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "latex": "\\documentclass{article}" } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/finding-page",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "html": "<html></html>" } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/extract-claims",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "total_atomic": 2, "supported": 2 } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/replay?measured_score=0.95",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "artifact_replayability": 0.95 } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/claims",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "session_id": 1, "claims": [] } })),
+            )
+            .on_get(
+                "/scientia/venue-recommend?candidate_class=benchmark_report",
+                Ok(json!({ "v": 1, "data": { "candidate_class": "benchmark_report", "recommended_venues": ["arxiv_cs_se"] } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/flywheel-advance?target_stage=replay_verify",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "stage_completed": "replay_verify", "stages_done": ["extract_claims", "replay_verify"] } })),
+            );
+
+        let promoted = promote_scientia_candidate_impl(&b, "cand/1", Some("neurips_workshop"))
+            .await
+            .unwrap();
+        assert_eq!(promoted["publication_id"], "pub-1");
+
+        let ms = scientia_publication_manuscript_impl(&b, "pub/1")
+            .await
+            .unwrap();
+        assert_eq!(ms["markdown"], "# IMRaD");
+
+        let tex = scientia_publication_latex_impl(&b, "pub/1").await.unwrap();
+        assert_eq!(tex["latex"], "\\documentclass{article}");
+
+        let fp = scientia_publication_finding_page_impl(&b, "pub/1")
+            .await
+            .unwrap();
+        assert_eq!(fp["html"], "<html></html>");
+
+        let ext = scientia_publication_extract_claims_impl(&b, "pub/1")
+            .await
+            .unwrap();
+        assert_eq!(ext["total_atomic"], 2);
+
+        let rep = scientia_publication_replay_impl(&b, "pub/1", Some(0.95))
+            .await
+            .unwrap();
+        assert_eq!(rep["artifact_replayability"], 0.95);
+
+        let claims = scientia_publication_claims_impl(&b, "pub/1").await.unwrap();
+        assert_eq!(claims["publication_id"], "pub/1");
+
+        let venue = scientia_publication_venue_recommend_impl(&b, "benchmark_report")
+            .await
+            .unwrap();
+        assert_eq!(venue["recommended_venues"][0], "arxiv_cs_se");
+
+        let fw = scientia_publication_flywheel_advance_impl(&b, "pub/1", Some("replay_verify"))
+            .await
+            .unwrap();
+        assert_eq!(fw["stage_completed"], "replay_verify");
+    }
+
+    #[tokio::test]
+    async fn v76_audit_diff_command_hits_daemon_route() {
+        let b = FakeBackend::new().on_get(
+            "/scientia/v76-audit-diff",
+            Ok(json!({
+                "v": 1,
+                "data": {
+                    "before_stage": "before",
+                    "after_stage": "after",
+                    "before_path": "contracts/reports/scientia-v76-before-baseline.v1.json",
+                    "after_path": "contracts/reports/scientia-v76-after-closure.v1.json",
+                    "after_available": true,
+                    "axes": [],
+                    "bugs": [],
+                    "hunks": [],
+                    "lessons_summary": {
+                        "quarantined_findings_count": 3,
+                        "corroborated_promotions_count": 1,
+                        "proposed_effort_rules_count": 2,
+                        "auto_dpo_pairs_minted": 3,
+                        "unreviewed_ssot_mutations": 0
+                    }
+                }
+            })),
+        );
+        let diff = scientia_v76_audit_diff_impl(&b).await.unwrap();
+        assert_eq!(diff["before_stage"], "before");
+        assert_eq!(diff["after_stage"], "after");
+        assert_eq!(diff["after_available"], true);
+        assert_eq!(diff["lessons_summary"]["unreviewed_ssot_mutations"], 0);
     }
 }

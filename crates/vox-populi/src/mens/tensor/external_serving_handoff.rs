@@ -40,7 +40,7 @@ impl ExternalServingHandoffV1 {
             adapter_path: Some(adapter_filename.to_string()),
             openai_base_url: None,
             notes: Some(
-                "Local: vox mens serve --model <artifact_dir> (requires a vox-ml-cli build with --features execution-api). Routes: POST /generate, /v1/generate, /v1/completions; GET /health, /ready, /v1/models. This server does NOT speak the Ollama HTTP API, so POPULI_URL/OLLAMA_URL clients will not interoperate with it."
+                "Local: vox mens serve --model <artifact_dir> (requires a vox-ml-cli build with --features execution-api). Routes: POST /generate, /v1/generate, /v1/completions, /v1/chat/completions; GET /health, /ready, /v1/models. This server does NOT speak the Ollama HTTP API, so POPULI_URL/OLLAMA_URL clients will not interoperate with it."
                     .to_string(),
             ),
         }
@@ -76,6 +76,35 @@ impl ExternalServingHandoffV1 {
             ),
         }
     }
+
+    /// For a Hugging Face Hub staged bundle (adapter or merged CausalLM + PEFT/Candle artifacts).
+    #[must_use]
+    pub fn hub_bundle(
+        repo_id: &str,
+        base_model: &str,
+        adapter_path: Option<&str>,
+        is_merged: bool,
+    ) -> Self {
+        let peft_note = if is_merged {
+            "Merged CausalLM weights at repo root (plus peft/ LoRA and candle_qlora_adapter.safetensors)."
+        } else {
+            "PEFT LoRA at repo root (adapter_config.json + adapter_model.safetensors) alongside candle_qlora_adapter.safetensors."
+        };
+        Self {
+            schema: Self::SCHEMA,
+            schema_version: 1,
+            backend_family: "openai-compatible",
+            base_model: base_model.to_string(),
+            tokenizer_source: "tokenizer.json".to_string(),
+            artifact_dir: repo_id.to_string(),
+            prompt_format: "qwen_chatml_im_start".to_string(),
+            adapter_path: adapter_path.map(ToString::to_string),
+            openai_base_url: Some("https://router.huggingface.co/v1".to_string()),
+            notes: Some(format!(
+                "{peft_note} Remote OpenAI-compatible inference via HF Router (POST /v1/chat/completions, GET /v1/models). Local: vox mens serve --model <dir> (POST /generate, /v1/generate, /v1/completions, /v1/chat/completions; GET /health, /ready, /v1/models). Does NOT speak the Ollama HTTP API."
+            )),
+        }
+    }
 }
 
 /// Writes `external_serving_handoff_v1.json` into `artifact_dir`.
@@ -98,17 +127,31 @@ mod handoff_honesty_tests {
     /// nonexistent binary name in it is a broken contract, not a typo.
     #[test]
     fn handoff_names_no_binary_and_no_route_that_does_not_exist() {
+        let schola_json = serde_json::to_string(&ExternalServingHandoffV1::schola_training_run(
+            Path::new("/tmp/run"),
+            "Qwen/Qwen3.8-27B",
+            "candle_qlora_adapter.safetensors",
+        ))
+        .unwrap();
+        for route in ["/v1/chat/completions", "/v1/models", "/health"] {
+            assert!(
+                schola_json.contains(route),
+                "schola_training_run must document implemented route {route}: {schola_json}"
+            );
+        }
         let cases = [
-            serde_json::to_string(&ExternalServingHandoffV1::schola_training_run(
-                Path::new("/tmp/run"),
-                "Qwen/Qwen3.8-27B",
-                "candle_qlora_adapter.safetensors",
-            ))
-            .unwrap(),
+            schola_json,
             serde_json::to_string(&ExternalServingHandoffV1::merged_qlora_subset(
                 Path::new("/tmp/run/merged.safetensors"),
                 "Qwen/Qwen3.8-27B",
                 None,
+            ))
+            .unwrap(),
+            serde_json::to_string(&ExternalServingHandoffV1::hub_bundle(
+                "vox-org/vox-mens-qwen3.8-27b",
+                "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+                Some("peft/adapter_model.safetensors"),
+                true,
             ))
             .unwrap(),
         ];
@@ -123,7 +166,6 @@ mod handoff_honesty_tests {
                 "/api/tags",
                 "/api/version",
                 "/api/embeddings",
-                "/v1/chat/completions",
             ] {
                 assert!(
                     !json.contains(phantom),

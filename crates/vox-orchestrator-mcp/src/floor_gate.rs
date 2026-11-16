@@ -35,8 +35,10 @@ pub(crate) fn refuse_agent_floor_resolution(
     }
     let list = state.pending_approvals.list();
     let info = list.iter().find(|e| e.approval_id == approval_id)?;
-    #[rustfmt::skip]
-    let floored = info.summary.starts_with("[floor:") || vox_orchestrator::oversight::floor::name_is_floored(&info.tool);
+    let floored = info.summary.starts_with("[floor:")
+        || info.floor_category.is_some()
+        || info.credential_prompt == Some(true)
+        || vox_orchestrator::oversight::floor::name_is_floored(&info.tool);
     if floored {
         Some(
             crate::params::ToolResult::<()>::err(format!(
@@ -416,6 +418,34 @@ mod tests {
             let res_unk =
                 refuse_agent_floor_resolution(&state, "no_such_id", ApprovalOutcome::Approved);
             assert!(res_unk.is_none());
+        })
+        .await;
+
+        let (id5, _) = state.pending_approvals.register_with_meta(
+            "vox_terminal_exec".into(),
+            "[terminal:co_pilot] git reset --hard".into(),
+            0,
+            crate::pending_approvals::PendingApprovalMeta {
+                floor_category: Some("history_rewrite".into()),
+                ..Default::default()
+            },
+        );
+        let (id6, _) = state.pending_approvals.register_with_meta(
+            "vox_terminal_send_input".into(),
+            "[terminal:manual] send_input".into(),
+            0,
+            crate::pending_approvals::PendingApprovalMeta {
+                credential_prompt: Some(true),
+                ..Default::default()
+            },
+        );
+        with_agent_origin(async {
+            assert!(
+                refuse_agent_floor_resolution(&state, &id5, ApprovalOutcome::Approved).is_some()
+            );
+            assert!(
+                refuse_agent_floor_resolution(&state, &id6, ApprovalOutcome::Approved).is_some()
+            );
         })
         .await;
 

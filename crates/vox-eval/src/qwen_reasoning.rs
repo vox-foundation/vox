@@ -36,15 +36,64 @@ pub fn opened_nonempty_think(completion: &str) -> bool {
     !body.trim().is_empty()
 }
 
-/// User-turn text for one row. Direct answers gain ` /no_think` unless the
-/// user already set `/think` or `/no_think`.
+/// User-turn text for one row. Direct answers gain ` /no_think` when
+/// `user_no_think_switch` is true (Qwen3.0) unless the user already set
+/// `/think` or `/no_think`.
 #[must_use]
-pub fn user_for_mode(user: &str, reasoning: bool) -> String {
-    if reasoning || user.contains("/no_think") || user.contains("/think") {
+pub fn user_for_mode_with_switch(
+    user: &str,
+    reasoning: bool,
+    user_no_think_switch: bool,
+) -> String {
+    if reasoning || !user_no_think_switch || user.contains("/no_think") || user.contains("/think") {
         user.to_string()
     } else {
         format!("{} /no_think", user.trim_end())
     }
+}
+
+/// User-turn text for one row. Direct answers gain ` /no_think` unless the
+/// user already set `/think` or `/no_think`.
+#[must_use]
+pub fn user_for_mode(user: &str, reasoning: bool) -> String {
+    user_for_mode_with_switch(user, reasoning, true)
+}
+
+/// Whether a base model ID or HF `model_type` uses Qwen3.0's literal
+/// `" /no_think"` user-turn toggle.
+///
+/// Qwen3.5, Qwen3.8, Granite-4.2, MiMo, FrogNano, SmolLM3, Gemma 4, and
+/// Ministral treat `" /no_think"` as literal user text rather than a
+/// reasoning switch while still honoring `<think>\n\n</think>\n\n` prefill.
+#[must_use]
+pub fn model_uses_no_think_user_switch(model_or_type_hint: Option<&str>) -> bool {
+    let Some(raw) = model_or_type_hint else {
+        return true;
+    };
+    let lower = raw.trim().to_ascii_lowercase();
+    if lower.is_empty() {
+        return true;
+    }
+    const NON_SWITCH_MARKERS: [&str; 17] = [
+        "qwen3.5",
+        "qwen3_5",
+        "qwen3.6",
+        "qwen3_6",
+        "qwen3.8",
+        "qwen3_8",
+        "qwen3_next",
+        "qwen3-next",
+        "qwen3guard",
+        "mimo",
+        "frognano",
+        "granite",
+        "smollm",
+        "gemma",
+        "ministral",
+        "devstral",
+        "phi-4",
+    ];
+    !NON_SWITCH_MARKERS.iter().any(|m| lower.contains(m))
 }
 
 /// Assistant text as stored in the supervised string. Direct answers are
@@ -116,16 +165,23 @@ impl Lane {
     }
 }
 
+/// User-turn text for a lane, respecting whether the target model family
+/// expects Qwen3.0's literal `" /no_think"` user-turn toggle.
+#[must_use]
+pub fn user_for_lane_with_switch(user: &str, lane: Lane, user_no_think_switch: bool) -> String {
+    if lane.is_thinking() {
+        user.replace("/no_think", "").trim_end().to_string()
+    } else {
+        user_for_mode_with_switch(user, false, user_no_think_switch)
+    }
+}
+
 /// User-turn text for a lane. Codegen is [`user_for_mode`] with
 /// `reasoning = false`; hub and agent drop every `/no_think` and trailing
 /// whitespace, leaving `/think` untouched.
 #[must_use]
 pub fn user_for_lane(user: &str, lane: Lane) -> String {
-    if lane.is_thinking() {
-        user.replace("/no_think", "").trim_end().to_string()
-    } else {
-        user_for_mode(user, false)
-    }
+    user_for_lane_with_switch(user, lane, true)
 }
 
 /// Text that follows `assistant\n` in the prompt: the empty think block for
@@ -819,5 +875,35 @@ mod tests {
         assert_eq!(last_number("temp is -5"), Some(-5.0));
         assert_eq!(last_number("(-5)"), Some(-5.0));
         assert!(grade_final_answer("the result is -12", "-12"));
+    }
+
+    #[test]
+    fn user_no_think_switch_gates_suffix_by_model_hint() {
+        assert_eq!(
+            user_for_mode_with_switch("write vox", false, true),
+            "write vox /no_think"
+        );
+        assert_eq!(
+            user_for_mode_with_switch("write vox", false, false),
+            "write vox"
+        );
+        assert_eq!(
+            user_for_lane_with_switch("write vox", Lane::Codegen, false),
+            "write vox"
+        );
+        assert_eq!(
+            user_for_lane_with_switch("write vox", Lane::Codegen, true),
+            "write vox /no_think"
+        );
+        assert!(model_uses_no_think_user_switch(None));
+        assert!(model_uses_no_think_user_switch(Some("Qwen/Qwen3-8B")));
+        assert!(model_uses_no_think_user_switch(Some("qwen3")));
+        assert!(!model_uses_no_think_user_switch(Some("Qwen/Qwen3.5-9B")));
+        assert!(!model_uses_no_think_user_switch(Some("Qwen/Qwen3.8-27B")));
+        assert!(!model_uses_no_think_user_switch(Some("qwen3_5")));
+        assert!(!model_uses_no_think_user_switch(Some("granite")));
+        assert!(!model_uses_no_think_user_switch(Some(
+            "XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B"
+        )));
     }
 }

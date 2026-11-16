@@ -61,6 +61,68 @@ fn synth_llm_args() -> crate::commands::corpus::SynthLlmArgs {
     }
 }
 
+/// Resolved filesystem paths for a single `vox mens pipeline` invocation.
+///
+/// Generated and mix-source artifacts always live under `data_dir` (which is normalized to the
+/// Cargo workspace root when passed as a relative CLI path, or left as-is when absolute such as a
+/// test `tempdir`), preventing CWD-relative `crates/vox-ml-cli/mens/` pollution.
+#[derive(Debug, Clone)]
+struct PipelineDataPaths {
+    data_dir: PathBuf,
+    output_dir: PathBuf,
+    mix_sources_dir: PathBuf,
+    synthetic_jsonl: PathBuf,
+    research_sft_jsonl: PathBuf,
+    rust_source_jsonl: PathBuf,
+    docs_jsonl: PathBuf,
+    autofeedback_jsonl: PathBuf,
+    review_findings_jsonl: PathBuf,
+    rust_review_dpo_jsonl: PathBuf,
+    agent_traces_jsonl: PathBuf,
+    back_translated_jsonl: PathBuf,
+    rft_vox_jsonl: PathBuf,
+    crates_dir: PathBuf,
+    docs_dir: PathBuf,
+    source_pool_config: PathBuf,
+    heldout_bench_manifest: PathBuf,
+    dogfood_dir: PathBuf,
+}
+
+impl PipelineDataPaths {
+    fn resolve(
+        raw_data_dir: PathBuf,
+        raw_output_dir: PathBuf,
+        workspace_root: Option<&std::path::Path>,
+    ) -> Self {
+        use vox_corpus::training::contract::normalize_workspace_relative_path;
+        let data_dir = normalize_workspace_relative_path(raw_data_dir, workspace_root);
+        let output_dir = normalize_workspace_relative_path(raw_output_dir, workspace_root);
+        let mix_sources_dir = data_dir.join("mix_sources");
+        let ws_rel =
+            |rel: &str| normalize_workspace_relative_path(PathBuf::from(rel), workspace_root);
+        Self {
+            synthetic_jsonl: data_dir.join("synthetic.jsonl"),
+            research_sft_jsonl: data_dir.join("research-lane-sft.jsonl"),
+            rust_source_jsonl: mix_sources_dir.join("rust_source.jsonl"),
+            docs_jsonl: mix_sources_dir.join("docs.jsonl"),
+            autofeedback_jsonl: mix_sources_dir.join("autofeedback.jsonl"),
+            review_findings_jsonl: mix_sources_dir.join("review_findings.jsonl"),
+            rust_review_dpo_jsonl: mix_sources_dir.join("rust_review_dpo.jsonl"),
+            agent_traces_jsonl: mix_sources_dir.join("agent_traces.jsonl"),
+            back_translated_jsonl: mix_sources_dir.join("back_translated.jsonl"),
+            rft_vox_jsonl: mix_sources_dir.join("rft_vox.jsonl"),
+            crates_dir: ws_rel("crates"),
+            docs_dir: ws_rel("docs/src"),
+            source_pool_config: ws_rel(crate::commands::corpus::source_pool::DEFAULT_CONFIG),
+            heldout_bench_manifest: ws_rel("mens/data/heldout_bench/manifest.json"),
+            dogfood_dir: ws_rel("target/dogfood"),
+            data_dir,
+            output_dir,
+            mix_sources_dir,
+        }
+    }
+}
+
 /// Run the dogfood pipeline: corpus extract → validate → pairs → eval → optional native train.
 pub async fn run(
     data_dir: PathBuf,
@@ -89,6 +151,11 @@ pub async fn run(
         );
     }
 
+    let ws_root = vox_corpus::training::contract::find_workspace_root();
+    let paths = PipelineDataPaths::resolve(data_dir, output_dir, ws_root.as_deref());
+    let data_dir = paths.data_dir.clone();
+    let output_dir = paths.output_dir.clone();
+
     let run_id = vox_corpus::training::timestamp_string();
 
     let planned_stages = plan_stages(stages.as_deref(), skip_train);
@@ -111,7 +178,7 @@ pub async fn run(
         }
         std::fs::create_dir_all(&data_dir)?;
         std::fs::create_dir_all(&output_dir)?;
-        std::fs::create_dir_all(data_dir.join("mix_sources"))?;
+        std::fs::create_dir_all(&paths.mix_sources_dir)?;
     }
 
     for (completed_stages, stage) in planned_stages.into_iter().enumerate() {
@@ -135,7 +202,7 @@ pub async fn run(
             PipelineStage::Generate => {
                 if !dry_run {
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Generate {
-                        output: PathBuf::from("mens/data/synthetic.jsonl"),
+                        output: paths.synthetic_jsonl.clone(),
                         force_regen: true,
                         dry_run: false,
                     })
@@ -149,19 +216,19 @@ pub async fn run(
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
                         dir: None,
                         output: validated.clone(),
-                        pool: PathBuf::from(crate::commands::corpus::source_pool::DEFAULT_CONFIG),
+                        pool: paths.source_pool_config.clone(),
                         report: None,
                     })
                     .await
                     .map_err(|e| anyhow::anyhow!("pipeline extract vox sources failed: {e}"))?;
 
                     // Extract from Rust source
-                    let crates_dir = PathBuf::from("crates");
+                    let crates_dir = paths.crates_dir.clone();
                     if crates_dir.is_dir() {
                         crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::ExtractRs {
                                 dir: crates_dir,
-                                output: PathBuf::from("mens/data/mix_sources/rust_source.jsonl"),
+                                output: paths.rust_source_jsonl.clone(),
                             },
                         )
                         .await
@@ -169,12 +236,12 @@ pub async fn run(
                     }
 
                     // Extract from documentation
-                    let docs_dir = PathBuf::from("docs/src");
+                    let docs_dir = paths.docs_dir.clone();
                     if docs_dir.is_dir() {
                         crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::ExtractDocs {
                                 dir: docs_dir,
-                                output: PathBuf::from("mens/data/mix_sources/docs.jsonl"),
+                                output: paths.docs_jsonl.clone(),
                             },
                         )
                         .await
@@ -203,8 +270,7 @@ pub async fn run(
             }
             PipelineStage::Replay => {
                 if !dry_run {
-                    let autofeedback_out =
-                        PathBuf::from("mens/data/mix_sources/autofeedback.jsonl");
+                    let autofeedback_out = paths.autofeedback_jsonl.clone();
                     match crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::Replay {
                             chatml: true,
@@ -240,7 +306,7 @@ pub async fn run(
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::HealToDpo {
                             input: Some(input),
-                            output: PathBuf::from("target/dogfood/preference_pairs.jsonl"),
+                            output: paths.dogfood_dir.join("preference_pairs.jsonl"),
                         },
                     )
                     .await?;
@@ -250,7 +316,7 @@ pub async fn run(
                 if !dry_run {
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::ResearchGen {
-                            output: PathBuf::from("mens/data/research-lane-sft.jsonl"),
+                            output: paths.research_sft_jsonl.clone(),
                             count: 1000,
                         },
                     )
@@ -269,7 +335,7 @@ pub async fn run(
                         crate::commands::corpus::CorpusAction::ReviewExport {
                             repository_id: repo_id,
                             limit: 1000,
-                            output: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
+                            output: paths.review_findings_jsonl.clone(),
                         },
                     )
                     .await?;
@@ -279,7 +345,7 @@ pub async fn run(
                 if !dry_run {
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::ReviewValidate {
-                            input: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
+                            input: paths.review_findings_jsonl.clone(),
                         },
                     )
                     .await?;
@@ -289,7 +355,7 @@ pub async fn run(
                 if !dry_run {
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::ReviewStats {
-                            input: PathBuf::from("mens/data/mix_sources/review_findings.jsonl"),
+                            input: paths.review_findings_jsonl.clone(),
                         },
                     )
                     .await?;
@@ -297,8 +363,8 @@ pub async fn run(
             }
             PipelineStage::ReviewToDpo => {
                 if !dry_run {
-                    let review_input = PathBuf::from("mens/data/mix_sources/review_findings.jsonl");
-                    let dpo_output = PathBuf::from("mens/data/mix_sources/rust_review_dpo.jsonl");
+                    let review_input = paths.review_findings_jsonl.clone();
+                    let dpo_output = paths.rust_review_dpo_jsonl.clone();
                     if review_input.is_file() {
                         crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::ReviewToDpo {
@@ -317,8 +383,8 @@ pub async fn run(
                 if !dry_run {
                     // Ingest a2a traces from dogfood capture path → SFT rows with diversity gate.
                     // Guard on input presence (consistent with ReviewToDpo) — never fabricate.
-                    let trace_input = PathBuf::from("target/dogfood/a2a_traces.jsonl");
-                    let trace_output = PathBuf::from("mens/data/mix_sources/agent_traces.jsonl");
+                    let trace_input = paths.dogfood_dir.join("a2a_traces.jsonl");
+                    let trace_output = paths.agent_traces_jsonl.clone();
                     if trace_input.is_file() {
                         crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::TraceIngest {
@@ -341,9 +407,9 @@ pub async fn run(
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::BackTranslate {
                             input: validated.clone(),
-                            output: PathBuf::from("mens/data/mix_sources/back_translated.jsonl"),
-                            cache: PathBuf::from("target/dogfood/back_translate_cache.jsonl"),
-                            bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                            output: paths.back_translated_jsonl.clone(),
+                            cache: paths.dogfood_dir.join("back_translate_cache.jsonl"),
+                            bench: paths.heldout_bench_manifest.clone(),
                             max_rows: 200,
                             round_trip: false,
                             llm: synth_llm_args(),
@@ -354,12 +420,12 @@ pub async fn run(
                 }
             }
             PipelineStage::Rft => {
-                let tasks = PathBuf::from("mens/data/mix_sources/back_translated.jsonl");
+                let tasks = paths.back_translated_jsonl.clone();
                 if !dry_run && tasks.is_file() {
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Rft {
                         input: tasks,
-                        output: PathBuf::from("mens/data/mix_sources/rft_vox.jsonl"),
-                        bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                        output: paths.rft_vox_jsonl.clone(),
+                        bench: paths.heldout_bench_manifest.clone(),
                         k: 4,
                         max_per_task: 2,
                         max_tasks: 100,
@@ -390,7 +456,7 @@ pub async fn run(
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
                         input: validated.clone(),
                         output: train_jsonl.clone(),
-                        docs: vec![PathBuf::from("docs/src")],
+                        docs: vec![paths.docs_dir.clone()],
                     })
                     .await?;
                 }
@@ -582,12 +648,94 @@ pub async fn run(
         }
     }
 
+    #[cfg(all(not(test), any(feature = "gpu", feature = "mens-hf-hub")))]
+    if !dry_run {
+        let ns_env = std::env::var(vox_populi::mens::hub_repo::NAMESPACE_ENV).ok();
+        match ns_env.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            Some(raw_ns) => {
+                let out_root = ws_root
+                    .as_deref()
+                    .unwrap_or_else(|| std::path::Path::new("."));
+                match sync_local_hf_cards_offline(out_root, ws_root.as_deref(), raw_ns) {
+                    Ok(cards_dir) => tracing::info!(
+                        cards_dir = %cards_dir.display(),
+                        "mens pipeline: rendered local HF cards and ladder index (offline-safe)"
+                    ),
+                    Err(e) => tracing::warn!(
+                        "mens pipeline: offline local HF card/index sync skipped: {e:#}"
+                    ),
+                }
+            }
+            None => tracing::warn!(
+                env_var = vox_populi::mens::hub_repo::NAMESPACE_ENV,
+                "mens pipeline: skipped offline local HF card/index sync (namespace env unset)"
+            ),
+        }
+    }
+
     tracing::info!(
         run_id = %run_id,
         "mens pipeline: complete"
     );
 
     Ok(())
+}
+
+/// Build ladder sync rows and render local HF cards, index JSON, and Space HTML under
+/// `out_root/mens/runs/hub_cards` without issuing any network requests.
+#[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
+fn sync_local_hf_cards_offline(
+    out_root: &std::path::Path,
+    spec_root: Option<&std::path::Path>,
+    namespace: &str,
+) -> Result<PathBuf> {
+    use vox_populi::mens::hub_repo;
+    use vox_populi::mens::hub_sync::{
+        SizeSyncRow, SizeSyncStatus, index_entries, resolve_ladder_base_pin, stage_publish_bundle,
+        write_local_cards,
+    };
+
+    let ns = hub_repo::resolve_namespace(Some(namespace))?;
+    let mut rows = Vec::with_capacity(hub_repo::SIZES.len());
+    for &size in &hub_repo::SIZES {
+        let base_pin = resolve_ladder_base_pin(spec_root.or(Some(out_root)), size)?;
+        let repo_id = hub_repo::repo_id_for_size(&ns, size)?;
+        let rel_dir = hub_repo::local_run_dir_for_size(size)?;
+        let run_dir = out_root.join(&rel_dir);
+        let has_adapter = run_dir.join("candle_qlora_adapter.safetensors").is_file()
+            || run_dir.join("adapter.safetensors").is_file();
+        let local_manifest = if has_adapter {
+            let stage_dir = std::env::temp_dir().join(format!(
+                "vox-pipeline-stage-{}-{}",
+                std::process::id(),
+                size.to_ascii_lowercase()
+            ));
+            let _ = std::fs::create_dir_all(&stage_dir);
+            let manifest = stage_publish_bundle(&run_dir, &stage_dir, true, &ns).ok();
+            let _ = std::fs::remove_dir_all(&stage_dir);
+            manifest
+        } else {
+            None
+        };
+        rows.push(SizeSyncRow {
+            size: size.to_string(),
+            base_pin,
+            repo_id,
+            local_dir: rel_dir,
+            sync_status: if has_adapter {
+                SizeSyncStatus::LocalOnly
+            } else {
+                SizeSyncStatus::NotTrained
+            },
+            gate_status: local_manifest.as_ref().map(|m| m.gate_status.clone()),
+            final_loss: local_manifest.as_ref().and_then(|m| m.final_loss),
+            measured_peak_mb: local_manifest.as_ref().and_then(|m| m.measured_peak_mb),
+            action_taken: Some("local_cards_offline".to_string()),
+            latest_version: None,
+        });
+    }
+    let entries = index_entries(out_root, &rows);
+    write_local_cards(out_root, &ns, &entries)
 }
 
 /// DPO preference pairs from human-reviewed findings (D-06, GROW-06). Rows without a
@@ -895,5 +1043,56 @@ mod tests {
                 err_msg
             );
         }
+    }
+
+    #[test]
+    fn pipeline_data_paths_anchors_outputs_to_data_dir_and_workspace_root() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ws = tmp.path().join("fake_ws");
+        std::fs::create_dir_all(&ws).unwrap();
+
+        let rel = PipelineDataPaths::resolve(
+            PathBuf::from("mens/data"),
+            PathBuf::from("mens/runs/latest"),
+            Some(&ws),
+        );
+        assert_eq!(rel.data_dir, ws.join("mens/data"));
+        assert_eq!(rel.output_dir, ws.join("mens/runs/latest"));
+        assert_eq!(
+            rel.rust_source_jsonl,
+            ws.join("mens/data/mix_sources/rust_source.jsonl")
+        );
+        assert_eq!(rel.crates_dir, ws.join("crates"));
+
+        let custom_data = tmp.path().join("isolated_data");
+        let custom_out = tmp.path().join("isolated_out");
+        let abs = PipelineDataPaths::resolve(custom_data.clone(), custom_out.clone(), Some(&ws));
+        assert_eq!(abs.data_dir, custom_data);
+        assert_eq!(abs.synthetic_jsonl, custom_data.join("synthetic.jsonl"));
+        assert_eq!(
+            abs.autofeedback_jsonl,
+            custom_data.join("mix_sources/autofeedback.jsonl")
+        );
+        assert_eq!(
+            abs.heldout_bench_manifest,
+            ws.join("mens/data/heldout_bench/manifest.json")
+        );
+    }
+
+    #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
+    #[test]
+    fn offline_local_cards_sync_renders_without_network() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ws = vox_corpus::training::contract::find_workspace_root();
+        let cards_dir =
+            super::sync_local_hf_cards_offline(tmp.path(), ws.as_deref(), "test-org").unwrap();
+        assert!(cards_dir.join("vox-mens-index/ladder_index.json").is_file());
+        assert!(cards_dir.join("vox-mens-qwen3.5-4b/README.md").is_file());
+        let space_html =
+            std::fs::read_to_string(cards_dir.join("vox-mens-playground/index.html")).unwrap();
+        assert!(
+            !space_html.contains("<svg"),
+            "Space HTML must contain zero SVGs"
+        );
     }
 }

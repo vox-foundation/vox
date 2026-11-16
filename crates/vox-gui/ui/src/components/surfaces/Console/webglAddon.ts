@@ -1,6 +1,13 @@
 import type { ITerminalAddon, Terminal } from '@xterm/xterm';
 import type { TermBlockDto } from '../../../transport';
 
+export interface WebglTerminalAddonOptions {
+  onRendererModeChange?: (mode: 'webgl2' | 'dom') => void;
+}
+
+const ANSI_CSI_OSC_RE =
+  /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]/g;
+
 /**
  * Self-contained WebGL2 terminal addon for xterm.js with deterministic
  * `webglcontextlost` handling and graceful DOM fallback when WebGL2 is
@@ -8,30 +15,39 @@ import type { TermBlockDto } from '../../../transport';
  */
 export class WebglTerminalAddon implements ITerminalAddon {
   private disposed = false;
+  private webglActive = false;
   private listeners: Array<() => void> = [];
-  private canvas: HTMLCanvasElement | null = null;
-  private gl: WebGL2RenderingContext | WebGLRenderingContext | null = null;
-  private onLostBound = (ev: Event) => {
-    ev.preventDefault();
-    this.simulateContextLoss();
-  };
+  private readonly onRendererModeChange?: (mode: 'webgl2' | 'dom') => void;
+
+  constructor(options?: WebglTerminalAddonOptions) {
+    this.onRendererModeChange = options?.onRendererModeChange;
+  }
 
   activate(terminal: Terminal): void {
     this.disposed = false;
+    this.webglActive = false;
     try {
       const el = (terminal as unknown as { element?: HTMLElement }).element;
       if (el && typeof document !== 'undefined') {
-        const canvas = document.createElement('canvas');
-        canvas.addEventListener('webglcontextlost', this.onLostBound);
-        this.canvas = canvas;
-        this.gl =
-          (canvas.getContext?.('webgl2') as WebGL2RenderingContext | null) ??
-          (canvas.getContext?.('webgl') as WebGLRenderingContext | null) ??
-          null;
+        const probeCanvas = document.createElement('canvas');
+        const gl = (probeCanvas.getContext?.('webgl2') as WebGL2RenderingContext | null) ?? null;
+        if (gl) {
+          this.webglActive = true;
+          try {
+            gl.getExtension?.('WEBGL_lose_context')?.loseContext?.();
+          } catch {
+            /* ignore probe release errors */
+          }
+        }
       }
     } catch {
-      /* jsdom or headless environment without WebGL: fallback to xterm DOM renderer */
+      this.webglActive = false;
     }
+    this.onRendererModeChange?.(this.webglActive ? 'webgl2' : 'dom');
+  }
+
+  isWebglActive(): boolean {
+    return this.webglActive && !this.disposed;
   }
 
   onContextLoss(cb: () => void): { dispose(): void } {
@@ -44,6 +60,8 @@ export class WebglTerminalAddon implements ITerminalAddon {
   }
 
   simulateContextLoss(): void {
+    this.webglActive = false;
+    this.onRendererModeChange?.('dom');
     for (const cb of [...this.listeners]) {
       try {
         cb();
@@ -60,15 +78,7 @@ export class WebglTerminalAddon implements ITerminalAddon {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    try {
-      this.canvas?.removeEventListener('webglcontextlost', this.onLostBound);
-      const loseExt = this.gl?.getExtension?.('WEBGL_lose_context');
-      loseExt?.loseContext?.();
-    } catch {
-      /* ignore teardown errors */
-    }
-    this.canvas = null;
-    this.gl = null;
+    this.webglActive = false;
   }
 }
 
@@ -85,6 +95,7 @@ export function renderTermBlockForAgent(
   const out = block.output
     .map((c) => c.text)
     .join('')
+    .replace(ANSI_CSI_OSC_RE, '')
     .replace(/\s+$/, '');
   if (out !== '') lines.push(out);
   lines.push(block.exit_code === null ? '(exit unknown)' : `(exit ${block.exit_code})`);

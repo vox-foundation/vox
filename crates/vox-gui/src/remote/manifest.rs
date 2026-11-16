@@ -23,6 +23,7 @@ pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "discovery",
     "event_annotate",
     "gamify",
+    "gsd",
     "harness_eval",
     "harness_issues",
     "hopper",

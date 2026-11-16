@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { CLUTCH_DETENTS, RISK_POSTURES, type ClutchId, type ControlState } from '../../../lib/driveConsole';
 import { formatSpend } from '../../../config/budget';
-import { Icon } from '../../ui/Icons';
+import { Icon, KeycapIcon } from '../../ui/Icons';
 import { RiskPopover } from './RiskPopover';
 
 const TONE_BG: Record<string, string> = {
@@ -142,7 +142,10 @@ export function DriveConsole({
           </span>
         )}
         {burnPerMin != null && (
-          <span className="text-text-muted">↑${burnPerMin.toFixed(2)}/m</span>
+          <span className="inline-flex items-center gap-0.5 text-text-muted">
+            <KeycapIcon keyName="Up" className="size-2.5 inline-block shrink-0" />
+            <span>${burnPerMin.toFixed(2)}/m</span>
+          </span>
         )}
       </div>
 

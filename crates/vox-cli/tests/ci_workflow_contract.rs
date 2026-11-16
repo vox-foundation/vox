@@ -910,3 +910,93 @@ fn every_vox_gui_compile_stages_sidecars_from_tauri_conf() {
         );
     }
 }
+
+#[test]
+fn docs_drift_refresh_opens_draft_pr_only() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let wf_path = root.join(".github/workflows/docs-drift-refresh.yml");
+    let yml = std::fs::read_to_string(&wf_path)
+        .unwrap_or_else(|e| panic!("read docs-drift-refresh.yml: {e}"));
+
+    assert!(
+        yml.contains("--draft"),
+        "docs-drift-refresh.yml must open PRs with --draft"
+    );
+    assert!(
+        !yml.contains("pr merge") && !yml.contains("--auto"),
+        "docs-drift-refresh.yml must NEVER auto-merge or call `gh pr merge`"
+    );
+    assert!(
+        yml.contains("docs-reality --update-ledger"),
+        "docs-drift-refresh.yml must refresh docs freshness ledger"
+    );
+    assert!(
+        yml.contains("scripts/lychee-triage.vox"),
+        "docs-drift-refresh.yml must run scripts/lychee-triage.vox"
+    );
+    for allowed in [
+        "contracts/reports/docs-freshness/ledger.v1.json",
+        "contracts/reports/docs-freshness/findings.v1.json",
+        "contracts/reports/docs-freshness/metrics.v1.json",
+        "contracts/reports/docs-freshness/external-links.v1.json",
+        ".lycheeignore",
+    ] {
+        assert!(
+            yml.contains(allowed),
+            "docs-drift-refresh.yml allowlist missing `{allowed}`"
+        );
+    }
+
+    let doc: serde_yaml::Value =
+        serde_yaml::from_str(&yml).expect("docs-drift-refresh.yml must parse as YAML");
+    assert_eq!(
+        doc["permissions"]["contents"].as_str(),
+        Some("read"),
+        "top-level permissions.contents must be read"
+    );
+    let nightly_report = std::fs::read_to_string(root.join(".github/workflows/nightly-report.yml"))
+        .expect("read nightly-report.yml");
+    assert!(
+        nightly_report.contains("- Docs Drift Refresh"),
+        "nightly-report.yml must watch Docs Drift Refresh"
+    );
+    assert!(
+        !nightly_report.contains("- Docs Link Checker"),
+        "nightly-report.yml must remove retired Docs Link Checker"
+    );
+}
+
+#[test]
+fn link_checker_retired() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    assert!(
+        !root.join(".github/workflows/link_checker.yml").exists(),
+        ".github/workflows/link_checker.yml was replaced by docs-drift-refresh.yml and must stay deleted"
+    );
+}
+
+#[test]
+fn self_heal_has_no_write_job() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let yml = std::fs::read_to_string(root.join(".github/workflows/docs-self-heal.yml"))
+        .expect("read docs-self-heal.yml");
+    assert!(
+        !yml.contains("stage-draft-prs"),
+        "docs-self-heal.yml must not contain placeholder stage-draft-prs write job"
+    );
+    let doc: serde_yaml::Value =
+        serde_yaml::from_str(&yml).expect("docs-self-heal.yml must parse as YAML");
+    let jobs = doc["jobs"].as_mapping().expect("jobs mapping");
+    for (name, job) in jobs {
+        assert_ne!(
+            job["permissions"]["contents"].as_str(),
+            Some("write"),
+            "docs-self-heal.yml job {name:?} must be read-only (no contents: write)"
+        );
+        assert_ne!(
+            job["permissions"]["pull-requests"].as_str(),
+            Some("write"),
+            "docs-self-heal.yml job {name:?} must be read-only (no pull-requests: write)"
+        );
+    }
+}

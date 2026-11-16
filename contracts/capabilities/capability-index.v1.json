@@ -39353,9 +39353,9 @@
       },
       "mcp": null,
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": true
       },
       "owner": {
@@ -39383,6 +39383,56 @@
       }
     },
     {
+      "id": "cli.plan.complete-milestone",
+      "kind": "cli",
+      "title": "GSD Complete Milestone",
+      "summary": "Archive and complete a verified GSD milestone cleanly across `.planning/` and VoxDb.",
+      "op_id": "gsd.complete-milestone",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "complete-milestone"
+        ],
+        "invocation": "vox plan complete-milestone",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_complete_milestone"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.plan.create",
       "kind": "cli",
       "title": "Plan Create",
@@ -39403,9 +39453,9 @@
       },
       "mcp": null,
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": true
       },
       "owner": {
@@ -39431,6 +39481,306 @@
       }
     },
     {
+      "id": "cli.plan.discuss-phase",
+      "kind": "cli",
+      "title": "GSD Discuss Phase",
+      "summary": "Record GSD phase design decisions and implementation context (`CONTEXT.md`).",
+      "op_id": "gsd.discuss-phase",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "discuss-phase"
+        ],
+        "invocation": "vox plan discuss-phase",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_discuss_phase"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.plan.docs",
+      "kind": "cli",
+      "title": "GSD List Documents",
+      "summary": "List GSD documents stored under `.planning/` and indexed in VoxDb CAS.",
+      "op_id": "gsd.list-documents",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "docs"
+        ],
+        "invocation": "vox plan docs",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_list_documents"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.plan.execute-phase",
+      "kind": "cli",
+      "title": "GSD Execute Phase",
+      "summary": "Prepare and dispatch wave-ordered GSD phase tasks via the native orchestrator DAG scheduler.",
+      "op_id": "gsd.execute-phase",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "execute-phase"
+        ],
+        "invocation": "vox plan execute-phase",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_execute_phase"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.plan.new-milestone",
+      "kind": "cli",
+      "title": "GSD New Milestone",
+      "summary": "Initialize a new GSD milestone (`PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `STATE.md`) and sync VoxDb.",
+      "op_id": "gsd.new-milestone",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "new-milestone"
+        ],
+        "invocation": "vox plan new-milestone",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_new_milestone"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.plan.plan-phase",
+      "kind": "cli",
+      "title": "GSD Plan Phase",
+      "summary": "Generate or load wave-ordered `PLAN.md` and translate into validated orchestrator `PlanNode` DAG tasks.",
+      "op_id": "gsd.plan-phase",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "plan-phase"
+        ],
+        "invocation": "vox plan plan-phase",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_plan_phase"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.plan.progress",
+      "kind": "cli",
+      "title": "GSD Progress",
+      "summary": "Compute GSD milestone progress, phase states, requirements completion, and recommended next skill.",
+      "op_id": "gsd.progress",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "progress"
+        ],
+        "invocation": "vox plan progress",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_progress"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.plan.replan",
       "kind": "cli",
       "title": "Plan Replan",
@@ -39451,9 +39801,9 @@
       },
       "mcp": null,
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": true
       },
       "owner": {
@@ -39499,9 +39849,9 @@
       },
       "mcp": null,
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": true
       },
       "owner": {
@@ -39526,6 +39876,56 @@
         "basis": "graph-key",
         "ambiguous": false,
         "reason": null
+      }
+    },
+    {
+      "id": "cli.plan.verify-work",
+      "kind": "cli",
+      "title": "GSD Verify Work",
+      "summary": "Record verification evidence (`VERIFICATION.md`) and update phase completion in VoxDb.",
+      "op_id": "gsd.verify-work",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "verify-work"
+        ],
+        "invocation": "vox plan verify-work",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_gsd_verify_work"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
       }
     },
     {
@@ -56990,6 +57390,533 @@
       }
     },
     {
+      "id": "mcp.vox_gsd_complete_milestone",
+      "kind": "mcp_tool",
+      "title": "GSD Complete Milestone",
+      "summary": "Archive and complete a verified GSD milestone cleanly across `.planning/` and VoxDb.",
+      "op_id": "gsd.complete-milestone",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_complete_milestone"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.complete-milestone"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_discuss_phase",
+      "kind": "mcp_tool",
+      "title": "GSD Discuss Phase",
+      "summary": "Record GSD phase design decisions and implementation context (`CONTEXT.md`).",
+      "op_id": "gsd.discuss-phase",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_discuss_phase"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.discuss-phase"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_execute_phase",
+      "kind": "mcp_tool",
+      "title": "GSD Execute Phase",
+      "summary": "Prepare and dispatch wave-ordered GSD phase tasks via the native orchestrator DAG scheduler.",
+      "op_id": "gsd.execute-phase",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_execute_phase"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.execute-phase"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_get_document",
+      "kind": "mcp_tool",
+      "title": "GSD Get Document",
+      "summary": "Fetch a stored GSD document and its CAS-backed UTF-8 content from VoxDb or `.planning/`.",
+      "op_id": "gsd.get-document",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_get_document"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_list_documents",
+      "kind": "mcp_tool",
+      "title": "GSD List Documents",
+      "summary": "List GSD documents stored under `.planning/` and indexed in VoxDb CAS.",
+      "op_id": "gsd.list-documents",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_list_documents"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.docs"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_new_milestone",
+      "kind": "mcp_tool",
+      "title": "GSD New Milestone",
+      "summary": "Initialize a new GSD milestone (`PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `STATE.md`) and sync VoxDb.",
+      "op_id": "gsd.new-milestone",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_new_milestone"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.new-milestone"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_plan_phase",
+      "kind": "mcp_tool",
+      "title": "GSD Plan Phase",
+      "summary": "Generate or load wave-ordered `PLAN.md` and translate into validated orchestrator `PlanNode` DAG tasks.",
+      "op_id": "gsd.plan-phase",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_plan_phase"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.plan-phase"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_progress",
+      "kind": "mcp_tool",
+      "title": "GSD Progress",
+      "summary": "Compute GSD milestone progress, phase states, requirements completion, and recommended next skill.",
+      "op_id": "gsd.progress",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_progress"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.progress"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_status",
+      "kind": "mcp_tool",
+      "title": "GSD Status",
+      "summary": "Return workspace `.planning/` health diagnostics and live GSD snapshot.",
+      "op_id": "gsd.status",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_status"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_store_document",
+      "kind": "mcp_tool",
+      "title": "GSD Store Document",
+      "summary": "Write a `.planning/` GSD markdown/JSON document and persist its Arca CAS hash in VoxDb.",
+      "op_id": "gsd.store-document",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_store_document"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gsd_verify_work",
+      "kind": "mcp_tool",
+      "title": "GSD Verify Work",
+      "summary": "Record verification evidence (`VERIFICATION.md`) and update phase completion in VoxDb.",
+      "op_id": "gsd.verify-work",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gsd_verify_work"
+      },
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.plan.verify-work"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_guest_share_list",
+      "kind": "mcp_tool",
+      "title": "Guest Share List",
+      "summary": "List guest share invites and pending moderation submissions, optionally filtered by thread.",
+      "op_id": "guest.share.list",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_guest_share_list"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_guest_share_mint",
       "kind": "mcp_tool",
       "title": "Guest Share Mint",
@@ -60535,9 +61462,9 @@
         "name": "vox_plan"
       },
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": false
       },
       "owner": {
@@ -60580,9 +61507,9 @@
         "name": "vox_plan_list_sessions"
       },
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": false
       },
       "owner": {
@@ -60623,9 +61550,9 @@
         "name": "vox_plan_node_upsert"
       },
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": false
       },
       "owner": {
@@ -60666,9 +61593,9 @@
         "name": "vox_plan_nodes_approve"
       },
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": false
       },
       "owner": {
@@ -60709,9 +61636,9 @@
         "name": "vox_plan_resume"
       },
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": false
       },
       "owner": {
@@ -60752,9 +61679,9 @@
         "name": "vox_plan_status"
       },
       "gui": {
-        "view_key": null,
-        "nav_label": null,
-        "representation_tier": "generic_form",
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
         "catalog_form": false
       },
       "owner": {
@@ -66193,6 +67120,158 @@
       }
     },
     {
+      "id": "mcp.vox_terminal_exec",
+      "kind": "mcp_tool",
+      "title": "Terminal Exec",
+      "summary": "Execute a shell command inside a stateful Axis PTY terminal session with AST/tier governance and bounded stall detection.",
+      "op_id": "terminal.exec",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "spawns_process",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_terminal_exec"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_terminal_read",
+      "kind": "mcp_tool",
+      "title": "Terminal Read",
+      "summary": "Read scrubbed terminal blocks, incremental output, or line slices from a stateful Axis PTY terminal session.",
+      "op_id": "terminal.read",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_terminal_read"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_terminal_send_input",
+      "kind": "mcp_tool",
+      "title": "Terminal Send Input",
+      "summary": "Send non-secret stdin text to an interactive terminal block awaiting input, failing closed on credential prompts.",
+      "op_id": "terminal.send.input",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "spawns_process",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_terminal_send_input"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_terminal_sessions",
+      "kind": "mcp_tool",
+      "title": "Terminal Sessions",
+      "summary": "List active Axis PTY terminal sessions with scrubbed working directory, security tier, and control mode metadata.",
+      "op_id": "terminal.sessions",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_terminal_sessions"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_test_all",
       "kind": "mcp_tool",
       "title": "Test All",
@@ -67645,6 +68724,77 @@
         "basis": "none",
         "ambiguous": false,
         "reason": "UI entry point has no callers by design"
+      }
+    },
+    {
+      "id": "surface.gsd",
+      "kind": "surface",
+      "title": "GSD",
+      "summary": "GSD (Get Shit Done) milestones, phases, waves & CAS documents",
+      "op_id": null,
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-gui",
+        "layer": 5,
+        "rule": "surface_crate"
+      },
+      "source_path": "crates/vox-gui/",
+      "docs": [
+        {
+          "path": "docs/src/reference/gui-navigation.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [
+        "cli.plan",
+        "cli.plan.complete-milestone",
+        "cli.plan.create",
+        "cli.plan.discuss-phase",
+        "cli.plan.docs",
+        "cli.plan.execute-phase",
+        "cli.plan.new-milestone",
+        "cli.plan.plan-phase",
+        "cli.plan.progress",
+        "cli.plan.replan",
+        "cli.plan.status",
+        "cli.plan.verify-work",
+        "mcp.vox_gsd_complete_milestone",
+        "mcp.vox_gsd_discuss_phase",
+        "mcp.vox_gsd_execute_phase",
+        "mcp.vox_gsd_get_document",
+        "mcp.vox_gsd_list_documents",
+        "mcp.vox_gsd_new_milestone",
+        "mcp.vox_gsd_plan_phase",
+        "mcp.vox_gsd_progress",
+        "mcp.vox_gsd_status",
+        "mcp.vox_gsd_store_document",
+        "mcp.vox_gsd_verify_work",
+        "mcp.vox_plan",
+        "mcp.vox_plan_list_sessions",
+        "mcp.vox_plan_node_upsert",
+        "mcp.vox_plan_nodes_approve",
+        "mcp.vox_plan_resume",
+        "mcp.vox_plan_status"
+      ],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no surface: node in the snapshot"
       }
     },
     {
@@ -73168,87 +74318,6 @@
       "coverage": null
     },
     {
-      "id": "skill.dispatching-parallel-agents",
-      "kind": "skill",
-      "title": "dispatching-parallel-agents",
-      "summary": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/dispatching-parallel-agents",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.executing-plans",
-      "kind": "skill",
-      "title": "executing-plans",
-      "summary": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/executing-plans",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.finishing-a-development-branch",
-      "kind": "skill",
-      "title": "finishing-a-development-branch",
-      "summary": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options fo...",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/finishing-a-development-branch",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
       "id": "skill.frontend-design",
       "kind": "skill",
       "title": "frontend-design",
@@ -73264,6 +74333,816 @@
       "gui": null,
       "owner": null,
       "source_path": "assets/skills/frontend-design",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-add-tests",
+      "kind": "skill",
+      "title": "gsd-add-tests",
+      "summary": "Generate unit, integration, and E2E tests for a completed phase based on UAT and requirement specs.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-add-tests",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-audit-fix",
+      "kind": "skill",
+      "title": "gsd-audit-fix",
+      "summary": "Autonomous audit-to-fix loop — locate verification defects, classify root causes, repair, re-test, and log.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-audit-fix",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-audit-milestone",
+      "kind": "skill",
+      "title": "gsd-audit-milestone",
+      "summary": "Audit milestone completion against original architectural intent and requirements before archiving.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-audit-milestone",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-audit-uat",
+      "kind": "skill",
+      "title": "gsd-audit-uat",
+      "summary": "Cross-phase audit of all outstanding UAT criteria, E2E suites, and verification artifacts.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-audit-uat",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-autonomous",
+      "kind": "skill",
+      "title": "gsd-autonomous",
+      "summary": "Drive remaining phases autonomously in wave order (discuss -> plan -> execute -> verify) with hard verification gates.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-autonomous",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-capture",
+      "kind": "skill",
+      "title": "gsd-capture",
+      "summary": "Capture engineering ideas, follow-up tasks, bugs, and architectural seeds directly into .planning/.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-capture",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-code-review",
+      "kind": "skill",
+      "title": "gsd-code-review",
+      "summary": "Review source files changed during a phase for correctness, security, layer architecture, and code quality.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-code-review",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-complete-milestone",
+      "kind": "skill",
+      "title": "gsd-complete-milestone",
+      "summary": "Archive a verified milestone cleanly into .planning/milestones/, update PROJECT.md, and prepare the next cycle.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-complete-milestone",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-debug",
+      "kind": "skill",
+      "title": "gsd-debug",
+      "summary": "Systematic root-cause debugging with persistent hypothesis tracking across context resets.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-debug",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-discuss-phase",
+      "kind": "skill",
+      "title": "gsd-discuss-phase",
+      "summary": "Gather phase implementation context and operator decisions through adaptive questioning before planning.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-discuss-phase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-execute-phase",
+      "kind": "skill",
+      "title": "gsd-execute-phase",
+      "summary": "Execute all plans in a phase with dependency-aware wave parallelization and post-wave verification.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-execute-phase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-explore",
+      "kind": "skill",
+      "title": "gsd-explore",
+      "summary": "Socratic ideation and architecture option analysis before committing a feature into REQUIREMENTS.md.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-explore",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-extract-learnings",
+      "kind": "skill",
+      "title": "gsd-extract-learnings",
+      "summary": "Extract architectural decisions, failure modes, and workflow episodes from completed GSD phases for docs and MENS.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-extract-learnings",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-fast",
+      "kind": "skill",
+      "title": "gsd-fast",
+      "summary": "Execute a trivial deterministic edit inline with direct verification and minimal ceremony.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-fast",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-health",
+      "kind": "skill",
+      "title": "gsd-health",
+      "summary": "Diagnose .planning/ directory integrity, frontmatter consistency, and VoxDb/CAS synchronization health.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-health",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-map-codebase",
+      "kind": "skill",
+      "title": "gsd-map-codebase",
+      "summary": "Analyze workspace structure, crate dependencies, and hot modules to populate .planning/codebase/ maps.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-map-codebase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-mvp-phase",
+      "kind": "skill",
+      "title": "gsd-mvp-phase",
+      "summary": "Plan a phase as a vertical MVP slice — user story, SPIDR splitting, then plan-phase.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-mvp-phase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-new-milestone",
+      "kind": "skill",
+      "title": "gsd-new-milestone",
+      "summary": "Start a new milestone cycle — update PROJECT.md, scope REQUIREMENTS.md, append phases to ROADMAP.md, and reset STATE.md.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-new-milestone",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-new-project",
+      "kind": "skill",
+      "title": "gsd-new-project",
+      "summary": "Initialize a new GSD project with deep context gathering and PROJECT.md, REQUIREMENTS.md, ROADMAP.md, and STATE.md.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-new-project",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-next",
+      "kind": "skill",
+      "title": "gsd-next",
+      "summary": "Smart entry — inspect project state and automatically route to the highest-priority next GSD workflow.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-next",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-pause-work",
+      "kind": "skill",
+      "title": "gsd-pause-work",
+      "summary": "Create an accurate handoff state in .planning/STATE.md and state.json when pausing mid-phase.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-pause-work",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-phase",
+      "kind": "skill",
+      "title": "gsd-phase",
+      "summary": "Add, insert, reorder, or update phases cleanly in ROADMAP.md and VoxDb.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-phase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-plan-phase",
+      "kind": "skill",
+      "title": "gsd-plan-phase",
+      "summary": "Create detailed wave-ordered PLAN.md artifacts with verification assertions and PlanNode DAG mapping.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-plan-phase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-progress",
+      "kind": "skill",
+      "title": "gsd-progress",
+      "summary": "Check milestone/phase completion status, active documents, and route cleanly to the next GSD step.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-progress",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-quick",
+      "kind": "skill",
+      "title": "gsd-quick",
+      "summary": "Execute a bounded single task with GSD state tracking and atomic verification while skipping full multi-phase scaffolding.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-quick",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-resume-work",
+      "kind": "skill",
+      "title": "gsd-resume-work",
+      "summary": "Restore full GSD context from .planning/STATE.md, ROADMAP.md, and VoxDb before continuing execution.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-resume-work",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-ship",
+      "kind": "skill",
+      "title": "gsd-ship",
+      "summary": "Run final GSD quality gates, verify documentation/SSOT sync, and prepare a phase or milestone branch for merge.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-ship",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-spec-phase",
+      "kind": "skill",
+      "title": "gsd-spec-phase",
+      "summary": "Clarify WHAT a phase delivers with ambiguity scoring and produce SPEC.md before discuss-phase or plan-phase.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-spec-phase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-validate-phase",
+      "kind": "skill",
+      "title": "gsd-validate-phase",
+      "summary": "Retroactively audit and fill test/validation coverage gaps for a completed phase.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-validate-phase",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.gsd-verify-work",
+      "kind": "skill",
+      "title": "gsd-verify-work",
+      "summary": "Validate built features against phase requirements and UAT criteria before marking a phase complete.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/gsd-verify-work",
       "docs": [
         {
           "path": "docs/src/reference/plugin-catalog.generated.md",
@@ -73318,60 +75197,6 @@
       "gui": null,
       "owner": null,
       "source_path": "assets/skills/mcp-builder",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.receiving-code-review",
-      "kind": "skill",
-      "title": "receiving-code-review",
-      "summary": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verific...",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/receiving-code-review",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.requesting-code-review",
-      "kind": "skill",
-      "title": "requesting-code-review",
-      "summary": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/requesting-code-review",
       "docs": [
         {
           "path": "docs/src/reference/plugin-catalog.generated.md",
@@ -73697,87 +75522,6 @@
       "coverage": null
     },
     {
-      "id": "skill.subagent-driven-development",
-      "kind": "skill",
-      "title": "subagent-driven-development",
-      "summary": "Use when executing implementation plans with independent tasks in the current session",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/subagent-driven-development",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.systematic-debugging",
-      "kind": "skill",
-      "title": "systematic-debugging",
-      "summary": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/systematic-debugging",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.test-driven-development",
-      "kind": "skill",
-      "title": "test-driven-development",
-      "summary": "Use when implementing any feature or bugfix, before writing implementation code",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/test-driven-development",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
       "id": "skill.theme-factory",
       "kind": "skill",
       "title": "theme-factory",
@@ -73793,87 +75537,6 @@
       "gui": null,
       "owner": null,
       "source_path": "assets/skills/theme-factory",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.using-git-worktrees",
-      "kind": "skill",
-      "title": "using-git-worktrees",
-      "summary": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selecti...",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/using-git-worktrees",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.using-superpowers",
-      "kind": "skill",
-      "title": "using-superpowers",
-      "summary": "Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/using-superpowers",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.verification-before-completion",
-      "kind": "skill",
-      "title": "verification-before-completion",
-      "summary": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any s...",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/verification-before-completion",
       "docs": [
         {
           "path": "docs/src/reference/plugin-catalog.generated.md",
@@ -73955,60 +75618,6 @@
       "gui": null,
       "owner": null,
       "source_path": "assets/skills/webapp-testing",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.writing-plans",
-      "kind": "skill",
-      "title": "writing-plans",
-      "summary": "Use when you have a spec or requirements for a multi-step task, before touching code",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/writing-plans",
-      "docs": [
-        {
-          "path": "docs/src/reference/plugin-catalog.generated.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": null
-    },
-    {
-      "id": "skill.writing-skills",
-      "kind": "skill",
-      "title": "writing-skills",
-      "summary": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
-      "op_id": null,
-      "status": null,
-      "domain": "skills",
-      "product_lane": null,
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": null,
-      "gui": null,
-      "owner": null,
-      "source_path": "assets/skills/writing-skills",
       "docs": [
         {
           "path": "docs/src/reference/plugin-catalog.generated.md",

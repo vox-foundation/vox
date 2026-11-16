@@ -78,6 +78,7 @@
   --font-sans: 'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif;
   --font-serif: 'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif;
   --font-mono: 'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif;
+  --font-terminal-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
   --font-size-xs: 12px;
   --font-size-sm: 14px;
   --font-size-base: 16px;
@@ -94,6 +95,7 @@
   --font-family-sans: 'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif;
   --font-family-serif: 'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif;
   --font-family-mono: 'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif;
+  --font-family-terminal-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
   --motion-fast: 120ms;
   --motion-base: 200ms;
   --motion-slow: 400ms;

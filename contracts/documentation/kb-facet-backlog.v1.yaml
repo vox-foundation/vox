@@ -2806,12 +2806,6 @@ docs:
   - facet-missing-domain
   - facet-missing-summary
   - facet-missing-topic
-- path: docs/src/contributors/build-broker-usage.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
 - path: docs/src/contributors/claude-code-sonnet-handoff-limitations.md
   rules:
   - facet-missing-authorship

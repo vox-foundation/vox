@@ -3,7 +3,6 @@ title: "Changelog"
 description: "All notable changes to the Vox project are documented here."
 category: "ci"
 status: "current"
-last_updated: "2026-05-26"
 training_eligible: true
 training_rationale: "Maintains a history of project changes, useful for understanding evolution and bug fixes."
 ---
@@ -15,6 +14,10 @@ All notable changes to the Vox project are documented here.
 
 ### Added
 
+- **Public release readiness & zero-red gate convergence (`v7.1`).** Added portable-path static detectors (`vox/fs/hardcoded-abs-dir` in `vox-code-audit` and `drift/hardcoded-abs-dir` in `vox-drift-check`), reconciled `layers.toml`, `fan-in-snapshot.v1.json`, and `crate-edges.allow.v1.json`, burned down all non-`god_object` `toestub` errors and all `vox-drift-check` warnings across 117 workspace crates to `0`, enforced `vox ci ignored-test-age --mode enforce` (`0` violations across `101` governed tests), and re-wired `vox_actor_runtime::feedback` (`FeedbackCollector`) under `--features database`.
+- **Standalone `crates.io` Wave 2 & 3 (`33` crates).** Expanded `crates/_public.toml` and `contracts/distribution/profiles.v1.yaml` to 33 standalone packages across 5 topological tiers (`vox-crypto`, `vox-secrets`, `vox-arch-check`, `vox-plugin-*`, `voxup`, `vox-code-audit`, `vox-drift-check`, `vox-ast`, `vox-foundation`, `vox-telemetry`, `vox-openai`, `vox-llm-egress`, and supporting leaf crates).
+- **Hybrid 4-repo federation & `vox-ops` sovereignty (`v6.8`–`v7.1`).** Added `.vox/repositories.yaml` and `vox-repository` hybrid monorepo/satellite resolution (`crates/vox-gui` for `vox-axis`, `docs-astro` for `voxlang.org`, and sibling `../vox-ops` private telemetry/cloud workspace), verified by `vox ci cross-repo-parity` and `vox ci federated-symbol-graph`.
+- **Vox Axis dual-theme Roman refresh & `voxlang.org` portal.** Shipped Playwright-verified `Imperial Carrara White & Gold` (light) and `Minimalist Grey-Blue Slate` (dark) themes across all 32 Vox Axis surfaces (including `VRBS ROMA` simulator, `Imperium` inspector, and Multi-Dock Chat) and unified `voxlang.org` suite portal documentation.
 - **`mens-candle-cpu` plugin** for Linux hosts without an NVIDIA GPU: the Candle backend built without CUDA, published as `mens-candle-cpu-v<version>-linux-x86_64.zip` from a second leg of the existing CUDA release job. The CUDA build links `libcuda` at load time and cannot load on such hosts, so until now MENS training, serving and merging had no backend there at all. On macOS the Metal plugin already covers CPU; the CUDA plugin's manifest no longer claims a macOS artifact.
 - **`@ai(structured_output = T)` now emits a real JSON-schema-constrained LLM call** — the generated `LlmConfig.response_format` carries `{"type":"json_schema","json_schema":{"name":…,"strict":true,"schema":{…}}}` derived from `T`'s typedef (scalars, `list[…]`, `Option[…]`, nested structs; closed objects with `required`), and `max_iterations = N` now emits a bounded re-prompt loop that retries when the reply is not valid JSON.
 - **Uniform `--json` across the build lane** — `vox --json build`, `vox --json test`, and `vox --json run` (script lane) emit stable single-line `BuildLaneEnvelope` JSON (`envelope_version`, `command`, `ok`, `error_count`, `warning_count`, `diagnostics` using the same `VoxCompilerDiagnosticPayload` as `vox check`, optional `exit_code`) on stdout; human progress notes move to stderr so stdout stays JSONL-parseable. `vox build` guarantees exactly one envelope line per invocation regardless of which stage fails.

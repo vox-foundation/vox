@@ -12,7 +12,7 @@ use alacritty_terminal::{
     grid::Dimensions,
     index::{Column, Line, Point},
     term::{
-        Config,
+        Config, TermMode,
         cell::{Cell, Flags},
     },
     vte::ansi::{Color, NamedColor, Processor, Rgb},
@@ -48,39 +48,61 @@ impl Dimensions for GridSize {
 pub struct VtGrid {
     term: Term<NoopListener>,
     parser: Processor,
+    legacy_parser: Processor,
     cols: usize,
     rows: usize,
 }
 
 impl VtGrid {
     pub fn new(cols: u16, rows: u16) -> Self {
-        let size = GridSize {
-            cols: cols as usize,
-            lines: rows as usize,
-        };
+        let cols = cols.max(1) as usize;
+        let rows = rows.max(1) as usize;
+        let size = GridSize { cols, lines: rows };
         let term = Term::new(Config::default(), &size, NoopListener);
         Self {
             term,
             parser: Processor::new(),
-            cols: cols as usize,
-            rows: rows as usize,
+            legacy_parser: Processor::new(),
+            cols,
+            rows,
         }
     }
 
-    /// Feed raw bytes (PTY output) into the VT grid.
+    /// Feed raw bytes (PTY output) into the VT grid, keeping legacy `?47` / `?1047`
+    /// alternate-screen transitions synchronized with `VtShadow`.
     pub fn feed(&mut self, bytes: &[u8]) {
-        self.parser.advance(&mut self.term, bytes);
+        vox_terminal_core::vt_shadow::advance_term_with_legacy_alt(
+            &mut self.term,
+            &mut self.parser,
+            &mut self.legacy_parser,
+            bytes,
+        );
     }
 
-    /// Resize the grid.
+    /// Resize the grid, clamping dimensions to at least `1×1` (`T-441-02`).
     pub fn resize(&mut self, cols: u16, rows: u16) {
-        let size = GridSize {
-            cols: cols as usize,
-            lines: rows as usize,
-        };
+        let cols = cols.max(1) as usize;
+        let rows = rows.max(1) as usize;
+        let size = GridSize { cols, lines: rows };
         self.term.resize(size);
-        self.cols = cols as usize;
-        self.rows = rows as usize;
+        self.cols = cols;
+        self.rows = rows;
+    }
+
+    /// True when the VT grid is currently in alternate-screen mode (`TermMode::ALT_SCREEN`).
+    pub fn is_alt_screen(&self) -> bool {
+        self.term.mode().contains(TermMode::ALT_SCREEN)
+    }
+
+    /// Recreate the terminal grid and VT parser from scratch before feeding a full snapshot.
+    pub fn reset(&mut self) {
+        let size = GridSize {
+            cols: self.cols.max(1),
+            lines: self.rows.max(1),
+        };
+        self.term = Term::new(Config::default(), &size, NoopListener);
+        self.parser = Processor::new();
+        self.legacy_parser = Processor::new();
     }
 
     /// Project the visible screen into ratatui `Line`s with styled `Span`s.
@@ -94,6 +116,9 @@ impl VtGrid {
 
             for col in 0..self.cols {
                 let cell = self.term.grid()[Point::new(line, Column(col))].clone();
+                if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                    continue;
+                }
                 let style = cell_to_style(&cell);
                 let ch = if cell.c == '\0' { ' ' } else { cell.c };
 

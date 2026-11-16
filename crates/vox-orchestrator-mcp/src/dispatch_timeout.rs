@@ -67,6 +67,12 @@ pub const AGY_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 /// well below the 20-minute agy exception.
 pub const COMPILER_WORKSPACE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
+/// Explicit outer execution timeout for `vox_terminal_exec`: exceeds the tool's
+/// maximum `wait_ms` schema bound (120s) by 30s so bounded wait windows return
+/// clean `Running`/`AwaitingInput` snapshots without racing the outer timeout,
+/// while remaining strictly under `ORCH_CLIENT_READ_DEADLINE` (195s).
+pub const TERMINAL_EXEC_TIMEOUT: Duration = Duration::from_secs(150);
+
 /// Explicit exception timeout for `vox_kb_reindex`, which re-indexes the whole
 /// Library: about 670 docs and 13.4k chunks per the 02-09 UAT, one DB
 /// transaction per doc, then a Tantivy rebuild. At the 120s [`DEFAULT_TIMEOUT`]
@@ -137,8 +143,28 @@ pub fn timeout_for_chat_message(
     force_research: Option<bool>,
     research_scope: Option<&str>,
 ) -> Duration {
-    use crate::chat_tools::chat::research_intent::{ResearchMode, classify_research_intent};
-    let intent = classify_research_intent(prompt, force_research, research_scope);
+    timeout_for_chat_message_with_mode(prompt, None, force_research, research_scope, None)
+}
+
+#[must_use]
+pub fn timeout_for_chat_message_with_mode(
+    prompt: &str,
+    research_mode: Option<&str>,
+    force_research: Option<bool>,
+    research_scope: Option<&str>,
+    waves: Option<usize>,
+) -> Duration {
+    use crate::chat_tools::chat::research_intent::{
+        ResearchIntentParams, ResearchMode, classify_research_intent_from_params,
+    };
+    let intent = classify_research_intent_from_params(ResearchIntentParams {
+        prompt,
+        research_mode,
+        force_research,
+        research_scope,
+        waves,
+        ..Default::default()
+    });
     if intent.mode == ResearchMode::Deep {
         DEEP_CHAT_MESSAGE_TIMEOUT
     } else {
@@ -147,13 +173,10 @@ pub fn timeout_for_chat_message(
 }
 
 /// Same as [`timeout_for_chat_message`], but reads `prompt`/`message`
-/// (alias), `force_research`, and `research_scope` straight off the raw
-/// dispatch-time `serde_json::Value` args — the exact shape
-/// `dispatch.rs`'s `handle_tool_call_with_mode` sees before `ChatMessageParams`
-/// is parsed. Split out so the dispatch-layer wiring (which JSON keys are
-/// read, and the `"message"` alias) is unit-testable on its own — see
-/// review round 1 (B1) minor: "the dispatch.rs wiring has no test... a typo
-/// in the arg key such as `\"prompt\"` would not be caught."
+/// (alias), `research_mode`, `force_research`, `research_scope`, and `waves`
+/// straight off the raw dispatch-time `serde_json::Value` args — the exact
+/// shape `dispatch.rs`'s `handle_tool_call_with_mode` sees before
+/// `ChatMessageParams` is parsed.
 #[must_use]
 pub fn timeout_for_chat_message_args(args: &serde_json::Value) -> Duration {
     let prompt = args
@@ -161,9 +184,14 @@ pub fn timeout_for_chat_message_args(args: &serde_json::Value) -> Duration {
         .or_else(|| args.get("message"))
         .and_then(|v| v.as_str())
         .unwrap_or("");
+    let research_mode = args.get("research_mode").and_then(|v| v.as_str());
     let force_research = args.get("force_research").and_then(|v| v.as_bool());
     let research_scope = args.get("research_scope").and_then(|v| v.as_str());
-    timeout_for_chat_message(prompt, force_research, research_scope)
+    let waves = args
+        .get("waves")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize);
+    timeout_for_chat_message_with_mode(prompt, research_mode, force_research, research_scope, waves)
 }
 
 /// Tool names given an explicit non-default execution timeout. Everything
@@ -178,6 +206,7 @@ const EXPLICIT_TIMEOUTS: &[(&str, Duration)] = &[
     ("vox_coverage_report", COMPILER_WORKSPACE_TIMEOUT),
     ("vox_chat_message", CHAT_MESSAGE_TIMEOUT),
     ("vox_kb_reindex", KB_REINDEX_TIMEOUT),
+    ("vox_terminal_exec", TERMINAL_EXEC_TIMEOUT),
     // T4.3 RED-test doubles (see dispatch.rs's `#[cfg(test)]` match arms).
     // `vox_test_hang_forever` gets a short timeout so the RED test proving
     // the outer guard actually fires doesn't need to wait out the real
@@ -287,6 +316,33 @@ mod tests {
     }
 
     #[test]
+    fn research_mode_args_drive_continuum_timeout() {
+        assert_eq!(
+            timeout_for_chat_message_args(&serde_json::json!({
+                "prompt": "quick status check",
+                "research_mode": "deep",
+                "research_scope": "local",
+                "waves": 4
+            })),
+            DEEP_CHAT_MESSAGE_TIMEOUT
+        );
+        assert_eq!(
+            timeout_for_chat_message_args(&serde_json::json!({
+                "prompt": "compare a vs b",
+                "research_mode": "off"
+            })),
+            CHAT_MESSAGE_TIMEOUT
+        );
+        assert_eq!(
+            timeout_for_chat_message_args(&serde_json::json!({
+                "prompt": "compare a vs b",
+                "research_mode": "fast"
+            })),
+            CHAT_MESSAGE_TIMEOUT
+        );
+    }
+
+    #[test]
     fn deep_timeout_exceeds_the_ordinary_chat_timeout() {
         assert!(DEEP_CHAT_MESSAGE_TIMEOUT > CHAT_MESSAGE_TIMEOUT);
     }
@@ -333,6 +389,11 @@ mod tests {
         assert_eq!(KB_REINDEX_TIMEOUT, Duration::from_secs(600));
         assert!(DEFAULT_TIMEOUT < KB_REINDEX_TIMEOUT);
         assert!(KB_REINDEX_TIMEOUT < AGY_TIMEOUT);
+
+        assert_eq!(timeout_for("vox_terminal_exec"), TERMINAL_EXEC_TIMEOUT);
+        assert_eq!(TERMINAL_EXEC_TIMEOUT, Duration::from_secs(150));
+        assert!(TERMINAL_EXEC_TIMEOUT > Duration::from_secs(120));
+        assert!(TERMINAL_EXEC_TIMEOUT <= Duration::from_secs(195));
     }
 
     #[test]

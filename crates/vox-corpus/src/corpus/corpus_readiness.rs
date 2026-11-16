@@ -129,6 +129,13 @@ pub fn check_vox_retired_and_enforcement_rules(source: &str) -> Vec<String> {
             );
             break;
         }
+        if code_line.contains("fn ") && code_line.contains(") -> ") {
+            violations.push(
+                "Retired return syntax `) ->` on `fn` is forbidden; use `to <Type>` instead"
+                    .to_string(),
+            );
+            break;
+        }
     }
 
     if trimmed.contains("shell_exec(") {
@@ -136,15 +143,15 @@ pub fn check_vox_retired_and_enforcement_rules(source: &str) -> Vec<String> {
             "VoxLang security violation: `shell_exec` sandbox bypass is forbidden; use `std.process`".to_string(),
         );
     }
-    for raw_secret in [
+    for disallowed_pattern in [
         "env.get(\"OPENAI_API_KEY\"",
         "env.get(\"ANTHROPIC_API_KEY\"",
         "env.get(\"GEMINI_API_KEY\"",
         "env.get(\"VOX_SECRET",
     ] {
-        if trimmed.contains(raw_secret) {
+        if trimmed.contains(disallowed_pattern) {
             violations.push(format!(
-                "VoxLang secret-env-guard: direct secret read `{raw_secret}` is forbidden; use `vox_secrets::resolve_secret`"
+                "VoxLang secret-env-guard: direct secret read `{disallowed_pattern}` is forbidden; use `vox_secrets::resolve_secret`"
             ));
         }
     }

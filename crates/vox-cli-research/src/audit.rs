@@ -529,24 +529,36 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
         let findings_path = root.join("contracts/reports/docs-reality-audit/findings.v1.json");
         let metrics_path = root.join("contracts/reports/docs-reality-audit/metrics.v1.json");
 
+        let mut sorted_findings = findings.clone();
+        sorted_findings.sort_by(|a, b| {
+            let pa = a.doc_paths.first().map(|s| s.as_str()).unwrap_or("");
+            let pb = b.doc_paths.first().map(|s| s.as_str()).unwrap_or("");
+            let fa = a.fingerprint.as_deref().unwrap_or(&a.id);
+            let fb = b.fingerprint.as_deref().unwrap_or(&b.id);
+            (pa, fa).cmp(&(pb, fb))
+        });
         let file_record = vox_doc_pipeline::claims::FindingsFile {
             schema_version: 1,
-            findings: findings.clone(),
+            findings: sorted_findings.clone(),
         };
-        std::fs::write(&findings_path, serde_json::to_string_pretty(&file_record)?)?;
+        let wrote_findings = write_json_if_changed(&findings_path, &file_record)?;
 
         let metrics = vox_doc_pipeline::claims::compute_metrics(
-            &findings,
+            &sorted_findings,
             pages_scanned,
             total_mentions,
             resolved_count,
         );
-        std::fs::write(&metrics_path, serde_json::to_string_pretty(&metrics)?)?;
-        eprintln!(
-            "Updated findings at {} and metrics at {}",
-            findings_path.display(),
-            metrics_path.display()
-        );
+        let wrote_metrics = write_json_if_changed(&metrics_path, &metrics)?;
+        if wrote_findings || wrote_metrics {
+            eprintln!(
+                "Updated findings at {} and metrics at {}",
+                findings_path.display(),
+                metrics_path.display()
+            );
+        } else {
+            eprintln!("Reality audit findings and metrics unchanged");
+        }
     }
 
     if args.prune_report {
@@ -635,17 +647,20 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
             &head_commit,
             existing.as_ref(),
         );
-        ledger.save_to_file(&ledger_path)?;
-        eprintln!(
-            "Freshness ledger written to {} ({} pages, {} verified, {} drifting, {} broken, {} historical, {} unanchored)",
-            ledger_path.display(),
-            ledger.metrics.total_pages,
-            ledger.metrics.verified_count,
-            ledger.metrics.drifting_count,
-            ledger.metrics.broken_count,
-            ledger.metrics.historical_count,
-            ledger.metrics.unanchored_count,
-        );
+        if vox_doc_pipeline::claims::write_ledger_if_changed(&ledger_path, &ledger)? {
+            eprintln!(
+                "Freshness ledger written to {} ({} pages, {} verified, {} drifting, {} broken, {} historical, {} unanchored)",
+                ledger_path.display(),
+                ledger.metrics.total_pages,
+                ledger.metrics.verified_count,
+                ledger.metrics.drifting_count,
+                ledger.metrics.broken_count,
+                ledger.metrics.historical_count,
+                ledger.metrics.unanchored_count,
+            );
+        } else {
+            eprintln!("Freshness ledger unchanged");
+        }
     }
 
     if args.generate_baseline {
@@ -1136,6 +1151,24 @@ fn find_cargo_root(start: &Path) -> Option<PathBuf> {
 // Tests
 // ---------------------------------------------------------------------------
 
+/// Write pretty-printed JSON to `path` only if its bytes differ from any existing file.
+pub fn write_json_if_changed<T: serde::Serialize>(
+    path: &std::path::Path,
+    value: &T,
+) -> anyhow::Result<bool> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let json = serde_json::to_string_pretty(value)?;
+    if let Ok(existing) = std::fs::read(path)
+        && existing == json.as_bytes()
+    {
+        return Ok(false);
+    }
+    std::fs::write(path, json)?;
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1394,5 +1427,19 @@ mod tests {
         let filtered = filter_checks(&checks, &args);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, "fast");
+    }
+
+    #[test]
+    fn write_json_if_changed_skips_identical_bytes_and_writes_diff() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested/report.json");
+        let payload = serde_json::json!({ "schema_version": 1, "items": ["a", "b"] });
+        assert!(write_json_if_changed(&path, &payload).unwrap());
+        let first_bytes = std::fs::read(&path).unwrap();
+        assert!(!write_json_if_changed(&path, &payload).unwrap());
+        assert_eq!(std::fs::read(&path).unwrap(), first_bytes);
+        let updated = serde_json::json!({ "schema_version": 1, "items": ["a", "b", "c"] });
+        assert!(write_json_if_changed(&path, &updated).unwrap());
+        assert_ne!(std::fs::read(&path).unwrap(), first_bytes);
     }
 }

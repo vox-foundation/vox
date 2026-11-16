@@ -80,6 +80,10 @@ fn scientia_novelty_calibration_validates_against_telemetry_schema() {
 
 #[test]
 fn scientia_novelty_prior_art_lowers_worthiness_novelty_metric() {
+    assert_eq!(
+        std::any::TypeId::of::<NoveltyEvidenceBundleV1>(),
+        std::any::TypeId::of::<vox_research_events::schema_types::NoveltyEvidenceBundle>()
+    );
     let bundle = NoveltyEvidenceBundleV1 {
         schema_version: 1,
         bundle_id: "nb.test".into(),
@@ -100,9 +104,11 @@ fn scientia_novelty_prior_art_lowers_worthiness_novelty_metric() {
         overlap_summary: Some(NoveltyOverlapSummary {
             max_lexical_score: Some(0.92),
             max_semantic_score: Some(0.9),
-            recency_bucket: vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+            recency_bucket: Some(
+                vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+            ),
         }),
-        query_traces: vec![],
+        query_traces: None,
     };
     let mut inputs = WorthinessInputs {
         red_line_violation_ids: vec![],
@@ -194,7 +200,7 @@ fn scientia_failed_retrieval_does_not_max_novelty() {
         sources: vec![PriorArtSource::Openalex, PriorArtSource::Crossref],
         normalized_hits: vec![],
         overlap_summary: None,
-        query_traces: vec![
+        query_traces: Some(vec![
             NoveltyQueryTrace {
                 source: "openalex".into(),
                 request_fingerprint_sha256: "f".repeat(64),
@@ -207,7 +213,7 @@ fn scientia_failed_retrieval_does_not_max_novelty() {
                 http_status: Some(500),
                 cached: None,
             },
-        ],
+        ]),
     };
     let mut inputs = high_novelty_inputs();
     let notes = apply_prior_art_to_worthiness_inputs(&mut inputs, Some(&bundle), None);
@@ -248,9 +254,11 @@ fn scientia_future_dated_hit_dropped_by_chronofilter() {
         overlap_summary: Some(NoveltyOverlapSummary {
             max_lexical_score: Some(0.95),
             max_semantic_score: Some(0.95),
-            recency_bucket: vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+            recency_bucket: Some(
+                vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+            ),
         }),
-        query_traces: vec![],
+        query_traces: None,
     };
     let mut inputs = high_novelty_inputs();
     let notes = apply_prior_art_to_worthiness_inputs(&mut inputs, Some(&bundle), None);
@@ -305,9 +313,11 @@ fn scientia_opposing_polarity_drives_contradicted_cap() {
         overlap_summary: Some(NoveltyOverlapSummary {
             max_lexical_score: Some(0.9),
             max_semantic_score: Some(0.9),
-            recency_bucket: vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+            recency_bucket: Some(
+                vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+            ),
         }),
-        query_traces: vec![],
+        query_traces: None,
     };
     let mut inputs = high_novelty_inputs();
     let notes = apply_prior_art_to_worthiness_inputs(&mut inputs, Some(&bundle), None);

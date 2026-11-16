@@ -882,6 +882,8 @@ async fn persisted_session_chat_posture_round_trips_and_falls_back_to_default() 
         kb_scope: Some("code".into()),
         grounding_check_enabled: Some(true),
         compaction_strategy: Some("conservative".into()),
+        research_mode: None,
+        domain_mode: None,
     };
     persist_session_chat_posture(&state, Some("sess-live"), &posture).await;
     let loaded = load_persisted_session_chat_posture(&state, Some("sess-live")).await;
@@ -995,5 +997,119 @@ fn compute_turn_cost_usd_applies_cache_read_discount_and_respects_wire_cost() {
     assert_eq!(
         task_category_for_spoke_slug(Some("mcp_tool_chain")),
         "ToolUse"
+    );
+}
+
+#[tokio::test]
+#[allow(unsafe_code)]
+#[allow(clippy::await_holding_lock)]
+async fn chat_message_falls_back_to_cloud_when_unpinned_vox_local_is_unreachable() {
+    let _env_guard = CHAT_MESSAGE_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(plain_response_body("cloud fallback ok")),
+        )
+        .mount(&server)
+        .await;
+
+    let env_keys = [
+        "VOX_LOCAL_ENDPOINT",
+        "OPENROUTER_BASE_URL",
+        "OPENROUTER_API_KEY",
+        "VOX_INFERENCE_PRIVACY",
+        "VOX_MODEL_FORCE",
+        "VOX_MODEL_FORCE_CHAT",
+        "VOX_BUDGET_USD",
+    ];
+    let prev: Vec<(&str, Option<String>)> = env_keys
+        .iter()
+        .map(|k| (*k, std::env::var(k).ok()))
+        .collect();
+    unsafe {
+        // Closed loopback port so `probe_vox_local_health` fails deterministically in milliseconds.
+        std::env::set_var("VOX_LOCAL_ENDPOINT", "http://127.0.0.1:9");
+        std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+        std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        std::env::remove_var("VOX_INFERENCE_PRIVACY");
+        std::env::remove_var("VOX_MODEL_FORCE");
+        std::env::remove_var("VOX_MODEL_FORCE_CHAT");
+        std::env::remove_var("VOX_BUDGET_USD");
+    }
+    vox_config::snapshot::bump(&env_keys);
+
+    let state = test_state();
+    let local_id = "mens/unreachable-local";
+    let cloud_id = "openrouter/test-cloud-fallback";
+    {
+        let handle = state.orchestrator.models_handle();
+        let mut registry = handle.write().expect("models registry lock");
+        registry.clear();
+
+        let mut local_spec = model_spec(ProviderType::VoxLocal, local_id);
+        local_spec.is_free = true;
+        local_spec.pricing_source = PricingSource::UserConfig;
+        local_spec.strengths = vec![vox_orchestrator::models::StrengthTag::Codegen];
+        local_spec.capabilities.tier = vox_orchestrator::models::ModelTier::Pro;
+        registry.register(local_spec);
+
+        let mut cloud_spec = model_spec(ProviderType::OpenRouter, cloud_id);
+        cloud_spec.cost_per_1k = 0.001;
+        cloud_spec.cost_per_1k_input = 0.001;
+        cloud_spec.cost_per_1k_output = 0.001;
+        cloud_spec.pricing_source = PricingSource::UserConfig;
+        cloud_spec.strengths = vec![vox_orchestrator::models::StrengthTag::Codegen];
+        cloud_spec.capabilities.tier = vox_orchestrator::models::ModelTier::Pro;
+        registry.register(cloud_spec);
+    }
+    *state.mcp_chat_model_override.write() = None;
+
+    let params: ChatMessageParams =
+        serde_json::from_value(serde_json::json!({ "prompt": "test" })).expect("chat params");
+
+    let response_json = chat_message(&state, params).await;
+
+    unsafe {
+        for (k, v) in prev {
+            match v {
+                Some(val) => std::env::set_var(k, val),
+                None => std::env::remove_var(k),
+            }
+        }
+    }
+    vox_config::snapshot::bump(&env_keys);
+    drop(_env_guard);
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+    assert_eq!(
+        parsed["success"], true,
+        "unpinned chat turn must fall back to cloud instead of failing on unreachable VoxLocal: {response_json}"
+    );
+    let routing_resolved_id = parsed["data"]["events"].as_array().and_then(|evts| {
+        evts.iter()
+            .find(|e| e["kind"] == "routing_decision")
+            .and_then(|e| e["resolved_id"].as_str())
+    });
+    assert_eq!(
+        routing_resolved_id,
+        Some(cloud_id),
+        "expected routing_decision to resolve to cloud fallback model: {response_json}"
+    );
+    let selection_reason = parsed["data"]["selection_reason"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        selection_reason.contains("unreachable"),
+        "expected selection_reason to note unreachable local endpoint, got: {selection_reason}"
+    );
+    let reply = parsed["data"]["message"]["content"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        reply.contains("cloud fallback ok"),
+        "expected cloud mock reply, got: {response_json}"
     );
 }

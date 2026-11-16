@@ -22,7 +22,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. The
 - Hopper integration: this phase lands `P6-T9` as the mesh-adapter completing hopper Option C.
   See SSOT §3.5 and [unified-task-hopper-research-2026.md](unified-task-hopper-research-2026.md).
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
+**Working directory.** Worktree at `.claude/worktrees/zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
 
 **Anti-goals (binding from SSOT §0; restated for reviewers).** No blockchain, no token economy, no public SaaS multi-tenant control plane, no TEE-first (we build the *interface* but stub the verifier), no onion routing, no transitive web-of-trust. Federation is gist/git-based — there is no Vox-owned server in any P6 deliverable. Discovery auto-publishing is opt-in: the default in `[mesh.discovery_publishing]` is `enabled = false` and a fresh node never broadcasts its first observation without explicit operator action.
 

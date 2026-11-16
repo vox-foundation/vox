@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import {
   Activity,
   Cpu,
@@ -20,7 +20,9 @@ import {
 import { CommandCardsView, SurfaceCard } from '../CommandCardsView';
 import { MensCorpusStudioPanel } from './MensCorpusStudioPanel';
 import { MensServePanel } from './MensServePanel';
+import { BentoScrollRegion } from '../../ui/BentoGrid';
 import { Glass } from '../../ui/Glass';
+import { Icon } from '../../ui/Icons';
 import { Segment } from '../../ui/Segment';
 import { Tooltip } from '../../ui/Tooltip';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
@@ -556,7 +558,7 @@ function RotaryArcDial({
         type="button"
         onClick={onClick}
         title={`Click to step ${label} (${subLabel})`}
-        className="group flex flex-col items-center rounded-lg border border-border-subtle bg-overlay-subtle/50 px-1 py-1 transition-all duration-200 hover:border-brass/60 hover:bg-bg-elevated active:scale-95"
+        className="group flex flex-col items-center rounded-lg border border-border-subtle bg-overlay-subtle/50 px-1 py-1 transition-colors duration-200 hover:border-brass/60 hover:bg-bg-elevated active:scale-95"
       >
         <div className="relative flex items-center justify-center">
           <svg width="48" height="48" viewBox="0 0 52 52" aria-hidden="true">
@@ -583,7 +585,7 @@ function RotaryArcDial({
               strokeDashoffset={dashOffset}
               strokeLinecap="round"
               transform="rotate(135 26 26)"
-              className="transition-all duration-300 ease-out"
+              className="transition-[stroke-dashoffset] duration-300 ease-out"
             />
           </svg>
           <span className="absolute font-mono text-[10px] font-semibold text-text-primary transition-colors group-hover:text-brass">
@@ -619,7 +621,7 @@ function MensRunReportsPanel({
       return;
     }
     try {
-      const result = await invoke<MensRunReportsDto>('mens_run_reports', { runDir: dir });
+      const result = await invokeCmd<MensRunReportsDto>('mens_run_reports', { runDir: dir });
       setReports(result);
       if (
         autoSyncEnabled &&
@@ -628,7 +630,7 @@ function MensRunReportsPanel({
         result.gate_receipt.substantive_gate_count >= 2 &&
         result.collateral_damage?.status !== 'fail'
       ) {
-        await invoke('execute_command', {
+        await invokeCmd('execute_command', {
           path: ['mens', 'hub', 'upload'],
           args: { __argv: ['--repo', activeHubRepo, '--model-dir', dir] },
         });
@@ -650,13 +652,13 @@ function MensRunReportsPanel({
   };
 
   return (
-    <Glass size="sm" className="p-2.5 space-y-2">
+    <Glass size="sm" className="p-2.5 space-y-2 min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
           <span className="font-display text-[10px] tracking-[0.16em] uppercase text-text-muted shrink-0">
             Run Reports &amp; 5-Spoke Scorecard
           </span>
-          <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-muted flex-1 max-w-md">
+          <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-muted flex-1 min-w-[10rem]">
             <span className="sr-only">Run directory</span>
             <input
               aria-label="Run directory"
@@ -681,7 +683,10 @@ function MensRunReportsPanel({
         </button>
       </div>
       {reports && (
-        <div className="space-y-1.5 font-mono text-[11px]">
+        <BentoScrollRegion
+          ariaLabel="MENS run reports and spoke scorecards"
+          className="max-h-80 space-y-1.5 pr-1 font-mono text-[11px]"
+        >
           {reports.gate_receipt ? (
             (() => {
               const tone = gateTone(reports.gate_receipt);
@@ -817,7 +822,7 @@ function MensRunReportsPanel({
               ))}
             </div>
           )}
-        </div>
+        </BentoScrollRegion>
       )}
     </Glass>
   );
@@ -840,7 +845,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
   const [hubUploadRepo, setHubUploadRepo] = useState<string>('vox/mens-qwen3-adapters');
 
   // Configurable Hub I (Embedder), Hub II (Base Rung), Hub III (Compute)
-  const [hubEmbedder, setHubEmbedder] = useState<string>('Qwen3-0.6B@c1899de');
+  const [hubEmbedder, setHubEmbedder] = useState<string>('Qwen3-Embedding-0.6B@97b0c61');
   const [selectedRung, setSelectedRung] = useState<string>('8B');
   const [computeTarget, setComputeTarget] = useState<'local' | 'mesh' | 'cloud'>('local');
 
@@ -922,7 +927,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
         E3: epochCaps[2],
       },
     };
-    void invoke('mens_save_crucible_config', {
+    void invokeCmd('mens_save_crucible_config', {
       runDir: 'workspace',
       config: payload,
     }).catch(() => {});
@@ -930,20 +935,20 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
 
   useEffect(() => {
     let cancelled = false;
-    invoke<string | null>('get_active_model')
+    invokeCmd<string | null>('get_active_model')
       .then((m) => {
         if (cancelled) return;
         const modelId = m ?? null;
         setActiveModel(modelId);
         const argv = modelId ? ['--detailed', '--model', modelId] : ['--detailed'];
-        void invoke('execute_command', {
+        void invokeCmd('execute_command', {
           path: ['mens', 'probe'],
           args: { __argv: argv },
         }).catch(() => {});
       })
       .catch(() => {
         if (cancelled) return;
-        void invoke('execute_command', {
+        void invokeCmd('execute_command', {
           path: ['mens', 'probe'],
           args: { __argv: ['--detailed'] },
         }).catch(() => {});
@@ -952,7 +957,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
         if (!cancelled) setReady(true);
       });
 
-    invoke<SecretStatusLite[]>('list_secret_status')
+    invokeCmd<SecretStatusLite[]>('list_secret_status')
       .then((list) => {
         if (cancelled || !Array.isArray(list)) return;
         const hf = list.find(
@@ -962,7 +967,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
       })
       .catch(() => {});
 
-    invoke<MensLadderStatusBackendDto>('mens_ladder_status', { runDir: 'workspace' })
+    invokeCmd<MensLadderStatusBackendDto>('mens_ladder_status', { runDir: 'workspace' })
       .then((status) => {
         if (cancelled || !status || !Array.isArray(status.rungs)) return;
         if (Array.isArray(status.custom_spokes) && status.custom_spokes.length > 0) {
@@ -1020,7 +1025,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
       })
       .catch(() => {});
 
-    invoke<MensLiveTelemetryBackendDto>('mens_live_telemetry', { runDir: 'workspace' })
+    invokeCmd<MensLiveTelemetryBackendDto>('mens_live_telemetry', { runDir: 'workspace' })
       .then((t) => {
         if (cancelled || !t || typeof t.gpu_pct !== 'number') return;
         setLiveTelemetry(t);
@@ -1243,7 +1248,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
         vram_cap_pct: 95,
       });
     }
-    void invoke('execute_command', {
+    void invokeCmd('execute_command', {
       path: ['mens', 'probe'],
       args: { __argv: ['--detailed', '--model', `Qwen/Qwen3-${selectedRung}`] },
     }).catch(() => {});
@@ -1251,7 +1256,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
 
   const handleUpdateAllFromMaster = async () => {
     try {
-      await invoke('execute_command', {
+      await invokeCmd('execute_command', {
         path: ['mens', 'hub', 'download'],
         args: { __argv: ['--repo', `Qwen/Qwen3-${selectedRung}`, '--output-dir', `mens/runs/master_${selectedRung}`] },
       });
@@ -1288,7 +1293,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
   const handleStartAfkSeries = async () => {
     setAfkSeriesActive(true);
     try {
-      await invoke('execute_command', {
+      await invokeCmd('execute_command', {
         path: ['mens', 'train'],
         args: {
           __argv: [
@@ -1327,7 +1332,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
   const handleTogglePauseAfk = () => {
     const next = !afkSeriesActive;
     setAfkSeriesActive(next);
-    void invoke('execute_command', {
+    void invokeCmd('execute_command', {
       path: ['mens', 'status'],
       args: { __argv: [] },
     }).catch(() => {});
@@ -1358,7 +1363,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
       ),
     );
     try {
-      await invoke('execute_command', {
+      await invokeCmd('execute_command', {
         path: ['mens', 'train'],
         args: {
           __argv: [
@@ -1411,13 +1416,13 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
     );
     try {
       const cellRunDir = `mens/runs/${selectedRung}_${activeSpoke.id}`;
-      await invoke('execute_command', {
+      await invokeCmd('execute_command', {
         path: ['mens', 'eval-local'],
         args: {
           __argv: ['--model', cellRunDir, '--output', `${cellRunDir}/eval_local_report.json`],
         },
       });
-      void invoke('execute_command', {
+      void invokeCmd('execute_command', {
         path: ['mens', 'eval-gate'],
         args: {
           __argv: ['--run-dir', cellRunDir, '--five-spokes'],
@@ -1441,11 +1446,11 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
 
   const handleHotSwapServeCell = async () => {
     try {
-      await invoke('set_active_model', {
+      await invokeCmd('set_active_model', {
         modelId: `Qwen/Qwen3-${selectedRung}`,
       });
       const cellRunDir = `mens/runs/${selectedRung}_${activeSpoke.id}`;
-      await invoke('execute_command', {
+      await invokeCmd('execute_command', {
         path: ['mens', 'serve'],
         args: {
           __argv: ['--port', '8089', '--model', cellRunDir],
@@ -1475,7 +1480,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
 
   const handleRollbackSelectedCell = async () => {
     try {
-      await invoke('execute_command', {
+      await invokeCmd('execute_command', {
         path: ['mens', 'hub', 'download'],
         args: {
           __argv: [
@@ -1527,7 +1532,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
       return;
     }
     try {
-      await invoke('execute_command', {
+      await invokeCmd('execute_command', {
         path: ['mens', 'hub', 'upload'],
         args: {
           __argv: [
@@ -1578,7 +1583,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
         },
       })),
     );
-    void invoke('mens_save_custom_spoke', {
+    void invokeCmd('mens_save_custom_spoke', {
       runDir: 'workspace',
       spoke: {
         id: cleanId,
@@ -1599,19 +1604,22 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
   };
 
   return (
-    <div data-testid="mens-crucible-studio" className="flex flex-col gap-1.5">
+    <div data-testid="mens-crucible-studio" className="@container/surface flex min-w-0 flex-col gap-1.5">
       {/* =====================================================================
           1. CLUSTERED COMMAND HEADER:
              [CRUCIBLE MEDALLION + TITLE + SERIF MOTTO] | [HUB TRIO CLUSTER] | [BATCH LIFECYCLE CLUSTER]
          ===================================================================== */}
-      <div className="relative flex items-center justify-between gap-2 rounded-xl border border-brass/45 bg-bg-surface/95 px-3 py-1.5 shadow-sm">
+      <div
+        data-roman-frieze="true"
+        className="vox-animate-marble-sheen relative flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brass/45 bg-bg-surface/95 px-3 py-1.5 shadow-sm"
+      >
         <span className="vox-tick vox-tick-tl" />
         <span className="vox-tick vox-tick-tr" />
         <span className="pointer-events-none absolute top-0 left-0 h-2.5 w-2.5 rounded-tl-xl border-t-2 border-l-2 border-brass/80" />
         <span className="pointer-events-none absolute top-0 right-0 h-2.5 w-2.5 rounded-tr-xl border-t-2 border-r-2 border-brass/80" />
 
         {/* Left Cluster: Generated Medallion + Cinzel Title + EB Garamond Motto + Segmented Hub Trio */}
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <div className="relative flex items-center gap-1.5 pr-1.5 border-r border-border-subtle/70 shrink-0">
             <img
               src="/assets/mens-crucible-medallion.jpg"
@@ -1619,13 +1627,13 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
               className="size-5 rounded-full border border-brass/60 object-cover shadow-xs"
             />
             <div className="flex items-baseline gap-1">
-              <span className="hidden xl:inline font-display text-[10px] tracking-[0.14em] uppercase text-text-muted">
+              <span className="hidden @4xl/surface:inline font-display text-[10px] tracking-[0.14em] uppercase text-text-muted">
                 COMPUTE ›
               </span>
               <h1 className="font-display text-xs font-semibold tracking-[0.12em] uppercase text-text-primary">
                 MENS CRUCIBLE
               </h1>
-              <span className="hidden 2xl:inline font-serif italic text-[11px] text-brass/85">
+              <span className="hidden @6xl/surface:inline font-serif italic text-[11px] text-brass/85">
                 Cursus Honorum
               </span>
             </div>
@@ -1634,19 +1642,22 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
           {/* Clustered Hub I / II / III Selector Pill Group */}
           <div
             data-testid="mens-hub-selector-cluster"
-            className="inline-flex items-center rounded-lg border border-border-subtle bg-black/40 p-0.5 gap-0.5 font-mono text-[8.5px] shrink-0"
+            className="inline-flex flex-wrap items-center rounded-lg border border-border-subtle bg-bg-elevated p-0.5 gap-0.5 font-mono text-[8.5px]"
           >
-            <Tooltip content="Cycle Hub I Retrieval Embedder (Qwen3-0.6B vs BGE-M3)">
+            <Tooltip content="Cycle Hub I Retrieval Embedder (Qwen3-Embedding-0.6B vs BGE-M3)">
               <button
                 type="button"
                 onClick={() =>
                   setHubEmbedder((prev) =>
-                    prev.includes('Qwen3') ? 'bge-m3@5617a9f' : 'Qwen3-0.6B@c1899de',
+                    prev.includes('Qwen3') ? 'bge-m3@5617a9f' : 'Qwen3-Embedding-0.6B@97b0c61',
                   )
                 }
                 className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-text-secondary transition hover:bg-overlay-subtle hover:text-text-primary"
               >
-                <span className="text-(--color-status-pass)">◉ I:</span>
+                <span className="inline-flex items-center gap-0.5 text-(--color-status-pass)">
+                  <Icon.target className="size-2.5 shrink-0" aria-hidden="true" />
+                  <span>I:</span>
+                </span>
                 <span>{hubEmbedder.split('@')[0]}</span>
               </button>
             </Tooltip>
@@ -1660,7 +1671,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                   const sizes = ['0.6B', '1.7B', '4B', '8B', '14B', '32B'];
                   const next = sizes[(sizes.indexOf(selectedRung) + 1) % sizes.length]!;
                   setSelectedRung(next);
-                  void invoke('set_active_model', { modelId: `Qwen/Qwen3-${next}` }).catch(
+                  void invokeCmd('set_active_model', { modelId: `Qwen/Qwen3-${next}` }).catch(
                     () => {},
                   );
                 }}
@@ -1696,13 +1707,13 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
           </div>
         </div>
 
-        {/* Right Cluster: Romanesque Progressive-Disclosure [ Training Actions ▾ ] Capsule */}
-        <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+        {/* Right Cluster: Romanesque Progressive-Disclosure Training Actions Capsule */}
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <div
             data-testid="mens-training-actions-cluster"
-            className="inline-flex items-center rounded-lg border border-brass/50 bg-bg-elevated p-0.5 gap-1 shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
+            className="inline-flex flex-wrap items-center rounded-lg border border-brass/50 bg-bg-elevated p-0.5 gap-1 shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
           >
-            <div className="flex items-center gap-1 pl-1.5 pr-1 py-0.5 text-text-primary">
+            <div className="hidden @xl/surface:flex items-center gap-1 pl-1.5 pr-1 py-0.5 text-text-primary">
               <span className="size-1.5 rounded-full bg-brass" aria-hidden="true" />
               <span className="font-display text-[9px] font-semibold uppercase tracking-[0.12em] text-brass">
                 Training Actions
@@ -1726,7 +1737,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                 type="button"
                 data-testid="mens-afk-train-series-btn"
                 onClick={handleStartAfkSeries}
-                className="inline-flex items-center gap-1 rounded-md border border-brass/60 bg-brass/22 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider text-[#F3E5AB] transition hover:bg-brass/35"
+                className="inline-flex items-center gap-1 rounded-md border border-brass/60 bg-brass/22 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider text-text-primary transition hover:bg-brass/35"
               >
                 <Moon className="size-2.5 text-brass" />
                 <span>Train Missing (AFK)</span>
@@ -1756,9 +1767,19 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                 ? 'Show Hugging Face Hub Contribution & Auto-Sync Bar'
                 : 'Hide Hugging Face Hub Contribution & Warning Bar'
             }
-            className="rounded-lg border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[8.5px] text-text-muted transition hover:border-brass/40 hover:text-text-secondary"
+            className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[8.5px] text-text-muted transition hover:border-brass/40 hover:text-text-secondary"
           >
-            {hideHubContrib ? 'HF Sync ▸' : 'Hide Sync ▾'}
+            {hideHubContrib ? (
+              <>
+                <span>HF Sync</span>
+                <Icon.chevR className="size-2.5 shrink-0" aria-hidden="true" />
+              </>
+            ) : (
+              <>
+                <span>Hide Sync</span>
+                <Icon.chevronDown className="size-2.5 shrink-0" aria-hidden="true" />
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -1766,11 +1787,11 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
       {/* =====================================================================
           1B. COMBINED ORCHESTRATOR SPOKE ROUTE + HIDEABLE CLAVIS HF_TOKEN BAR
          ===================================================================== */}
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-bg-surface/90 px-2.5 py-1 font-mono text-[9px] whitespace-nowrap">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-bg-surface/90 px-2.5 py-1 font-mono text-[9px]">
         {/* Left: Live Chat Orchestrator → Spoke Route Visualizer */}
         <div
           data-testid="mens-orchestrator-spoke-visualizer"
-          className="flex items-center gap-1 min-w-0 overflow-hidden"
+          className="flex flex-wrap items-center gap-1 min-w-0"
         >
           <span className="relative flex size-1.5 shrink-0">
             <span className="animate-vox-ping absolute inline-flex h-full w-full rounded-full bg-(--color-status-pass) opacity-75" />
@@ -1782,11 +1803,11 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
           <span className="rounded border border-brass/30 bg-brass/10 px-1 py-0.5 text-brass">
             {activeOrchestratorProbe.signal}
           </span>
-          <span className="text-text-muted">⇢</span>
+          <Icon.arrowRight className="size-2.5 shrink-0 text-text-muted" aria-hidden="true" />
           <span className="rounded border border-border-subtle bg-overlay-subtle px-1 py-0.5 text-text-primary">
             {activeOrchestratorProbe.hubModel}
           </span>
-          <span className="text-text-muted">⇢</span>
+          <Icon.arrowRight className="size-2.5 shrink-0 text-text-muted" aria-hidden="true" />
           <span
             className={`rounded border px-1.5 py-0.5 font-semibold transition-colors ${
               activeOrchestratorProbe.mode === 'adapter'
@@ -1799,7 +1820,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
               : 'Base Fallback'}
           </span>
 
-          <div className="hidden xl:inline-flex items-center rounded border border-border-subtle bg-black/35 p-0.5 gap-0.5 ml-1">
+          <div className="hidden @4xl/surface:inline-flex items-center rounded border border-border-subtle bg-black/35 p-0.5 gap-0.5 ml-1">
             {[
               { label: '.vox', signal: 'lane:vox_codegen', spokeId: 'vox_lang', mode: 'adapter' as const, latencyMs: 18 },
               { label: 'Rust', signal: 'lane:vox_rust_authoring', spokeId: 'rust_workspace', mode: 'adapter' as const, latencyMs: 21 },
@@ -1818,7 +1839,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                     latencyMs: p.latencyMs,
                   });
                   setSelectedSpokeId(p.spokeId);
-                  void invoke<Record<string, unknown>>('explain_routing', {
+                  void invokeCmd<Record<string, unknown>>('explain_routing', {
                     task: p.signal,
                     mode: 'balanced',
                     complexity: 5,
@@ -1849,14 +1870,17 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
         {!hideHubContrib && (
           <div
             data-testid="mens-hub-contribution-bar"
-            className="flex items-center gap-1 shrink-0"
+            className="flex flex-wrap items-center gap-1 min-w-0"
           >
             {!hfTokenPresent ? (
               <div
                 data-testid="mens-hf-token-missing-banner"
-                className="flex items-center gap-1 text-amber-300"
+                className="flex flex-wrap items-center gap-1 text-amber-300"
               >
-                <span>⚠ HF_TOKEN missing</span>
+                <span className="inline-flex items-center gap-1">
+                  <Icon.alert className="size-2.5 shrink-0" aria-hidden="true" />
+                  <span>HF_TOKEN missing</span>
+                </span>
                 <button
                   type="button"
                   data-testid="mens-jump-hf-token-settings-btn"
@@ -1869,7 +1893,10 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                 </button>
               </div>
             ) : (
-              <span className="text-(--color-status-pass)">● HF_TOKEN Ready</span>
+              <span className="inline-flex items-center gap-1 text-(--color-status-pass)">
+                <Icon.circleDot className="size-2.5 shrink-0" aria-hidden="true" />
+                <span>HF_TOKEN Ready</span>
+              </span>
             )}
 
             <input
@@ -1912,26 +1939,26 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
              LEFT 8 COLS = QWEN3 MODEL SIZE LADDER × 8 SPOKES VERSION & GATE MATRIX
              RIGHT 4 COLS = INSPECTOR (PRESETS + 4 ROTARY DIALS + VRAM + STAIRCASE + CELL ACTIONS + SERVE)
          ===================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch">
+      <div className="grid grid-cols-1 @3xl/surface:grid-cols-12 gap-2 items-stretch">
         {/* LEFT 8 COLS: QWEN3 MODEL SIZE LADDER × SPOKES MATRIX */}
-        <Glass size="sm" className="relative lg:col-span-8 p-2.5 flex flex-col justify-between border-brass/40">
+        <Glass size="sm" className="relative min-w-0 @3xl/surface:col-span-7 @5xl/surface:col-span-8 p-2.5 flex flex-col justify-between border-brass/40">
           <span className="pointer-events-none absolute top-0 left-0 h-3 w-3 rounded-tl-xl border-t-2 border-l-2 border-brass/80" />
           <span className="pointer-events-none absolute top-0 right-0 h-3 w-3 rounded-tr-xl border-t-2 border-r-2 border-brass/80" />
           <span className="pointer-events-none absolute bottom-0 left-0 h-3 w-3 rounded-bl-xl border-b-2 border-l-2 border-brass/80" />
           <span className="pointer-events-none absolute bottom-0 right-0 h-3 w-3 rounded-br-xl border-b-2 border-r-2 border-brass/80" />
           <div>
-            <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-border-subtle">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-border-subtle">
               <div className="flex items-baseline gap-2 min-w-0 overflow-hidden">
                 <h2 className="font-display text-xs font-semibold tracking-wider uppercase text-text-primary whitespace-nowrap">
                   Qwen3 Ladder × {spokes.length} Spokes
                 </h2>
-                <span className="hidden 2xl:inline font-serif italic text-[11px] text-text-secondary truncate">
+                <span className="hidden @5xl/surface:inline font-serif italic text-[11px] text-text-secondary truncate">
                   {activeSpoke.oracle}
                 </span>
               </div>
 
               {/* Clustered Matrix Filter + Kiln Tree & Spoke Builder Triggers */}
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <Segment
                   size="xs"
                   value={matrixFilter}
@@ -1949,7 +1976,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                     data-testid="mens-kiln-tree-btn"
                     onClick={() => {
                       setShowKilnTreeDrawer(!showKilnTreeDrawer);
-                      void invoke('execute_command', {
+                      void invokeCmd('execute_command', {
                         path: ['mens', 'corpus', 'generate'],
                         args: { __argv: ['--spoke', activeSpoke.id] },
                       }).catch(() => {});
@@ -1995,10 +2022,11 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                 </div>
                 <button
                   type="button"
+                  aria-label="Close Kiln synthetic tree drawer"
                   onClick={() => setShowKilnTreeDrawer(false)}
-                  className="text-text-muted hover:text-text-primary shrink-0"
+                  className="inline-flex items-center justify-center text-text-muted hover:text-text-primary shrink-0"
                 >
-                  ✕
+                  <Icon.close className="size-3" aria-hidden="true" />
                 </button>
               </div>
             )}
@@ -2015,13 +2043,14 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                   </span>
                   <button
                     type="button"
+                    aria-label="Close define spoke drawer"
                     onClick={() => setShowAddSpokeModal(false)}
-                    className="text-text-muted hover:text-text-primary"
+                    className="inline-flex items-center justify-center text-text-muted hover:text-text-primary"
                   >
-                    ✕
+                    <Icon.close className="size-3" aria-hidden="true" />
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 @xl/surface:grid-cols-3 gap-2">
                   <label className="flex flex-col gap-0.5 text-text-muted">
                     Spoke ID
                     <input
@@ -2057,7 +2086,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                     />
                   </label>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 @xl/surface:grid-cols-2 gap-2">
                   <label className="flex flex-col gap-0.5 text-text-muted">
                     Deterministic Admission Oracle
                     <input
@@ -2096,9 +2125,9 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
               </div>
             )}
 
-            {/* Fixed-Width Zero-Overflow Matrix Table */}
-            <div className="mt-1">
-              <table className="w-full table-fixed border-collapse text-left font-mono text-[9px]">
+            {/* Focusable Matrix Table Scroll Region */}
+            <BentoScrollRegion ariaLabel="MENS ladder and spoke gate matrix" className="mt-1">
+              <table className="w-full min-w-[36rem] table-fixed border-collapse text-left font-mono text-[9px]">
                 <thead>
                   <tr className="border-b border-border-subtle text-text-secondary">
                     <th className="w-[168px] py-1 pr-1.5 font-display text-[9px] tracking-wider uppercase text-text-muted">
@@ -2135,7 +2164,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                           className="py-1 pr-1.5 align-middle cursor-pointer overflow-hidden"
                           onClick={() => {
                             setSelectedRung(row.size);
-                            void invoke('set_active_model', {
+                            void invokeCmd('set_active_model', {
                               modelId: `Qwen/Qwen3-${row.size}`,
                             }).catch(() => {});
                           }}
@@ -2214,12 +2243,12 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                   })}
                 </tbody>
               </table>
-            </div>
+            </BentoScrollRegion>
           </div>
         </Glass>
 
         {/* RIGHT 4 COLS: INSPECTOR — HARDWARE PRESETS, ROTARY DIALS, VRAM BUDGET, STAIRCASE & CELL QUICK-ACTIONS */}
-        <Glass size="sm" className="relative lg:col-span-4 p-2.5 flex flex-col justify-between gap-1.5 border-brass/40 overflow-hidden">
+        <Glass size="sm" className="relative min-w-0 @3xl/surface:col-span-5 @5xl/surface:col-span-4 p-2.5 flex flex-col justify-between gap-1.5 border-brass/40 overflow-hidden">
           <img
             src="/assets/mens-crucible-medallion.jpg"
             alt=""
@@ -2232,7 +2261,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
           <span className="pointer-events-none absolute bottom-0 right-0 h-3 w-3 rounded-br-xl border-b-2 border-r-2 border-brass/80" />
 
           <div className="relative z-10">
-            <div className="flex items-center justify-between gap-1 border-b border-border-subtle pb-1">
+            <div className="flex flex-wrap items-center justify-between gap-1 border-b border-border-subtle pb-1">
               <div className="flex items-baseline gap-1.5 min-w-0">
                 <h2 className="font-display text-xs font-semibold tracking-wider uppercase text-text-primary">
                   Inspector
@@ -2271,7 +2300,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
             </div>
 
             {/* 4 Interactive SVG Rotary Arc Dials */}
-            <div className="mt-1.5 grid grid-cols-4 gap-1" data-testid="mens-rotary-dials">
+            <div className="mt-1.5 grid grid-cols-2 gap-1 @sm/surface:grid-cols-4" data-testid="mens-rotary-dials">
               <RotaryArcDial
                 label="LoRA Rank"
                 subLabel={`r=${loraRank}`}
@@ -2349,7 +2378,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                     width: `${Math.min(55, (vramMetrics.baseNf4Gb / vramMetrics.maxGb) * 100)}%`,
                     backgroundColor: '#79c8ba',
                   }}
-                  className="h-full rounded-xs transition-all duration-300"
+                  className="h-full rounded-xs transition-[width] duration-300"
                   title="Base NF4 Weights"
                 />
                 <div
@@ -2357,7 +2386,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                     width: `${Math.min(25, (vramMetrics.loraAdamGb / vramMetrics.maxGb) * 100)}%`,
                     backgroundColor: '#d4af37',
                   }}
-                  className="h-full rounded-xs transition-all duration-300"
+                  className="h-full rounded-xs transition-[width] duration-300"
                   title="LoRA + AdamW States"
                 />
                 <div
@@ -2365,7 +2394,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                     width: `${Math.min(35, (vramMetrics.actGb / vramMetrics.maxGb) * 100)}%`,
                     backgroundColor: '#d98b6a',
                   }}
-                  className="h-full rounded-xs transition-all duration-300"
+                  className="h-full rounded-xs transition-[width] duration-300"
                   title="Sequence Activations"
                 />
               </div>
@@ -2414,7 +2443,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                         epoch_caps: { E1: next[0], E2: next[1], E3: next[2] },
                       });
                     }}
-                    className={`${step.h} w-full rounded-t-md border px-2 py-0.5 flex flex-col justify-between text-left transition-all duration-200 ${
+                    className={`${step.h} w-full rounded-t-md border px-2 py-0.5 flex flex-col justify-between text-left transition-colors duration-200 ${
                       step.active
                         ? 'border-brass/75 bg-brass/25 hover:bg-brass/35'
                         : 'border-brass/40 bg-brass/12 hover:bg-brass/22'
@@ -2435,7 +2464,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
             {/* Selected Cell Convenience Quick-Action Bar (Train / Eval Gate / Serve :8089 / Rollback) */}
             <div
               data-testid="mens-cell-quick-actions"
-              className="mt-1.5 pt-1.5 border-t border-border-subtle grid grid-cols-4 gap-1 font-mono text-[8.5px]"
+              className="mt-1.5 pt-1.5 border-t border-border-subtle grid grid-cols-2 gap-1 @sm/surface:grid-cols-4 font-mono text-[8.5px]"
             >
               <Tooltip content={`Train Qwen3-${selectedRung} × ${activeSpoke.id} immediately`}>
                 <button
@@ -2538,10 +2567,10 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                   Live Hardware &amp; Loss Convergence
                 </span>
               </div>
-              <div className="font-mono text-[10px] text-brass truncate">
-                Job 1/4: Qwen3-{selectedRung} · {activeSpoke.id} [68% · ETA 04m 32s]
-                {'  --------⇢  '}
-                <span className="text-text-primary">
+              <div className="flex items-center gap-1.5 font-mono text-[10px] text-brass truncate">
+                <span>Job 1/4: Qwen3-{selectedRung} · {activeSpoke.id} [68% · ETA 04m 32s]</span>
+                <Icon.arrowRight className="size-3 shrink-0 text-text-muted" aria-hidden="true" />
+                <span className="text-text-primary truncate">
                   Job 2/4: Qwen3-{selectedRung} · speech_to_code [NEXT]
                 </span>
               </div>
@@ -2596,14 +2625,15 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
                         : 'bg-transparent text-text-muted opacity-45'
                     }`}
                   >
-                    <span style={{ color: ch.color }}>●</span> {ch.label}{' '}
+                    <Icon.circleDot className="size-2.5 inline-block mr-1 align-middle" style={{ color: ch.color }} aria-hidden="true" />
+                    <span>{ch.label}</span>{' '}
                     <span className="text-text-secondary">{ch.val}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="inline-flex rounded-lg border border-border-subtle bg-black/40 p-0.5 font-mono text-[9.5px]">
+            <div className="inline-flex flex-wrap rounded-lg border border-border-subtle bg-black/40 p-0.5 font-mono text-[9.5px]">
               {(['60s', '5m', '15m', 'Full Run'] as const).map((w) => (
                 <button
                   key={w}
@@ -2826,8 +2856,8 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
           4. COMPACT DOCKED FOOTER: 5-SPOKE / 8-SPOKE SCORECARDS & CLI PROBES
          ===================================================================== */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between px-1">
-          <div className="inline-flex rounded-lg border border-border-subtle bg-overlay-subtle p-0.5 font-mono text-[10px]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <div className="inline-flex flex-wrap rounded-lg border border-border-subtle bg-overlay-subtle p-0.5 font-mono text-[10px]">
             <button
               type="button"
               onClick={() => setLowerDrawerTab('scorecards')}

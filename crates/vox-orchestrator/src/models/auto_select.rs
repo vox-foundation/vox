@@ -96,6 +96,26 @@ pub fn select_optimal_local_model_for_host() -> Result<AutoModelSelection, Strin
     Err("local model auto-selection requires the runtime feature (vox-populi/mens)".to_string())
 }
 
+/// Pick the optimal ladder adapter size for `free` memory and resolve the task signal's spoke (`340-02`).
+#[cfg(feature = "runtime")]
+pub fn select_optimal_spoke_and_size(
+    signal: &str,
+    free: Option<&FreeMemory>,
+) -> Result<(AutoModelSelection, Option<String>), String> {
+    let selection = select_for_free_memory(free)?;
+    let spoke =
+        vox_populi::mens::tensor::domain_router::resolve_task_spoke(signal).map(str::to_string);
+    Ok((selection, spoke))
+}
+
+#[cfg(not(feature = "runtime"))]
+pub fn select_optimal_spoke_and_size(
+    _signal: &str,
+    _free: Option<&FreeMemory>,
+) -> Result<(AutoModelSelection, Option<String>), String> {
+    Err("spoke auto-selection requires the runtime feature (vox-populi/mens)".to_string())
+}
+
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
     use super::*;
@@ -211,5 +231,28 @@ mod tests {
         };
         let err = select_for_free_memory(Some(&free)).expect_err("nothing fits");
         assert!(err.contains("0.6B"), "{err}");
+    }
+
+    #[test]
+    fn select_optimal_spoke_and_size_maps_lanes_and_size() {
+        let free = FreeMemory {
+            mb: 20_000,
+            source: "test",
+        };
+        let (sel_vox, spoke_vox) =
+            select_optimal_spoke_and_size("foo.vox", Some(&free)).expect("vox fits");
+        assert!(!sel_vox.size.trim().is_empty());
+        assert_eq!(spoke_vox.as_deref(), Some("vox-lang"));
+
+        let (_, spoke_rs) = select_optimal_spoke_and_size("foo.rs", Some(&free)).expect("rs fits");
+        assert_eq!(spoke_rs.as_deref(), Some("rust"));
+
+        let (_, spoke_harness) =
+            select_optimal_spoke_and_size("lane:vox_harness", Some(&free)).expect("harness fits");
+        assert_eq!(spoke_harness.as_deref(), Some("harness"));
+
+        let (_, spoke_unknown) =
+            select_optimal_spoke_and_size("lane:vox_rust_review", Some(&free)).expect("unknown");
+        assert_eq!(spoke_unknown, None);
     }
 }

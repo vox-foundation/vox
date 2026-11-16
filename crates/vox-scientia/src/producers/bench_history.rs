@@ -10,7 +10,6 @@
 //! a stable benchmark history produces stable ids across runs.
 
 use async_trait::async_trait;
-use sha3::{Digest, Sha3_256};
 use vox_research_events::ResearchEvent;
 
 use super::heuristics::{date_slug, fractional_improvement, p95};
@@ -75,12 +74,11 @@ impl Producer for BenchHistoryProducer {
             if improvement < MIN_IMPROVEMENT {
                 continue;
             }
-            let mut h = Sha3_256::new();
-            h.update(PRODUCER_NAME.as_bytes());
-            h.update(b"::");
-            h.update(tool.as_bytes());
-            let digest = h.finalize();
-            let sha7: String = digest.iter().take(4).map(|b| format!("{b:02x}")).collect();
+            let payload = format!("{PRODUCER_NAME}::{tool}");
+            let sha7: String = crate::compliance_hash_hex(payload.as_bytes())
+                .chars()
+                .take(8)
+                .collect();
             let finding_id = format!("algimp-{slug}-bench-{sha7}");
             // Cap worthiness_score within [0, 1].
             let worthiness_score = improvement.clamp(0.0, 1.0);

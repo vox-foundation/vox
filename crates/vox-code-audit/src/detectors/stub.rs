@@ -110,6 +110,11 @@ fn bare_stub_word_not_stub_check(
             i = idx + 1;
             continue;
         }
+        // PascalCase `Stub` enum variant declarations (`Stub,`) and qualified paths (`Self::Stub`, `Verdict::Stub`).
+        if &line[idx..after] == "Stub" && (before_trim.ends_with("::") || line.trim() == "Stub,") {
+            i = idx + 1;
+            continue;
+        }
         // Markdown inline code like `stub` is not prose placeholder text.
         if idx > 0 && bytes[idx - 1] == b'`' {
             i = idx + 1;

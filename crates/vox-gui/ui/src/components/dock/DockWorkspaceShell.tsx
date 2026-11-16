@@ -7,6 +7,8 @@ import {
   type IDockviewPanelHeaderProps,
 } from 'dockview';
 import { LAYOUT_PERSIST_DEBOUNCE_MS } from '../../config/constants';
+import { backendAvailable } from '../../lib/backendGuard';
+import { voxTransport } from '../../transport';
 
 /**
  * Per-host localStorage key for a persisted dockview layout. Each host view
@@ -44,6 +46,7 @@ export function DockWorkspaceShell({
 }: DockWorkspaceShellProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layoutChangeDisposableRef = useRef<{ dispose: () => void } | null>(null);
+  const mountedRef = useRef(true);
   const storageKey = layoutStorageKeyFor(storageKeyPrefix);
   // Two-div split, deliberate: `outerRef` keeps the existing percentage-based
   // sizing (`h-full`, flex-stretched by its own parent) untouched — measuring
@@ -99,7 +102,14 @@ export function DockWorkspaceShell({
         }
       }
 
+      let initialSetupInProgress = true;
+      let hydratingRemote = false;
+      let hasPostReadyChange = false;
+
       const layoutChangeDisposable = event.api.onDidLayoutChange(() => {
+        if (!initialSetupInProgress && !hydratingRemote) {
+          hasPostReadyChange = true;
+        }
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
           try {
@@ -107,6 +117,14 @@ export function DockWorkspaceShell({
               key === 'params' ? undefined : value,
             );
             window.localStorage.setItem(storageKey, serialized);
+            if (
+              backendAvailable() &&
+              typeof voxTransport?.setGuiPreference === 'function'
+            ) {
+              void Promise.resolve(
+                voxTransport.setGuiPreference(storageKey, serialized),
+              ).catch(() => {});
+            }
           } catch (err) {
             console.warn('failed to persist dockview layout', err);
           }
@@ -115,12 +133,59 @@ export function DockWorkspaceShell({
       layoutChangeDisposableRef.current = layoutChangeDisposable;
 
       onReady(event);
+      initialSetupInProgress = false;
+
+      if (
+        !saved &&
+        backendAvailable() &&
+        typeof voxTransport?.getGuiPreference === 'function'
+      ) {
+        void Promise.resolve(voxTransport.getGuiPreference(storageKey))
+          .then((remoteSaved) => {
+            if (!mountedRef.current || hasPostReadyChange) {
+              return;
+            }
+            if (typeof remoteSaved !== 'string' || remoteSaved.trim() === '') {
+              return;
+            }
+            try {
+              const parsed: unknown = JSON.parse(remoteSaved);
+              if (
+                parsed &&
+                typeof parsed === 'object' &&
+                !Array.isArray(parsed) &&
+                'grid' in parsed &&
+                parsed.grid &&
+                typeof parsed.grid === 'object'
+              ) {
+                if (debounceRef.current) {
+                  clearTimeout(debounceRef.current);
+                  debounceRef.current = null;
+                }
+                window.localStorage.setItem(storageKey, remoteSaved);
+                hydratingRemote = true;
+                try {
+                  event.api.fromJSON(
+                    parsed as Parameters<typeof event.api.fromJSON>[0],
+                  );
+                } finally {
+                  hydratingRemote = false;
+                }
+              }
+            } catch {
+              // ignore malformed or incompatible remote layout
+            }
+          })
+          .catch(() => {});
+      }
     },
     [onReady, storageKey],
   );
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       layoutChangeDisposableRef.current?.dispose();
       layoutChangeDisposableRef.current = null;
       if (debounceRef.current) {

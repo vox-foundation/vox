@@ -50,6 +50,11 @@
       "reason": "not_in_profile"
     },
     {
+      "surface": "gsd",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
       "surface": "harness",
       "available": false,
       "reason": "not_in_profile"

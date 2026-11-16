@@ -21,8 +21,8 @@ describe('LiveSourceProber', () => {
     const queryInput = screen.getByLabelText('Probe query') as HTMLInputElement;
     expect(queryInput.value).toBe('Rust async');
 
-    const providerSelect = screen.getByLabelText('Search provider') as HTMLSelectElement;
-    expect(providerSelect.value).toBe('all');
+    const providerSelect = screen.getByLabelText('Search provider');
+    expect(providerSelect).toHaveTextContent('All Providers');
 
     const probeBtn = screen.getByRole('button', { name: /probe provider/i });
     expect(probeBtn.getAttribute('type')).toBe('button');
@@ -81,7 +81,8 @@ describe('LiveSourceProber', () => {
     render(<LiveSourceProber initialQuery="Vox agent" />);
 
     const select = screen.getByLabelText('Search provider');
-    fireEvent.change(select, { target: { value: 'tavily' } });
+    fireEvent.click(select);
+    fireEvent.click(screen.getByRole('option', { name: 'Tavily' }));
 
     const probeBtn = screen.getByRole('button', { name: /probe provider/i });
     fireEvent.click(probeBtn);

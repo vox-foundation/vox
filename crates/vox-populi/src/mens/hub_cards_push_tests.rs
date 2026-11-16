@@ -3,16 +3,16 @@ use crate::mens::hub_sync::{classify_size_sync, stage_publish_bundle};
 use serde_json::json;
 use std::path::PathBuf;
 
-const PIN: &str = "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e";
+const PIN: &str = "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a";
 
 /// A run dir with weights, a manifest and a trained record (no receipts, so the local label is ungated).
 fn run_dir(root: &Path) -> PathBuf {
-    let dir = root.join("qwen3-1.7b");
+    let dir = root.join("qwen3.5-4b");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("candle_qlora_adapter.safetensors"), b"weights").unwrap();
     let manifest = json!({"base_model": PIN, "finetune_contract_digest": "digest"});
     std::fs::write(dir.join("training_manifest.json"), manifest.to_string()).unwrap();
-    let record = json!({"schema": "vox_mens_train_record_v1", "status": "trained", "size": "1.7B"});
+    let record = json!({"schema": "vox_mens_train_record_v1", "status": "trained", "size": "4B"});
     std::fs::write(dir.join("train-record.json"), record.to_string()).unwrap();
     dir
 }
@@ -37,10 +37,10 @@ fn local_and_remote(root: &Path) -> (PathBuf, HfSyncManifest, HfSyncManifest) {
 
 fn row(status: SizeSyncStatus) -> SizeSyncRow {
     SizeSyncRow {
-        size: "1.7B".to_string(),
+        size: "4B".to_string(),
         base_pin: PIN.to_string(),
-        repo_id: "ns/vox-mens-qwen3-1.7b".to_string(),
-        local_dir: "mens/runs/qwen3-1.7b".to_string(),
+        repo_id: "ns/vox-mens-qwen3.5-4b".to_string(),
+        local_dir: "mens/runs/qwen3.5-4b".to_string(),
         sync_status: status,
         gate_status: None,
         final_loss: None,
@@ -104,13 +104,18 @@ fn card_only_manifest_matches_staged_files() {
         assert_eq!(e.blake3, vox_crypto::hash_fast_hex(&bytes), "{name}");
         assert_eq!(e.size_bytes, bytes.len() as u64, "{name}");
     }
-    let svg_bytes = std::fs::read(out.join("assets/scorecard.svg")).unwrap();
-    let svg_entry = merged
+    let banner_bytes = std::fs::read(out.join("assets/banner.jpg")).unwrap();
+    let staged_banner_bytes = std::fs::read(stage.join("assets/banner.jpg")).unwrap();
+    assert_eq!(banner_bytes, staged_banner_bytes);
+    let banner_entry = merged
         .files
         .iter()
-        .find(|f| f.path == "assets/scorecard.svg")
+        .find(|f| f.path == "assets/banner.jpg")
         .unwrap();
-    assert_eq!(svg_entry.blake3, vox_crypto::hash_fast_hex(&svg_bytes));
+    assert_eq!(
+        banner_entry.blake3,
+        vox_crypto::hash_fast_hex(&banner_bytes)
+    );
     let staged: HfSyncManifest = serde_json::from_str(
         &std::fs::read_to_string(out.join(HF_SYNC_MANIFEST_FILENAME)).unwrap(),
     )
@@ -146,30 +151,43 @@ fn card_only_stage_dir_holds_only_card_files() {
             "MODEL_CARD.md",
             "README.md",
             "assets",
+            "external_serving_handoff_v1.json",
             "hf_sync_manifest.json"
         ]
     );
-    assert!(with.join("assets/scorecard.svg").is_file());
+    assert!(with.join("assets/banner.jpg").is_file());
+    assert!(with.join("external_serving_handoff_v1.json").is_file());
     let without = tmp.path().join("without");
     assert!(
         stage_card_only(&stage, &without, None, &local)
             .unwrap()
             .is_none()
     );
-    assert_eq!(names(&without), ["MODEL_CARD.md", "README.md", "assets"]);
-    assert!(without.join("assets/scorecard.svg").is_file());
+    assert_eq!(
+        names(&without),
+        [
+            "MODEL_CARD.md",
+            "README.md",
+            "assets",
+            "external_serving_handoff_v1.json"
+        ]
+    );
+    assert!(without.join("assets/banner.jpg").is_file());
     // A non-empty out dir is refused.
     assert!(stage_card_only(&stage, &with, None, &local).is_err());
 }
 
 #[test]
-fn stage_card_only_copies_scorecard_svg_and_creates_assets_dir() {
+fn stage_card_only_copies_banner_jpg_and_creates_assets_dir() {
     let tmp = tempfile::tempdir().unwrap();
     let (stage, local, remote) = local_and_remote(tmp.path());
     let out = tmp.path().join("out_test");
     stage_card_only(&stage, &out, Some(&remote), &local).unwrap();
     assert!(out.join("assets").is_dir());
-    assert!(out.join("assets/scorecard.svg").is_file());
+    assert_eq!(
+        std::fs::read(out.join("assets/banner.jpg")).unwrap(),
+        std::fs::read(stage.join("assets/banner.jpg")).unwrap()
+    );
 }
 
 #[test]
@@ -198,8 +216,23 @@ fn plan_card_push_cases() {
         plan_card_push(S::InSync, true, l, l),
         CardPushPlan::Unchanged
     );
+    // When remote weights match local weights, card/collateral updates can push card-only even if gated.
     assert_eq!(
         plan_card_push(S::Diverged, true, r, l),
+        CardPushPlan::CardOnly {
+            with_manifest: true
+        }
+    );
+    let mut r_diff_weights = remote.clone();
+    for e in r_diff_weights
+        .files
+        .iter_mut()
+        .filter(|e| e.path.ends_with(".safetensors"))
+    {
+        e.blake3 = "f".repeat(64);
+    }
+    assert_eq!(
+        plan_card_push(S::Diverged, true, Some(&r_diff_weights), l),
         CardPushPlan::GatedWeights
     );
     assert_eq!(
@@ -253,21 +286,84 @@ fn decide_rows_dry_run() {
     );
     assert_eq!(r.action_taken.as_deref(), Some("cards unchanged"));
     // The upload text only appears when a commit id is supplied.
-    assert!(plan.action("1.7B", Some("abc")).contains("(abc)"));
+    assert!(plan.action("4B", Some("abc")).contains("(abc)"));
 }
 
 #[test]
 fn gated_current_is_left_to_the_weights_path() {
     let tmp = tempfile::tempdir().unwrap();
-    let (_, local, remote) = local_and_remote(tmp.path());
+    let (_, local, mut remote) = local_and_remote(tmp.path());
+    for e in remote
+        .files
+        .iter_mut()
+        .filter(|e| e.path.ends_with(".safetensors"))
+    {
+        e.blake3 = "f".repeat(64);
+    }
     let mut r = row(SizeSyncStatus::Diverged);
     let plan = decide_row(&mut r, true, Some(&remote), Some(&local));
     assert_eq!(plan, CardPushPlan::GatedWeights);
     assert!(
         r.action_taken
             .unwrap()
-            .contains("vox mens hub sync --push --size 1.7B")
+            .contains("vox mens hub sync --push --size 4B")
     );
+}
+
+#[test]
+fn gated_current_with_matching_remote_weights_allows_card_only_push() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_, local, remote) = local_and_remote(tmp.path());
+    let mut r = row(SizeSyncStatus::Diverged);
+    let plan = decide_row(&mut r, true, Some(&remote), Some(&local));
+    assert_eq!(
+        plan,
+        CardPushPlan::CardOnly {
+            with_manifest: true
+        }
+    );
+}
+
+#[test]
+fn is_card_collateral_admits_eval_results_yaml_and_serving_handoff() {
+    assert!(is_card_collateral(".eval_results/vox_mens_eval.yaml"));
+    assert!(is_card_collateral(".eval_results/vox_mens_eval.yml"));
+    assert!(is_card_collateral("external_serving_handoff_v1.json"));
+    assert!(is_card_collateral("assets/banner.jpg"));
+    assert!(is_card_collateral("assets/overview.jpg"));
+    assert!(!is_card_collateral("assets/scorecard.svg"));
+    assert!(!is_card_collateral("candle_qlora_adapter.safetensors"));
+    assert!(!is_card_collateral("peft/adapter_model.safetensors"));
+
+    let tmp = tempfile::tempdir().unwrap();
+    let run = run_dir(tmp.path());
+    std::fs::write(
+        run.join("collateral_damage_report.json"),
+        serde_json::json!({
+            "reasoning_slices": {
+                "pooled": { "post": 0.75 },
+                "slices": {
+                    "vox_think": { "accuracy": { "post": 0.80 } }
+                }
+            }
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let stage = tmp.path().join("stage");
+    let local = stage_publish_bundle(&run, &stage, true, "ns").unwrap();
+    let mut remote = local.clone();
+    for e in remote
+        .files
+        .iter_mut()
+        .filter(|e| is_card_collateral(&e.path))
+    {
+        e.blake3 = "0".repeat(64);
+    }
+    let out = tmp.path().join("out");
+    stage_card_only(&stage, &out, Some(&remote), &local).unwrap();
+    assert!(out.join(".eval_results/vox_mens_eval.yaml").is_file());
+    assert!(out.join("external_serving_handoff_v1.json").is_file());
 }
 
 #[test]
@@ -307,4 +403,17 @@ fn scratch_dirs_are_private_distinct_and_leave_predictable_paths_alone() {
     assert!(!path.exists());
     assert!(old.join("sentinel").is_file());
     std::fs::remove_dir_all(&old).unwrap();
+}
+
+#[test]
+fn card_only_manifest_updates_final_loss_and_measured_peak_mb() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_, mut local, mut remote) = local_and_remote(tmp.path());
+    remote.final_loss = None;
+    remote.measured_peak_mb = Some(353_743);
+    local.final_loss = Some(0.7682);
+    local.measured_peak_mb = Some(101_635);
+    let merged = card_only_manifest(&remote, &local);
+    assert_eq!(merged.final_loss, Some(0.7682));
+    assert_eq!(merged.measured_peak_mb, Some(101_635));
 }

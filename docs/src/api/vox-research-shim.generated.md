@@ -115,8 +115,6 @@ graph {
     vox_research_shim -> vox_search
     node vox_secrets: "vox-secrets"
     vox_research_shim -> vox_secrets
-    node vox_cli: "vox-cli"
-    vox_cli -> vox_research_shim
     node vox_cli_research: "vox-cli-research"
     vox_cli_research -> vox_research_shim
     node vox_gui: "vox-gui"
@@ -130,7 +128,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |

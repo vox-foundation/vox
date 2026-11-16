@@ -69,88 +69,31 @@ pub struct FindingCandidateV1 {
     pub updated_at_ms: Option<i64>,
 }
 
-/// Prior-art source labels (must match `novelty-evidence-bundle.v1.schema.json`).
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum PriorArtSource {
-    Openalex,
-    Crossref,
-    SemanticScholar,
-    Manual,
-    Other,
-}
+/// Prior-art source labels (`contracts/scientia/novelty-evidence-bundle.v1.schema.json`).
+pub type PriorArtSource = vox_research_events::schema_types::NoveltySource;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NormalizedPriorArtHit {
-    pub source: PriorArtSource,
-    pub work_uri: String,
-    pub title: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub year: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub lexical_score: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub semantic_score: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub overlap_note: Option<String>,
-    /// Citation count from upstream when available (OpenAlex `cited_by_count`, S2 `citationCount`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cited_by_count: Option<u64>,
-}
+/// Canonical normalized prior-art hit (`contracts/scientia/novelty-evidence-bundle.v1.schema.json`).
+pub type NormalizedPriorArtHit = vox_research_events::schema_types::NormalizedHit;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NoveltyOverlapSummary {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_lexical_score: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_semantic_score: Option<f64>,
-    #[serde(default)]
-    pub recency_bucket: NoveltyRecencyBucket,
-}
+/// Canonical novelty overlap summary (`contracts/scientia/novelty-evidence-bundle.v1.schema.json`).
+pub type NoveltyOverlapSummary = vox_research_events::schema_types::OverlapSummary;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum NoveltyRecencyBucket {
-    #[default]
-    Unknown,
-    Stale,
-    Recent,
-    VeryRecent,
-}
+/// Canonical novelty recency bucket (`contracts/scientia/novelty-evidence-bundle.v1.schema.json`).
+pub type NoveltyRecencyBucket = vox_research_events::schema_types::RecencyBucket;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NoveltyQueryTrace {
-    pub source: String,
-    pub request_fingerprint_sha256: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub http_status: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cached: Option<bool>,
-}
+/// Canonical novelty query trace (`contracts/scientia/novelty-evidence-bundle.v1.schema.json`).
+pub type NoveltyQueryTrace = vox_research_events::schema_types::QueryTrace;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NoveltyEvidenceBundleV1 {
-    pub schema_version: i32,
-    pub bundle_id: String,
-    pub candidate_id: String,
-    pub computed_at_ms: i64,
-    pub query_digest_sha256: String,
-    pub sources: Vec<PriorArtSource>,
-    pub normalized_hits: Vec<NormalizedPriorArtHit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub overlap_summary: Option<NoveltyOverlapSummary>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub query_traces: Vec<NoveltyQueryTrace>,
-}
+/// Canonical novelty evidence bundle (`contracts/scientia/novelty-evidence-bundle.v1.schema.json`).
+pub type NoveltyEvidenceBundleV1 = vox_research_events::schema_types::NoveltyEvidenceBundle;
 
 /// Contract SSOT type from `contracts/scientia/novelty-evidence-bundle.v1.schema.json`.
 pub type NoveltyEvidenceBundleContract = vox_research_events::schema_types::NoveltyEvidenceBundle;
 
-/// Convert publisher wire type → contract type via validated serde round-trip.
+/// Clone a canonical novelty evidence bundle (retained for backward compatibility).
+#[must_use]
 pub fn to_contract_bundle(v1: &NoveltyEvidenceBundleV1) -> NoveltyEvidenceBundleContract {
-    let val = serde_json::to_value(v1).expect("NoveltyEvidenceBundleV1 must be serializable");
-    serde_json::from_value(val)
-        .expect("NoveltyEvidenceBundleV1 must round-trip to NoveltyEvidenceBundle")
+    v1.clone()
 }
 
 /// Derive a stable candidate id from publication id (or arbitrary stem).

@@ -29,8 +29,9 @@ impl DriftEngine {
     }
 
     pub fn extract_workspace(&self) -> Result<WorkspaceFeatures> {
+        let ws_root = resolve_workspace_root(&self.root);
         let paths = self.collect_source_files();
-        let cache = FeatureCache::from_workspace(&self.root);
+        let cache = FeatureCache::from_workspace(&ws_root);
         let files: Vec<ExtractedFeatures> = paths
             .par_iter()
             .filter_map(|p| {
@@ -57,7 +58,7 @@ impl DriftEngine {
             })
             .collect();
 
-        let workspace_version = read_workspace_version(&self.root);
+        let workspace_version = read_workspace_version(&ws_root);
         Ok(WorkspaceFeatures {
             files,
             workspace_version,
@@ -69,11 +70,12 @@ impl DriftEngine {
         use crate::rules::{WorkspaceContext, all_drift_rules};
         use crate::sweep::all_sweep_rules;
 
+        let ws_root = resolve_workspace_root(&self.root);
         let ws = self.extract_workspace()?;
         let ctx = WorkspaceContext {
             workspace_version: ws.workspace_version.clone(),
-            workspace_root: self.root.clone(),
-            layers: LayersManifest::load(&self.root),
+            workspace_root: ws_root.clone(),
+            layers: LayersManifest::load(&ws_root),
         };
 
         let mut findings = Vec::new();
@@ -134,6 +136,23 @@ pub fn detect_language(path: &Path) -> Language {
         Some("vox") => Language::Vox,
         _ => Language::Unknown,
     }
+}
+
+/// Walk upward from `start` to find the enclosing Cargo workspace root (falling back to `start`).
+fn resolve_workspace_root(start: &Path) -> PathBuf {
+    let abs = std::fs::canonicalize(start).unwrap_or_else(|_| start.to_path_buf());
+    let mut cur: Option<&Path> = Some(abs.as_path());
+    while let Some(dir) = cur {
+        let cargo = dir.join("Cargo.toml");
+        if cargo.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&cargo)
+            && raw.contains("[workspace.dependencies]")
+        {
+            return dir.to_path_buf();
+        }
+        cur = dir.parent();
+    }
+    start.to_path_buf()
 }
 
 fn read_workspace_version(root: &Path) -> String {

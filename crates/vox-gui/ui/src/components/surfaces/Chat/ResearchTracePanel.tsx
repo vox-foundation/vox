@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Icon } from '../../ui/Icons';
 
 /** Mirrors Rust `research_turn.rs` — `ResearchTrace::to_event()` (events[0] of a chat reply). */
 type Stage = { stage: string; status: string; elapsed_ms?: number | null; summary: string; detail?: unknown };
@@ -42,10 +43,22 @@ const STATUS_CLASS: Record<string, string> = {
 /** Every `ProviderStatus` variant, labelled; unknown future states fall through verbatim. */
 // The theme's warn and fail tokens are close in hue, so each state also gets a
 // glyph — severity never relies on colour alone.
-const PROVIDER_STATE: Record<string, { label: string; cls: string; glyph: string }> = {
-  ok: { label: 'ok', cls: 'text-text-secondary', glyph: '✓' },
-  timeout: { label: 'timeout', cls: FAIL, glyph: '✕' },
-  error: { label: 'error', cls: FAIL, glyph: '✕' },
+const PROVIDER_STATE: Record<string, { label: string; cls: string; glyph: React.ReactNode }> = {
+  ok: {
+    label: 'ok',
+    cls: 'text-text-secondary',
+    glyph: <Icon.check className="size-3 shrink-0" aria-hidden="true" />,
+  },
+  timeout: {
+    label: 'timeout',
+    cls: FAIL,
+    glyph: <Icon.close className="size-3 shrink-0" aria-hidden="true" />,
+  },
+  error: {
+    label: 'error',
+    cls: FAIL,
+    glyph: <Icon.close className="size-3 shrink-0" aria-hidden="true" />,
+  },
   not_configured: { label: 'not configured', cls: 'text-text-muted', glyph: '–' },
   disabled: { label: 'disabled', cls: 'text-text-muted', glyph: '–' },
   circuit_open: { label: 'circuit open', cls: WARN, glyph: '!' },
@@ -71,8 +84,11 @@ function ProviderTable({ providers }: { providers: Provider[] }) {
                data-provider={p.provider} data-state={p.status.state} className={st.cls}>
             <div className="flex gap-3 whitespace-nowrap">
               <span className="w-[9ch] shrink-0">{p.provider}</span>
-              <span className="w-[20ch] shrink-0">
-                {st.glyph} {st.label}{p.status.hits != null && ` · ${p.status.hits} hits`}
+              <span className="inline-flex w-[20ch] shrink-0 items-center gap-1">
+                {st.glyph}
+                <span>
+                  {st.label}{p.status.hits != null && ` · ${p.status.hits} hits`}
+                </span>
               </span>
               <span className="w-[8ch] shrink-0 text-right tabular-nums">{p.elapsed_ms}ms</span>
               {p.calls != null && p.calls > 1 && <span>×{p.calls} calls</span>}
@@ -113,8 +129,13 @@ export function ResearchTracePanel({ trace }: { trace: ResearchTrace }) {
          className="w-full max-w-[720px] rounded-md border border-border-subtle bg-overlay-subtle text-left font-mono text-[11px]">
       <button type="button" data-testid="research-trace-toggle" aria-expanded={open}
               onClick={() => setOpen((o) => !o)}
-              className={`w-full px-2 py-1 text-left ${STATUS_CLASS[trace.status] ?? 'text-text-secondary'}`}>
-        {open ? '▾' : '▸'} {header}
+              className={`flex w-full items-center gap-1.5 px-2 py-1 text-left ${STATUS_CLASS[trace.status] ?? 'text-text-secondary'}`}>
+        {open ? (
+          <Icon.chevronDown className="size-3 shrink-0" aria-hidden="true" />
+        ) : (
+          <Icon.chevR className="size-3 shrink-0" aria-hidden="true" />
+        )}
+        <span>{header}</span>
       </button>
       {open && (
         <div className="space-y-1 border-t border-border-subtle px-2 py-1">

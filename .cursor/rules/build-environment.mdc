@@ -24,7 +24,7 @@ Agent and terminal shells may not have `PATH` set like a normal user login. To a
 ## Running Cargo
 
 - **Windows (PowerShell)**: Run plain `cargo` from the workspace root; the build broker shim on `PATH` coordinates machine-wide builds (`vox doctor` reports broker activation).
-- **Working directory**: Always run Cargo from the workspace root. Set `working_directory` to the repo root (e.g. `c:\Users\Owner\vox`) when invoking terminal commands.
+- **Working directory**: Always run Cargo from the workspace root. Set `working_directory` to the repo root (e.g. the repository root) when invoking terminal commands.
 - Prefer `cargo check --workspace` when only checking for compile errors (faster, less I/O than full `cargo build`). Use `cargo build --workspace` when artifacts are needed.
 - **Populi Candle QLoRA + NVIDIA CUDA**: use **`cargo vox-cuda-release`** from the repo root (alias in `.cargo/config.toml` → `gpu,populi-candle-cuda`). On Windows, run from **Visual Studio x64 Native Tools** / `vcvars64.bat` so `nvcc` finds `cl.exe`. A plain `cargo build -p vox-cli --release` does **not** enable CUDA kernels; rebuild with the alias after `cargo clean` or when QLoRA falls back to CPU.
 - If you see "file lock" or "user-mapped section" errors on Windows, another Cargo process may be holding the lock; retry once or use `cargo check` to avoid writing binaries.

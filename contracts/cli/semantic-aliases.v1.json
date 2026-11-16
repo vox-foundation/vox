@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "generated_from": "contracts/operations/catalog.v1.yaml",
+  "min_cosine_similarity": 0.72,
+  "min_cosine_margin": 0.08,
+  "antonym_banlist": [
+    [
+      "add",
+      "remove"
+    ],
+    [
+      "add",
+      "delete"
+    ],
+    [
+      "add",
+      "rm"
+    ],
+    [
+      "add",
+      "del"
+    ],
+    [
+      "add",
+      "uninstall"
+    ],
+    [
+      "start",
+      "stop"
+    ],
+    [
+      "lock",
+      "unlock"
+    ],
+    [
+      "set",
+      "get"
+    ],
+    [
+      "set",
+      "unset"
+    ],
+    [
+      "import",
+      "export"
+    ],
+    [
+      "enable",
+      "disable"
+    ],
+    [
+      "create",
+      "destroy"
+    ],
+    [
+      "install",
+      "uninstall"
+    ]
+  ],
+  "verb_aliases": {
+    "del": "remove",
+    "lint": "check",
+    "rm": "remove"
+  },
+  "noun_aliases": {
+    "clavis": "secrets",
+    "cred": "secrets",
+    "creds": "secrets",
+    "key": "secrets",
+    "keys": "secrets",
+    "secret": "secrets",
+    "skills": "skill"
+  },
+  "foreign_idioms": [
+    {
+      "trigger": [
+        "clippy"
+      ],
+      "canonical_path": [
+        "audit",
+        "code"
+      ],
+      "insert_args": [],
+      "cosine_similarity": 0.8798,
+      "cosine_margin": 0.6083
+    },
+    {
+      "trigger": [
+        "diagnose",
+        "clavis"
+      ],
+      "canonical_path": [
+        "secrets",
+        "status"
+      ],
+      "insert_args": [],
+      "cosine_similarity": 0.7863,
+      "cosine_margin": 0.3924
+    },
+    {
+      "trigger": [
+        "list",
+        "secrets"
+      ],
+      "canonical_path": [
+        "secrets",
+        "status"
+      ],
+      "insert_args": [],
+      "cosine_similarity": 0.8421,
+      "cosine_margin": 0.4832
+    },
+    {
+      "trigger": [
+        "secrets",
+        "doctor"
+      ],
+      "canonical_path": [
+        "secrets",
+        "status"
+      ],
+      "insert_args": [],
+      "cosine_similarity": 0.7868,
+      "cosine_margin": 0.4088
+    }
+  ],
+  "rules": [
+    {
+      "alias": "clavis",
+      "slot": "noun",
+      "canonical_target": [
+        "secrets"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "clippy",
+      "slot": "idiom",
+      "canonical_target": [
+        "audit",
+        "code"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 0.8798,
+      "cosine_margin": 0.6083
+    },
+    {
+      "alias": "cred",
+      "slot": "noun",
+      "canonical_target": [
+        "secrets"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "creds",
+      "slot": "noun",
+      "canonical_target": [
+        "secrets"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "del",
+      "slot": "verb",
+      "canonical_target": [
+        "remove"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "diagnose clavis",
+      "slot": "idiom",
+      "canonical_target": [
+        "secrets",
+        "status"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 0.7863,
+      "cosine_margin": 0.3924
+    },
+    {
+      "alias": "key",
+      "slot": "noun",
+      "canonical_target": [
+        "secrets"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "keys",
+      "slot": "noun",
+      "canonical_target": [
+        "secrets"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "lint",
+      "slot": "verb",
+      "canonical_target": [
+        "check"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "list secrets",
+      "slot": "idiom",
+      "canonical_target": [
+        "secrets",
+        "status"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 0.8421,
+      "cosine_margin": 0.4832
+    },
+    {
+      "alias": "rm",
+      "slot": "verb",
+      "canonical_target": [
+        "remove"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "secret",
+      "slot": "noun",
+      "canonical_target": [
+        "secrets"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    },
+    {
+      "alias": "secrets doctor",
+      "slot": "idiom",
+      "canonical_target": [
+        "secrets",
+        "status"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 0.7868,
+      "cosine_margin": 0.4088
+    },
+    {
+      "alias": "skills",
+      "slot": "noun",
+      "canonical_target": [
+        "skill"
+      ],
+      "source": "curated",
+      "status": "auto_alias",
+      "cosine_similarity": 1.0,
+      "cosine_margin": 1.0
+    }
+  ]
+}

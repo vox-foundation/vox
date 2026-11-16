@@ -1,7 +1,7 @@
 //! `vox mens eval-local` — evaluate trained model against heldout benchmark.
 
 use super::eval_local_prompt::{
-    PreparedBench, prepare_bench_item, sort_prepared_benches_lexicographic,
+    PreparedBench, prepare_bench_item_for_model, sort_prepared_benches_lexicographic,
 };
 use super::metrics::verify_completion;
 use anyhow::Result;
@@ -72,6 +72,63 @@ fn failed_samples(
         })
         .collect();
     (vec![false; n], samples)
+}
+
+/// Resolve a model/family hint string from `--model` / `--base` (or its run/checkpoint
+/// directory's `training_manifest.json`, `adapter_manifest.json`, or `config.json`) so
+/// `eval-local` only appends the Qwen3.0 ` /no_think` toggle for Qwen3.0 checkpoints.
+pub(crate) fn resolve_eval_model_hint(model_path: &std::path::Path) -> Option<String> {
+    let dir = if model_path.is_file() {
+        model_path.parent()
+    } else {
+        Some(model_path)
+    };
+    if let Some(d) = dir {
+        for json_name in ["training_manifest.json", "adapter_manifest.json"] {
+            let p = d.join(json_name);
+            if p.is_file()
+                && let Ok(raw) = std::fs::read_to_string(&p)
+                && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+                && let Some(s) = val
+                    .get("base_model")
+                    .or_else(|| val.get("model_id"))
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+            {
+                return Some(s.to_string());
+            }
+        }
+        let cfg = d.join("config.json");
+        if cfg.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&cfg)
+            && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+        {
+            if let Some(mt) = val
+                .get("model_type")
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
+                return Some(mt.to_string());
+            }
+            if let Some(arch) = val
+                .get("architectures")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.first())
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
+                return Some(arch.to_string());
+            }
+        }
+    }
+    model_path
+        .to_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 /// Runs the benchmark. All `samples` (n) generations are drawn for every item,
@@ -390,10 +447,11 @@ fn eval_local_report(
     #[cfg(feature = "gpu")]
     let _eval_session: Option<String> = None;
 
+    let model_hint = resolve_eval_model_hint(&model);
     let mut prepared: Vec<PreparedBench> = benchmarks
         .iter()
         .enumerate()
-        .map(|(i, item)| prepare_bench_item(&bench, i, item))
+        .map(|(i, item)| prepare_bench_item_for_model(&bench, i, item, model_hint.as_deref()))
         .collect();
     sort_prepared_benches_lexicographic(&mut prepared);
 
@@ -1532,5 +1590,45 @@ mod tests {
             "a TODO-stubbed body must still fail the anti-stub gate: {:?}",
             v.checks
         );
+    }
+
+    #[test]
+    fn resolve_eval_model_hint_prefers_manifest_and_config_over_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let q35 = dir.path().join("q35_run");
+        std::fs::create_dir_all(&q35).unwrap();
+        std::fs::write(
+            q35.join("training_manifest.json"),
+            r#"{"base_model":"Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"}"#,
+        )
+        .unwrap();
+        let hint35 = super::resolve_eval_model_hint(&q35).unwrap();
+        assert!(!vox_eval::qwen_reasoning::model_uses_no_think_user_switch(
+            Some(&hint35)
+        ));
+
+        let recombined = dir.path().join("recombined_full");
+        std::fs::create_dir_all(&recombined).unwrap();
+        std::fs::write(
+            recombined.join("config.json"),
+            r#"{"model_type":"qwen3_5_text","architectures":["Qwen3_5ForCausalLM"]}"#,
+        )
+        .unwrap();
+        let hint_cfg = super::resolve_eval_model_hint(&recombined).unwrap();
+        assert!(!vox_eval::qwen_reasoning::model_uses_no_think_user_switch(
+            Some(&hint_cfg)
+        ));
+
+        let q30 = dir.path().join("q30_run");
+        std::fs::create_dir_all(&q30).unwrap();
+        std::fs::write(
+            q30.join("training_manifest.json"),
+            r#"{"base_model":"Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"}"#,
+        )
+        .unwrap();
+        let hint30 = super::resolve_eval_model_hint(&q30).unwrap();
+        assert!(vox_eval::qwen_reasoning::model_uses_no_think_user_switch(
+            Some(&hint30)
+        ));
     }
 }

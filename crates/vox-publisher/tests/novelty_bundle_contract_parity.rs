@@ -37,15 +37,35 @@ fn representative_bundle() -> NoveltyEvidenceBundleV1 {
         overlap_summary: Some(NoveltyOverlapSummary {
             max_lexical_score: Some(0.72),
             max_semantic_score: Some(0.65),
-            recency_bucket: NoveltyRecencyBucket::Recent,
+            recency_bucket: Some(NoveltyRecencyBucket::Recent),
         }),
-        query_traces: vec![NoveltyQueryTrace {
+        query_traces: Some(vec![NoveltyQueryTrace {
             source: "openalex".to_string(),
             request_fingerprint_sha256: HEX64.to_string(),
             http_status: Some(200),
             cached: Some(false),
-        }],
+        }]),
     }
+}
+
+fn coerce_embedder_trait<'a>(
+    e: &'a dyn vox_scientia::embedder::Embedder,
+) -> &'a dyn vox_publisher::scientia_semantic::Embedder {
+    e
+}
+
+#[test]
+fn v1_and_embedder_share_canonical_type_and_trait_identity() {
+    assert_eq!(
+        std::any::TypeId::of::<NoveltyEvidenceBundleV1>(),
+        std::any::TypeId::of::<vox_research_events::schema_types::NoveltyEvidenceBundle>()
+    );
+    assert_eq!(
+        std::any::TypeId::of::<dyn vox_publisher::scientia_semantic::Embedder>(),
+        std::any::TypeId::of::<dyn vox_scientia::embedder::Embedder>()
+    );
+    let local = vox_scientia::embedder::LocalHashEmbedder::default();
+    let _coerced = coerce_embedder_trait(&local);
 }
 
 #[test]

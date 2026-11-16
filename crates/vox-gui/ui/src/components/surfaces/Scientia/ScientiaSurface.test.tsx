@@ -14,11 +14,14 @@ vi.mock('./DiscoveryInbox', () => ({
 vi.mock('./DiscoveryReview', () => ({
   DiscoveryReview: () => <div data-testid="scientia-studio" />,
 }));
+vi.mock('./BeforeAfterAuditInspector', () => ({
+  BeforeAfterAuditInspector: () => <div data-testid="scientia-audit-inspector" />,
+}));
 
 import { ScientiaSurface } from './ScientiaSurface';
 
 describe('ScientiaSurface (Findings)', () => {
-  it('defaults to the dashboard and exposes Inbox, Studio & Review, and Claims tabs', () => {
+  it('defaults to the dashboard and exposes Inbox, Studio & Review, Claims, and Audit Diff tabs', () => {
     render(<ScientiaSurface pushToast={() => {}} />);
     expect(screen.getByTestId('scientia-dashboard')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Inbox' }));
@@ -27,5 +30,16 @@ describe('ScientiaSurface (Findings)', () => {
     expect(screen.getByTestId('scientia-studio')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Claims' }));
     expect(screen.getByTestId('scientia-claims')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Audit Diff' }));
+    expect(screen.getByTestId('scientia-audit-inspector')).toBeInTheDocument();
+  });
+
+  it('switches directly to Studio & Review when vox://scientia-open-studio fires', () => {
+    render(<ScientiaSurface pushToast={() => {}} />);
+    fireEvent(
+      window,
+      new CustomEvent('vox://scientia-open-studio', { detail: { publicationId: 'pub-42' } }),
+    );
+    expect(screen.getByTestId('scientia-studio')).toBeInTheDocument();
   });
 });

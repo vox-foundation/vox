@@ -209,9 +209,27 @@ CREATE TABLE IF NOT EXISTS scientia_research_sessions (
     query_text        TEXT,
     hit_count         INTEGER NOT NULL DEFAULT 0,
     claim_count       INTEGER NOT NULL DEFAULT 0,
-    quality_score     INTEGER NOT NULL DEFAULT 0
+    quality_score     INTEGER NOT NULL DEFAULT 0,
+    continuum_tier    TEXT,
+    escalated_from    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_sessions_status ON scientia_research_sessions(status, started_at_ms);
+
+-- Discovered sources per research session for bounded cursor pagination (v7.6).
+CREATE TABLE IF NOT EXISTS research_session_sources (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL,
+    wave            INTEGER NOT NULL DEFAULT 1,
+    url             TEXT    NOT NULL,
+    title           TEXT    NOT NULL DEFAULT '',
+    snippet         TEXT    NOT NULL DEFAULT '',
+    provider        TEXT    NOT NULL DEFAULT '',
+    domain          TEXT    NOT NULL DEFAULT '',
+    relevance_score REAL    NOT NULL DEFAULT 0.0,
+    created_at_ms   INTEGER NOT NULL,
+    UNIQUE(session_id, url)
+);
+CREATE INDEX IF NOT EXISTS idx_research_session_sources_cursor ON research_session_sources(session_id, id);
 
 -- Durable deep-research result artifact for async/CLI/MCP result retrieval.
 CREATE TABLE IF NOT EXISTS scientia_research_artifacts (
@@ -235,6 +253,7 @@ CREATE TABLE IF NOT EXISTS scientia_claims (
     created_at_ms     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_claims_session ON scientia_claims(session_id, created_at_ms);
+CREATE INDEX IF NOT EXISTS idx_scientia_claims_session_cursor ON scientia_claims(session_id, id);
 
 -- Verification verdicts per claim (Phase 0d).
 CREATE TABLE IF NOT EXISTS scientia_claim_verdicts (

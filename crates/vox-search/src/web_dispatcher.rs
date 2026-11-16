@@ -816,10 +816,41 @@ impl WebSearchDispatcher {
         #[cfg(feature = "web-scrape")]
         {
             // Integrated scraping for clean content (optional — pulls scraper/html2text).
+            // Skip binary PDF endpoints and hits that already carry rich snippet/abstract text
+            // (e.g. OpenAlex abstracts or Tavily-uplifted excerpts), and honor the per-query
+            // scrape cap (`searxng_max_urls_to_scrape`) so multi-subquery research stays bounded.
             let mut final_hits = Vec::new();
-            let urls_to_scrape = results.iter().take(kept_limit).cloned().collect::<Vec<_>>();
+            let urls_to_keep = results.iter().take(kept_limit).cloned().collect::<Vec<_>>();
+            let scrape_cap = policy.searxng_max_urls_to_scrape.max(1);
+            let mut scraped_attempts = 0usize;
 
-            for res in urls_to_scrape {
+            for res in urls_to_keep {
+                let lower_url = res.url.to_ascii_lowercase();
+                let url_no_query = lower_url.split('?').next().unwrap_or(&lower_url);
+                let is_binary_or_doi_redirect = url_no_query.ends_with(".pdf")
+                    || lower_url.contains("/pdf/")
+                    || lower_url.contains("/pdfdirect/")
+                    || (lower_url.contains("doi.org/") && res.content.chars().count() >= 160);
+                let already_rich = res.content.chars().count() >= 450;
+
+                if scraped_attempts >= scrape_cap || is_binary_or_doi_redirect || already_rich {
+                    let mut provenance = vec!["WebResearch".to_string()];
+                    if let Some(ref eng) = res.engine {
+                        provenance.push(format!("engine:{eng}"));
+                    }
+                    provenance.push("scraped:false".to_string());
+                    final_hits.push(crate::memory_hybrid::HybridSearchHit {
+                        path: res.url.clone(),
+                        title: res.title.clone(),
+                        content_snippet: res.content.clone(),
+                        score: res.score.unwrap_or(0.65),
+                        provenance,
+                        potential_contradiction: false,
+                    });
+                    continue;
+                }
+
+                scraped_attempts += 1;
                 match crate::scraper::fetch_and_extract(&res.url, policy.scraper_timeout_ms).await {
                     Ok(doc) => {
                         if doc.text_density >= policy.scraper_min_text_density {

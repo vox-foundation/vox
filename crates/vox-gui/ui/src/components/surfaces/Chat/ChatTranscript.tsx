@@ -1,13 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
+import { Icon } from '../../ui/Icons';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { StreamItem } from '../../../types/dashboard';
 import { buildChatOnlyTimeline } from '../../../lib/chatTranscriptTimeline';
 import { StatusLine } from './StatusLine';
 import { TurnTrace } from './TurnTrace';
+import {
+  ChatTerminalBlockCard,
+  findActiveAgentBlock,
+  isTerminalBlockToolName,
+} from './ChatTerminalBlockCard';
 import { ChatVerbosityControl } from './ChatVerbosityControl';
 import { ArenaComparisonCard, renderStructuredMessageText } from './ArenaComparisonCard';
 import { useChatVerbosity, type ChatVerbosity } from '../../../hooks/useChatVerbosity';
+import { getTerminalBridgeState, subscribeTerminalBridge } from '../../../lib/terminalBridge';
 import { listHarnessIssuesForSession, type HarnessIssueRow } from '../Scientia/harnessIssuesApi';
 import {
   chatArenaCompare,
@@ -21,6 +29,7 @@ import {
   vcsMusePoolAdopt,
   type ArenaTurnComparisonDto,
   type ArenaVoteOutcomeDto,
+  type TermBlockDto,
 } from '../../../transport';
 import { ConsensusGridView, type ConsensusLegViewDto } from './ConsensusGridView';
 import { BranchComparisonModal } from './BranchComparisonModal';
@@ -54,11 +63,13 @@ interface ChatTranscriptProps {
   onSessionBranched?: (newSessionId: string, fromMessageId: number) => void;
   /** Callback when a session is rewound to a turn (`BRANCH-REWIND-03`). */
   onSessionRewound?: (toMessageId: number, checkpointOpId: string) => void;
+  onNavigate?: (viewKey: string) => void;
 }
 
 export function MessageBubble({
   message,
   onExcludeSkill,
+  onNavigate,
   verbosity = 'normal',
   onForkTurn,
   onRewindTurn,
@@ -68,6 +79,7 @@ export function MessageBubble({
 }: {
   message: ChatMessage;
   onExcludeSkill?: (skillId: string) => void;
+  onNavigate?: (viewKey: string) => void;
   verbosity?: ChatVerbosity;
   onForkTurn?: (message: ChatMessage) => void;
   onRewindTurn?: (message: ChatMessage) => void;
@@ -79,6 +91,20 @@ export function MessageBubble({
   const isSystem = message.role === 'system';
   const streaming = message.status === 'streaming' || message.status === 'pending';
   const failed = message.status === 'failed';
+  const shouldWatchLiveTerm = !isSystem && !isUser && streaming;
+  const [activeAgentBlock, setActiveAgentBlock] = useState<TermBlockDto | null>(() =>
+    shouldWatchLiveTerm ? findActiveAgentBlock(getTerminalBridgeState().blocks) : null,
+  );
+  useEffect(() => {
+    if (!shouldWatchLiveTerm) {
+      setActiveAgentBlock(null);
+      return;
+    }
+    setActiveAgentBlock(findActiveAgentBlock(getTerminalBridgeState().blocks));
+    return subscribeTerminalBridge((state) => {
+      setActiveAgentBlock(findActiveAgentBlock(state.blocks));
+    });
+  }, [shouldWatchLiveTerm]);
   const [editing, setEditing] = useState(false);
   const [draftText, setDraftText] = useState(message.text ?? '');
   const [editedText, setEditedText] = useState<string | null>(null);
@@ -114,11 +140,16 @@ export function MessageBubble({
             )}
           </span>
           {(message.latencyMs != null || (message.events?.length ?? 0) > 0) && (
-            <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] normal-case tracking-normal text-brass">
-              Thought for {message.latencyMs ? `${(message.latencyMs / 1000).toFixed(1)}s` : '1.8s'}
-              {(message.events?.filter((e) => e.kind === 'tool_start').length ?? 0) > 0
-                ? ` · ${message.events?.filter((e) => e.kind === 'tool_start').length} tool calls ▸`
-                : ''}
+            <span className="inline-flex items-center gap-1 rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] normal-case tracking-normal text-brass">
+              <span>
+                Thought for {message.latencyMs ? `${(message.latencyMs / 1000).toFixed(1)}s` : '1.8s'}
+                {(message.events?.filter((e) => e.kind === 'tool_receipt').length ?? 0) > 0
+                  ? ` · ${message.events?.filter((e) => e.kind === 'tool_receipt').length} tool calls`
+                  : ''}
+              </span>
+              {(message.events?.filter((e) => e.kind === 'tool_receipt').length ?? 0) > 0 && (
+                <Icon.chevR className="size-3 shrink-0" aria-hidden="true" />
+              )}
             </span>
           )}
         </div>
@@ -157,14 +188,18 @@ export function MessageBubble({
       ) : displayContent.startsWith('LLM error:') ? (
         <div className="my-1 rounded-lg border border-brass/45 bg-bg-base/80 px-2.5 py-2 text-[11px] text-text-primary">
           <div className="mb-1 flex items-center justify-between gap-2 font-display text-[11px] font-bold uppercase tracking-[0.13em] text-brass">
-            <span>⚡ Local Inference Endpoint Offline</span>
+            <span className="inline-flex items-center gap-1">
+              <Icon.bolt className="size-3.5 text-brass" aria-hidden="true" />
+              <span>Local Inference Endpoint Offline</span>
+            </span>
             {onRegenerateTurn && (
               <button
                 type="button"
                 onClick={() => onRegenerateTurn(message)}
-                className="rounded border border-brass/55 bg-brass/15 px-2 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/25"
+                className="inline-flex items-center gap-1 rounded border border-brass/55 bg-brass/15 px-2 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/25"
               >
-                ↻ Retry on Auto Router
+                <Icon.refresh className="size-3 shrink-0" aria-hidden="true" />
+                <span>Retry on Auto Router</span>
               </button>
             )}
           </div>
@@ -181,6 +216,20 @@ export function MessageBubble({
           {message.text ? 'streaming…' : 'thinking…'}
         </span>
       )}
+      {shouldWatchLiveTerm &&
+        activeAgentBlock &&
+        !(message.events ?? []).some(
+          (e) =>
+            e.kind === 'tool_receipt' &&
+            isTerminalBlockToolName(e.tool) &&
+            e.block_id !== undefined &&
+            e.block_id !== null &&
+            Number(e.block_id) === activeAgentBlock.id,
+        ) && (
+          <div className="mt-2">
+            <ChatTerminalBlockCard liveBlock={activeAgentBlock} onNavigate={onNavigate} />
+          </div>
+        )}
       {failed && (
         <div className="mt-1 font-mono text-[11px] text-(--color-status-fail)">
           error: {message.error ?? 'task failed'}
@@ -201,6 +250,7 @@ export function MessageBubble({
             latencyMs={message.latencyMs}
             modelId={message.modelId}
             onExcludeSkill={onExcludeSkill}
+            onNavigate={onNavigate}
           />
         )}
       {!isSystem && (onForkTurn || onRewindTurn || onEditInPlace || onRegenerateTurn || onCompactUpTo) && (
@@ -214,9 +264,10 @@ export function MessageBubble({
                 setDraftText(displayContent);
                 setEditing(true);
               }}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="inline-flex items-center gap-1 rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
-              ✎ Edit
+              <Icon.penQuill className="size-3 shrink-0" aria-hidden="true" />
+              <span>Edit</span>
             </button>
           )}
           {onRegenerateTurn && (
@@ -225,9 +276,10 @@ export function MessageBubble({
               data-testid={`chat-turn-regenerate-btn-${message.id}`}
               title="Truncate transcript from this message and regenerate the assistant turn"
               onClick={() => onRegenerateTurn(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="inline-flex items-center gap-1 rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
-              ↻ Regenerate
+              <Icon.refresh className="size-3 shrink-0" aria-hidden="true" />
+              <span>Regenerate</span>
             </button>
           )}
           {onCompactUpTo && (
@@ -236,9 +288,10 @@ export function MessageBubble({
               data-testid={`chat-turn-compact-btn-${message.id}`}
               title="Compact turns up to this message while preserving thought signatures"
               onClick={() => onCompactUpTo(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="inline-flex items-center gap-1 rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
-              ✂ Compact Here
+              <Icon.scissors className="size-3 shrink-0" aria-hidden="true" />
+              <span>Compact Here</span>
             </button>
           )}
           {onForkTurn && (
@@ -247,9 +300,10 @@ export function MessageBubble({
               data-testid={`chat-turn-fork-btn-${message.id}`}
               title="Branch a new conversation session from this turn without mutating the current thread"
               onClick={() => onForkTurn(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="inline-flex items-center gap-1 rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
-              ⑂ Branch here
+              <Icon.branch className="size-3 shrink-0" aria-hidden="true" />
+              <span>Branch here</span>
             </button>
           )}
           {onRewindTurn && (
@@ -258,9 +312,10 @@ export function MessageBubble({
               data-testid={`chat-turn-rewind-btn-${message.id}`}
               title="Rewind conversation and restore Jujutsu (vox-vcs) checkpoint to this turn"
               onClick={() => onRewindTurn(message)}
-              className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="inline-flex items-center gap-1 rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
-              ↺ Rewind
+              <Icon.rotateCcw className="size-3 shrink-0" aria-hidden="true" />
+              <span>Rewind</span>
             </button>
           )}
         </div>
@@ -293,6 +348,7 @@ export function ChatTranscript({
   forkFromMessageId = null,
   onSessionBranched,
   onSessionRewound,
+  onNavigate,
 }: ChatTranscriptProps) {
   const [verbosity, setVerbosity] = useChatVerbosity();
   const timeline = buildChatOnlyTimeline(messages, agentStreamItems ?? [], { verbosity });
@@ -305,6 +361,7 @@ export function ChatTranscript({
   const [arenaBusy, setArenaBusy] = useState(false);
   const [consensusLegs, setConsensusLegs] = useState<ConsensusLegViewDto[] | null>(null);
   const [consensusSynthesis, setConsensusSynthesis] = useState<string | null>(null);
+  const [consensusError, setConsensusError] = useState<string | null>(null);
   const [consensusBusy, setConsensusBusy] = useState(false);
   const [branchComparison, setBranchComparison] = useState<BranchDivergenceResult | null>(null);
   const [chunksLoaded, setChunksLoaded] = useState(1);
@@ -331,6 +388,7 @@ export function ChatTranscript({
   const handleRunConsensus = () => {
     if (consensusBusy) return;
     setConsensusBusy(true);
+    setConsensusError(null);
     void chatConsensusRun({
       prompt: lastUserPrompt,
       models: ['anthropic/claude-sonnet', 'openai/gpt', 'mens/qwen3-8b'],
@@ -339,7 +397,10 @@ export function ChatTranscript({
         setConsensusLegs(res.legs);
         setConsensusSynthesis(res.synthesis ?? null);
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        setConsensusLegs(null);
+        setConsensusError(sanitizeErrorForToast(err));
+      })
       .finally(() => setConsensusBusy(false));
   };
 
@@ -555,7 +616,7 @@ export function ChatTranscript({
       aria-relevant="additions text"
       aria-label="Chat transcript"
       onScroll={handleScroll}
-      className="relative mb-2 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-2.5 pb-4"
+      className="@container relative mb-2 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-2.5 pb-4"
     >
       <div
         ref={scrollRef}
@@ -563,15 +624,16 @@ export function ChatTranscript({
         data-persist-eligible={String(persistEligible)}
         className="mx-auto flex w-full max-w-[900px] flex-col gap-2 pb-3"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
           <ChatVerbosityControl value={verbosity} onChange={setVerbosity} />
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1">
             {branchBanner && (
               <span
                 data-testid="chat-session-branch-badge"
-                className="rounded border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass"
+                className="inline-flex items-center gap-1 rounded border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass"
               >
-                ⑂ {branchBanner}
+                <Icon.branch className="size-3 shrink-0" aria-hidden="true" />
+                <span>{branchBanner}</span>
               </span>
             )}
             <button
@@ -579,17 +641,19 @@ export function ChatTranscript({
               data-testid="chat-consensus-trigger"
               disabled={consensusBusy}
               onClick={handleRunConsensus}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="inline-flex items-center gap-1 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
-              ⊕ Consensus (2–4)
+              <Icon.plus className="size-3 shrink-0" aria-hidden="true" />
+              <span>Consensus<span className="@max-[560px]:hidden"> (2–4)</span></span>
             </button>
             <button
               type="button"
               data-testid="chat-branch-compare-trigger"
               onClick={handleOpenBranchComparison}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+              className="inline-flex items-center gap-1 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
             >
-              ⑂ Compare Branches
+              <Icon.branch className="size-3 shrink-0" aria-hidden="true" />
+              <span>Compare<span className="@max-[560px]:hidden"> Branches</span></span>
             </button>
             <button
               type="button"
@@ -602,13 +666,14 @@ export function ChatTranscript({
                   handleRunArenaCompare();
                 }
               }}
-              className={`rounded border px-2 py-0.5 font-mono text-[11px] transition ${
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[11px] transition ${
                 arenaModeEnabled
                   ? 'border-brass/50 bg-brass/20 text-brass'
                   : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-brass/40 hover:text-brass'
               }`}
             >
-              ⚔ Arena Compare
+              <Icon.gladiusShield className="size-3 shrink-0" aria-hidden="true" />
+              <span>Arena<span className="@max-[560px]:hidden"> Compare</span></span>
             </button>
           </div>
         </div>
@@ -638,6 +703,7 @@ export function ChatTranscript({
                 key={row.id}
                 message={row.message}
                 onExcludeSkill={onExcludeSkill}
+                onNavigate={onNavigate}
                 verbosity={verbosity}
                 onForkTurn={sessionId ? handleForkTurn : undefined}
                 onRewindTurn={sessionId ? handleRewindTurn : undefined}
@@ -656,6 +722,16 @@ export function ChatTranscript({
             </div>
           );
         })}
+
+        {consensusError && (
+          <div
+            role="alert"
+            data-testid="consensus-error-banner"
+            className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 font-mono text-xs text-danger"
+          >
+            Consensus run failed: {consensusError}
+          </div>
+        )}
 
         {consensusLegs && consensusLegs.length >= 2 && (
           <ConsensusGridView
@@ -737,9 +813,10 @@ export function ChatTranscript({
                 const el = scrollRef.current;
                 if (el) el.scrollTop = el.scrollHeight;
               }}
-              className="rounded-full border border-brass/40 bg-bg-base/95 px-3 py-1 font-mono text-[11px] text-brass shadow-lg transition hover:bg-brass/15"
+              className="inline-flex items-center gap-1 rounded-full border border-brass/40 bg-bg-base/95 px-3 py-1 font-mono text-[11px] text-brass shadow-lg transition hover:bg-brass/15"
             >
-              ↓ Latest
+              <Icon.arrowDown className="size-3 shrink-0" aria-hidden="true" />
+              <span>Latest</span>
             </button>
           </div>
         )}

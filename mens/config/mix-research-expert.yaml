@@ -1,4 +1,5 @@
 # Mix configuration for the research-expert domain (Lane G)
+include_lanes: [vox_research_expert, vox_codegen]
 output: mens/data/train_mixed_research_expert.jsonl
 sources:
   - path: target/dogfood/research_chains.jsonl

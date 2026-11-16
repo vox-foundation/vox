@@ -20,7 +20,8 @@ const invokeMock = vi.fn((cmd: string) => {
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (cmd: string, args?: unknown) => invokeMock(cmd, args),
 }));
-vi.mock('../../../transport', () => ({
+vi.mock('../../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../transport')>()),
   listenScientiaQueue: vi.fn().mockRejectedValue(new Error('not in tauri')),
 }));
 vi.mock('./ArchiveStatusSummary', () => ({

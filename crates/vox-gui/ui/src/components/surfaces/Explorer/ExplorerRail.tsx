@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
+import { VoxSelect } from '../../ui/Select';
 import { cn } from '../../../lib/cn';
 import type { DomainCountEntry, StatusMixCounts } from './explorerModel';
 
@@ -62,18 +63,16 @@ export function ExplorerRail({
 
   if (narrow) {
     return (
-      <select
+      <VoxSelect
         aria-label="Domain"
         value={selected ?? ''}
-        onChange={(e) => onSelect(e.target.value === '' ? null : e.target.value)}
-        className="h-9 w-full rounded-lg border border-border-subtle bg-bg-surface px-3 text-[13px] text-text-primary"
-      >
-        {items.map((item) => (
-          <option key={item.id ?? '__all__'} value={item.id ?? ''}>
-            {item.label} ({item.mix.total})
-          </option>
-        ))}
-      </select>
+        onValueChange={(v) => onSelect(v === '' ? null : v)}
+        options={items.map((item) => ({
+          value: item.id ?? '',
+          label: `${item.label} (${item.mix.total})`,
+        }))}
+        className="h-9 w-full rounded-lg border-border-subtle bg-bg-surface px-3 text-[13px] text-text-primary"
+      />
     );
   }
 

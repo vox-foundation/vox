@@ -13,7 +13,8 @@ export const CHAT_TURN_KEYS = [
   'clutch', 'risk', 'context_files', 'active_skill', 'skill_exclusions',
   'grounding_check_enabled', 'priority', 'dry_run', 'allow_duplicate',
   'mode', 'oversight_level', 'kb_scope', 'chat_session_id', 'force_research',
-  'research_scope', 'domain_mode', 'site_scope', 'trace_id', 'turn_id',
+  'research_mode', 'research_scope', 'domain_mode', 'site_scope', 'waves',
+  'trace_id', 'turn_id',
 ] as const;
 
 export interface BuildChatTurnCtx {
@@ -63,9 +64,11 @@ export interface ChatTurnSource {
   files?: string[];
   context?: unknown;
   force_research?: boolean | null;
+  research_mode?: 'off' | 'auto' | 'fast' | 'deep' | null;
   research_scope?: string | null;
   domain_mode?: string | null;
   site_scope?: string | null;
+  waves?: number | null;
   /** Pre-minted correlation ids (Drive send); App must prefer these. */
   turn_id?: string | null;
   trace_id?: string | null;
@@ -110,9 +113,11 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     kb_scope: payload.kb_scope ?? null,
     chat_session_id: ctx.chatSessionId ?? ctx.sessionId ?? null,
     force_research: payload.force_research ?? null,
+    research_mode: payload.research_mode ?? null,
     research_scope: payload.research_scope ?? null,
     domain_mode: payload.domain_mode ?? researchSlash?.domainMode ?? null,
     site_scope: payload.site_scope ?? researchSlash?.siteScope ?? null,
+    waves: payload.waves ?? null,
     trace_id: traceId,
     turn_id: turnId,
   };

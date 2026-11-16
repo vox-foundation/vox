@@ -385,7 +385,9 @@ fn resolve_mcp_chat_model_sync_inner(
     let models_handle = orch.models_handle();
     let registry = vox_orchestrator::sync_lock::rw_read(&*models_handle);
     let routing_allows = |m: &ModelSpec| {
-        routing_policy.provider_filter_allows(m)
+        (!res.exclude_local_http
+            || !vox_orchestrator::route_policy::is_local_http_provider(&m.provider_type))
+            && routing_policy.provider_filter_allows(m)
             && provider_allowed_by_route_policy(m)
             && crate::llm_bridge::local_health::local_candidate_allowed(m)
             // F7: VOX_INFERENCE_PRIVACY hard filter — unrelated to
@@ -437,7 +439,8 @@ fn resolve_mcp_chat_model_sync_inner(
         vox_orchestrator::sync_lock::rw_read(&*config_handle).cost_preference
     };
     let task = res.task_category;
-    let vox_local_route_preferred = VOX_LOCAL_PREFERRED_TASKS.contains(&task);
+    let vox_local_route_preferred =
+        !res.exclude_local_http && VOX_LOCAL_PREFERRED_TASKS.contains(&task);
 
     // Chat role pin (Task 13): VOX_MODEL_FORCE_CHAT, then VOX_MODEL_FORCE. A
     // research-role pin never reaches chat.
@@ -572,7 +575,7 @@ fn resolve_mcp_chat_model_sync_inner(
         caller_set_complexity: res.complexity != defaults.complexity,
         caller_set_prefer_local: vox_local_route_preferred,
     };
-    let req = build_selection_request_with_decision_pack(
+    let mut req = build_selection_request_with_decision_pack(
         task,
         res.complexity,
         vox_local_route_preferred,
@@ -585,6 +588,10 @@ fn resolve_mcp_chat_model_sync_inner(
         explicit,
         res.turn_decision_pack.as_ref(),
     );
+    if res.exclude_local_http {
+        req.candidate_scope = CandidateScope::CloudOnly;
+        req.intent.prefer_local = false;
+    }
 
     if let Some(decision) = decide(&req, &registry) {
         let mut m = decision.outcome.model_spec.clone();
@@ -937,5 +944,94 @@ mod tests {
         )
         .expect("a model resolves");
         assert_eq!(model.id, "chat-lane-workhorse", "picked {}", model.id);
+    }
+
+    #[test]
+    fn exclude_local_http_skips_vox_local_and_selects_cloud_candidate() {
+        let _guard = crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _env = UnsetEnv::new(&[
+            "VOX_ROUTE_POLICY_PROFILE",
+            "VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP",
+            "VOX_INFERENCE_PRIVACY",
+            "VOX_MODEL_FORCE",
+            "VOX_MODEL_FORCE_CHAT",
+        ]);
+
+        use vox_orchestrator::models::spec::PricingSource;
+        use vox_orchestrator::models::{
+            ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType,
+        };
+
+        let cfg = vox_orchestrator::OrchestratorConfig::for_testing();
+        let groups = vox_orchestrator::AffinityGroupRegistry::new(vec![]);
+        let orch = vox_orchestrator::Orchestrator::with_groups(cfg, groups);
+
+        let mk = |id: &str, provider_type: ProviderType| ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 128_000,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![vox_orchestrator::models::StrengthTag::Codegen],
+            capabilities: ModelCapabilities {
+                tier: ModelTier::Pro,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::UserConfig,
+            supported_parameters: vec![],
+        };
+        {
+            let handle = orch.models_handle();
+            let mut registry: std::sync::RwLockWriteGuard<'_, ModelRegistry> =
+                vox_orchestrator::sync_lock::rw_write(&*handle);
+            registry.clear();
+            registry.register(mk("mens/local-run", ProviderType::VoxLocal));
+            registry.register(mk(
+                "cloud/fallback-pro",
+                ProviderType::Custom("https://cloud.example".into()),
+            ));
+        }
+
+        let (mut rationale, mut pinned) = (None, None);
+        let (default_pick, _) = resolve_mcp_chat_model_sync_inner(
+            &orch,
+            "test",
+            None,
+            McpChatModelResolution {
+                allow_cheapest_fallback: true,
+                task_category: TaskCategory::CodeGen,
+                ..Default::default()
+            },
+            &mut rationale,
+            &mut pinned,
+        )
+        .expect("default pick resolves");
+        assert_eq!(default_pick.id, "mens/local-run");
+
+        let (cloud_pick, _) = resolve_mcp_chat_model_sync_inner(
+            &orch,
+            "test",
+            None,
+            McpChatModelResolution {
+                allow_cheapest_fallback: true,
+                task_category: TaskCategory::CodeGen,
+                exclude_local_http: true,
+                ..Default::default()
+            },
+            &mut rationale,
+            &mut pinned,
+        )
+        .expect("cloud fallback resolves");
+        assert_eq!(cloud_pick.id, "cloud/fallback-pro");
     }
 }

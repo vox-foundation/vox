@@ -32,7 +32,7 @@ describe('IPC boundaries (Phase 0B)', () => {
     for (const rel of MUST_USE_TRANSPORT) {
       const full = join(SRC_ROOT, rel);
       const text = readFileSync(full, 'utf8');
-      if (text.includes("from '@tauri-apps/api/core'")) {
+      if (/['"]@tauri-apps\/api\/core['"]/.test(text)) {
         violations.push(rel);
       }
     }
@@ -40,53 +40,29 @@ describe('IPC boundaries (Phase 0B)', () => {
   });
 
   it('only transport.ts imports invoke in the IPC hub layer (tracked allowlist shrinks per wave)', () => {
-    const ALLOW_DIRECT_INVOKE = new Set([
-      'transport.ts',
-      'App.tsx',
-      'components/drive/AxisDriveHost.tsx',
-      'components/layout/Sidebar.tsx',
-      'components/surfaces/Approvals/ApprovalsView.tsx',
-      'components/surfaces/Browser/BrowserView.tsx',
-      'components/surfaces/Chat/ChatSurface.tsx',
-      'components/surfaces/CommandCardsView.tsx',
-      'components/surfaces/Gamify/GamifyView.tsx',
-      'components/surfaces/Loquela/Loquela.tsx',
-      'components/surfaces/Loquela/oratioVoiceInput.ts',
-      'components/surfaces/Matrix/Matrix.tsx',
-      'components/surfaces/Memory/MemoryView.tsx',
-      'components/surfaces/Mesh/MeshView.tsx',
-      'components/surfaces/Models/MensCorpusStudioPanel.tsx',
-      'components/surfaces/Models/MensServePanel.tsx',
-      'components/surfaces/Models/MensTrainingView.tsx',
-      'components/surfaces/Models/ModelsView.tsx',
-      'components/surfaces/Onboarding/OnboardingWizard.tsx',
-      'components/surfaces/Policies/PoliciesView.tsx',
-      'components/surfaces/Publications/PublicationsView.tsx',
-      'components/surfaces/Repository/RepositoryView.tsx',
-      'components/surfaces/Research/ResearchView.tsx',
-      'components/surfaces/Research/researchActions.ts',
-      'components/surfaces/Runs/RunsView.tsx',
-      'components/surfaces/Scientia/ClaimsView.tsx',
-      'components/surfaces/Scientia/ScientiaDashboard.tsx',
-      'components/surfaces/Scientia/archiveApi.ts',
-      'components/surfaces/Scientia/costRollup.ts',
-      'components/surfaces/Scientia/discoveryInboxApi.ts',
-      'components/surfaces/Scientia/discoveryReviewApi.ts',
-      'components/surfaces/Scientia/harnessIssuesApi.ts',
-      'components/surfaces/Scientia/noveltyApi.ts',
-      'components/surfaces/Settings/SettingsView.tsx',
-      'components/surfaces/SkillsPlugins/SkillsPluginsView.tsx',
-      'components/surfaces/SubAgents/subAgentClient.ts',
-      'components/surfaces/Tasks/TasksView.tsx',
-      'lib/useChatSessions.ts',
-    ]);
+    const ALLOW_DIRECT_INVOKE = new Set(['transport.ts']);
 
     const unexpected: string[] = [];
     for (const full of collectTsFiles(SRC_ROOT)) {
       const rel = relative(SRC_ROOT, full).replace(/\\/g, '/');
       const text = readFileSync(full, 'utf8');
-      if (!text.includes("from '@tauri-apps/api/core'")) continue;
+      if (!/['"]@tauri-apps\/api\/core['"]/.test(text)) continue;
       if (!ALLOW_DIRECT_INVOKE.has(rel)) {
+        unexpected.push(rel);
+      }
+    }
+    expect(unexpected).toEqual([]);
+  });
+
+  it('only transport.ts imports listen from @tauri-apps/api/event', () => {
+    const ALLOW_DIRECT_LISTEN = new Set(['transport.ts']);
+
+    const unexpected: string[] = [];
+    for (const full of collectTsFiles(SRC_ROOT)) {
+      const rel = relative(SRC_ROOT, full).replace(/\\/g, '/');
+      const text = readFileSync(full, 'utf8');
+      if (!/['"]@tauri-apps\/api\/event['"]/.test(text)) continue;
+      if (!ALLOW_DIRECT_LISTEN.has(rel)) {
         unexpected.push(rel);
       }
     }

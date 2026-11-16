@@ -4,6 +4,8 @@ use super::providers::{ReviewProvider, auto_discover_providers};
 use super::types::{ConfidencePolicy, ReviewFinding};
 use crate::rules::{Finding, Language, SourceFile};
 
+const REVIEW_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
 /// Performs AI-powered code review using the configured provider cascade.
 pub struct ReviewClient {
     providers: Vec<ReviewProvider>,
@@ -14,8 +16,9 @@ pub struct ReviewClient {
 impl ReviewClient {
     /// Create a client with an explicit provider list.
     pub fn new(providers: Vec<ReviewProvider>) -> Self {
+        // drift-allow(reqwest-bypass): standalone crate in _public.toml cannot depend on vox-http-client
         let http = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(REVIEW_REQUEST_TIMEOUT)
             .user_agent("vox-review/0.1")
             .build()
             .expect("Failed to build HTTP client for vox review");

@@ -3,7 +3,7 @@
 
 use crate::manuscript::scaffold::{AuthorEntry, CitedFact, FigureEntry, ResultsRow, ScaffoldInput};
 
-use super::escape::escape_latex;
+use super::escape::{escape_latex_pdftex, sanitize_verbatim};
 
 /// Render a [`ScaffoldInput`] to LaTeX. The output is a complete,
 /// `pdflatex`-compatible source document — no preamble surgery required.
@@ -46,7 +46,7 @@ fn write_preamble(out: &mut String, input: &ScaffoldInput) {
          \\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}\n",
     );
     out.push_str("\\title{");
-    out.push_str(&escape_latex(&input.title_hint));
+    out.push_str(&escape_latex_pdftex(&input.title_hint));
     out.push_str("}\n");
     out.push_str("\\author{");
     let authors_joined: Vec<String> = input.authors.iter().map(render_author_inline).collect();
@@ -61,7 +61,7 @@ fn write_preamble(out: &mut String, input: &ScaffoldInput) {
 }
 
 fn render_author_inline(a: &AuthorEntry) -> String {
-    let mut s = escape_latex(&a.name);
+    let mut s = escape_latex_pdftex(&a.name);
     if let Some(orcid) = &a.orcid {
         s.push_str(&format!(" \\href{{{orcid}}}{{\\textsuperscript{{ORCID}}}}"));
     }
@@ -85,7 +85,7 @@ fn write_abstract_block(out: &mut String) {
 
 fn write_section_todo(out: &mut String, section: &str, facts: &[CitedFact]) {
     out.push_str("\\section{");
-    out.push_str(&escape_latex(section));
+    out.push_str(&escape_latex_pdftex(section));
     out.push_str("}\n");
     out.push_str("% TODO(narrative): write the ");
     out.push_str(section);
@@ -100,9 +100,9 @@ fn write_section_todo(out: &mut String, section: &str, facts: &[CitedFact]) {
         out.push_str("% Cited facts (DOI/URL preserved):\n");
         for f in facts {
             out.push_str("%   - ");
-            out.push_str(&escape_latex(&f.claim_text));
+            out.push_str(&escape_latex_pdftex(&f.claim_text));
             out.push_str(" [");
-            out.push_str(&escape_latex(&f.citation_key));
+            out.push_str(&escape_latex_pdftex(&f.citation_key));
             out.push_str("] ");
             out.push_str(&f.doi_or_url);
             out.push('\n');
@@ -148,11 +148,11 @@ fn write_results(out: &mut String, rows: &[ResultsRow]) {
             Some((lo, hi)) => format!("[{lo:.3}, {hi:.3}]"),
             None => "---".to_string(),
         };
-        out.push_str(&escape_latex(&r.claim_text));
+        out.push_str(&escape_latex_pdftex(&r.claim_text));
         out.push_str(" & ");
-        out.push_str(&escape_latex(&r.verdict));
+        out.push_str(&escape_latex_pdftex(&r.verdict));
         out.push_str(" & ");
-        out.push_str(&escape_latex(&ci));
+        out.push_str(&escape_latex_pdftex(&ci));
         out.push_str(" & ");
         out.push_str(&format!("\\url{{{}}}", r.trusty_uri.replace('}', "")));
         out.push_str(" \\\\\n");
@@ -183,7 +183,7 @@ fn write_figures(out: &mut String, figures: &[FigureEntry]) {
         );
         if let Some(hint) = &f.caption_hint {
             out.push_str("% Caption hint (machine-suggested; not authoritative): ");
-            out.push_str(hint);
+            out.push_str(&hint.replace(['\r', '\n'], " "));
             out.push('\n');
         }
         out.push_str(&format!("\\caption{{Figure {n}.}}\n"));
@@ -210,7 +210,7 @@ fn write_limitations(out: &mut String, limitations: &[String]) {
     out.push_str("\\begin{itemize}\n");
     for l in limitations {
         out.push_str("  \\item ");
-        out.push_str(&escape_latex(l));
+        out.push_str(&escape_latex_pdftex(l));
         out.push('\n');
     }
     out.push_str("\\end{itemize}\n\n");
@@ -230,7 +230,7 @@ fn write_references(out: &mut String, facts: &[CitedFact]) {
         out.push_str(&format!(
             "\\bibitem{{{}}} {} \\url{{{}}}\n",
             escape_latex_label(&f.citation_key),
-            escape_latex(&f.claim_text),
+            escape_latex_pdftex(&f.claim_text),
             f.doi_or_url
         ));
     }
@@ -254,7 +254,7 @@ fn write_competing_interests(out: &mut String, ci: Option<&str>) {
     out.push_str("\\section*{Competing Interests}\n");
     match ci {
         Some(s) => {
-            out.push_str(&escape_latex(s));
+            out.push_str(&escape_latex_pdftex(s));
             out.push_str("\n\n");
         }
         None => {
@@ -287,14 +287,14 @@ pub(crate) fn markdown_to_latex(md: &str) -> String {
         match event {
             Event::Text(t) => {
                 if in_code {
-                    out.push_str(&t);
+                    out.push_str(&sanitize_verbatim(&t));
                 } else {
-                    out.push_str(&escape_latex(&t));
+                    out.push_str(&escape_latex_pdftex(&t));
                 }
             }
             Event::Code(c) => {
                 out.push_str("\\texttt{");
-                out.push_str(&escape_latex(&c));
+                out.push_str(&escape_latex_pdftex(&c));
                 out.push('}');
             }
             Event::Start(Tag::Emphasis) => out.push_str("\\emph{"),
@@ -474,5 +474,18 @@ mod tests {
         assert!(tex.contains("\\begin{verbatim}"));
         assert!(tex.contains("fn x() { 42 }"));
         assert!(tex.contains("\\end{verbatim}"));
+    }
+
+    #[test]
+    fn verbatim_strips_embedded_end_verbatim_and_normalizes_unicode() {
+        let tex = markdown_to_latex("```\nfn x() {}\n\\end{verbatim}\n\\write18{id}\n```");
+        assert_eq!(tex.matches("\\end{verbatim}").count(), 1);
+        assert!(tex.contains("[end-verbatim]"));
+
+        let math = markdown_to_latex("p95 ≤ 10 ms — Δ ± 1 → ok");
+        assert!(math.contains(r"$\le$"));
+        assert!(math.contains("---"));
+        assert!(math.contains(r"$\pm$"));
+        assert!(math.contains(r"$\rightarrow$"));
     }
 }

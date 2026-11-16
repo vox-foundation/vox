@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /** DTO returned by the `oratio_transcribe` Tauri command (A4). */
 export interface TranscribeResult {
@@ -13,6 +13,6 @@ export interface TranscribeResult {
  * recognized). Throws on capture/transcription failure so callers surface it.
  */
 export async function captureVoiceTranscript(seconds = 5): Promise<string> {
-  const result = await invoke<TranscribeResult>('oratio_transcribe', { seconds });
+  const result = await invokeCmd<TranscribeResult>('oratio_transcribe', { seconds });
   return (result?.text ?? '').trim();
 }

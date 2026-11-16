@@ -65,11 +65,12 @@ test.describe('Console workbench tab — Warp parity & intelligent model routing
     await expect(badge).toBeVisible();
     await expect(badge).toContainText('structured json');
 
-    // 7. Test Security Level selector
+    // 7. Test Security Level selector (Radix VoxSelect combobox)
     const secSelect = page.getByTestId('term-security-level-select');
     await expect(secSelect).toBeVisible();
-    await secSelect.selectOption('l4_system_exec');
-    await expect(secSelect).toHaveValue('l4_system_exec');
+    await secSelect.click();
+    await page.getByRole('option', { name: 'L4 System Exec' }).click();
+    await expect(secSelect).toContainText('L4 System Exec');
 
     // 8. Test Control Mode pill and instant Escape takeover
     const controlPill = page.getByTestId('term-control-mode-pill');

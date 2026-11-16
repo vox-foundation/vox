@@ -33,13 +33,24 @@ async fn daemon_client(daemon: &PersistentDaemon) -> Result<OrchDaemonClient, St
 
 /// Client read deadline for one tool call: `vox_chat_message` gets the longer
 /// `CHAT_MESSAGE_CLIENT_DEADLINE` (a Deep turn's server-side budget exceeds the generic
-/// `ORCH_CLIENT_READ_DEADLINE`), every other tool the generic one. Used in both modes.
+/// `ORCH_CLIENT_READ_DEADLINE`), `vox_consensus_run` gets a 120-second multi-leg synthesis
+/// budget, and every other tool gets the generic one. Used in both modes.
 pub fn deadline_for_tool(tool: &str) -> std::time::Duration {
-    if tool == "vox_chat_message" {
-        vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE
-    } else {
-        vox_orchestrator::orch_daemon::ORCH_CLIENT_READ_DEADLINE
+    match tool {
+        "vox_chat_message" => vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE,
+        "vox_consensus_run" => std::time::Duration::from_secs(120),
+        _ => vox_orchestrator::orch_daemon::ORCH_CLIENT_READ_DEADLINE,
     }
+}
+
+/// Only idempotent session read tools may automatically retry after daemon invalidation;
+/// mutating session tools (`vox_chat_session_append`, etc.) must never double-execute on timeout.
+#[must_use]
+pub fn is_idempotent_retryable_tool(tool: &str) -> bool {
+    matches!(
+        tool,
+        "vox_chat_session_list" | "vox_chat_session_get" | "vox_chat_session_history"
+    )
 }
 
 impl BackendCalls for Backend {
@@ -61,7 +72,7 @@ impl BackendCalls for Backend {
                     Ok(v) => Ok(v),
                     Err(first_err) => {
                         daemon.invalidate().await;
-                        if tool.starts_with("vox_chat_session_")
+                        if is_idempotent_retryable_tool(tool)
                             && let Ok(retry_client) = daemon_client(daemon).await
                         {
                             let _in_flight = daemon.in_flight_guard();
@@ -307,6 +318,14 @@ mod tests {
     }
 
     #[test]
+    fn deadline_for_tool_gives_consensus_run_120_seconds() {
+        assert_eq!(
+            deadline_for_tool("vox_consensus_run"),
+            std::time::Duration::from_secs(120)
+        );
+    }
+
+    #[test]
     fn deadline_for_tool_gives_everything_else_the_generic_deadline() {
         for tool in ["vox_read_file", "vox_plan", "vox_chat_session_append"] {
             assert_eq!(
@@ -341,5 +360,31 @@ mod tests {
         assert_eq!(r1["arm"], "first");
         assert_eq!(r2["arm"], "second");
         assert_eq!(r3["arm"], "second");
+    }
+
+    #[test]
+    fn retry_gate_allows_only_idempotent_session_read_tools() {
+        for read_tool in [
+            "vox_chat_session_list",
+            "vox_chat_session_get",
+            "vox_chat_session_history",
+        ] {
+            assert!(
+                is_idempotent_retryable_tool(read_tool),
+                "{read_tool} should be retryable"
+            );
+        }
+        for mutating_tool in [
+            "vox_chat_session_append",
+            "vox_chat_session_create",
+            "vox_chat_session_delete",
+            "vox_chat_session_rename",
+            "vox_chat_message",
+        ] {
+            assert!(
+                !is_idempotent_retryable_tool(mutating_tool),
+                "{mutating_tool} must never auto-retry"
+            );
+        }
     }
 }

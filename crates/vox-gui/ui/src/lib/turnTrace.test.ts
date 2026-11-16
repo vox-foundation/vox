@@ -53,7 +53,7 @@ describe('buildTurnTrace', () => {
     expect(t.interrupts).toEqual([]);
     expect(t.defaultExpanded).toBe(false);
     expect(summaryText(t.summary)).toBe(
-      'acme/widget-5.5 · 1 tool · 1 receipt ✓ · 1 delegated · 3 research waves · 4.1s',
+      'acme/widget-5.5 · 1 tool · 1 receipt verified · 1 delegated · 3 research waves · 4.1s',
     );
   });
 

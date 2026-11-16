@@ -325,6 +325,18 @@ pub(super) fn check_hf_metadata(fm: &Value, rules: &Value, kind: Kind) -> Vec<St
             "base_model_relation: {rel:?} is not a Hub relation"
         ));
     }
+    let allowed_libs = strs(&rules["library_name"]);
+    if !allowed_libs.is_empty()
+        && let Some(lib) = fm.get("library_name")
+        && !allowed_libs
+            .iter()
+            .any(|x| Some(x.as_str()) == lib.as_str())
+    {
+        e.push(format!(
+            "library_name: {lib:?} must be one of {:?}",
+            allowed_libs
+        ));
+    }
     let has = |prefix: &str| tags.iter().filter(|t| t.starts_with(prefix)).count();
     match kind {
         Kind::Trained => {

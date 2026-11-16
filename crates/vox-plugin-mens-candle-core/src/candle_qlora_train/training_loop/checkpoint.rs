@@ -21,6 +21,8 @@ pub fn apply_checkpoint_resume(
     let mut global_step = 0u32;
     let mut resume_pair_offset = 0usize;
     let mut resume_shuffled_indices: Option<Vec<usize>> = None;
+    let mut total_tokens = 0usize;
+    let mut micro_steps_executed = 0u32;
 
     let checkpoint_root = config.resume_from.as_deref().unwrap_or(out);
     if !config.force_restart
@@ -66,6 +68,12 @@ pub fn apply_checkpoint_resume(
         start_epoch = ckpt.epoch as usize;
         global_step = ckpt.global_step;
         resume_pair_offset = ckpt.pair_offset;
+        total_tokens = ckpt.total_tokens;
+        micro_steps_executed = if ckpt.micro_steps_executed > 0 {
+            ckpt.micro_steps_executed
+        } else {
+            ckpt.global_step
+        };
         if ckpt.shuffled_indices.is_empty() {
             train_log::warn(
                 "Resume checkpoint did not include shuffled_indices (epoch-boundary checkpoint); reshuffling for resume epoch.",
@@ -101,6 +109,8 @@ pub fn apply_checkpoint_resume(
         global_step,
         resume_pair_offset,
         resume_shuffled_indices,
+        total_tokens,
+        micro_steps_executed,
     })
 }
 
@@ -195,6 +205,8 @@ mod tests {
             wall_seconds_elapsed: 0.0,
             saved_at_utc: String::new(),
             data_fingerprint: data_fingerprint.map(str::to_string),
+            total_tokens: 12_345,
+            micro_steps_executed: 9,
         };
         ckpt.save(dir).unwrap();
     }
@@ -242,6 +254,8 @@ mod tests {
         let resume = apply_checkpoint_resume(&mut trainer, &config, &dir, 3)
             .expect("matching fingerprint must resume");
         assert_eq!(resume.global_step, 5);
+        assert_eq!(resume.total_tokens, 12_345);
+        assert_eq!(resume.micro_steps_executed, 9);
 
         // Either side missing a fingerprint (old checkpoint, or fingerprinting
         // failed) must never false-positive-block a resume.

@@ -7,8 +7,8 @@
 mod status;
 use status::*;
 pub(crate) mod dashboard_api;
-mod scientia_feed;
-use scientia_feed::{TopicMessage, spawn_scientia_queue_poller};
+pub(crate) mod scientia_feed;
+use scientia_feed::{ResearchFeedHub, TopicMessage, spawn_scientia_feed_workers};
 mod profile_info;
 mod rpc_tools;
 mod vcs_feed;
@@ -63,6 +63,17 @@ const DEFAULT_ALLOWED_TOOLS: &[&str] = &[
     "vox_chat_message",
     "vox_plan",
     "vox_plan_status",
+    "vox_gsd_status",
+    "vox_gsd_progress",
+    "vox_gsd_new_milestone",
+    "vox_gsd_discuss_phase",
+    "vox_gsd_plan_phase",
+    "vox_gsd_execute_phase",
+    "vox_gsd_verify_work",
+    "vox_gsd_complete_milestone",
+    "vox_gsd_list_documents",
+    "vox_gsd_store_document",
+    "vox_gsd_get_document",
     "vox_inline_edit",
     "vox_validate_file",
     "vox_validate_source",
@@ -125,6 +136,8 @@ pub struct GatewayState {
     /// Broadcast channel for topic-multiplexed WS messages (e.g.
     /// `scientia.queue.changed`). Each WS connection subscribes and filters by topic.
     topic_tx: tokio::sync::broadcast::Sender<TopicMessage>,
+    /// Bounded research telemetry batcher, sequenced delta broadcast, and replay ring.
+    research_feed: Arc<ResearchFeedHub>,
     /// Unified task hopper (Hp-T1). The dashboard `/api/v2/hopper/*` handlers
     /// program against the `HopperIntake` trait so the in-memory (Option A) impl
     /// can later be swapped for the persistent (Option B) one without touching
@@ -138,11 +151,20 @@ impl GatewayState {
         &self.server_state
     }
 
+    pub(crate) fn research_feed(&self) -> &Arc<ResearchFeedHub> {
+        &self.research_feed
+    }
+
     /// Gateway state for `orch.api_v2_get`: the caller already authenticated on the daemon's
     /// token-checked TCP RPC, so HTTP auth is off and the peer is loopback. GET-only is
     /// enforced by `gui_ops::inproc::api_v2_get`, not here.
     pub(crate) fn for_inproc_loopback(server_state: ServerState) -> Self {
         let hopper = crate::gui_ops::orchestrator::hopper_for(&server_state);
+        let (topic_tx, _) = tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY);
+        let research_feed = Arc::new(ResearchFeedHub::new(
+            topic_tx.clone(),
+            server_state.repository.repository_id.clone(),
+        ));
         Self {
             server_state,
             bearer_token: None,
@@ -160,7 +182,8 @@ impl GatewayState {
             rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
             public_eval_enabled: false,
             public_eval_rate_limiter: new_identity_rate_limiter(10),
-            topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
+            topic_tx,
+            research_feed,
             hopper,
         }
     }
@@ -183,6 +206,11 @@ impl GatewayState {
         allowed_tools: HashSet<String>,
     ) -> Self {
         let hopper = crate::gui_ops::orchestrator::hopper_for(&server_state);
+        let (topic_tx, _) = tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY);
+        let research_feed = Arc::new(ResearchFeedHub::new(
+            topic_tx.clone(),
+            server_state.repository.repository_id.clone(),
+        ));
         Self {
             server_state,
             bearer_token: None,
@@ -200,7 +228,8 @@ impl GatewayState {
             rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
             public_eval_enabled: false,
             public_eval_rate_limiter: new_identity_rate_limiter(10),
-            topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
+            topic_tx,
+            research_feed,
             hopper,
         }
     }
@@ -403,6 +432,10 @@ pub(crate) fn spawn_http_gateway(
 
     let (topic_tx, _) =
         tokio::sync::broadcast::channel::<TopicMessage>(scientia_feed::TOPIC_CHANNEL_CAPACITY);
+    let research_feed = Arc::new(ResearchFeedHub::new(
+        topic_tx.clone(),
+        state.repository.repository_id.clone(),
+    ));
 
     // Construct the production task hopper (Hp-T1), sharing the orchestrator's
     // EventBus so admitted/overridden items reach the same dashboard WS
@@ -427,11 +460,12 @@ pub(crate) fn spawn_http_gateway(
         public_eval_enabled,
         public_eval_rate_limiter,
         topic_tx: topic_tx.clone(),
+        research_feed: research_feed.clone(),
         hopper,
     };
 
-    // Real change-source: poll the scientia queue and broadcast on change.
-    spawn_scientia_queue_poller(topic_tx);
+    // Event-driven scientia feed + bounded mpsc(512) telemetry batcher reusing `state.db`.
+    spawn_scientia_feed_workers(gateway_state.server_state(), research_feed);
 
     let app = build_app(gateway_state.clone());
 

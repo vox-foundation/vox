@@ -192,6 +192,7 @@ fn main() {
     let dest_path = PathBuf::from(&out_dir).join("dynamic_registry.rs");
 
     // ── Watch triggers ────────────────────────────────────────────────────────
+    println!("cargo:rerun-if-changed=build.rs");
     for rel in &[
         "../vox-ast/src/expr.rs",
         "../vox-ast/src/types.rs",
@@ -203,7 +204,9 @@ fn main() {
         "../vox-mcp-registry/src/lib.rs",
         "../vox-mcp/src/tools/",
     ] {
-        println!("cargo:rerun-if-changed={rel}");
+        if manifest_dir.join(rel).exists() {
+            println!("cargo:rerun-if-changed={rel}");
+        }
     }
 
     // ── 1. Walk vox-ast enum files ────────────────────────────────────────────
@@ -377,7 +380,9 @@ fn main() {
         taxonomy.len(),
     ));
 
-    fs::write(&dest_path, out).unwrap();
+    if fs::read_to_string(&dest_path).ok().as_deref() != Some(out.as_str()) {
+        fs::write(&dest_path, out).unwrap();
+    }
 }
 
 fn emit_str_slice(out: &mut String, name: &str, items: &[String], doc: &str) {

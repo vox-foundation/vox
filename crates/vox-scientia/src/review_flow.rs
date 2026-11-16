@@ -241,26 +241,23 @@ pub async fn nanopub_build(
     let user = vox_config::paths::local_user_id();
     let profile = resolve_or_create_identity(db, &user, orcid).await?;
 
-    // 3. Assemble the enriched assertion. Mapping (design §; P1 scope):
-    //   - tuple: None — the atomic claim tuple (variable_a/relation/variable_b)
-    //     is NOT persisted in `scientia_claims` (only `text`); future enhancement.
-    //   - verifiability: "numeric" when the claim is numeric, else "semantic".
-    //   - confidence: the latest verdict's confidence (required, checked above).
-    //   - novelty: "insufficient_evidence" for P1 — novelty-bundle wiring is a
-    //     later phase, so no novelty verdict is available here.
-    //   - prior_art_uris: empty for P1 (sourced from the novelty bundle later).
+    // 3. Assemble the enriched assertion, hydrating novelty verdict and prior-art
+    // URIs from the publication's stored novelty bundle when available.
     let verifiability = if claim.is_numeric {
         "numeric"
     } else {
         "semantic"
     };
+    let (novelty_label, prior_art_uris) =
+        extract_novelty_for_nanopub(manifest.metadata_json.as_deref());
+    let prior_art_refs: Vec<&str> = prior_art_uris.iter().map(String::as_str).collect();
     let assertion = crate::nanopub::spec::assertion_ttl_for_claim(
         &claim.text,
         None, // tuple not persisted in scientia_claims; future enhancement.
         verifiability,
         confidence,
-        "insufficient_evidence",
-        &[],
+        &novelty_label,
+        &prior_art_refs,
     );
 
     // 4. Build + RSA-sign. Stamp the claim's creation time (its provenance moment).
@@ -296,6 +293,66 @@ pub async fn nanopub_build(
         .map_err(|e| anyhow::anyhow!("persist scientia_nanopubs row: {e}"))?;
 
     Ok(signed)
+}
+
+/// Extract `(novelty_verdict_label, prior_art_uris)` from a publication manifest's
+/// stored `metadata_json` (`scientia_novelty_bundle` or `scientia_evidence.novelty_bundle`).
+pub(crate) fn extract_novelty_for_nanopub(metadata_json: Option<&str>) -> (String, Vec<String>) {
+    let Some(raw) = metadata_json.map(str::trim).filter(|s| !s.is_empty()) else {
+        return ("insufficient_evidence".to_string(), Vec::new());
+    };
+    let Ok(root) = serde_json::from_str::<serde_json::Value>(raw) else {
+        return ("insufficient_evidence".to_string(), Vec::new());
+    };
+    let bundle_val = root.get("scientia_novelty_bundle").or_else(|| {
+        root.get("scientia_evidence")
+            .and_then(|e| e.get("novelty_bundle"))
+    });
+    if let Some(bv) = bundle_val
+        && let Ok(bundle) = serde_json::from_value::<
+            vox_research_events::schema_types::NoveltyEvidenceBundle,
+        >(bv.clone())
+    {
+        let verdict = crate::inspect_bridge::AtomicNoveltyScorer::default().score(&bundle);
+        let label = match verdict {
+            crate::inspect_bridge::NoveltyVerdict::Novel => "novel",
+            crate::inspect_bridge::NoveltyVerdict::PossiblyNovel { .. } => "possibly_novel",
+            crate::inspect_bridge::NoveltyVerdict::NotNovel { .. } => "not_novel",
+            crate::inspect_bridge::NoveltyVerdict::InsufficientEvidence { .. } => {
+                "insufficient_evidence"
+            }
+            crate::inspect_bridge::NoveltyVerdict::Contradicted { .. } => "contradicted",
+        };
+        let uris: Vec<String> = bundle
+            .normalized_hits
+            .iter()
+            .map(|h| h.work_uri.trim().to_string())
+            .filter(|u| !u.is_empty())
+            .take(10)
+            .collect();
+        return (label.to_string(), uris);
+    }
+    let fallback_label = root
+        .get("scientia_evidence")
+        .and_then(|e| e.get("novelty_verdict"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("insufficient_evidence")
+        .to_string();
+    let fallback_uris = root
+        .get("scientia_evidence")
+        .and_then(|e| e.get("prior_art_uris"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .take(10)
+                .collect()
+        })
+        .unwrap_or_default();
+    (fallback_label, fallback_uris)
 }
 
 /// Publish an already-built local nanopub to the nanopub TEST server.
@@ -1179,10 +1236,13 @@ pub async fn record_replay_for_publication(
     Ok(score)
 }
 
-fn manifest_confidence_and_class(row: &vox_db::PublicationManifestRow) -> (f64, String, bool) {
-    let mut conf = 0.0_f64;
+fn manifest_confidence_and_class(row: &vox_db::PublicationManifestRow) -> (f64, String, bool, u32) {
+    let mut conf = 0.5_f64;
     let mut class = row.content_type.clone();
-    let mut in_reply_window = matches!(row.state.as_str(), "submitted" | "archived");
+    let mut in_reply_window = matches!(
+        row.state.as_str(),
+        "submitted" | "archived" | "under_review" | "published"
+    );
     if let Some(meta_str) = row.metadata_json.as_deref()
         && let Ok(val) = serde_json::from_str::<serde_json::Value>(meta_str)
     {
@@ -1208,23 +1268,37 @@ fn manifest_confidence_and_class(row: &vox_db::PublicationManifestRow) -> (f64, 
                 .get("artifact_replayability")
                 .and_then(|v| v.as_f64())
                 .unwrap_or(0.0);
+            let socrates = ev
+                .get("socrates_aggregate")
+                .and_then(|s| s.get("mean_confidence_estimate"))
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
             conf = if epistemic > 0.0 && claim_ratio > 0.0 {
                 0.5 * epistemic + 0.35 * claim_ratio + 0.15 * replay.max(epistemic)
             } else if claim_ratio > 0.0 {
                 0.75 * claim_ratio + 0.25 * replay.max(0.5)
             } else if epistemic > 0.0 {
                 epistemic
+            } else if socrates > 0.0 {
+                socrates
             } else if replay > 0.0 {
                 replay
             } else {
                 0.5
             };
+            if ev.get("reply_window_open").and_then(|b| b.as_bool()) == Some(true) {
+                in_reply_window = true;
+            }
         }
         if val.get("openreview").is_some() || val.get("reply_window").is_some() {
             in_reply_window = true;
         }
     }
-    (conf.clamp(0.0, 1.0), class, in_reply_window)
+    let defaults = crate::class_routing::builtin_class_defaults();
+    let window_days = crate::class_routing::FindingClass::from_str(&class)
+        .map(|fc| crate::class_routing::reply_window_days_for(&defaults, fc))
+        .unwrap_or(14);
+    (conf.clamp(0.0, 1.0), class, in_reply_window, window_days)
 }
 
 /// Assemble a unified [`crate::dashboard::QueueSnapshot`] from `publication_manifests`
@@ -1255,12 +1329,21 @@ pub async fn assemble_scientia_queue_from_db(
         if let Some(src) = &m.source_ref {
             seen_ids.insert(src.clone());
         }
-        let (confidence, candidate_class, in_reply) = manifest_confidence_and_class(m);
+        let (confidence, candidate_class, mut in_reply, window_days) =
+            manifest_confidence_and_class(m);
+        if !in_reply
+            && let Ok(subs) = db.list_scholarly_submissions(&m.publication_id).await
+            && subs
+                .iter()
+                .any(|s| matches!(s.status.as_str(), "submitted" | "accepted" | "under_review"))
+        {
+            in_reply = true;
+        }
         if in_reply {
             manifests_in_reply_window.push(ReplyWindowEntry {
                 publication_id: m.publication_id.clone(),
                 opened_at_ms: m.updated_at_ms,
-                closes_at_ms: m.updated_at_ms + 14 * 86_400_000,
+                closes_at_ms: m.updated_at_ms + i64::from(window_days) * 86_400_000,
             });
         }
         candidates.push(CandidateRow {
@@ -1336,26 +1419,28 @@ pub async fn assemble_scientia_queue_from_db(
 }
 
 /// Assemble a [`crate::dashboard::cost::CostRollup`] from `VoxDb` for the current quarter.
+/// Attributes non-zero USD costs from token counts when `cost_usd` was recorded as `0.0`/`NULL`.
 #[inline(never)]
 pub async fn assemble_scientia_cost_from_db(
     db: &VoxDb,
 ) -> anyhow::Result<crate::dashboard::cost::CostRollup> {
     use crate::dashboard::cost::{CostInputs, build_cost_rollup};
+    use std::collections::BTreeMap;
 
     let (provider_rows, phase_rows, findings) = db
         .scientia_cost_raw_this_quarter()
         .await
         .map_err(|e| anyhow::anyhow!("scientia_cost_raw_this_quarter: {e}"))?;
-    let by_provider: Vec<(String, f64)> = provider_rows
-        .into_iter()
-        .map(|r| (r.provider, r.total_usd))
-        .collect();
+    let mut provider_totals: BTreeMap<String, f64> = BTreeMap::new();
+    for r in provider_rows {
+        *provider_totals.entry(r.provider).or_insert(0.0) += r.total_usd;
+    }
     let mut inputs = CostInputs {
         extraction_usd: 0.0,
         critic_usd: 0.0,
         novelty_retrieval_usd: 0.0,
         scholarly_submission_usd: 0.0,
-        by_provider,
+        by_provider: Vec::new(),
         findings_published_this_quarter: findings,
     };
     for row in &phase_rows {
@@ -1367,7 +1452,230 @@ pub async fn assemble_scientia_cost_from_db(
             _ => {}
         }
     }
+
+    if let Ok(token_rows) = db
+        .query_all(
+            "SELECT COALESCE(provider, 'local'), COALESCE(pipeline_phase, ''), \
+                    COALESCE(input_tokens, 0), COALESCE(output_tokens, 0) \
+             FROM agent_telemetry_flat \
+             WHERE event_kind = 'cost' AND COALESCE(cost_usd, 0.0) <= 0.0 \
+               AND (COALESCE(input_tokens, 0) > 0 OR COALESCE(output_tokens, 0) > 0)",
+            (),
+        )
+        .await
+    {
+        for row in token_rows {
+            let provider: String = row.get(0).unwrap_or_else(|_| "local".to_string());
+            let phase: String = row.get(1).unwrap_or_default();
+            let in_tok: i64 = row.get(2).unwrap_or(0).max(0);
+            let out_tok: i64 = row.get(3).unwrap_or(0).max(0);
+            // Blended $3 / 1M input + $15 / 1M output attribution when explicit cost_usd was unset.
+            let usd = (in_tok as f64) * 0.000_003 + (out_tok as f64) * 0.000_015;
+            if usd > 0.0 {
+                *provider_totals.entry(provider).or_insert(0.0) += usd;
+                match phase.as_str() {
+                    "extraction" => inputs.extraction_usd += usd,
+                    "critic" => inputs.critic_usd += usd,
+                    "novelty" => inputs.novelty_retrieval_usd += usd,
+                    "scholarly" => inputs.scholarly_submission_usd += usd,
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    inputs.by_provider = provider_totals.into_iter().collect();
     Ok(build_cost_rollup(&inputs))
+}
+
+pub(crate) fn ensure_evidence_map(
+    root: &mut serde_json::Value,
+) -> &mut serde_json::Map<String, serde_json::Value> {
+    if !root.is_object() {
+        *root = serde_json::json!({});
+    }
+    let ev = root
+        .as_object_mut()
+        .expect("root object")
+        .entry("scientia_evidence")
+        .or_insert_with(|| serde_json::json!({}));
+    if !ev.is_object() {
+        *ev = serde_json::json!({});
+    }
+    ev.as_object_mut().expect("scientia_evidence object")
+}
+
+pub(crate) async fn flywheel_extract_claims_into_db(
+    db: &VoxDb,
+    manifest: &vox_db::PublicationManifestRow,
+    pub_sid: i64,
+    stages_done: &[String],
+    meta: &mut serde_json::Value,
+) -> anyhow::Result<usize> {
+    use crate::claim_extractor::{
+        ClaimVerdict, ExtractionConfig, ExtractionPipeline, VerifiabilityClass,
+    };
+    let existing = db
+        .list_publication_claims(pub_sid)
+        .await
+        .map_err(|e| anyhow::anyhow!("list_publication_claims: {e}"))?;
+    if existing.is_empty() || !stages_done.iter().any(|s| s == "extract_claims") {
+        let ctx = manifest
+            .citations_json
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(&manifest.body_markdown);
+        let res = ExtractionPipeline::new_calibrated(ExtractionConfig::default())
+            .extract(&manifest.body_markdown, &[ctx])
+            .await
+            .map_err(|e| anyhow::anyhow!("extract claims: {e}"))?;
+        let (mut sup, mut refu, mut abs) = (0u32, 0u32, 0u32);
+        for (c, v) in res.claims.iter().zip(res.verdicts.iter()) {
+            let num = matches!(c.verifiability, VerifiabilityClass::Numeric);
+            let ev = matches!(c.verifiability, VerifiabilityClass::EventBased);
+            db.store_claim(pub_sid, c.id, &c.text, num, false, ev)
+                .await
+                .map_err(|e| anyhow::anyhow!("store_claim: {e}"))?;
+            db.update_claim_verifiability_score(c.id, c.verifiability_score)
+                .await
+                .map_err(|e| anyhow::anyhow!("update_claim_verifiability_score: {e}"))?;
+            let (lbl, conf) = match v {
+                ClaimVerdict::Supported { confidence } => {
+                    sup += 1;
+                    ("Supported", *confidence)
+                }
+                ClaimVerdict::Contested { confidence } => ("Contested", *confidence),
+                ClaimVerdict::Contradicted { confidence } => {
+                    refu += 1;
+                    ("Contradicted", *confidence)
+                }
+                ClaimVerdict::Abstain { .. } => {
+                    abs += 1;
+                    ("Abstain", 0.0)
+                }
+            };
+            db.store_claim_verdict(c.id, lbl, conf, "calibrated-hybrid:lexical")
+                .await
+                .map_err(|e| anyhow::anyhow!("store_claim_verdict: {e}"))?;
+        }
+        ensure_evidence_map(meta).insert(
+            "extracted_claims".into(),
+            serde_json::json!({
+                "schema_version": 1,
+                "total_atomic": res.claims.len(),
+                "supported": sup,
+                "refuted": refu,
+                "abstained": abs,
+                "verifier_model": "calibrated-hybrid:lexical",
+            }),
+        );
+    }
+    db.list_publication_claims(pub_sid)
+        .await
+        .map(|v| v.len())
+        .map_err(|e| anyhow::anyhow!("list_publication_claims: {e}"))
+}
+
+pub(crate) fn flywheel_build_worthiness(
+    manifest: &vox_db::PublicationManifestRow,
+    claims: &[vox_db_types::ScientiaClaimWithVerdict],
+    meta: &serde_json::Value,
+    fallback_novelty: &str,
+) -> serde_json::Value {
+    let sup = claims
+        .iter()
+        .filter(|c| c.verdict.as_deref() == Some("Supported"))
+        .count();
+    let con = claims
+        .iter()
+        .filter(|c| c.verdict.as_deref() == Some("Contradicted"))
+        .count();
+    let cov = if claims.is_empty() {
+        0.0
+    } else {
+        sup as f64 / claims.len() as f64
+    };
+    let rep = meta
+        .pointer("/scientia_evidence/artifact_replayability")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let non_empty = |o: Option<&str>| o.is_some_and(|s| !s.trim().is_empty());
+    let mc = [
+        !manifest.title.trim().is_empty(),
+        !manifest.author.trim().is_empty(),
+        non_empty(manifest.abstract_text.as_deref()),
+        non_empty(manifest.citations_json.as_deref()),
+    ]
+    .into_iter()
+    .filter(|b| *b)
+    .count() as f64
+        / 4.0;
+    let nv = meta
+        .pointer("/scientia_evidence/novelty_verdict")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or(fallback_novelty);
+    let ns = match nv {
+        "novel" => 1.0,
+        "possibly_novel" => 0.75,
+        "not_novel" | "contradicted" => 0.2,
+        _ => 0.5,
+    };
+    let pair = if !claims.is_empty() && !manifest.body_markdown.trim().is_empty() {
+        1.0
+    } else {
+        0.0
+    };
+    serde_json::json!({
+        "total_claims": claims.len(),
+        "supported_claims": sup,
+        "contradicted_claims": con,
+        "novelty_verdict": nv,
+        "novelty_score": ns,
+        "replayability_score": rep,
+        "completeness": (mc * 100.0).round(),
+        "claim_evidence_coverage": cov,
+        "artifact_replayability": rep,
+        "artifact_replayability_measured": rep,
+        "before_after_pair_integrity": pair,
+        "metadata_completeness": mc,
+        "ai_disclosure_compliance": 1.0,
+        "epistemic": cov,
+        "reproducibility": rep,
+        "novelty": ns,
+        "reliability": ((cov + rep) / 2.0).clamp(0.0, 1.0),
+        "metadata_policy": mc,
+        "meaningful_advance": (cov >= 0.5 && rep >= 0.5),
+    })
+}
+
+pub(crate) async fn flywheel_persist_evidence(
+    db: &VoxDb,
+    manifest: &vox_db::PublicationManifestRow,
+    meta: &serde_json::Value,
+    event_status: &str,
+    event_detail: &str,
+) -> anyhow::Result<()> {
+    let updated_meta = serde_json::to_string(meta)?;
+    db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+        publication_id: &manifest.publication_id,
+        content_type: &manifest.content_type,
+        source_ref: manifest.source_ref.as_deref(),
+        title: &manifest.title,
+        author: &manifest.author,
+        abstract_text: manifest.abstract_text.as_deref(),
+        body_markdown: &manifest.body_markdown,
+        citations_json: manifest.citations_json.as_deref(),
+        metadata_json: Some(&updated_meta),
+        revision_history_json: manifest.revision_history_json.as_deref(),
+        content_sha3_256: &manifest.content_sha3_256,
+        state: &manifest.state,
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("upsert_publication_manifest: {e}"))?;
+    db.append_publication_status_event(&manifest.publication_id, event_status, Some(event_detail))
+        .await
+        .map_err(|e| anyhow::anyhow!("append_publication_status_event: {e}"))?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -2044,6 +2352,89 @@ mod tests {
         assert_eq!(
             count, 0,
             "a refused cross-publication token must persist nothing"
+        );
+    }
+
+    #[test]
+    fn extract_novelty_for_nanopub_hydrates_verdict_and_prior_art_uris() {
+        let meta = serde_json::json!({
+            "scientia_novelty_bundle": {
+                "schema_version": 1,
+                "bundle_id": "B-1",
+                "candidate_id": "C-1",
+                "computed_at_ms": 1,
+                "query_digest_sha256": "a".repeat(64),
+                "sources": ["manual"],
+                "normalized_hits": [{
+                    "source": "manual",
+                    "work_uri": "https://doi.org/10.1000/prior1",
+                    "title": "Prior work",
+                    "semantic_score": 0.25
+                }],
+                "overlap_summary": { "max_semantic_score": 0.25 }
+            }
+        })
+        .to_string();
+        let (verdict, uris) = extract_novelty_for_nanopub(Some(&meta));
+        assert_eq!(verdict, "novel");
+        assert_eq!(uris, vec!["https://doi.org/10.1000/prior1"]);
+    }
+
+    #[tokio::test]
+    async fn queue_and_cost_hydrate_reply_window_and_token_attributed_usd() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: "pub-rw-1",
+            content_type: "scientia",
+            source_ref: None,
+            title: "Reply Window Study",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "Empirical finding",
+            citations_json: None,
+            metadata_json: Some(
+                r#"{"scientific_publication":{"candidate_class":"model_capability_atlas"},"scientia_evidence":{"epistemic":0.88,"reply_window_open":true}}"#,
+            ),
+            revision_history_json: None,
+            content_sha3_256: "abc123",
+            state: "submitted",
+        })
+        .await
+        .expect("manifest");
+        db.insert_scientia_cost_telemetry(
+            "scientia-extractor",
+            "pub-rw-1",
+            "vox-scientia",
+            "extraction",
+            Some("openrouter"),
+            Some("claude-sonnet"),
+            Some(2000),
+            Some(500),
+            0.0,
+            None,
+        )
+        .await
+        .expect("telemetry");
+
+        let queue = assemble_scientia_queue_from_db(&db).await.expect("queue");
+        assert!(!queue.manifests_in_reply_window.is_empty());
+        assert!(
+            queue
+                .candidates
+                .top_5_by_confidence
+                .iter()
+                .any(|c| c.candidate_id == "pub-rw-1" && c.confidence > 0.8)
+        );
+
+        let cost = assemble_scientia_cost_from_db(&db).await.expect("cost");
+        assert!(cost.this_quarter.extraction_usd > 0.0);
+        assert!(cost.this_quarter.total_usd > 0.0);
+        assert!(
+            cost.by_provider
+                .iter()
+                .any(|p| p.provider == "openrouter" && p.usd > 0.0)
         );
     }
 }

@@ -150,6 +150,12 @@ When acting as an agent generating Vox code:
 - Use `import` to bring in relevant domain modules; stdlib modules are short-named (`import fs`, `fs.read(...)`), not `std.fs.*`.
 - If `vox check` fails, read the diagnostic's `expected`/`found` fields and the machine-readable `replacement` payload when present — it names the exact canonical spelling to use.
 
+## GSD Workflow & Orchestration (`vox gsd` / `vox_gsd_*`)
+For multi-step feature delivery, explore ambiguity first with `/brainstorming`, then drive the native GSD lifecycle in `.planning/` + `VoxDb` Arca CAS (`gsd_milestones`, `gsd_phases`, `gsd_requirements`, `gsd_documents`):
+- Lifecycle: `gsd-new-milestone` -> `gsd-spec-phase` / `gsd-discuss-phase` -> `gsd-plan-phase` -> `gsd-execute-phase` (wave-parallel `PlanNode` DAG) -> `gsd-verify-work` -> `gsd-complete-milestone`.
+- MCP tools: `vox_gsd_get_status`, `vox_gsd_get_progress`, `vox_gsd_new_milestone`, `vox_gsd_discuss_phase`, `vox_gsd_plan_phase`, `vox_gsd_execute_phase`, `vox_gsd_verify_work`, `vox_gsd_complete_milestone`, `vox_gsd_list_documents`, `vox_gsd_store_document`, `vox_gsd_get_document`.
+- CLI entry: `vox gsd status|progress|health|new-milestone|discuss-phase|plan-phase|execute-phase|verify-work|complete-milestone|docs`.
+
 ## Best Practices
 1. Always include type annotations on function parameters and return types.
 2. Use `Result[T]` (or `Result[T, E]` at API boundaries) for operations that can fail; prefer `?` to propagate errors over a full `match`-and-rewrap.

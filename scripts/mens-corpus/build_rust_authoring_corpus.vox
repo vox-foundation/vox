@@ -13,7 +13,7 @@
 // canonical lane for instruction->idiomatic-Rust pairs; already in
 // mix-rust.yaml's include_lanes, so no config change needed for this file).
 //
-// NOTE on retired decorator spellings (`@query`/`@mutation`/`@component`,
+// NOTE on retired decorator spellings (retired data/view decorator spellings,
 // hard parse errors since 2026-06-30): a first version of this script also
 // dropped rows containing those substrings, on the assumption they taught
 // invalid Vox syntax as valid. Manual review of all 65 matching rows (this
@@ -51,27 +51,12 @@ fn main() {
     }
     let content = content_res.unwrap()
 
-    let raw_lines = content.split("\n")
-    let n = raw_lines.len()
+    let trimmed = content.trim()
+    let marker = "\"lane\":\"rust_context\""
+    let replacement = "\"lane\":\"vox_rust_authoring\""
 
-    let mut kept: list[str] = []
-    let mut total = 0
-    let mut relabeled_count = 0
-
-    let mut i = 0
-    while i < n {
-        let line = raw_lines.get(i).unwrap()
-        let trimmed = line.trim()
-        if trimmed.len() > 0 {
-            total = total + 1
-            let relabeled = trimmed.replace("\"lane\":\"rust_context\"", "\"lane\":\"vox_rust_authoring\"")
-            if not (relabeled is trimmed) {
-                relabeled_count = relabeled_count + 1
-            }
-            kept = kept.push(relabeled)
-        }
-        i = i + 1
-    }
+    let total = if trimmed.len() is 0 { 0 } else { trimmed.split("\n").len() }
+    let relabeled_count = if trimmed.len() is 0 { 0 } else { trimmed.split(marker).len() - 1 }
 
     print("[build_rust_authoring_corpus] input_lines=" + str(total))
     print("[build_rust_authoring_corpus] relabeled_lines=" + str(relabeled_count))
@@ -85,14 +70,9 @@ fn main() {
         match fs.mkdir("target/dogfood") { Ok(_) => {} Error(_) => {} }
     }
 
-    let mut body = ""
-    let mut j = 0
-    while j < kept.len() {
-        body = body + kept.get(j).unwrap() + "\n"
-        j = j + 1
-    }
+    let body = if total is 0 { "" } else { trimmed.replace(marker, replacement) + "\n" }
     fs.write_file(output_path, body)
 
-    print("[build_rust_authoring_corpus] output_lines=" + str(kept.len()))
+    print("[build_rust_authoring_corpus] output_lines=" + str(total))
     print("[build_rust_authoring_corpus] wrote " + output_path)
 }

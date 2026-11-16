@@ -110,13 +110,202 @@ pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> Confiden
     } else {
         (input.supported_claim_count / input.claims.len() as f32).clamp(0.0, 1.0)
     };
+    let contradiction_penalty = if input.claims.is_empty() || input.supported_claim_count >= 0.0 {
+        0.0
+    } else {
+        (-input.supported_claim_count / input.claims.len() as f32).clamp(0.0, 1.0) * 0.30
+    };
     let diversity_score = (input.distinct_domain_count as f32 / min_dom).clamp(0.0, 1.0);
     let score = citation_score * 0.35
         + claim_support_score * 0.30
         + diversity_score * 0.20
-        + 1.0_f32 * 0.15; // retrieval_score always 1.0 here (guarded above)
+        + 1.0_f32 * 0.15 // retrieval_score always 1.0 here (guarded above)
+        - contradiction_penalty;
     ConfidenceSignal {
         score: score.clamp(0.0, 1.0),
+    }
+}
+
+/// Computes the explicit quality-score penalty (`0.0..=0.30`) attributable to
+/// `Verdict::Contradicted` claim verdicts weighted by `resample_stability`.
+#[must_use]
+pub fn contradiction_penalty_for_verdicts(verdicts: &[super::verifier::ClaimVerdict]) -> f32 {
+    if verdicts.is_empty() {
+        return 0.0;
+    }
+    let contradicted_weight: f32 = verdicts
+        .iter()
+        .filter(|v| v.verdict == super::verifier::Verdict::Contradicted)
+        .map(|v| (v.resample_stability as f32).clamp(0.0, 1.0))
+        .sum();
+    (contradicted_weight / verdicts.len() as f32).clamp(0.0, 1.0) * 0.30
+}
+
+/// Score a gate input and apply explicit `Verdict::Contradicted` claim penalties (`VERI-02`).
+#[must_use]
+pub fn score_with_verdicts(
+    input: &GateInput<'_>,
+    verdicts: &[super::verifier::ClaimVerdict],
+    config: &GateConfig,
+) -> ConfidenceSignal {
+    let base = score_with_config(input, config);
+    if base.score == 0.0 {
+        return base;
+    }
+    let penalty = contradiction_penalty_for_verdicts(verdicts);
+    ConfidenceSignal {
+        score: (base.score - penalty).clamp(0.0, 1.0),
+    }
+}
+
+/// Outcome of auditing `[n]` inline citations against extracted evidence spans (`VERI-02`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct InlineCitationSpanAudit {
+    pub total_inline_citations: usize,
+    pub grounded_inline_citations: usize,
+    pub ungrounded_citation_numbers: Vec<usize>,
+    pub citation_precision: f64,
+    pub stripped_answer: String,
+    pub abstained_claim_ids: Vec<u64>,
+}
+
+fn parse_inline_citation_markers(text: &str) -> Vec<usize> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'[' {
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            if j > i + 1 && j < bytes.len() && bytes[j] == b']' {
+                if let Ok(num_str) = std::str::from_utf8(&bytes[i + 1..j])
+                    && let Ok(n) = num_str.parse::<usize>()
+                    && n >= 1
+                {
+                    out.push(n);
+                }
+                i = j + 1;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    out
+}
+
+fn strip_citation_marker(text: &str, marker_num: usize) -> String {
+    let needle = format!("[{marker_num}]");
+    text.replace(&needle, "")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Audits `[n]` inline citations in `answer` against extracted `EvidenceSpan`s and `citations`.
+/// Ungrounded `[n]` markers degrade `citation_precision`, are stripped from `stripped_answer`,
+/// and force unsupported claims referencing those sentences to `Verdict::Abstain` (`Unverified`).
+pub fn audit_inline_citations_against_spans(
+    answer: &str,
+    citations: &[super::types::Citation],
+    verdicts: &mut [super::verifier::ClaimVerdict],
+) -> InlineCitationSpanAudit {
+    let mut total_inline = 0usize;
+    let mut grounded_inline = 0usize;
+    let mut ungrounded_numbers = Vec::new();
+    let mut abstained_claim_ids = Vec::new();
+    let mut stripped_answer = answer.to_string();
+
+    for sentence in answer
+        .split(['.', '!', '?', '\n'])
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        let markers = parse_inline_citation_markers(sentence);
+        if markers.is_empty() {
+            continue;
+        }
+        let clean_sentence = {
+            let mut s = sentence.to_string();
+            for &m in &markers {
+                s = strip_citation_marker(&s, m);
+            }
+            s
+        };
+        let mut sentence_had_ungrounded = false;
+        for marker in markers {
+            total_inline += 1;
+            let zero_idx = marker.saturating_sub(1) as i64;
+            let one_idx = marker as i64;
+            let cit_opt = citations.get(marker.saturating_sub(1)).or_else(|| {
+                citations
+                    .iter()
+                    .find(|c| c.source_id == zero_idx || c.source_id == one_idx)
+            });
+
+            let span_grounded = verdicts.iter().any(|v| {
+                v.evidence_spans.iter().any(|sp| {
+                    sp.span_type == super::verifier::SpanType::Supporting
+                        && (sp.source_id == zero_idx || sp.source_id == one_idx)
+                        && {
+                            let (score, conflict) = super::verifier::lexical_containment_score(
+                                &clean_sentence,
+                                &sp.text,
+                            );
+                            score >= 0.25 && !conflict
+                        }
+                })
+            });
+
+            let snippet_grounded = cit_opt.is_some_and(|c| {
+                let (score, conflict) =
+                    super::verifier::lexical_containment_score(&clean_sentence, &c.snippet);
+                score >= 0.25 && !conflict
+            });
+
+            if span_grounded || snippet_grounded {
+                grounded_inline += 1;
+            } else {
+                sentence_had_ungrounded = true;
+                if !ungrounded_numbers.contains(&marker) {
+                    ungrounded_numbers.push(marker);
+                }
+                stripped_answer = strip_citation_marker(&stripped_answer, marker);
+            }
+        }
+
+        if sentence_had_ungrounded {
+            for verdict in verdicts.iter_mut() {
+                let (overlap, _) = super::verifier::lexical_containment_score(
+                    &verdict.claim.text,
+                    &clean_sentence,
+                );
+                if overlap >= 0.50 {
+                    verdict.verdict = super::verifier::Verdict::Abstain;
+                    verdict.supporting_count = 0;
+                    verdict.evidence_spans.clear();
+                    if !abstained_claim_ids.contains(&verdict.claim.claim_id) {
+                        abstained_claim_ids.push(verdict.claim.claim_id);
+                    }
+                }
+            }
+        }
+    }
+
+    let citation_precision = if total_inline == 0 {
+        1.0
+    } else {
+        grounded_inline as f64 / total_inline as f64
+    };
+
+    InlineCitationSpanAudit {
+        total_inline_citations: total_inline,
+        grounded_inline_citations: grounded_inline,
+        ungrounded_citation_numbers: ungrounded_numbers,
+        citation_precision,
+        stripped_answer,
+        abstained_claim_ids,
     }
 }
 
@@ -359,5 +548,136 @@ mod semcov_wave2_tests {
             flaky_score.score,
             stable_score.score
         );
+    }
+
+    #[test]
+    fn contradicted_verdicts_penalize_gate_quality_score() {
+        let claims = dummy_claims(2);
+        let config = full_config();
+        let unverified_input = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0,
+            supported_claim_count: 0.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let contradicted_input = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0,
+            supported_claim_count: -2.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let unverified_sig = score_with_config(&unverified_input, &config);
+        let contradicted_sig = score_with_config(&contradicted_input, &config);
+        assert!(
+            contradicted_sig.score < unverified_sig.score,
+            "Contradicted claims must penalize quality score below unverified baseline: contra={} unverified={}",
+            contradicted_sig.score,
+            unverified_sig.score
+        );
+
+        let verdicts = vec![
+            super::super::verifier::ClaimVerdict {
+                claim: claims[0].clone(),
+                verdict: super::super::verifier::Verdict::Contradicted,
+                confidence: 0.92,
+                supporting_count: 0,
+                contradicting_count: 1,
+                evidence_spans: Vec::new(),
+                resample_stability: 1.0,
+            },
+            super::super::verifier::ClaimVerdict {
+                claim: claims[1].clone(),
+                verdict: super::super::verifier::Verdict::Supported,
+                confidence: 0.90,
+                supporting_count: 1,
+                contradicting_count: 0,
+                evidence_spans: Vec::new(),
+                resample_stability: 1.0,
+            },
+        ];
+        let with_verdicts = score_with_verdicts(&unverified_input, &verdicts, &config);
+        assert!(with_verdicts.score < unverified_sig.score);
+    }
+
+    #[test]
+    fn inline_citation_span_audit_degrades_precision_and_abstains_ungrounded_claims() {
+        use super::super::types::Citation;
+        use super::super::verifier::{ClaimLabel, ClaimVerdict, EvidenceSpan, SpanType, Verdict};
+
+        let c1 = Claim {
+            text: "The cache reduces p95 latency by 35ms.".to_string(),
+            claim_id: 1,
+            is_numeric: true,
+            is_recent: false,
+            is_named_event: false,
+            salience_score: 0.8,
+        };
+        let c2 = Claim {
+            text: "Quantum teleportation doubled database throughput.".to_string(),
+            claim_id: 2,
+            is_numeric: false,
+            is_recent: false,
+            is_named_event: false,
+            salience_score: 0.8,
+        };
+        let citations = vec![
+            Citation {
+                source_id: 0,
+                url: "https://vox.dev/cache".to_string(),
+                title: "Cache".to_string(),
+                snippet: "The cache reduces p95 latency by 35ms in production.".to_string(),
+                confidence: 0.95,
+            },
+            Citation {
+                source_id: 1,
+                url: "https://vox.dev/unrelated".to_string(),
+                title: "Gardening".to_string(),
+                snippet: "Tomatoes grow well in warm soil during summer.".to_string(),
+                confidence: 0.50,
+            },
+        ];
+        let mut verdicts = vec![
+            ClaimVerdict {
+                claim: c1,
+                verdict: Verdict::Supported,
+                confidence: 0.92,
+                supporting_count: 1,
+                contradicting_count: 0,
+                evidence_spans: vec![EvidenceSpan {
+                    source_id: 0,
+                    span_start: 0,
+                    span_end: 52,
+                    text: "The cache reduces p95 latency by 35ms in production.".to_string(),
+                    span_type: SpanType::Supporting,
+                }],
+                resample_stability: 1.0,
+            },
+            ClaimVerdict {
+                claim: c2,
+                verdict: Verdict::Supported,
+                confidence: 0.85,
+                supporting_count: 1,
+                contradicting_count: 0,
+                evidence_spans: Vec::new(),
+                resample_stability: 1.0,
+            },
+        ];
+
+        let answer = "The cache reduces p95 latency by 35ms [1]. Quantum teleportation doubled database throughput [2].";
+        let audit = audit_inline_citations_against_spans(answer, &citations, &mut verdicts);
+        assert_eq!(audit.total_inline_citations, 2);
+        assert_eq!(audit.grounded_inline_citations, 1);
+        assert_eq!(audit.ungrounded_citation_numbers, vec![2]);
+        assert!((audit.citation_precision - 0.5).abs() < 1e-6);
+        assert!(!audit.stripped_answer.contains("[2]"));
+        assert!(audit.stripped_answer.contains("[1]"));
+        assert_eq!(audit.abstained_claim_ids, vec![2]);
+        assert_eq!(verdicts[1].label(), ClaimLabel::Abstain);
     }
 }

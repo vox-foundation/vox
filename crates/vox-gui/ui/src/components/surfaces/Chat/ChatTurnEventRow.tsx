@@ -1,6 +1,8 @@
 import React from 'react';
 import type { TurnEventDto } from '../../../types/dashboard';
+import { getTerminalBridgeState } from '../../../lib/terminalBridge';
 import { isKnownTurnEvent, modeLabel, routingModelLabel } from '../../../lib/turnEvents';
+import { isTerminalToolName, openTerminalInConsole } from './ChatTerminalBlockCard';
 import { ResearchTracePanel, type ResearchTrace } from './ResearchTracePanel';
 
 const CHIP =
@@ -11,6 +13,7 @@ interface ChatTurnEventRowProps {
   /** "not this one" — appends the skill to session-scoped `skill_exclusions`
    *  and re-dispatches the turn. Only rendered for `skill_activated` events. */
   onExcludeSkill?: (skillId: string) => void;
+  onNavigate?: (viewKey: string) => void;
 }
 
 /**
@@ -23,7 +26,7 @@ interface ChatTurnEventRowProps {
  * are additive and forward compatibility matters more than a hard failure
  * on an unknown one.
  */
-export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProps) {
+export function ChatTurnEventRow({ event, onExcludeSkill, onNavigate }: ChatTurnEventRowProps) {
   if (!isKnownTurnEvent(event)) return null;
   if (event.kind === 'skill_activated') {
     const skillId = typeof event.skill_id === 'string' ? event.skill_id : 'unknown';
@@ -52,6 +55,11 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
     const tool = event.tool;
     const receiptId = event.receipt_id;
     const verified = event.verified === true;
+    const sessionId =
+      typeof event.session_id === 'string' && event.session_id.length > 0
+        ? event.session_id
+        : getTerminalBridgeState().activeSessionId;
+    const blockId = typeof event.block_id === 'number' ? event.block_id : null;
     return (
       <div
         data-testid="chat-turn-receipt-row"
@@ -63,6 +71,15 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
           receipt · {tool} · {verified ? 'verified' : 'unverified'}
         </span>
         <span className="text-text-muted">{receiptId.slice(0, 8)}</span>
+        {isTerminalToolName(tool) && (
+          <button
+            type="button"
+            onClick={() => openTerminalInConsole({ sessionId, blockId, onNavigate })}
+            className="text-brass hover:underline"
+          >
+            Open in Console
+          </button>
+        )}
       </div>
     );
   }

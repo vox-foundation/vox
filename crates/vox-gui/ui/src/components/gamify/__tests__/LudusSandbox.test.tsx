@@ -2,22 +2,37 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 const workspaceTownScan = vi.fn();
 const openLocator = vi.fn();
-vi.mock('../../../transport', () => ({
-  listenAgentEvents: vi.fn().mockRejectedValue(new Error('not in tauri')),
-  voxTransport: {
-    getLlmSpend: vi.fn().mockRejectedValue(new Error('unavailable')),
-    workspaceTownScan: (...a: unknown[]) => workspaceTownScan(...a),
-    openLocator: (...a: unknown[]) => openLocator(...a),
-    harnessCiFleetStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
-    vcsTownStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
-    hopperList: vi.fn().mockRejectedValue(new Error('unavailable')),
-    callTool: vi.fn().mockResolvedValue({}),
-    executeCommand: vi.fn().mockResolvedValue({}),
-  },
-}));
+const mockSetSessionContextPins = vi.fn();
+const mockSetGuiPreference = vi.fn();
+const mockRecordGuiEvent = vi.fn();
+
+vi.mock('../../../transport', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../transport')>();
+  return {
+    ...actual,
+    listenAgentEvents: vi.fn().mockRejectedValue(new Error('not in tauri')),
+    getSessionContextPins: vi.fn().mockResolvedValue([]),
+    setSessionContextPins: (...a: unknown[]) => mockSetSessionContextPins(...a),
+    voxTransport: {
+      ...actual.voxTransport,
+      getLlmSpend: vi.fn().mockRejectedValue(new Error('unavailable')),
+      workspaceTownScan: (...a: unknown[]) => workspaceTownScan(...a),
+      openLocator: (...a: unknown[]) => openLocator(...a),
+      harnessCiFleetStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+      vcsTownStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+      hopperList: vi.fn().mockRejectedValue(new Error('unavailable')),
+      callTool: vi.fn().mockResolvedValue({}),
+      executeCommand: vi.fn().mockResolvedValue({}),
+      getGuiPreference: vi.fn().mockResolvedValue(null),
+      setGuiPreference: (...a: unknown[]) => mockSetGuiPreference(...a),
+      recordGuiEvent: (...a: unknown[]) => mockRecordGuiEvent(...a),
+    },
+  };
+});
 
 import { LudusSandbox } from '../LudusSandbox';
 import { URBS_REPO_PRESETS } from '../urbs/repoPresets';
@@ -25,7 +40,13 @@ import { URBS_REPO_PRESETS } from '../urbs/repoPresets';
 beforeEach(() => {
   workspaceTownScan.mockReset();
   openLocator.mockReset();
+  mockSetSessionContextPins.mockReset();
+  mockSetGuiPreference.mockReset();
+  mockRecordGuiEvent.mockReset();
   workspaceTownScan.mockResolvedValue(URBS_REPO_PRESETS.live.scan);
+  mockSetSessionContextPins.mockResolvedValue([]);
+  mockSetGuiPreference.mockResolvedValue(undefined);
+  mockRecordGuiEvent.mockResolvedValue({ xpGranted: 50, lumensGranted: 8, achievementTitle: null });
 });
 
 describe('LudusSandbox (Phase 264: Multi-Repo Simulation Presets, Focus Mode & Priority Dock)', () => {
@@ -44,10 +65,12 @@ describe('LudusSandbox (Phase 264: Multi-Repo Simulation Presets, Focus Mode & P
   });
 
   it('switches dynamically across TypeScript, Python ML, and Go Microservices presets and opens ImperiumInspector on priority dock click', async () => {
+    const user = userEvent.setup();
     render(<LudusSandbox />);
 
     const presetSelect = await screen.findByTestId('urbs-repo-preset-select');
-    fireEvent.change(presetSelect, { target: { value: 'ts_monorepo' } });
+    await user.click(presetSelect);
+    await user.click(await screen.findByRole('option', { name: URBS_REPO_PRESETS.ts_monorepo.label }));
 
     await waitFor(() => {
       expect(screen.getAllByText(/TypeScript/i).length).toBeGreaterThanOrEqual(1);
@@ -64,15 +87,50 @@ describe('LudusSandbox (Phase 264: Multi-Repo Simulation Presets, Focus Mode & P
     });
 
     // Switch to Python FastAPI + ML Service preset
-    fireEvent.change(presetSelect, { target: { value: 'python_ml' } });
+    await user.click(presetSelect);
+    await user.click(await screen.findByRole('option', { name: URBS_REPO_PRESETS.python_ml.label }));
     await waitFor(() => {
       expect(screen.getByText(/Confirm HNSW ef_construction index rebuild/i)).toBeTruthy();
     });
 
     // Switch to Go Distributed Microservices preset
-    fireEvent.change(presetSelect, { target: { value: 'go_microservices' } });
+    await user.click(presetSelect);
+    await user.click(await screen.findByRole('option', { name: URBS_REPO_PRESETS.go_microservices.label }));
     await waitFor(() => {
       expect(screen.getByText(/Approve Raft quorum snapshot interval change/i)).toBeTruthy();
+    });
+  });
+
+  it('persists Pin Context via setSessionContextPins and Yield claim via setGuiPreference with rollback on failure', async () => {
+    render(<LudusSandbox />);
+
+    const errBtn = (await screen.findAllByTestId('urbs-priority-item-error'))[0]!;
+    fireEvent.click(errBtn);
+
+    const pinBtn = await screen.findByTestId('urbs-action-pin-context');
+    fireEvent.click(pinBtn);
+    await waitFor(() => {
+      expect(mockSetSessionContextPins).toHaveBeenCalledWith(
+        'default',
+        expect.arrayContaining([expect.objectContaining({ scope: 'urbs' })]),
+      );
+    });
+
+    const yieldBtn = await screen.findByTestId('urbs-action-claim-yield');
+    expect(yieldBtn.textContent).toContain('250 XP');
+    fireEvent.click(yieldBtn);
+    await waitFor(() => {
+      expect(mockSetGuiPreference).toHaveBeenCalledWith('vox.urbs.claimed_yield_xp.v1', '300');
+      expect(yieldBtn.textContent).toContain('300 XP');
+    });
+
+    mockSetGuiPreference.mockRejectedValueOnce(new Error('pref store locked'));
+    fireEvent.click(yieldBtn);
+    await waitFor(() => {
+      expect(yieldBtn.textContent).toContain('300 XP');
+      expect(screen.getByTestId('urbs-dev-action-receipt').textContent).toMatch(
+        /Yield claim failed:.*pref store locked/i,
+      );
     });
   });
 });

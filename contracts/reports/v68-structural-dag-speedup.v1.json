@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "milestone": "v6.9",
+  "phase": 405,
+  "generated_at": "2026-11-13T06:42:00Z",
+  "target_triple": "aarch64-apple-darwin",
+  "linker_configuration": {
+    "rustflags": [
+      "-C",
+      "link-arg=-Wl,-dead_strip"
+    ],
+    "split_debuginfo": "unpacked",
+    "dev_debug": 1,
+    "dep_opt_level": 1,
+    "dep_debug": 0
+  },
+  "dag_decoupling_audit": {
+    "vox_compiler_depends_on_vox_repository": false,
+    "vox_db_depends_on_vox_repository": false,
+    "vox_codegen_depends_on_vox_repository": false,
+    "vox_config_depends_on_vox_repository": false,
+    "vox_corpus_depends_on_vox_repository": false,
+    "vox_doc_inventory_depends_on_vox_repository": false,
+    "vox_orchestrator_driver_depends_on_vox_repository": false,
+    "vox_repository_fan_in_non_dev": 13,
+    "vox_repository_core_facade_module": "vox_repository::core",
+    "inline_never_firewalls_added": 21,
+    "rule3_defactored_crates": [
+      "vox-compiler",
+      "vox-db",
+      "vox-doc-inventory",
+      "vox-corpus",
+      "vox-orchestrator-driver"
+    ],
+    "fan_in_snapshot_ratchet_reductions": {
+      "vox-compiler": { "before": 21, "after": 20 },
+      "vox-config": { "before": 41, "after": 40 },
+      "vox-db": { "before": 28, "after": 27 },
+      "vox-llm-egress": { "before": 5, "after": 4 },
+      "vox-repository": { "before": null, "after": 13 }
+    },
+    "vox_cli_max_workspace_deps_budget": { "before": 60, "after": 50 }
+  },
+  "before_after_incremental_probe": {
+    "edited_file": "crates/vox-repository/src/repo_catalog/federation.rs",
+    "before": {
+      "cargo_build_vox_cli_wall_seconds": 89.0,
+      "crates_recompiled": 43,
+      "total_build_units": 1161,
+      "keystones_recompiled": ["vox-compiler", "vox-db"],
+      "eh_frame_linker_warning": true
+    },
+    "after": {
+      "cargo_check_compiler_db_wall_seconds": 4.10,
+      "cargo_check_compiler_db_crates_recompiled": 0,
+      "cargo_build_vox_cli_probe_wall_seconds": 74.0,
+      "cargo_build_vox_cli_revert_wall_seconds": 66.0,
+      "cargo_build_vox_cli_crates_recompiled": 16,
+      "cargo_build_vox_cli_units_recompiled": 20,
+      "total_build_units": 1155,
+      "keystones_recompiled": [],
+      "eh_frame_linker_warning_on_debug_monolith": true
+    }
+  },
+  "toestub_and_ci_enforcement": {
+    "cargo_dep_hygiene_rule": "vox/cargo/dep-hygiene",
+    "workspace_drift_language_fix": "Language::Unknown",
+    "lefthook_tdd_guard_glob_includes_manifests": true,
+    "layers_toml_forbidden_deps_rules_added": 6,
+    "dev_loop_guard_checks_macos_dead_strip": true
+  },
+  "measured_timings": {
+    "vox_compiler_lib_642_tests_seconds": 3.02,
+    "vox_db_lib_309_tests_seconds": 70.29,
+    "vox_code_audit_lib_485_tests_seconds": 2.54,
+    "vox_cli_ci_lib_557_tests_single_threaded_seconds": 25.72,
+    "cargo_check_vox_cli_tests_1797_units_seconds": 407,
+    "toestub_dep_hygiene_8_manifests_wall_seconds": 3
+  },
+  "notes": [
+    "crates/vox-codegen retains vox-deploy-codegen because crates/vox-codegen-ts/src/emitter.rs calls vox_deploy_codegen::generate via #[path].",
+    "macOS ld still emits __eh_frame compact-unwind overflow warning on unoptimized debug vox monolith linking despite -Wl,-dead_strip.",
+    "vox ci crate-edges --tighten exited 1 because 55 pre-existing unrecorded edges (vox-cli-research, vox-cli-ci, etc.) exist in workspace manifests; crate-edges.allow.v1.json was not expanded."
+  ]
+}

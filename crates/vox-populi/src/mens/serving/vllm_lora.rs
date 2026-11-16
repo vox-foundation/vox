@@ -14,6 +14,8 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use serde_json::Value;
 
+#[cfg(feature = "mens-hf-hub")]
+pub use super::spoke_route::resolve_spoke_adapter;
 use crate::mens::tensor::adapter_card::AdapterCard;
 
 /// A single adapter slot tracked by the client.

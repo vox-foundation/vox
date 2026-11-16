@@ -1,5 +1,6 @@
 pub mod content_blocks;
 pub mod executor_bridge;
+pub mod gsd;
 pub mod intake_router;
 pub mod orient;
 /// Pure Plan/Act/Verify phase machine (Track D).

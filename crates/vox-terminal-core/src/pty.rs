@@ -9,9 +9,12 @@
 //! concretely. Track 6 adds `NuShell` behind the `nushell` cargo feature.
 
 use std::io::Read;
+use std::path::Path;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use anyhow::Result;
-use portable_pty::{Child, CommandBuilder, PtySize, native_pty_system};
+use portable_pty::{Child, MasterPty, PtySize, native_pty_system};
+use tempfile::TempDir;
 use tokio::sync::mpsc;
 
 // ── Pure platform helpers (moved verbatim from vox-gui/src/commands/pty.rs) ──
@@ -83,7 +86,8 @@ const FISH_OSC633: &str = r#"
 if not set -q __vox_osc633
   set -g __vox_osc633 1
   function __vox_fish_preexec --on-event fish_preexec
-    printf '\e]633;E;%s\a\e]633;C\a' $argv[1]
+    set -l cmd (string split \n -- "$argv[1]" | string replace -a '\\' '\\x5c' | string replace -a ';' '\\x3b' | string join '\\x0a')
+    printf '\e]633;E;%s\a\e]633;C\a' "$cmd"
   end
   function __vox_fish_postexec --on-event fish_postexec
     printf '\e]633;D;%s\a\e]633;A\a' $status
@@ -98,23 +102,29 @@ end
 
 /// Nushell OSC 633 integration (config hook upsert).
 const NU_OSC633: &str = r#"
-$env.config = ($env.config | upsert hooks {|c|
-  let h = ($c.hooks? | default {})
-  $h
-  | upsert pre_prompt (
-      ($h.pre_prompt? | default []) | append {||
-        let ec = ($env.LAST_EXIT_CODE? | default 0)
-        print -n ([(char -u 1b) "]633;D;" $ec (char bel) (char -u 1b) "]633;A" (char bel)] | str join)
-      }
-    )
-  | upsert pre_execution (
-      ($h.pre_execution? | default []) | append {|cmd|
-        let enc = ($cmd | default "" | str replace -a '\' '\x5c' | str replace -a ';' '\x3b' | str replace -a "\n" '\x0a')
-        print -n ([(char -u 1b) "]633;E;" $enc (char bel) (char -u 1b) "]633;C" (char bel)] | str join)
-      }
-    )
-})
-$env.PROMPT_INDICATOR = {|| ([(char -u 1b) "]633;B" (char bel) "> "] | str join) }
+$env.config = (
+  $env.config
+  | upsert shell_integration.osc633 false
+  | upsert shell_integration.osc7 false
+  | upsert hooks {|c|
+      let h = ($c.hooks? | default {})
+      $h
+      | upsert pre_prompt (
+          ($h.pre_prompt? | default []) | append {||
+            let ec = ($env.LAST_EXIT_CODE? | default 0)
+            print -n ([(char -u 1b) "]633;D;" $ec (char bel) (char -u 1b) "]633;A" (char bel)] | str join)
+          }
+        )
+      | upsert pre_execution (
+          ($h.pre_execution? | default []) | append {||
+            let raw_cmd = (try { commandline } catch { "" })
+            let enc = ($raw_cmd | default "" | str replace -a '\' '\x5c' | str replace -a ';' '\x3b' | str replace -a "\r" '\x0d' | str replace -a "\n" '\x0a')
+            print -n ([(char -u 1b) "]633;E;" $enc (char bel) (char -u 1b) "]633;C" (char bel)] | str join)
+          }
+        )
+    }
+)
+$env.PROMPT_INDICATOR = {|| (["> " (char -u 1b) "]633;B" (char bel)] | str join) }
 "#;
 
 /// PowerShell OSC 633 integration (verbatim from vox-gui).
@@ -125,20 +135,26 @@ if (-not $global:__VoxOsc633) {
   $global:__VoxOscBel = [char]7
   $global:__VoxOrigPrompt = $function:prompt
   function global:prompt {
-    $code = if ($LASTEXITCODE -ne $null) { $LASTEXITCODE } elseif ($?) { 0 } else { 1 }
+    $origOk = $?
+    $origLast = $LASTEXITCODE
+    $code = if ($null -ne $origLast -and $origLast -ne 0) { $origLast } elseif (-not $origOk) { 1 } else { 0 }
     $out = "$($global:__VoxOscEsc)]633;D;$code$($global:__VoxOscBel)"
     $out += "$($global:__VoxOscEsc)]633;A$($global:__VoxOscBel)"
     $out += (& $global:__VoxOrigPrompt)
     $out += "$($global:__VoxOscEsc)]633;B$($global:__VoxOscBel)"
+    $global:LASTEXITCODE = 0
     return $out
   }
-  Set-PSReadLineKeyHandler -Key Enter -ScriptBlock {
-    $line = $null; $cursor = $null
-    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
-    $enc = $line -replace '\\','\x5c' -replace ';','\x3b' -replace "`n",'\x0a'
-    [Console]::Write("$($global:__VoxOscEsc)]633;E;$enc$($global:__VoxOscBel)")
-    [Console]::Write("$($global:__VoxOscEsc)]633;C$($global:__VoxOscBel)")
-    [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+  Import-Module PSReadLine -ErrorAction SilentlyContinue
+  if (Get-Module -Name PSReadLine) {
+    Set-PSReadLineKeyHandler -Chord @('Enter', 'Ctrl+j') -ScriptBlock {
+      $line = $null; $cursor = $null
+      [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+      $enc = $line -replace '\\','\x5c' -replace ';','\x3b' -replace "`r",'\x0d' -replace "`n",'\x0a'
+      [Console]::Write("$($global:__VoxOscEsc)]633;E;$enc$($global:__VoxOscBel)")
+      [Console]::Write("$($global:__VoxOscEsc)]633;C$($global:__VoxOscBel)")
+      [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+    }
   }
 }
 "#;
@@ -302,29 +318,115 @@ pub trait ShellBackend: Send + 'static {
 
 // ── PtyHost / PtyHandle ───────────────────────────────────────────────────────
 
-/// A live PTY child process with an input handle.
+/// Structured terminal signal delivered to a live PTY session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TermSignal {
+    Interrupt,
+    Terminate,
+    Kill,
+}
+
+fn lock_master(m: &Mutex<Box<dyn MasterPty + Send>>) -> MutexGuard<'_, Box<dyn MasterPty + Send>> {
+    m.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+/// A live PTY child process with an input handle, retained `MasterPty`, and RAII `TempDir`.
 pub struct PtyHandle {
-    writer: Box<dyn std::io::Write + Send>,
+    writer: Option<Box<dyn std::io::Write + Send>>,
+    master: Option<Arc<Mutex<Box<dyn MasterPty + Send>>>>,
     child: Box<dyn Child + Send + Sync>,
+    _shim_dir: Option<TempDir>,
+    osc633_capable: bool,
+    shell_name: String,
 }
 
 impl PtyHandle {
     pub fn write(&mut self, data: &[u8]) -> Result<()> {
         use std::io::Write;
-        self.writer.write_all(data)?;
-        self.writer.flush()?;
+        let writer = self
+            .writer
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("PTY writer is closed"))?;
+        writer.write_all(data)?;
+        writer.flush()?;
         Ok(())
     }
 
     pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
-        // portable-pty doesn't expose resize through Box<dyn Child>; keep the
-        // master in PtyHost for resize. This is a best-effort no-op for now.
-        let _ = (cols, rows);
+        let master = self
+            .master
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("PTY master is closed"))?;
+        lock_master(master).resize(PtySize {
+            rows: rows.max(1),
+            cols: cols.max(1),
+            pixel_width: 0,
+            pixel_height: 0,
+        })?;
         Ok(())
     }
 
+    pub fn get_size(&self) -> Result<PtySize> {
+        let master = self
+            .master
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("PTY master is closed"))?;
+        lock_master(master).get_size()
+    }
+
+    pub fn signal(&mut self, sig: TermSignal) -> Result<()> {
+        match sig {
+            TermSignal::Interrupt => self.write(b"\x03"),
+            TermSignal::Terminate | TermSignal::Kill => {
+                drop(self.writer.take());
+                drop(self.master.take());
+                self.child.kill()?;
+                self.reap_bounded();
+                Ok(())
+            }
+        }
+    }
+
+    pub fn try_wait_exit_code(&mut self) -> Option<i32> {
+        match self.child.try_wait() {
+            Ok(Some(status)) => Some(status.exit_code() as i32),
+            _ => None,
+        }
+    }
+
+    pub fn supports_osc633(&self) -> bool {
+        self.osc633_capable
+    }
+
+    pub fn shell_name(&self) -> &str {
+        &self.shell_name
+    }
+
+    pub fn shim_path(&self) -> Option<&Path> {
+        self._shim_dir.as_ref().map(|d| d.path())
+    }
+
+    fn reap_bounded(&mut self) {
+        for _ in 0..25 {
+            match self.child.try_wait() {
+                Ok(Some(_)) | Err(_) => return,
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(2)),
+            }
+        }
+    }
+
     pub fn kill(&mut self) {
+        drop(self.writer.take());
+        drop(self.master.take());
         let _ = self.child.kill();
+        self.reap_bounded();
+    }
+}
+
+impl Drop for PtyHandle {
+    fn drop(&mut self) {
+        self.kill();
     }
 }
 
@@ -340,6 +442,65 @@ impl ShellBackend for PtyHandle {
     }
 }
 
+fn apply_pty_history_env(cmd: &mut portable_pty::CommandBuilder) {
+    cmd.env("HISTCONTROL", "ignorespace");
+    cmd.env("HIST_IGNORE_SPACE", "1");
+}
+
+/// Spawn a PTY shell using non-echo `TempDir` launch shims and invoke `on_chunk` / `on_eof`
+/// directly on a dedicated OS reader thread (`"vox-pty-reader"`).
+pub fn spawn_pty_with_callback<F, E>(
+    shell: &str,
+    cols: u16,
+    rows: u16,
+    cwd: Option<&Path>,
+    mut on_chunk: F,
+    on_eof: E,
+) -> Result<PtyHandle>
+where
+    F: FnMut(&[u8]) + Send + 'static,
+    E: FnOnce() + Send + 'static,
+{
+    let pty_system = native_pty_system();
+    let pair = pty_system.openpty(PtySize {
+        rows: rows.max(1),
+        cols: cols.max(1),
+        pixel_width: 0,
+        pixel_height: 0,
+    })?;
+
+    let mut shim = crate::shell_init::prepare_shell_command(shell, cwd)?;
+    apply_pty_history_env(&mut shim.cmd);
+    let child = pair.slave.spawn_command(shim.cmd)?;
+    drop(pair.slave);
+
+    let mut reader = pair.master.try_clone_reader()?;
+    let writer = pair.master.take_writer()?;
+    let master = Arc::new(Mutex::new(pair.master));
+
+    std::thread::Builder::new()
+        .name("vox-pty-reader".into())
+        .spawn(move || {
+            let mut buf = [0u8; 4096];
+            loop {
+                match reader.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => on_chunk(&buf[..n]),
+                }
+            }
+            on_eof();
+        })?;
+
+    Ok(PtyHandle {
+        writer: Some(writer),
+        master: Some(master),
+        child,
+        _shim_dir: shim.shim_dir,
+        osc633_capable: shim.osc633_capable,
+        shell_name: crate::shell_init::normalize_shell_name(shell),
+    })
+}
+
 /// Spawn a PTY shell and return a handle + a receiver for raw output bytes.
 ///
 /// A blocking OS thread reads the PTY and pushes chunks into `tx`. The caller
@@ -349,48 +510,18 @@ pub fn spawn_pty(
     cols: u16,
     rows: u16,
 ) -> Result<(PtyHandle, mpsc::Receiver<Vec<u8>>)> {
-    let pty_system = native_pty_system();
-    let pair = pty_system.openpty(PtySize {
-        rows,
-        cols,
-        pixel_width: 0,
-        pixel_height: 0,
-    })?;
-
-    let cmd = CommandBuilder::new(shell);
-    let child = pair.slave.spawn_command(cmd)?;
-    drop(pair.slave);
-
-    let mut reader = pair.master.try_clone_reader()?;
-    let mut writer = pair.master.take_writer()?;
-
-    // Inject OSC 633 integration (best-effort; ignore write errors)
-    if let Some(snippet) = shell_integration_snippet(shell) {
-        use std::io::Write;
-        let _ = writer.write_all(format!("{snippet}\n").as_bytes());
-        let _ = writer.flush();
-    }
-
     let (tx, rx) = mpsc::channel::<Vec<u8>>(256);
-    // Move master into the thread to keep the PTY alive for the reader's lifetime.
-    let master = pair.master;
-
-    std::thread::spawn(move || {
-        let _keep_master = master;
-        let mut buf = [0u8; 4096];
-        loop {
-            match reader.read(&mut buf) {
-                Ok(0) | Err(_) => break,
-                Ok(n) => {
-                    if tx.blocking_send(buf[..n].to_vec()).is_err() {
-                        break;
-                    }
-                }
-            }
-        }
-    });
-
-    Ok((PtyHandle { writer, child }, rx))
+    let handle = spawn_pty_with_callback(
+        shell,
+        cols,
+        rows,
+        None,
+        move |chunk| {
+            let _ = tx.blocking_send(chunk.to_vec());
+        },
+        || {},
+    )?;
+    Ok((handle, rx))
 }
 
 #[cfg(test)]
@@ -469,5 +600,19 @@ mod tests {
         let (code, stdout, _stderr) = run_nu_structured_capture("echo hello-nu-structured");
         assert_eq!(code, 0);
         assert!(stdout.contains("hello-nu-structured"));
+    }
+
+    #[test]
+    fn spawned_pty_sets_histcontrol_ignorespace() {
+        let mut cmd = portable_pty::CommandBuilder::new("sh");
+        apply_pty_history_env(&mut cmd);
+        assert_eq!(
+            cmd.get_env("HISTCONTROL").and_then(|v| v.to_str()),
+            Some("ignorespace")
+        );
+        assert_eq!(
+            cmd.get_env("HIST_IGNORE_SPACE").and_then(|v| v.to_str()),
+            Some("1")
+        );
     }
 }

@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v7.6 — (`scientia-deep-research-v76`) — Unified Light ↔ Deep Research Continuum, Extreme-Data Streaming, Socrates/Novelty Verification & Continuous Direct Publication Flywheel",
+  "phases": [
+    {
+      "number": "447",
+      "name": "Deterministic Before-Audit Baseline, L0/L1 Continuum Contracts & L3 Shared Embedder",
+      "status": "complete"
+    },
+    {
+      "number": "448",
+      "name": "Unified Light ↔ Deep Continuum Router, Socrates Escalation & KV-Cache-Safe Chat Harness",
+      "status": "complete"
+    },
+    {
+      "number": "449",
+      "name": "Extreme-Data Resumable Streaming, `std.frame` Chunk Cursors & Virtualized Epistemic Canvas",
+      "status": "complete"
+    },
+    {
+      "number": "450",
+      "name": "Calibrated 3-Tier Verifier, Two-Stage Novelty × Utility Engine & Continuous Discovery",
+      "status": "complete"
+    },
+    {
+      "number": "451",
+      "name": "Full DB-Hydrated Direct Publication (`> Nanopublication`) Flywheel & Zero-`VoxDb` Studio",
+      "status": "complete"
+    },
+    {
+      "number": "452",
+      "name": "Paired After-Audit Closure, Inline Before/After Diff Inspector & Quarantined Lesson Flywheel",
+      "status": "complete"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
+  },
+  "updated_at": "2026-11-16T03:37:09.679Z"
+}

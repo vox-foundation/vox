@@ -7,6 +7,8 @@ export interface RomanSurfaceGaugeSpec {
   ratio: number;
   tone?: 'gold' | 'emerald' | 'crimson';
   purpose?: string;
+  actionHint?: string;
+  active?: boolean;
   onClick?: () => void;
 }
 
@@ -277,6 +279,8 @@ export function RomanSurfaceHeader({
                   ratio={g.ratio}
                   tone={g.tone}
                   purpose={g.purpose}
+                  actionHint={g.actionHint}
+                  active={g.active}
                   onClick={g.onClick}
                 />
               ))}

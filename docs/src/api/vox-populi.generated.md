@@ -41,12 +41,12 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 | `gamify` | dep:vox-gamify |
 | `hw-probe-live-test` | — |
 | `inference` | mens-candle-qlora |
-| `mens` | dep:anyhow, dep:serde_yaml, dep:ctrlc, dep:chrono, dep:dirs, dep:sysinfo, dep:rand, dep:vox-tensor, dep:vox-corpus, dep:vox-db, dep:vox-bounded-fs, dep:vox-hf-layout, dep:objc2-metal, dep:vox-package, dep:vox-orchestrator-queue, dep:sha3 |
+| `mens` | dep:anyhow, dep:serde_yaml, dep:chrono, dep:dirs, dep:rand, dep:vox-tensor, dep:vox-corpus, dep:vox-db, dep:vox-bounded-fs, dep:vox-hf-layout, dep:objc2-metal, dep:vox-package, dep:vox-orchestrator-queue, dep:sha3 |
 | `mens-candle-qlora` | mens, dep:candle-core, dep:candle-nn, dep:safetensors, dep:tokenizers, dep:qlora-rs, dep:reqwest, dep:vox-quantize |
 | `mens-candle-qlora-cuda` | mens-candle-qlora, candle-core/cuda, candle-nn/cuda |
 | `mens-candle-qlora-metal` | mens-candle-qlora, candle-core/metal, candle-nn/metal |
 | `mens-cloud` | mens, mens-hf-hub, dep:reqwest, dep:vox-http-client, vox-db/host-integration |
-| `mens-hf-hub` | mens, dep:hf-hub, tokio/rt-multi-thread, dep:askama, dep:vox-eval, dep:tempfile |
+| `mens-hf-hub` | mens, dep:hf-hub, dep:reqwest, tokio/rt-multi-thread, dep:askama, dep:vox-eval, dep:tempfile |
 | `mens-train` | mens, mens-candle-qlora, mens-hf-hub, dep:vox-eval, dep:vox-plugin-host |
 | `mesh-discovery-publish` | dep:vox-publisher |
 | `nvml-gpu-probe` | — |
@@ -198,7 +198,7 @@ graph {
 | `fn` | `publish_local_registry_best_effort` | `pub fn publish_local_registry_best_effort() -> Result<(), PopuliRegistryError>` | [`crates/vox-populi/src/lib.rs#L332-L339`](../../../crates/vox-populi/src/lib.rs#L332-L339) | Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off). |
 | `fn` | `populi_registration_record_for_process` | `pub fn populi_registration_record_for_process() -> NodeRecord` | [`crates/vox-populi/src/lib.rs#L343-L352`](../../../crates/vox-populi/src/lib.rs#L343-L352) | [`NodeRecord`] for this process — same id and `listen_addr` as [`publish_local_registry_best_effort`]. |
 | `fn` | `local_registry_path` | `pub fn local_registry_path() -> PathBuf` | [`crates/vox-populi/src/lib.rs#L356-L358`](../../../crates/vox-populi/src/lib.rs#L356-L358) | Resolved on-disk registry path (honours `VOX_MESH_REGISTRY_PATH`). |
-| `fn` | `current_target_triple` | `pub fn current_target_triple() -> &'static str` | [`crates/vox-populi/src/lib.rs#L375-L393`](../../../crates/vox-populi/src/lib.rs#L375-L393) | Returns the current target triple (Wave 4 best-effort). |
+| `fn` | `current_target_triple` | `pub fn current_target_triple() -> &'static str` | [`crates/vox-populi/src/lib.rs#L379-L397`](../../../crates/vox-populi/src/lib.rs#L379-L397) | Returns the current target triple (Wave 4 best-effort). |
 | `struct` | `http_client::A2AInboxPager` | `pub struct A2AInboxPager` | [`crates/vox-populi/src/http_client.rs#L29-L34`](../../../crates/vox-populi/src/http_client.rs#L29-L34) | Iterator-style paging cursor for non-claimer A2A inbox reads. |
 | `fn` | `http_client::new` | `pub fn new(receiver_agent_id: impl Into<String>, page_size: usize) -> Self` | [`crates/vox-populi/src/http_client.rs#L39-L46`](../../../crates/vox-populi/src/http_client.rs#L39-L46) | Create a pager for a receiver id with a bounded page size. |
 | `fn` | `http_client::next_page` | `pub async fn next_page(` | [`crates/vox-populi/src/http_client.rs#L49`](../../../crates/vox-populi/src/http_client.rs#L49) | Fetch the next page (newest-first). Empty page means completion. |

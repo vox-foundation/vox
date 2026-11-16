@@ -78,6 +78,37 @@ pub async fn interpret_workflow_durable(
     args: Vec<Value>,
     tracker: &mut impl WorkflowTracker,
 ) -> anyhow::Result<Vec<Value>> {
+    interpret_workflow_durable_inner(hir, workflow_name, args, tracker, None, None).await
+}
+
+/// Execute a durable workflow configured with explicit capabilities and Python project.
+pub async fn interpret_workflow_durable_with_python(
+    hir: &HirModule,
+    workflow_name: &str,
+    args: Vec<Value>,
+    tracker: &mut impl WorkflowTracker,
+    caps: vox_compiler::eval::caps::CapabilitySet,
+    python_project: Option<vox_compiler::eval::python::PythonProject>,
+) -> anyhow::Result<Vec<Value>> {
+    interpret_workflow_durable_inner(
+        hir,
+        workflow_name,
+        args,
+        tracker,
+        Some(caps),
+        python_project,
+    )
+    .await
+}
+
+async fn interpret_workflow_durable_inner(
+    hir: &HirModule,
+    workflow_name: &str,
+    args: Vec<Value>,
+    tracker: &mut impl WorkflowTracker,
+    caps: Option<vox_compiler::eval::caps::CapabilitySet>,
+    python_project: Option<vox_compiler::eval::python::PythonProject>,
+) -> anyhow::Result<Vec<Value>> {
     if tracker.run_status().await?.as_deref() == Some("completed") {
         anyhow::bail!("run already completed");
     }
@@ -105,7 +136,16 @@ pub async fn interpret_workflow_durable(
     // any thread starts, so a bad `workflow_name` fails here without ever
     // touching the tracker (no spurious `workflow_started` row for a run that
     // never began).
-    let mut host = WorkflowHost::spawn(hir.clone(), workflow_name, effective_args.clone())?;
+    let mut host = match caps {
+        Some(c) => WorkflowHost::spawn_with_python(
+            hir.clone(),
+            workflow_name,
+            effective_args.clone(),
+            c,
+            python_project,
+        )?,
+        None => WorkflowHost::spawn(hir.clone(), workflow_name, effective_args.clone())?,
+    };
 
     // For a new run, `on_workflow_started` must land before `persist_run_args`: the
     // `VoxDbTracker` impl of the latter is an `UPDATE ... WHERE run_id = ?`
@@ -229,6 +269,7 @@ pub async fn interpret_workflow_durable(
                 name,
                 result,
                 failed: true,
+                python_env: _,
             } => {
                 // The interpreter thread is already unwinding an
                 // AssertionFailed/Panic at this point (see
@@ -270,6 +311,7 @@ pub async fn interpret_workflow_durable(
                 name,
                 result,
                 failed: false,
+                python_env,
             } => {
                 // `Result::Err` reaches here too (`failed` is false — see
                 // `activity_hook::result_err_is_not_failed`): it is a value,
@@ -288,13 +330,19 @@ pub async fn interpret_workflow_durable(
                 tracker
                     .on_activity_completed(workflow_name, &name, &activity_id, &result)
                     .await?;
-                journal.push(versioned_event(json!({
+                let mut completed_event = json!({
                     "event": "ActivityCompleted",
                     "workflow": workflow_name,
                     "activity": name,
                     "activity_id": activity_id,
                     "result": result,
-                })));
+                });
+                if let Some(env) = python_env
+                    && let Some(obj) = completed_event.as_object_mut()
+                {
+                    obj.insert("python_env".to_string(), env);
+                }
+                journal.push(versioned_event(completed_event));
                 host.respond(HostDecision::Ack)?;
             }
             HostRequest::Wait { deadline_ms } => {
@@ -759,5 +807,65 @@ mod tests {
         );
         assert_eq!(explicit_activity_id(None), None);
         assert_eq!(explicit_activity_id(Some(&json!({}))), None);
+    }
+
+    #[tokio::test]
+    async fn activity_completed_records_python_env_metadata() {
+        let has_py = std::process::Command::new("python3")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !has_py {
+            eprintln!("skip: python3 absent");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "vox_wf_pyenv_{}_{}",
+            std::process::id(),
+            wall_now_ms()
+        ));
+        let py_dir = dir.join(".vox").join("python");
+        std::fs::create_dir_all(&py_dir).expect("mkdir py");
+        std::fs::write(py_dir.join("uv.lock"), b"version = 1\n").expect("write uv.lock");
+
+        let src = "@uses(python)\nfn fetch_py_ver() to str {\n    return python.version().unwrap()\n}\n\nactivity py_ver() to str {\n    return fetch_py_ver()\n}\n\nworkflow py_wf() to str {\n    return py_ver()\n}\n";
+        let module = vox_compiler::parser::parse_script(vox_compiler::lexer::lex(src))
+            .expect("parse workflow");
+        let hir = vox_compiler::hir::lower::lower_module(&module);
+        let caps = vox_compiler::eval::caps::CapabilitySet::developer_default();
+        let project = vox_compiler::eval::python::PythonProject {
+            root: dir.clone(),
+            max_fetch_mb: 16,
+            timeout: vox_config::timeouts::D_10S,
+        };
+        let mut tracker = DefaultTracker;
+        let journal = interpret_workflow_durable_with_python(
+            &hir,
+            "py_wf",
+            vec![],
+            &mut tracker,
+            caps,
+            Some(project),
+        )
+        .await
+        .expect("run workflow");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let completed = journal
+            .iter()
+            .find(|ev| ev.get("event").and_then(Value::as_str) == Some("ActivityCompleted"))
+            .expect("ActivityCompleted event");
+        let env = completed
+            .get("python_env")
+            .expect("python_env recorded on ActivityCompleted");
+        assert!(env.get("python").is_some(), "missing python version: {env}");
+        assert!(env.get("packages").is_some(), "missing packages: {env}");
+        assert!(
+            env.get("uv_lock_blake3").is_some(),
+            "missing uv_lock_blake3: {env}"
+        );
     }
 }

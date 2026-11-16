@@ -6,7 +6,6 @@
 //! re-runs yield deterministic ids.
 
 use async_trait::async_trait;
-use sha3::{Digest, Sha3_256};
 use vox_research_events::ResearchEvent;
 
 use super::heuristics::date_slug;
@@ -65,13 +64,15 @@ fn scan(crates_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<Res
         if file_count < MIN_TEST_FILES || total_bytes < MIN_TEST_BYTES {
             continue;
         }
-        let mut h = Sha3_256::new();
-        h.update(PRODUCER_NAME.as_bytes());
-        h.update(b"::");
-        h.update(crate_dir.to_string_lossy().as_bytes());
-        h.update(file_count.to_le_bytes());
-        let digest = h.finalize();
-        let sha8: String = digest.iter().take(4).map(|b| format!("{b:02x}")).collect();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(PRODUCER_NAME.as_bytes());
+        payload.extend_from_slice(b"::");
+        payload.extend_from_slice(crate_dir.to_string_lossy().as_bytes());
+        payload.extend_from_slice(&file_count.to_le_bytes());
+        let sha8: String = crate::compliance_hash_hex(&payload)
+            .chars()
+            .take(8)
+            .collect();
         let finding_id = format!("repinf-{slug}-tests-{sha8}");
         let score = ((file_count as f64) / 30.0).min(1.0);
         out.push(ResearchEvent::FindingCandidateProposed {

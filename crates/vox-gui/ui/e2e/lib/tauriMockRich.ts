@@ -19,6 +19,7 @@ import type { Page } from '@playwright/test';
 import { encode } from '@msgpack/msgpack';
 import { mockInitScript } from './tauriMockShared';
 import { installTauriMock } from './tauriMock';
+import { buildTerminalRichFixtures, installTerminalRichMock } from './terminalRichFixtures';
 
 /** Self-contained (no captured module scope) — stringified into the page. */
 export function buildRichDataset() {
@@ -121,7 +122,7 @@ export function buildRichOrchestratorStatus() {
     cost: i * 0.42,
     budget: i % 2 ? 5 : null,
     eta: `${5 + i}m`,
-    active_skill: i % 2 ? 'superpowers:test-driven-development' : undefined,
+    active_skill: i % 2 ? 'gsd-execute-phase' : undefined,
   }));
   const recent_events = Array.from({ length: 24 }, (_, i) => ({
     id: i + 1,
@@ -312,6 +313,8 @@ export function richMockInitScript(viewKey: string): string {
     `window.__VOX_RICH_BUILD__ = ${buildRichDataset.toString()};`,
     `window.__VOX_RICH_STATUS_BIN__ = new Uint8Array([${statusBytes}]);`,
     `(${installTauriMockRich.toString()})(${JSON.stringify(viewKey)});`,
+    `window.__VOX_TERM_RICH_BUILD__ = ${buildTerminalRichFixtures.toString()};`,
+    `(${installTerminalRichMock.toString()})();`,
   ].join('\n');
 }
 

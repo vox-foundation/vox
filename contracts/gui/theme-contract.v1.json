@@ -31,7 +31,8 @@
     "--font-sans",
     "--font-serif",
     "--font-display",
-    "--font-mono"
+    "--font-mono",
+    "--font-terminal-mono"
   ],
   "themes": {
     "arcane": {
@@ -62,7 +63,8 @@
         "--font-sans": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         "--font-serif": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         "--font-display": "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
-        "--font-mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif"
+        "--font-mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+        "--font-terminal-mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace"
       }
     },
     "slate": {
@@ -94,7 +96,8 @@
         "--font-sans": "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         "--font-serif": "'Palatino', 'Palatino Linotype', Georgia, serif",
         "--font-display": "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        "--font-mono": "ui-monospace, 'SFMono-Regular', 'JetBrains Mono', monospace"
+        "--font-mono": "ui-monospace, 'SFMono-Regular', 'JetBrains Mono', monospace",
+        "--font-terminal-mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace"
       }
     },
     "high-contrast": {
@@ -125,7 +128,8 @@
         "--font-sans": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         "--font-serif": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         "--font-display": "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
-        "--font-mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif"
+        "--font-mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+        "--font-terminal-mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace"
       }
     },
     "glacier": {
@@ -157,7 +161,8 @@
         "--font-sans": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         "--font-serif": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
         "--font-display": "'Cinzel', 'Palatino', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
-        "--font-mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif"
+        "--font-mono": "'Palatino', 'Palatino Linotype', 'Book Antiqua', 'EB Garamond', Georgia, serif",
+        "--font-terminal-mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace"
       }
     }
   },

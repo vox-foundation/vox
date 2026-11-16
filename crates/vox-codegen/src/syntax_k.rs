@@ -214,6 +214,157 @@ pub struct RepresentabilityPayload {
     pub emit_preview_ok: Option<bool>,
 }
 
+/// Count Tier 1 (`std.{array,frame,plot,tensor}`) and Tier 2 (`import py <alias> from ...`)
+/// Python calls present in lowered HIR bodies.
+#[must_use]
+pub fn count_python_tier_calls(hir: &vox_compiler::hir::HirModule) -> (usize, usize) {
+    use std::collections::HashSet;
+    let py_aliases: HashSet<&str> = hir.py_imports.iter().map(|i| i.alias.as_str()).collect();
+    let tier1_imported: HashSet<&str> = hir
+        .imports
+        .iter()
+        .filter(|i| {
+            i.module_path == ["std"]
+                && matches!(i.item.as_str(), "array" | "frame" | "plot" | "tensor")
+        })
+        .map(|i| i.item.as_str())
+        .collect();
+
+    let mut tier1 = 0usize;
+    let mut tier2 = 0usize;
+    for f in hir.functions.iter().chain(hir.tests.iter()) {
+        count_python_stmts(
+            &f.body,
+            &py_aliases,
+            &tier1_imported,
+            &mut tier1,
+            &mut tier2,
+        );
+    }
+    (tier1, tier2)
+}
+
+fn count_python_stmts(
+    stmts: &[vox_compiler::hir::HirStmt],
+    py_aliases: &std::collections::HashSet<&str>,
+    tier1_imported: &std::collections::HashSet<&str>,
+    tier1: &mut usize,
+    tier2: &mut usize,
+) {
+    for stmt in stmts {
+        use vox_compiler::hir::HirStmt;
+        match stmt {
+            HirStmt::Let { value, .. }
+            | HirStmt::Assign { value, .. }
+            | HirStmt::Expr { expr: value, .. } => {
+                count_python_expr(value, py_aliases, tier1_imported, tier1, tier2);
+            }
+            HirStmt::Return { value: Some(v), .. } => {
+                count_python_expr(v, py_aliases, tier1_imported, tier1, tier2);
+            }
+            HirStmt::While {
+                condition, body, ..
+            } => {
+                count_python_expr(condition, py_aliases, tier1_imported, tier1, tier2);
+                count_python_stmts(body, py_aliases, tier1_imported, tier1, tier2);
+            }
+            HirStmt::Loop { body, .. } => {
+                count_python_stmts(body, py_aliases, tier1_imported, tier1, tier2);
+            }
+            HirStmt::Return { value: None, .. }
+            | HirStmt::Break { .. }
+            | HirStmt::Continue { .. } => {}
+        }
+    }
+}
+
+fn count_python_expr(
+    expr: &vox_compiler::hir::HirExpr,
+    py_aliases: &std::collections::HashSet<&str>,
+    tier1_imported: &std::collections::HashSet<&str>,
+    tier1: &mut usize,
+    tier2: &mut usize,
+) {
+    use vox_compiler::hir::HirExpr;
+    match expr {
+        HirExpr::MethodCall(obj, _method, args, _, _) => {
+            match obj.as_ref() {
+                HirExpr::Ident(name, _) if py_aliases.contains(name.as_str()) => {
+                    *tier2 += 1;
+                }
+                HirExpr::Ident(name, _) if tier1_imported.contains(name.as_str()) => {
+                    *tier1 += 1;
+                }
+                HirExpr::FieldAccess(inner, ns, _)
+                    if matches!(inner.as_ref(), HirExpr::Ident(s, _) if s == "std")
+                        && matches!(ns.as_str(), "array" | "frame" | "plot" | "tensor") =>
+                {
+                    *tier1 += 1;
+                }
+                _ => {}
+            }
+            count_python_expr(obj, py_aliases, tier1_imported, tier1, tier2);
+            for a in args {
+                count_python_expr(&a.value, py_aliases, tier1_imported, tier1, tier2);
+            }
+        }
+        HirExpr::Call(callee, args, _, _) => {
+            count_python_expr(callee, py_aliases, tier1_imported, tier1, tier2);
+            for a in args {
+                count_python_expr(&a.value, py_aliases, tier1_imported, tier1, tier2);
+            }
+        }
+        HirExpr::Block(stmts, _) => {
+            count_python_stmts(stmts, py_aliases, tier1_imported, tier1, tier2);
+        }
+        HirExpr::If(c, then_s, else_s, _) => {
+            count_python_expr(c, py_aliases, tier1_imported, tier1, tier2);
+            count_python_stmts(then_s, py_aliases, tier1_imported, tier1, tier2);
+            if let Some(es) = else_s {
+                count_python_stmts(es, py_aliases, tier1_imported, tier1, tier2);
+            }
+        }
+        HirExpr::Binary(_, l, r, _) | HirExpr::With(l, r, _) | HirExpr::Index(l, r, _) => {
+            count_python_expr(l, py_aliases, tier1_imported, tier1, tier2);
+            count_python_expr(r, py_aliases, tier1_imported, tier1, tier2);
+        }
+        HirExpr::Unary(_, e, _) | HirExpr::FieldAccess(e, _, _) => {
+            count_python_expr(e, py_aliases, tier1_imported, tier1, tier2);
+        }
+        HirExpr::Try(t) => count_python_expr(&t.target, py_aliases, tier1_imported, tier1, tier2),
+        HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
+            for i in items {
+                count_python_expr(i, py_aliases, tier1_imported, tier1, tier2);
+            }
+        }
+        HirExpr::ObjectLit(pairs, _) => {
+            for (_, v) in pairs {
+                count_python_expr(v, py_aliases, tier1_imported, tier1, tier2);
+            }
+        }
+        HirExpr::Match(subj, arms, _) => {
+            count_python_expr(subj, py_aliases, tier1_imported, tier1, tier2);
+            for a in arms {
+                if let Some(g) = &a.guard {
+                    count_python_expr(g, py_aliases, tier1_imported, tier1, tier2);
+                }
+                count_python_expr(&a.body, py_aliases, tier1_imported, tier1, tier2);
+            }
+        }
+        HirExpr::For(_, _, iter, body, key, _) => {
+            count_python_expr(iter, py_aliases, tier1_imported, tier1, tier2);
+            count_python_expr(body, py_aliases, tier1_imported, tier1, tier2);
+            if let Some(k) = key {
+                count_python_expr(k, py_aliases, tier1_imported, tier1, tier2);
+            }
+        }
+        HirExpr::Lambda(_, _, body, _, _) => {
+            count_python_expr(body, py_aliases, tier1_imported, tier1, tier2);
+        }
+        _ => {}
+    }
+}
+
 /// Attach `representability`, optional `llm_surface`, and optional `runtime_projection` to Syntax-K `support_metrics`.
 #[must_use]
 pub fn enrich_syntax_k_support_metrics(
@@ -436,5 +587,23 @@ mod semcov_wave14_tests {
             Some("parse"),
             "parse must win as first_failing_stage, got {v}"
         );
+    }
+
+    #[test]
+    fn count_python_tier_calls_tracks_tier1_and_tier2() {
+        let src = r#"
+import std.array
+import py sig from "scipy.signal"
+
+@uses(python)
+fn run_both(xs: list[float]) {
+    let a = array.from_list(xs)
+    let b = std.array.zeros([2])
+    let p = sig.periodogram(xs)
+}
+"#;
+        let module = vox_compiler::parser::parse(vox_compiler::lexer::lex(src)).expect("parse");
+        let hir = vox_compiler::hir::lower_module(&module);
+        assert_eq!(count_python_tier_calls(&hir), (2, 1));
     }
 }

@@ -3,17 +3,21 @@
 //!
 //! `act_bytes_per_lht` is bytes of activation memory per (layer × hidden-unit
 //! × token) — the linear-in-tokens term. The weights term (`artifact_bytes`)
-//! is read straight off disk, never fitted (see [`MemoryModel::predict_bytes`]).
+//! is read straight off disk (or projected for NF4 QLoRA via
+//! [`ModelShape::from_model_dir_for_qlora`]), never fitted (see
+//! [`MemoryModel::predict_bytes`]).
 //!
-//! ## Why `candle-metal` has no calibrated row today
+//! ## How `candle-metal` is calibrated
 //!
-//! As of 2026-09-11 exactly one real `candle-metal` measurement exists (see
-//! [`super::calibration`]) and it is a single point — `fit_a_lane` correctly
-//! refuses to fit a slope from one point. `MemoryModels::get` therefore
-//! returns an error for `candle-metal` naming the lane and the fix
-//! (`vox mens probe --measure`), the same fail-closed shape used for any
-//! other uncalibrated cell. Nothing here borrows the old MLX-based estimate
-//! for Metal — that borrowing is exactly what this SSOT exists to prevent.
+//! `(CandleMetal, true)` (per-layer gradient checkpointing, enabled on every
+//! Metal QLoRA run) is calibrated from real two-point `Fits` runs of
+//! `Qwen/Qwen3.5-2B` (`tokens_per_step` 512 and 2048) on Apple M5 Max in
+//! `docs/src/architecture/measurements/2026-11-13-candle-metal-qwen35-calibration.json`.
+//! `(CandleMetal, false)` has no calibrated row in
+//! `contracts/mens/memory-model.v1.yaml` and continues to fail closed in
+//! `MemoryModels::get`, pointing at `vox mens probe --measure`. Nothing here
+//! borrows the old MLX-based estimate for Metal — that borrowing is exactly
+//! what this SSOT exists to prevent.
 //!
 //! ## Why `candle-cuda` has a seeded row
 //!
@@ -130,6 +134,10 @@ pub struct ModelShape {
 struct RawTextConfig {
     num_hidden_layers: Option<u32>,
     hidden_size: Option<u32>,
+    #[serde(default)]
+    vocab_size: Option<u64>,
+    #[serde(default)]
+    tie_word_embeddings: Option<bool>,
 }
 
 #[derive(serde::Deserialize)]
@@ -138,6 +146,10 @@ struct RawConfig {
     num_hidden_layers: Option<u32>,
     #[serde(default)]
     hidden_size: Option<u32>,
+    #[serde(default)]
+    vocab_size: Option<u64>,
+    #[serde(default)]
+    tie_word_embeddings: Option<bool>,
     #[serde(default)]
     text_config: Option<RawTextConfig>,
 }
@@ -177,6 +189,37 @@ impl ModelShape {
             layers,
             hidden,
         })
+    }
+
+    /// Project GPU-resident QLoRA base weights from the on-disk `.safetensors`
+    /// artifact size (`ModelShape::from_model_dir`), matching the Metal/CUDA
+    /// QLoRA trainer's `cache_dequantized` policy (`approx_linear_params <= 10B`).
+    /// Compact models (`<=10B`) cache dequantized BF16 weights on GPU; larger
+    /// models (`>10B`, e.g. 27B/32B) keep NF4 quantized linears (`9/32` of BF16,
+    /// i.e. `0.5 B/param` + FP32 absmax scale per 64 weights) plus BF16 embeddings
+    /// and (when untied) `lm_head`.
+    pub fn from_model_dir_for_qlora(dir: &Path) -> Result<Self> {
+        let raw_shape = Self::from_model_dir(dir)?;
+        let config_path = dir.join("config.json");
+        let raw = std::fs::read_to_string(&config_path)
+            .with_context(|| format!("reading {}", config_path.display()))?;
+        let cfg: RawConfig = serde_json::from_str(&raw)
+            .with_context(|| format!("parsing {}", config_path.display()))?;
+
+        let explicit_no_cache = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_some()
+            || std::env::var("VOX_MENS_WEIGHT_CACHE")
+                .is_ok_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
+        let explicit_cache = std::env::var("VOX_MENS_WEIGHT_CACHE")
+            .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+        let cache_override = if explicit_no_cache {
+            Some(false)
+        } else if explicit_cache {
+            Some(true)
+        } else {
+            None
+        };
+
+        Ok(project_qlora_shape(raw_shape, &cfg, cache_override))
     }
 
     /// Build shape facts from HF Hub API metadata (`expand=["config","safetensors"]`)
@@ -227,6 +270,47 @@ fn layers_and_hidden(cfg: RawConfig) -> Result<(u32, u32)> {
                 _ => bail!("text_config is missing num_hidden_layers/hidden_size"),
             }
         }
+    }
+}
+
+/// Pure QLoRA resident-weight projection matching the Metal/CUDA trainer's
+/// `cache_dequantized` threshold (`approx_linear_params <= 10B`).
+fn project_qlora_shape(
+    raw_shape: ModelShape,
+    cfg: &RawConfig,
+    cache_override: Option<bool>,
+) -> ModelShape {
+    let approx_linear_params = (raw_shape.layers as u64)
+        .saturating_mul(12)
+        .saturating_mul(raw_shape.hidden as u64)
+        .saturating_mul(raw_shape.hidden as u64);
+    let cache_dequantized =
+        cache_override.unwrap_or_else(|| approx_linear_params <= 10_000_000_000);
+    if cache_dequantized {
+        return raw_shape;
+    }
+
+    let vocab_size = cfg
+        .vocab_size
+        .or_else(|| cfg.text_config.as_ref().and_then(|t| t.vocab_size));
+    let tie = cfg
+        .tie_word_embeddings
+        .or_else(|| cfg.text_config.as_ref().and_then(|t| t.tie_word_embeddings))
+        .unwrap_or(false);
+    let embed_copies = if tie { 1u64 } else { 2u64 };
+    let bf16_embed_bytes = vocab_size
+        .unwrap_or(0)
+        .saturating_mul(raw_shape.hidden as u64)
+        .saturating_mul(2)
+        .saturating_mul(embed_copies)
+        .min(raw_shape.artifact_bytes);
+    let linear_bf16_bytes = raw_shape.artifact_bytes - bf16_embed_bytes;
+    let nf4_linear_bytes = linear_bf16_bytes.saturating_mul(9).div_ceil(32);
+
+    ModelShape {
+        artifact_bytes: bf16_embed_bytes + nf4_linear_bytes,
+        layers: raw_shape.layers,
+        hidden: raw_shape.hidden,
     }
 }
 
@@ -421,14 +505,17 @@ lanes:
 
     #[test]
     fn metal_gradient_checkpointing_is_a_real_uncalibrated_cell() {
-        // 320 S2: the Metal QLoRA loop checkpoints per layer (and always does),
-        // so the cell exists; it has no measured row yet, which `get` says.
-        let key = CalKey::new(Lane::CandleMetal, true).unwrap();
-        let err = MemoryModels::load_default()
-            .unwrap()
-            .get(&key)
-            .unwrap_err()
-            .to_string();
+        // 320 S2 / Nov 2026 calibration: `(CandleMetal, true)` is calibrated in
+        // `contracts/mens/memory-model.v1.yaml` via Qwen3.5-2B PeakSampler runs,
+        // while `(CandleMetal, false)` remains uncalibrated and fails closed.
+        let calibrated = CalKey::new(Lane::CandleMetal, true).unwrap();
+        let models = MemoryModels::load_default().unwrap();
+        let row = models.get(&calibrated).unwrap();
+        assert_eq!(row.source, CalSource::Measured);
+        assert!((row.act_bytes_per_lht - 162.48240311940512).abs() < 1e-9);
+
+        let uncalibrated = CalKey::new(Lane::CandleMetal, false).unwrap();
+        let err = models.get(&uncalibrated).unwrap_err().to_string();
         assert!(err.contains("no memory-model calibration"), "{err}");
         assert!(!err.contains("does not implement"), "{err}");
         assert!(CalKey::new(Lane::CandleCuda, true).is_ok());
@@ -895,10 +982,48 @@ mod load_default_check {
     #[test]
     fn load_default_parses_the_shipped_contract() {
         let models = MemoryModels::load_default().unwrap();
-        let m = models
+        let cuda = models
             .get(&CalKey::new(Lane::CandleCuda, true).unwrap())
             .unwrap();
-        assert_eq!(m.source, CalSource::Seeded);
+        assert_eq!(cuda.source, CalSource::Seeded);
+
+        let metal = models
+            .get(&CalKey::new(Lane::CandleMetal, true).unwrap())
+            .unwrap();
+        assert_eq!(metal.source, CalSource::Measured);
+        assert!((metal.act_bytes_per_lht - 162.48240311940512).abs() < 1e-9);
+    }
+
+    #[test]
+    fn from_model_dir_for_qlora_keeps_bf16_under_10b_and_projects_nf4_above_10b() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("config.json"),
+            r#"{"text_config":{"num_hidden_layers":24,"hidden_size":2048,"vocab_size":248320,"tie_word_embeddings":true}}"#,
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("model.safetensors"), vec![0u8; 2_000_000]).unwrap();
+        let s2b = ModelShape::from_model_dir_for_qlora(dir.path()).unwrap();
+        assert_eq!(
+            s2b.artifact_bytes, 2_000_000,
+            "<=10B approx linear params keep full BF16 weights when cache_dequantized defaults true"
+        );
+
+        let cfg27: RawConfig = serde_json::from_str(
+            r#"{"text_config":{"num_hidden_layers":64,"hidden_size":5120,"vocab_size":248320,"tie_word_embeddings":false}}"#,
+        )
+        .unwrap();
+        let raw27 = ModelShape {
+            artifact_bytes: 55_563_006_776,
+            layers: 64,
+            hidden: 5120,
+        };
+        let proj27 = project_qlora_shape(raw27, &cfg27, None);
+        assert!(
+            proj27.artifact_bytes < 25_000_000_000 && proj27.artifact_bytes > 14_000_000_000,
+            "projected 27B QLoRA resident bytes should be ~19.28 GB, got {}",
+            proj27.artifact_bytes
+        );
     }
 }
 

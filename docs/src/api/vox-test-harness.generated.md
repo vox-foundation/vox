@@ -101,11 +101,11 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `barriers::TestBarrier` | `pub struct TestBarrier` | [`crates/vox-test-harness/src/barriers.rs#L7-L9`](../../../crates/vox-test-harness/src/barriers.rs#L7-L9) | A simple waitable barrier to replace `sleep` in tests. |
-| `fn` | `barriers::new` | `pub fn new() -> Self` | [`crates/vox-test-harness/src/barriers.rs#L12-L14`](../../../crates/vox-test-harness/src/barriers.rs#L12-L14) | — |
-| `fn` | `barriers::signal` | `pub fn signal(&self)` | [`crates/vox-test-harness/src/barriers.rs#L17-L19`](../../../crates/vox-test-harness/src/barriers.rs#L17-L19) | Signals that an event occurred. |
-| `fn` | `barriers::wait` | `pub async fn wait(&self) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L23-L25`](../../../crates/vox-test-harness/src/barriers.rs#L23-L25) | Waits for a signal, with a default 5-second timeout to prevent tests from hanging indefinitely in CI. |
-| `fn` | `barriers::wait_with_timeout` | `pub async fn wait_with_timeout(&self, dur: Duration) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L28-L30`](../../../crates/vox-test-harness/src/barriers.rs#L28-L30) | Waits for a signal with a specific timeout. |
+| `struct` | `barriers::TestBarrier` | `pub struct TestBarrier` | [`crates/vox-test-harness/src/barriers.rs#L9-L11`](../../../crates/vox-test-harness/src/barriers.rs#L9-L11) | A simple waitable barrier to replace `sleep` in tests. |
+| `fn` | `barriers::new` | `pub fn new() -> Self` | [`crates/vox-test-harness/src/barriers.rs#L14-L16`](../../../crates/vox-test-harness/src/barriers.rs#L14-L16) | — |
+| `fn` | `barriers::signal` | `pub fn signal(&self)` | [`crates/vox-test-harness/src/barriers.rs#L19-L21`](../../../crates/vox-test-harness/src/barriers.rs#L19-L21) | Signals that an event occurred. |
+| `fn` | `barriers::wait` | `pub async fn wait(&self) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L25-L27`](../../../crates/vox-test-harness/src/barriers.rs#L25-L27) | Waits for a signal, with a default 5-second timeout to prevent tests from hanging indefinitely in CI. |
+| `fn` | `barriers::wait_with_timeout` | `pub async fn wait_with_timeout(&self, dur: Duration) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L30-L32`](../../../crates/vox-test-harness/src/barriers.rs#L30-L32) | Waits for a signal with a specific timeout. |
 | `struct` | `diagnosis::TestDiagnosis` | `pub struct TestDiagnosis` | [`crates/vox-test-harness/src/diagnosis.rs#L11-L32`](../../../crates/vox-test-harness/src/diagnosis.rs#L11-L32) | Structured failure record emitted to stdout for CI and doctor tooling. |
 | `enum` | `diagnosis::TestCategory` | `pub enum TestCategory` | [`crates/vox-test-harness/src/diagnosis.rs#L37-L56`](../../../crates/vox-test-harness/src/diagnosis.rs#L37-L56) | Compiler / tooling stage associated with a failure. |
 | `fn` | `diagnosis::new` | `pub fn new(` | [`crates/vox-test-harness/src/diagnosis.rs#L60`](../../../crates/vox-test-harness/src/diagnosis.rs#L60) | Build a diagnosis with required fields; diff and related metadata start empty. |

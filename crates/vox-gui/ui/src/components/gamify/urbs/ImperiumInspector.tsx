@@ -1,5 +1,5 @@
 // crates/vox-gui/ui/src/components/gamify/urbs/ImperiumInspector.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { voxTransport } from '../../../transport';
 import {
@@ -8,7 +8,12 @@ import {
   vcsCheckpointRestore,
   worktreeSpawnVariant,
 } from '../../../transport/t3Wave3Rpc';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { parsePendingApprovals, type McpInvokeResult } from '../../../lib/mcpToolResult';
 import { useLudusStore } from '../store';
+import { Icon } from '../../ui/Icons';
+import { RomanCrestPlate } from '../../ui/RomanCrestPlate';
+import { RomanRotaryKnob } from '../../ui/RomanRotaryKnob';
 import type { CollisionZone } from './collisionRadar';
 import type { District, TownDependencyEdge, TownLayout } from './types';
 import { computeBlastRadius, deriveCivicTitle } from './topology';
@@ -65,11 +70,34 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
   const [routingMode, setRoutingMode] = useState<'balanced' | 'quality' | 'cost' | 'latency'>('balanced');
   const [lockedDistricts, setLockedDistricts] = useState<Record<string, boolean>>({});
   const [modelSlider, setModelSlider] = useState<number>(65);
+  const committedSliderRef = useRef<number>(65);
 
   const storeBuildings = useStore(useLudusStore, (s) => s.buildings);
   const storeAgentTasks = useStore(useLudusStore, (s) => s.agentTasks);
   const buildingsState = propBuildings ?? storeBuildings;
   const agentTasks = propAgentTasks ?? storeAgentTasks;
+
+  useEffect(() => {
+    let alive = true;
+    const t = voxTransport as typeof voxTransport & {
+      getGuiPreference?: (key: string) => Promise<string | null>;
+    };
+    if (typeof t.getGuiPreference === 'function') {
+      t.getGuiPreference('vox.routing.exploration_pct.v1')
+        .then((saved) => {
+          if (!alive || saved == null) return;
+          const parsed = Number(saved);
+          if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 100) {
+            committedSliderRef.current = parsed;
+            setModelSlider(parsed);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     setStatusMsg(null);
@@ -94,14 +122,47 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
         .catch(() => {});
     }
     if (selection.kind === 'landmark' && selection.id === 'PRAETORIVM') {
+      const seeded = (harness.attentionGates ?? []).map((g) => ({
+        id: String(g.id),
+        title: g.title,
+        source: g.source ?? 'orchestrator',
+      }));
+      setAttentionItems(seeded);
+
+      const mergeGates = (incoming: Array<{ id: string; title: string; source: string }>) => {
+        setAttentionItems((prev) => {
+          const map = new Map<string, { id: string; title: string; source: string }>();
+          for (const item of prev) map.set(item.id, item);
+          for (const item of incoming) map.set(item.id, item);
+          return Array.from(map.values()).slice(0, 5);
+        });
+      };
+
       const t = voxTransport as typeof voxTransport & {
+        invokeMcpTool?: (tool: string, args: unknown) => Promise<unknown>;
         listAttentionItems?: () => Promise<Array<{ id: string; title?: string; summary?: string; source?: string }>>;
       };
+      if (typeof t.invokeMcpTool === 'function') {
+        t.invokeMcpTool('vox_pending_approvals', {})
+          .then((res) => {
+            const rows = parsePendingApprovals(res as McpInvokeResult);
+            if (rows.length > 0) {
+              mergeGates(
+                rows.map((r) => ({
+                  id: String(r.approval_id),
+                  title: r.summary || `Approve ${r.tool}`,
+                  source: r.tool || 'mcp',
+                })),
+              );
+            }
+          })
+          .catch(() => {});
+      }
       if (typeof t.listAttentionItems === 'function') {
         t.listAttentionItems()
           .then((items) => {
-            if (Array.isArray(items)) {
-              setAttentionItems(
+            if (Array.isArray(items) && items.length > 0) {
+              mergeGates(
                 items.slice(0, 5).map((a) => ({
                   id: String(a.id),
                   title: a.title ?? a.summary ?? `Gate ${a.id}`,
@@ -113,7 +174,7 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
           .catch(() => {});
       }
     }
-  }, [selection]);
+  }, [selection, harness.attentionGates]);
 
   const dispatchAgentToTarget = async (targetFile: string, label: string) => {
     const desc = taskPrompt.trim() || `Inspect and improve ${label}`;
@@ -131,7 +192,7 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
         .callTool('vox_submit_task', { description: desc, file_affinity: [targetFile] })
         .catch(() => {});
       setTaskPrompt('');
-      setStatusMsg(`Dispatched ${agentId} → ${label}`);
+      setStatusMsg(`Dispatched ${agentId} to ${label}`);
       onRefreshHarness();
     } finally {
       setBusy(false);
@@ -160,7 +221,7 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
             ? { efficiency: 0.5, precision: 0.5, latency: 0.95, availability: 0.85, balance: 0.4, mobile: 0.4 }
             : { efficiency: 0.6, precision: 0.65, latency: 0.6, availability: 0.8, balance: 0.85, mobile: 0.25 };
     await voxTransport.setRoutingPriority(weights).catch(() => {});
-    setStatusMsg(`PRAETORIVM routing posture → ${mode.toUpperCase()}`);
+    setStatusMsg(`PRAETORIVM routing posture: ${mode.toUpperCase()}`);
   };
 
   const renderDistrictPanel = (d: District) => {
@@ -196,7 +257,11 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
             </div>
             <div className="font-mono text-[10px] text-zinc-400">
               L{d.layer ?? 1} Terrace · {d.buildings.length} plots · {warnCount} warn · {errCount} err
-              {isLocked && <span className="ml-1.5 text-amber-300">· 🔒 LOCKED</span>}
+              {isLocked && (
+                <span className="ml-1.5 inline-flex items-center gap-0.5 text-amber-300">
+                  · <Icon.lockKeyhole className="size-3 shrink-0" aria-hidden="true" /> LOCKED
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -252,9 +317,10 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                         onSelect({ kind: 'district', name: dep });
                       }
                     }}
-                    className="rounded border border-(--color-status-pass)/50 bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-pass) hover:bg-bg-elevated"
+                    className="inline-flex items-center gap-1 rounded border border-(--color-status-pass)/50 bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-pass) hover:bg-bg-elevated"
                   >
-                    ⬆ {dep}
+                    <Icon.arrowUp className="size-3 shrink-0" aria-hidden="true" />
+                    <span>{dep}</span>
                   </button>
                 );
               })}
@@ -270,9 +336,10 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                         onSelect({ kind: 'district', name: dep });
                       }
                     }}
-                    className="rounded border border-(--color-status-warn)/60 bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-warn) hover:bg-bg-elevated"
+                    className="inline-flex items-center gap-1 rounded border border-(--color-status-warn)/60 bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-warn) hover:bg-bg-elevated"
                   >
-                    ⚡ {dep}
+                    <Icon.bolt className="size-3 shrink-0" aria-hidden="true" />
+                    <span>{dep}</span>
                   </button>
                 );
               })}
@@ -304,17 +371,19 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
               type="button"
               disabled={busy}
               onClick={() => runCrateCommand('check', d.name)}
-              className="rounded border border-zinc-700 bg-zinc-900/80 px-1.5 py-1 font-mono text-[9px] text-zinc-200 hover:border-amber-500/40 hover:text-amber-200"
+              className="inline-flex items-center justify-center gap-1 rounded border border-zinc-700 bg-zinc-900/80 px-1.5 py-1 font-mono text-[9px] text-zinc-200 hover:border-amber-500/40 hover:text-amber-200"
             >
-              ⚙ Check
+              <Icon.settings className="size-3 shrink-0" aria-hidden="true" />
+              <span>Check</span>
             </button>
             <button
               type="button"
               disabled={busy}
               onClick={() => runCrateCommand('test', d.name)}
-              className="rounded border border-emerald-500/50 bg-emerald-500/20 px-1.5 py-1 font-mono text-[9px] font-semibold text-emerald-200 hover:bg-emerald-500/30"
+              className="inline-flex items-center justify-center gap-1 rounded border border-emerald-500/50 bg-emerald-500/20 px-1.5 py-1 font-mono text-[9px] font-semibold text-emerald-200 hover:bg-emerald-500/30"
             >
-              ✓ Test
+              <Icon.check className="size-3 shrink-0" aria-hidden="true" />
+              <span>Test</span>
             </button>
             <button
               type="button"
@@ -328,13 +397,14 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                   `${d.name} ${next ? 'quarantined (Clausura Ferrea read-only guardrail)' : 'unlocked'}`,
                 );
               }}
-              className={`rounded border px-1.5 py-1 font-mono text-[9px] ${
+              className={`inline-flex items-center justify-center gap-1 rounded border px-1.5 py-1 font-mono text-[9px] ${
                 isLocked
                   ? 'border-amber-400 bg-amber-500/30 text-amber-100'
                   : 'border-zinc-700 bg-zinc-900/80 text-zinc-300 hover:text-amber-200'
               }`}
             >
-              🔒 Lock
+              <Icon.lockKeyhole className="size-3 shrink-0" aria-hidden="true" />
+              <span>Lock</span>
             </button>
           </div>
           {districtCollisions.length > 0 && (
@@ -342,9 +412,12 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
               data-testid="urbs-inspector-collision-card"
               className="rounded border border-rose-500/60 bg-rose-950/50 p-1.5 font-mono text-[9px] text-rose-200"
             >
-              <div className="font-bold text-rose-300">
-                ⚔ WRITE-SET COLLISION: {districtCollisions[0].agentALabel} ×{' '}
-                {districtCollisions[0].agentBLabel}
+              <div className="flex items-center gap-1 font-bold text-rose-300">
+                <Icon.gladiusShield className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  WRITE-SET COLLISION: {districtCollisions[0].agentALabel} x{' '}
+                  {districtCollisions[0].agentBLabel}
+                </span>
               </div>
               <div className="mt-1 flex gap-1">
                 <button
@@ -356,9 +429,10 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                       `Serialized ${districtCollisions[0].agentBLabel} behind ${districtCollisions[0].agentALabel}`,
                     );
                   }}
-                  className="flex-1 rounded border border-amber-400/60 bg-amber-500/20 px-1.5 py-0.5 text-[8.5px] font-semibold text-amber-200 hover:bg-amber-500/30"
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded border border-amber-400/60 bg-amber-500/20 px-1.5 py-0.5 text-[8.5px] font-semibold text-amber-200 hover:bg-amber-500/30"
                 >
-                  ⇄ Serialize Agents
+                  <Icon.arrowLeftRight className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Serialize Agents</span>
                 </button>
                 <button
                   type="button"
@@ -373,9 +447,10 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                       `Isolated ${districtCollisions[0].agentBLabel} onto dedicated Git worktree`,
                     );
                   }}
-                  className="flex-1 rounded border border-emerald-400/60 bg-emerald-500/20 px-1.5 py-0.5 text-[8.5px] font-semibold text-emerald-200 hover:bg-emerald-500/30"
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded border border-emerald-400/60 bg-emerald-500/20 px-1.5 py-0.5 text-[8.5px] font-semibold text-emerald-200 hover:bg-emerald-500/30"
                 >
-                  🌿 Split Worktree
+                  <Icon.laurelWreath className="size-3 shrink-0" aria-hidden="true" />
+                  <span>Split Worktree</span>
                 </button>
               </div>
             </div>
@@ -416,26 +491,51 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
           </div>
         </div>
 
-        {/* Concept Art B Model Routing Slider: MENS Local ↔ Frontier Cloud */}
-        <div className="rounded-lg border border-white/10 bg-black/35 px-2.5 py-1.5">
-          <div className="mb-1 flex items-center justify-between font-mono text-[9px] text-zinc-300">
+        {/* Concept Art B Model Routing Knob: MENS Local <-> Frontier Cloud */}
+        <div className="rounded-lg border border-white/10 bg-black/35 px-2.5 py-2">
+          <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] text-zinc-300">
             <span>Model: MENS Local</span>
-            <span className="text-amber-300">{modelSlider < 40 ? 'MENS Local' : modelSlider > 70 ? 'Frontier Cloud' : 'Hybrid Auto'}</span>
+            <span className="inline-flex items-center gap-1 text-amber-300">
+              <Icon.arrowLeftRight className="size-3 shrink-0" aria-hidden="true" />
+              <span>{modelSlider < 40 ? 'MENS Local' : modelSlider > 70 ? 'Frontier Cloud' : 'Hybrid Auto'}</span>
+            </span>
             <span>Frontier Cloud</span>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={modelSlider}
-            aria-label="District Model Routing Tier"
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setModelSlider(v);
-              void applyRoutingPosture(v > 70 ? 'quality' : v < 35 ? 'cost' : 'balanced');
-            }}
-            className="h-1.5 w-full cursor-pointer accent-amber-400"
-          />
+          <div className="flex justify-center">
+            <RomanRotaryKnob
+              ariaLabel="District Model Routing Tier"
+              label="Exploration"
+              min={0}
+              max={100}
+              step={5}
+              size="sm"
+              value={modelSlider}
+              formatValue={(v) => `${v}%`}
+              onValueChange={(v) => setModelSlider(v)}
+              onValueCommit={(val) => {
+                const prev = committedSliderRef.current;
+                setModelSlider(val);
+                void applyRoutingPosture(val > 70 ? 'quality' : val < 35 ? 'cost' : 'balanced');
+                const t = voxTransport as typeof voxTransport & {
+                  setGuiPreference?: (key: string, value: string) => Promise<void>;
+                };
+                if (typeof t.setGuiPreference === 'function') {
+                  void t
+                    .setGuiPreference('vox.routing.exploration_pct.v1', String(val))
+                    .then(() => {
+                      committedSliderRef.current = val;
+                      setStatusMsg(`Exploration routing persisted: ${val}%`);
+                    })
+                    .catch((err: unknown) => {
+                      setModelSlider(prev);
+                      setStatusMsg(`Routing update failed: ${sanitizeErrorForToast(err)}`);
+                    });
+                } else {
+                  committedSliderRef.current = val;
+                }
+              }}
+            />
+          </div>
         </div>
 
         <div>
@@ -464,8 +564,20 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                   <span className="truncate">
                     {shortName} <span className="text-emerald-400/90">{diffDelta}</span>
                   </span>
-                  <span className="ml-2 shrink-0 text-[9px] text-amber-300/90">
-                    {isWorking ? '⚒ active' : b.isTouched ? '✎ dirty' : `T${b.tier}`}
+                  <span className="ml-2 inline-flex shrink-0 items-center gap-1 text-[9px] text-amber-300/90">
+                    {isWorking ? (
+                      <>
+                        <Icon.anvilForge className="size-3 shrink-0" aria-hidden="true" />
+                        <span>active</span>
+                      </>
+                    ) : b.isTouched ? (
+                      <>
+                        <Icon.penQuill className="size-3 shrink-0" aria-hidden="true" />
+                        <span>dirty</span>
+                      </>
+                    ) : (
+                      `T${b.tier}`
+                    )}
                   </span>
                 </button>
               );
@@ -493,9 +605,10 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
             <button
               type="button"
               onClick={() => onSelect({ kind: 'district', name: parentDistrict.name })}
-              className="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:text-amber-200"
+              className="inline-flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:text-amber-200"
             >
-              ← {parentDistrict.name}
+              <Icon.arrowLeft className="size-3 shrink-0" aria-hidden="true" />
+              <span>{parentDistrict.name}</span>
             </button>
           )}
         </div>
@@ -545,9 +658,10 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
               type="button"
               disabled={busy}
               onClick={() => dispatchAgentToTarget(path, path.split('/').pop() ?? path)}
-              className="shrink-0 rounded border border-amber-400/60 bg-amber-500/25 px-2 py-1 font-mono text-[10px] font-semibold text-amber-100 hover:bg-amber-500/35"
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-amber-400/60 bg-amber-500/25 px-2 py-1 font-mono text-[10px] font-semibold text-amber-100 hover:bg-amber-500/35"
             >
-              Send ↵
+              <span>Send</span>
+              <Icon.cornerDownLeft className="size-3 shrink-0" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -600,7 +714,10 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                 key={it.id}
                 className="flex items-center justify-between gap-1 rounded border border-zinc-800 bg-zinc-900/70 px-2 py-1 font-mono text-[9.5px]"
               >
-                <span className="truncate text-zinc-200">⛵ {it.description}</span>
+                <span className="inline-flex min-w-0 items-center gap-1.5 text-zinc-200">
+                  <Icon.triremeShip className="size-3.5 shrink-0 text-sky-300" aria-hidden="true" />
+                  <span className="truncate">{it.description}</span>
+                </span>
                 <div className="flex shrink-0 gap-1">
                   <button
                     type="button"
@@ -678,9 +795,26 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                   <span className="truncate text-zinc-200">{item.title}</span>
                   <button
                     type="button"
+                    data-testid={`urbs-praetorium-approve-${item.id}`}
                     onClick={() => {
+                      const prevItems = attentionItems;
                       setAttentionItems((prev) => prev.filter((x) => x.id !== item.id));
-                      setStatusMsg(`Approved gate ${item.id}`);
+                      void voxTransport
+                        .invokeMcpTool('vox_resolve_approval', {
+                          approval_id: item.id,
+                          outcome: 'approved',
+                        })
+                        .then((res) => {
+                          if (res && (res as { is_error?: boolean }).is_error) {
+                            throw new Error('Approval resolution rejected by backend');
+                          }
+                          setStatusMsg(`Approved gate ${item.id}`);
+                          onRefreshHarness();
+                        })
+                        .catch((err: unknown) => {
+                          setAttentionItems(prevItems);
+                          setStatusMsg(`Approval failed: ${sanitizeErrorForToast(err)}`);
+                        });
                     }}
                     className="shrink-0 rounded bg-amber-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-amber-200 hover:bg-amber-500/40"
                   >
@@ -760,8 +894,18 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                   className="flex items-center justify-between rounded border border-cyan-500/30 bg-zinc-900/70 px-2 py-1 font-mono text-[10px]"
                 >
                   <span className="text-zinc-200">{m.name}</span>
-                  <span className={m.ok ? 'text-cyan-300' : 'text-rose-400'}>
-                    {m.ok ? '● FLOWING' : '○ DRY'}
+                  <span className={`inline-flex items-center gap-1 ${m.ok ? 'text-cyan-300' : 'text-rose-400'}`}>
+                    {m.ok ? (
+                      <>
+                        <Icon.circleDot className="size-3 shrink-0" aria-hidden="true" />
+                        <span>FLOWING</span>
+                      </>
+                    ) : (
+                      <>
+                        <Icon.circle className="size-3 shrink-0" aria-hidden="true" />
+                        <span>DRY</span>
+                      </>
+                    )}
                   </span>
                 </div>
               ))}
@@ -802,25 +946,24 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
           onClick={() => {
             setBusy(true);
             setStatusMsg('Capturing Git milestone checkpoint…');
-            void (vcsCheckpointCapture as (...args: unknown[]) => Promise<{ checkpoint_id?: string; ref_name?: string }>)(
+            void vcsCheckpointCapture(
               'default',
-              'milestone',
-              {
-                note: `PORTA GIT milestone on ${headBranch}`,
-              },
+              checkpoints.length + 1,
+              `porta-${headBranch}`,
             )
               .then((ckpt) => {
-                setStatusMsg(`Milestone sealed: ${ckpt?.checkpoint_id ?? ckpt?.ref_name ?? 'head'}`);
+                setStatusMsg(`Milestone sealed: ${ckpt?.ref_name ?? 'head'}`);
                 onRefreshHarness();
               })
-              .catch(() => {
-                setStatusMsg('Milestone sealed in local VCS state');
+              .catch((err: unknown) => {
+                setStatusMsg(`Checkpoint capture failed: ${sanitizeErrorForToast(err)}`);
               })
               .finally(() => setBusy(false));
           }}
-          className="w-full rounded border border-amber-500/50 bg-amber-500/15 px-2 py-1 font-mono text-[10px] text-amber-200 hover:bg-amber-500/25 disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-amber-500/50 bg-amber-500/15 px-2 py-1 font-mono text-[10px] text-amber-200 hover:bg-amber-500/25 disabled:opacity-50"
         >
-          ⚱ Seal Stone Milestone Checkpoint
+          <Icon.amphoraUrn className="size-3.5 shrink-0" aria-hidden="true" />
+          <span>Seal Stone Milestone Checkpoint</span>
         </button>
         {checkpoints.length > 0 && (
           <div className="space-y-1">
@@ -848,21 +991,22 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
                     data-testid={`urbs-restore-checkpoint-${restoreTarget}`}
                     onClick={() => {
                       setStatusMsg(`Restoring milestone ${restoreTarget}…`);
-                      void (vcsCheckpointRestore as (...args: unknown[]) => Promise<unknown>)(
+                      void vcsCheckpointRestore(
                         'default',
-                        restoreTarget,
+                        Number(restoreTarget) || 1,
                       )
-                        .then(() => {
-                          setStatusMsg(`Restored to milestone ${restoreTarget}`);
+                        .then((res) => {
+                          setStatusMsg(`Restored to milestone ${res?.ref_name ?? restoreTarget}`);
                           onRefreshHarness();
                         })
-                        .catch(() => {
-                          setStatusMsg(`Restore requested for ${restoreTarget}`);
+                        .catch((err: unknown) => {
+                          setStatusMsg(`Checkpoint restore failed: ${sanitizeErrorForToast(err)}`);
                         });
                     }}
-                    className="ml-2 shrink-0 rounded border border-cyan-500/40 bg-cyan-500/15 px-1.5 py-0.5 text-[8.5px] text-cyan-200 hover:bg-cyan-500/30"
+                    className="ml-2 inline-flex shrink-0 items-center gap-1 rounded border border-cyan-500/40 bg-cyan-500/15 px-1.5 py-0.5 text-[8.5px] text-cyan-200 hover:bg-cyan-500/30"
                   >
-                    ↺ Restore
+                    <Icon.rotateCcw className="size-3 shrink-0" aria-hidden="true" />
+                    <span>Restore</span>
                   </button>
                 </div>
               );
@@ -890,17 +1034,20 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
       data-testid="urbs-imperium-inspector"
       className="vox-marble-tablet pointer-events-auto absolute bottom-[82px] left-2.5 z-20 max-h-[calc(100%-136px)] w-[304px] overflow-y-auto custom-scrollbar rounded-xl border-2 border-[#C59B27]/85 bg-[#FAF6EE]/96 p-2.5 text-[#1C140C] shadow-2xl backdrop-blur-md"
     >
-      <div className="mb-1.5 flex items-center justify-between border-b border-[#C59B27]/40 pb-1">
-        <span className="font-display text-[9.5px] font-bold uppercase tracking-widest text-[#8C6214]">
-          🏛 IMPERIVM PREFECTURE DOCK
-        </span>
+      <div className="mb-1.5 flex items-center justify-between gap-2 border-b border-[#C59B27]/40 pb-1.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <RomanCrestPlate variant="imperium" size="sm" />
+          <span className="truncate font-display text-[9.5px] font-bold uppercase tracking-widest text-[#8C6214]">
+            IMPERIVM PREFECTURE DOCK
+          </span>
+        </div>
         <button
           type="button"
           aria-label="Close Imperium Inspector"
           onClick={() => onSelect(null)}
-          className="rounded px-1.5 py-0.5 font-mono text-[10px] text-[#5C4428] hover:bg-[#EFE6D5] hover:text-[#1C140C]"
+          className="inline-flex items-center justify-center rounded p-1 text-[#5C4428] hover:bg-[#EFE6D5] hover:text-[#1C140C]"
         >
-          ✕
+          <Icon.close className="size-3.5 shrink-0" aria-hidden="true" />
         </button>
       </div>
 
@@ -916,18 +1063,26 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
             <div className="font-serif text-xs font-bold tracking-wider text-amber-200 uppercase">
               PONS FOEDERIS · Viaduct Contract Inspector
             </div>
-            <div className="font-mono text-[10px] text-cyan-300">
-              {selection.edge.from_district_id} (L{selection.edge.from_layer ?? 1}) →{' '}
-              {selection.edge.to_district_id} (L{selection.edge.to_layer ?? 1})
+            <div className="inline-flex flex-wrap items-center gap-1 font-mono text-[10px] text-cyan-300">
+              <span>
+                {selection.edge.from_district_id} (L{selection.edge.from_layer ?? 1})
+              </span>
+              <Icon.arrowRight className="size-3 shrink-0" aria-hidden="true" />
+              <span>
+                {selection.edge.to_district_id} (L{selection.edge.to_layer ?? 1})
+              </span>
             </div>
           </div>
           {selection.edge.layer_violation && (
             <div
               data-testid="urbs-viaduct-layer-violation-banner"
-              className="rounded border border-rose-500/70 bg-rose-950/60 px-2 py-1.5 font-mono text-[9.5px] text-rose-200"
+              className="flex items-start gap-1.5 rounded border border-rose-500/70 bg-rose-950/60 px-2 py-1.5 font-mono text-[9.5px] text-rose-200"
             >
-              ⚠ LAYER VIOLATION: Lower layer L{selection.edge.from_layer ?? 1} imports upward into L
-              {selection.edge.to_layer ?? 3} (`layers.toml` breach)
+              <Icon.alert className="mt-0.5 size-3.5 shrink-0 text-rose-300" aria-hidden="true" />
+              <span>
+                LAYER VIOLATION: Lower layer L{selection.edge.from_layer ?? 1} imports upward into L
+                {selection.edge.to_layer ?? 3} (`layers.toml` breach)
+              </span>
             </div>
           )}
           <div className="rounded border border-white/10 bg-black/40 p-2 font-mono text-[9.5px]">
@@ -954,12 +1109,13 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
             onClick={() =>
               dispatchAgentToTarget(
                 `${selection.edge.from_district_id}/Cargo.toml`,
-                `Repair contract edge ${selection.edge.from_district_id} → ${selection.edge.to_district_id}`,
+                `Repair contract edge ${selection.edge.from_district_id} to ${selection.edge.to_district_id}`,
               )
             }
-            className="w-full rounded border border-amber-400/60 bg-amber-500/25 px-2 py-1 font-mono text-[10px] font-semibold text-amber-100 hover:bg-amber-500/35"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-amber-400/60 bg-amber-500/25 px-2 py-1 font-mono text-[10px] font-semibold text-amber-100 hover:bg-amber-500/35"
           >
-            ⚒ Repair Contract Mismatch
+            <Icon.anvilForge className="size-3.5 shrink-0" aria-hidden="true" />
+            <span>Repair Contract Mismatch</span>
           </button>
         </div>
       )}
