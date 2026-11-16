@@ -333,7 +333,7 @@ fn lock_master(m: &Mutex<Box<dyn MasterPty + Send>>) -> MutexGuard<'_, Box<dyn M
 
 /// A live PTY child process with an input handle, retained `MasterPty`, and RAII `TempDir`.
 pub struct PtyHandle {
-    writer: Option<Box<dyn std::io::Write + Send>>,
+    writer: Option<Arc<Mutex<Box<dyn std::io::Write + Send>>>>,
     master: Option<Arc<Mutex<Box<dyn MasterPty + Send>>>>,
     child: Box<dyn Child + Send + Sync>,
     _shim_dir: Option<TempDir>,
@@ -346,10 +346,11 @@ impl PtyHandle {
         use std::io::Write;
         let writer = self
             .writer
-            .as_mut()
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("PTY writer is closed"))?;
-        writer.write_all(data)?;
-        writer.flush()?;
+        let mut guard = writer.lock().unwrap_or_else(|p| p.into_inner());
+        guard.write_all(data)?;
+        guard.flush()?;
         Ok(())
     }
 
@@ -475,17 +476,29 @@ where
     drop(pair.slave);
 
     let mut reader = pair.master.try_clone_reader()?;
-    let writer = pair.master.take_writer()?;
+    let writer = Arc::new(Mutex::new(pair.master.take_writer()?));
+    let writer_for_reader = Arc::downgrade(&writer);
     let master = Arc::new(Mutex::new(pair.master));
 
     std::thread::Builder::new()
         .name("vox-pty-reader".into())
         .spawn(move || {
+            use std::io::Write;
             let mut buf = [0u8; 4096];
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) | Err(_) => break,
-                    Ok(n) => on_chunk(&buf[..n]),
+                    Ok(n) => {
+                        let chunk = &buf[..n];
+                        if chunk.windows(4).any(|w| w == b"\x1b[6n")
+                            && let Some(w) = writer_for_reader.upgrade()
+                        {
+                            let mut guard = w.lock().unwrap_or_else(|p| p.into_inner());
+                            let _ = guard.write_all(b"\x1b[1;1R");
+                            let _ = guard.flush();
+                        }
+                        on_chunk(chunk);
+                    }
                 }
             }
             on_eof();

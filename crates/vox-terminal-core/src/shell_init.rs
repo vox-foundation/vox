@@ -212,7 +212,10 @@ fn build_pwsh_shim(cmd: &mut CommandBuilder) -> Result<TempDir> {
     let shim_dir = create_secure_shim_dir()?;
     let init_path = shim_dir.path().join("init.ps1");
     fs::write(&init_path, PWSH_SHIM_INIT).context("writing pwsh init.ps1 shim")?;
+    cmd.env("POWERSHELL_TELEMETRY_OPTOUT", "1");
+    cmd.env("POWERSHELL_UPDATECHECK", "Off");
     cmd.arg("-NoLogo");
+    cmd.arg("-NoProfile");
     cmd.arg("-NoExit");
     cmd.arg("-File");
     cmd.arg(&init_path);
@@ -660,7 +663,7 @@ if (-not $global:__VoxOsc633Loaded) {
     $pwdPath = $executionContext.SessionState.Path.CurrentLocation.Path
     $uriPath = [System.Uri]::EscapeUriString(($pwdPath -replace '\\', '/'))
     if ($uriPath -notmatch '^/') { $uriPath = "/$uriPath" }
-    $hostName = [System.Net.Dns]::GetHostName()
+    $hostName = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } else { 'localhost' }
     $out += "$esc]7;file://$hostName$uriPath$bel"
     $encPwd = $pwdPath -replace '\\','\x5c' -replace ';','\x3b' -replace "`r",'\x0d' -replace "`n",'\x0a' -replace ([string][char]7),'\x07' -replace ([string][char]27),'\x1b'
     $out += "$esc]633;P;Cwd=$encPwd$bel"
@@ -677,6 +680,9 @@ if (-not $global:__VoxOsc633Loaded) {
     $global:LASTEXITCODE = 0
     return $out
   }
+
+  [Console]::Out.Write((& $function:global:prompt))
+  [Console]::Out.Flush()
 
   Import-Module PSReadLine -ErrorAction SilentlyContinue
   if (Get-Module -Name PSReadLine) {
