@@ -99,6 +99,9 @@ function SessionRow({
         )}
         {showArchive && (
           <span
+            role="button"
+            tabIndex={0}
+            aria-label="Archive"
             onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
             className="opacity-0 group-hover:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
           >

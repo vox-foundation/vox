@@ -9,7 +9,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   // `open: 'never'` keeps the HTML artifact without blocking headless/CI runs on a report server.
   reporter: [['html', { open: 'never' }], ['line']],
   use: {

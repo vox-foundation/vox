@@ -350,7 +350,7 @@ To keep synonym precomputation automated while preventing drift:
 
 ## 9. GSD Milestone & Phase Mapping (`Phase 331` — `CLI-TOL-01..04`)
 
-Tracked in [`.planning/ROADMAP.md`](../../../.planning/ROADMAP.md) and [`.planning/REQUIREMENTS.md`](../../../.planning/REQUIREMENTS.md) under **Phase 331: Tolerant CLI Ergonomics & Precomputed Semantic Routing (`CLI-TOL-01..04`)** (phase directory: [`.planning/phases/331-tolerant-cli-ergonomics-precomputed-semantic-routing/`](../../../.planning/phases/331-tolerant-cli-ergonomics-precomputed-semantic-routing/)):
+Tracked in `.planning/ROADMAP.md` and `.planning/REQUIREMENTS.md` under **Phase 331: Tolerant CLI Ergonomics & Precomputed Semantic Routing (`CLI-TOL-01..04`)** (phase directory: `.planning/phases/331-tolerant-cli-ergonomics-precomputed-semantic-routing/`):
 
 - **Plan `331-01` (`CLI-TOL-01`) — Zero-Cost Structural Tolerance (`vox-cli` & `vox-cli-core`):**
   - Enable `#[command(infer_subcommands = true, infer_long_args = true)]` on `VoxCliRoot`.

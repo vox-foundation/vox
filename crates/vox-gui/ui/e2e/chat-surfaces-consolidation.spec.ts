@@ -105,7 +105,7 @@ test('the composer names modes in full, keeps Check replies under Risk, and repe
   await page.getByRole('radio', { name: 'Efficient', exact: true }).hover();
   await expect(page.getByTestId('drive-mode-hint')).toContainText('Most out of the tokens you spend');
   await expect(page.getByText(/session \$/)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Run (Enter)' })).toContainText('↵');
+  await expect(page.getByRole('button', { name: 'Run (Enter)' }).locator('[data-icon="keycap-enter"]')).toBeVisible();
   mkdirSync(OUT_DIR, { recursive: true });
   await page.screenshot({ path: join(OUT_DIR, 'composer-modes.png') });
 

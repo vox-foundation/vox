@@ -264,10 +264,19 @@ export function TerminalSessionPane({
   const submitShellLine = useCallback(async (shellLine: string) => {
     const sid = activeSidRef.current;
     if (!sid || typeof transport.termSessionSubmit !== 'function') return;
-    try { await transport.termSessionSubmit(sid, shellLine); } catch (err) {
+    const preSeq = stateRef.current.seq;
+    try {
+      await transport.termSessionSubmit(sid, shellLine);
+      if (stateRef.current.seq === preSeq && typeof transport.termSessionAttach === 'function') {
+        const snap = await transport.termSessionAttach(sid).catch(() => null);
+        if (snap && typeof snap === 'object' && Number((snap as { seq?: unknown }).seq ?? 0) > preSeq) {
+          applyAttachmentSnapshot(sid, snap, false);
+        }
+      }
+    } catch (err) {
       pushToast?.({ tone: 'warn', title: 'Command submit failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
-  }, [pushToast]);
+  }, [applyAttachmentSnapshot, pushToast]);
 
   const submitLine = useCallback(async (line: string) => {
     preemptAutopilot();

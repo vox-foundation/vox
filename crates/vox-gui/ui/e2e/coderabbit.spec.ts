@@ -18,8 +18,8 @@ test.describe('CodeRabbit review panel', () => {
     await page.waitForSelector('nav', { timeout: 15_000 });
 
     // Panel mounts; token presence resolved from the (mocked) secrets-backed command.
-    await expect(page.getByRole('heading', { name: 'CodeRabbit review' })).toBeVisible();
-    await expect(page.getByText(/token: present/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'CodeRabbit Code Review Sweep' })).toBeVisible();
+    await expect(page.getByText(/token:\s*present/)).toBeVisible();
 
     // No plan until the user asks for one.
     await expect(page.getByText(/No plan yet/)).toBeVisible();

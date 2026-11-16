@@ -175,7 +175,7 @@ To bridge both ecosystems cleanly, `vox mens hub sync` performs a zero-allocatio
 
 ## How the cards are made
 
-Cards are generated from the run records by `vox mens hub sync`. The renderer reads the records, builds one facts object per rung, and fills one Askama template (`assets/banner.jpg` per rung and `assets/overview.jpg` on `vox-mens-index`). All wording is in the templates and in `mens/config/hub-cards.yaml`. Every ladder card, from 0.6B through 27B, is generated from that size's run records by the same template, alongside `.eval_results/vox_mens_eval.yaml` and `external_serving_handoff_v1.json`.
+Cards are generated from the run records by `vox mens hub sync`. The renderer reads the records, builds one facts object per rung, and fills one Askama template (for example "assets/banner.jpg" per rung and "assets/overview.jpg" on `vox-mens-index`). All wording is in the templates and in `mens/config/hub-cards.yaml`. Every ladder card, from 0.6B through 27B, is generated from that size's run records by the same template, alongside `.eval_results/vox_mens_eval.yaml` and `external_serving_handoff_v1.json`.
 
 Each fact is stated once. A model card states its own state and never another size's. The index grid is the only place that lists every size's state.
 

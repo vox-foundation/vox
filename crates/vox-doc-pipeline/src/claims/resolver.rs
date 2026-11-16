@@ -293,6 +293,8 @@ impl GroundTruthRegistry {
             "VOX_MCP_ORCHESTRATOR_RPC_WRITES",
             "VOX_MENS_HF_NAMESPACE",
             "VOX_GUI_PORT",
+            "VOX_OPENALEX_API_KEY",
+            "VOX_MINICHECK_MODEL",
         ] {
             env_vars.insert(v.to_string());
         }

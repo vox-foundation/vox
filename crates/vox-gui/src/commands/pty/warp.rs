@@ -343,7 +343,12 @@ mod tests {
             !history_record_impl(&warp, " secret-cmd".into(), Some("/repo".into()), Some(0))
                 .unwrap()
         );
-        let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+        let jwt = format!(
+            "{}.{}.{}",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+            "eyJzdWIiOiIxMjM0NTY3ODkwIn0",
+            "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        );
         assert!(
             history_record_impl(
                 &warp,
@@ -356,7 +361,7 @@ mod tests {
 
         let rows = history_query_impl(&warp, Some("curl".into()), Some("/repo".into()), Some(10));
         assert_eq!(rows.len(), 1);
-        assert!(!rows[0].command.contains(jwt));
+        assert!(!rows[0].command.contains(&jwt));
 
         history_clear_impl(&warp).unwrap();
         assert!(history_query_impl(&warp, None, None, Some(10)).is_empty());

@@ -38,7 +38,7 @@ test.describe('Universal palette', () => {
     const row = page.getByRole('button', { name: /^vox build\b/ });
     await expect(row).toBeVisible({ timeout: 10_000 });
     await expect(row).toContainText('CLI');
-    await expect(row).toContainText('↵ opens form');
+    await expect(row).toContainText('opens form');
     await shot(page, 'universal-palette-01-cli-row');
 
     // Activate the row (D-01: opens the Catalog form, never executes). Enter-on-top-row is
@@ -230,7 +230,7 @@ test.describe('run from the palette (D-01, D-03, D-04)', () => {
     await palette.getByPlaceholder(/search surfaces, commands/i).fill('vox features');
     const row = palette.getByRole('button', { name: /^vox features\b/ });
     await expect(row).toBeVisible({ timeout: 10_000 });
-    await expect(row).toContainText('↵ runs');
+    await expect(row).toContainText('runs');
     await page.keyboard.press('Enter');
 
     const stack = page.getByTestId('toast-stack');
@@ -256,7 +256,7 @@ test.describe('run from the palette (D-01, D-03, D-04)', () => {
     await palette.getByPlaceholder(/search surfaces, commands/i).fill('vox plugin remove');
     const row = palette.getByRole('button', { name: /^vox plugin remove\b/ });
     await expect(row).toBeVisible({ timeout: 10_000 });
-    await expect(row).toContainText('↵ opens form');
+    await expect(row).toContainText('opens form');
     await page.keyboard.press('Enter');
 
     await expect(page.getByRole('heading', { name: 'vox plugin remove' })).toBeVisible({ timeout: 10_000 });

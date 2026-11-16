@@ -128,7 +128,7 @@ test.describe('Vox Axis Interactive Developer Dogfooding (Playwright E2E)', () =
     // 5. Attach a Vox crate file via @-mention autocomplete in the composer
     const composer = page.getByLabel('Task composer');
     await composer.fill('@crates/');
-    const fileOption = page.getByRole('button', { name: /crates\/vox-gui\/src\/main\.rs/i });
+    const fileOption = page.getByRole('option', { name: /crates\/vox-gui\/src\/main\.rs/i });
     await expect(fileOption).toBeVisible({ timeout: 5_000 });
     await fileOption.click();
     await expect(page.getByRole('button', { name: 'Remove crates/vox-gui/src/main.rs' })).toBeVisible();
@@ -201,7 +201,8 @@ test.describe('Vox Axis Interactive Developer Dogfooding (Playwright E2E)', () =
     // Switch default isolation strategy from shared_branch -> separate_branches via confirmation dialog
     const strategySelect = page.locator('#isolation-default');
     await expect(strategySelect).toBeVisible();
-    await strategySelect.selectOption('separate_branches');
+    await strategySelect.click();
+    await page.getByRole('option', { name: 'Separate Branches' }).click();
 
     const confirmDialog = page.getByRole('dialog');
     await expect(confirmDialog).toBeVisible();
@@ -321,7 +322,7 @@ test.describe('Vox Axis Interactive Developer Dogfooding (Playwright E2E)', () =
     expect(turn.args.input).toMatchObject({
       content: researchPrompt,
       force_research: true,
-      research_scope: 'deep',
+      research_mode: 'deep',
     });
 
     expect(pageErrors).toEqual([]);
