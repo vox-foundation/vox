@@ -153,11 +153,10 @@ pub fn truncate_terminal_block(
     }
 
     let payload_budget = max_bytes - byte_marker.len();
-    let head_budget = if max_lines > 0 {
-        payload_budget.saturating_mul(head_lines) / max_lines
-    } else {
-        payload_budget / 5
-    };
+    let head_budget = payload_budget
+        .saturating_mul(head_lines)
+        .checked_div(max_lines)
+        .unwrap_or(payload_budget / 5);
     let head_end = floor_utf8_boundary(text, head_budget.min(text.len()));
     let tail_budget = payload_budget.saturating_sub(head_end);
     let raw_tail_start = text.len().saturating_sub(tail_budget).max(head_end);

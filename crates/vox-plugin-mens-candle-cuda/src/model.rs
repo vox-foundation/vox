@@ -31,6 +31,7 @@ use qlora_rs::qlora::QuantizedLinear;
 /// Projection wrapper that keeps low-fan-in Gated DeltaNet gate weights
 /// (`in_proj_b` / `in_proj_a`) in unquantized FP32 while leaving all large
 /// matrix multiplies quantized.
+#[allow(clippy::large_enum_variant)]
 pub enum LinearProj {
     Quantized(QuantizedLinear),
     F32WeightT(Tensor),

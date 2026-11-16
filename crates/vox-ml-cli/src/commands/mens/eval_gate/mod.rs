@@ -38,6 +38,7 @@ pub use policy::{
 pub use run_gate::run_eval_gate;
 
 /// Source used to determine which domain spokes apply to a training run directory (`338-06`).
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpokeDerivation {
     AdapterCardSpokes,
@@ -47,6 +48,7 @@ pub enum SpokeDerivation {
 }
 
 /// Derive applying spoke names for `run_dir` using `registry`, reporting the derivation source.
+#[allow(dead_code)]
 pub fn spokes_of_run(
     run_dir: &std::path::Path,
     registry: &vox_populi::mens::tensor::domain_profiles::DomainProfilesFile,

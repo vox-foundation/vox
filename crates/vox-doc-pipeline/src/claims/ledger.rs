@@ -623,10 +623,10 @@ code_anchors:
 
         // Carry verified_hash "old" when target content changes
         let mut stale = second.clone();
-        if let Some(page) = stale.pages.get_mut("docs/src/architecture/sample.md") {
-            if let Some(anchor) = page.anchors.first_mut() {
-                anchor.verified_hash = "old".to_string();
-            }
+        if let Some(page) = stale.pages.get_mut("docs/src/architecture/sample.md")
+            && let Some(anchor) = page.anchors.first_mut()
+        {
+            anchor.verified_hash = "old".to_string();
         }
         fs::write(root.join("src/sample.rs"), "pub fn demo() { let _ = 1; }\n").unwrap();
         let drifted = generate_freshness_ledger(root, "head3", Some(&stale));

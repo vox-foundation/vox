@@ -137,10 +137,12 @@ impl TelemetryBatcher {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn dropped_count(&self) -> u64 {
         self.dropped.load(Ordering::Relaxed)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn flushed_count(&self) -> u64 {
         self.flushed.load(Ordering::Relaxed)
     }
@@ -273,6 +275,7 @@ impl ResearchFeedHub {
         self.sequencer.current_watermark()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn telemetry(&self) -> &TelemetryBatcher {
         &self.telemetry
     }

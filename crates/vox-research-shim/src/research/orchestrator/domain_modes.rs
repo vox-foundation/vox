@@ -36,6 +36,7 @@ pub fn extend_domain_subqueries(
 }
 
 /// Applies domain-specific score adjustments and ordering heuristics to collected `hits`.
+#[allow(clippy::ptr_arg)]
 pub fn post_process_domain_hits(domain_mode: ResearchDomainMode, hits: &mut Vec<ResearchHit>) {
     match domain_mode {
         ResearchDomainMode::Shopping => {

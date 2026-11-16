@@ -127,8 +127,7 @@ pub fn normalize_hf_repo_id_and_rev(raw: &str) -> (String, Option<String>) {
     };
     let leaf = path_only
         .split('/')
-        .filter(|s| !s.is_empty())
-        .next_back()
+        .rfind(|s| !s.is_empty())
         .unwrap_or("unknown-base-model");
     (leaf.to_string(), rev)
 }
@@ -364,7 +363,7 @@ mod tests {
             );
         }
         let mut header_bytes = serde_json::to_vec(&header).unwrap();
-        while header_bytes.len() % 8 != 0 {
+        while !header_bytes.len().is_multiple_of(8) {
             header_bytes.push(b' ');
         }
         let mut out = (header_bytes.len() as u64).to_le_bytes().to_vec();

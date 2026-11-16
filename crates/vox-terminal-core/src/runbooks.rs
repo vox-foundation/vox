@@ -328,7 +328,7 @@ fn extract_fenced_commands(body: &str) -> Vec<String> {
     for line in body.lines() {
         if let Some(fence) = line.trim_start().strip_prefix("```") {
             if std::mem::take(&mut active) {
-                let joined = buf.drain(..).collect::<Vec<_>>().join("\n");
+                let joined = std::mem::take(&mut buf).join("\n");
                 if !joined.trim().is_empty() {
                     blocks.push(joined.trim().to_string());
                 }

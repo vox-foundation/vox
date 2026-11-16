@@ -196,13 +196,14 @@ pub(super) fn finalize_training_run(
         for extra_file in ["generation_config.json", "tokenizer_config.json"] {
             let src = base_dir.join(extra_file);
             let dst = out.join(extra_file);
-            if !dst.exists() && src.is_file() {
-                if let Err(e) = std::fs::copy(&src, &dst) {
-                    train_log::warn(&format!(
-                        "failed to copy {extra_file} to {}: {e}",
-                        out.display()
-                    ));
-                }
+            if !dst.exists()
+                && src.is_file()
+                && let Err(e) = std::fs::copy(&src, &dst)
+            {
+                train_log::warn(&format!(
+                    "failed to copy {extra_file} to {}: {e}",
+                    out.display()
+                ));
             }
         }
     }

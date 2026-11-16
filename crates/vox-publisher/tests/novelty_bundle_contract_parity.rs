@@ -48,9 +48,9 @@ fn representative_bundle() -> NoveltyEvidenceBundleV1 {
     }
 }
 
-fn coerce_embedder_trait<'a>(
-    e: &'a dyn vox_scientia::embedder::Embedder,
-) -> &'a dyn vox_publisher::scientia_semantic::Embedder {
+fn coerce_embedder_trait(
+    e: &dyn vox_scientia::embedder::Embedder,
+) -> &dyn vox_publisher::scientia_semantic::Embedder {
     e
 }
 

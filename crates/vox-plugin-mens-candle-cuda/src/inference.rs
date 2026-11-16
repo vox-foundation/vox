@@ -284,12 +284,12 @@ impl InferenceEngine {
                         &_device,
                     )?;
                     let b_proj = crate::model::LinearProj::from_tensor(
-                        (&linear_weight(&format!("{p}.linear_attn.in_proj_b.weight"))?)
+                        linear_weight(&format!("{p}.linear_attn.in_proj_b.weight"))?
                             .to_dtype(candle_core::DType::F32)?
                             .to_device(&_device)?,
                     )?;
                     let a_proj = crate::model::LinearProj::from_tensor(
-                        (&linear_weight(&format!("{p}.linear_attn.in_proj_a.weight"))?)
+                        linear_weight(&format!("{p}.linear_attn.in_proj_a.weight"))?
                             .to_dtype(candle_core::DType::F32)?
                             .to_device(&_device)?,
                     )?;

@@ -1070,6 +1070,7 @@ impl Qwen2Attention {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_inference(&mut self) -> Result<usize> {
         let mut count = 0;
         count += convert_slot_to_inference(&mut self.q_proj)?;
@@ -1105,6 +1106,7 @@ impl Qwen2MLP {
             .map_err(|e| candle_core::Error::Msg(e.to_string()))
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_inference(&mut self) -> Result<usize> {
         let mut count = 0;
         count += convert_slot_to_inference(&mut self.gate_proj)?;
@@ -1605,6 +1607,7 @@ impl Qwen35LinearAttention {
         self.forward_inner(x, None, Some(&ctx.doc_ids))
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_inference(&mut self) -> Result<usize> {
         let mut count = 0;
         count += convert_slot_to_inference(&mut self.qkv_proj)?;
@@ -1736,6 +1739,7 @@ impl Qwen35Layer {
         self.forward_packed_ctx(x, &ctx)
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_inference(&mut self) -> Result<usize> {
         let mut count = match &mut self.attention {
             Qwen35AttentionBlock::Full(a) => a.into_inference()?,
@@ -2010,6 +2014,7 @@ impl Qwen35Model {
         self.head_forward(&x)
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_inference(&mut self) -> Result<usize> {
         let mut count = 0;
         for layer in &mut self.layers {

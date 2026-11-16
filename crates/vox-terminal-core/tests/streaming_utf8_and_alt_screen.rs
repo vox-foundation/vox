@@ -266,7 +266,7 @@ fn session_alt_screen_emits_events_suppresses_nested_block_splits_and_stamps_cwd
     while let Ok(ev) = rx.try_recv() {
         match ev {
             SessionEvent::AltScreenChanged { active: false } => saw_exit_alt = true,
-            SessionEvent::BlockClosed { id, .. } if id == BlockId(1) => saw_outer_closed = true,
+            SessionEvent::BlockClosed { id: BlockId(1), .. } => saw_outer_closed = true,
             _ => {}
         }
     }

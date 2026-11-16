@@ -331,8 +331,10 @@ async fn llm_entailment_verify(model: &str, claim: &str, context: &str) -> Optio
     if context.trim().is_empty() || claim.trim().is_empty() || model.trim().is_empty() {
         return None;
     }
-    let mut input = RouteResolutionInput::default();
-    input.openrouter_model = model.to_string();
+    let input = RouteResolutionInput {
+        openrouter_model: model.to_string(),
+        ..Default::default()
+    };
     let mut candidates = cascade_for_research_stage(ResearchStage::Verification, &input);
     if candidates.is_empty() {
         return None;

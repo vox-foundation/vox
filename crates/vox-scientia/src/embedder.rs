@@ -132,6 +132,7 @@ impl Embedder for LocalHashEmbedder {
 }
 
 /// Active backend for [`CachedLlmEmbedder`].
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum EmbedderBackend {
     Llm(LlmConfig),

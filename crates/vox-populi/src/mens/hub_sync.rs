@@ -2256,7 +2256,7 @@ mod tests {
             }
         });
         let mut header_bytes = serde_json::to_vec(&header).unwrap();
-        while header_bytes.len() % 8 != 0 {
+        while !header_bytes.len().is_multiple_of(8) {
             header_bytes.push(b' ');
         }
         let mut raw = Vec::with_capacity(8 + header_bytes.len() + 64);

@@ -344,6 +344,74 @@ pub fn stream_snapshot_batches(
     batches
 }
 
+/// Generate missing deterministic or repo-extracted sources referenced by a mix config.
+pub fn ensure_missing_mix_sources(cfg: &MixConfigSchema, path_base: &Path) {
+    for src in &cfg.sources {
+        let p = path_base.join(&src.path);
+        if p.exists() {
+            continue;
+        }
+        match src.path.as_str() {
+            "mens/data/mix_sources/vox_reasoning_traces.jsonl" => {
+                eprintln!("  🔄 Generating missing components: vox_reasoning_traces.jsonl");
+                let rows = crate::corpus::vox_reasoning_synth::generate_vox_reasoning_traces(42);
+                let _ =
+                    crate::corpus::vox_reasoning_synth::write_vox_reasoning_traces_jsonl(&rows, &p);
+            }
+            "mens/data/mix_sources/tool_selection_synth.jsonl" => {
+                eprintln!("  🔄 Generating missing components: tool_selection_synth.jsonl");
+                let rows = crate::corpus::tool_selection_synth::generate_tool_selection_rows(252);
+                let _ = crate::corpus::tool_selection_synth::write_tool_selection_jsonl(&rows, &p);
+            }
+            "mens/data/mix_sources/argument_generation_synth.jsonl" => {
+                eprintln!("  🔄 Generating missing components: argument_generation_synth.jsonl");
+                let rows =
+                    crate::corpus::argument_generation_synth::generate_argument_generation_rows(
+                        260,
+                    );
+                let _ = crate::corpus::argument_generation_synth::write_argument_generation_jsonl(
+                    &rows, &p,
+                );
+            }
+            "mens/data/mix_sources/agent_traces.jsonl" => {
+                eprintln!("  🔄 Generating missing components: agent_traces.jsonl");
+                let _ = crate::corpus::agentic_synth::generate_agentic_synth_file(&p);
+            }
+            "mens/data/mix_sources/docs.jsonl" => {
+                eprintln!("  🔄 Generating missing components: docs.jsonl");
+                let c = crate::corpus::extract_docs::ExtractDocsConfig {
+                    root: path_base.join("docs"),
+                    ..Default::default()
+                };
+                if let Ok(pairs) = crate::corpus::extract_docs::walk_and_extract_docs(&c) {
+                    let _ = crate::corpus::extract_docs::write_docs_to_jsonl(&pairs, &p);
+                }
+            }
+            "mens/data/mix_sources/rust_source.jsonl" => {
+                eprintln!("  🔄 Generating missing components: rust_source.jsonl");
+                let c = crate::corpus::extract_rs::ExtractRsConfig {
+                    root: path_base.join("crates"),
+                    ..Default::default()
+                };
+                if let Ok(pairs) = crate::corpus::extract_rs::walk_and_extract(&c) {
+                    let _ = crate::corpus::extract_rs::write_to_jsonl(&pairs, &p);
+                }
+            }
+            "mens/data/mix_sources/gsd_workflows.jsonl" => {
+                eprintln!("  🔄 Generating missing components: gsd_workflows.jsonl");
+                let c = crate::corpus::extract_gsd::ExtractGsdConfig {
+                    root: path_base.to_path_buf(),
+                    ..Default::default()
+                };
+                if let Ok(pairs) = crate::corpus::extract_gsd::extract_gsd_corpus(&c) {
+                    let _ = crate::corpus::extract_gsd::write_gsd_to_jsonl(&pairs, &p);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -665,73 +733,5 @@ mod tests {
         .lines()
         .count();
         assert_eq!(arg_lines, 260);
-    }
-}
-
-/// Generate missing deterministic or repo-extracted sources referenced by a mix config.
-pub fn ensure_missing_mix_sources(cfg: &MixConfigSchema, path_base: &Path) {
-    for src in &cfg.sources {
-        let p = path_base.join(&src.path);
-        if p.exists() {
-            continue;
-        }
-        match src.path.as_str() {
-            "mens/data/mix_sources/vox_reasoning_traces.jsonl" => {
-                eprintln!("  🔄 Generating missing components: vox_reasoning_traces.jsonl");
-                let rows = crate::corpus::vox_reasoning_synth::generate_vox_reasoning_traces(42);
-                let _ =
-                    crate::corpus::vox_reasoning_synth::write_vox_reasoning_traces_jsonl(&rows, &p);
-            }
-            "mens/data/mix_sources/tool_selection_synth.jsonl" => {
-                eprintln!("  🔄 Generating missing components: tool_selection_synth.jsonl");
-                let rows = crate::corpus::tool_selection_synth::generate_tool_selection_rows(252);
-                let _ = crate::corpus::tool_selection_synth::write_tool_selection_jsonl(&rows, &p);
-            }
-            "mens/data/mix_sources/argument_generation_synth.jsonl" => {
-                eprintln!("  🔄 Generating missing components: argument_generation_synth.jsonl");
-                let rows =
-                    crate::corpus::argument_generation_synth::generate_argument_generation_rows(
-                        260,
-                    );
-                let _ = crate::corpus::argument_generation_synth::write_argument_generation_jsonl(
-                    &rows, &p,
-                );
-            }
-            "mens/data/mix_sources/agent_traces.jsonl" => {
-                eprintln!("  🔄 Generating missing components: agent_traces.jsonl");
-                let _ = crate::corpus::agentic_synth::generate_agentic_synth_file(&p);
-            }
-            "mens/data/mix_sources/docs.jsonl" => {
-                eprintln!("  🔄 Generating missing components: docs.jsonl");
-                let c = crate::corpus::extract_docs::ExtractDocsConfig {
-                    root: path_base.join("docs"),
-                    ..Default::default()
-                };
-                if let Ok(pairs) = crate::corpus::extract_docs::walk_and_extract_docs(&c) {
-                    let _ = crate::corpus::extract_docs::write_docs_to_jsonl(&pairs, &p);
-                }
-            }
-            "mens/data/mix_sources/rust_source.jsonl" => {
-                eprintln!("  🔄 Generating missing components: rust_source.jsonl");
-                let c = crate::corpus::extract_rs::ExtractRsConfig {
-                    root: path_base.join("crates"),
-                    ..Default::default()
-                };
-                if let Ok(pairs) = crate::corpus::extract_rs::walk_and_extract(&c) {
-                    let _ = crate::corpus::extract_rs::write_to_jsonl(&pairs, &p);
-                }
-            }
-            "mens/data/mix_sources/gsd_workflows.jsonl" => {
-                eprintln!("  🔄 Generating missing components: gsd_workflows.jsonl");
-                let c = crate::corpus::extract_gsd::ExtractGsdConfig {
-                    root: path_base.to_path_buf(),
-                    ..Default::default()
-                };
-                if let Ok(pairs) = crate::corpus::extract_gsd::extract_gsd_corpus(&c) {
-                    let _ = crate::corpus::extract_gsd::write_gsd_to_jsonl(&pairs, &p);
-                }
-            }
-            _ => {}
-        }
     }
 }

@@ -169,17 +169,13 @@ pub async fn synthesize_architecture_ssot_from_db(
         .and_then(|a| serde_json::from_str::<ArtifactSnapshot>(&a.artifact_json).ok())
         .unwrap_or_default();
 
-    let stability = snap
-        .result
-        .research_metadata
-        .wave_stability
-        .unwrap_or_else(|| {
-            if snap.result.research_metadata.confidence > 0.0 {
-                snap.result.research_metadata.confidence
-            } else {
-                0.90
-            }
-        });
+    let stability = snap.result.research_metadata.wave_stability.unwrap_or(
+        if snap.result.research_metadata.confidence > 0.0 {
+            snap.result.research_metadata.confidence
+        } else {
+            0.90
+        },
+    );
     let model = snap
         .result
         .research_metadata

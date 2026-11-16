@@ -103,6 +103,7 @@ impl StepTimes {
         self.steps = self.steps.saturating_add(1);
     }
 
+    #[allow(dead_code)]
     #[must_use]
     pub(crate) fn mean_ms(&self) -> f64 {
         if self.steps == 0 {
@@ -204,7 +205,7 @@ impl InferenceEngine {
         let protocol_cap = match self.decode_protocol {
             vox_eval::decode_protocol::DecodeProtocol::F32 => MAX_FUSED_GEMV_BATCH,
             vox_eval::decode_protocol::DecodeProtocol::Bf16 { gemm_rows } => {
-                gemm_rows.min(MAX_PADDED_GEMM_BATCH).max(1)
+                gemm_rows.clamp(1, MAX_PADDED_GEMM_BATCH)
             }
         };
         let hard_cap = req

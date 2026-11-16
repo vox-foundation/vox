@@ -92,7 +92,7 @@ fn detect_tokens(tokens: &[&str]) -> Option<VoxifyShellKind> {
             if args
                 .iter()
                 .any(|a| matches!(*a, "-i" | "--login" | "-s" | "--shell"))
-                && !args.iter().any(|a| *a == "-c")
+                && !args.contains(&"-c")
             {
                 return Some(VoxifyShellKind::Bash);
             }

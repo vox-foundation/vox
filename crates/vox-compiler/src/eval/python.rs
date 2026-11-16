@@ -287,8 +287,6 @@ fn venv_python(root: &Path) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use super::{
         Interpreter, PY_ENV_MISSING, PythonProject, VoxValue, note_print, set_python_project,
         start_print_capture, stop_print_capture, worker_spawned,

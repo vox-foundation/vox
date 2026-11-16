@@ -575,10 +575,12 @@ mod tests {
 
     #[test]
     fn weak_local_rag_evidence_triggers_quick_web_escalation() {
-        let mut ev = crate::memory::RetrievalEvidenceEnvelope::default();
-        ev.memory_hit_count = 1;
-        ev.top_score = Some(0.42);
-        ev.evidence_quality = 0.40;
+        let ev = crate::memory::RetrievalEvidenceEnvelope {
+            memory_hit_count: 1,
+            top_score: Some(0.42),
+            evidence_quality: 0.40,
+            ..Default::default()
+        };
         let (conf, contra, q, count) = local_signals_from_evidence(Some(&ev));
         let esc = crate::chat_tools::chat::research_turn::evaluate_continuum_escalation(
             &CragEscalationPolicy::default(),
@@ -602,11 +604,13 @@ mod tests {
 
     #[test]
     fn high_contradiction_ratio_escalates_from_local_rag() {
-        let mut ev = crate::memory::RetrievalEvidenceEnvelope::default();
-        ev.memory_hit_count = 2;
-        ev.contradiction_count = 1;
-        ev.top_score = Some(0.85);
-        ev.evidence_quality = 0.85;
+        let ev = crate::memory::RetrievalEvidenceEnvelope {
+            memory_hit_count: 2,
+            contradiction_count: 1,
+            top_score: Some(0.85),
+            evidence_quality: 0.85,
+            ..Default::default()
+        };
         let (conf, contra, q, count) = local_signals_from_evidence(Some(&ev));
         let esc = crate::chat_tools::chat::research_turn::evaluate_continuum_escalation(
             &CragEscalationPolicy::default(),

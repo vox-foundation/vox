@@ -184,7 +184,7 @@ fn plot_png_and_tensor_pt2_cpu_seeded_end_to_end() {
     }
 
     // Point tempdir `.vox/python/.venv/bin/python` or fall back to python3 on PATH.
-    if python_exe != PathBuf::from("python3") {
+    if python_exe != Path::new("python3") {
         let bin_dir = py_dir.join(".venv").join("bin");
         fs::create_dir_all(&bin_dir).expect("bin dir");
         #[cfg(unix)]

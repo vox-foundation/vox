@@ -338,7 +338,7 @@ pub fn classify_recovery(raw_args: &[String]) -> RecoveryOutcome {
     // Stage 3a: Exact precomputed foreign idioms (never collide with active canonical paths).
     let mut sorted_idioms: Vec<&crate::commands::ci::cli_synonyms::ForeignIdiomRule> =
         idx.lockfile.foreign_idioms.iter().collect();
-    sorted_idioms.sort_by(|a, b| b.trigger.len().cmp(&a.trigger.len()));
+    sorted_idioms.sort_by_key(|a| std::cmp::Reverse(a.trigger.len()));
     for idiom in sorted_idioms {
         if cmd_lc.len() >= idiom.trigger.len() && cmd_lc[..idiom.trigger.len()] == idiom.trigger[..]
         {
@@ -603,7 +603,7 @@ pub fn classify_recovery(raw_args: &[String]) -> RecoveryOutcome {
         let mut shortlist = Vec::new();
         match res {
             vox_capability_registry::Resolution::Exact { primary, also } => {
-                for row in std::iter::once(primary).chain(also.into_iter()) {
+                for row in std::iter::once(primary).chain(also) {
                     if let Some(cli) = &row.cli {
                         let path_lc: Vec<String> =
                             cli.path.iter().map(|s| s.to_ascii_lowercase()).collect();

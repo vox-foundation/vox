@@ -1,5 +1,10 @@
 //! Pure-Rust POSIX + PowerShell quote-aware lexical/pipeline command analyzer,
 //! `ExecPolicyV1` contract evaluator, and `SecurityTier` (`L1–L5`) gate.
+#![allow(
+    clippy::let_unit_value,
+    clippy::obfuscated_if_else,
+    clippy::unnecessary_operation
+)]
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};

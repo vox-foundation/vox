@@ -95,21 +95,21 @@ impl GsdTrainingPair {
 
 fn parse_frontmatter_fields(content: &str) -> (Option<String>, Option<String>, String) {
     let trimmed = content.trim_start();
-    if let Some(rest) = trimmed.strip_prefix("---") {
-        if let Some(end_idx) = rest.find("\n---") {
-            let yaml_block = &rest[..end_idx];
-            let body = rest[end_idx + 4..].trim().to_string();
-            let mut name = None;
-            let mut desc = None;
-            for line in yaml_block.lines() {
-                if let Some(v) = line.trim().strip_prefix("name:") {
-                    name = Some(v.trim().trim_matches('"').to_string());
-                } else if let Some(v) = line.trim().strip_prefix("description:") {
-                    desc = Some(v.trim().trim_matches('"').to_string());
-                }
+    if let Some(rest) = trimmed.strip_prefix("---")
+        && let Some(end_idx) = rest.find("\n---")
+    {
+        let yaml_block = &rest[..end_idx];
+        let body = rest[end_idx + 4..].trim().to_string();
+        let mut name = None;
+        let mut desc = None;
+        for line in yaml_block.lines() {
+            if let Some(v) = line.trim().strip_prefix("name:") {
+                name = Some(v.trim().trim_matches('"').to_string());
+            } else if let Some(v) = line.trim().strip_prefix("description:") {
+                desc = Some(v.trim().trim_matches('"').to_string());
             }
-            return (name, desc, body);
         }
+        return (name, desc, body);
     }
     (None, None, content.trim().to_string())
 }

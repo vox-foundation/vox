@@ -39,6 +39,7 @@ pub(crate) struct CardFacts {
     pub protocol: &'static str,
     pub trained: bool,
     pub has_peft_adapter: bool,
+    #[allow(dead_code)]
     pub has_merged_causal_lm: bool,
     pub inference_provider_ready: bool,
     pub has_merged_model: bool,

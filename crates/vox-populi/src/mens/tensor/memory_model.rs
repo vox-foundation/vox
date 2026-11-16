@@ -284,8 +284,7 @@ fn project_qlora_shape(
         .saturating_mul(12)
         .saturating_mul(raw_shape.hidden as u64)
         .saturating_mul(raw_shape.hidden as u64);
-    let cache_dequantized =
-        cache_override.unwrap_or_else(|| approx_linear_params <= 10_000_000_000);
+    let cache_dequantized = cache_override.unwrap_or(approx_linear_params <= 10_000_000_000);
     if cache_dequantized {
         return raw_shape;
     }

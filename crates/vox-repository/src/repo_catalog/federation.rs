@@ -374,21 +374,21 @@ pub fn verify_cross_repo_contract_parity(
             if repo_id == *target_repo_id {
                 let src_path = workspace_root.join(src_rel);
                 let dst_path = target_root.join(dst_rel);
-                if src_path.is_file() {
-                    if let Ok(src_bytes) = std::fs::read(&src_path) {
-                        let src_hash = blake3::hash(&src_bytes).to_hex().to_string();
-                        let dst_hash = std::fs::read(&dst_path)
-                            .map(|b| blake3::hash(&b).to_hex().to_string())
-                            .unwrap_or_else(|_| "MISSING".to_string());
-                        if src_hash != dst_hash {
-                            drifts.push(ContractDrift {
-                                relative_contract_path: format!("{src_rel} <-> {dst_rel}"),
-                                repo_a: "vox".to_string(),
-                                repo_a_blake3: src_hash,
-                                repo_b: repo_id.clone(),
-                                repo_b_blake3: dst_hash,
-                            });
-                        }
+                if src_path.is_file()
+                    && let Ok(src_bytes) = std::fs::read(&src_path)
+                {
+                    let src_hash = blake3::hash(&src_bytes).to_hex().to_string();
+                    let dst_hash = std::fs::read(&dst_path)
+                        .map(|b| blake3::hash(&b).to_hex().to_string())
+                        .unwrap_or_else(|_| "MISSING".to_string());
+                    if src_hash != dst_hash {
+                        drifts.push(ContractDrift {
+                            relative_contract_path: format!("{src_rel} <-> {dst_rel}"),
+                            repo_a: "vox".to_string(),
+                            repo_a_blake3: src_hash,
+                            repo_b: repo_id.clone(),
+                            repo_b_blake3: dst_hash,
+                        });
                     }
                 }
             }

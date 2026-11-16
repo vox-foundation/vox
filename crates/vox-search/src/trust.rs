@@ -46,11 +46,13 @@ impl GcraLimiter {
 
     /// Semantic Scholar preset: `1 RPS` unauthenticated, `10 RPS` when
     /// `SecretId::VoxSemanticScholarApiKey` resolves.
+    #[allow(dead_code)]
     #[must_use]
     pub(crate) fn semantic_scholar() -> Self {
         Self::semantic_scholar_for_key_present(resolve_semantic_scholar_api_key().is_some())
     }
 
+    #[allow(dead_code)]
     #[must_use]
     pub(crate) fn semantic_scholar_for_key_present(has_api_key: bool) -> Self {
         if has_api_key {
@@ -72,11 +74,13 @@ impl GcraLimiter {
         Self::from_rps(10.0)
     }
 
+    #[allow(dead_code)]
     #[must_use]
     pub(crate) const fn emission_interval(&self) -> Duration {
         self.emission_interval
     }
 
+    #[allow(dead_code)]
     #[must_use]
     pub(crate) const fn burst_tolerance(&self) -> Duration {
         self.burst_tolerance
@@ -108,6 +112,7 @@ impl GcraLimiter {
 
 static OPENALEX_LIMITER: OnceLock<GcraLimiter> = OnceLock::new();
 static CROSSREF_LIMITER: OnceLock<GcraLimiter> = OnceLock::new();
+#[allow(dead_code)]
 static SEMANTIC_SCHOLAR_LIMITER: OnceLock<GcraLimiter> = OnceLock::new();
 
 pub(crate) fn openalex_limiter() -> &'static GcraLimiter {
@@ -118,6 +123,7 @@ pub(crate) fn crossref_limiter() -> &'static GcraLimiter {
     CROSSREF_LIMITER.get_or_init(GcraLimiter::crossref_polite)
 }
 
+#[allow(dead_code)]
 pub(crate) fn semantic_scholar_limiter() -> &'static GcraLimiter {
     SEMANTIC_SCHOLAR_LIMITER.get_or_init(GcraLimiter::semantic_scholar)
 }
@@ -151,6 +157,7 @@ pub(crate) fn resolve_crossref_plus_api_key() -> Option<String> {
         .map(str::to_string)
 }
 
+#[allow(dead_code)]
 pub(crate) fn resolve_semantic_scholar_api_key() -> Option<String> {
     let resolved = resolve_secret(SecretId::VoxSemanticScholarApiKey);
     resolved

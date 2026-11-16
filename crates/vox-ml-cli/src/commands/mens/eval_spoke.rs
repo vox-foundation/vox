@@ -8,12 +8,14 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Strict JSON-Schema argument validator for agent episodes (`D-08`).
+#[allow(dead_code)]
 pub fn schema_validator(args: &Value, schema: &Value) -> std::result::Result<(), String> {
     vox_eval::episode::toy_validate_schema(args, schema)
 }
 
 /// Run the scripted `agent_episodes` suite (`episodes.v1.jsonl` against `tool-catalog.v1.json`)
 /// for paired `base` and `candidate` policies and return a [`vox_eval::suite_report::SuiteReport`].
+#[allow(dead_code)]
 pub fn run_agent_suite(
     suite_name: &str,
     catalog_path: &Path,
@@ -93,6 +95,7 @@ pub fn run_agent_suite(
 
 /// Evaluate `rust_bench` compile-and-test items for paired base and candidate solutions and return
 /// paired `(base, candidate)` [`vox_eval::suite_report::SuiteReport`] artifacts. Refuses `training_eligible: true` items.
+#[allow(dead_code)]
 pub fn run_rust_bench_suite(
     suite_name: &str,
     items_path: &Path,

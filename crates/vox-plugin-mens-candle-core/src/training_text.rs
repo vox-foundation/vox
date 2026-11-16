@@ -366,8 +366,10 @@ mod tests {
 
     #[test]
     fn user_no_think_switch_false_omits_suffix_while_keeping_empty_think_prefill() {
-        let mut cfg = ChatmlConfig::default();
-        cfg.user_no_think_switch = false;
+        let cfg = ChatmlConfig {
+            user_no_think_switch: false,
+            ..Default::default()
+        };
         let full = chatml_supervised_text("S", "U", "code", &cfg);
         let prefix = chatml_prefix_open_assistant("S", "U", "code", &cfg);
         assert!(full.starts_with(&prefix));
