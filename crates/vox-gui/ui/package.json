@@ -34,7 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "dockview": "6.6.1",
+    "dockview": "8.9.0",
     "lucide-react": "^1.72.0",
     "radix-ui": "^1.8.1",
     "react": "^19.2.8",
