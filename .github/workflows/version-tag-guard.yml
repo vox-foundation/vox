@@ -48,6 +48,13 @@ jobs:
           tag_version="${tag_core%%-*}"
           tag_version="${tag_version%%+*}"   # bare 0.6.0+build.9 (no prerelease)
 
+          # 2-component GSD milestone tags (e.g. v6.8, v7.5) track planning
+          # milestones rather than 3-component Cargo semver releases (vX.Y.Z).
+          if [[ "${tag_version}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            echo "OK: '${tag}' is a 2-component GSD milestone tag; Cargo.toml semver check applies to 3-component vX.Y.Z release tags."
+            exit 0
+          fi
+
           # Extract the FIRST `version = "..."` under the [workspace.package]
           # table only, so we don't accidentally read a dependency's version.
           cargo_version="$(
