@@ -33,8 +33,12 @@ fn tool_trace_normalizes_to_training_pair_shape() {
     );
     assert!(v["prompt"].as_str().unwrap().contains("Run fmt"));
     let resp = v["response"].as_str().unwrap();
-    assert!(resp.contains("shell"));
+    assert!(resp.starts_with("<tool_call>\n"));
+    assert!(resp.ends_with("\n</tool_call>"));
+    assert!(resp.contains("\"name\":\"shell\""));
     assert!(resp.contains("cargo fmt"));
+    assert!(!resp.contains("\"result\""));
+    assert!(!resp.contains("\"success\""));
     assert_eq!(v["category"].as_str(), Some("tool_trace"));
 }
 
@@ -537,4 +541,45 @@ fn shipped_mix_configs_never_read_their_own_output() {
         checked > 3,
         "expected the shipped mix configs, found {checked}"
     );
+}
+
+#[test]
+fn tool_selection_normalizes_to_tool_call_envelope() {
+    let raw = r#"{"task":"Search the Vox repository for a symbol","candidate_tools":["vox_search_query","vox_check","vox_git_status"],"chosen_tool":"vox_search_query","lane":"vox_tool_selection"}"#;
+    let out = normalize_training_jsonl_line(raw, Some("tool_selection")).expect("ok");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let prompt = v["prompt"].as_str().unwrap();
+    assert!(prompt.contains("[vox_tool_selection]"));
+    assert!(prompt.contains("vox_search_query"));
+    let resp = v["response"].as_str().unwrap();
+    assert!(resp.starts_with("<tool_call>\n"));
+    assert!(resp.ends_with("\n</tool_call>"));
+    assert!(resp.contains("\"name\":\"vox_search_query\""));
+    assert_eq!(v["category"].as_str(), Some("tool_catalog"));
+    assert_eq!(v["lane"].as_str(), Some("vox_tool_selection"));
+    assert_eq!(v["rating"].as_u64(), Some(5));
+    assert!(v["difficulty"].as_u64().unwrap_or(0) >= 5);
+    assert_eq!(v["response_mode"].as_str(), Some("structured"));
+    assert_eq!(v["origin"].as_str(), Some("synthetic"));
+}
+
+#[test]
+fn argument_generation_normalizes_to_tool_call_envelope() {
+    let raw = r#"{"task":"Run cargo check in workspace","tool_name":"vox_run_command","tool_schema":{"type":"object","properties":{"cmd":{"type":"string"}}},"arguments":{"cmd":"cargo check"},"lane":"vox_argument_generation"}"#;
+    let out = normalize_training_jsonl_line(raw, Some("argument_generation")).expect("ok");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let prompt = v["prompt"].as_str().unwrap();
+    assert!(prompt.contains("[vox_argument_generation]"));
+    assert!(prompt.contains("vox_run_command"));
+    let resp = v["response"].as_str().unwrap();
+    assert!(resp.starts_with("<tool_call>\n"));
+    assert!(resp.ends_with("\n</tool_call>"));
+    assert!(resp.contains("\"name\":\"vox_run_command\""));
+    assert!(resp.contains("\"cmd\":\"cargo check\""));
+    assert_eq!(v["category"].as_str(), Some("argument_schema"));
+    assert_eq!(v["lane"].as_str(), Some("vox_argument_generation"));
+    assert_eq!(v["rating"].as_u64(), Some(5));
+    assert!(v["difficulty"].as_u64().unwrap_or(0) >= 5);
+    assert_eq!(v["response_mode"].as_str(), Some("structured"));
+    assert_eq!(v["origin"].as_str(), Some("synthetic"));
 }

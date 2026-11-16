@@ -249,17 +249,22 @@ pub struct QuantizedLinear {
     quantized_weight: QuantizedTensor,
     /// Cached dequantized weight (opt-in for inference speedup).
     cached_weight: Option<Tensor>,
+    /// Compact GPU-resident NF4 `(q_data_u8, scales_f32, out_features, in_features, compute_dtype, allow_gemv)`
+    /// for Metal (`0.5625 B/param` vs `2 B/param` BF16 cache). `allow_gemv` permits the
+    /// inference-only `nf4_gemv` path (`apply_op3_no_bwd`); training layers keep `allow_gemv = false`
+    /// and dequantize on the fly via `nf4_dequant` + differentiable `matmul`.
+    gpu_nf4: Option<(Tensor, Tensor, usize, usize, DType, bool)>,
     /// Optional bias (not quantized, kept in full precision).
     bias: Option<Tensor>,
     /// `LoRA` adapter (trainable).
     lora: LoraLayer,
+    /// True when `lora` holds untouched `B = 0` weights (`from_weight` with `loftq_iterations == 0`),
+    /// so `x @ A^T @ B^T * scale` is identically zero and can be skipped in `forward`.
+    lora_zero: bool,
     /// Device for dequantization.
     device: Device,
     /// Configuration for quantization (needed for on-the-fly dequant).
     config: QLoraConfig,
-    /// Whether to detach base output during training to avoid computing unused
-    /// base weight gradients in autograd (saves tens of GB on large models).
-    pub detach_base: bool,
 }
 
 impl QuantizedLinear {
@@ -292,29 +297,39 @@ impl QuantizedLinear {
         // Quantize the base weight using full config
         let quantized_weight = quantize_nf4_with_config(weight, &config.quantization)?;
 
-        // Only cache if explicitly requested. Cache at the configured COMPUTE dtype
-        // (bf16) — not F32 — so a cached 3B base is ~6 GiB, not ~12 GiB. Caching
-        // avoids re-running the (CPU, scalar-loop) NF4 dequant on every forward pass,
-        // which otherwise dominates training time; the dequantized weight is resident
-        // through backward anyway, so caching does not raise the peak.
-        let (quantized_weight, cached_weight) = if config.cache_dequantized {
-            let cache = dequantize_nf4_with_dtype(
-                &quantized_weight,
-                weight.device(),
-                config.quantization.compute_dtype,
+        // Only cache if explicitly requested. On Metal with aligned block-64 NF4, keep
+        // compact NF4 bytes + F32 block scales on GPU (~0.56 B/param instead of 2 B/param
+        // BF16) and dispatch fused nf4_gemv on M<=16 decode / nf4_dequant on M>16 prefill.
+        let (quantized_weight, cached_weight, gpu_nf4) = if config.cache_dequantized {
+            let (q, gpu_nf4) = Self::try_stage_metal_nf4(
+                quantized_weight,
+                out_features,
+                in_features,
+                config,
+                device,
+                true,
             )?;
-            let cache = if cache.device().same_device(device) {
-                cache
+            if gpu_nf4.is_some() {
+                (q, None, gpu_nf4)
             } else {
-                cache.to_device(device)?
-            };
-            let mut q = quantized_weight;
-            q.data = Vec::new();
-            q.scales = Vec::new();
-            q.zero_points = None;
-            (q, Some(cache))
+                let cache = dequantize_nf4_with_dtype(
+                    &q,
+                    weight.device(),
+                    config.quantization.compute_dtype,
+                )?;
+                let cache = if cache.device().same_device(device) {
+                    cache
+                } else {
+                    cache.to_device(device)?
+                };
+                let mut q = q;
+                q.data = Vec::new();
+                q.scales = Vec::new();
+                q.zero_points = None;
+                (q, Some(cache.detach()), None)
+            }
         } else {
-            (quantized_weight, None)
+            (quantized_weight, None, None)
         };
 
         // Create LoRA adapter
@@ -324,12 +339,130 @@ impl QuantizedLinear {
         Ok(Self {
             quantized_weight,
             cached_weight,
+            gpu_nf4,
             bias,
             lora,
+            lora_zero: config.lora.loftq_iterations == 0,
             device: device.clone(),
             config: config.clone(),
-            detach_base: false,
         })
+    }
+
+    fn compute_candle_dtype(config: &QLoraConfig) -> DType {
+        match config.quantization.compute_dtype {
+            ComputeDType::F32 => DType::F32,
+            ComputeDType::F16 => DType::F16,
+            ComputeDType::BF16 => DType::BF16,
+        }
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn try_stage_metal_nf4(
+        mut quantized_weight: QuantizedTensor,
+        out_features: usize,
+        in_features: usize,
+        config: &QLoraConfig,
+        device: &Device,
+        allow_gemv: bool,
+    ) -> Result<(
+        QuantizedTensor,
+        Option<(Tensor, Tensor, usize, usize, DType, bool)>,
+    )> {
+        let can_use_metal_nf4 = device.is_metal()
+            && config.lora.loftq_iterations == 0
+            && quantized_weight.strategy == crate::quantization::QuantizationStrategy::PerTensor
+            && quantized_weight.zero_points.is_none()
+            && quantized_weight.block_size == 64
+            && in_features >= 64
+            && in_features % 64 == 0
+            && quantized_weight.data.len() == (out_features * in_features) / 2;
+        if !can_use_metal_nf4 {
+            return Ok((quantized_weight, None));
+        }
+
+        let scales_vec = quantized_weight.unpacked_scales();
+        let q_len = quantized_weight.data.len();
+        let s_len = scales_vec.len();
+        let q_bytes = std::mem::take(&mut quantized_weight.data);
+        quantized_weight.scales = Vec::new();
+        quantized_weight.scales_quantized = None;
+        quantized_weight.scales_scales = None;
+        quantized_weight.zero_points = None;
+        let q_gpu = Tensor::from_vec(q_bytes, q_len, device)?;
+        let s_gpu = Tensor::from_vec(scales_vec, s_len, device)?;
+        let compute_candle_dtype = Self::compute_candle_dtype(config);
+        Ok((
+            quantized_weight,
+            Some((
+                q_gpu,
+                s_gpu,
+                out_features,
+                in_features,
+                compute_candle_dtype,
+                allow_gemv,
+            )),
+        ))
+    }
+
+    /// Shared NF4 quantization + optional BF16/F16 cache or compact Metal NF4 staging on `compute_device`.
+    #[allow(clippy::type_complexity)]
+    fn quantize_and_cache_dequantized(
+        weight: &Tensor,
+        config: &QLoraConfig,
+        compute_device: &Device,
+    ) -> Result<(
+        usize,
+        usize,
+        QuantizedTensor,
+        Option<Tensor>,
+        Option<(Tensor, Tensor, usize, usize, DType, bool)>,
+    )> {
+        let shape = weight.shape().dims();
+        if shape.len() != 2 {
+            return Err(QLoraError::InvalidConfig("weight must be 2D".into()));
+        }
+        let (out_features, in_features) = (shape[0], shape[1]);
+        warn_cpu_fallback(compute_device);
+
+        // Quantize on the base weight's own device (CPU when the caller mmapped it there).
+        let quantized_weight = quantize_nf4_with_config(weight, &config.quantization)?;
+
+        let (quantized_weight, cached_weight, gpu_nf4) = if config.cache_dequantized {
+            // Dequantize on the BASE weight's device first, then move the result to
+            // the compute device so dequant temporaries never spike VRAM during build.
+            let cache = dequantize_nf4_with_dtype(
+                &quantized_weight,
+                weight.device(),
+                config.quantization.compute_dtype,
+            )?;
+            let cache = if cache.device().same_device(compute_device) {
+                cache
+            } else {
+                cache.to_device(compute_device)?
+            };
+            let mut q = quantized_weight;
+            q.data = Vec::new();
+            q.scales = Vec::new();
+            q.zero_points = None;
+            (q, Some(cache.detach()), None)
+        } else {
+            let (q, gpu_nf4) = Self::try_stage_metal_nf4(
+                quantized_weight,
+                out_features,
+                in_features,
+                config,
+                compute_device,
+                false,
+            )?;
+            (q, None, gpu_nf4)
+        };
+        Ok((
+            out_features,
+            in_features,
+            quantized_weight,
+            cached_weight,
+            gpu_nf4,
+        ))
     }
 
     /// Create a quantized linear layer with trainable `LoRA` weights registered via `VarBuilder`.
@@ -351,49 +484,9 @@ impl QuantizedLinear {
         config: &QLoraConfig,
         vb: VarBuilder,
     ) -> Result<Self> {
-        let shape = weight.shape().dims();
-        if shape.len() != 2 {
-            return Err(QLoraError::InvalidConfig("weight must be 2D".into()));
-        }
-        let (out_features, in_features) = (shape[0], shape[1]);
-        // DECOUPLE quantize-device from compute-device. The base `weight` may live on the
-        // CPU (the caller can keep the full-precision base off the GPU so it never costs
-        // VRAM during construction — critical for fitting multi-billion-param models). The
-        // QuantizedTensor produced by quantization is host-side bytes regardless. All the
-        // GPU-resident state (the BF16 cache, the trainable LoRA, the forward device) uses
-        // the VarBuilder's device, which the trainer puts on the GPU.
         let compute_device = vb.device().clone();
-        warn_cpu_fallback(&compute_device);
-
-        // Quantize on the base weight's own device (CPU when the caller mmapped it there).
-        let quantized_weight = quantize_nf4_with_config(weight, &config.quantization)?;
-
-        // Cache the dequantized base weight on the COMPUTE device in the COMPUTE dtype
-        // (BF16). Built from the small host-side NF4 (uploaded once), so the full-precision
-        // weight never needs to be resident on the GPU. Caching once (resident) avoids
-        // re-dequantizing every forward — which churns/fragments the pool and forces candle
-        // to retain a fresh dequant per layer through backward.
-        let (quantized_weight, cached_weight) = if config.cache_dequantized {
-            // Dequantize on the BASE weight's device first, then move the (BF16) result to
-            // the compute device. When the base is on the CPU this means the per-weight
-            // dequant temporaries (nibble LUTs, codes, vals — each numel-sized) are built on
-            // the CPU, and only the final BF16 cache tensor is uploaded to the GPU. That
-            // keeps the GPU build peak at ~the resident cache size instead of accumulating a
-            // numel-sized GPU temporary per weight (which OOMs 3B at build). `to_device` is a
-            // no-op when the base already lives on the compute device (e.g. the LM head).
-            let cache = dequantize_nf4_with_dtype(
-                &quantized_weight,
-                weight.device(),
-                config.quantization.compute_dtype,
-            )?;
-            let mut q = quantized_weight;
-            q.data = Vec::new();
-            q.scales = Vec::new();
-            q.zero_points = None;
-            (q, Some(cache.to_device(&compute_device)?))
-        } else {
-            (quantized_weight, None)
-        };
+        let (out_features, in_features, quantized_weight, cached_weight, gpu_nf4) =
+            Self::quantize_and_cache_dequantized(weight, config, &compute_device)?;
 
         // Create LoRA adapter with VarBuilder for gradient tracking (on the compute device).
         let lora = LoraLayer::new(in_features, out_features, config.lora.clone(), vb)?;
@@ -401,20 +494,46 @@ impl QuantizedLinear {
         Ok(Self {
             quantized_weight,
             cached_weight,
+            gpu_nf4,
             bias,
             lora,
+            lora_zero: false,
             device: compute_device,
             config: config.clone(),
-            detach_base: std::env::var("VOX_QLORA_DETACH_BASE")
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false),
         })
     }
 
-    /// Set whether base output is detached during forward to skip computing
-    /// unused base weight gradients during backprop.
-    pub fn set_detach_base(&mut self, detach: bool) {
-        self.detach_base = detach;
+    /// Create a frozen quantized linear layer safe for training backprop through `input`.
+    ///
+    /// Unlike `from_weight`, when Metal GPU NF4 staging is active this keeps `allow_gemv = false`
+    /// so forward uses differentiable `nf4_dequant` + `matmul` (or `cached_weight` when caching is
+    /// enabled) across all sequence lengths instead of dispatching `nf4_gemv` (`apply_op3_no_bwd`)
+    /// when `batch * seq <= 16`. No LoRA params are added to any `VarMap`.
+    ///
+    /// # Errors
+    /// Returns error if weight tensor has invalid shape, quantization fails, or LoRA init fails
+    pub fn from_weight_frozen(
+        weight: &Tensor,
+        bias: Option<Tensor>,
+        config: &QLoraConfig,
+        device: &Device,
+    ) -> Result<Self> {
+        let compute_device = device.clone();
+        let (out_features, in_features, quantized_weight, cached_weight, gpu_nf4) =
+            Self::quantize_and_cache_dequantized(weight, config, &compute_device)?;
+        let lora =
+            LoraLayer::new_with_zeros(in_features, out_features, config.lora.clone(), device)?;
+
+        Ok(Self {
+            quantized_weight,
+            cached_weight,
+            gpu_nf4,
+            bias,
+            lora,
+            lora_zero: config.lora.loftq_iterations == 0,
+            device: compute_device,
+            config: config.clone(),
+        })
     }
 
     /// Create a new quantized linear layer with zero-initialized quantized weights.
@@ -442,60 +561,112 @@ impl QuantizedLinear {
     /// # Errors
     /// Returns error if tensor operations fail
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
-        // Get dequantized weight (either from cache or on-the-fly), honoring the
-        // configured compute dtype. With BF16 compute, the dequantized base weight
-        // — which candle retains through the backward pass to compute input
-        // gradients (the base is frozen, but d_input still needs the weight) — is
-        // held at 2 bytes/param instead of 4. For a multi-billion-param model that
-        // retained-weight term dominates VRAM, so this ~halves training footprint.
-        let weight = if let Some(cached) = &self.cached_weight {
-            cached.clone()
-        } else {
-            // On-the-fly dequantization (default, memory-optimal)
-            dequantize_nf4_with_dtype(
-                &self.quantized_weight,
-                &self.device,
-                self.config.quantization.compute_dtype,
-            )?
-        };
-        let weight_t = weight.t()?;
-
-        // The base matmul runs in the weight's (compute) dtype. Cast the input to
-        // match only when dtypes differ (no-op cost on the all-F32 path), then cast
-        // the base output back to the input dtype so the LoRA residual + downstream
-        // norms — which stay in F32 for numerical stability — remain consistent.
-        let w_dtype = weight.dtype();
-        let in_dtype = input.dtype();
-        let base_output = if input.dims().len() == 3 {
-            // For [batch, seq, in_features], reshape to [batch * seq, in_features]
-            let (batch, seq, in_features) = input.dims3()?;
-            let mut reshaped = input.reshape(&[batch * seq, in_features])?;
-            if w_dtype != in_dtype {
-                reshaped = reshaped.to_dtype(w_dtype)?;
-            }
-            let out = reshaped.matmul(&weight_t)?;
-            // Reshape back to [batch, seq, out_features]
-            let out_features = weight_t.dim(1)?;
-            out.reshape(&[batch, seq, out_features])?
-        } else {
-            // For 2D [batch, in_features], standard matmul
-            let lhs = if w_dtype != in_dtype {
-                input.to_dtype(w_dtype)?
+        let base_output =
+            if let Some((q_gpu, s_gpu, out_features, in_features, w_dtype, allow_gemv)) =
+                &self.gpu_nf4
+            {
+                let in_dtype = input.dtype();
+                if input.dims().len() == 3 {
+                    let (batch, seq, in_dim) = input.dims3()?;
+                    let m = batch * seq;
+                    let mut reshaped = input.reshape(&[m, in_dim])?;
+                    if *w_dtype != in_dtype {
+                        reshaped = reshaped.to_dtype(*w_dtype)?;
+                    }
+                    let out = if *allow_gemv && (1..=16).contains(&m) {
+                        reshaped.nf4_gemv(q_gpu, s_gpu, *out_features, *in_features)?
+                    } else {
+                        let w = Tensor::nf4_dequant(
+                            q_gpu,
+                            s_gpu,
+                            *out_features,
+                            *in_features,
+                            *w_dtype,
+                        )?;
+                        reshaped.matmul(&w.t()?)?
+                    };
+                    let out = out.reshape(&[batch, seq, *out_features])?;
+                    if *w_dtype != in_dtype {
+                        out.to_dtype(in_dtype)?
+                    } else {
+                        out
+                    }
+                } else {
+                    let (m, _in_dim) = input.dims2()?;
+                    let lhs = if *w_dtype != in_dtype {
+                        input.to_dtype(*w_dtype)?
+                    } else {
+                        input.clone()
+                    };
+                    let out = if *allow_gemv && (1..=16).contains(&m) {
+                        lhs.nf4_gemv(q_gpu, s_gpu, *out_features, *in_features)?
+                    } else {
+                        let w = Tensor::nf4_dequant(
+                            q_gpu,
+                            s_gpu,
+                            *out_features,
+                            *in_features,
+                            *w_dtype,
+                        )?;
+                        lhs.matmul(&w.t()?)?
+                    };
+                    if *w_dtype != in_dtype {
+                        out.to_dtype(in_dtype)?
+                    } else {
+                        out
+                    }
+                }
             } else {
-                input.clone()
+                // Get dequantized weight (either from cache or on-the-fly), honoring the
+                // configured compute dtype. With BF16 compute, the dequantized base weight
+                // — which candle retains through the backward pass to compute input
+                // gradients (the base is frozen, but d_input still needs the weight) — is
+                // held at 2 bytes/param instead of 4. For a multi-billion-param model that
+                // retained-weight term dominates VRAM, so this ~halves training footprint.
+                let weight = if let Some(cached) = &self.cached_weight {
+                    cached.clone()
+                } else {
+                    // On-the-fly dequantization (default, memory-optimal)
+                    dequantize_nf4_with_dtype(
+                        &self.quantized_weight,
+                        &self.device,
+                        self.config.quantization.compute_dtype,
+                    )?
+                };
+                let weight_t = weight.t()?;
+
+                // The base matmul runs in the weight's (compute) dtype. Cast the input to
+                // match only when dtypes differ (no-op cost on the all-F32 path), then cast
+                // the base output back to the input dtype so the LoRA residual + downstream
+                // norms — which stay in F32 for numerical stability — remain consistent.
+                let w_dtype = weight.dtype();
+                let in_dtype = input.dtype();
+                let base_output = if input.dims().len() == 3 {
+                    // For [batch, seq, in_features], reshape to [batch * seq, in_features]
+                    let (batch, seq, in_features) = input.dims3()?;
+                    let mut reshaped = input.reshape(&[batch * seq, in_features])?;
+                    if w_dtype != in_dtype {
+                        reshaped = reshaped.to_dtype(w_dtype)?;
+                    }
+                    let out = reshaped.matmul(&weight_t)?;
+                    // Reshape back to [batch, seq, out_features]
+                    let out_features = weight_t.dim(1)?;
+                    out.reshape(&[batch, seq, out_features])?
+                } else {
+                    // For 2D [batch, in_features], standard matmul
+                    let lhs = if w_dtype != in_dtype {
+                        input.to_dtype(w_dtype)?
+                    } else {
+                        input.clone()
+                    };
+                    lhs.matmul(&weight_t)?
+                };
+                if w_dtype != in_dtype {
+                    base_output.to_dtype(in_dtype)?
+                } else {
+                    base_output
+                }
             };
-            lhs.matmul(&weight_t)?
-        };
-        let base_output = if w_dtype != in_dtype {
-            base_output.to_dtype(in_dtype)?
-        } else {
-            base_output
-        };
-        let base_output = if self.detach_base {
-            base_output.detach()
-        } else {
-            base_output
-        };
 
         // LoRA forward: adds x @ A^T @ B^T * scaling.
         //
@@ -512,22 +683,228 @@ impl QuantizedLinear {
         // peft_rs applies no dropout in forward (the `dropout` config field is unused),
         // so there is nothing further to replicate. Scaling = alpha/r (or alpha/sqrt(r)
         // for rsLoRA) is taken verbatim from the layer.
-        let (lora_a, lora_b) = self.lora.weights();
-        let act_dtype = base_output.dtype();
-        let a = lora_a.to_dtype(act_dtype)?; // [r, in_features]
-        let b = lora_b.to_dtype(act_dtype)?; // [out_features, r]
-        // x @ A^T -> [..., r]; (x @ A^T) @ B^T -> [..., out_features]
-        let lora_out = linear_no_bias_t(input, &a)?;
-        let lora_out = linear_no_bias_t(&lora_out, &b)?;
-        let scaling =
-            Tensor::new(self.lora.scaling() as f32, lora_out.device())?.to_dtype(act_dtype)?;
-        let lora_out = lora_out.broadcast_mul(&scaling)?;
-        let output = base_output.broadcast_add(&lora_out)?;
+        let output = if self.lora_zero {
+            base_output
+        } else {
+            let (lora_a, lora_b) = self.lora.weights();
+            let act_dtype = base_output.dtype();
+            let a = lora_a.to_dtype(act_dtype)?; // [r, in_features]
+            let b = lora_b.to_dtype(act_dtype)?; // [out_features, r]
+            // x @ A^T -> [..., r]; (x @ A^T) @ B^T -> [..., out_features]
+            let lora_out = linear_no_bias_t(input, &a)?;
+            let lora_out = linear_no_bias_t(&lora_out, &b)?;
+            let lora_out = (lora_out * self.lora.scaling())?;
+            base_output.broadcast_add(&lora_out)?
+        };
 
         // Add bias if present
         match &self.bias {
-            Some(bias) => Ok(output.broadcast_add(bias)?),
+            Some(bias) => {
+                if bias.dtype() != output.dtype() {
+                    Ok(output.broadcast_add(&bias.to_dtype(output.dtype())?)?)
+                } else {
+                    Ok(output.broadcast_add(bias)?)
+                }
+            }
             None => Ok(output),
+        }
+    }
+
+    /// Target row count when padding decode rows up to `gemm_rows` for width-invariant GEMM.
+    ///
+    /// Live row counts in `1..gemm_rows` pad to `gemm_rows`; `0` or `>= gemm_rows` (e.g. a
+    /// long single-sequence prefill) stay unchanged.
+    #[must_use]
+    pub fn padded_rows(rows: usize, gemm_rows: usize) -> usize {
+        if rows > 0 && rows < gemm_rows {
+            gemm_rows
+        } else {
+            rows
+        }
+    }
+
+    /// Width-invariant GEMM forward pass (`VOX_MENS_DECODE_PROTOCOL=bf16`): pads any
+    /// `1..gemm_rows` input with zero rows up to `gemm_rows` before `nf4_dequant` + `matmul`
+    /// and narrows back to the live rows, so every batch width `1..=gemm_rows` dispatches
+    /// the exact same GEMM tile and produces bitwise-identical outputs per sequence.
+    ///
+    /// # Errors
+    /// Returns error if tensor shapes mismatch or dequantization/matmul fails.
+    pub fn forward_padded_gemm(&self, input: &Tensor, gemm_rows: usize) -> Result<Tensor> {
+        let in_dtype = input.dtype();
+        let (m, in_dim, out_shape) = if input.dims().len() == 3 {
+            let (batch, seq, in_dim) = input.dims3()?;
+            (batch * seq, in_dim, Some((batch, seq)))
+        } else {
+            let (m, in_dim) = input.dims2()?;
+            (m, in_dim, None)
+        };
+
+        let base_output =
+            if let Some((q_gpu, s_gpu, out_features, in_features, w_dtype, _allow_gemv)) =
+                &self.gpu_nf4
+            {
+                let mut lhs = input.reshape(&[m, in_dim])?;
+                if *w_dtype != in_dtype {
+                    lhs = lhs.to_dtype(*w_dtype)?;
+                }
+                let padded_m = Self::padded_rows(m, gemm_rows);
+                let padded_lhs = if padded_m > m {
+                    let zeros = Tensor::zeros((padded_m - m, in_dim), lhs.dtype(), lhs.device())?;
+                    Tensor::cat(&[&lhs, &zeros], 0)?
+                } else {
+                    lhs
+                };
+                let w = Tensor::nf4_dequant(q_gpu, s_gpu, *out_features, *in_features, *w_dtype)?;
+                let out = padded_lhs.matmul(&w.t()?)?;
+                let out = if padded_m > m {
+                    out.narrow(0, 0, m)?
+                } else {
+                    out
+                };
+                let out = if let Some((batch, seq)) = out_shape {
+                    out.reshape(&[batch, seq, *out_features])?
+                } else {
+                    out
+                };
+                if *w_dtype != in_dtype {
+                    out.to_dtype(in_dtype)?
+                } else {
+                    out
+                }
+            } else {
+                let weight = if let Some(cached) = &self.cached_weight {
+                    cached.clone()
+                } else {
+                    dequantize_nf4_with_dtype(
+                        &self.quantized_weight,
+                        &self.device,
+                        self.config.quantization.compute_dtype,
+                    )?
+                };
+                let weight_t = weight.t()?;
+                let w_dtype = weight.dtype();
+                let out_features = weight_t.dim(1)?;
+                let mut lhs = input.reshape(&[m, in_dim])?;
+                if w_dtype != in_dtype {
+                    lhs = lhs.to_dtype(w_dtype)?;
+                }
+                let padded_m = Self::padded_rows(m, gemm_rows);
+                let padded_lhs = if padded_m > m {
+                    let zeros = Tensor::zeros((padded_m - m, in_dim), lhs.dtype(), lhs.device())?;
+                    Tensor::cat(&[&lhs, &zeros], 0)?
+                } else {
+                    lhs
+                };
+                let out = padded_lhs.matmul(&weight_t)?;
+                let out = if padded_m > m {
+                    out.narrow(0, 0, m)?
+                } else {
+                    out
+                };
+                let out = if let Some((batch, seq)) = out_shape {
+                    out.reshape(&[batch, seq, out_features])?
+                } else {
+                    out
+                };
+                if w_dtype != in_dtype {
+                    out.to_dtype(in_dtype)?
+                } else {
+                    out
+                }
+            };
+
+        let output = if self.lora_zero {
+            base_output
+        } else {
+            let (lora_a, lora_b) = self.lora.weights();
+            let act_dtype = base_output.dtype();
+            let a = lora_a.to_dtype(act_dtype)?;
+            let b = lora_b.to_dtype(act_dtype)?;
+            let lora_out = linear_no_bias_t(input, &a)?;
+            let lora_out = linear_no_bias_t(&lora_out, &b)?;
+            let lora_out = (lora_out * self.lora.scaling())?;
+            base_output.broadcast_add(&lora_out)?
+        };
+
+        match &self.bias {
+            Some(bias) => {
+                if bias.dtype() != output.dtype() {
+                    Ok(output.broadcast_add(&bias.to_dtype(output.dtype())?)?)
+                } else {
+                    Ok(output.broadcast_add(bias)?)
+                }
+            }
+            None => Ok(output),
+        }
+    }
+
+    /// Width-invariant F32 head projection (`D-25` / Pitfall 6): casts activations to `F32`
+    /// and returns `F32` logits directly, chunking Metal `nf4_gemv` in slices of `<= 16` rows
+    /// so `m > 16` neither allocates a multi-GB F32 weight buffer nor changes reduction order.
+    ///
+    /// # Errors
+    /// Returns error if tensor shapes mismatch or projection fails.
+    pub fn forward_f32_head(&self, input: &Tensor) -> Result<Tensor> {
+        let input_f32 = if input.dtype() == DType::F32 {
+            input.clone()
+        } else {
+            input.to_dtype(DType::F32)?
+        };
+        if let Some((q_gpu, s_gpu, out_features, in_features, _w_dtype, allow_gemv)) = &self.gpu_nf4
+        {
+            let (m, in_dim, out_shape) = if input_f32.dims().len() == 3 {
+                let (batch, seq, in_dim) = input_f32.dims3()?;
+                (batch * seq, in_dim, Some((batch, seq)))
+            } else {
+                let (m, in_dim) = input_f32.dims2()?;
+                (m, in_dim, None)
+            };
+            let lhs = input_f32.reshape(&[m, in_dim])?.contiguous()?;
+            let base_2d = if !*allow_gemv {
+                let w = Tensor::nf4_dequant(q_gpu, s_gpu, *out_features, *in_features, DType::F32)?;
+                lhs.matmul(&w.t()?)?
+            } else if m <= 16 {
+                lhs.nf4_gemv(q_gpu, s_gpu, *out_features, *in_features)?
+            } else {
+                let mut chunks = Vec::with_capacity(m.div_ceil(16));
+                let mut start = 0usize;
+                while start < m {
+                    let take = (m - start).min(16);
+                    let slice = lhs.narrow(0, start, take)?;
+                    chunks.push(slice.nf4_gemv(q_gpu, s_gpu, *out_features, *in_features)?);
+                    start += take;
+                }
+                Tensor::cat(&chunks, 0)?
+            };
+            let base_output = if let Some((batch, seq)) = out_shape {
+                base_2d.reshape(&[batch, seq, *out_features])?
+            } else {
+                base_2d
+            };
+            let output = if self.lora_zero {
+                base_output
+            } else {
+                let (lora_a, lora_b) = self.lora.weights();
+                let a = lora_a.to_dtype(DType::F32)?;
+                let b = lora_b.to_dtype(DType::F32)?;
+                let lora_out = linear_no_bias_t(&input_f32, &a)?;
+                let lora_out = linear_no_bias_t(&lora_out, &b)?;
+                let lora_out = (lora_out * self.lora.scaling())?;
+                base_output.broadcast_add(&lora_out)?
+            };
+            match &self.bias {
+                Some(bias) => {
+                    if bias.dtype() != DType::F32 {
+                        Ok(output.broadcast_add(&bias.to_dtype(DType::F32)?)?)
+                    } else {
+                        Ok(output.broadcast_add(bias)?)
+                    }
+                }
+                None => Ok(output),
+            }
+        } else {
+            self.forward(&input_f32)
         }
     }
 
@@ -539,7 +916,7 @@ impl QuantizedLinear {
     /// # Errors
     /// Returns error if dequantization fails.
     pub fn enable_weight_caching(&mut self) -> Result<()> {
-        if self.cached_weight.is_none() {
+        if self.cached_weight.is_none() && self.gpu_nf4.is_none() {
             self.cached_weight = Some(dequantize_nf4_with_dtype(
                 &self.quantized_weight,
                 &self.device,
@@ -557,7 +934,25 @@ impl QuantizedLinear {
     /// Check if weight caching is enabled.
     #[must_use]
     pub fn is_weight_cached(&self) -> bool {
-        self.cached_weight.is_some()
+        self.cached_weight.is_some() || self.gpu_nf4.is_some()
+    }
+
+    /// Borrow the pre-dequantized dense `[out_features, in_features]` weight cache, if enabled.
+    #[must_use]
+    pub fn cached_weight(&self) -> Option<&Tensor> {
+        self.cached_weight.as_ref()
+    }
+
+    /// Borrow the optional bias tensor attached to this linear layer.
+    #[must_use]
+    pub fn bias(&self) -> Option<&Tensor> {
+        self.bias.as_ref()
+    }
+
+    /// True when the `LoRA` `B` matrix is untouched zeros and forward skips the adapter delta.
+    #[must_use]
+    pub fn is_lora_zero(&self) -> bool {
+        self.lora_zero
     }
 
     /// Get the `QLoRA` configuration used to create this layer.
@@ -574,6 +969,7 @@ impl QuantizedLinear {
 
     /// Get mutable access to the `LoRA` adapter.
     pub fn lora_mut(&mut self) -> &mut LoraLayer {
+        self.lora_zero = false;
         &mut self.lora
     }
 
@@ -596,7 +992,11 @@ impl QuantizedLinear {
     /// Get total memory usage in bytes.
     #[must_use]
     pub fn memory_bytes(&self) -> usize {
-        let quantized_size = self.quantized_weight.size_bytes();
+        let mut quantized_size = self.quantized_weight.size_bytes();
+        if let Some((q_gpu, s_gpu, ..)) = &self.gpu_nf4 {
+            quantized_size += q_gpu.elem_count() * q_gpu.dtype().size_in_bytes()
+                + s_gpu.elem_count() * s_gpu.dtype().size_in_bytes();
+        }
         let lora_size = self.lora.num_parameters() * 4; // f32
         let bias_size = self.bias.as_ref().map_or(0, |b| b.elem_count() * 4);
         quantized_size + lora_size + bias_size

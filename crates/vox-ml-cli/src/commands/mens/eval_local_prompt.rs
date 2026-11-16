@@ -45,6 +45,15 @@ pub(crate) fn prepare_bench_item(
     manifest_index: usize,
     bench_item: &serde_json::Value,
 ) -> PreparedBench {
+    prepare_bench_item_for_model(bench, manifest_index, bench_item, None)
+}
+
+pub(crate) fn prepare_bench_item_for_model(
+    bench: &Path,
+    manifest_index: usize,
+    bench_item: &serde_json::Value,
+    model_hint: Option<&str>,
+) -> PreparedBench {
     use owo_colors::OwoColorize;
 
     let id = bench_item["id"].as_str().unwrap_or("?").to_string();
@@ -126,12 +135,15 @@ pub(crate) fn prepare_bench_item(
     let prompt = if raw_prompt.trim().is_empty() {
         raw_prompt
     } else {
-        use vox_eval::qwen_reasoning::{Lane, assistant_opener_for_lane, user_for_lane};
+        use vox_eval::qwen_reasoning::{
+            Lane, assistant_opener_for_lane, model_uses_no_think_user_switch,
+            user_for_lane_with_switch,
+        };
         let sys_prompt = vox_corpus::training::generate_training_system_prompt();
-        // Byte-identical to the codegen training prefix (`chatml_prefix_for_lane`,
-        // Lane::Codegen): `/no_think` on the user turn and an empty think block
-        // prefilled, so Qwen3 answers directly instead of opening `<think>`.
-        let user = user_for_lane(&raw_prompt, Lane::Codegen);
+        // Match codegen training prefix: only Qwen3.0 expects literal ` /no_think` on the user
+        // turn; Qwen3.5 / Qwen3.8 keep the user turn clean and rely on the empty think prefill.
+        let uses_switch = model_uses_no_think_user_switch(model_hint);
+        let user = user_for_lane_with_switch(&raw_prompt, Lane::Codegen, uses_switch);
         let opener = assistant_opener_for_lane(Lane::Codegen);
         format!(
             "<|im_start|>system\n{sys_prompt}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{opener}"
@@ -304,6 +316,34 @@ mod tests {
             "user turn must end in /no_think: {:?}",
             p.prompt
         );
+    }
+
+    #[test]
+    fn qwen35_and_qwen38_omit_no_think_switch_while_qwen3_keeps_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let item = json!({"id": "t", "file": "x.vox", "description": "Hello."});
+
+        let q3 = super::prepare_bench_item_for_model(dir.path(), 0, &item, Some("Qwen/Qwen3-0.6B"));
+        assert!(
+            q3.prompt.contains("Hello. /no_think<|im_end|>"),
+            "{:?}",
+            q3.prompt
+        );
+
+        for hint in ["Qwen/Qwen3.5-4B", "qwen3_5_text", "Qwen/Qwen3.8-27B"] {
+            let p = super::prepare_bench_item_for_model(dir.path(), 0, &item, Some(hint));
+            assert!(
+                !p.prompt.contains("/no_think"),
+                "hint `{hint}` must omit Qwen3.0 `/no_think` switch: {:?}",
+                p.prompt
+            );
+            assert!(
+                p.prompt
+                    .ends_with("<|im_start|>assistant\n<think>\n\n</think>\n\n"),
+                "hint `{hint}` must still prefill the empty think block: {:?}",
+                p.prompt
+            );
+        }
     }
 
     /// The longest reference answer in `mens/data/heldout_bench` is 316 Qwen3

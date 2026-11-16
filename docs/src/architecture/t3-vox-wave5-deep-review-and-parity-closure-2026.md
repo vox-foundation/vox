@@ -19,9 +19,9 @@ This document records the Wave 5 adversarial code-first review comparing Vox's T
 
 Following the completion of Milestone `v4.8` (`Phases 265–270`), we conducted a three-axis adversarial audit comparing:
 
-1. **Backend Orchestration & MCP Pipeline:** `crates/vox-orchestrator/src/` and `crates/vox-orchestrator-mcp/src/` vs. `/Users/brbrainerd/dev/t3code`, `/Users/brbrainerd/dev/t3router`, and `/Users/brbrainerd/dev/pi-t3chat`.
-2. **Frontend GUI & Rust Tauri Bridge:** `crates/vox-gui/ui/src/` and `crates/vox-gui/src/commands/` vs. `/Users/brbrainerd/dev/t3code/apps/web`, `/Users/brbrainerd/dev/NotT3Chat`, `/Users/brbrainerd/dev/t3-chat-tomdoestech`, and `/Users/brbrainerd/dev/t3-cloneathon`.
-3. **Static Enforcement (`vox-code-audit`):** `crates/vox-code-audit/src/detectors/` and `diagnostics/catalog.rs` vs. `/Users/brbrainerd/dev/t3code/oxlint-plugin-t3code` and [`t3-vox-toestub-rules-and-enforcement-research-2026.md`](t3-vox-toestub-rules-and-enforcement-research-2026.md).
+1. **Backend Orchestration & MCP Pipeline:** `crates/vox-orchestrator/src/` and `crates/vox-orchestrator-mcp/src/` vs. `~/dev/t3code`, `~/dev/t3router`, and `~/dev/pi-t3chat`.
+2. **Frontend GUI & Rust Tauri Bridge:** `crates/vox-gui/ui/src/` and `crates/vox-gui/src/commands/` vs. `~/dev/t3code/apps/web`, `~/dev/NotT3Chat`, `~/dev/t3-chat-tomdoestech`, and `~/dev/t3-cloneathon`.
+3. **Static Enforcement (`vox-code-audit`):** `crates/vox-code-audit/src/detectors/` and `diagnostics/catalog.rs` vs. `~/dev/t3code/oxlint-plugin-t3code` and [`t3-vox-toestub-rules-and-enforcement-research-2026.md`](t3-vox-toestub-rules-and-enforcement-research-2026.md).
 
 While Waves 2–4 established the core domain structures and initial MCP/UI wiring, the audit uncovered **critical subtle bugs, split-brain data stores, un-wired domain engines, and 43 live static-analysis violations** that prevent full production parity.
 

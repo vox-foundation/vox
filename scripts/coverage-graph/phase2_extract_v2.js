@@ -6,7 +6,7 @@ export const meta = {
   ],
 }
 
-const REPO = 'C:/Users/Owner/vox'
+const REPO = (process.env.VOX_REPO_ROOT || process.cwd()).replace(/\\/g, '/')
 const crates = typeof args === 'string' ? JSON.parse(args) : args
 const CHUNK = 8
 

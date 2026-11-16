@@ -87,9 +87,9 @@
       {
         "id": "orchestrator",
         "label": "Orchestrator & agents",
-        "cli": 28,
-        "mcp": 82,
-        "surfaces": 2
+        "cli": 37,
+        "mcp": 90,
+        "surfaces": 3
       },
       {
         "id": "mesh",
@@ -108,7 +108,7 @@
       {
         "id": "research",
         "label": "Research / Scientia",
-        "cli": 78,
+        "cli": 79,
         "mcp": 68,
         "surfaces": 2
       },
@@ -136,7 +136,7 @@
       {
         "id": "ci",
         "label": "CI & governance",
-        "cli": 233,
+        "cli": 234,
         "mcp": 0,
         "surfaces": 1
       },
@@ -192,8 +192,8 @@
       {
         "id": "platform",
         "label": "Platform (other)",
-        "cli": 48,
-        "mcp": 119,
+        "cli": 49,
+        "mcp": 127,
         "surfaces": 3
       }
     ]

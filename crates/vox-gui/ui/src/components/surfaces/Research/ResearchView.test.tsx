@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 
 const SESSIONS = [
@@ -77,6 +77,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 import { LanguageProvider } from '../../../hooks/useLanguage';
 import { ResearchView } from './ResearchView';
+import { MultiWaveProgressTimeline } from './MultiWaveProgressTimeline';
 
 describe('ResearchView', () => {
   beforeEach(() => {
@@ -288,9 +289,12 @@ describe('ResearchView', () => {
     expect(await screen.findByText(/Flag Misleading Research/i)).toBeTruthy();
     const selector = screen.getByTestId('defect-class-selector');
     expect(selector).toBeTruthy();
-    expect(screen.getByText('Inelegant Code')).toBeTruthy();
-    expect(screen.getByText('Fails to Run')).toBeTruthy();
-    expect(screen.getByText('User Corrected')).toBeTruthy();
+    expect(selector).toHaveTextContent('Inelegant Code');
+    fireEvent.click(selector);
+    expect(screen.getByRole('option', { name: 'Inelegant Code' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Fails to Run' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'User Corrected' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: 'Inelegant Code' }));
 
     const submitBtn = screen.getByRole('button', { name: /Submit Flag/i });
     expect(submitBtn.getAttribute('type')).toBe('button');
@@ -640,6 +644,238 @@ describe('ResearchView', () => {
         expect(screen.getByTestId('codegen-verification-card')).toBeInTheDocument();
         expect(screen.getByTestId('detail-multi-wave-timeline')).toBeInTheDocument();
         expect(screen.getByTestId('promote-to-scientia-btn')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Phase 449 STRM-04 Virtualization, Dynamic Waves, Scholarly Mode & SSE Resync', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('supports scholarly domain mode and 1..=5 waves selector', async () => {
+      render(<ResearchView />);
+      for (const mode of ['general', 'shopping', 'codegen', 'scholarly']) {
+        expect(screen.getByTestId(`domain-mode-${mode}`)).toBeInTheDocument();
+      }
+      for (const w of [1, 2, 3, 4, 5]) {
+        expect(screen.getByTestId(`research-waves-${w}`)).toBeInTheDocument();
+      }
+
+      fireEvent.click(screen.getByTestId('domain-mode-scholarly'));
+      fireEvent.click(screen.getByTestId('research-waves-5'));
+
+      const input = screen.getByLabelText('Research question');
+      fireEvent.change(input, { target: { value: 'transformer scaling laws arxiv' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'start_research_async',
+          expect.objectContaining({
+            query: 'transformer scaling laws arxiv',
+            domainMode: 'scholarly',
+            waves: 5,
+          }),
+        );
+      });
+    });
+
+    it('renders dynamic 1..=5 wave stages in MultiWaveProgressTimeline', () => {
+      render(<MultiWaveProgressTimeline currentWave={4} totalWaves={5} stabilityScore={0.78} />);
+      expect(screen.getByTestId('multi-wave-counter')).toHaveTextContent('Wave 4 of 5');
+      expect(screen.getByTestId('wave-stage-1')).toHaveAttribute('data-status', 'completed');
+      expect(screen.getByTestId('wave-stage-3')).toHaveAttribute('data-status', 'completed');
+      expect(screen.getByTestId('wave-stage-4')).toHaveAttribute('data-status', 'running');
+      expect(screen.getByTestId('wave-stage-5')).toHaveAttribute('data-status', 'pending');
+    });
+
+    it('virtualizes 5,000 claims so only the visible viewport slice mounts in DOM', async () => {
+      const claims = Array.from({ length: 5000 }, (_, i) => ({
+        claim_id: `c-${i}`,
+        text: `Empirical claim number ${i} corroborated across primary sources.`,
+        verdict: i % 10 === 0 ? 'Contradicted' : 'Supported',
+        confidence: 0.91,
+        resample_stability: 0.88,
+        citation_urls: [`https://example.com/src-${i % 20}`],
+        corroboration_count: 2,
+      }));
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Large synthesis report.',
+        artifact_json: null,
+        source_count: 20,
+        claims_total: 5000,
+        claims,
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('virtualized-claims-table')).toBeInTheDocument();
+      });
+
+      const renderedRows = screen.getAllByTestId('virtualized-claim-row');
+      expect(renderedRows.length).toBeGreaterThan(0);
+      expect(renderedRows.length).toBeLessThan(50);
+
+      fireEvent.click(screen.getByTestId('claims-filter-contradicted'));
+      expect(screen.getByText(/Showing 500 of 5000/i)).toBeInTheDocument();
+    });
+
+    it('virtualizes 5,000 frame chunk rows and streams next chunk on demand', async () => {
+      const rows = Array.from({ length: 5000 }, (_, i) => [i, `metric_${i}`, i * 1.5]);
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Tabular telemetry summary.',
+        artifact_json: null,
+        frame_stream_id: 'stream-1',
+        frame_chunk: {
+          stream_id: 'stream-1',
+          columns: ['id', 'metric', 'value'],
+          rows,
+          offset: 0,
+          limit: 5000,
+          has_more: true,
+          total_rows: 5002,
+        },
+      };
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          data: {
+            stream_id: 'stream-1',
+            columns: ['id', 'metric', 'value'],
+            rows: [
+              [5000, 'metric_5000', 7500],
+              [5001, 'metric_5001', 7501.5],
+            ],
+            offset: 5000,
+            limit: 100,
+            has_more: false,
+            total_rows: 5002,
+          },
+        }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('virtualized-frame-chunk-table')).toBeInTheDocument();
+      });
+
+      const renderedFrameRows = screen.getAllByTestId('virtualized-frame-row');
+      expect(renderedFrameRows.length).toBeGreaterThan(0);
+      expect(renderedFrameRows.length).toBeLessThan(50);
+
+      fireEvent.click(screen.getByTestId('frame-chunk-load-more'));
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/v2/research/frame-chunks/stream-1?offset=5000&limit=5000',
+        );
+        expect(screen.getByText('5002 loaded / 5002 total')).toBeInTheDocument();
+      });
+    });
+
+    it('subscribes to ?from_seq= SSE deltas, updates live wave, and recovers on resync_required', async () => {
+      const instances: MockEventSource[] = [];
+      class MockEventSource {
+        url: string;
+        onmessage: ((ev: MessageEvent) => void) | null = null;
+        listeners = new Map<string, Array<(ev: MessageEvent) => void>>();
+        closed = false;
+        constructor(url: string) {
+          this.url = url;
+          instances.push(this);
+        }
+        addEventListener(type: string, fn: (ev: MessageEvent) => void) {
+          const list = this.listeners.get(type) ?? [];
+          list.push(fn);
+          this.listeners.set(type, list);
+        }
+        emit(type: string, data: unknown) {
+          const ev = { data: JSON.stringify(data) } as MessageEvent;
+          if (type === 'message') this.onmessage?.(ev);
+          for (const fn of this.listeners.get(type) ?? []) fn(ev);
+        }
+        close() {
+          this.closed = true;
+        }
+      }
+      vi.stubGlobal('EventSource', MockEventSource);
+
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
+        if (cmd === 'get_research_session_detail') return Promise.resolve(DETAIL_WITH_CLAIMS);
+        if (cmd === 'start_research_async') return Promise.resolve({ session_id: 42, task_id: 't42', status: 'running' });
+        return Promise.resolve(null);
+      });
+
+      render(<ResearchView />);
+      fireEvent.click(screen.getByTestId('research-waves-5'));
+      const input = screen.getByLabelText('Research question');
+      fireEvent.change(input, { target: { value: 'live streaming test' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(instances).toHaveLength(1);
+        expect(instances[0]!.url).toBe('/api/v2/research/sessions/42/events?from_seq=0');
+      });
+
+      act(() => {
+        instances[0]!.emit('message', {
+          seq: 7,
+          session_id: '42',
+          event: { event_type: 'WaveStarted', wave: 3, max_waves: 5 },
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('multi-wave-counter')).toHaveTextContent('Wave 3 of 5');
+      });
+
+      act(() => {
+        instances[0]!.emit('resync_required', {
+          type: 'resync_required',
+          session_id: '42',
+          oldest_available_seq: 20,
+          latest_seq: 25,
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('research-resync-banner')).toBeInTheDocument();
+        expect(invokeMock).toHaveBeenCalledWith('get_research_session_detail', { sessionId: 42 });
+      });
+    });
+
+    it('toggles inline Before / After Audit Inspector when clicking toggle-audit-inspector-btn (Phase 452 AUDT-03)', async () => {
+      render(<ResearchView />);
+
+      expect(screen.queryByTestId('before-after-audit-inspector')).toBeNull();
+      const toggleBtn = screen.getByTestId('toggle-audit-inspector-btn');
+      expect(toggleBtn).toHaveAttribute('type', 'button');
+      expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(toggleBtn);
+      await waitFor(() => {
+        expect(screen.getByTestId('before-after-audit-inspector')).toBeInTheDocument();
+        expect(screen.getByTestId('audit-bug-closure-pill')).toHaveTextContent(
+          '9/9 Live Bugs Closed',
+        );
+      });
+      expect(toggleBtn).toHaveAttribute('aria-expanded', 'true');
+
+      fireEvent.click(toggleBtn);
+      await waitFor(() => {
+        expect(screen.queryByTestId('before-after-audit-inspector')).toBeNull();
       });
     });
   });

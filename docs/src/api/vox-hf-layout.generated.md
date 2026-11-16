@@ -43,6 +43,7 @@ SSOT for `vox-populi` MENS tensor code and `vox-plugin-mens-candle-cuda`.
 | Struct | Description |
 |---|---|
 | `ConfigDims` | — |
+| `Llama3RopeScaling` | Llama-3.1 piecewise RoPE frequency scaling parameters (`rope_scaling.rope_type == "llama3"`). |
 | `HfTransformerLayout` | Structured transformer layout from HF `config.json` (GPT-2, Qwen2-style, qwen3_5-style). |
 | `ParsedTransformerLayout` | Layout + coarse [`HfArchitecture`] bucket (GPT-2 vs stacked causal LM field layout). |
 
@@ -56,9 +57,15 @@ SSOT for `vox-populi` MENS tensor code and `vox-plugin-mens-candle-cuda`.
 
 | Function | Description |
 |---|---|
-| `is_vision_or_mtp_key` | True for tensor keys belonging to Qwen3.8-27B's vision tower (`model.visual.*`) or its multi-token-prediction head (`mtp.*`) — neither is part of the text tower this crate extracts a layout for, and neither should be requested, downloaded, or validated against by a text-only QLoRA loader. |
+| `is_vision_or_mtp_key` | True for tensor keys belonging to VLM vision towers (`model.visual.*`, `visual.*`) or multi-token-prediction heads (`mtp.*`, `model.mtp.*`) — neither is part of the text tower this crate extracts a layout for, and neither should be requested, downloaded, or validated against by a text-only QLoRA loader. |
+| `uses_zero_centered_rmsnorm` | True when attention, layernorm, and final RMSNorm layers use Qwen3.5+ zero-centered `(1.0 + weight)` scaling.  Note: `linear_attn.norm` (`Qwen3_5RMSNormGated`) remains `1.0`-centered even when this is `true`, while dense `qwen3`, `qwen2`, `llama`, `mistral`, `granite`, and `gpt2` stay `1.0`-centered everywhere. |
+| `effective_rope_dim` | Effective per-head rotary dimension honoring `partial_rotary_factor` (e.g. `256 * 0.25 = 64`), rounded down to an even number and clamped to `[2, head_dim]`. |
 | `from_config_path` | Parse `config.json` at `path` into a structured layout. |
 | `from_config_json_str` | Parse a `config.json` string (tests + tooling). |
+| `parse_rms_norm_eps_str` | Extract `rms_norm_eps` from a `config.json` string (`text_config` first, then root). |
+| `parse_rms_norm_eps_path` | Extract `rms_norm_eps` from `config.json` at `path`. |
+| `parse_llama3_rope_scaling_str` | Extract Llama-3.1 RoPE scaling (`rope_scaling.rope_type == "llama3"`) from `config.json`. |
+| `parse_llama3_rope_scaling_path` | Extract Llama-3.1 RoPE scaling from `config.json` at `path`. |
 | `parse_transformer_layout` | Parse `config.json` and classify architecture for legacy CLI / tests. |
 | `detect_hf_architecture` | — |
 | `config_dims_for_architecture` | Load [`ConfigDims`] from a Hugging Face `config.json` for `arch`.  Prefer [`HfTransformerLayout::from_config_path`] for new code; this keeps older call sites stable. |
@@ -97,12 +104,19 @@ graph {
 |---|---|---|---|---|
 | `enum` | `HfArchitecture` | `pub enum HfArchitecture` | [`crates/vox-hf-layout/src/lib.rs#L13-L16`](../../../crates/vox-hf-layout/src/lib.rs#L13-L16) | — |
 | `struct` | `ConfigDims` | `pub struct ConfigDims` | [`crates/vox-hf-layout/src/lib.rs#L19-L24`](../../../crates/vox-hf-layout/src/lib.rs#L19-L24) | — |
-| `struct` | `HfTransformerLayout` | `pub struct HfTransformerLayout` | [`crates/vox-hf-layout/src/lib.rs#L28-L66`](../../../crates/vox-hf-layout/src/lib.rs#L28-L66) | Structured transformer layout from HF `config.json` (GPT-2, Qwen2-style, qwen3_5-style). |
-| `fn` | `is_vision_or_mtp_key` | `pub fn is_vision_or_mtp_key(key: &str) -> bool` | [`crates/vox-hf-layout/src/lib.rs#L73-L75`](../../../crates/vox-hf-layout/src/lib.rs#L73-L75) | True for tensor keys belonging to Qwen3.8-27B's vision tower (`model.visual.*`) or its multi-token-prediction head (`mtp.*`) — neither is part of the text tower this crate extracts a layout for, and neither should be requested, downloaded, or validated against by a text-only QLoRA loader. |
-| `fn` | `from_config_path` | `pub fn from_config_path(path: &Path) -> anyhow::Result<Self>` | [`crates/vox-hf-layout/src/lib.rs#L79-L83`](../../../crates/vox-hf-layout/src/lib.rs#L79-L83) | Parse `config.json` at `path` into a structured layout. |
-| `fn` | `from_config_json_str` | `pub fn from_config_json_str(raw: &str) -> anyhow::Result<Self>` | [`crates/vox-hf-layout/src/lib.rs#L86-L89`](../../../crates/vox-hf-layout/src/lib.rs#L86-L89) | Parse a `config.json` string (tests + tooling). |
-| `struct` | `ParsedTransformerLayout` | `pub struct ParsedTransformerLayout` | [`crates/vox-hf-layout/src/lib.rs#L356-L361`](../../../crates/vox-hf-layout/src/lib.rs#L356-L361) | Layout + coarse [`HfArchitecture`] bucket (GPT-2 vs stacked causal LM field layout). |
-| `fn` | `parse_transformer_layout` | `pub fn parse_transformer_layout(path: &Path) -> anyhow::Result<ParsedTransformerLayout>` | [`crates/vox-hf-layout/src/lib.rs#L364-L379`](../../../crates/vox-hf-layout/src/lib.rs#L364-L379) | Parse `config.json` and classify architecture for legacy CLI / tests. |
-| `fn` | `detect_hf_architecture` | `pub fn detect_hf_architecture(config_path: &Path) -> anyhow::Result<HfArchitecture>` | [`crates/vox-hf-layout/src/lib.rs#L397-L402`](../../../crates/vox-hf-layout/src/lib.rs#L397-L402) | — |
-| `fn` | `config_dims_for_architecture` | `pub fn config_dims_for_architecture(` | [`crates/vox-hf-layout/src/lib.rs#L426`](../../../crates/vox-hf-layout/src/lib.rs#L426) | Load [`ConfigDims`] from a Hugging Face `config.json` for `arch`.  Prefer [`HfTransformerLayout::from_config_path`] for new code; this keeps older call sites stable. |
+| `struct` | `Llama3RopeScaling` | `pub struct Llama3RopeScaling` | [`crates/vox-hf-layout/src/lib.rs#L28-L33`](../../../crates/vox-hf-layout/src/lib.rs#L28-L33) | Llama-3.1 piecewise RoPE frequency scaling parameters (`rope_scaling.rope_type == "llama3"`). |
+| `struct` | `HfTransformerLayout` | `pub struct HfTransformerLayout` | [`crates/vox-hf-layout/src/lib.rs#L37-L75`](../../../crates/vox-hf-layout/src/lib.rs#L37-L75) | Structured transformer layout from HF `config.json` (GPT-2, Qwen2-style, qwen3_5-style). |
+| `fn` | `is_vision_or_mtp_key` | `pub fn is_vision_or_mtp_key(key: &str) -> bool` | [`crates/vox-hf-layout/src/lib.rs#L82-L87`](../../../crates/vox-hf-layout/src/lib.rs#L82-L87) | True for tensor keys belonging to VLM vision towers (`model.visual.*`, `visual.*`) or multi-token-prediction heads (`mtp.*`, `model.mtp.*`) — neither is part of the text tower this crate extracts a layout for, and neither should be requested, downloaded, or validated against by a text-only QLoRA loader. |
+| `fn` | `uses_zero_centered_rmsnorm` | `pub fn uses_zero_centered_rmsnorm(&self) -> bool` | [`crates/vox-hf-layout/src/lib.rs#L94-L101`](../../../crates/vox-hf-layout/src/lib.rs#L94-L101) | True when attention, layernorm, and final RMSNorm layers use Qwen3.5+ zero-centered `(1.0 + weight)` scaling.  Note: `linear_attn.norm` (`Qwen3_5RMSNormGated`) remains `1.0`-centered even when this is `true`, while dense `qwen3`, `qwen2`, `llama`, `mistral`, `granite`, and `gpt2` stay `1.0`-centered everywhere. |
+| `fn` | `effective_rope_dim` | `pub fn effective_rope_dim(&self, head_dim: usize) -> usize` | [`crates/vox-hf-layout/src/lib.rs#L105-L117`](../../../crates/vox-hf-layout/src/lib.rs#L105-L117) | Effective per-head rotary dimension honoring `partial_rotary_factor` (e.g. `256 * 0.25 = 64`), rounded down to an even number and clamped to `[2, head_dim]`. |
+| `fn` | `from_config_path` | `pub fn from_config_path(path: &Path) -> anyhow::Result<Self>` | [`crates/vox-hf-layout/src/lib.rs#L119-L123`](../../../crates/vox-hf-layout/src/lib.rs#L119-L123) | Parse `config.json` at `path` into a structured layout. |
+| `fn` | `from_config_json_str` | `pub fn from_config_json_str(raw: &str) -> anyhow::Result<Self>` | [`crates/vox-hf-layout/src/lib.rs#L126-L129`](../../../crates/vox-hf-layout/src/lib.rs#L126-L129) | Parse a `config.json` string (tests + tooling). |
+| `fn` | `parse_rms_norm_eps_str` | `pub fn parse_rms_norm_eps_str(raw: &str) -> Option<f64>` | [`crates/vox-hf-layout/src/lib.rs#L132-L137`](../../../crates/vox-hf-layout/src/lib.rs#L132-L137) | Extract `rms_norm_eps` from a `config.json` string (`text_config` first, then root). |
+| `fn` | `parse_rms_norm_eps_path` | `pub fn parse_rms_norm_eps_path(path: &Path) -> Option<f64>` | [`crates/vox-hf-layout/src/lib.rs#L140-L143`](../../../crates/vox-hf-layout/src/lib.rs#L140-L143) | Extract `rms_norm_eps` from `config.json` at `path`. |
+| `fn` | `parse_llama3_rope_scaling_str` | `pub fn parse_llama3_rope_scaling_str(raw: &str) -> Option<Llama3RopeScaling>` | [`crates/vox-hf-layout/src/lib.rs#L146-L180`](../../../crates/vox-hf-layout/src/lib.rs#L146-L180) | Extract Llama-3.1 RoPE scaling (`rope_scaling.rope_type == "llama3"`) from `config.json`. |
+| `fn` | `parse_llama3_rope_scaling_path` | `pub fn parse_llama3_rope_scaling_path(path: &Path) -> Option<Llama3RopeScaling>` | [`crates/vox-hf-layout/src/lib.rs#L183-L186`](../../../crates/vox-hf-layout/src/lib.rs#L183-L186) | Extract Llama-3.1 RoPE scaling from `config.json` at `path`. |
+| `struct` | `ParsedTransformerLayout` | `pub struct ParsedTransformerLayout` | [`crates/vox-hf-layout/src/lib.rs#L491-L496`](../../../crates/vox-hf-layout/src/lib.rs#L491-L496) | Layout + coarse [`HfArchitecture`] bucket (GPT-2 vs stacked causal LM field layout). |
+| `fn` | `parse_transformer_layout` | `pub fn parse_transformer_layout(path: &Path) -> anyhow::Result<ParsedTransformerLayout>` | [`crates/vox-hf-layout/src/lib.rs#L499-L514`](../../../crates/vox-hf-layout/src/lib.rs#L499-L514) | Parse `config.json` and classify architecture for legacy CLI / tests. |
+| `fn` | `detect_hf_architecture` | `pub fn detect_hf_architecture(config_path: &Path) -> anyhow::Result<HfArchitecture>` | [`crates/vox-hf-layout/src/lib.rs#L532-L537`](../../../crates/vox-hf-layout/src/lib.rs#L532-L537) | — |
+| `fn` | `config_dims_for_architecture` | `pub fn config_dims_for_architecture(` | [`crates/vox-hf-layout/src/lib.rs#L561`](../../../crates/vox-hf-layout/src/lib.rs#L561) | Load [`ConfigDims`] from a Hugging Face `config.json` for `arch`.  Prefer [`HfTransformerLayout::from_config_path`] for new code; this keeps older call sites stable. |
 

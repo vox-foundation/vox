@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../transport';
 
 export interface ChatSession {
   session_id: string;
@@ -20,7 +20,7 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
   const [includeArchived, setIncludeArchived] = useState(false);
 
   const load = useCallback(async (opts?: { includeArchived?: boolean }) => {
-    const list = await invoke<ChatSession[]>('chat_list_sessions', {
+    const list = await invokeCmd<ChatSession[]>('chat_list_sessions', {
       limit: 200,
       includeArchived: opts?.includeArchived ?? includeArchived,
     });
@@ -39,11 +39,11 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
     setSessions(prev => [s, ...prev.filter(item => item.session_id !== s.session_id)]);
   }, []);
 
-  // No optimistic update: on failure, invoke() rejects and this function rethrows without
+  // No optimistic update: on failure, invokeCmd() rejects and this function rethrows without
   // touching `sessions` state, matching ChatSurface.tsx's existing await-then-update-on-success
   // pattern (there is no rollback anywhere in the current codebase to replicate).
   const createSession = useCallback(async (title?: string) => {
-    const created = await invoke<ChatSession>('chat_create_session', { title });
+    const created = await invokeCmd<ChatSession>('chat_create_session', { title });
     if (created?.session_id) {
       setSessions(prev => [created, ...prev.filter(s => s.session_id !== created.session_id)]);
     }
@@ -51,12 +51,12 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
   }, []);
 
   const renameSession = useCallback(async (sessionId: string, title: string) => {
-    await invoke('chat_rename_session', { sessionId, title });
+    await invokeCmd('chat_rename_session', { sessionId, title });
     setSessions(prev => prev.map(s => (s.session_id === sessionId ? { ...s, title } : s)));
   }, []);
 
   const archiveSession = useCallback(async (sessionId: string, opts?: ArchiveOptions) => {
-    await invoke('chat_archive_session', { sessionId });
+    await invokeCmd('chat_archive_session', { sessionId });
     setSessions(prev => {
       const remaining = prev.filter(s => s.session_id !== sessionId);
       if (opts?.wasActive && remaining.length > 0) {
@@ -67,7 +67,7 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
   }, []);
 
   const unarchiveSession = useCallback(async (sessionId: string) => {
-    await invoke('chat_unarchive_session', { sessionId });
+    await invokeCmd('chat_unarchive_session', { sessionId });
     await load();
   }, [load]);
 

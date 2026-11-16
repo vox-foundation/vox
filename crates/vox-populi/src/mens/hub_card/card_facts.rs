@@ -24,15 +24,26 @@ pub(crate) const EVAL_USER_TURN_PREFIX: &str = "Write a Vox program that: ";
 #[derive(Debug, Clone)]
 pub(crate) struct CardFacts {
     pub size: String,
+    pub model_label: String,
+    pub model_family: String,
+    pub uses_no_think_switch: bool,
     pub repo: String,
     pub namespace: String,
     pub repo_id: String,
+    pub playground_space_id: String,
+    pub local_run_dir: String,
     pub base_repo: String,
     pub base_rev: String,
     pub base_pin: String,
     pub license: String,
     pub protocol: &'static str,
     pub trained: bool,
+    pub has_peft_adapter: bool,
+    #[allow(dead_code)]
+    pub has_merged_causal_lm: bool,
+    pub inference_provider_ready: bool,
+    pub has_merged_model: bool,
+    pub merged_files: Vec<String>,
     pub spoke: Option<SpokeFact>,
     pub gate: GateFact,
     pub adapter_evidence: AdapterEvidence,
@@ -59,6 +70,11 @@ pub(crate) struct CardFacts {
     pub alpha: Option<f64>,
     pub training: TrainingFacts,
     pub docs: &'static str,
+    #[allow(dead_code)]
+    pub train_lanes: Vec<String>,
+    #[allow(dead_code)]
+    pub spokes: Vec<String>,
+    pub datasets: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -120,6 +136,28 @@ impl CardFacts {
         self.gate.state == GateState::Passed
     }
 
+    /// True only when the release gate passed AND a complete merged checkpoint exists.
+    pub fn is_complete_model(&self) -> bool {
+        self.is_passed() && self.has_merged_model
+    }
+
+    /// Hugging Face Hub family tag matching [`Self::model_family`].
+    pub fn family_tag(&self) -> &'static str {
+        match self.model_family.as_str() {
+            "qwen3.5" => "qwen3-5",
+            "qwen3.8" => "qwen3-8",
+            _ => "qwen3",
+        }
+    }
+
+    pub fn merged_files_text(&self) -> String {
+        if self.merged_files.is_empty() {
+            "model.safetensors".to_string()
+        } else {
+            self.merged_files.join("`, `")
+        }
+    }
+
     /// Whether the frontmatter has any `model-index` metric to carry.
     pub fn has_model_index(&self) -> bool {
         self.heldout
@@ -179,15 +217,29 @@ fn hours(secs: f64) -> String {
 fn training_facts(rec: &RunRecords) -> TrainingFacts {
     let get = |r: &Option<Value>, k: &str| r.as_ref().and_then(|v| text(&v[k]));
     TrainingFacts {
-        optimizer_steps: get(&rec.train_record, "optimizer_steps"),
+        optimizer_steps: get(&rec.train_record, "optimizer_steps")
+            .or_else(|| get(&rec.run_summary, "optimizer_step_count")),
         total_tokens: get(&rec.run_summary, "total_tokens"),
-        final_loss_ema: loss(&rec.train_record, "final_loss_ema"),
-        avg_train_loss: loss(&rec.train_record, "avg_train_loss"),
+        final_loss_ema: loss(&rec.train_record, "final_loss_ema")
+            .or_else(|| loss(&rec.run_summary, "final_loss_ema")),
+        avg_train_loss: loss(&rec.train_record, "avg_train_loss")
+            .or_else(|| loss(&rec.run_summary, "avg_train_loss")),
         avg_val_loss_last_epoch: loss(&rec.run_summary, "avg_val_loss_last_epoch"),
         wall: rec
             .train_record
             .as_ref()
             .and_then(|t| t["train_wall_secs"].as_f64())
+            .or_else(|| {
+                rec.run_summary
+                    .as_ref()
+                    .and_then(|s| s["wall_secs"].as_f64())
+            })
+            .or_else(|| {
+                rec.train_record
+                    .as_ref()
+                    .and_then(|t| t["total_wall_secs"].as_f64())
+                    .filter(|&w| w > 0.0)
+            })
             .map(hours),
         git_sha: get(&rec.training_manifest, "git_sha"),
     }
@@ -318,12 +370,61 @@ pub(crate) fn card_facts(cx: &CardContext, rec: &RunRecords) -> CardFacts {
             request_json(rec.heldout_adapter.as_ref(), item)
         })
         .flatten();
-    let repo = repo_name(cx.size);
+    let pin_or_size = if crate::mens::hub_repo::size_of_pin(cx.base_pin).is_some() {
+        cx.base_pin
+    } else {
+        cx.size
+    };
+    let model_label = crate::mens::hub_repo::model_label_for(pin_or_size);
+    let model_family = crate::mens::hub_repo::family_of_model(pin_or_size).to_string();
+    let uses_no_think_switch = model_family == "qwen3";
+    let repo = crate::mens::hub_repo::repo_slug_for_model(pin_or_size)
+        .unwrap_or_else(|_| repo_name(cx.size));
+    let repo_id = crate::mens::hub_repo::repo_id_for_size(cx.namespace, pin_or_size)
+        .unwrap_or_else(|_| format!("{}/{repo}", cx.namespace));
+    let playground_space_id = crate::mens::hub_repo::space_repo_id(cx.namespace)
+        .unwrap_or_else(|_| format!("{}/vox-mens-playground", cx.namespace));
+    let local_run_dir = crate::mens::hub_repo::local_run_dir_for_size(pin_or_size)
+        .unwrap_or_else(|_| format!("mens/runs/qwen3-{}", cx.size.to_ascii_lowercase()));
+    let has_peft_adapter = rec.has_adapter;
+    let has_merged_causal_lm = rec.has_complete_merged_model || !rec.merged_model_files.is_empty();
+    let inference_provider_ready = gate.state == GateState::Passed && has_merged_causal_lm;
+    let has_merged_model = has_merged_causal_lm && gate.state == GateState::Passed;
+    let train_lanes: Vec<String> = rec
+        .adapter_card
+        .as_ref()
+        .and_then(|c| c.get("train_lanes"))
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    let spokes: Vec<String> = rec
+        .adapter_card
+        .as_ref()
+        .and_then(|c| c.get("spokes"))
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    let datasets = cite_datasets(cx.namespace, spoke.as_ref().map(|s| s.id.as_str()));
     CardFacts {
         size: cx.size.to_string(),
-        repo_id: format!("{}/{repo}", cx.namespace),
+        model_label,
+        model_family,
+        uses_no_think_switch,
+        repo_id,
         repo,
         namespace: cx.namespace.to_string(),
+        playground_space_id,
+        local_run_dir,
         base_repo: base_repo.to_string(),
         base_rev: base_rev.to_string(),
         base_pin: cx.base_pin.to_string(),
@@ -335,6 +436,11 @@ pub(crate) fn card_facts(cx: &CardContext, rec: &RunRecords) -> CardFacts {
             .to_string(),
         protocol: PROMPT_PROTOCOL,
         trained: gate.trained,
+        has_peft_adapter,
+        has_merged_causal_lm,
+        inference_provider_ready,
+        has_merged_model,
+        merged_files: rec.merged_model_files.clone(),
         spoke,
         adapter_report: rec.heldout_adapter.is_some(),
         has_receipt: rec.gate_receipt.is_some(),
@@ -349,9 +455,31 @@ pub(crate) fn card_facts(cx: &CardContext, rec: &RunRecords) -> CardFacts {
         alpha,
         training: training_facts(rec),
         docs: DOCS,
+        train_lanes,
+        spokes,
+        datasets,
         adapter_evidence: evidence,
         gate,
     }
+}
+
+/// Canonical Hugging Face dataset repo citations for a card (`338-09`).
+pub(crate) fn cite_datasets(namespace: &str, spoke: Option<&str>) -> Vec<String> {
+    let mut out = Vec::new();
+    let eval_suite = match spoke {
+        Some("rust") => "rust_bench",
+        Some("agents" | "tool-selection" | "argument-generation" | "harness") => "agent_episodes",
+        _ => "vox_lang_bench",
+    };
+    if let Ok(repo) = crate::mens::hub_repo::eval_dataset_repo_id(namespace, eval_suite) {
+        out.push(repo);
+    }
+    if let Some(sp) = spoke
+        && let Ok(repo) = crate::mens::hub_repo::data_dataset_repo_id(namespace, sp)
+    {
+        out.push(repo);
+    }
+    out
 }
 
 #[cfg(test)]
@@ -361,7 +489,7 @@ mod tests {
     use crate::mens::hub_card::facts::load_requirement;
     use serde_json::json;
 
-    const PIN: &str = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
+    const PIN: &str = "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"; // gitleaks:allow
 
     fn cx() -> CardContext<'static> {
         CardContext {
@@ -439,5 +567,95 @@ mod tests {
         let f = card_facts(&cx(), &rec);
         assert_eq!(f.adapter_cell(), "4/8 (50.0%)");
         assert!(f.has_model_index());
+    }
+
+    #[test]
+    fn cite_datasets_prefers_spoke_and_eval_suite() {
+        assert_eq!(
+            cite_datasets("ns", Some("rust")),
+            vec![
+                "ns/vox-mens-eval-rust-bench".to_string(),
+                "ns/vox-mens-data-rust".to_string(),
+            ]
+        );
+        assert_eq!(
+            cite_datasets("ns", Some("agents")),
+            vec![
+                "ns/vox-mens-eval-agent-episodes".to_string(),
+                "ns/vox-mens-data-agents".to_string(),
+            ]
+        );
+        assert_eq!(
+            cite_datasets("ns", Some("vox-lang")),
+            vec![
+                "ns/vox-mens-eval-vox-lang-bench".to_string(),
+                "ns/vox-mens-data-vox-lang".to_string(),
+            ]
+        );
+
+        let mut rec = current_gate_run();
+        rec.adapter_card = Some(json!({
+            "train_lanes": ["rust_authoring"],
+            "spokes": ["rust"],
+        }));
+        let f = card_facts(&cx(), &rec);
+        assert_eq!(f.train_lanes, vec!["rust_authoring".to_string()]);
+        assert_eq!(f.spokes, vec!["rust".to_string()]);
+        assert_eq!(
+            f.datasets,
+            cite_datasets("ns", f.spoke.as_ref().map(|s| s.id.as_str()))
+        );
+    }
+
+    #[test]
+    fn family_fields_and_serving_flags_track_pin_and_checkpoint_state() {
+        let mut rec = current_gate_run();
+        let f_35 = card_facts(&cx(), &rec);
+        assert_eq!(f_35.model_label, "Qwen3.5-4B");
+        assert_eq!(f_35.model_family, "qwen3.5");
+        assert_eq!(f_35.family_tag(), "qwen3-5");
+        assert!(!f_35.uses_no_think_switch);
+        assert_eq!(f_35.repo, "vox-mens-qwen3.5-4b");
+        assert_eq!(f_35.repo_id, "ns/vox-mens-qwen3.5-4b");
+        assert_eq!(f_35.local_run_dir, "mens/runs/qwen3.5-4b");
+        assert_eq!(f_35.playground_space_id, "ns/vox-mens-playground");
+        assert!(f_35.has_peft_adapter);
+        assert!(!f_35.has_merged_causal_lm);
+        assert!(!f_35.inference_provider_ready);
+
+        rec.has_complete_merged_model = true;
+        let f_merged = card_facts(&cx(), &rec);
+        assert!(f_merged.has_merged_causal_lm);
+        assert!(f_merged.inference_provider_ready);
+
+        let f_legacy = card_facts(
+            &CardContext {
+                size: "4B",
+                base_pin: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c", // gitleaks:allow
+                namespace: "ns",
+            },
+            &rec,
+        );
+        assert_eq!(f_legacy.model_label, "Qwen3-4B");
+        assert_eq!(f_legacy.model_family, "qwen3");
+        assert_eq!(f_legacy.family_tag(), "qwen3");
+        assert!(f_legacy.uses_no_think_switch);
+        assert_eq!(f_legacy.repo, "vox-mens-qwen3-4b");
+        assert_eq!(f_legacy.local_run_dir, "mens/runs/qwen3-4b");
+
+        let f_38 = card_facts(
+            &CardContext {
+                size: "27B",
+                base_pin: "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0", // gitleaks:allow
+                namespace: "ns",
+            },
+            &rec,
+        );
+        assert_eq!(f_38.model_label, "Qwen3.8-27B");
+        assert_eq!(f_38.model_family, "qwen3.8");
+        assert_eq!(f_38.family_tag(), "qwen3-8");
+        assert!(!f_38.uses_no_think_switch);
+        assert_eq!(f_38.repo, "vox-mens-qwen3.8-27b");
+        assert_eq!(f_38.local_run_dir, "mens/runs/qwen3.8-27b");
     }
 }

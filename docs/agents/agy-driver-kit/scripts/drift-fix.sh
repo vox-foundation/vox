@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Run ssot-drift; when it names a `vox ci ... --write` fix, run that and retry (max 8 rounds).
-cd /Users/brbrainerd/dev/vox
+cd "$(dirname "$0")/../../../.." || exit 1
 for i in {1..8}; do
   out=$(timeout 1200s cargo run -q -p vox-cli -- ci ssot-drift 2>&1)
   err=$(print -r -- "$out" | grep -m1 "^Error")

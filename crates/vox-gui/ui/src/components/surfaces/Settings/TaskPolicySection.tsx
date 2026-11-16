@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { VoxSelect } from '../../ui/Select';
 import { voxTransport, type TaskPolicyEntry, type TaskPolicyOverrides } from '../../../transport';
 
 const CLUTCH_OPTIONS = ['free', 'efficiency', 'balanced', 'genius'];
@@ -87,32 +88,28 @@ export function TaskPolicySection() {
               <span className="flex-1 text-[12px] text-text-secondary">
                 {scopeKind === 'category' ? `Category: ${scopeKey}` : `Source: ${scopeKey}`}
               </span>
-              <select
-                className={SEL}
+              <VoxSelect
+                size="xs"
+                className={`w-32 ${SEL}`}
                 aria-label={`Clutch for ${scopeKey}`}
                 value={entry.clutch ?? ''}
-                onChange={(e) => setOverride(scopeKind, scopeKey, e.target.value || undefined, entry.risk)}
-              >
-                <option value="">(inherit)</option>
-                {CLUTCH_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <select
-                className={SEL}
+                onValueChange={(v) => setOverride(scopeKind, scopeKey, v || undefined, entry.risk)}
+                options={[
+                  { value: '', label: '(inherit)' },
+                  ...CLUTCH_OPTIONS.map((c) => ({ value: c, label: c })),
+                ]}
+              />
+              <VoxSelect
+                size="xs"
+                className={`w-32 ${SEL}`}
                 aria-label={`Risk for ${scopeKey}`}
                 value={entry.risk ?? ''}
-                onChange={(e) => setOverride(scopeKind, scopeKey, entry.clutch, e.target.value || undefined)}
-              >
-                <option value="">(inherit)</option>
-                {RISK_OPTIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => setOverride(scopeKind, scopeKey, entry.clutch, v || undefined)}
+                options={[
+                  { value: '', label: '(inherit)' },
+                  ...RISK_OPTIONS.map((r) => ({ value: r, label: r })),
+                ]}
+              />
               <button
                 type="button"
                 className="rounded-sm border border-rose-500/20 bg-rose-500/4 px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
@@ -130,24 +127,19 @@ export function TaskPolicySection() {
         <label htmlFor="task-policy-add-scope" className="font-display text-[10px] uppercase tracking-widest text-text-muted">
           Add override for
         </label>
-        <select
+        <VoxSelect
           id="task-policy-add-scope"
-          className={SEL}
+          aria-label="Add override for"
+          size="xs"
+          className={`w-64 ${SEL}`}
           value={addScope}
-          onChange={(e) => setAddScope(e.target.value)}
-        >
-          <option value="">(choose a category or source)</option>
-          {addableCategories.map((c) => (
-            <option key={`category:${c}`} value={`category:${c}`}>
-              Category: {c}
-            </option>
-          ))}
-          {addableSources.map((s) => (
-            <option key={`source:${s}`} value={`source:${s}`}>
-              Source: {s}
-            </option>
-          ))}
-        </select>
+          onValueChange={setAddScope}
+          options={[
+            { value: '', label: '(choose a category or source)' },
+            ...addableCategories.map((c) => ({ value: `category:${c}`, label: `Category: ${c}` })),
+            ...addableSources.map((s) => ({ value: `source:${s}`, label: `Source: ${s}` })),
+          ]}
+        />
         <button type="button" className={BTN} onClick={handleAdd} disabled={!addScope}>
           Add
         </button>

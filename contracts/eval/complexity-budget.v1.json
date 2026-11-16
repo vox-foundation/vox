@@ -13,6 +13,9 @@
     "error_propagation": 120,
     "json_as_typed": 120,
     "mcp_tools": 120,
-    "py_array_stats": 120
+    "py_array_stats": 120,
+    "py_frame_report": 120,
+    "py_tensor_infer": 120,
+    "py_escape_psd": 120
   }
 }

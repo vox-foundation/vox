@@ -57,6 +57,8 @@ describe('Catalog', () => {
       </LanguageProvider>,
     );
     expect(screen.getByRole('heading', { name: 'vox check' })).toBeDefined();
+    expect(document.querySelector('[data-slot="master-detail-workbench"]')).not.toBeNull();
+    expect(screen.getByTestId('catalog-cli-preview').textContent).toContain('$ vox check');
   });
 
   describe('Run (D-03, D-16)', () => {

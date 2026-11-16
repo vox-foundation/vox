@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import {
   CheckCircle2,
   Database,
@@ -353,6 +353,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
   const [autoSyncOnEdit, setAutoSyncOnEdit] = useState<boolean>(true);
   const [isRebuilding, setIsRebuilding] = useState<boolean>(false);
   const [isSavingRow, setIsSavingRow] = useState<boolean>(false);
+  const [activeRungSize, setActiveRungSize] = useState<string | null>(null);
 
   // Editable fields for the selected or newly-created JSONL row
   const [editPrompt, setEditPrompt] = useState<string>(FALLBACK_RECORDS[0]!.prompt);
@@ -366,7 +367,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
 
   const loadSnapshot = useCallback(async (cfgPath: string) => {
     try {
-      const res = await invoke<MensCorpusStudioSnapshotDto>('mens_corpus_studio_snapshot', {
+      const res = await invokeCmd<MensCorpusStudioSnapshotDto>('mens_corpus_studio_snapshot', {
         configPath: cfgPath,
       });
       if (res && Array.isArray(res.sources)) {
@@ -389,7 +390,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
   const loadJsonlPage = useCallback(
     async (srcPath: string, query: string, family: string) => {
       try {
-        const res = await invoke<MensJsonlPageDto>('mens_corpus_read_jsonl', {
+        const res = await invokeCmd<MensJsonlPageDto>('mens_corpus_read_jsonl', {
           path: srcPath,
           offset: 0,
           limit: 30,
@@ -476,7 +477,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
     setIsSavingRow(true);
     const weightNum = Number.parseFloat(editWeight);
     try {
-      const res = await invoke<MensSaveJsonlRowResponseDto>('mens_corpus_save_jsonl_row', {
+      const res = await invokeCmd<MensSaveJsonlRowResponseDto>('mens_corpus_save_jsonl_row', {
         request: {
           config_path: activeConfigPath,
           source_path: selectedSourcePath,
@@ -549,7 +550,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
   const handleRebuildMixNow = async () => {
     setIsRebuilding(true);
     try {
-      const res = await invoke<MensCorpusStudioSnapshotDto>('mens_corpus_rebuild_mix', {
+      const res = await invokeCmd<MensCorpusStudioSnapshotDto>('mens_corpus_rebuild_mix', {
         configPath: activeConfigPath,
         forceResynth: true,
       });
@@ -602,7 +603,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-xs font-bold tracking-[0.14em] uppercase text-[#F3E5AB]">
+              <h2 className="font-display text-xs font-bold tracking-[0.14em] uppercase text-text-primary">
                 MENS CORPUS &amp; PIPELINE STUDIO
               </h2>
               <span className="rounded-md border border-brass/45 bg-brass/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-brass">
@@ -612,13 +613,13 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
                 data-testid="mens-corpus-freshness-badge"
                 className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[9px] font-semibold ${
                   snapshot.mix_fresh
-                    ? 'border-emerald-500/45 bg-emerald-500/15 text-emerald-300'
-                    : 'border-amber-500/50 bg-amber-500/15 text-amber-300'
+                    ? 'border-emerald-600/45 bg-emerald-500/15 text-(--color-status-pass)'
+                    : 'border-amber-600/50 bg-amber-500/15 text-(--color-status-warn)'
                 }`}
               >
                 <span
                   className={`size-1.5 rounded-full ${
-                    snapshot.mix_fresh ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'
+                    snapshot.mix_fresh ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
                   }`}
                 />
                 {snapshot.mix_fresh
@@ -638,7 +639,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
         <div className="flex flex-wrap items-center gap-2.5">
           <div
             data-testid="mens-corpus-spoke-selector"
-            className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-brass/35 bg-black/50 p-1 font-mono text-[9.5px]"
+            className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-brass/35 bg-bg-elevated p-1 font-mono text-[9.5px]"
           >
             {SPOKE_CONFIG_PRESETS.map((preset) => {
               const isActive = activeConfigPath === preset.configPath;
@@ -650,29 +651,36 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
                   onClick={() => setActiveConfigPath(preset.configPath)}
                   className={`rounded-lg px-2 py-0.5 transition ${
                     isActive
-                      ? 'border border-brass/65 bg-brass/25 text-[#F3E5AB] font-semibold shadow-xs'
+                      ? 'border border-brass/65 bg-brass/25 text-text-primary font-semibold shadow-xs'
                       : 'text-text-muted hover:bg-overlay-subtle hover:text-text-primary'
                   }`}
                 >
-                  [{preset.label}]
+                  {preset.label}
                 </button>
               );
             })}
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-brass/35 bg-black/45 px-2.5 py-1">
+          <div className="flex items-center gap-2 rounded-xl border border-brass/35 bg-bg-elevated px-2.5 py-1">
             <RomanBrassGauge
               label="SUPERVISED"
               valueText={`${snapshot.supervised_ratio_pct.toFixed(1)}%`}
-              ratio={snapshot.supervised_ratio_pct / 100}
+              ratio={snapshot.output_records > 0 ? snapshot.supervised_ratio_pct / 100 : 0}
               tone="emerald"
               purpose={`Completion-to-total token ratio (${snapshot.output_records} rows, sys=${snapshot.system_prompt_tokens}t)`}
+              actionHint={
+                familyFilter === 'has_think'
+                  ? 'Click to show all JSONL task families'
+                  : 'Click to filter JSONL inspector to <think> CoT records'
+              }
+              active={familyFilter === 'has_think'}
+              onClick={() => setFamilyFilter((prev) => (prev === 'has_think' ? 'all' : 'has_think'))}
             />
             <div className="font-mono text-[9.5px] leading-tight">
-              <div className="text-[#F3E5AB] font-semibold">
+              <div className="text-text-primary font-semibold">
                 {snapshot.output_records.toLocaleString()} rows
               </div>
-              <div className="text-emerald-400">
+              <div className="text-(--color-status-pass)">
                 {snapshot.supervised_ratio_pct.toFixed(1)}% completion
               </div>
               <div className="text-text-muted">{snapshot.output_path}</div>
@@ -763,7 +771,7 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
                     {/* Proportional Share Bar */}
                     <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-black/60">
                       <div
-                        className="h-full rounded-full bg-linear-to-r from-brass to-emerald-400 transition-all duration-300"
+                        className="h-full rounded-full bg-linear-to-r from-brass to-emerald-400 transition-[width] duration-300"
                         style={{ width: `${Math.min(100, Math.max(6, src.share_pct))}%` }}
                       />
                     </div>
@@ -1161,9 +1169,20 @@ export function MensCorpusStudioPanel({ pushToast }: MensCorpusStudioPanelProps)
                     <RomanBrassGauge
                       label={rung.size}
                       valueText={`${progressPct}%`}
-                      ratio={progressPct / 100}
+                      ratio={totalItems > 0 ? doneItems / totalItems : 0}
                       tone={tone}
                       purpose={`${doneItems}/${totalItems} reasoning items scored`}
+                      actionHint={
+                        activeRungSize === rung.size
+                          ? 'Click to clear ladder checkpoint filter'
+                          : `Click to filter inspector to ${rung.label} CoT reasoning traces`
+                      }
+                      active={activeRungSize === rung.size}
+                      onClick={() => {
+                        const next = activeRungSize === rung.size ? null : rung.size;
+                        setActiveRungSize(next);
+                        setFamilyFilter(next ? 'has_think' : 'all');
+                      }}
                     />
                   </div>
                 );

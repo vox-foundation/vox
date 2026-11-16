@@ -23,6 +23,8 @@ pub(super) fn maybe_save_mid_epoch_checkpoint(
     shuffled_indices: &[usize],
     last_loss_val: f32,
     run_start_inst: std::time::Instant,
+    total_tokens: usize,
+    micro_steps_executed: u32,
 ) -> Result<()> {
     if let Some(every) = config.checkpoint_every
         && every > 0
@@ -46,6 +48,8 @@ pub(super) fn maybe_save_mid_epoch_checkpoint(
             wall_seconds_elapsed: run_start_inst.elapsed().as_secs_f64(),
             saved_at_utc: CheckpointState::now_utc(),
             data_fingerprint: config.data_fingerprint.clone(),
+            total_tokens,
+            micro_steps_executed,
         };
         state.save(out).context("save CheckpointState mid-epoch")?;
 

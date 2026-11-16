@@ -24,9 +24,12 @@ def astype(stack, step, host):
     if not stack:
         raise PlanError("py-plan: astype on empty stack")
     dtype = step.get("dtype")
-    if dtype != "f64":
+    if dtype == "f32":
+        stack[-1] = np.asarray(stack[-1], dtype=np.float32)
+    elif dtype == "f64":
+        stack[-1] = np.asarray(stack[-1], dtype=np.float64)
+    else:
         raise PlanError(f"py-plan: astype dtype {dtype!r}")
-    stack[-1] = np.asarray(stack[-1], dtype=np.float64)
 
 
 def add(stack, step, host):
@@ -134,6 +137,29 @@ def shape(stack, step, host):
     stack[-1] = np.asarray(values.shape, dtype=np.float64)
 
 
+def reshape(stack, step, host):
+    import numpy as np
+
+    if not stack:
+        raise PlanError("py-plan: reshape on empty stack")
+    dims = step.get("shape")
+    if not isinstance(dims, list) or not all(isinstance(d, int) and not isinstance(d, bool) for d in dims):
+        raise PlanError(f"py-plan: invalid reshape shape {dims!r}")
+    stack[-1] = np.asarray(stack[-1], dtype=np.float64).reshape(tuple(dims))
+
+
+def softmax(stack, step, host):
+    import numpy as np
+
+    if not stack:
+        raise PlanError("py-plan: softmax on empty stack")
+    axis = step.get("axis", -1)
+    arr = np.asarray(stack[-1], dtype=np.float64)
+    shifted = arr - np.max(arr, axis=axis, keepdims=True)
+    exps = np.exp(shifted)
+    stack[-1] = exps / np.sum(exps, axis=axis, keepdims=True)
+
+
 HANDLERS = {
     "from_list": from_list,
     "astype": astype,
@@ -147,6 +173,8 @@ HANDLERS = {
     "to_list": to_list,
     "item": item,
     "shape": shape,
+    "reshape": reshape,
+    "softmax": softmax,
 }
 
 

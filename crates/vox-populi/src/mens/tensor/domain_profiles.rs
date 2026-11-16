@@ -126,6 +126,75 @@ impl DomainProfilesFile {
         serde_yaml::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Failed to parse domain profiles: {}", e))
     }
+
+    /// Map training/serving `lanes` (e.g. `vox_codegen` or `lane:vox_codegen`) to sorted unique spoke names.
+    pub fn spokes_for_lanes(&self, lanes: &[String]) -> Vec<String> {
+        let mut matched = std::collections::BTreeSet::new();
+        for lane in lanes {
+            let trimmed = lane.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let prefixed = if trimmed.starts_with("lane:") {
+                trimmed.to_string()
+            } else {
+                format!("lane:{trimmed}")
+            };
+            let bare = trimmed.strip_prefix("lane:").unwrap_or(trimmed);
+            for (name, profile) in &self.profiles {
+                if let Some(router) = &profile.router
+                    && router
+                        .triggers
+                        .iter()
+                        .any(|t| t == trimmed || t == &prefixed || t == bare)
+                {
+                    matched.insert(name.clone());
+                }
+            }
+        }
+        matched.into_iter().collect()
+    }
+
+    /// Validate the hub block and all domain profiles against the multi-spoke contract (`344-01`).
+    pub fn validate_all_profiles(&self) -> anyhow::Result<()> {
+        let hub = self
+            .hub
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("missing `hub` section in domain-profiles.yaml"))?;
+        hub.validate()?;
+        for qlora_spoke in ["vox-lang", "rust", "tool-selection", "argument-generation"] {
+            let p = self
+                .profiles
+                .get(qlora_spoke)
+                .ok_or_else(|| anyhow::anyhow!("missing QLoRA spoke profile `{qlora_spoke}`"))?;
+            let base = p.base.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("QLoRA spoke `{qlora_spoke}` must define a `base` block")
+            })?;
+            if base.method != TrainMethod::Qlora {
+                anyhow::bail!("spoke `{qlora_spoke}` must use method: qlora");
+            }
+            if p.eval_gate.as_deref().unwrap_or_default().is_empty() {
+                anyhow::bail!("spoke `{qlora_spoke}` must define an `eval_gate`");
+            }
+        }
+        for non_base in ["harness", "rocks", "research", "populi-meta"] {
+            let p = self
+                .profiles
+                .get(non_base)
+                .ok_or_else(|| anyhow::anyhow!("missing profile `{non_base}`"))?;
+            if p.base.is_some() {
+                anyhow::bail!("profile `{non_base}` must not define a `base` block");
+            }
+        }
+        let re = self
+            .profiles
+            .get("research-expert")
+            .ok_or_else(|| anyhow::anyhow!("missing profile `research-expert`"))?;
+        if re.reward_hook.as_deref() != Some("research_synthesis_eval") {
+            anyhow::bail!("`research-expert` must have reward_hook = research_synthesis_eval");
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -416,5 +485,33 @@ router:
         let p2: DomainProfile = serde_yaml::from_str(yaml2).expect("parse");
         let r = p2.router.unwrap();
         assert!(!r.prefer_local, "prefer_local defaults to false");
+    }
+
+    #[test]
+    fn spokes_for_lanes_maps_known_lanes_and_ignores_review() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        let mapped = file.spokes_for_lanes(&[
+            "vox_codegen".to_string(),
+            "lane:vox_rust_authoring".to_string(),
+            "lane:vox_rust_review".to_string(),
+        ]);
+        assert_eq!(mapped, vec!["rust".to_string(), "vox-lang".to_string()]);
+    }
+
+    #[test]
+    fn all_domain_profiles_are_valid() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        file.validate_all_profiles()
+            .expect("all domain profiles in domain-profiles.yaml must validate");
     }
 }

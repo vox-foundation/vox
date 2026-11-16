@@ -757,6 +757,80 @@ impl QLoraTrainer {
     ///
     /// # Panics
     /// Panics if the `VarMap` mutex is poisoned.
+    fn apply_optimizer_step(&mut self, grads: &mut GradStore, vars: &[Var]) -> Result<()> {
+        if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
+            clip_grad_norm(grads, vars, max_norm)?;
+        }
+        if let Some(ref mut optimizer) = self.optimizer {
+            optimizer.step(grads)?;
+        } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
+            let mut varmap_data = self.varmap.data().lock().unwrap();
+            for (name, var) in varmap_data.iter_mut() {
+                if let Some(grad) = grads.get(var.as_tensor()) {
+                    let mut param = var.as_tensor().clone();
+                    paged_optimizer.step_param(name, &mut param, grad)?;
+                    // step_param updates a *clone*; write it back or the step is lost.
+                    var.set(&param)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Number of completed micro-steps currently held in the incomplete
+    /// gradient accumulation window (`0..gradient_accumulation_steps`).
+    #[must_use]
+    pub fn pending_accumulation_steps(&self) -> usize {
+        self.accumulation_step
+    }
+
+    /// Flush any gradients held in an incomplete accumulation window at epoch end.
+    ///
+    /// When `rescale_partial` is `true`, accumulated gradients are rescaled by
+    /// `accum_steps / self.accumulation_step` so a trailing partial window maintains
+    /// step-size scale; callers using token-normalized accumulation should pass `false`.
+    ///
+    /// # Errors
+    /// Returns an error if clipping or the optimizer step fails.
+    ///
+    /// # Panics
+    /// Panics if the `VarMap` mutex is poisoned.
+    pub fn flush_pending_grads(&mut self, rescale_partial: bool) -> Result<bool> {
+        if self.accumulation_step == 0 || self.pending_grads.is_empty() {
+            self.accumulation_step = 0;
+            self.pending_grads.clear();
+            return Ok(false);
+        }
+        let accum_steps = self
+            .config
+            .adapter_config
+            .gradient_accumulation_steps
+            .max(1);
+        let partial_steps = self.accumulation_step;
+        let vars = self.varmap.all_vars();
+        let mut grads = Tensor::zeros((), DType::F32, &Device::Cpu)?.backward()?;
+        let scale = if rescale_partial && partial_steps < accum_steps {
+            Some(accum_steps as f64 / partial_steps as f64)
+        } else {
+            None
+        };
+        for var in &vars {
+            let t = var.as_tensor();
+            if let Some(g) = self.pending_grads.remove(&t.id()) {
+                let g = if let Some(s) = scale {
+                    g.affine(s, 0.0)?
+                } else {
+                    g
+                };
+                grads.insert(t, g);
+            }
+        }
+        self.pending_grads.clear();
+        self.accumulation_step = 0;
+        self.apply_optimizer_step(&mut grads, &vars)?;
+        Ok(true)
+    }
+
     fn accumulate_and_maybe_step(&mut self, mut grads: GradStore) -> Result<()> {
         let accum_steps = self
             .config
@@ -788,23 +862,7 @@ impl QLoraTrainer {
         }
 
         self.accumulation_step = 0;
-        if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-            clip_grad_norm(&mut grads, &vars, max_norm)?;
-        }
-        if let Some(ref mut optimizer) = self.optimizer {
-            optimizer.step(&grads)?;
-        } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
-            let mut varmap_data = self.varmap.data().lock().unwrap();
-            for (name, var) in varmap_data.iter_mut() {
-                if let Some(grad) = grads.get(var.as_tensor()) {
-                    let mut param = var.as_tensor().clone();
-                    paged_optimizer.step_param(name, &mut param, grad)?;
-                    // step_param updates a *clone*; write it back or the step is lost.
-                    var.set(&param)?;
-                }
-            }
-        }
-        Ok(())
+        self.apply_optimizer_step(&mut grads, &vars)
     }
 
     /// All trainable [`Var`]s registered in this trainer's `VarMap`.
@@ -1482,5 +1540,34 @@ mod tests {
         trainer.start_epoch();
         assert_eq!(trainer.epoch(), 2);
         assert!(!trainer.should_continue());
+    }
+
+    #[test]
+    fn flush_pending_grads_steps_trailing_partial_window() {
+        let (mut trainer, w) = accum_trainer(4, false);
+        let before = scalar(&w);
+        assert_eq!(trainer.pending_accumulation_steps(), 0);
+
+        trainer
+            .backward_step(&w.affine(2.0, 0.0).unwrap().sum_all().unwrap())
+            .unwrap();
+        assert_eq!(trainer.pending_accumulation_steps(), 1);
+        assert!(
+            (scalar(&w) - before).abs() < 1e-9,
+            "optimizer must not step before accumulation window closes"
+        );
+
+        let flushed = trainer.flush_pending_grads(true).unwrap();
+        assert!(
+            flushed,
+            "expected pending grads to trigger an optimizer step"
+        );
+        assert_eq!(trainer.pending_accumulation_steps(), 0);
+        assert!(
+            scalar(&w) < before - 1e-6,
+            "flush_pending_grads did not update weight: before={before}, after={}",
+            scalar(&w)
+        );
+        assert!(!trainer.flush_pending_grads(true).unwrap());
     }
 }

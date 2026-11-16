@@ -27,7 +27,7 @@
 //! through the daemon instead, as `dei.rs`/`visus/mod.rs`/`live.rs`/
 //! `extras/ludus/hud.rs` now do.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use vox_orchestrator::orchestrator::OrchestratorStatus;
@@ -92,11 +92,32 @@ impl OrchestratorDriver for EmbeddedOrchestratorDriver {
     }
 }
 
+// vox:defactored-from vox-repository 2026-11-12 (avoids vox-orchestrator-driver -> vox-repository edge)
+fn find_project_manifest_root(start: &Path) -> Option<PathBuf> {
+    let mut current = if start.as_os_str().is_empty() {
+        std::env::current_dir().ok()?
+    } else if start.is_absolute() {
+        std::fs::canonicalize(start).unwrap_or_else(|_| start.to_path_buf())
+    } else {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        std::fs::canonicalize(cwd.join(start)).unwrap_or_else(|_| cwd.join(start))
+    };
+    loop {
+        if current.join("Vox.toml").is_file() || current.join("Cargo.toml").is_file() {
+            return Some(current);
+        }
+        if !current.pop() {
+            return std::env::current_dir().ok();
+        }
+    }
+}
+
 /// Load orchestrator config from the nearest readable `Vox.toml`, then apply env overrides.
 ///
 /// Discovery order matches the MCP stdio server: manifest-root `Vox.toml` first,
 /// then cwd `Vox.toml`, then defaults.
 #[must_use]
+#[inline(never)]
 pub fn build_embedded_orchestrator_config() -> OrchestratorConfig {
     let cwd = match std::env::current_dir() {
         Ok(p) => p,
@@ -106,7 +127,7 @@ pub fn build_embedded_orchestrator_config() -> OrchestratorConfig {
         }
     };
     let mut candidates = Vec::new();
-    if let Some(root) = vox_repository::find_project_manifest_root(&cwd) {
+    if let Some(root) = find_project_manifest_root(&cwd) {
         candidates.push(root.join("Vox.toml"));
     }
     candidates.push(PathBuf::from("Vox.toml"));

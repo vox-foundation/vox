@@ -80,7 +80,7 @@ graph {
 
 ### 5. Guarded Self-Healing Draft-PR Bot
 
-`vox audit docs --self-heal-plan` and `vox run scripts/docs-fix-drafts.vox` (`crates/vox-doc-pipeline/src/claims/self_heal_bot.rs` and `.github/workflows/docs-self-heal.yml`) enforce:
+`vox audit docs --self-heal-plan` and `vox run scripts/docs-fix-drafts.vox` (`crates/vox-doc-pipeline/src/claims/self_heal_bot.rs` and `.github/workflows/docs-self-heal.yml` read-only `verify-claims-readonly` job; write-side draft PR staging is handled by `.github/workflows/docs-drift-refresh.yml` on `bot/docs-drift-refresh`) enforce:
 
 - **Path Scope**: Only `docs/src/**` prose files may be patched; `*.generated.md`, `docs/src/archive/**`, `.rs`, `.vox`, `Cargo.toml`, and `contracts/**` are rejected (`validate_bot_target_path`).
 - **Pre-PR Verification Gates**: Candidate patches must pass frontmatter checks, balanced code-fence checks, Mermaid validation, and line-range citation checks (`validate_bot_patch_scope_and_gates`).

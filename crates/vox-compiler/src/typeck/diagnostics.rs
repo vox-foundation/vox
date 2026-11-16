@@ -948,6 +948,9 @@ pub mod codes {
     /// `@scheduled` decorator applied to a declaration whose target does not support scheduling.
     pub const DECORATOR_SCHEDULED_TARGET_UNSUPPORTED: &str =
         "vox/decorator/scheduled-target-unsupported";
+
+    /// Tier 2 Python escape-hatch call (`import py ... from "..."`).
+    pub const PYTHON_UNVERIFIED_CALL: &str = "vox/python/unverified-call";
     /// TypeScript codegen encountered a Vox construct it cannot lower to TS.
     pub const CODEGEN_TS_UNSUPPORTED: &str = "vox/codegen-ts/unsupported";
     /// An internal compiler invariant was violated (ICE).

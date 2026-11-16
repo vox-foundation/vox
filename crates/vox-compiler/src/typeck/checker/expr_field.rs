@@ -53,6 +53,45 @@ impl<'a> Checker<'a> {
                 ));
                 Ty::Error
             }
+            Ty::Named(n) if n == "PyObject" => {
+                self.diags.push(
+                    Diagnostic::error(
+                        format!(
+                            "Cannot access field '{field}' on opaque `PyObject`; decode it with `.decode(...)` first."
+                        ),
+                        span,
+                        self.source,
+                    )
+                    .with_suggestion("Decode the Python value with `.decode(...)` before accessing fields."),
+                );
+                Ty::Error
+            }
+            Ty::Named(n) if n.starts_with("PyModule::") => {
+                let module_name = n.trim_start_matches("PyModule::");
+                if let Some(hint) =
+                    crate::python_escape_support::is_denied_python_target(module_name, Some(field))
+                {
+                    self.diags.push(
+                        Diagnostic::error(
+                            format!(
+                                "Python target `{module_name}.{field}` is in the Denied tier. {hint}"
+                            ),
+                            span,
+                            self.source,
+                        )
+                        .with_suggestion(hint),
+                    );
+                } else {
+                    self.diags.push(Diagnostic::error(
+                        format!(
+                            "Cannot read raw attribute `{field}` on Python module `{module_name}`; call a function (`{field}(...)`) instead."
+                        ),
+                        span,
+                        self.source,
+                    ));
+                }
+                Ty::Error
+            }
             Ty::Record(fields) | Ty::Table(_, fields, _) | Ty::Collection(_, fields) => fields
                 .iter()
                 .find(|(n, _)| n == field)
@@ -225,6 +264,8 @@ fn std_namespace_short_name(named: &str) -> Option<&'static str> {
         "StdRegexNs" => Some("regex"),
         "StdArrayNs" => Some("array"),
         "StdFrameNs" => Some("frame"),
+        "StdPlotNs" => Some("plot"),
+        "StdTensorNs" => Some("tensor"),
         _ => None,
     }
 }

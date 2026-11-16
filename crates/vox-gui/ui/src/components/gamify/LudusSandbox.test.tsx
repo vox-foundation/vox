@@ -6,19 +6,29 @@ import { render, screen, waitFor } from '@testing-library/react';
 
 const workspaceTownScan = vi.fn();
 const openLocator = vi.fn();
-vi.mock('../../transport', () => ({
-  listenAgentEvents: vi.fn().mockRejectedValue(new Error('not in tauri')),
-  // useLlmSpend (used for the HUD treasury) reads voxTransport from the same
-  // module — the mock must provide it or the hook crashes on mount.
-  voxTransport: {
-    getLlmSpend: vi.fn().mockRejectedValue(new Error('unavailable')),
-    workspaceTownScan: (...a: unknown[]) => workspaceTownScan(...a),
-    openLocator: (...a: unknown[]) => openLocator(...a),
-    harnessCiFleetStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
-    vcsTownStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
-    hopperList: vi.fn().mockRejectedValue(new Error('unavailable')),
-  },
-}));
+vi.mock('../../transport', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../transport')>();
+  return {
+    ...actual,
+    listenAgentEvents: vi.fn().mockRejectedValue(new Error('not in tauri')),
+    getSessionContextPins: vi.fn().mockResolvedValue([]),
+    setSessionContextPins: vi.fn().mockResolvedValue([]),
+    // useLlmSpend (used for the HUD treasury) reads voxTransport from the same
+    // module — the mock must provide it or the hook crashes on mount.
+    voxTransport: {
+      ...actual.voxTransport,
+      getLlmSpend: vi.fn().mockRejectedValue(new Error('unavailable')),
+      workspaceTownScan: (...a: unknown[]) => workspaceTownScan(...a),
+      openLocator: (...a: unknown[]) => openLocator(...a),
+      harnessCiFleetStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+      vcsTownStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+      hopperList: vi.fn().mockRejectedValue(new Error('unavailable')),
+      getGuiPreference: vi.fn().mockResolvedValue(null),
+      setGuiPreference: vi.fn().mockResolvedValue(undefined),
+      recordGuiEvent: vi.fn().mockResolvedValue({ xpGranted: 50, lumensGranted: 8, achievementTitle: null }),
+    },
+  };
+});
 
 import { LudusSandbox } from './LudusSandbox';
 

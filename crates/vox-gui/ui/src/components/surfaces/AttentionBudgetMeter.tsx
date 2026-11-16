@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AttentionBudgetSnapshot } from '../../types/tauri';
+import { Icon } from '../ui/Icons';
 import { Pill } from '../ui/Pill';
 
 interface Props {
@@ -71,9 +72,13 @@ export function AttentionBudgetMeter({ budget, waitingQuestions, blockedTasks, d
               userToggledRef.current = true;
               setCollapsed(c => !c);
             }}
-            className="attention-budget-meter__toggle"
+            className="attention-budget-meter__toggle inline-flex items-center justify-center"
           >
-            {collapsed ? '▸' : '▾'}
+            {collapsed ? (
+              <Icon.chevR className="size-3.5 shrink-0" aria-hidden="true" />
+            ) : (
+              <Icon.chevronDown className="size-3.5 shrink-0" aria-hidden="true" />
+            )}
           </button>
         </div>
       </header>

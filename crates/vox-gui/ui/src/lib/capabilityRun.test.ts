@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { CommandCatalogEntry } from '../types/catalog';
 import {
@@ -103,7 +103,12 @@ describe('confirmationRequiredId (D-03 marker)', () => {
 
 describe('CONFIRMATION_REQUIRED_PREFIX parity with Rust', () => {
   it('equals the literal in crates/vox-cli/src/command_catalog.rs', () => {
-    const src = readFileSync(resolve(import.meta.dirname, '../../../../vox-cli/src/command_catalog.rs'), 'utf8');
+    const localCatalog = resolve(import.meta.dirname, '../../../../vox-cli/src/command_catalog.rs');
+    const voxRoot = process.env.VOX_ROOT ?? resolve(import.meta.dirname, '../../../../../../vox');
+    const catalogPath = existsSync(localCatalog)
+      ? localCatalog
+      : resolve(voxRoot, 'crates/vox-cli/src/command_catalog.rs');
+    const src = readFileSync(catalogPath, 'utf8');
     const m = /CONFIRMATION_REQUIRED_PREFIX:\s*&str\s*=\s*"([^"]*)"/.exec(src);
     expect(m).not.toBeNull();
     expect(CONFIRMATION_REQUIRED_PREFIX).toBe(m![1]);

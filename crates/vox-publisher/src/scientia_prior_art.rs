@@ -8,7 +8,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use serde_json::Value as JsonValue;
-use sha2::{Digest, Sha256};
 
 use crate::scientia_evidence::METADATA_KEY_SCIENTIA_NOVELTY_BUNDLE;
 use crate::scientia_finding_ledger::{
@@ -40,13 +39,22 @@ pub fn query_digest_sha256(query: &PriorArtQuery) -> String {
     sha256_hex(&raw)
 }
 
+const PRIOR_ART_PROVIDER_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(3500);
+
 fn sha256_hex(bytes: &[u8]) -> String {
-    let h = Sha256::digest(bytes);
-    h.iter().map(|b| format!("{b:02x}")).collect()
+    vox_scientia::interop_sha256_hex(bytes)
 }
 
 fn trace_fp(source: &str, digest: &str) -> String {
     sha256_hex(format!("{source}:{digest}").as_bytes())
+}
+
+fn resolve_secret_trimmed(id: vox_secrets::SecretId) -> Option<String> {
+    vox_secrets::resolve_secret(id)
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string)
 }
 
 fn system_time_map_or<T, F: FnOnce(std::time::Duration) -> T>(
@@ -152,14 +160,24 @@ pub fn empty_novelty_bundle(candidate_id: &str, query: &PriorArtQuery) -> Novelt
         overlap_summary: Some(NoveltyOverlapSummary {
             max_lexical_score: None,
             max_semantic_score: None,
-            recency_bucket: NoveltyRecencyBucket::Unknown,
+            recency_bucket: Some(NoveltyRecencyBucket::Unknown),
         }),
-        query_traces: vec![],
+        query_traces: None,
     }
 }
 
-async fn http_get_text(client: &reqwest::Client, url: &str) -> Result<(String, i32)> {
-    let resp = client.get(url).send().await.context("http get")?;
+async fn http_get_text(
+    client: &reqwest::Client,
+    url: &str,
+    headers: &[(&str, &str)],
+) -> Result<(String, i32)> {
+    let mut req = client.get(url).timeout(PRIOR_ART_PROVIDER_TIMEOUT);
+    for (name, value) in headers {
+        if !value.trim().is_empty() {
+            req = req.header(*name, *value);
+        }
+    }
+    let resp = req.send().await.context("http get")?;
     let status = resp.status().as_u16() as i32;
     let text = resp.text().await.context("read body")?;
     Ok((text, status))
@@ -346,19 +364,24 @@ fn finalize_bundle(
         overlap_summary: Some(NoveltyOverlapSummary {
             max_lexical_score: max_lex,
             max_semantic_score: max_sem,
-            recency_bucket: recency_from_years(&years),
+            recency_bucket: Some(recency_from_years(&years)),
         }),
-        query_traces: traces,
+        query_traces: if traces.is_empty() {
+            None
+        } else {
+            Some(traces)
+        },
     }
 }
 
-fn openalex_url(search: &str, per_page: u32) -> Result<String> {
+fn openalex_url(search: &str, per_page: u32, mailto: Option<&str>) -> Result<String> {
     let pp = per_page.clamp(1, 50).to_string();
-    let u = reqwest::Url::parse_with_params(
-        "https://api.openalex.org/works",
-        [("search", search), ("per_page", pp.as_str())],
-    )
-    .context("openalex url")?;
+    let mut params = vec![("search", search), ("per_page", pp.as_str())];
+    if let Some(email) = mailto.map(str::trim).filter(|s| !s.is_empty()) {
+        params.push(("mailto", email));
+    }
+    let u = reqwest::Url::parse_with_params("https://api.openalex.org/works", params)
+        .context("openalex url")?;
     Ok(u.to_string())
 }
 
@@ -429,14 +452,14 @@ pub async fn fetch_prior_art_federated(
     let mail: String = options
         .mailto_for_crossref
         .map(std::string::ToString::to_string)
-        .or_else(|| {
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScientiaCrossrefMailto)
-                .expose()
-                .map(std::string::ToString::to_string)
-        })
+        .or_else(|| resolve_secret_trimmed(vox_secrets::SecretId::VoxScientiaCrossrefMailto))
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "opensource@voxlang.org".into());
     let mail_ref = mail.as_str();
+    let openalex_email = resolve_secret_trimmed(vox_secrets::SecretId::VoxOpenAlexEmail);
+    let openalex_api_key = resolve_secret_trimmed(vox_secrets::SecretId::VoxOpenAlexApiKey);
+    let crossref_plus_key = resolve_secret_trimmed(vox_secrets::SecretId::VoxCrossrefPlusApiKey);
+    let s2_api_key = resolve_secret_trimmed(vox_secrets::SecretId::VoxSemanticScholarApiKey);
 
     let mut hits = Vec::new();
     let mut traces = Vec::new();
@@ -445,82 +468,115 @@ pub async fn fetch_prior_art_federated(
     for src in want {
         let trace_digest = qd.clone();
         match src {
-            PriorArtSource::Openalex => match openalex_url(&search, per) {
-                Ok(url) => match http_get_text(client, &url).await {
-                    Ok((body, st)) => {
-                        traces.push(NoveltyQueryTrace {
-                            source: "openalex".to_string(),
-                            request_fingerprint_sha256: trace_fp("openalex", &trace_digest),
-                            http_status: Some(st),
-                            cached: Some(false),
-                        });
-                        if let Ok(v) = serde_json::from_str::<JsonValue>(&body) {
-                            hits.extend(openalex_hits(&v, &search, heuristics));
-                            sources_done.push(PriorArtSource::Openalex);
+            PriorArtSource::Openalex => {
+                match openalex_url(&search, per, openalex_email.as_deref()) {
+                    Ok(url) => {
+                        let headers: Vec<(&str, &str)> = openalex_api_key
+                            .as_deref()
+                            .map(|k| vec![("api-key", k)])
+                            .unwrap_or_default();
+                        match http_get_text(client, &url, &headers).await {
+                            Ok((body, st)) => {
+                                traces.push(NoveltyQueryTrace {
+                                    source: "openalex".to_string(),
+                                    request_fingerprint_sha256: trace_fp("openalex", &trace_digest),
+                                    http_status: Some(st),
+                                    cached: Some(false),
+                                });
+                                if let Ok(v) = serde_json::from_str::<JsonValue>(&body) {
+                                    hits.extend(openalex_hits(&v, &search, heuristics));
+                                    sources_done.push(PriorArtSource::Openalex);
+                                }
+                            }
+                            Err(e) => {
+                                traces.push(NoveltyQueryTrace {
+                                    source: "openalex".to_string(),
+                                    request_fingerprint_sha256: trace_fp("openalex", &trace_digest),
+                                    http_status: None,
+                                    cached: Some(false),
+                                });
+                                tracing::warn!("openalex prior-art fetch failed: {e:#}");
+                            }
                         }
                     }
-                    Err(e) => {
-                        traces.push(NoveltyQueryTrace {
-                            source: "openalex".to_string(),
-                            request_fingerprint_sha256: trace_fp("openalex", &trace_digest),
-                            http_status: None,
-                            cached: Some(false),
-                        });
-                        tracing::warn!("openalex prior-art fetch failed: {e:#}");
-                    }
-                },
-                Err(e) => tracing::warn!("openalex url build failed: {e:#}"),
-            },
+                    Err(e) => tracing::warn!("openalex url build failed: {e:#}"),
+                }
+            }
             PriorArtSource::Crossref => match crossref_url(&search, mail_ref, per) {
-                Ok(url) => match http_get_text(client, &url).await {
-                    Ok((body, st)) => {
-                        traces.push(NoveltyQueryTrace {
-                            source: "crossref".to_string(),
-                            request_fingerprint_sha256: trace_fp("crossref", &trace_digest),
-                            http_status: Some(st),
-                            cached: Some(false),
-                        });
-                        if let Ok(v) = serde_json::from_str::<JsonValue>(&body) {
-                            hits.extend(crossref_hits(&v, &search, heuristics));
-                            sources_done.push(PriorArtSource::Crossref);
+                Ok(url) => {
+                    let crossref_auth = crossref_plus_key.as_deref().map(|k| {
+                        if k.to_ascii_lowercase().starts_with("bearer ") {
+                            k.to_string()
+                        } else {
+                            format!("Bearer {k}")
+                        }
+                    });
+                    let headers: Vec<(&str, &str)> = crossref_auth
+                        .as_deref()
+                        .map(|tok| vec![("Crossref-Plus-API-Token", tok)])
+                        .unwrap_or_default();
+                    match http_get_text(client, &url, &headers).await {
+                        Ok((body, st)) => {
+                            traces.push(NoveltyQueryTrace {
+                                source: "crossref".to_string(),
+                                request_fingerprint_sha256: trace_fp("crossref", &trace_digest),
+                                http_status: Some(st),
+                                cached: Some(false),
+                            });
+                            if let Ok(v) = serde_json::from_str::<JsonValue>(&body) {
+                                hits.extend(crossref_hits(&v, &search, heuristics));
+                                sources_done.push(PriorArtSource::Crossref);
+                            }
+                        }
+                        Err(e) => {
+                            traces.push(NoveltyQueryTrace {
+                                source: "crossref".to_string(),
+                                request_fingerprint_sha256: trace_fp("crossref", &trace_digest),
+                                http_status: None,
+                                cached: Some(false),
+                            });
+                            tracing::warn!("crossref prior-art fetch failed: {e:#}");
                         }
                     }
-                    Err(e) => {
-                        traces.push(NoveltyQueryTrace {
-                            source: "crossref".to_string(),
-                            request_fingerprint_sha256: trace_fp("crossref", &trace_digest),
-                            http_status: None,
-                            cached: Some(false),
-                        });
-                        tracing::warn!("crossref prior-art fetch failed: {e:#}");
-                    }
-                },
+                }
                 Err(e) => tracing::warn!("crossref url build failed: {e:#}"),
             },
             PriorArtSource::SemanticScholar => match s2_api_url(&search, per) {
-                Ok(url) => match http_get_text(client, &url).await {
-                    Ok((body, st)) => {
-                        traces.push(NoveltyQueryTrace {
-                            source: "semantic_scholar".to_string(),
-                            request_fingerprint_sha256: trace_fp("semantic_scholar", &trace_digest),
-                            http_status: Some(st),
-                            cached: Some(false),
-                        });
-                        if let Ok(v) = serde_json::from_str::<JsonValue>(&body) {
-                            hits.extend(s2_hits(&v, &search, heuristics, title_only));
-                            sources_done.push(PriorArtSource::SemanticScholar);
+                Ok(url) => {
+                    let headers: Vec<(&str, &str)> = s2_api_key
+                        .as_deref()
+                        .map(|k| vec![("x-api-key", k)])
+                        .unwrap_or_default();
+                    match http_get_text(client, &url, &headers).await {
+                        Ok((body, st)) => {
+                            traces.push(NoveltyQueryTrace {
+                                source: "semantic_scholar".to_string(),
+                                request_fingerprint_sha256: trace_fp(
+                                    "semantic_scholar",
+                                    &trace_digest,
+                                ),
+                                http_status: Some(st),
+                                cached: Some(false),
+                            });
+                            if let Ok(v) = serde_json::from_str::<JsonValue>(&body) {
+                                hits.extend(s2_hits(&v, &search, heuristics, title_only));
+                                sources_done.push(PriorArtSource::SemanticScholar);
+                            }
+                        }
+                        Err(e) => {
+                            traces.push(NoveltyQueryTrace {
+                                source: "semantic_scholar".to_string(),
+                                request_fingerprint_sha256: trace_fp(
+                                    "semantic_scholar",
+                                    &trace_digest,
+                                ),
+                                http_status: None,
+                                cached: Some(false),
+                            });
+                            tracing::warn!("semantic_scholar prior-art fetch failed: {e:#}");
                         }
                     }
-                    Err(e) => {
-                        traces.push(NoveltyQueryTrace {
-                            source: "semantic_scholar".to_string(),
-                            request_fingerprint_sha256: trace_fp("semantic_scholar", &trace_digest),
-                            http_status: None,
-                            cached: Some(false),
-                        });
-                        tracing::warn!("semantic_scholar prior-art fetch failed: {e:#}");
-                    }
-                },
+                }
                 Err(e) => tracing::warn!("semantic_scholar url build failed: {e:#}"),
             },
             PriorArtSource::Manual | PriorArtSource::Other => {}
@@ -675,7 +731,7 @@ mod tests {
     fn empty_novelty_bundle_has_no_hits_and_no_traces() {
         let bundle = empty_novelty_bundle("cand-2", &test_query());
         assert!(bundle.normalized_hits.is_empty());
-        assert!(bundle.query_traces.is_empty());
+        assert!(bundle.traces().is_empty());
         assert!(bundle.sources.is_empty());
     }
 
@@ -694,7 +750,7 @@ mod tests {
     fn empty_novelty_bundle_recency_is_unknown() {
         let bundle = empty_novelty_bundle("cand-3", &test_query());
         let summary = bundle.overlap_summary.unwrap();
-        assert_eq!(summary.recency_bucket, NoveltyRecencyBucket::Unknown);
+        assert_eq!(summary.recency_bucket, Some(NoveltyRecencyBucket::Unknown));
     }
 
     #[test]
@@ -768,5 +824,26 @@ mod tests {
         );
         // min_len=2 keeps "ccc"/"ddd": disjoint single-token sets → 0.0
         assert_eq!(title_lexical_score_with_min_len("ccc", "ddd", 2), 0.0);
+    }
+
+    #[test]
+    fn interop_sha256_hex_matches_known_vector() {
+        assert_eq!(
+            super::sha256_hex(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn openalex_url_appends_mailto_when_configured() {
+        let with_mail = super::openalex_url("novelty fusion", 5, Some("pool@voxlang.org"))
+            .expect("url with mailto");
+        assert!(with_mail.contains("mailto=pool%40voxlang.org"));
+        let without_mail = super::openalex_url("novelty fusion", 5, None).expect("url no mailto");
+        assert!(!without_mail.contains("mailto="));
+        assert_eq!(
+            super::PRIOR_ART_PROVIDER_TIMEOUT,
+            std::time::Duration::from_millis(3500)
+        );
     }
 }

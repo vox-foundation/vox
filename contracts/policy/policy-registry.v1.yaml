@@ -1072,6 +1072,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.cli-synonyms
+  domain: ci-gate
+  title: Ci Cli-synonyms
+  group: CI Gates / cli
+  description: CLI operation `vox ci cli-synonyms`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.cli-synonyms
+    detail: vox ci cli-synonyms
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.command-compliance
   domain: ci-gate
   title: Ci Command-compliance

@@ -3,6 +3,7 @@
 //! Shared by MCP model resolution and CLI/model explain surfaces.
 
 use crate::models::{ModelSpec, ProviderType};
+#[cfg(feature = "runtime")]
 use vox_actor_runtime::route_capability_policy::{
     RouteCapabilityPolicySnapshot, exclusion_reason_for_llm_lane,
 };
@@ -20,11 +21,55 @@ pub fn is_local_http_provider(provider_type: &ProviderType) -> bool {
     )
 }
 
+#[cfg(any(test, not(feature = "runtime")))]
+pub(crate) fn exclusion_reason_without_runtime_with<F: Fn(&str) -> Option<String>>(
+    is_local_http_provider: bool,
+    get_env: F,
+) -> Option<&'static str> {
+    let profile = get_env("VOX_ROUTE_POLICY_PROFILE")
+        .unwrap_or_else(|| "balanced".to_string())
+        .to_ascii_lowercase();
+    let restricted = profile == "restricted";
+    let parse_flag = |key: &str, default: bool| -> bool {
+        get_env(key)
+            .map(|v| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+            .unwrap_or(default)
+    };
+    if !parse_flag("VOX_ROUTE_ALLOW_NET", !restricted) {
+        return Some("route_policy:network_disabled");
+    }
+    if is_local_http_provider {
+        if !parse_flag("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP", !restricted) {
+            return Some("route_policy:local_model_http_disabled");
+        }
+    } else if !parse_flag("VOX_ROUTE_ALLOW_PROVIDER_NETWORK", !restricted) {
+        return Some("route_policy:provider_network_disabled");
+    }
+    None
+}
+
+#[cfg(not(feature = "runtime"))]
+fn exclusion_reason_without_runtime(is_local_http_provider: bool) -> Option<&'static str> {
+    exclusion_reason_without_runtime_with(is_local_http_provider, |k| std::env::var(k).ok())
+}
+
 /// Returns a static denial code when [`ModelSpec`] cannot be used under the current route policy.
 #[must_use]
 pub fn route_policy_exclusion_reason(model: &ModelSpec) -> Option<&'static str> {
-    let snap = RouteCapabilityPolicySnapshot::from_env();
-    exclusion_reason_for_llm_lane(is_local_http_provider(&model.provider_type), &snap)
+    #[cfg(feature = "runtime")]
+    {
+        let snap = RouteCapabilityPolicySnapshot::from_env();
+        exclusion_reason_for_llm_lane(is_local_http_provider(&model.provider_type), &snap)
+    }
+    #[cfg(not(feature = "runtime"))]
+    {
+        exclusion_reason_without_runtime(is_local_http_provider(&model.provider_type))
+    }
 }
 
 #[must_use]
@@ -145,5 +190,122 @@ mod semcov_wave1b_tests {
         assert!(!privacy_allows_model_for_mode(&cloud, true));
         assert!(privacy_allows_model_for_mode(&local, true));
         assert!(privacy_allows_model_for_mode(&cloud, false));
+    }
+
+    #[test]
+    fn exclusion_reason_without_runtime_enforces_all_four_vox_route_env_overrides() {
+        let lookup = |pairs: &[(&str, &str)]| {
+            let map: std::collections::HashMap<String, String> = pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+                .collect();
+            move |key: &str| map.get(key).cloned()
+        };
+
+        // 1. Default ("balanced") profile allows both local and cloud lanes.
+        assert_eq!(
+            exclusion_reason_without_runtime_with(true, lookup(&[])),
+            None
+        );
+        assert_eq!(
+            exclusion_reason_without_runtime_with(false, lookup(&[])),
+            None
+        );
+        assert_eq!(
+            exclusion_reason_without_runtime_with(
+                false,
+                lookup(&[("VOX_ROUTE_POLICY_PROFILE", "balanced")])
+            ),
+            None
+        );
+
+        // 2. "restricted" profile fails closed on network when ALLOW_* are unset.
+        let restricted = lookup(&[("VOX_ROUTE_POLICY_PROFILE", "restricted")]);
+        assert_eq!(
+            exclusion_reason_without_runtime_with(true, &restricted),
+            Some("route_policy:network_disabled")
+        );
+        assert_eq!(
+            exclusion_reason_without_runtime_with(false, &restricted),
+            Some("route_policy:network_disabled")
+        );
+
+        // 3. VOX_ROUTE_ALLOW_NET="false" blocks all network lanes regardless of profile.
+        let no_net = lookup(&[("VOX_ROUTE_ALLOW_NET", "false")]);
+        assert_eq!(
+            exclusion_reason_without_runtime_with(true, &no_net),
+            Some("route_policy:network_disabled")
+        );
+        assert_eq!(
+            exclusion_reason_without_runtime_with(false, &no_net),
+            Some("route_policy:network_disabled")
+        );
+
+        // 4. VOX_ROUTE_ALLOW_NET="true" + VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP="0" blocks local HTTP
+        //    providers (Ollama / PopuliMesh / VoxLocal) while allowing cloud providers.
+        let block_local = lookup(&[
+            ("VOX_ROUTE_ALLOW_NET", "true"),
+            ("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP", "0"),
+        ]);
+        for local_pt in [
+            ProviderType::Ollama,
+            ProviderType::PopuliMesh,
+            ProviderType::VoxLocal,
+        ] {
+            assert_eq!(
+                exclusion_reason_without_runtime_with(
+                    is_local_http_provider(&local_pt),
+                    &block_local
+                ),
+                Some("route_policy:local_model_http_disabled")
+            );
+        }
+        assert_eq!(
+            exclusion_reason_without_runtime_with(
+                is_local_http_provider(&ProviderType::OpenRouter),
+                &block_local
+            ),
+            None
+        );
+
+        // 5. VOX_ROUTE_ALLOW_NET="true" + VOX_ROUTE_ALLOW_PROVIDER_NETWORK="0" blocks cloud
+        //    providers while allowing local HTTP providers.
+        let block_cloud = lookup(&[
+            ("VOX_ROUTE_ALLOW_NET", "true"),
+            ("VOX_ROUTE_ALLOW_PROVIDER_NETWORK", "0"),
+        ]);
+        assert_eq!(
+            exclusion_reason_without_runtime_with(
+                is_local_http_provider(&ProviderType::Anthropic),
+                &block_cloud
+            ),
+            Some("route_policy:provider_network_disabled")
+        );
+        assert_eq!(
+            exclusion_reason_without_runtime_with(
+                is_local_http_provider(&ProviderType::Ollama),
+                &block_cloud
+            ),
+            None
+        );
+
+        // 6. Under "restricted", selectively enabling net + local keeps cloud fail-closed.
+        let restricted_local_only = lookup(&[
+            ("VOX_ROUTE_POLICY_PROFILE", "restricted"),
+            ("VOX_ROUTE_ALLOW_NET", "1"),
+            ("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP", "yes"),
+        ]);
+        assert_eq!(
+            exclusion_reason_without_runtime_with(true, &restricted_local_only),
+            None
+        );
+        assert_eq!(
+            exclusion_reason_without_runtime_with(false, &restricted_local_only),
+            Some("route_policy:provider_network_disabled")
+        );
+
+        // Smoke-check public entrypoint compiles and links under active feature set.
+        let cloud = priv_spec("cloud-model", ProviderType::OpenRouter);
+        let _ = route_policy_exclusion_reason(&cloud);
     }
 }

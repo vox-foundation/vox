@@ -55,6 +55,13 @@ pub enum ImportPathKind {
         /// Source path string exactly as written (e.g. `./helpers/walk_docs.vox`).
         path: String,
     },
+    /// Tier 2 Python module escape-hatch import (`import py sig from "scipy.signal"`).
+    PyModule {
+        /// Local alias bound in Vox scope.
+        alias: String,
+        /// Python dotted module path (e.g. `scipy.signal`).
+        module: String,
+    },
 }
 
 /// What an `import react … from "<spec>"` binds from the module.

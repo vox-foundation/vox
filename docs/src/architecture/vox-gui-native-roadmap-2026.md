@@ -120,7 +120,7 @@ applies repo-wide:
 ### Repo layout cheat sheet (critical paths only)
 
 ```
-C:\Users\Owner\vox\                        — repo root
+<repo-root>/                               — repo root
 ├── AGENTS.md                              — MUST READ before any task
 ├── CLAUDE.md                              — Claude-specific overlay
 ├── README.md                              — product summary

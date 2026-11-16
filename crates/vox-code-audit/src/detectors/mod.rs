@@ -148,6 +148,11 @@ pub mod weak_test;
 /// Enforces the workspace All-TursoDB persistence policy (`vox/db/non-turso-persistence`).
 pub mod db_persistence_policy;
 
+/// Structural `Cargo.toml` dependency hygiene guards (`vox/cargo/dep-hygiene`).
+pub mod cargo_dep_hygiene;
+/// Flags machine-local workstation paths and unanchored OS root directories.
+pub mod hardcoded_abs_dir;
+/// Direct host OS/ARCH probes outside allowlisted host crates.
 pub mod host_runtime_probe;
 pub mod inline_schema_compile;
 /// T3-TOESTUB-RULES-01..03 detectors.
@@ -241,13 +246,15 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(test_wall_clock::TestWallClockDetector::new()),
         Box::new(test_in_loop::TestInLoopDetector::new()),
         Box::new(host_runtime_probe::HostRuntimeProbeDetector::new()),
+        Box::new(hardcoded_abs_dir::HardcodedAbsDirDetector::new()),
         Box::new(inline_schema_compile::InlineSchemaCompileDetector::new()),
+        Box::new(cargo_dep_hygiene::CargoDepHygieneDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    66
+    68
 }
 
 #[cfg(test)]

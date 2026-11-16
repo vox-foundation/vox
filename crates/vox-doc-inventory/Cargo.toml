@@ -9,7 +9,6 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-vox-repository = { workspace = true }
 chrono = { workspace = true, default-features = false, features = ["clock", "std"] }
 regex.workspace = true
 serde = { workspace = true, features = ["derive"] }

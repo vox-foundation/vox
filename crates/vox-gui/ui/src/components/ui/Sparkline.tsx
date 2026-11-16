@@ -6,6 +6,7 @@ interface SparklineProps {
   width?: number;
   height?: number;
   fill?: boolean;
+  fullWidth?: boolean;
 }
 
 export function Sparkline({
@@ -13,7 +14,8 @@ export function Sparkline({
   color = "currentColor",
   width = 84,
   height = 22,
-  fill = true
+  fill = true,
+  fullWidth = false,
 }: SparklineProps) {
   const reactId = React.useId();
   if (!data || !data.length) return null;
@@ -42,7 +44,14 @@ export function Sparkline({
   const gid = `vox-spark-${reactId}`;
 
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg
+      width={fullWidth ? undefined : width}
+      height={height}
+      viewBox={fullWidth ? `0 0 ${width} ${height}` : undefined}
+      preserveAspectRatio={fullWidth ? 'none' : undefined}
+      data-cv-sparkline={fullWidth ? 'true' : undefined}
+      className={fullWidth ? 'w-full block overflow-visible' : 'overflow-visible'}
+    >
       <defs>
         <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.35" />
@@ -50,7 +59,15 @@ export function Sparkline({
         </linearGradient>
       </defs>
       {fill && <path d={area} fill={`url(#${gid})`} />}
-      <path d={d} fill="none" stroke={color} strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.4"
+        vectorEffect={fullWidth ? 'non-scaling-stroke' : undefined}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2" fill={color} />
     </svg>
   );

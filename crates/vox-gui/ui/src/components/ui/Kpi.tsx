@@ -1,5 +1,6 @@
 import React from 'react';
 import { Glass } from './Glass';
+import { Icon } from './Icons';
 import { cn } from '../../lib/cn';
 
 const ACCENT_COLORS = {
@@ -43,6 +44,32 @@ export function Kpi({
 }: KpiProps) {
   const isClickable = !!onClick;
   const Comp = as || (isClickable ? 'button' : 'div');
+  const gradId = React.useId();
+  const strokeHex =
+    accent === 'emerald'
+      ? '#3F5E1D'
+      : accent === 'amber'
+        ? '#9A5812'
+        : accent === 'violet'
+          ? '#7A5418'
+          : '#9A711C';
+  const chartGeom = React.useMemo(() => {
+    if (!sparkData || sparkData.length < 2) return null;
+    const min = Math.min(...sparkData);
+    const max = Math.max(...sparkData);
+    const span = max - min || 1;
+    const W = 200;
+    const H = 26;
+    const pts = sparkData.map((v, i) => ({
+      x: (i / (sparkData.length - 1)) * (W - 2) + 1,
+      y: H - 3 - ((v - min) / span) * (H - 7),
+    }));
+    const line = pts
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+      .join(' ');
+    const area = `${line} L ${(W - 1).toFixed(1)} ${H} L 1 ${H} Z`;
+    return { line, area, W, H, last: pts[pts.length - 1]! };
+  }, [sparkData]);
   
   return (
     <Glass
@@ -77,43 +104,54 @@ export function Kpi({
         {unit && <span className="text-xs text-[#5C441E] font-semibold">{unit}</span>}
         
         {delta !== undefined && (
-          <span className={cn(
-            "ml-auto font-mono text-[10px] font-semibold flex items-center tabular-nums",
-            trend === 'up' ? 'text-[#4D5D1E]' : trend === 'down' ? 'text-[#881B1B]' : 'text-[#5C441E]'
-          )}>
-            {trend === 'up' ? '▲' : trend === 'down' ? '▼' : '■'}
-            {Math.abs(delta)}
+          <span
+            data-trend={trend === 'flat' ? 'neutral' : trend}
+            aria-label={`Delta ${trend === 'up' ? 'up' : trend === 'down' ? 'down' : 'neutral'} ${Math.abs(delta)}`}
+            className={cn(
+              "ml-auto font-mono text-[10px] font-semibold inline-flex items-center gap-0.5 tabular-nums",
+              trend === 'up' ? 'text-[#4D5D1E]' : trend === 'down' ? 'text-[#881B1B]' : 'text-[#5C441E]'
+            )}
+          >
+            {trend === 'up' ? (
+              <Icon.trendUp data-icon="trend-up" className="size-3 inline-block shrink-0" aria-hidden="true" />
+            ) : trend === 'down' ? (
+              <Icon.trendDown data-icon="trend-down" className="size-3 inline-block shrink-0" aria-hidden="true" />
+            ) : (
+              <Icon.minus data-icon="trend-flat" className="size-3 inline-block shrink-0" aria-hidden="true" />
+            )}
+            <span>{Math.abs(delta)}</span>
           </span>
         )}
-        {sparkData && sparkData.length > 1 && (
+      </div>
+      <span className={cn('vox-metric-rule', ACCENT_COLORS[accent])} aria-hidden="true" />
+      {chartGeom && (
+        <div className="mt-1.5 w-full">
           <svg
-            viewBox="0 0 60 18"
-            className={cn("ml-auto h-4 w-14 shrink-0 overflow-visible opacity-85", ACCENT_COLORS[accent])}
+            data-cv-sparkline="true"
+            viewBox={`0 0 ${chartGeom.W} ${chartGeom.H}`}
+            preserveAspectRatio="none"
+            className="h-6 w-full block overflow-visible"
             aria-hidden="true"
           >
+            <defs>
+              <linearGradient id={`kpi-area-${gradId}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={strokeHex} stopOpacity="0.34" />
+                <stop offset="100%" stopColor={strokeHex} stopOpacity="0.03" />
+              </linearGradient>
+            </defs>
+            <path d={chartGeom.area} fill={`url(#kpi-area-${gradId})`} />
             <path
-              d={(() => {
-                const min = Math.min(...sparkData);
-                const max = Math.max(...sparkData);
-                const span = max - min || 1;
-                return sparkData
-                  .map((v, i) => {
-                    const x = (i / (sparkData.length - 1)) * 56 + 2;
-                    const y = 15 - ((v - min) / span) * 12;
-                    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-                  })
-                  .join(' ');
-              })()}
+              d={chartGeom.line}
               fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
+              stroke={strokeHex}
+              strokeWidth="1.75"
+              vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           </svg>
-        )}
-      </div>
-      <span className={cn('vox-metric-rule', ACCENT_COLORS[accent])} aria-hidden="true" />
+        </div>
+      )}
 
       {children}
     </Glass>
@@ -122,7 +160,7 @@ export function Kpi({
 
 Kpi.Sub = function KpiSub({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[11px] text-[#C8B99E] mt-1 leading-none select-text">
+    <div className="text-[11px] text-[#4A371E] font-medium mt-1 leading-none select-text">
       {children}
     </div>
   );

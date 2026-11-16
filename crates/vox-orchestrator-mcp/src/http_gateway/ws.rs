@@ -97,10 +97,31 @@ pub(super) async fn handle_ws(
                                     .and_then(|v| v.get("topic"))
                                     .and_then(|t| t.as_str())
                                     .map(str::to_string);
+                                let from_seq = req
+                                    .args
+                                    .as_ref()
+                                    .and_then(|v| v.get("from_seq"))
+                                    .and_then(|v| v.as_u64());
+                                let session_id = req
+                                    .args
+                                    .as_ref()
+                                    .and_then(|v| v.get("session_id"))
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                let mut replay_frames = Vec::new();
                                 let out = match topic {
                                     Some(topic) => {
                                         if req.msg_type == "subscribe" {
                                             subscribed_topics.insert(topic.clone());
+                                            if topic == super::scientia_feed::RESEARCH_SESSION_DELTA
+                                                && from_seq.is_some()
+                                            {
+                                                replay_frames = replay_frames_for_subscription(
+                                                    state.research_feed(),
+                                                    session_id,
+                                                    from_seq,
+                                                );
+                                            }
                                         } else {
                                             subscribed_topics.remove(&topic);
                                         }
@@ -132,6 +153,24 @@ pub(super) async fn handle_ws(
                                     .await
                                     .is_err()
                                 {
+                                    break;
+                                }
+                                let mut send_failed = false;
+                                for frame in replay_frames {
+                                    if socket
+                                        .send(Message::Text(
+                                            serde_json::to_string(&frame)
+                                                .unwrap_or_default()
+                                                .into(),
+                                        ))
+                                        .await
+                                        .is_err()
+                                    {
+                                        send_failed = true;
+                                        break;
+                                    }
+                                }
+                                if send_failed {
                                     break;
                                 }
                                 continue;
@@ -191,25 +230,88 @@ pub(super) async fn handle_ws(
                     break;
                 }
             }
-            Ok(topic_msg) = topic_rx.recv() => {
-                if !super::scientia_feed::should_forward(&subscribed_topics, &topic_msg.topic) {
-                    continue;
-                }
-                let out = WsMessageOut {
-                    id: None,
-                    msg_type: topic_msg.topic.clone(),
-                    success: true,
-                    is_error: false,
-                    data: topic_msg.data,
-                    error: None,
-                };
-                if socket.send(Message::Text(
-                    serde_json::to_string(&out).unwrap_or_default().into()
-                )).await.is_err() {
-                    break;
+            recv_res = topic_rx.recv() => {
+                match recv_res {
+                    Ok(topic_msg) => {
+                        if !super::scientia_feed::should_forward(&subscribed_topics, &topic_msg.topic) {
+                            continue;
+                        }
+                        let out = WsMessageOut {
+                            id: None,
+                            msg_type: topic_msg.topic.clone(),
+                            success: true,
+                            is_error: false,
+                            data: topic_msg.data,
+                            error: None,
+                        };
+                        if socket.send(Message::Text(
+                            serde_json::to_string(&out).unwrap_or_default().into()
+                        )).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                        let out = lagged_resync_frame(skipped);
+                        if socket.send(Message::Text(
+                            serde_json::to_string(&out).unwrap_or_default().into()
+                        )).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
         }
+    }
+}
+
+pub(super) fn lagged_resync_frame(skipped: u64) -> WsMessageOut {
+    WsMessageOut {
+        id: None,
+        msg_type: "resync_required".to_string(),
+        success: true,
+        is_error: false,
+        data: serde_json::json!({
+            "skipped": skipped,
+            "reason": "broadcast_lagged",
+        }),
+        error: None,
+    }
+}
+
+pub(super) fn replay_frames_for_subscription(
+    feed: &super::scientia_feed::ResearchFeedHub,
+    session_id: &str,
+    from_seq: Option<u64>,
+) -> Vec<WsMessageOut> {
+    match feed.replay_since(session_id, from_seq) {
+        super::scientia_feed::ReplayWindow::Events(events) => events
+            .into_iter()
+            .map(|ev| WsMessageOut {
+                id: None,
+                msg_type: super::scientia_feed::RESEARCH_SESSION_DELTA.to_string(),
+                success: true,
+                is_error: false,
+                data: serde_json::to_value(&ev).unwrap_or(Value::Null),
+                error: None,
+            })
+            .collect(),
+        super::scientia_feed::ReplayWindow::ResyncRequired {
+            oldest_available_seq,
+            latest_seq,
+        } => vec![WsMessageOut {
+            id: None,
+            msg_type: "resync_required".to_string(),
+            success: true,
+            is_error: false,
+            data: serde_json::json!({
+                "session_id": session_id,
+                "oldest_available_seq": oldest_available_seq,
+                "latest_seq": latest_seq,
+                "reason": "cursor_behind_replay_window",
+            }),
+            error: None,
+        }],
     }
 }
 pub(super) async fn ws_handle_message(
@@ -340,5 +442,47 @@ mod envelope_parity_tests {
                 "{tool}: /v1/ws data differs from orch.tool_call result"
             );
         }
+    }
+
+    #[test]
+    fn lagged_recv_error_maps_to_resync_required_frame() {
+        let frame = super::lagged_resync_frame(17);
+        let v = serde_json::to_value(&frame).unwrap();
+        assert_eq!(v["type"], "resync_required");
+        assert_eq!(v["data"]["skipped"], 17);
+        assert_eq!(v["success"], true);
+    }
+
+    #[test]
+    fn ws_research_delta_subscription_replays_or_requests_resync() {
+        let (topic_tx, _) = tokio::sync::broadcast::channel(16);
+        let hub = super::super::scientia_feed::ResearchFeedHub::with_ring_capacity(
+            topic_tx,
+            "repo".into(),
+            2,
+        );
+        for w in 1..=4u8 {
+            hub.publish_research_event(
+                vox_research_events::ResearchEvent::WaveStarted {
+                    session_id: "s-ws".into(),
+                    wave: w,
+                    max_waves: 5,
+                    tier: "deep".into(),
+                    subquery_count: 1,
+                },
+                100 + w as i64,
+            );
+        }
+        let ok_frames = super::replay_frames_for_subscription(&hub, "s-ws", Some(2));
+        assert_eq!(ok_frames.len(), 2);
+        assert_eq!(ok_frames[0].msg_type, "research.session.delta");
+        assert_eq!(ok_frames[0].data["seq"], 3);
+        assert_eq!(ok_frames[1].data["seq"], 4);
+
+        let lag_frames = super::replay_frames_for_subscription(&hub, "s-ws", Some(1));
+        assert_eq!(lag_frames.len(), 1);
+        assert_eq!(lag_frames[0].msg_type, "resync_required");
+        assert_eq!(lag_frames[0].data["oldest_available_seq"], 3);
+        assert_eq!(lag_frames[0].data["latest_seq"], 4);
     }
 }

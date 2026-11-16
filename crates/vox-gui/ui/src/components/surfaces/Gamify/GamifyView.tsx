@@ -3,7 +3,7 @@ import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useLabel } from '../../../hooks/useLanguage';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { HarnessRiverPanel } from '../Harness/HarnessRiverPanel';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
 import { LeaderboardArenaPanel, type VerifiedLeaderboardEntry } from './LeaderboardArenaPanel';
@@ -82,11 +82,11 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
     setLoading(true);
     try {
       const [p, n, lb, comp, q] = await Promise.all([
-        invoke<LudusProfile>('get_ludus_profile'),
-        invoke<LudusNotification[]>('list_ludus_notifications', { limit: 20 }),
-        invoke<LeaderboardEntry[]>('list_gamify_leaderboard', { limit: 10 }),
-        invoke<Companion[]>('list_gamify_companions'),
-        invoke<Quest[]>('list_gamify_quests'),
+        invokeCmd<LudusProfile>('get_ludus_profile'),
+        invokeCmd<LudusNotification[]>('list_ludus_notifications', { limit: 20 }),
+        invokeCmd<LeaderboardEntry[]>('list_gamify_leaderboard', { limit: 10 }),
+        invokeCmd<Companion[]>('list_gamify_companions'),
+        invokeCmd<Quest[]>('list_gamify_quests'),
       ]);
       setProfile(p);
       setNotes(n ?? []);
@@ -109,7 +109,7 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
 
   const ack = async (id: string) => {
     try {
-      await invoke('ack_ludus_notification', { notificationId: id });
+      await invokeCmd('ack_ludus_notification', { notificationId: id });
       setNotes(curr => curr.filter(x => x.id !== id));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Ack failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -121,7 +121,7 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
   const showArena = subtab === 'all' || subtab === 'arena';
 
   const renderNotifications = () => (
-    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2 text-[#1C140C]">
+    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2 text-(--color-text-primary)">
       <div className="flex items-center gap-2 border-b border-[#C59B27]/40 pb-1.5 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
         <Icon.scrollTabula className="size-3.5 text-[#8C6214]" />
         <span>Imperial Notices &amp; Dispatches</span>
@@ -162,11 +162,142 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
     </div>
   );
 
+  const renderSanctuaryGuildStrip = () => {
+    const sanctuaries = [
+      {
+        id: 'sanctuary-compiler',
+        tier: 'I',
+        title: 'Templum Minervae',
+        subtitle: 'Compiler & Typecheck',
+        crateName: 'vox-compiler',
+        targetView: 'explorer',
+        art: '/assets/romanesque/monument-temple-compiler.jpg',
+        activity: `${quests.filter((q) => !q.completed).length || 2} Active Quests`,
+        purpose: 'Sacred Acropolis sanctuary governing Vox syntax, HIR typecheck verification, and zero-defect effect gates.',
+      },
+      {
+        id: 'sanctuary-arena',
+        tier: 'II',
+        title: 'Amphitheatrum',
+        subtitle: 'CI Gates & Trials',
+        crateName: 'vox-code-audit',
+        targetView: 'harness',
+        art: '/assets/romanesque/monument-colosseum-harness.jpg',
+        activity: 'Gates Verified',
+        purpose: 'Imperial Colosseum arena hosting TOESTUB static detectors, test gauntlets, and cryptographic proof trials.',
+      },
+      {
+        id: 'sanctuary-foundry',
+        tier: 'III',
+        title: 'Fornax MENS',
+        subtitle: 'QLoRA Model Forge',
+        crateName: 'vox-mens',
+        targetView: 'mens',
+        art: '/assets/romanesque/monument-foundry-mens.jpg',
+        activity: 'Crucible Lit',
+        purpose: 'Hypocaust crucible foundry where 0.6B–32B local MENS models and 8-spoke QLoRA adapters are tempered.',
+      },
+      {
+        id: 'sanctuary-portus',
+        tier: 'IV',
+        title: 'Portus Populi',
+        subtitle: 'Mesh & Companion Quays',
+        crateName: 'vox-populi',
+        targetView: 'mesh',
+        art: '/assets/romanesque/monument-portus-mesh.jpg',
+        activity: `${companions.length || 3} Familiars`,
+        purpose: 'Harbor emporium and canal bridge dispatching companion familiars and distributed iroh QUIC compute galleys.',
+      },
+    ] as const;
+
+    return (
+      <div
+        data-testid="gamify-sanctuary-strip"
+        className="vox-marble-tablet rounded-xl border border-[#C59B27]/80 bg-[#FAF6EE] p-3 text-(--color-text-primary) shadow-sm"
+      >
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-[#C59B27]/35 pb-1.5">
+          <div className="flex items-center gap-2 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
+            <Icon.romanColumn className="size-3.5 text-[#8C6214]" />
+            <span>Collegium Guild Sanctuaries</span>
+          </div>
+          <span className="inline-flex items-center gap-1.5 font-sans text-[10px] font-semibold text-[#5C4428]">
+            <span className="size-1.5 rounded-full bg-[#10B981] shadow-[0_0_5px_#10B981] animate-pulse" />
+            <span>Hover any sanctuary for architectural halo &amp; guild telemetry · Click to enter</span>
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {sanctuaries.map((s) => (
+            <RomanTooltip
+              key={s.id}
+              title={`${s.tier} · ${s.title}`}
+              purpose={s.purpose}
+              previewImageSrc={s.art}
+              crateBadge={s.crateName}
+              statusBadge={s.activity}
+              metrics={[
+                { label: 'Sanctuary', value: s.tier, tone: 'gold' },
+                { label: 'Status', value: 'Interactive', tone: 'emerald' },
+                { label: 'Surface', value: s.targetView, tone: 'gold' },
+              ]}
+              actionHint={
+                onNavigate
+                  ? `Click sanctuary to open ${s.subtitle} (${s.targetView})`
+                  : `Interactive ${s.subtitle} guild sanctuary`
+              }
+              className="block w-full"
+            >
+              <button
+                type="button"
+                data-testid={`gamify-${s.id}`}
+                onClick={() => onNavigate?.(s.targetView)}
+                className="group relative block h-36 w-full overflow-hidden rounded-xl border-2 border-[#C59B27]/75 bg-(--color-bg-elevated) text-left shadow-[0_4px_12px_rgba(28,20,12,0.22)] transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-[#8C6214] hover:shadow-[0_8px_24px_rgba(28,20,12,0.34),0_0_24px_rgba(245,198,72,0.65)] cursor-pointer"
+              >
+                <img
+                  src={s.art}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                />
+                {/* Mouseover Warm Sunlit Architectural Rim Halo */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 rounded-xl opacity-0 ring-2 ring-inset ring-[#FFF3C4]/90 bg-[radial-gradient(circle_at_50%_38%,rgba(255,248,210,0.32),transparent_68%)] transition-opacity duration-200 group-hover:opacity-100"
+                />
+                {/* Top-right Live Activity Guidance Beacon */}
+                <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-[4px] border border-border-strong bg-bg-surface/95 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-text-primary shadow-sm">
+                  <span className="size-1.5 rounded-full bg-(--color-status-pass) animate-pulse" />
+                  <span>{s.activity}</span>
+                </span>
+                {/* Diegetic Plinth Architrave Inscription anchored cleanly at monument base */}
+                <div className="absolute inset-x-1.5 bottom-1.5 rounded-[6px] border border-border-strong bg-bg-surface/96 px-2 py-1 shadow-[0_3px_10px_rgba(28,20,12,0.42),inset_0_1px_0_rgba(255,255,255,0.45)]">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="truncate font-display text-[10px] font-bold uppercase tracking-[0.06em] text-text-primary">
+                      {s.tier} · {s.title}
+                    </span>
+                    <Icon.externalLink className="size-3 shrink-0 text-text-primary" aria-hidden="true" />
+                  </div>
+                  <div className="truncate font-sans text-[9px] font-semibold text-text-secondary">
+                    {s.subtitle}
+                  </div>
+                </div>
+              </button>
+            </RomanTooltip>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderCompanions = () => (
-    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2.5 text-[#1C140C]">
-      <div className="flex items-center gap-2 border-b border-[#C59B27]/40 pb-1.5 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
-        <Icon.gladiusShield className="size-3.5 text-[#8C6214]" />
-        <span>Companion Assistants &amp; Familiars</span>
+    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2.5 text-(--color-text-primary)">
+      <div className="flex items-center justify-between gap-2 border-b border-[#C59B27]/40 pb-1.5">
+        <div className="flex items-center gap-2 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
+          <Icon.gladiusShield className="size-3.5 text-[#8C6214]" />
+          <span>Companion Assistants &amp; Familiars</span>
+        </div>
+        <span className="font-mono text-[9.5px] font-semibold text-[#5C4428]">
+          Hover card for familiar sanctuary &amp; vitality
+        </span>
       </div>
       {companions.length === 0 ? (
         <div className="rounded-lg border border-[#C59B27]/40 bg-[#F4EDE0] p-2.5 text-[11px] text-[#5C4428]">
@@ -181,31 +312,57 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
                 : idx % 3 === 1
                   ? Icon.brazierTorch
                   : Icon.romanGalley;
+            const companionArt =
+              idx % 3 === 0
+                ? '/assets/romanesque/monument-temple-compiler.jpg'
+                : idx % 3 === 1
+                  ? '/assets/romanesque/monument-foundry-mens.jpg'
+                  : '/assets/romanesque/monument-portus-mesh.jpg';
             return (
-              <div
+              <RomanTooltip
                 key={c.id}
-                className="rounded-xl border border-[#C59B27]/65 bg-linear-to-b from-[#FFFDF9] to-[#F2E9D8] p-3 shadow-sm"
+                title={c.name}
+                purpose={c.description || `Dedicated ${c.language} engineering familiar (${c.mood} mood) stationed in the Collegium.`}
+                previewImageSrc={companionArt}
+                crateBadge={c.language}
+                statusBadge={`Quality ${c.code_quality}%`}
+                metrics={[
+                  { label: 'Vitality', value: `${c.health}/${c.max_health}`, tone: 'emerald' },
+                  { label: 'Energy', value: `${c.energy}/${c.max_energy}`, tone: 'gold' },
+                  { label: 'Mood', value: c.mood, tone: 'emerald' },
+                ]}
+                actionHint="Active companion familiar — gains XP & energy from clean builds and quests"
+                className="block w-full"
               >
-                <div className="relative mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#C59B27] bg-bg-elevated shadow-[0_0_12px_rgba(212,175,55,0.28)]">
-                  <img
-                    src="/assets/romanesque/wax-seal-medallion.jpg"
-                    alt=""
+                <div className="group relative rounded-xl border border-[#C59B27]/70 bg-linear-to-b from-[#FFFDF9] to-[#F2E9D8] p-3 shadow-sm transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-[#8C6214] hover:shadow-[0_6px_20px_rgba(28,20,12,0.18),0_0_20px_rgba(212,175,55,0.42)]">
+                  <span
                     aria-hidden="true"
-                    className="absolute inset-0 h-full w-full rounded-full object-cover opacity-35 mix-blend-luminosity"
-                  />
-                  <CompanionIcon className="relative z-10 size-6 text-brass" />
+                    className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full border border-[#10B981]/55 bg-[#D1FAE5] px-1.5 py-0.5 font-mono text-[8px] font-bold text-[#065F46]"
+                  >
+                    <span className="size-1.5 rounded-full bg-(--color-success,rgb(16_185_129)) animate-pulse" />
+                    <span>READY</span>
+                  </span>
+                  <div className="relative mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#C59B27] bg-bg-elevated shadow-[0_0_12px_rgba(212,175,55,0.28)] transition-shadow group-hover:shadow-[0_0_18px_rgba(245,198,72,0.65)]">
+                    <img
+                      src="/assets/romanesque/wax-seal-medallion.jpg"
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full rounded-full object-cover opacity-35 mix-blend-luminosity"
+                    />
+                    <CompanionIcon className="relative z-10 size-6 text-brass" />
+                  </div>
+                  <div className="truncate text-center font-display text-[12px] font-bold text-(--color-text-primary)">
+                    {c.name}
+                  </div>
+                  <div className="text-center font-mono text-[10px] uppercase tracking-wider text-[#5C4428]">
+                    {c.mood} · {c.language}
+                  </div>
+                  <div className="mt-2 space-y-1.5">
+                    <Bar label="HP" value={c.health} max={c.max_health} tone="bg-[#7B8C32]" />
+                    <Bar label="EN" value={c.energy} max={c.max_energy} tone="bg-[#D4AF37]" />
+                  </div>
                 </div>
-                <div className="truncate text-center font-display text-[12px] font-bold text-[#1C140C]">
-                  {c.name}
-                </div>
-                <div className="text-center font-mono text-[10px] uppercase tracking-wider text-[#5C4428]">
-                  {c.mood} · {c.language}
-                </div>
-                <div className="mt-2 space-y-1.5">
-                  <Bar label="HP" value={c.health} max={c.max_health} tone="bg-[#7B8C32]" />
-                  <Bar label="EN" value={c.energy} max={c.max_energy} tone="bg-[#D4AF37]" />
-                </div>
-              </div>
+              </RomanTooltip>
             );
           })}
         </div>
@@ -214,10 +371,15 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
   );
 
   const renderQuests = () => (
-    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2.5 text-[#1C140C]">
-      <div className="flex items-center gap-2 border-b border-[#C59B27]/40 pb-1.5 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
-        <Icon.scrollTabula className="size-3.5 text-[#8C6214]" />
-        <span>Active Engineering Quests</span>
+    <div className="vox-marble-tablet rounded-xl border border-[#C59B27]/75 bg-[#FAF6EE] p-3 space-y-2.5 text-(--color-text-primary)">
+      <div className="flex items-center justify-between gap-2 border-b border-[#C59B27]/40 pb-1.5">
+        <div className="flex items-center gap-2 font-display text-[11px] font-bold uppercase tracking-wider text-[#8C6214]">
+          <Icon.scrollTabula className="size-3.5 text-[#8C6214]" />
+          <span>Active Engineering Quests</span>
+        </div>
+        <span className="font-mono text-[9.5px] font-semibold text-[#5C4428]">
+          Hover quest tablet for reward &amp; sanctuary hint
+        </span>
       </div>
       {quests.length === 0 ? (
         <div className="rounded-lg border border-[#C59B27]/40 bg-[#F4EDE0] p-2.5 text-[11px] text-[#5C4428]">
@@ -226,41 +388,60 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
       ) : (
         <ul className="space-y-2">
           {quests.map(q => (
-            <li
-              key={q.id}
-              className="rounded-lg border border-[#C59B27]/55 bg-[#FFFDF8] p-2.5 shadow-xs"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate font-display text-[12px] font-semibold text-[#1C140C]">
-                    {q.description}
+            <li key={q.id}>
+              <RomanTooltip
+                title={q.description}
+                purpose={q.hint || `Complete ${q.quest_type} milestone (${q.progress}/${q.target}) to claim Collegium rewards.`}
+                previewImageSrc="/assets/romanesque/monument-colosseum-harness.jpg"
+                crateBadge={q.quest_type}
+                statusBadge={q.completed ? 'Completed' : `${q.progress}/${q.target}`}
+                metrics={[
+                  { label: 'XP Yield', value: `+${q.xp_reward}`, tone: 'gold' },
+                  { label: 'Crystals', value: `+${q.crystal_reward}`, tone: 'emerald' },
+                  { label: 'State', value: q.completed ? 'Done' : q.status, tone: q.completed ? 'emerald' : 'gold' },
+                ]}
+                actionHint="Progress updates automatically as compiler checks, tests, and reviews pass"
+                className="block w-full"
+              >
+                <div className="rounded-lg border border-[#C59B27]/60 bg-[#FFFDF8] p-2.5 shadow-xs transition-[border-color,box-shadow] duration-200 hover:border-[#8C6214] hover:shadow-[0_4px_16px_rgba(28,20,12,0.14),0_0_18px_rgba(212,175,55,0.38)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-display text-[12px] font-semibold text-(--color-text-primary)">
+                        {q.description}
+                      </div>
+                      <div className="truncate text-[11px] text-[#5C4428]">{q.hint}</div>
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase font-semibold ${
+                        q.completed
+                          ? 'border-[#10B981]/50 bg-[#10B981]/15 text-[#065F46]'
+                          : 'border-[#C59B27]/60 bg-[#F3E5AB]/55 text-(--color-text-primary)'
+                      }`}
+                    >
+                      <span
+                        className={`size-1.5 rounded-full ${
+                          q.completed ? 'bg-(--color-success,rgb(16_185_129))' : 'bg-[#B8860B] animate-pulse'
+                        }`}
+                      />
+                      <span>{q.completed ? 'done' : q.status}</span>
+                    </span>
                   </div>
-                  <div className="truncate text-[11px] text-[#5C4428]">{q.hint}</div>
+                  <div className="mt-2">
+                    <Bar
+                      label={`${q.progress}/${q.target}`}
+                      value={q.progress}
+                      max={q.target}
+                      tone="bg-[#D4AF37]"
+                    />
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-[#5C4428]">
+                    <Icon.denariusCoin className="size-3 text-[#8C6214]" />
+                    <span>
+                      +{q.xp_reward} XP · +{q.crystal_reward} Crystals · {q.quest_type}
+                    </span>
+                  </div>
                 </div>
-                <span
-                  className={`shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase font-semibold ${
-                    q.completed
-                      ? 'border-[#10B981]/50 bg-[#10B981]/15 text-[#065F46]'
-                      : 'border-[#C59B27]/60 bg-[#F3E5AB]/55 text-[#1C140C]'
-                  }`}
-                >
-                  {q.completed ? 'done' : q.status}
-                </span>
-              </div>
-              <div className="mt-2">
-                <Bar
-                  label={`${q.progress}/${q.target}`}
-                  value={q.progress}
-                  max={q.target}
-                  tone="bg-[#D4AF37]"
-                />
-              </div>
-              <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-[#5C4428]">
-                <Icon.denariusCoin className="size-3 text-[#8C6214]" />
-                <span>
-                  +{q.xp_reward} XP · +{q.crystal_reward} Crystals · {q.quest_type}
-                </span>
-              </div>
+              </RomanTooltip>
             </li>
           ))}
         </ul>
@@ -285,7 +466,7 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
             <RomanMedallion active size="sm">
               <Icon.romanColumn className="size-3.5 text-[#FFF8E7]" />
             </RomanMedallion>
-            <h2 className="font-display text-sm font-bold tracking-widest text-[#1C140C] uppercase">
+            <h2 className="font-display text-sm font-bold tracking-widest text-(--color-text-primary) uppercase">
               {useLabel('gamification')}
             </h2>
             <span className="text-[#8C6825] font-bold" aria-hidden="true">·</span>
@@ -434,13 +615,18 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
           className="vox-marble-tablet relative overflow-hidden rounded-xl border border-border-strong bg-bg-surface px-3 py-1 shadow-[0_4px_12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]"
         >
           <div className="flex items-center justify-between font-serif text-[11px] font-bold tracking-wide text-text-primary">
-            <span>▸ Companion Familiars, Imperial Notices &amp; Active Quests</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Icon.chevR className="size-3.5 shrink-0 text-text-secondary" aria-hidden="true" />
+              <span>Companion Familiars, Imperial Notices &amp; Active Quests</span>
+              <Icon.chevronDown className="size-3 shrink-0 text-text-muted" aria-hidden="true" />
+            </span>
             <button
               type="button"
               onClick={() => setSubtab('collegium')}
-              className="rounded border border-border-strong bg-bg-elevated px-2.5 py-0.5 font-mono text-[10px] font-semibold text-text-primary hover:border-(--color-accent-default)"
+              className="inline-flex items-center gap-1 rounded border border-border-strong bg-bg-elevated px-2.5 py-0.5 font-mono text-[10px] font-semibold text-text-primary hover:border-(--color-accent-default) transition-colors"
             >
-              Open Arena &amp; Quests ↗
+              <span>Open Arena &amp; Quests</span>
+              <Icon.externalLink className="size-3 shrink-0" aria-hidden="true" />
             </button>
           </div>
           <div className="pointer-events-none absolute -left-[9999px] top-0 z-[-1] w-[800px] opacity-0">
@@ -461,6 +647,9 @@ export function GamifyView({ pushToast, onNavigate }: GamifyViewProps) {
           </div>
         )
       )}
+
+      {/* Diegetic Guild Sanctuary Buildings when subtab !== 'urbs' */}
+      {subtab !== 'urbs' && showCollegium && renderSanctuaryGuildStrip()}
 
       {/* Notifications Tablet when subtab !== 'urbs' */}
       {subtab !== 'urbs' && showCollegium && renderNotifications()}
@@ -497,7 +686,7 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div className={`h-full rounded-full transition-all duration-300 ${tone}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full transition-[width] duration-300 ${tone}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

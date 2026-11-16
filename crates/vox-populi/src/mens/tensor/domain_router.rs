@@ -1042,4 +1042,110 @@ mod b6_champion_challenger_tests {
         assert!(tel.is_fallback);
         assert!(tel.adapter_name.is_empty());
     }
+
+    #[test]
+    fn route_task_to_spoke_checks_gate_and_maps_harness() {
+        struct MockChecker(bool);
+        impl SpokeGateChecker for MockChecker {
+            fn is_spoke_passed(&self, _run_dir: &Path, _spoke: &str) -> bool {
+                self.0
+            }
+        }
+        let dummy = PathBuf::from(".");
+        assert_eq!(
+            route_task_to_spoke("lane:vox_harness", &dummy, &MockChecker(true)).as_deref(),
+            Some("harness")
+        );
+        assert_eq!(
+            route_task_to_spoke("src/main.rs", &dummy, &MockChecker(true)).as_deref(),
+            Some("rust")
+        );
+        assert_eq!(
+            route_task_to_spoke("lane:vox_rust_review", &dummy, &MockChecker(true)),
+            None
+        );
+        assert_eq!(
+            route_task_to_spoke("lane:vox_harness", &dummy, &MockChecker(false)),
+            None
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("spoke_gates.json"),
+            r#"{"schema":"vox_mens_spoke_gates_v1","rows":[{"spoke":"rust","state":"passed"},{"spoke":"harness","state":"failed"}]}"#,
+        )
+        .unwrap();
+        let json_checker = JsonSpokeGateChecker;
+        assert!(json_checker.is_spoke_passed(dir.path(), "rust"));
+        assert!(!json_checker.is_spoke_passed(dir.path(), "harness"));
+    }
+}
+
+/// Validates whether a candidate spoke adapter has passed its release gate (`340-02`).
+pub trait SpokeGateChecker {
+    fn is_spoke_passed(&self, run_dir: &Path, spoke: &str) -> bool;
+}
+
+/// Default [`SpokeGateChecker`] reading `spoke_gates.json` (with fallback to `gate_receipt.<spoke>.json` / `gate_receipt.json`).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct JsonSpokeGateChecker;
+
+impl SpokeGateChecker for JsonSpokeGateChecker {
+    fn is_spoke_passed(&self, run_dir: &Path, spoke: &str) -> bool {
+        let sg_path = run_dir.join("spoke_gates.json");
+        if sg_path.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&sg_path)
+            && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+        {
+            if let Some(rows) = val.get("rows").and_then(|r| r.as_array())
+                && let Some(row) = rows
+                    .iter()
+                    .find(|r| r.get("spoke").and_then(|s| s.as_str()) == Some(spoke))
+            {
+                return row.get("state").and_then(|s| s.as_str()) == Some("passed");
+            }
+            if let Some(state) = val
+                .pointer(&format!("/spokes/{spoke}/state"))
+                .and_then(|s| s.as_str())
+            {
+                return state == "passed";
+            }
+        }
+        let receipt_path = run_dir.join(format!("gate_receipt.{spoke}.json"));
+        let fallback_receipt = if receipt_path.is_file() {
+            receipt_path
+        } else {
+            run_dir.join("gate_receipt.json")
+        };
+        if fallback_receipt.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&fallback_receipt)
+            && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+        {
+            return val.get("overall_passed").and_then(|b| b.as_bool()) == Some(true);
+        }
+        false
+    }
+}
+
+/// Resolve a task signal to its target spoke without gate filtering (`340-02`).
+pub fn resolve_task_spoke(signal: &str) -> Option<&'static str> {
+    if lane_token(signal) == Some("lane:vox_harness") {
+        Some("harness")
+    } else {
+        DomainRouter::signal_to_domain(signal)
+    }
+}
+
+/// Route a task signal to a spoke only if its gate passes under `checker` (`340-02`).
+pub fn route_task_to_spoke(
+    signal: &str,
+    run_dir: &Path,
+    checker: &dyn SpokeGateChecker,
+) -> Option<String> {
+    let spoke = resolve_task_spoke(signal)?;
+    if checker.is_spoke_passed(run_dir, spoke) {
+        Some(spoke.to_string())
+    } else {
+        None
+    }
 }

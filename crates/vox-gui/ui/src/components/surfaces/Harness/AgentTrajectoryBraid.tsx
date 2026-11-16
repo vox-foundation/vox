@@ -1,24 +1,26 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { AgentTrajectoryRow } from './riverTypes';
 import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
-import { Icon } from '../../ui/Icons';
 
 export interface AgentTrajectoryBraidProps {
   trajectories: AgentTrajectoryRow[];
 }
 
-function buildSmoothBraidPath(slices: number[], width: number, height: number): string {
-  const padX = 16;
-  const padY = 12;
-  const usableW = width - padX * 2;
-  const usableH = height - padY * 2;
+function buildSmoothBraidPoints(slices: number[], width: number, height: number): Array<{ x: number; y: number }> {
+  const padX = 6;
+  const padY = 10;
+  const usableW = Math.max(40, width - padX * 2);
+  const usableH = Math.max(16, height - padY * 2);
   const stepX = slices.length > 1 ? usableW / (slices.length - 1) : usableW;
 
-  const points = slices.map((laneIdx, i) => ({
+  return slices.map((laneIdx, i) => ({
     x: padX + i * stepX,
     y: padY + (Math.max(0, Math.min(3, laneIdx)) / 3) * usableH,
   }));
+}
 
+function buildSmoothBraidPath(slices: number[], width: number, height: number): string {
+  const points = buildSmoothBraidPoints(slices, width, height);
   if (points.length === 0) return '';
   let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
   for (let i = 0; i < points.length - 1; i++) {
@@ -31,11 +33,24 @@ function buildSmoothBraidPath(slices: number[], width: number, height: number): 
 }
 
 export const LANE_COLORS = ['#D4AF37', '#8FA339', '#F59E0B', '#E07A5F', '#C89D54', '#B89B4C'];
-const STROKE_PALETTE = LANE_COLORS;
 
 export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps) {
-  const svgW = 520;
-  const svgH = 72;
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [svgW, setSvgW] = useState(720);
+  const svgH = 76;
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const sync = () => {
+      const nextW = Math.max(240, Math.round(el.clientWidth));
+      setSvgW(nextW);
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div
@@ -68,7 +83,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
       </RomanTooltip>
 
       <div className="flex items-center gap-3">
-        <div className="w-44 shrink-0 space-y-1">
+        <div className="w-48 shrink-0 space-y-1">
           {trajectories.slice(0, 5).map((row, idx) => (
             <RomanTooltip
               key={row.agentId}
@@ -94,23 +109,79 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
           ))}
         </div>
 
-        <svg
-          viewBox={`0 0 ${svgW} ${svgH}`}
-          className="h-14 xl:h-18 flex-1 overflow-visible rounded border border-[#D4AF37]/20 bg-bg-elevated shadow-inner"
-          role="img"
-          aria-label="Agent role trajectory braid"
-        >
-          {trajectories.slice(0, 6).map((row, idx) => (
-            <path
-              key={row.agentId}
-              d={buildSmoothBraidPath(row.slices, svgW, svgH)}
-              fill="none"
-              stroke={LANE_COLORS[idx % LANE_COLORS.length]}
-              strokeWidth={idx === 0 ? 2 : 1.3}
-              strokeOpacity={0.85}
-            />
-          ))}
-        </svg>
+        <div ref={wrapRef} className="min-w-0 flex-1">
+          <svg
+            data-cv-chart="true"
+            viewBox={`0 0 ${svgW} ${svgH}`}
+            preserveAspectRatio="none"
+            className="h-16 xl:h-20 w-full block overflow-hidden rounded border border-[#D4AF37]/30 bg-bg-elevated shadow-inner"
+            role="img"
+            aria-label="Agent role trajectory braid"
+          >
+            <defs>
+              <filter id="braid-spline-glow" x="-5%" y="-20%" width="110%" height="140%">
+                <feDropShadow dx="0" dy="1" stdDeviation="1.8" floodColor="#D4AF37" floodOpacity="0.32" />
+              </filter>
+            </defs>
+            {/* Horizontal role lane guides + 8 vertical slice hairlines */}
+            {[0, 1, 2, 3].map((lane) => {
+              const y = 10 + (lane / 3) * (svgH - 20);
+              return (
+                <line
+                  key={`lane-${lane}`}
+                  x1={6}
+                  y1={y}
+                  x2={svgW - 6}
+                  y2={y}
+                  stroke="rgba(197, 155, 39, 0.14)"
+                  strokeWidth={1}
+                />
+              );
+            })}
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((slice) => {
+              const x = 6 + (slice / 7) * Math.max(40, svgW - 12);
+              return (
+                <line
+                  key={`slice-${slice}`}
+                  x1={x}
+                  y1={6}
+                  x2={x}
+                  y2={svgH - 6}
+                  stroke="rgba(197, 155, 39, 0.12)"
+                  strokeWidth={1}
+                />
+              );
+            })}
+            {trajectories.slice(0, 6).map((row, idx) => {
+              const color = LANE_COLORS[idx % LANE_COLORS.length]!;
+              const pts = buildSmoothBraidPoints(row.slices, svgW, svgH);
+              const endPt = pts[pts.length - 1];
+              return (
+                <g key={row.agentId}>
+                  <path
+                    d={buildSmoothBraidPath(row.slices, svgW, svgH)}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={idx === 0 ? 2.4 : 1.75}
+                    strokeOpacity={0.92}
+                    vectorEffect="non-scaling-stroke"
+                    filter={idx === 0 ? 'url(#braid-spline-glow)' : undefined}
+                  />
+                  {endPt && (
+                    <circle
+                      cx={endPt.x}
+                      cy={endPt.y}
+                      r={idx === 0 ? 3.5 : 2.6}
+                      fill={color}
+                      stroke="#FAF6EE"
+                      strokeWidth={1}
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
       </div>
     </div>
   );

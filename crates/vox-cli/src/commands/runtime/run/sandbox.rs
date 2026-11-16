@@ -64,10 +64,10 @@ mod platform {
                 rules.push((vox_dir, read_access));
             }
         }
-        if let Some(rt) = crate::fs_utils::resolve_vox_runtime_path() {
-            if rt.exists() {
-                rules.push((rt, read_access));
-            }
+        if let Some(rt) = crate::fs_utils::resolve_vox_runtime_path()
+            && rt.exists()
+        {
+            rules.push((rt, read_access));
         }
         if cwd.exists() {
             rules.push((cwd, write_access));

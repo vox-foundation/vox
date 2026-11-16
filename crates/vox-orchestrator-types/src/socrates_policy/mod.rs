@@ -6,11 +6,13 @@
 mod complexity;
 mod confidence_override;
 mod confidence_policy;
+mod continuum;
 mod entropy;
 mod policy_types;
 
 pub use complexity::SocratesComplexityJudge;
 pub use confidence_override::ConfidencePolicyOverride;
+pub use continuum::*;
 pub use entropy::{expected_information_gain_bits, shannon_entropy_bits};
 pub use policy_types::{
     CLARIFICATION_INTERRUPT_COST_MS, ClarificationStopReason, ComplexityBand, ConfidencePolicy,

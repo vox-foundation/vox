@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '../../ui/Icons';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { listenScientiaQueue } from '../../../transport';
@@ -14,13 +15,9 @@ import {
 } from './discoveryReviewApi';
 import { getNoveltyAssessment, type NoveltyAssessment } from './noveltyApi';
 import { NoveltyEvidencePanel } from './NoveltyEvidencePanel';
-import {
-  computeWorthinessAxes,
-  draftManuscript,
-  renderLatex,
-  renderFindingPage,
-  executeReplay,
-} from '../../../api/scientia';
+import { WorthinessRadarPanel } from './WorthinessRadarPanel';
+import { DirectPublicationDrawer } from './DirectPublicationDrawer';
+import { computeWorthinessAxes } from '../../../api/scientia';
 
 function verdictTone(verdict: string | null): string {
   const v = (verdict ?? '').toLowerCase();
@@ -67,8 +64,6 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
   const [novelty, setNovelty] = useState<NoveltyAssessment | null>(null);
   const [noveltyLoading, setNoveltyLoading] = useState(false);
   const [noveltyError, setNoveltyError] = useState<string | null>(null);
-  const [studioPreviewTitle, setStudioPreviewTitle] = useState<string | null>(null);
-  const [studioPreviewContent, setStudioPreviewContent] = useState<string | null>(null);
   const [replayScore, setReplayScore] = useState<number | undefined>(undefined);
   // Cache of last-seen claim detail so approved (terminal) claims stay viewable
   // after the refetch removes them from the live queue.
@@ -274,148 +269,19 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
         </label>
       </div>
 
-      {/* 6-Axis Worthiness Meter & Studio Artifact Actions */}
-      <div
-        data-testid="scientia-worthiness-meter"
-        className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 space-y-3"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-text-muted">
-            6-Axis Scientia Worthiness Profile
-          </span>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              data-testid="studio-draft-imrad-btn"
-              disabled={!pubId.trim() || busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const res = await draftManuscript(pubId.trim());
-                  setStudioPreviewTitle(`IMRaD Manuscript (${res.title})`);
-                  setStudioPreviewContent(res.markdown);
-                } catch (err) {
-                  pushToast({ tone: 'warn', title: 'Draft IMRaD failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              className="rounded border border-brass/30 bg-brass/10 px-2.5 py-1 font-mono text-[11px] text-brass hover:bg-brass/20 disabled:opacity-40"
-            >
-              Draft IMRaD
-            </button>
-            <button
-              type="button"
-              data-testid="studio-render-latex-btn"
-              disabled={!pubId.trim() || busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const res = await renderLatex(pubId.trim());
-                  setStudioPreviewTitle(`LaTeX Source (${res.title})`);
-                  setStudioPreviewContent(res.latex);
-                } catch (err) {
-                  pushToast({ tone: 'warn', title: 'Render LaTeX failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              className="rounded border border-cyan/30 bg-cyan/10 px-2.5 py-1 font-mono text-[11px] text-cyan hover:bg-cyan/20 disabled:opacity-40"
-            >
-              Render LaTeX
-            </button>
-            <button
-              type="button"
-              data-testid="studio-finding-page-btn"
-              disabled={!pubId.trim() || busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const res = await renderFindingPage(pubId.trim());
-                  setStudioPreviewTitle('Finding Page HTML + Highwire Meta');
-                  setStudioPreviewContent(res.html);
-                } catch (err) {
-                  pushToast({ tone: 'warn', title: 'Finding page failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              className="rounded border border-violet-400/30 bg-violet-400/10 px-2.5 py-1 font-mono text-[11px] text-violet-200 hover:bg-violet-400/20 disabled:opacity-40"
-            >
-              Finding Page HTML
-            </button>
-            <button
-              type="button"
-              data-testid="studio-execute-replay-btn"
-              disabled={!pubId.trim() || busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const res = await executeReplay(pubId.trim(), 0.94, 120);
-                  setReplayScore(res.artifact_replayability);
-                  pushToast({
-                    tone: 'ok',
-                    title: 'Replay verified',
-                    body: `Replayability score ${(res.artifact_replayability * 100).toFixed(0)}% recorded`,
-                    cause: 'backend-ok',
-                  });
-                } catch (err) {
-                  pushToast({ tone: 'warn', title: 'Replay failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              className="rounded border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-mono text-[11px] text-emerald-200 hover:bg-emerald-400/20 disabled:opacity-40"
-            >
-              Execute Replay
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {worthinessAxes.map((axis) => {
-            const pct = Math.round(axis.score * 100);
-            return (
-              <div key={axis.axis} className="rounded-lg border border-border-subtle bg-black/30 p-2.5">
-                <div className="flex items-center justify-between font-mono text-[10px]">
-                  <span className="text-text-secondary truncate">{axis.label}</span>
-                  <span className={pct >= 70 ? 'text-emerald-400' : pct >= 45 ? 'text-brass' : 'text-amber-400'}>
-                    {pct}%
-                  </span>
-                </div>
-                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className={`h-full rounded-full ${
-                      pct >= 70 ? 'bg-emerald-400' : pct >= 45 ? 'bg-brass' : 'bg-amber-400'
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="mt-1 truncate font-mono text-[9px] text-text-muted">{axis.description}</div>
-              </div>
-            );
-          })}
-        </div>
-        {studioPreviewContent && (
-          <div data-testid="studio-artifact-preview" className="rounded-lg border border-brass/30 bg-black/50 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-xs font-semibold text-brass">{studioPreviewTitle}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setStudioPreviewContent(null);
-                  setStudioPreviewTitle(null);
-                }}
-                className="font-mono text-[11px] text-text-muted hover:text-text-secondary"
-              >
-                Close Preview
-              </button>
-            </div>
-            <pre className="max-h-56 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-secondary">
-              {studioPreviewContent}
-            </pre>
-          </div>
-        )}
-      </div>
+      {/* 6-Axis Worthiness Radar & Direct Publication Flywheel Drawer */}
+      <WorthinessRadarPanel
+        axes={worthinessAxes}
+        noveltyVerdict={novelty?.verdict_kind}
+      />
+      <DirectPublicationDrawer
+        publicationId={pubId}
+        pushToast={pushToast}
+        onReplayVerified={(score) => setReplayScore(score)}
+        onFlywheelAdvanced={() => {
+          void refresh();
+        }}
+      />
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '360px 1fr' }}>
         {/* LIST */}
@@ -464,7 +330,12 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   </div>
                   <div className="mt-1 text-[12.5px] leading-snug text-text-secondary">{c.text}</div>
                   <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-text-muted">
-                    {c.confidence != null && <span className="text-brass"><span aria-hidden="true">★</span> {c.confidence.toFixed(2)}</span>}
+                    {c.confidence != null && (
+                      <span className="inline-flex items-center gap-1 text-brass">
+                        <Icon.star className="size-3 shrink-0" aria-hidden="true" />
+                        <span>{c.confidence.toFixed(2)}</span>
+                      </span>
+                    )}
                     {c.is_numeric && <span>numeric</span>}
                   </div>
                 </button>
@@ -541,7 +412,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   onClick={() => decide('approved')}
                   className="flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-[12px] text-emerald-200 hover:bg-emerald-400/15 disabled:opacity-40"
                 >
-                  <span aria-hidden="true">✓</span> Approve
+                  <Icon.check className="size-3.5 shrink-0" aria-hidden="true" /> Approve
                 </button>
                 <button
                   type="button"
@@ -549,7 +420,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   onClick={() => decide('rejected')}
                   className="flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-400/[0.07] px-4 py-2 text-[12px] text-rose-200 hover:bg-rose-400/10 disabled:opacity-40"
                 >
-                  <span aria-hidden="true">✗</span> Reject
+                  <Icon.close className="size-3.5 shrink-0" aria-hidden="true" /> Reject
                 </button>
                 <button
                   type="button"
@@ -557,7 +428,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   onClick={() => decide('deferred')}
                   className="flex items-center gap-1.5 rounded-lg border border-border-subtle bg-overlay-subtle px-4 py-2 text-[12px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
                 >
-                  <span aria-hidden="true">⏸</span> Defer
+                  <Icon.pause className="size-3.5 shrink-0" aria-hidden="true" /> Defer
                 </button>
                 <button
                   type="button"
@@ -565,7 +436,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   onClick={doSuggest}
                   className="ml-auto flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-400/[0.07] px-4 py-2 text-[12px] text-violet-200 hover:bg-violet-400/10 disabled:opacity-40"
                 >
-                  <span aria-hidden="true">✦</span> Suggest evidence improvements (LLM)
+                  <Icon.spark className="size-3.5 shrink-0" aria-hidden="true" /> Suggest evidence improvements (LLM)
                 </button>
               </div>
 
@@ -588,8 +459,9 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
 
               {isApproved && (
                 <div className="rounded-xl border border-brass/20 bg-brass/4 p-4">
-                  <div className="font-mono text-[11px] text-emerald-300/90">
-                    ✓ Approved by you · approval token bound to this claim
+                  <div className="inline-flex items-center gap-1.5 font-mono text-[11px] text-emerald-300/90">
+                    <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span>Approved by you · approval token bound to this claim</span>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
                     <button
@@ -598,7 +470,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                       onClick={() => setConfirmOpen(true)}
                       className="flex items-center gap-2 rounded-lg border border-brass/40 bg-brass/15 px-4 py-2 text-[12px] text-brass hover:bg-brass/25 disabled:opacity-40"
                     >
-                      <span aria-hidden="true">⬆</span> Nanopublish (offline)
+                      <Icon.arrowUp className="size-3.5 shrink-0" aria-hidden="true" /> Nanopublish (offline)
                     </button>
                     <span className="font-mono text-[10px] text-text-muted">
                       builds + signs + offline-validates, stores locally · no network

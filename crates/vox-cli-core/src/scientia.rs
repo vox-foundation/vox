@@ -709,6 +709,33 @@ pub enum ScientiaCmd {
     /// `pipeline_phase` column.  An empty DB yields an all-zeros rollup.
     #[command(name = "cost")]
     Cost,
+
+    /// Run the deterministic offline v7.6 6-axis before/after audit harness.
+    #[command(name = "v76-audit")]
+    V76Audit {
+        /// Audit stage (`before` or `after`).
+        #[arg(long, value_enum, default_value_t = ScientiaAuditStageCli::Before)]
+        stage: ScientiaAuditStageCli,
+        /// Optional output path override.
+        #[arg(long)]
+        out: Option<std::path::PathBuf>,
+        /// Optional baseline report path for paired non-inferiority comparison.
+        #[arg(long)]
+        compare: Option<std::path::PathBuf>,
+        /// Optional JSONL findings output path (defaults under Phase 452 artifacts when `--compare` is set).
+        #[arg(long)]
+        jsonl_out: Option<std::path::PathBuf>,
+    },
+}
+
+/// Stage selector for `vox scientia v76-audit`.
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum ScientiaAuditStageCli {
+    Before,
+    After,
 }
 
 /// Human review decision for `publication-claim-review`.

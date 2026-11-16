@@ -93,7 +93,8 @@ impl ExtractionPipeline {
         let gate = VeriScoreGate::new(config.veriscore.clone());
         let decomposer = AtomicDecomposer::new(config.atomic.clone());
         let span_checker = SpanChecker::default();
-        let verifier = MiniCheckVerifier::from_env();
+        let mut verifier = MiniCheckVerifier::from_env();
+        verifier.abstain_threshold = config.abstain_threshold;
         Self {
             config,
             gate,
@@ -107,7 +108,8 @@ impl ExtractionPipeline {
         let gate = VeriScoreGate::new(config.veriscore.clone());
         let decomposer = AtomicDecomposer::new(config.atomic.clone());
         let span_checker = SpanChecker::default();
-        let verifier = MiniCheckVerifier::from_env_or_calibrated();
+        let mut verifier = MiniCheckVerifier::from_env_or_calibrated();
+        verifier.abstain_threshold = config.abstain_threshold;
         Self {
             config,
             gate,
@@ -656,5 +658,41 @@ mod tests {
             .get(claim.span.start..claim.span.end)
             .expect("span must remain on a char boundary despite multi-byte prefix");
         assert!(slice.contains("12ms"));
+    }
+
+    #[tokio::test]
+    async fn antonym_and_numeric_contradictions_are_contradicted() {
+        let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+        let antonym_res = pipeline
+            .extract(
+                "The April 2026 deployment reduced p95 latency to 12ms.",
+                &["The April 2026 deployment increased p95 latency to 84ms across all regions."],
+            )
+            .await
+            .unwrap();
+        assert!(
+            antonym_res
+                .verdicts
+                .iter()
+                .any(|v| matches!(v, ClaimVerdict::Contradicted { .. })),
+            "expected Contradicted for antonym+numeric flip, got: {:?}",
+            antonym_res.verdicts
+        );
+
+        let numeric_res = pipeline
+            .extract(
+                "Cache hit rate reached 95 percent under load.",
+                &["Cache hit rate reached 41 percent under load."],
+            )
+            .await
+            .unwrap();
+        assert!(
+            numeric_res
+                .verdicts
+                .iter()
+                .any(|v| matches!(v, ClaimVerdict::Contradicted { .. })),
+            "expected Contradicted for numeric mismatch, got: {:?}",
+            numeric_res.verdicts
+        );
     }
 }

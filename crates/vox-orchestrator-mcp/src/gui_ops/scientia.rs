@@ -1042,6 +1042,7 @@ pub fn api_v2_router() -> Router<GatewayState> {
             get(post_publication_extract_claims).post(post_publication_extract_claims),
         )
         .route("/scientia/discoveries", get(get_discoveries))
+        .merge(super::scientia_studio::api_v2_router())
 }
 
 #[cfg(test)]

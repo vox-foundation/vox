@@ -153,6 +153,13 @@ pub enum CiCmd {
     /// Validate unified operations catalog parity across MCP + CLI registries.
     #[command(name = "operations-verify")]
     OperationsVerify,
+    /// Generate or verify `contracts/cli/semantic-aliases.v1.json` (CLI-TOL-04).
+    #[command(name = "cli-synonyms")]
+    CliSynonyms {
+        /// Rewrite `contracts/cli/semantic-aliases.v1.json` in place.
+        #[arg(long)]
+        write: bool,
+    },
     /// Sync or verify derived registry artifacts from unified operations catalog.
     #[command(name = "operations-sync")]
     OperationsSync {
@@ -1355,7 +1362,11 @@ pub enum CiCmd {
     StandaloneSovereignty,
     /// Verify shared wire/IPC/telemetry contract parity across federated repositories in `.vox/repositories.yaml`.
     #[command(name = "cross-repo-parity")]
-    CrossRepoParity,
+    CrossRepoParity {
+        /// Synchronize shared contracts and federated mirrors from `vox` into present sibling checkouts before verifying.
+        #[arg(long)]
+        sync: bool,
+    },
     /// Refresh and verify the federated multi-repository symbol & contract graph.
     #[command(name = "federated-symbol-graph")]
     FederatedSymbolGraph,

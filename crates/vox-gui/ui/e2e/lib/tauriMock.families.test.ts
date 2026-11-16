@@ -1,14 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { mockInitScript } from './tauriMockShared';
 import { installTauriMock } from './tauriMock';
 import { familyKey } from '../../src/lib/modelFamily';
 
-// e2e/lib -> e2e -> ui -> vox-gui -> crates -> repo root
+// e2e/lib -> e2e -> ui -> vox-gui -> crates -> repo root (or sibling VOX_ROOT in vox-axis)
 const here = dirname(fileURLToPath(import.meta.url));
-const BOOTSTRAP = resolve(here, '../../../../../contracts/orchestration/model-catalog.bootstrap.v1.json');
+const localBootstrap = resolve(here, '../../../../../contracts/orchestration/model-catalog.bootstrap.v1.json');
+const voxRoot = process.env.VOX_ROOT ?? resolve(here, '../../../../../../vox');
+const BOOTSTRAP = existsSync(localBootstrap)
+  ? localBootstrap
+  : resolve(voxRoot, 'contracts/orchestration/model-catalog.bootstrap.v1.json');
 const CONTRACT_FAMILIES = new Set(
   (JSON.parse(readFileSync(BOOTSTRAP, 'utf8')) as Array<{ id: string }>).map((e) => familyKey(e.id)),
 );

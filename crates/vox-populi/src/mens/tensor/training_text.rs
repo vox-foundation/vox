@@ -27,7 +27,11 @@ pub fn chatml_prefix_open_assistant(
     cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> String {
     let reasoning = vox_eval::qwen_reasoning::has_reasoning_trace(assistant);
-    let user = vox_eval::qwen_reasoning::user_for_mode(user, reasoning);
+    let user = vox_eval::qwen_reasoning::user_for_mode_with_switch(
+        user,
+        reasoning,
+        cfg.user_no_think_switch,
+    );
     let tail = if reasoning {
         ""
     } else {
@@ -106,7 +110,11 @@ pub fn chatml_supervised_text(
     cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> String {
     let reasoning = vox_eval::qwen_reasoning::has_reasoning_trace(assistant);
-    let user = vox_eval::qwen_reasoning::user_for_mode(user, reasoning);
+    let user = vox_eval::qwen_reasoning::user_for_mode_with_switch(
+        user,
+        reasoning,
+        cfg.user_no_think_switch,
+    );
     let assistant = vox_eval::qwen_reasoning::assistant_body(assistant);
     format!(
         "{start}{sys}\n{system}{end}\n\
@@ -136,7 +144,11 @@ fn fuse_turns(
             out[i].content = format!("{QWEN_EMPTY_THINK}{}", out[i].content);
         }
         if let Some(u) = out[..i].iter().rposition(|t| t.role == cfg.role_user) {
-            out[u].content = qwen_reasoning::user_for_mode(&out[u].content, false);
+            out[u].content = vox_eval::qwen_reasoning::user_for_mode_with_switch(
+                &out[u].content,
+                false,
+                cfg.user_no_think_switch,
+            );
         }
     }
     out

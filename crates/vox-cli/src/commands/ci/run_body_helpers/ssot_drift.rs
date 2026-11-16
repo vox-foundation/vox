@@ -489,6 +489,11 @@ pub(crate) fn ssot_drift_stages() -> Vec<SsotDriftStage> {
             regen: None,
         },
         SsotDriftStage {
+            name: "docs_system_parity",
+            run: |root, _| crate::commands::ci::docs_system_parity::run(root),
+            regen: None,
+        },
+        SsotDriftStage {
             name: "ssot_regen_parity",
             run: |root, _| {
                 let vox_path = root.join("scripts/ssot-regen.vox");
@@ -732,6 +737,7 @@ fn main() {
             "capability_index",
             "crate_api_docs",
             "wiki_sync",
+            "docs_system_parity",
             "ssot_regen_parity",
         ] {
             assert!(

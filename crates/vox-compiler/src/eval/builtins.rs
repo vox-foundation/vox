@@ -1078,6 +1078,27 @@ pub fn call_builtin_method(
                 };
             }
 
+            if ns == Some("plot") {
+                let Some(VoxValue::FramePlan(frame)) = args.into_iter().next() else {
+                    return Some(VoxValue::_Panic(format!("plot.{method} requires a Frame")));
+                };
+                return match method {
+                    "line" => Some(VoxValue::PlotPlan(crate::eval::plot_plan::PlotPlan::line(
+                        frame,
+                    ))),
+                    "scatter" => Some(VoxValue::PlotPlan(
+                        crate::eval::plot_plan::PlotPlan::scatter(frame),
+                    )),
+                    "bar" => Some(VoxValue::PlotPlan(crate::eval::plot_plan::PlotPlan::bar(
+                        frame,
+                    ))),
+                    "hist" => Some(VoxValue::PlotPlan(crate::eval::plot_plan::PlotPlan::hist(
+                        frame,
+                    ))),
+                    _ => None,
+                };
+            }
+
             if ns == Some("frame") {
                 return match method {
                     "scan_csv" => {
@@ -2634,6 +2655,70 @@ pub fn call_builtin_method(
                 };
                 Some(VoxValue::ArrayPlan(plan.sort(nulls)))
             }
+            "reshape" => {
+                let Some(VoxValue::List(items)) = args.first() else {
+                    return Some(VoxValue::_Panic(
+                        "reshape requires a list of dimensions".into(),
+                    ));
+                };
+                let mut dims = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    let VoxValue::Int(d) = item else {
+                        return Some(VoxValue::_Panic(
+                            "reshape dimensions must be integers".into(),
+                        ));
+                    };
+                    dims.push(*d);
+                }
+                Some(VoxValue::ArrayPlan(plan.reshape(dims)))
+            }
+            "softmax" => {
+                let Some(VoxValue::Int(axis)) = args.first() else {
+                    return Some(VoxValue::_Panic("softmax requires an integer axis".into()));
+                };
+                Some(VoxValue::ArrayPlan(plan.softmax(*axis)))
+            }
+            _ => None,
+        },
+
+        VoxValue::PlotPlan(plan) => match method {
+            "x" => {
+                let Some(VoxValue::Str(col)) = args.first() else {
+                    return Some(VoxValue::_Panic("plot.x requires a column name".into()));
+                };
+                Some(VoxValue::PlotPlan(plan.x(col)))
+            }
+            "y" => {
+                let Some(VoxValue::Str(col)) = args.first() else {
+                    return Some(VoxValue::_Panic("plot.y requires a column name".into()));
+                };
+                Some(VoxValue::PlotPlan(plan.y(col)))
+            }
+            "title" => {
+                let Some(VoxValue::Str(text)) = args.first() else {
+                    return Some(VoxValue::_Panic("plot.title requires a string".into()));
+                };
+                Some(VoxValue::PlotPlan(plan.title(text)))
+            }
+            "legend" => {
+                let Some(VoxValue::Bool(enabled)) = args.first() else {
+                    return Some(VoxValue::_Panic("plot.legend requires a bool".into()));
+                };
+                Some(VoxValue::PlotPlan(plan.legend(*enabled)))
+            }
+            _ => None,
+        },
+
+        VoxValue::TensorModel(model) => match method {
+            "device" => Some(VoxValue::Str(model.device.clone().into())),
+            "to_device" => {
+                let Some(VoxValue::Str(dev)) = args.first() else {
+                    return Some(VoxValue::_Panic(
+                        "to_device requires a device string".into(),
+                    ));
+                };
+                Some(VoxValue::TensorModel(model.to_device(dev.as_ref())))
+            }
             _ => None,
         },
 
@@ -2819,6 +2904,241 @@ pub fn materialize_collect(
             ))),
         },
         Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+/// Host entry for `Plot.save(path)`: evaluates the chart plan inside the worker and writes PNG.
+pub fn materialize_plot_save(
+    interp: &mut super::Interpreter,
+    plan: &super::plot_plan::PlotPlan,
+    out_path: &str,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    if !caps.allows_namespace("py") {
+        return VoxValue::_Denied("py.save".into());
+    }
+    let Some(resolved_out) = fs_resolve_allowed(caps, out_path, true) else {
+        return VoxValue::_Denied("fs.save".into());
+    };
+    let mut frame_json = frame_plan_params(plan.frame());
+    let Some(obj) = frame_json.as_object_mut() else {
+        return VoxValue::Result(Err(crate::eval::value::err_str(
+            "py: plot frame params invalid".to_string(),
+        )));
+    };
+    obj.insert("family".into(), serde_json::json!("plot"));
+    obj.insert("chart".into(), serde_json::json!(plan.chart_kind()));
+    obj.insert(
+        "out_path".into(),
+        serde_json::json!(resolved_out.to_string_lossy().as_ref()),
+    );
+    if let Some(x) = plan.x_col() {
+        obj.insert("x".into(), serde_json::json!(x));
+    }
+    if let Some(y) = plan.y_col() {
+        obj.insert("y".into(), serde_json::json!(y));
+    }
+    if let Some(title) = plan.title_text() {
+        obj.insert("title".into(), serde_json::json!(title));
+    }
+    if let Some(legend) = plan.legend_enabled() {
+        obj.insert("legend".into(), serde_json::json!(legend));
+    }
+    match super::python::execute_plan(interp, frame_json, Vec::new()) {
+        Ok(_) => VoxValue::Result(Ok(Box::new(VoxValue::Null))),
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+fn is_unsafe_pickle_model_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    if lower.ends_with(".pt")
+        || lower.ends_with(".pth")
+        || lower.ends_with(".pkl")
+        || lower.ends_with(".pickle")
+    {
+        return true;
+    }
+    !lower.ends_with(".pt2")
+}
+
+/// Host entry for `tensor.load_exported(path)`: denies pickle formats and validates `.pt2` in worker.
+pub fn materialize_tensor_load(
+    interp: &mut super::Interpreter,
+    path: &str,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    if !caps.allows_namespace("py") {
+        return VoxValue::_Denied("py.load_exported".into());
+    }
+    if is_unsafe_pickle_model_path(path) {
+        return VoxValue::Result(Err(crate::eval::value::err_str(
+            "py: torch.load and pickle archives are denied; use torch.export (.pt2)".to_string(),
+        )));
+    }
+    let Some(resolved) = fs_resolve_allowed(caps, path, false) else {
+        return VoxValue::_Denied("fs.load_exported".into());
+    };
+    let resolved_str = resolved.to_string_lossy().into_owned();
+    let params = serde_json::json!({
+        "family": "tensor_load",
+        "path": resolved_str,
+    });
+    match super::python::execute_plan(interp, params, Vec::new()) {
+        Ok(reply) => {
+            let device = reply
+                .value
+                .get("device")
+                .and_then(|v| v.as_str())
+                .unwrap_or("cpu")
+                .to_string();
+            let mut model = super::tensor_model::ExportedModel::new(resolved_str);
+            model.device = device;
+            VoxValue::Result(Ok(Box::new(VoxValue::TensorModel(model))))
+        }
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+/// Host entry for `Model.run(inputs)`: executes `.pt2` model on CPU inside worker.
+pub fn materialize_tensor_run(
+    interp: &mut super::Interpreter,
+    model: &super::tensor_model::ExportedModel,
+    inputs: &[super::array_plan::ArrayPlan],
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    if !caps.allows_namespace("py") {
+        return VoxValue::_Denied("py.run".into());
+    }
+    if inputs.is_empty() {
+        return VoxValue::Result(Err(crate::eval::value::err_str(
+            "py: Model.run requires at least one input array".to_string(),
+        )));
+    }
+    let first = &inputs[0];
+    let body = match encode_host_column(first) {
+        Ok(bytes) => bytes,
+        Err(err) => return VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    };
+    let mut input_ops = Vec::with_capacity(inputs.len());
+    for plan in inputs {
+        input_ops.push(plan_params(plan).get("ops").cloned().unwrap_or_default());
+    }
+    let params = serde_json::json!({
+        "family": "tensor_run",
+        "model_path": model.path,
+        "device": model.device,
+        "inputs": input_ops,
+    });
+    let max_body = fetch_cap_bytes(interp);
+    match super::python::execute_plan(interp, params, body) {
+        Ok(reply) => match reply.body.as_deref() {
+            Some(bytes) => match vox_python_bridge::decode_column(bytes, max_body) {
+                Ok(vox_python_bridge::DecodedColumn::Floats(values)) => {
+                    let shape = reply
+                        .value
+                        .get("shape")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| arr.iter().filter_map(|x| x.as_i64()).collect::<Vec<_>>())
+                        .filter(|dims| !dims.is_empty())
+                        .unwrap_or_else(|| vec![values.len() as i64]);
+                    VoxValue::Result(Ok(Box::new(VoxValue::ArrayPlan(
+                        super::array_plan::ArrayPlan::from_list_with_shape(values, shape),
+                    ))))
+                }
+                Ok(vox_python_bridge::DecodedColumn::Ints(values)) => {
+                    let floats = values.into_iter().map(|n| n as f64).collect();
+                    VoxValue::Result(Ok(Box::new(VoxValue::ArrayPlan(
+                        super::array_plan::ArrayPlan::from_list(floats),
+                    ))))
+                }
+                Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+            },
+            None => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: execute_plan reply missing body".to_string(),
+            ))),
+        },
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+/// Host entry for Tier 2 `import py <alias> from "<module>"` method calls.
+pub fn materialize_escape_call(
+    interp: &mut super::Interpreter,
+    module: &str,
+    symbol: &str,
+    args: Vec<VoxValue>,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    if let Some(hint) = crate::python_escape_support::is_denied_python_target(module, Some(symbol))
+    {
+        return VoxValue::_Panic(format!(
+            "py: denied Tier 2 Python call `{module}.{symbol}`: {hint}"
+        ));
+    }
+
+    let sidecar =
+        match crate::python_escape_support::load_sidecar(module, interp.source_path.as_deref()) {
+            Ok(sc) => sc,
+            Err(msg) => return VoxValue::_Panic(msg),
+        };
+
+    let bound_sig = sidecar
+        .as_ref()
+        .and_then(|sc| sc.fns.iter().find(|sig| sig.name == symbol))
+        .cloned();
+    let tier = match (&sidecar, &bound_sig) {
+        (Some(sc), Some(_)) if sc.is_curated => "curated",
+        (Some(_), Some(_)) => "sidecar",
+        _ => "unverified",
+    };
+
+    if bound_sig.is_some() {
+        if !caps.allows_namespace("py") && !caps.allows_namespace("py.unverified") {
+            return VoxValue::_Denied("py.escape_call".into());
+        }
+    } else if !caps.allows_namespace("py.unverified") {
+        return VoxValue::_Denied("py.unverified.escape_call".into());
+    }
+
+    let telemetry =
+        crate::python_escape_support::format_escape_telemetry_event(module, symbol, tier);
+    tracing::info!(
+        module_hash = %telemetry["module_hash"].as_str().unwrap_or_default(),
+        symbol_hash = %telemetry["symbol_hash"].as_str().unwrap_or_default(),
+        tier = %tier,
+        "python.escape_call"
+    );
+    interp.python_escape_telemetry.push(telemetry);
+
+    let json_args: Vec<serde_json::Value> = args.into_iter().map(vox_to_json).collect();
+    let params = serde_json::json!({
+        "family": "escape_call",
+        "module": module,
+        "symbol": symbol,
+        "args": json_args,
+    });
+    match super::python::execute_plan(interp, params, Vec::new()) {
+        Ok(reply) => {
+            if let Some(sig) = bound_sig {
+                if matches!(&sig.ret, crate::typeck::ty::Ty::Named(n) if n == "PyObject") {
+                    VoxValue::PyObject(reply.value)
+                } else {
+                    match crate::python_escape_support::json_to_vox_value(
+                        &reply.value,
+                        Some(&sig.ret.signature()),
+                    ) {
+                        Ok(val) => val,
+                        Err(err) => VoxValue::_Panic(format!(
+                            "py: escape_call `{module}.{symbol}` decode error: {err}"
+                        )),
+                    }
+                }
+            } else {
+                VoxValue::PyObject(reply.value)
+            }
+        }
+        Err(err) => VoxValue::_Panic(err),
     }
 }
 
@@ -3067,7 +3387,18 @@ fn plan_params(plan: &super::array_plan::ArrayPlan) -> serde_json::Value {
                     op.insert("correction".into(), serde_json::json!(correction));
                 }
             } else if step.op == "astype" {
-                op.insert("dtype".into(), serde_json::Value::String("f64".into()));
+                op.insert(
+                    "dtype".into(),
+                    serde_json::Value::String(step.dtype.unwrap_or("f64").into()),
+                );
+            } else if step.op == "reshape"
+                && let Some(shape) = step.shape
+            {
+                op.insert("shape".into(), serde_json::json!(shape));
+            } else if step.op == "softmax"
+                && let Some(axis) = step.axis
+            {
+                op.insert("axis".into(), serde_json::json!(axis));
             } else if step.op == "sort"
                 && let Some(nulls) = step.nulls
             {
@@ -3547,6 +3878,10 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
         VoxValue::ArrayPlan(_) => "ArrayPlan",
         VoxValue::FramePlan(_) => "FramePlan",
         VoxValue::FrameExpr(_) => "FrameExpr",
+        VoxValue::PlotPlan(_) => "PlotPlan",
+        VoxValue::TensorModel(_) => "TensorModel",
+        VoxValue::PyModule { .. } => "PyModule",
+        VoxValue::PyObject(_) => "PyObject",
         VoxValue::Records { .. } => "Records",
         VoxValue::Date(_) => "Date",
         VoxValue::DateTime(_) => "DateTime",
@@ -3629,6 +3964,10 @@ pub fn vox_value_display(v: &VoxValue) -> String {
         | VoxValue::ArrayPlan(_)
         | VoxValue::FramePlan(_)
         | VoxValue::FrameExpr(_)
+        | VoxValue::PlotPlan(_)
+        | VoxValue::TensorModel(_)
+        | VoxValue::PyModule { .. }
+        | VoxValue::PyObject(_)
         | VoxValue::Records { .. }
         | VoxValue::Date(_)
         | VoxValue::DateTime(_)
@@ -4151,7 +4490,7 @@ mod array_materialize_tests {
             crate::eval::python::PythonProject {
                 root: missing,
                 max_fetch_mb: 64,
-                timeout: std::time::Duration::from_secs(5),
+                timeout: vox_config::timeouts::D_5S,
             },
         );
         let caps = interp.caps.clone();
@@ -4370,7 +4709,7 @@ mod array_materialize_tests {
             crate::eval::python::PythonProject {
                 root,
                 max_fetch_mb: 64,
-                timeout: std::time::Duration::from_secs(60),
+                timeout: vox_config::timeouts::D_60S,
             },
         );
         let caps = interp.caps.clone();

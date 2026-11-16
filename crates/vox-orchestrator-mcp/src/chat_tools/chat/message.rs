@@ -72,26 +72,7 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
     // real-time GUI/CLI knob adjustments govern all future turns in the session.
     let mut active_posture =
         load_persisted_session_chat_posture(state, params.session_id.as_deref()).await;
-    let mut posture_updated = false;
-    macro_rules! merge_posture_opt {
-        ($field:ident) => {
-            if params.$field.is_some() {
-                if active_posture.$field != params.$field {
-                    active_posture.$field = params.$field.clone();
-                    posture_updated = true;
-                }
-            } else if active_posture.$field.is_some() {
-                params.$field = active_posture.$field.clone();
-            }
-        };
-    }
-    merge_posture_opt!(clutch);
-    merge_posture_opt!(risk);
-    merge_posture_opt!(tier);
-    merge_posture_opt!(mode);
-    merge_posture_opt!(oversight_level);
-    merge_posture_opt!(kb_scope);
-    merge_posture_opt!(grounding_check_enabled);
+    let posture_updated = merge_persisted_posture_into_params(&mut params, &mut active_posture);
     if posture_updated {
         persist_session_chat_posture(state, params.session_id.as_deref(), &active_posture).await;
     }
@@ -115,8 +96,15 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
             }
         }
     }
+    let (prompt_without_term, term_context_block, term_mention_count) =
+        super::term_mentions::expand_term_mentions(
+            &params.prompt,
+            state,
+            params.session_id.as_deref(),
+        )
+        .await;
     let (expanded_prompt, mention_files) = super::mentions::resolve_mentions_with_rules(
-        &params.prompt,
+        &prompt_without_term,
         &workspace_root,
         &state.mention_path_cache,
         &rule_catalog,
@@ -139,10 +127,17 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
     // see the doc comment above — and do it *before* the autonomous-retrieval
     // preamble below, so the preamble knows whether this turn's numbered
     // research sources (quick/deep) will already supply web evidence (Task 8d).
-    let intent = super::research_intent::classify_research_intent(
-        &raw_prompt_for_research,
-        params.force_research,
-        params.research_scope.as_deref(),
+    let intent = super::research_intent::classify_research_intent_from_params(
+        super::research_intent::ResearchIntentParams {
+            prompt: &raw_prompt_for_research,
+            research_mode: params.research_mode.as_deref(),
+            force_research: params.force_research,
+            research_scope: params.research_scope.as_deref(),
+            domain_mode: params.domain_mode.as_deref(),
+            site_scope: params.site_scope.as_deref(),
+            waves: params.waves,
+            socrates: None,
+        },
     );
     let mut research_trace = super::research_turn::ResearchTrace::new(intent.clone());
     let (expanded_prompt, canonical_meta) = match prompt_canonical::canonicalize_prompt(
@@ -165,7 +160,9 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
             .to_json();
         }
     };
-    let mention_count = mention_files.len();
+    let expanded_prompt =
+        super::term_mentions::attach_terminal_context(expanded_prompt, &term_context_block);
+    let mention_count = mention_files.len() + term_mention_count;
     if let Some((original_hash, conflict_count, objective_count)) = canonical_meta {
         tracing::debug!(
             target: "vox_mcp::prompt_canonical",
@@ -300,7 +297,12 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
         &params.skill_exclusions,
     )
     .await;
-    let system_prompt = {
+    // CONT-04: keep `system_prompt` day-stable for provider KV prefix caching;
+    // append volatile per-turn context (`attention_budget`, `operating_mode`,
+    // `active_file`, `session_id`, `model_id`, `cognitive_profile`, timestamp)
+    // as a trailing turn rider instead of mutating `raw_system_prompt`.
+    let system_prompt = raw_system_prompt;
+    let volatile_rider = {
         let mut sys_vars = super::system_prompt_vars::build_live_runtime_vars(
             &state.repository.root,
             &ts_to_date_str(now_ts()),
@@ -313,11 +315,23 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
         if let Some(prof) = params.cognitive_profile.as_deref() {
             sys_vars.cognitive_profile = prof.to_string();
         }
-        super::system_prompt_vars::interpolate_system_prompt_variables(
-            &raw_system_prompt,
+        let attention_signal = {
+            let bm = state.orchestrator.budget_manager_handle();
+            vox_orchestrator::sync_lock::rw_read(&*bm)
+                .attention_signal(state.orchestrator_config.attention_alert_threshold)
+        };
+        let operating_mode = super::system_prompt_vars::resolve_session_operating_mode(
+            state,
+            params.session_id.as_deref(),
+        );
+        super::system_prompt_vars::build_volatile_turn_system_rider(
+            attention_signal,
+            operating_mode.as_ref(),
             &sys_vars,
         )
     };
+    let turn_user_prompt = append_volatile_rider(turn_user_prompt, &volatile_rider);
+    let user_prompt = append_volatile_rider(user_prompt, &volatile_rider);
     let llm_started = std::time::Instant::now();
 
     // The strict pin the chat model resolved through (Task 13) — set only by
@@ -677,6 +691,46 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
     ToolResult::ok(result).to_json()
 }
 
+/// Merges persisted session posture knobs into `params` (and updates `active_posture`
+/// when `params` carries newer explicit overrides), returning `true` when persisted
+/// posture changed.
+fn merge_persisted_posture_into_params(
+    params: &mut ChatMessageParams,
+    active_posture: &mut posture_and_routing::PersistedSessionChatPosture,
+) -> bool {
+    let mut posture_updated = false;
+    macro_rules! merge_posture_opt {
+        ($field:ident) => {
+            if params.$field.is_some() {
+                if active_posture.$field != params.$field {
+                    active_posture.$field = params.$field.clone();
+                    posture_updated = true;
+                }
+            } else if active_posture.$field.is_some() {
+                params.$field = active_posture.$field.clone();
+            }
+        };
+    }
+    merge_posture_opt!(clutch);
+    merge_posture_opt!(risk);
+    merge_posture_opt!(tier);
+    merge_posture_opt!(mode);
+    merge_posture_opt!(research_mode);
+    merge_posture_opt!(domain_mode);
+    merge_posture_opt!(oversight_level);
+    merge_posture_opt!(kb_scope);
+    merge_posture_opt!(grounding_check_enabled);
+    posture_updated
+}
+
+fn append_volatile_rider(base_prompt: String, volatile_rider: &str) -> String {
+    if volatile_rider.trim().is_empty() {
+        base_prompt
+    } else {
+        format!("{base_prompt}{volatile_rider}")
+    }
+}
+
 #[cfg(test)]
 #[allow(
     unsafe_code,
@@ -691,3 +745,59 @@ mod turn_trace_tests;
 #[cfg(test)]
 #[path = "message_kb_leak_tests.rs"]
 mod kb_leak_tests;
+
+#[cfg(test)]
+mod continuum_posture_tests {
+    use super::*;
+    use vox_orchestrator_types::socrates_policy::{ResearchContinuumMode, ResearchContinuumTier};
+    use vox_research_shim::research::types::{ResearchDomainMode, ResearchScope};
+
+    #[test]
+    fn merged_posture_governs_classification_before_retrieval() {
+        let mut params: ChatMessageParams =
+            serde_json::from_str(r#"{"prompt": "review prior art on crag", "waves": 4}"#)
+                .expect("deserialize params");
+        let mut posture = posture_and_routing::PersistedSessionChatPosture {
+            research_mode: Some("deep".to_string()),
+            domain_mode: Some("scholarly".to_string()),
+            ..Default::default()
+        };
+        assert!(!merge_persisted_posture_into_params(
+            &mut params,
+            &mut posture
+        ));
+        let intent = super::super::research_intent::classify_research_intent_from_params(
+            super::super::research_intent::ResearchIntentParams {
+                prompt: &params.prompt,
+                research_mode: params.research_mode.as_deref(),
+                force_research: params.force_research,
+                research_scope: params.research_scope.as_deref(),
+                domain_mode: params.domain_mode.as_deref(),
+                site_scope: params.site_scope.as_deref(),
+                waves: params.waves,
+                socrates: None,
+            },
+        );
+        assert_eq!(intent.continuum_mode, ResearchContinuumMode::Deep);
+        assert_eq!(intent.initial_tier, ResearchContinuumTier::DeepMultiWave);
+        assert_eq!(intent.domain_mode, ResearchDomainMode::Scholarly);
+        assert_eq!(intent.scope, ResearchScope::Web);
+        assert_eq!(intent.waves, 4);
+    }
+
+    #[test]
+    fn volatile_rider_appends_to_turn_prompt_without_mutating_static_prefix() {
+        let vars = super::super::system_prompt_vars::SystemPromptRuntimeVars {
+            active_file: "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs".into(),
+            session_id: "sess-posture".into(),
+            ..Default::default()
+        };
+        let rider = super::super::system_prompt_vars::build_volatile_turn_system_rider(
+            "Normal", None, &vars,
+        );
+        let combined = append_volatile_rider("user turn body".into(), &rider);
+        assert!(combined.starts_with("user turn body"));
+        assert!(combined.contains("## Turn Runtime Context"));
+        assert!(combined.contains("crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs"));
+    }
+}

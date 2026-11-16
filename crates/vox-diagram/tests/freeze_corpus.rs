@@ -100,7 +100,7 @@ fn freeze(root: &Path, dir: &Path) -> Result<usize, String> {
 }
 
 #[test]
-#[ignore = "one-shot: reads docs/src at HEAD; run by hand to refreeze"]
+#[ignore = "owner:diagram sunset:never one-shot: reads docs/src at HEAD; run by hand to refreeze"]
 fn freeze_corpus() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     if let Err(e) = freeze(

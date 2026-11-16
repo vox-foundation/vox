@@ -96,18 +96,7 @@ pub fn refresh_train_contract_override_from_mix(
         .map(Path::to_path_buf)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     if let Ok(cfg) = MixConfigSchema::load(&mix_yaml) {
-        for src in &cfg.sources {
-            if src.path == "mens/data/mix_sources/vox_reasoning_traces.jsonl" {
-                let p = path_base_for_mix.join(&src.path);
-                if !p.exists() {
-                    let rows =
-                        crate::corpus::vox_reasoning_synth::generate_vox_reasoning_traces(42);
-                    let _ = crate::corpus::vox_reasoning_synth::write_vox_reasoning_traces_jsonl(
-                        &rows, &p,
-                    );
-                }
-            }
-        }
+        ensure_missing_mix_sources(&cfg, &path_base_for_mix);
     }
     if let Err(e) = corpus::run_mix_with_options(
         &mix_yaml,
@@ -147,30 +136,7 @@ pub fn recover_train_input_path_after_prefetch(
             let path_base = workspace_root
                 .map(Path::to_path_buf)
                 .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-            for src in &cfg.sources {
-                let p = path_base.join(&src.path);
-                if !p.exists() {
-                    if src.path == "mens/data/mix_sources/docs.jsonl" {
-                        eprintln!("  🔄 Generating missing components: docs.jsonl");
-                        let c = crate::corpus::extract_docs::ExtractDocsConfig {
-                            root: path_base.join("docs"),
-                            ..Default::default()
-                        };
-                        if let Ok(pairs) = crate::corpus::extract_docs::walk_and_extract_docs(&c) {
-                            let _ = crate::corpus::extract_docs::write_docs_to_jsonl(&pairs, &p);
-                        }
-                    } else if src.path == "mens/data/mix_sources/rust_source.jsonl" {
-                        eprintln!("  🔄 Generating missing components: rust_source.jsonl");
-                        let c = crate::corpus::extract_rs::ExtractRsConfig {
-                            root: path_base.join("crates"),
-                            ..Default::default()
-                        };
-                        if let Ok(pairs) = crate::corpus::extract_rs::walk_and_extract(&c) {
-                            let _ = crate::corpus::extract_rs::write_to_jsonl(&pairs, &p);
-                        }
-                    }
-                }
-            }
+            ensure_missing_mix_sources(&cfg, &path_base);
         }
         match refresh_train_contract_override_from_mix(
             workspace_root,
@@ -376,6 +342,74 @@ pub fn stream_snapshot_batches(
     }
 
     batches
+}
+
+/// Generate missing deterministic or repo-extracted sources referenced by a mix config.
+pub fn ensure_missing_mix_sources(cfg: &MixConfigSchema, path_base: &Path) {
+    for src in &cfg.sources {
+        let p = path_base.join(&src.path);
+        if p.exists() {
+            continue;
+        }
+        match src.path.as_str() {
+            "mens/data/mix_sources/vox_reasoning_traces.jsonl" => {
+                eprintln!("  🔄 Generating missing components: vox_reasoning_traces.jsonl");
+                let rows = crate::corpus::vox_reasoning_synth::generate_vox_reasoning_traces(42);
+                let _ =
+                    crate::corpus::vox_reasoning_synth::write_vox_reasoning_traces_jsonl(&rows, &p);
+            }
+            "mens/data/mix_sources/tool_selection_synth.jsonl" => {
+                eprintln!("  🔄 Generating missing components: tool_selection_synth.jsonl");
+                let rows = crate::corpus::tool_selection_synth::generate_tool_selection_rows(252);
+                let _ = crate::corpus::tool_selection_synth::write_tool_selection_jsonl(&rows, &p);
+            }
+            "mens/data/mix_sources/argument_generation_synth.jsonl" => {
+                eprintln!("  🔄 Generating missing components: argument_generation_synth.jsonl");
+                let rows =
+                    crate::corpus::argument_generation_synth::generate_argument_generation_rows(
+                        260,
+                    );
+                let _ = crate::corpus::argument_generation_synth::write_argument_generation_jsonl(
+                    &rows, &p,
+                );
+            }
+            "mens/data/mix_sources/agent_traces.jsonl" => {
+                eprintln!("  🔄 Generating missing components: agent_traces.jsonl");
+                let _ = crate::corpus::agentic_synth::generate_agentic_synth_file(&p);
+            }
+            "mens/data/mix_sources/docs.jsonl" => {
+                eprintln!("  🔄 Generating missing components: docs.jsonl");
+                let c = crate::corpus::extract_docs::ExtractDocsConfig {
+                    root: path_base.join("docs"),
+                    ..Default::default()
+                };
+                if let Ok(pairs) = crate::corpus::extract_docs::walk_and_extract_docs(&c) {
+                    let _ = crate::corpus::extract_docs::write_docs_to_jsonl(&pairs, &p);
+                }
+            }
+            "mens/data/mix_sources/rust_source.jsonl" => {
+                eprintln!("  🔄 Generating missing components: rust_source.jsonl");
+                let c = crate::corpus::extract_rs::ExtractRsConfig {
+                    root: path_base.join("crates"),
+                    ..Default::default()
+                };
+                if let Ok(pairs) = crate::corpus::extract_rs::walk_and_extract(&c) {
+                    let _ = crate::corpus::extract_rs::write_to_jsonl(&pairs, &p);
+                }
+            }
+            "mens/data/mix_sources/gsd_workflows.jsonl" => {
+                eprintln!("  🔄 Generating missing components: gsd_workflows.jsonl");
+                let c = crate::corpus::extract_gsd::ExtractGsdConfig {
+                    root: path_base.to_path_buf(),
+                    ..Default::default()
+                };
+                if let Ok(pairs) = crate::corpus::extract_gsd::extract_gsd_corpus(&c) {
+                    let _ = crate::corpus::extract_gsd::write_gsd_to_jsonl(&pairs, &p);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
@@ -625,5 +659,79 @@ mod tests {
         assert_eq!(batches[0].sft_records.len(), 1);
         assert_eq!(batches[0].dpo_pairs.len(), 1);
         assert!(batches[0].total_tokens > 0 && batches[0].total_tokens <= 128);
+    }
+
+    #[test]
+    fn ensure_missing_mix_sources_materializes_and_mixes_harness_spokes() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        for (yaml_name, include_lane, source_path, record_format, out_rel) in [
+            (
+                "mix-tool-selection.yaml",
+                "vox_tool_selection",
+                "mens/data/mix_sources/tool_selection_synth.jsonl",
+                "tool_selection",
+                "mens/data/train_mixed_tool_selection.jsonl",
+            ),
+            (
+                "mix-argument-generation.yaml",
+                "vox_argument_generation",
+                "mens/data/mix_sources/argument_generation_synth.jsonl",
+                "argument_generation",
+                "mens/data/train_mixed_argument_generation.jsonl",
+            ),
+            (
+                "mix-agents.yaml",
+                "vox_tooling",
+                "mens/data/mix_sources/agent_traces.jsonl",
+                "tool_trace",
+                "mens/data/train_mixed_agents.jsonl",
+            ),
+        ] {
+            let mix_path = root.join(yaml_name);
+            let cfg_body = format!(
+                "include_lanes: [{include_lane}]\noutput: {out_rel}\nsources:\n  - path: {source_path}\n    weight: 1.0\n    optional: false\n    record_format: {record_format}\n"
+            );
+            std::fs::write(&mix_path, cfg_body).unwrap();
+            let cfg = crate::corpus::mix::MixConfigSchema::load(&mix_path).unwrap();
+            super::ensure_missing_mix_sources(&cfg, root);
+            assert!(
+                root.join(source_path).is_file(),
+                "{source_path} must be synthesized on demand"
+            );
+            crate::corpus::run_mix_with_options(
+                &mix_path,
+                Some(root),
+                crate::corpus::MixRunOptions::default(),
+            )
+            .unwrap();
+            let mixed_text = std::fs::read_to_string(root.join(out_rel)).unwrap();
+            let first_line = mixed_text
+                .lines()
+                .next()
+                .unwrap_or_else(|| panic!("{yaml_name} emitted 0 rows"));
+            let parsed: serde_json::Value = serde_json::from_str(first_line).unwrap();
+            assert_eq!(parsed["lane"].as_str(), Some(include_lane));
+            assert!(
+                parsed["response"].as_str().unwrap().contains("<tool_call>"),
+                "expected <tool_call> envelope in {yaml_name}"
+            );
+        }
+
+        let sel_lines =
+            std::fs::read_to_string(root.join("mens/data/mix_sources/tool_selection_synth.jsonl"))
+                .unwrap()
+                .lines()
+                .count();
+        assert_eq!(sel_lines, 252);
+
+        let arg_lines = std::fs::read_to_string(
+            root.join("mens/data/mix_sources/argument_generation_synth.jsonl"),
+        )
+        .unwrap()
+        .lines()
+        .count();
+        assert_eq!(arg_lines, 260);
     }
 }

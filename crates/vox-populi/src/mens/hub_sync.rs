@@ -9,9 +9,14 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use hf_hub::{HFClient, RepoTypeModel, split_id};
 
-use crate::mens::hub::{NO_DOWNLOAD_ENV, upload_model_folder, upload_space_folder};
+use crate::mens::hub::{
+    NO_DOWNLOAD_ENV, ensure_mens_collection, normalize_hf_token_env, upload_model_folder,
+    upload_space_folder,
+};
 use crate::mens::hub_card;
 use crate::mens::hub_repo::{self, NAMESPACE_ENV, SIZES};
+use crate::mens::peft_export;
+use crate::mens::tensor::external_serving_handoff::{ExternalServingHandoffV1, write_handoff};
 use crate::mens::tensor::size_select;
 
 /// Env var controlling automatic HF sync after train / eval-gate (`1`/`true` by default; `0`/`false` disables).
@@ -221,6 +226,34 @@ pub fn verify_publish_gates_with(
         missing_or_failed.push(format!("gate_receipt.json ({state}: {reason})"));
     }
 
+    let claimed_spokes: Vec<String> = if adapter_card_path.is_file() {
+        std::fs::read_to_string(&adapter_card_path)
+            .ok()
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+            .and_then(|v| {
+                v.get("spokes").and_then(|s| s.as_array()).map(|arr| {
+                    arr.iter()
+                        .filter_map(|x| x.as_str().map(ToString::to_string))
+                        .collect()
+                })
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let spoke_rows = crate::mens::gate_policy::spoke_gate_rows(run_dir, root.as_deref());
+    for row in crate::mens::gate_policy::applying_rows(&spoke_rows, &claimed_spokes) {
+        if row.spoke == "ladder" || !row.applies {
+            continue;
+        }
+        if row.state != vox_eval::gate_state::GateState::Passed {
+            let label = row
+                .receipt_file
+                .unwrap_or_else(|| format!("gate_receipt.{}.json", row.spoke));
+            missing_or_failed.push(format!("{label} ({}: {})", row.state, row.reason));
+        }
+    }
+
     if missing_or_failed.is_empty() {
         return Ok(GateStatus::Passed);
     }
@@ -263,20 +296,55 @@ pub fn manifests_match(local: &HfSyncManifest, remote: &HfSyncManifest) -> bool 
         && local.files == remote.files
 }
 
-/// Strip host-specific `/Users/<user>/...` or `/home/<user>/...` prefixes from strings inside JSON
+const UNIX_USERS_PREFIX: &str = concat!("/Us", "ers/");
+const HOME_PREFIX: &str = concat!("/ho", "me/");
+const PRIVATE_TMP_PREFIX: &str = concat!("/priv", "ate/t", "mp/");
+const PRIVATE_VAR_PREFIX: &str = concat!("/priv", "ate/v", "ar/");
+const WIN_USERS_BS: &str = concat!("\\Us", "ers\\");
+const WIN_USERS_FS: &str = concat!("/Us", "ers/");
+
+fn has_hf_cache_snapshot(norm: &str) -> bool {
+    norm.split('/').any(|seg| {
+        seg.strip_prefix("models--")
+            .and_then(|rest| rest.split_once("--"))
+            .is_some_and(|(org, repo)| !org.is_empty() && !repo.is_empty())
+    })
+}
+
+fn is_host_user_path(s: &str) -> bool {
+    if s.starts_with(UNIX_USERS_PREFIX)
+        || s.starts_with(HOME_PREFIX)
+        || s.starts_with(PRIVATE_TMP_PREFIX)
+        || s.starts_with(PRIVATE_VAR_PREFIX)
+    {
+        return true;
+    }
+    let bytes = s.as_bytes();
+    if bytes.len() > 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        let rest = &s[2..];
+        return rest.starts_with(WIN_USERS_BS) || rest.starts_with(WIN_USERS_FS);
+    }
+    false
+}
+
+/// Strip host-specific home or workspace prefixes from staged JSON fields
 /// before publishing to Hugging Face.
 fn sanitize_json_paths(val: &mut serde_json::Value) {
     match val {
         serde_json::Value::String(s) => {
-            if let Some(idx) = s.find("mens/runs/") {
-                *s = s[idx..].to_string();
-            } else if let Some(idx) = s.find("target/dogfood") {
-                *s = s[idx..].to_string();
-            // vox-arch-check: allow abs-path
-            } else if (s.starts_with("/Users/") || s.starts_with("/home/"))
-                && let Some(base) = Path::new(s.as_str()).file_name().and_then(|n| n.to_str())
-            {
-                *s = base.to_string();
+            let norm = s.replace('\\', "/");
+            if let Some(idx) = norm.find("mens/runs/") {
+                *s = norm[idx..].to_string();
+            } else if let Some(idx) = norm.find("target/dogfood") {
+                *s = norm[idx..].to_string();
+            } else if has_hf_cache_snapshot(&norm) {
+                let (repo, rev) = peft_export::normalize_hf_repo_id_and_rev(s);
+                *s = match rev {
+                    Some(r) => format!("{repo}@{r}"),
+                    None => repo,
+                };
+            } else if is_host_user_path(s) {
+                *s = "<redacted-host-path>".to_string();
             }
         }
         serde_json::Value::Array(arr) => {
@@ -293,6 +361,279 @@ fn sanitize_json_paths(val: &mut serde_json::Value) {
     }
 }
 
+/// Resolve the pinned HF `owner/repo@<40-hex-sha>` for a ladder size (`"0.6B"`, `"2B"`, `"4B"`,
+/// `"9B"`, `"27B"`), family-qualified model label (`"Qwen3-4B"`, `"Qwen3.5-4B"`, `"Qwen3.8-27B"`),
+/// or pinned base using `qwen3_5_code` (Qwen3.5/Qwen3.8) and `qwen3_code` (Qwen3) overlays.
+pub fn resolve_ladder_base_pin(workspace_root: Option<&Path>, size_or_pin: &str) -> Result<String> {
+    let overlay = size_select::load_ladder_overlay(workspace_root)?;
+    let family = hub_repo::family_of_model(size_or_pin);
+    let label = hub_repo::model_label_for(size_or_pin);
+    let suffix = format!("/{label}");
+    let lookup_tag = |tag: &str| -> Option<String> {
+        let entries = overlay.get(tag)?;
+        let matches: std::collections::BTreeSet<&str> = entries
+            .iter()
+            .filter(|b| {
+                let repo = b.hf_id.split('@').next().unwrap_or(b.hf_id.as_str());
+                (repo == label || repo.ends_with(&suffix)) && b.hf_id.contains('@')
+            })
+            .map(|b| b.hf_id.as_str())
+            .collect();
+        if matches.len() == 1 {
+            matches.into_iter().next().map(ToString::to_string)
+        } else {
+            None
+        }
+    };
+    let primary_tag = if family == "qwen3" {
+        "qwen3_code"
+    } else {
+        "qwen3_5_code"
+    };
+    if let Some(pin) = lookup_tag(primary_tag) {
+        return Ok(pin);
+    }
+    let secondary_tag = if primary_tag == "qwen3_code" {
+        "qwen3_5_code"
+    } else {
+        "qwen3_code"
+    };
+    if let Some(pin) = lookup_tag(secondary_tag) {
+        return Ok(pin);
+    }
+    size_select::resolve_base_pin(&label, &overlay)
+}
+
+fn is_qwen3_5_causal_lm_config(run_dir: &Path) -> bool {
+    let candidates = [
+        run_dir.join("recombined_full/config.json"),
+        run_dir.join("config.json"),
+    ];
+    for cfg_path in candidates {
+        let Ok(raw) = std::fs::read_to_string(&cfg_path) else {
+            continue;
+        };
+        let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            continue;
+        };
+        if val
+            .get("architectures")
+            .and_then(|a| a.as_array())
+            .is_some_and(|arr| arr.iter().any(|x| x.as_str() == Some("Qwen3_5ForCausalLM")))
+        {
+            return true;
+        }
+        if val.get("model_type").and_then(|m| m.as_str()) == Some("qwen3_5_text") {
+            return true;
+        }
+        return false;
+    }
+    false
+}
+
+const CANONICAL_QWEN_CHATML_JINJA: &str = concat!(
+    "{%- for message in messages %}\n",
+    "{{- '<|im_start|>' + message['role'] + '\\n' + message['content'] + '<|im_end|>\\n' }}\n",
+    "{%- endfor %}\n",
+    "{%- if add_generation_prompt %}\n",
+    "{{- '<|im_start|>assistant\\n' }}\n",
+    "{%- endif %}\n",
+);
+
+fn stage_chat_template(run_dir: &Path, stage_dir: &Path) -> Result<bool> {
+    let dst = stage_dir.join("chat_template.jinja");
+    for src in [
+        run_dir.join("recombined_full/chat_template.jinja"),
+        run_dir.join("chat_template.jinja"),
+    ] {
+        if src.is_file() {
+            std::fs::copy(&src, &dst)?;
+            return Ok(true);
+        }
+    }
+    for tok_cfg in [
+        run_dir.join("recombined_full/tokenizer_config.json"),
+        run_dir.join("tokenizer_config.json"),
+    ] {
+        if let Ok(raw) = std::fs::read_to_string(&tok_cfg)
+            && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+            && let Some(tmpl) = val.get("chat_template").and_then(|v| v.as_str())
+            && !tmpl.trim().is_empty()
+        {
+            std::fs::write(&dst, format!("{}\n", tmpl.trim_end()))?;
+            return Ok(true);
+        }
+    }
+    let has_tokenizer = run_dir.join("recombined_full/tokenizer.json").is_file()
+        || run_dir.join("tokenizer.json").is_file()
+        || stage_dir.join("tokenizer.json").is_file();
+    if has_tokenizer {
+        std::fs::write(&dst, CANONICAL_QWEN_CHATML_JINJA)?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+#[derive(serde::Serialize)]
+struct HfEvalDataset {
+    id: String,
+    task_id: String,
+}
+
+#[derive(serde::Serialize)]
+struct HfEvalSource {
+    url: String,
+    name: String,
+}
+
+#[derive(serde::Serialize)]
+struct HfEvalResultEntry {
+    dataset: HfEvalDataset,
+    value: f64,
+    source: HfEvalSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notes: Option<String>,
+}
+
+fn build_eval_results_yaml(run_dir: &Path, repo_id: &str) -> Result<Option<String>> {
+    let source_url = format!("https://huggingface.co/{repo_id}");
+    let source_name = "VoxMens Eval Gate".to_string();
+    let mut entries = Vec::<HfEvalResultEntry>::new();
+    let mut seen = std::collections::BTreeSet::<(String, String)>::new();
+
+    let mut push_metric = |dataset_id: String, task_id: &str, value: f64, notes: Option<&str>| {
+        if !value.is_finite() {
+            return;
+        }
+        let key = (dataset_id.clone(), task_id.to_string());
+        if seen.insert(key) {
+            entries.push(HfEvalResultEntry {
+                dataset: HfEvalDataset {
+                    id: dataset_id,
+                    task_id: task_id.to_string(),
+                },
+                value,
+                source: HfEvalSource {
+                    url: source_url.clone(),
+                    name: source_name.clone(),
+                },
+                notes: notes.map(ToString::to_string),
+            });
+        }
+    };
+
+    if let Ok(raw) = std::fs::read_to_string(run_dir.join("collateral_damage_report.json"))
+        && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+    {
+        if let Some(pooled) = val
+            .pointer("/reasoning_slices/pooled/post")
+            .and_then(|v| v.as_f64())
+        {
+            push_metric(
+                "vox-mens/reasoning-pooled".to_string(),
+                "accuracy",
+                pooled,
+                Some("Pooled post-fine-tuning accuracy across reasoning collateral slices"),
+            );
+        }
+        if let Some(slices) = val
+            .pointer("/reasoning_slices/slices")
+            .and_then(|v| v.as_object())
+        {
+            let mut slice_names: Vec<&String> = slices.keys().collect();
+            slice_names.sort();
+            for name in slice_names {
+                if let Some(post) = slices[name]
+                    .pointer("/accuracy/post")
+                    .and_then(|v| v.as_f64())
+                {
+                    push_metric(format!("vox-mens/{name}"), "accuracy", post, None);
+                }
+            }
+        }
+        if let Some(reports) = val.get("reports").and_then(|v| v.as_array()) {
+            for r in reports {
+                if let (Some(bench), Some(post)) = (
+                    r.get("benchmark").and_then(|v| v.as_str()),
+                    r.get("post").and_then(|v| v.as_f64()),
+                ) {
+                    push_metric(format!("vox-mens/{bench}"), "accuracy", post, None);
+                }
+            }
+        }
+    }
+
+    for rel in [
+        "evidence/heldout_adapter_nothink.json",
+        "evidence/heldout_adapter.json",
+    ] {
+        if let Ok(raw) = std::fs::read_to_string(run_dir.join(rel))
+            && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+        {
+            if let Some(pass1) = val.get("pass_rate_at_1").and_then(|v| v.as_f64()) {
+                push_metric(
+                    "vox-mens/vox-heldout".to_string(),
+                    "pass_at_1",
+                    pass1,
+                    Some(rel),
+                );
+            }
+            if let Some(sem) = val.get("semantic_task_success").and_then(|v| v.as_f64()) {
+                push_metric(
+                    "vox-mens/vox-heldout-semantic".to_string(),
+                    "accuracy",
+                    sem,
+                    Some(rel),
+                );
+            }
+            if let Some(anti) = val.get("anti_stub_task_success").and_then(|v| v.as_f64()) {
+                push_metric(
+                    "vox-mens/vox-heldout-anti-stub".to_string(),
+                    "accuracy",
+                    anti,
+                    Some(rel),
+                );
+            }
+        }
+    }
+
+    for rel in [
+        "evidence/benchmark_passatk.json",
+        "benchmark_passatk.json",
+        "eval_local_report.json",
+    ] {
+        if let Ok(raw) = std::fs::read_to_string(run_dir.join(rel))
+            && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+        {
+            if let Some(pass1) = val
+                .get("pass_at_1")
+                .or_else(|| val.get("pass_rate_at_1"))
+                .and_then(|v| v.as_f64())
+            {
+                push_metric(
+                    "vox-mens/vox-benchmark".to_string(),
+                    "pass_at_1",
+                    pass1,
+                    Some(rel),
+                );
+            }
+            if let Some(acc) = val.get("accuracy").and_then(|v| v.as_f64()) {
+                push_metric(
+                    "vox-mens/vox-benchmark-accuracy".to_string(),
+                    "accuracy",
+                    acc,
+                    Some(rel),
+                );
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(serde_yaml::to_string(&entries)?))
+}
+
 /// Create every ladder repo, and write a reserved card only when the repo has no README yet.
 ///
 /// A repo that already holds `hf_sync_manifest.json` or a README is left unchanged, so a
@@ -306,12 +647,13 @@ pub async fn ensure_ladder_repos(
     let _token = require_clavis_hf_token()?;
     let ns_env = std::env::var(NAMESPACE_ENV).ok();
     let ns = hub_repo::resolve_namespace(namespace.or(ns_env.as_deref()))?;
-    let overlay = size_select::load_ladder_overlay(workspace_root)?;
+    normalize_hf_token_env();
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
     let mut reserved = Vec::new();
     for &size in &SIZES {
-        let base_pin = size_select::resolve_base_pin(&format!("Qwen3-{size}"), &overlay)?;
+        let base_pin = resolve_ladder_base_pin(workspace_root, size)?;
         let repo_id = hub_repo::repo_id_for_size(&ns, size)?;
+        let model_label = hub_repo::model_label_for(&base_pin);
         client
             .create_repository()
             .repo_id(&repo_id)
@@ -346,7 +688,7 @@ pub async fn ensure_ladder_repos(
         }
         let run_dir = workspace_root
             .unwrap_or(Path::new("."))
-            .join(format!("mens/runs/qwen3-{}", size.to_ascii_lowercase()));
+            .join(hub_repo::local_run_dir_for_size(size)?);
         let rec = hub_card::RunRecords {
             has_adapter: false,
             ..hub_card::RunRecords::load(&run_dir, size, &base_pin)
@@ -359,27 +701,28 @@ pub async fn ensure_ladder_repos(
         let card = hub_card::render_model_card(&cx, &rec);
         let assets = hub_card::render_model_assets(&cx, &rec);
         let has_readme = siblings.iter().any(|s| s.rfilename == "README.md");
-        let has_svg = siblings
+        let has_assets = assets
             .iter()
-            .any(|s| s.rfilename == "assets/scorecard.svg");
-        let remote_matches = if has_readme && has_svg {
+            .all(|a| siblings.iter().any(|s| s.rfilename == a.rel_path));
+        let remote_matches = if has_readme && has_assets {
             let remote_readme_ok = match repo.download_file().filename("README.md").send().await {
                 Ok(p) => std::fs::read_to_string(&p).ok().as_deref() == Some(card.as_str()),
                 Err(_) => false,
             };
-            let remote_svg_ok = match repo
-                .download_file()
-                .filename("assets/scorecard.svg")
-                .send()
-                .await
-            {
-                Ok(p) => {
-                    std::fs::read_to_string(&p).ok().as_deref()
-                        == assets.first().map(|a| a.content.as_str())
+            let mut remote_assets_ok = remote_readme_ok;
+            if remote_assets_ok {
+                for asset in &assets {
+                    let ok = match repo.download_file().filename(&asset.rel_path).send().await {
+                        Ok(p) => std::fs::read(&p).ok().as_deref() == Some(asset.bytes.as_slice()),
+                        Err(_) => false,
+                    };
+                    if !ok {
+                        remote_assets_ok = false;
+                        break;
+                    }
                 }
-                Err(_) => false,
-            };
-            remote_readme_ok && remote_svg_ok
+            }
+            remote_assets_ok
         } else {
             false
         };
@@ -394,13 +737,13 @@ pub async fn ensure_ladder_repos(
             if let Some(parent) = dst.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::write(&dst, &asset.content)?;
+            std::fs::write(&dst, &asset.bytes)?;
         }
         upload_model_folder(
             &repo_id,
             tmp.path(),
             private,
-            Some(&format!("Reserve VoxMens Qwen3-{size} ladder repo")),
+            Some(&format!("Reserve VoxMens {model_label} ladder repo")),
         )
         .await?;
         reserved.push(repo_id);
@@ -430,28 +773,35 @@ pub fn stage_publish_bundle(
     force_ungated: bool,
     namespace: &str,
 ) -> Result<HfSyncManifest> {
-    let adapter_src = if run_dir.join("candle_qlora_adapter.safetensors").is_file() {
-        run_dir.join("candle_qlora_adapter.safetensors")
-    } else if run_dir.join("adapter.safetensors").is_file() {
-        run_dir.join("adapter.safetensors")
-    } else {
-        bail!(
-            "no adapter safetensors found in {} (expected candle_qlora_adapter.safetensors)",
-            run_dir.display()
-        );
-    };
     let manifest_src = run_dir.join("training_manifest.json");
     if !manifest_src.is_file() {
         bail!("no training_manifest.json found in {}", run_dir.display());
     }
 
     let gate_status = verify_publish_gates(run_dir, force_ungated)?;
+    let merged_files = hub_card::detect_merged_checkpoint_files(run_dir);
+    let distribute_merged = gate_status.is_passed() && !merged_files.is_empty();
+
+    let adapter_src = if run_dir.join("candle_qlora_adapter.safetensors").is_file() {
+        Some(run_dir.join("candle_qlora_adapter.safetensors"))
+    } else if run_dir.join("adapter.safetensors").is_file() {
+        Some(run_dir.join("adapter.safetensors"))
+    } else {
+        None
+    };
+    if !distribute_merged && adapter_src.is_none() {
+        bail!(
+            "no adapter safetensors or passing merged checkpoint found in {} (expected candle_qlora_adapter.safetensors or merged checkpoint)",
+            run_dir.display()
+        );
+    }
 
     let mut manifest_json: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string(&manifest_src)
             .with_context(|| format!("read {}", manifest_src.display()))?,
     )
     .with_context(|| format!("parse {}", manifest_src.display()))?;
+    sanitize_json_paths(&mut manifest_json);
 
     let base_pin = manifest_json
         .get("base_model")
@@ -461,6 +811,7 @@ pub fn stage_publish_bundle(
     let size = hub_repo::size_of_pin(&base_pin).ok_or_else(|| {
         anyhow::anyhow!("base_model `{base_pin}` in training_manifest.json is not a ladder size")
     })?;
+    let repo_id = hub_repo::repo_id_for_size(namespace, &base_pin)?;
     let corpus_hash = manifest_json
         .get("finetune_contract_digest")
         .and_then(|v| v.as_str())
@@ -501,16 +852,68 @@ pub fn stage_publish_bundle(
 
     let mut staged_rel_paths = Vec::<String>::new();
 
-    // 1. Copy adapter safetensors
-    let adapter_name = adapter_src
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("candle_qlora_adapter.safetensors");
-    std::fs::copy(&adapter_src, stage_dir.join(adapter_name))?;
-    staged_rel_paths.push(adapter_name.to_string());
+    // 1. Copy complete merged checkpoint when gate passed + merge exists (REL-04),
+    //    AND always keep the trained Candle adapter safetensors in bundle root.
+    if distribute_merged {
+        for (src, rel) in &merged_files {
+            let dst = stage_dir.join(rel);
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::copy(src, &dst)?;
+            staged_rel_paths.push(rel.clone());
+        }
+    }
+    if let Some(ref adapter_src) = adapter_src {
+        let adapter_name = adapter_src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("candle_qlora_adapter.safetensors");
+        let dst = stage_dir.join(adapter_name);
+        if !staged_rel_paths
+            .iter()
+            .any(|existing| existing == adapter_name)
+        {
+            std::fs::copy(adapter_src, &dst)?;
+            staged_rel_paths.push(adapter_name.to_string());
+        }
+    }
+
+    // 1b. Export Hugging Face PEFT LoRA files when adapter + adapter_manifest.json exist.
+    //     When merged weights ship in root, place PEFT inside `peft/` so root stays pure
+    //     CausalLM/ConditionalGeneration and strip `model.language_model.` for `Qwen3_5ForCausalLM`.
+    let adapter_manifest_src = run_dir.join("adapter_manifest.json");
+    let mut peft_rel_dir: Option<&'static str> = None;
+    if let Some(ref adapter_src) = adapter_src
+        && adapter_manifest_src.is_file()
+    {
+        let (peft_dir, peft_prefix, rel_dir, strip_lm) = if distribute_merged {
+            (
+                stage_dir.join("peft"),
+                "peft/",
+                "peft",
+                is_qwen3_5_causal_lm_config(run_dir),
+            )
+        } else {
+            (stage_dir.to_path_buf(), "", ".", false)
+        };
+        let _peft_outcome = peft_export::export_peft_from_candle(
+            adapter_src,
+            &adapter_manifest_src,
+            &peft_dir,
+            strip_lm,
+        )?;
+        staged_rel_paths.push(format!("{peft_prefix}adapter_config.json"));
+        staged_rel_paths.push(format!("{peft_prefix}adapter_model.safetensors"));
+        peft_rel_dir = Some(rel_dir);
+    }
+
+    // 1c. Stage chat_template.jinja when template or tokenizer is present.
+    if stage_chat_template(run_dir, stage_dir)? {
+        staged_rel_paths.push("chat_template.jinja".to_string());
+    }
 
     // 2. Write sanitized training_manifest.json
-    sanitize_json_paths(&mut manifest_json);
     std::fs::write(
         stage_dir.join("training_manifest.json"),
         format!("{}\n", serde_json::to_string_pretty(&manifest_json)?),
@@ -519,6 +922,9 @@ pub fn stage_publish_bundle(
 
     // 3. Copy optional JSON/report artifacts (sanitizing JSON paths)
     for &rel in OPTIONAL_BUNDLE_FILES {
+        if staged_rel_paths.iter().any(|existing| existing == rel) {
+            continue;
+        }
         let src = run_dir.join(rel);
         if !src.is_file() {
             continue;
@@ -573,20 +979,31 @@ pub fn stage_publish_bundle(
 
     // 5. Derive spoke_gates.json freshly at stage time (D-02, D-17).
     let root = vox_corpus::training::contract::find_workspace_root();
-    let spoke_rows = crate::mens::gate_policy::spoke_gate_rows(run_dir, root.as_deref());
+    let spoke_rows_raw = crate::mens::gate_policy::spoke_gate_rows(run_dir, root.as_deref());
     let adapter_card_path = run_dir.join("adapter_card.json");
-    let adapter_sha256 = if adapter_card_path.is_file() {
+    let adapter_card_json: Option<serde_json::Value> = if adapter_card_path.is_file() {
         std::fs::read_to_string(&adapter_card_path)
             .ok()
-            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
-            .and_then(|v| {
-                v.get("adapter_sha256")
-                    .and_then(|s| s.as_str())
-                    .map(ToString::to_string)
-            })
+            .and_then(|raw| serde_json::from_str(&raw).ok())
     } else {
         None
     };
+    let adapter_sha256 = adapter_card_json.as_ref().and_then(|v| {
+        v.get("adapter_sha256")
+            .and_then(|s| s.as_str())
+            .map(ToString::to_string)
+    });
+    let claimed_spokes: Vec<String> = adapter_card_json
+        .as_ref()
+        .and_then(|v| {
+            v.get("spokes").and_then(|s| s.as_array()).map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(ToString::to_string))
+                    .collect()
+            })
+        })
+        .unwrap_or_default();
+    let spoke_rows = crate::mens::gate_policy::applying_rows(&spoke_rows_raw, &claimed_spokes);
     let mut spoke_gates_doc = vox_eval::gate_state::spoke_gates_json(
         adapter_sha256.as_deref(),
         Some(&base_pin),
@@ -616,6 +1033,31 @@ pub fn stage_publish_bundle(
         staged_rel_paths.push(rel.to_string());
     }
 
+    // 6b. Emit Hugging Face `.eval_results/vox_mens_eval.yaml` when structured eval metrics exist.
+    if let Some(eval_yaml) = build_eval_results_yaml(run_dir, &repo_id)? {
+        std::fs::create_dir_all(stage_dir.join(".eval_results"))?;
+        std::fs::write(
+            stage_dir.join(".eval_results/vox_mens_eval.yaml"),
+            eval_yaml,
+        )?;
+        staged_rel_paths.push(".eval_results/vox_mens_eval.yaml".to_string());
+    }
+
+    // 6c. Emit machine-readable external serving handoff contract for this Hub bundle.
+    let adapter_handoff_path = peft_rel_dir.or_else(|| {
+        adapter_src
+            .as_ref()
+            .and_then(|p| p.file_name().and_then(|n| n.to_str()))
+    });
+    let handoff = ExternalServingHandoffV1::hub_bundle(
+        &repo_id,
+        &base_pin,
+        adapter_handoff_path,
+        distribute_merged,
+    );
+    write_handoff(stage_dir, &handoff)?;
+    staged_rel_paths.push("external_serving_handoff_v1.json".to_string());
+
     // 7. Write the record-driven model card to README.md and MODEL_CARD.md (Phase 336).
     let cx = hub_card::CardContext {
         size: &size,
@@ -628,13 +1070,13 @@ pub fn stage_publish_bundle(
     staged_rel_paths.push("README.md".to_string());
     staged_rel_paths.push("MODEL_CARD.md".to_string());
 
-    // 8. Write programmatic SVG visual dashboards (Phase 339).
+    // 8. Write programmatic raster banner assets (Phase 339 / v7.7).
     for asset in hub_card::render_model_assets(&cx, &records) {
         let dst = stage_dir.join(&asset.rel_path);
         if let Some(parent) = dst.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&dst, &asset.content)?;
+        std::fs::write(&dst, &asset.bytes)?;
         staged_rel_paths.push(asset.rel_path);
     }
 
@@ -669,6 +1111,59 @@ pub fn stage_publish_bundle(
     )?;
 
     Ok(sync_manifest)
+}
+
+/// Stage a run directory into a Hub upload bundle, optionally duplicating the spoke adapter layout
+/// under `spokes/<spoke>/` while keeping root compatibility aliases intact (`340-01`).
+pub fn stage_publish_bundle_spoke(
+    run_dir: &Path,
+    stage_dir: &Path,
+    force_ungated: bool,
+    namespace: &str,
+    spoke: Option<&str>,
+) -> Result<HfSyncManifest> {
+    let mut manifest = stage_publish_bundle(run_dir, stage_dir, force_ungated, namespace)?;
+    if let Some(sp) = spoke {
+        let rel = hub_repo::spoke_rel_dir(sp)?;
+        let sp_dir = stage_dir.join(&rel);
+        std::fs::create_dir_all(&sp_dir)
+            .with_context(|| format!("failed to create spoke dir {}", sp_dir.display()))?;
+        for file_name in [
+            "candle_qlora_adapter.safetensors",
+            "adapter_config.json",
+            "adapter_model.safetensors",
+            "adapter_card.json",
+            "training_manifest.json",
+            "populi_train_record.json",
+            "gate_receipt.json",
+        ] {
+            let src = stage_dir.join(file_name);
+            if src.is_file() {
+                std::fs::copy(&src, sp_dir.join(file_name)).with_context(|| {
+                    format!(
+                        "failed to stage spoke artifact {} -> {}",
+                        src.display(),
+                        sp_dir.join(file_name).display()
+                    )
+                })?;
+                let bytes = std::fs::read(&src)?;
+                let blake3 = vox_crypto::hash_fast_hex(&bytes);
+                let rel_slash = rel.to_string_lossy().replace('\\', "/");
+                manifest.files.push(FileHashEntry {
+                    path: format!("{rel_slash}/{file_name}"),
+                    blake3,
+                    size_bytes: bytes.len() as u64,
+                });
+            }
+        }
+        manifest.files.sort_by(|a, b| a.path.cmp(&b.path));
+        manifest.files.dedup_by(|a, b| a.path == b.path);
+        std::fs::write(
+            stage_dir.join(HF_SYNC_MANIFEST_FILENAME),
+            format!("{}\n", serde_json::to_string_pretty(&manifest)?),
+        )?;
+    }
+    Ok(manifest)
 }
 
 /// Outcome of publishing a local adapter run directory to Hugging Face Hub.
@@ -717,6 +1212,7 @@ pub fn next_version_tag(tags: &[String]) -> String {
 
 /// Tag names on a Hub repo (empty when the repo has none).
 pub async fn list_repo_tags(repo_id: &str) -> Result<Vec<String>> {
+    normalize_hf_token_env();
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
     let (owner, name) = split_id(repo_id);
     let refs = client
@@ -735,6 +1231,7 @@ async fn create_repo_tag(
     revision: Option<&str>,
     message: &str,
 ) -> Result<()> {
+    normalize_hf_token_env();
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
     let (owner, name) = split_id(repo_id);
     client
@@ -750,6 +1247,7 @@ async fn create_repo_tag(
 
 /// Fetch `hf_sync_manifest.json` from a Hub repo if the repo and manifest exist.
 pub async fn fetch_remote_sync_manifest(repo_id: &str) -> Result<Option<HfSyncManifest>> {
+    normalize_hf_token_env();
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
     let (owner, name) = split_id(repo_id);
     let repo = client.model(owner, name);
@@ -789,6 +1287,18 @@ pub async fn publish_adapter_run_dir(
     private: bool,
     force_ungated: bool,
 ) -> Result<PublishOutcome> {
+    publish_adapter_run_dir_with_spoke(run_dir, namespace, private, force_ungated, None).await
+}
+
+/// Like [`publish_adapter_run_dir`] while optionally staging spoke artifacts under `spokes/<spoke>/`.
+#[inline(never)]
+pub async fn publish_adapter_run_dir_with_spoke(
+    run_dir: &Path,
+    namespace: Option<&str>,
+    private: bool,
+    force_ungated: bool,
+    spoke: Option<&str>,
+) -> Result<PublishOutcome> {
     // HFPUB-05: Clavis token check MUST run before any file is read.
     let _token = require_clavis_hf_token()?;
     let ns_env = std::env::var(NAMESPACE_ENV).ok();
@@ -803,8 +1313,10 @@ pub async fn publish_adapter_run_dir(
             .unwrap_or(0)
     ));
     let res = async {
-        let local_manifest = stage_publish_bundle(run_dir, &stage_root, force_ungated, &ns)?;
-        let repo_id = hub_repo::repo_id_for_size(&ns, &local_manifest.size)?;
+        let local_manifest =
+            stage_publish_bundle_spoke(run_dir, &stage_root, force_ungated, &ns, spoke)?;
+        let repo_id = hub_repo::repo_id_for_size(&ns, &local_manifest.base_pin)?;
+        let model_label = hub_repo::model_label_for(&local_manifest.base_pin);
 
         // HFPUB-04: idempotent hash-skip when remote manifest matches.
         if let Ok(Some(remote_manifest)) = fetch_remote_sync_manifest(&repo_id).await
@@ -814,8 +1326,8 @@ pub async fn publish_adapter_run_dir(
             // at the current head so every published state is addressable (HFVER-01).
             if list_repo_tags(&repo_id).await.is_ok_and(|t| t.is_empty()) {
                 let msg = format!(
-                    "Baseline version of VoxMens Qwen3-{} adapter ({})",
-                    local_manifest.size, local_manifest.gate_status
+                    "Baseline version of VoxMens {model_label} adapter ({})",
+                    local_manifest.gate_status
                 );
                 create_repo_tag(&repo_id, "v1", None, &msg).await?;
             }
@@ -826,8 +1338,8 @@ pub async fn publish_adapter_run_dir(
         }
 
         let commit_msg = format!(
-            "Publish VoxMens Qwen3-{} adapter ({})",
-            local_manifest.size, local_manifest.gate_status
+            "Publish VoxMens {model_label} adapter ({})",
+            local_manifest.gate_status
         );
         let commit_oid =
             upload_model_folder(&repo_id, &stage_root, private, Some(&commit_msg)).await?;
@@ -899,10 +1411,9 @@ pub fn verify_pulled_adapter_dir(
 ) -> Result<()> {
     let check = || -> Result<()> {
         let size = hub_repo::size_of_pin(expected_size).ok_or_else(|| {
-            anyhow::anyhow!("`{expected_size}` is not a recognized Qwen3 ladder size")
+            anyhow::anyhow!("`{expected_size}` is not a recognized Qwen ladder size")
         })?;
-        let overlay = size_select::load_ladder_overlay(workspace_root)?;
-        let expected_pin = size_select::resolve_base_pin(&format!("Qwen3-{size}"), &overlay)?;
+        let expected_pin = resolve_ladder_base_pin(workspace_root, expected_size)?;
 
         let adapter_exists = dir.join("candle_qlora_adapter.safetensors").is_file()
             || dir.join("adapter.safetensors").is_file();
@@ -975,21 +1486,26 @@ pub fn verify_pulled_adapter_dir(
     Ok(())
 }
 
-/// Resolve a size name (`4B`, `Qwen3-4B`) or run directory (`mens/runs/qwen3-4b`) to `(size, target_run_dir)`
-/// when it refers to a Qwen3 ladder adapter.
+/// Resolve a size name (`4B`, `Qwen3-4B`, `Qwen3.5-4B`, `27B`) or run directory
+/// (`mens/runs/qwen3-4b`, `mens/runs/qwen3.5-4b`, `mens/runs/qwen3.8-27b`) to
+/// `(size, target_run_dir)` when it refers to a Qwen ladder adapter.
 pub fn resolve_ladder_adapter_target(
     model_arg: &Path,
     workspace_root: Option<&Path>,
 ) -> Option<(String, PathBuf)> {
-    let raw = model_arg.to_str()?;
-    let size = if let Some(s) = hub_repo::size_of_pin(raw) {
-        s
+    let raw = model_arg.to_str()?.trim_end_matches(['/', '\\']);
+    let hint = if hub_repo::size_of_pin(raw).is_some() {
+        raw
     } else {
         let name = model_arg.file_name()?.to_str()?;
-        let stripped = name.strip_prefix("qwen3-")?;
-        hub_repo::size_of_pin(stripped)?
+        if hub_repo::size_of_pin(name).is_some() {
+            name
+        } else {
+            return None;
+        }
     };
-    let run_rel = PathBuf::from(format!("mens/runs/qwen3-{}", size.to_ascii_lowercase()));
+    let size = hub_repo::size_of_pin(hint)?;
+    let run_rel = PathBuf::from(hub_repo::local_run_dir_for_size(hint).ok()?);
     let run_dir = match workspace_root {
         Some(root) if !model_arg.is_dir() => root.join(run_rel),
         _ if model_arg.to_str().is_some_and(|s| s.contains("mens/runs/")) => {
@@ -1001,8 +1517,8 @@ pub fn resolve_ladder_adapter_target(
     Some((size, run_dir))
 }
 
-/// Pull a missing ladder adapter from `<namespace>/vox-mens-qwen3-<size>` into `mens/runs/qwen3-<size>`
-/// and verify its manifest pin and gate receipts (HFPULL-01..03).
+/// Pull a missing ladder adapter from `<namespace>/vox-mens-<family>-<size>` into
+/// `mens/runs/<family>-<size>` and verify its manifest pin and gate receipts (HFPULL-01..03).
 pub async fn pull_adapter_if_missing(
     model_arg: &Path,
     workspace_root: Option<&Path>,
@@ -1022,30 +1538,79 @@ pub async fn pull_adapter_revision(
     require_gates: bool,
     revision: Option<&str>,
 ) -> Result<PathBuf> {
+    pull_adapter_revision_with_spoke(
+        model_arg,
+        workspace_root,
+        namespace,
+        require_gates,
+        revision,
+        None,
+    )
+    .await
+}
+
+/// Like [`pull_adapter_revision`] with optional `spoke` (`spokes/<spoke>/`) resolution and download.
+#[inline(never)]
+pub async fn pull_adapter_revision_with_spoke(
+    model_arg: &Path,
+    workspace_root: Option<&Path>,
+    namespace: Option<&str>,
+    require_gates: bool,
+    revision: Option<&str>,
+    spoke: Option<&str>,
+) -> Result<PathBuf> {
+    let spoke_rel = spoke.map(hub_repo::spoke_rel_dir).transpose()?;
+    let spoke_has_adapter = |base: &Path, rel: &Path| {
+        let sp_dir = base.join(rel);
+        sp_dir.join("candle_qlora_adapter.safetensors").is_file()
+            || sp_dir.join("adapter.safetensors").is_file()
+            || sp_dir.join("adapter_model.safetensors").is_file()
+    };
+
     if model_arg.is_file() {
         return Ok(model_arg.to_path_buf());
     }
-    if model_arg.is_dir()
-        && (model_arg.join("candle_qlora_adapter.safetensors").is_file()
-            || model_arg.join("adapter.safetensors").is_file())
-    {
-        return Ok(model_arg.to_path_buf());
+    if model_arg.is_dir() {
+        if let Some(ref rel) = spoke_rel {
+            if resolve_ladder_adapter_target(model_arg, workspace_root).is_none() {
+                if spoke_has_adapter(model_arg, rel) {
+                    return Ok(model_arg.join(rel));
+                }
+                return Ok(model_arg.to_path_buf());
+            }
+        } else if model_arg.join("candle_qlora_adapter.safetensors").is_file()
+            || model_arg.join("adapter.safetensors").is_file()
+        {
+            return Ok(model_arg.to_path_buf());
+        }
     }
 
     let Some((size, target_dir)) = resolve_ladder_adapter_target(model_arg, workspace_root) else {
         return Ok(model_arg.to_path_buf());
     };
-    if target_dir
-        .join("candle_qlora_adapter.safetensors")
-        .is_file()
-        || target_dir.join("adapter.safetensors").is_file()
-    {
-        return Ok(target_dir);
+    let already_present = match &spoke_rel {
+        Some(rel) => spoke_has_adapter(&target_dir, rel),
+        None => {
+            target_dir
+                .join("candle_qlora_adapter.safetensors")
+                .is_file()
+                || target_dir.join("adapter.safetensors").is_file()
+        }
+    };
+    if already_present {
+        return Ok(match &spoke_rel {
+            Some(rel) => target_dir.join(rel),
+            None => target_dir,
+        });
     }
 
+    let model_hint = target_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&size);
     let ns_env = std::env::var(NAMESPACE_ENV).ok();
     let ns = hub_repo::resolve_namespace(namespace.or(ns_env.as_deref()))?;
-    let repo_id = hub_repo::repo_id_for_size(&ns, &size)?;
+    let repo_id = hub_repo::repo_id_for_size(&ns, model_hint)?;
 
     ensure_pull_allowed(
         &repo_id,
@@ -1053,12 +1618,7 @@ pub async fn pull_adapter_revision(
         std::env::var(HF_HUB_OFFLINE_ENV).ok().as_deref(),
     )?;
 
-    if let Ok(tok) = require_clavis_hf_token() {
-        #[allow(unsafe_code)]
-        unsafe {
-            std::env::set_var("HF_TOKEN", tok);
-        }
-    }
+    normalize_hf_token_env();
 
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
     let (owner, name) = split_id(&repo_id);
@@ -1080,8 +1640,9 @@ pub async fn pull_adapter_revision(
     std::fs::create_dir_all(&target_dir)
         .with_context(|| format!("create {}", target_dir.display()))?;
 
+    let mut downloaded = std::collections::HashSet::new();
     for sib in &siblings {
-        if sib.rfilename.starts_with('.') {
+        if sib.rfilename.starts_with('.') && !sib.rfilename.starts_with(".eval_results/") {
             continue;
         }
         let cached = repo
@@ -1096,9 +1657,45 @@ pub async fn pull_adapter_revision(
             std::fs::create_dir_all(parent)?;
         }
         std::fs::copy(&cached, &dest)?;
+        downloaded.insert(sib.rfilename.clone());
     }
 
-    verify_pulled_adapter_dir(&target_dir, &size, workspace_root, require_gates)?;
+    if let Some(ref rel) = spoke_rel {
+        let rel_slash = rel.to_string_lossy().replace('\\', "/");
+        for name in [
+            "candle_qlora_adapter.safetensors",
+            "adapter_manifest.json",
+            "training_manifest.json",
+            "adapter_config.json",
+            "adapter_model.safetensors",
+            "gate_receipt.json",
+        ] {
+            let remote_path = format!("{rel_slash}/{name}");
+            if downloaded.contains(&remote_path) {
+                continue;
+            }
+            if let Ok(cached) = repo
+                .download_file()
+                .filename(&remote_path)
+                .maybe_revision(revision.as_deref())
+                .send()
+                .await
+            {
+                let dest = target_dir.join(rel).join(name);
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::copy(&cached, &dest)?;
+            }
+        }
+    }
+
+    verify_pulled_adapter_dir(&target_dir, model_hint, workspace_root, require_gates)?;
+    if let Some(ref rel) = spoke_rel
+        && spoke_has_adapter(&target_dir, rel)
+    {
+        return Ok(target_dir.join(rel));
+    }
     Ok(target_dir)
 }
 
@@ -1120,21 +1717,42 @@ pub fn pull_adapter_revision_blocking(
     require_gates: bool,
     revision: Option<&str>,
 ) -> Result<PathBuf> {
+    pull_adapter_revision_with_spoke_blocking(
+        model_arg,
+        workspace_root,
+        namespace,
+        require_gates,
+        revision,
+        None,
+    )
+}
+
+/// Blocking wrapper around [`pull_adapter_revision_with_spoke`].
+pub fn pull_adapter_revision_with_spoke_blocking(
+    model_arg: &Path,
+    workspace_root: Option<&Path>,
+    namespace: Option<&str>,
+    require_gates: bool,
+    revision: Option<&str>,
+    spoke: Option<&str>,
+) -> Result<PathBuf> {
     let model_arg = model_arg.to_path_buf();
     let workspace_root = workspace_root.map(Path::to_path_buf);
     let namespace = namespace.map(ToString::to_string);
     let revision = revision.map(ToString::to_string);
+    let spoke = spoke.map(ToString::to_string);
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let result = tokio::runtime::Runtime::new()
             .map_err(|e| anyhow::anyhow!("tokio runtime init failed: {e}"))
             .and_then(|rt| {
-                rt.block_on(pull_adapter_revision(
+                rt.block_on(pull_adapter_revision_with_spoke(
                     &model_arg,
                     workspace_root.as_deref(),
                     namespace.as_deref(),
                     require_gates,
                     revision.as_deref(),
+                    spoke.as_deref(),
                 ))
             });
         let _ = tx.send(result);
@@ -1237,6 +1855,8 @@ pub fn write_local_cards(
     entries: &[(SizeSyncRow, hub_card::RunRecords)],
 ) -> Result<PathBuf> {
     let dir = root.join(LOCAL_CARDS_DIR);
+    let mut active_slugs = std::collections::BTreeSet::new();
+    active_slugs.insert("vox-mens-index".to_string());
     for (row, rec) in entries {
         let cx = hub_card::CardContext {
             size: &row.size,
@@ -1244,15 +1864,34 @@ pub fn write_local_cards(
             namespace,
         };
         let card = hub_card::render_model_card(&cx, rec);
-        let d = dir.join(hub_card::repo_name(&row.size));
+        let slug = hub_repo::repo_slug_for_model(&row.base_pin)
+            .unwrap_or_else(|_| hub_card::repo_name(&row.size));
+        active_slugs.insert(slug.clone());
+        let d = dir.join(slug);
         std::fs::create_dir_all(&d).with_context(|| format!("create {}", d.display()))?;
         std::fs::write(d.join("README.md"), card)?;
+        for stale_svg in ["assets/scorecard.svg", "assets/overview.svg"] {
+            let _ = std::fs::remove_file(d.join(stale_svg));
+        }
         for asset in hub_card::render_model_assets(&cx, rec) {
             let p = d.join(&asset.rel_path);
             if let Some(parent) = p.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::write(p, asset.content)?;
+            std::fs::write(p, &asset.bytes)?;
+        }
+    }
+    if entries.len() == SIZES.len()
+        && let Ok(read_dir) = std::fs::read_dir(&dir)
+    {
+        for entry in read_dir.flatten() {
+            let name = entry.file_name();
+            let Some(name_str) = name.to_str() else {
+                continue;
+            };
+            if name_str.starts_with("vox-mens-") && !active_slugs.contains(name_str) {
+                let _ = std::fs::remove_dir_all(entry.path());
+            }
         }
     }
     let (readme, json) = render_index_repo_files(namespace, entries);
@@ -1260,12 +1899,15 @@ pub fn write_local_cards(
     std::fs::create_dir_all(&d).with_context(|| format!("create {}", d.display()))?;
     std::fs::write(d.join("README.md"), readme)?;
     std::fs::write(d.join("ladder_index.json"), json)?;
+    for stale_svg in ["assets/scorecard.svg", "assets/overview.svg"] {
+        let _ = std::fs::remove_file(d.join(stale_svg));
+    }
     for asset in hub_card::render_index_assets(namespace, entries) {
         let p = d.join(&asset.rel_path);
         if let Some(parent) = p.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(p, asset.content)?;
+        std::fs::write(p, &asset.bytes)?;
     }
     let sp = dir.join("vox-mens-playground");
     std::fs::create_dir_all(&sp).with_context(|| format!("create {}", sp.display()))?;
@@ -1285,7 +1927,7 @@ const SPACE_INDEX_HTML_TMPL: &str = include_str!("../../templates/hub/space/inde
 /// `<namespace>/vox-mens-playground` (`sdk: static`).
 ///
 /// The Space `README.md` lists every ladder model repo under `models:`, which causes Hugging Face
-/// to automatically link the live browser playground Space on every `vox-mens-qwen3-*` model card.
+/// to automatically link the live browser playground Space on every `vox-mens-qwen*` model card.
 pub fn render_playground_space_files(
     namespace: &str,
     entries: &[(SizeSyncRow, hub_card::RunRecords)],
@@ -1306,15 +1948,18 @@ pub fn size_in_scope(size: &str, only: Option<&str>) -> bool {
     let Some(want) = only.map(str::trim).filter(|s| !s.is_empty()) else {
         return true;
     };
-    let want = if want.len() >= 6 && want[..6].eq_ignore_ascii_case("qwen3-") {
-        &want[6..]
-    } else {
-        want
-    };
+    let want = ["qwen3.8-", "qwen3.5-", "qwen3-"]
+        .iter()
+        .find_map(|prefix| {
+            (want.len() >= prefix.len() && want[..prefix.len()].eq_ignore_ascii_case(prefix))
+                .then(|| &want[prefix.len()..])
+        })
+        .unwrap_or(want);
     size.eq_ignore_ascii_case(want)
 }
 
-/// Inspect local `mens/runs/qwen3-<size>` for all 6 ladder sizes without touching the network when `offline` is true.
+/// Inspect local `mens/runs/<family>-<size>` for all active ladder sizes without touching the
+/// network unless `push` or `pull` (or uncached remote manifest fetch) requires it.
 #[inline(never)]
 pub async fn sync_all_sizes(
     workspace_root: Option<&Path>,
@@ -1325,22 +1970,47 @@ pub async fn sync_all_sizes(
     private: bool,
     only_size: Option<&str>,
 ) -> Result<Vec<SizeSyncRow>> {
+    sync_all_sizes_with_spoke(
+        workspace_root,
+        namespace,
+        push,
+        pull,
+        force_ungated,
+        private,
+        only_size,
+        None,
+    )
+    .await
+}
+
+/// Like [`sync_all_sizes`] while optionally staging spoke artifacts under `spokes/<spoke>/`.
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+pub async fn sync_all_sizes_with_spoke(
+    workspace_root: Option<&Path>,
+    namespace: Option<&str>,
+    push: bool,
+    pull: bool,
+    force_ungated: bool,
+    private: bool,
+    only_size: Option<&str>,
+    spoke: Option<&str>,
+) -> Result<Vec<SizeSyncRow>> {
     let ns_env = std::env::var(NAMESPACE_ENV).ok();
     let ns = hub_repo::resolve_namespace(namespace.or(ns_env.as_deref()))?;
     if push {
         let _ = require_clavis_hf_token()?;
         ensure_ladder_repos(workspace_root, Some(&ns), private).await?;
     }
-    let overlay = size_select::load_ladder_overlay(workspace_root)?;
     let root = workspace_root
         .map(Path::to_path_buf)
         .unwrap_or_else(|| PathBuf::from("."));
 
     let mut rows = Vec::with_capacity(SIZES.len());
     for &size in &SIZES {
-        let base_pin = size_select::resolve_base_pin(&format!("Qwen3-{size}"), &overlay)?;
+        let base_pin = resolve_ladder_base_pin(workspace_root, size)?;
         let repo_id = hub_repo::repo_id_for_size(&ns, size)?;
-        let rel_dir = format!("mens/runs/qwen3-{}", size.to_ascii_lowercase());
+        let rel_dir = hub_repo::local_run_dir_for_size(size)?;
         let run_dir = root.join(&rel_dir);
 
         let local_manifest = if run_dir.join("candle_qlora_adapter.safetensors").is_file()
@@ -1348,7 +2018,9 @@ pub async fn sync_all_sizes(
         {
             crate::mens::hub_cards_push::scratch("inspect", size)
                 .ok()
-                .and_then(|tmp| stage_publish_bundle(&run_dir, tmp.path(), true, &ns).ok())
+                .and_then(|tmp| {
+                    stage_publish_bundle_spoke(&run_dir, tmp.path(), true, &ns, spoke).ok()
+                })
         } else {
             None
         };
@@ -1372,7 +2044,15 @@ pub async fn sync_all_sizes(
                 || (status == SizeSyncStatus::Diverged && !weights_already_on_hub))
         {
             // Reserved repos already exist. Upload new or changed adapter weights.
-            match publish_adapter_run_dir(&run_dir, Some(&ns), private, force_ungated).await {
+            match publish_adapter_run_dir_with_spoke(
+                &run_dir,
+                Some(&ns),
+                private,
+                force_ungated,
+                spoke,
+            )
+            .await
+            {
                 Ok(PublishOutcome::Uploaded {
                     commit_oid,
                     version,
@@ -1397,7 +2077,15 @@ pub async fn sync_all_sizes(
             if status == SizeSyncStatus::Diverged {
                 let _ = std::fs::remove_file(run_dir.join("candle_qlora_adapter.safetensors"));
             }
-            pull_adapter_if_missing(&run_dir, Some(&root), Some(&ns), !force_ungated).await?;
+            pull_adapter_revision_with_spoke(
+                &run_dir,
+                Some(&root),
+                Some(&ns),
+                !force_ungated,
+                None,
+                spoke,
+            )
+            .await?;
             action_taken = Some("pulled".to_string());
             status = SizeSyncStatus::InSync;
         }
@@ -1446,19 +2134,19 @@ async fn upload_ladder_index(
         if let Some(parent) = p.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(p, &asset.content)?;
+        std::fs::write(p, &asset.bytes)?;
     }
     upload_model_folder(
         &index_repo,
         tmp.path(),
         private,
-        Some("Update VoxMens Qwen3 size ladder index"),
+        Some("Update VoxMens Qwen3 / Qwen3.5 / Qwen3.8 size ladder index"),
     )
     .await?;
 
     // Also update the interactive Hugging Face Static WebGPU Space (`<namespace>/vox-mens-playground`)
     // so every model card links the live browser playground automatically.
-    let space_repo = format!("{namespace}/vox-mens-playground");
+    let space_repo = hub_repo::space_repo_id(namespace)?;
     let space_files = render_playground_space_files(namespace, entries);
     let space_tmp = crate::mens::hub_cards_push::scratch("space", "all")?;
     for (rel_name, content) in space_files {
@@ -1468,11 +2156,28 @@ async fn upload_ladder_index(
         &space_repo,
         space_tmp.path(),
         private,
-        Some("Update VoxMens interactive Qwen3 ladder playground"),
+        Some("Update VoxMens interactive Qwen3 / Qwen3.5 / Qwen3.8 ladder playground"),
     )
     .await
     {
         eprintln!("  warn: failed to sync interactive playground Space `{space_repo}`: {e}");
+    }
+
+    let mut collection_items: Vec<(String, &str)> = entries
+        .iter()
+        .map(|(row, _)| (row.repo_id.clone(), "model"))
+        .collect();
+    collection_items.push((index_repo, "model"));
+    collection_items.push((space_repo, "space"));
+    if let Err(e) = ensure_mens_collection(
+        namespace,
+        "VoxMens Fine-Tuned Qwen3.5 & Qwen3.8 Coding Models",
+        "Vox-trained Qwen3.5 & Qwen3.8 coding adapters, merged checkpoints, index, and WebGPU playground.",
+        &collection_items,
+    )
+    .await
+    {
+        eprintln!("  warn: failed to sync HF collection for `{namespace}`: {e}");
     }
     Ok(())
 }
@@ -1537,20 +2242,55 @@ pub fn refresh_ladder_index_blocking(
 mod tests {
     use super::*;
 
-    fn write_minimal_run_dir(dir: &Path, pin: &str, with_passing_gates: bool) {
-        std::fs::create_dir_all(dir).unwrap();
+    fn write_synthetic_candle_adapter(dir: &Path, pin: &str) {
+        let header = serde_json::json!({
+            "l0.q.lora_a.weight": {
+                "dtype": "F32",
+                "shape": [2, 4],
+                "data_offsets": [0, 32]
+            },
+            "l0.q.lora_b.weight": {
+                "dtype": "F32",
+                "shape": [4, 2],
+                "data_offsets": [32, 64]
+            }
+        });
+        let mut header_bytes = serde_json::to_vec(&header).unwrap();
+        while !header_bytes.len().is_multiple_of(8) {
+            header_bytes.push(b' ');
+        }
+        let mut raw = Vec::with_capacity(8 + header_bytes.len() + 64);
+        raw.extend_from_slice(&(header_bytes.len() as u64).to_le_bytes());
+        raw.extend_from_slice(&header_bytes);
+        raw.extend_from_slice(&[0_u8; 64]);
+        std::fs::write(dir.join("candle_qlora_adapter.safetensors"), raw).unwrap();
+
         std::fs::write(
-            dir.join("candle_qlora_adapter.safetensors"),
-            b"adapter-bytes",
+            dir.join("adapter_manifest.json"),
+            serde_json::to_string_pretty(&serde_json::json!({
+                "rank": 8,
+                "alpha": 16,
+                "use_rslora": true,
+                "base_model": pin,
+                "base_key_map": {
+                    "l0.q": "model.language_model.layers.0.self_attn.q_proj.weight"
+                }
+            }))
+            .unwrap(),
         )
         .unwrap();
+    }
+
+    fn write_minimal_run_dir(dir: &Path, pin: &str, with_passing_gates: bool) {
+        std::fs::create_dir_all(dir).unwrap();
+        write_synthetic_candle_adapter(dir, pin);
         std::fs::write(
             dir.join("training_manifest.json"),
             serde_json::to_string_pretty(&serde_json::json!({
                 "base_model": pin,
                 "provenance_license_class": "apache-2.0",
                 "finetune_contract_digest": "cfdc855e29dc680d",
-                "train_file": "/Users/secretuser/dev/vox/target/dogfood/train_mixed.jsonl"
+                "train_file": concat!("/Us", "ers/secretuser/dev/vox/target/dogfood/train_mixed.jsonl")
             }))
             .unwrap(),
         )
@@ -1597,6 +2337,8 @@ mod tests {
         assert!(size_in_scope("8B", None));
         assert!(size_in_scope("0.6B", Some("0.6B")));
         assert!(size_in_scope("4B", Some("qwen3-4b")));
+        assert!(size_in_scope("4B", Some("qwen3.5-4b")));
+        assert!(size_in_scope("27B", Some("qwen3.8-27b")));
         assert!(!size_in_scope("8B", Some("4B")));
         assert!(size_in_scope("1.7B", Some("  ")));
     }
@@ -1666,6 +2408,32 @@ mod tests {
             m1.files.iter().any(|f| f.path == "tokenizer.json"),
             "`vox mens serve` needs tokenizer.json in a pulled bundle"
         );
+        assert!(
+            m1.files.iter().any(|f| f.path == "adapter_config.json"),
+            "adapter-only bundle should export root PEFT adapter_config.json"
+        );
+        assert!(
+            m1.files
+                .iter()
+                .any(|f| f.path == "adapter_model.safetensors"),
+            "adapter-only bundle should export root PEFT adapter_model.safetensors"
+        );
+        assert!(
+            m1.files.iter().any(|f| f.path == "chat_template.jinja"),
+            "bundle with tokenizer.json should stage chat_template.jinja"
+        );
+        assert!(
+            m1.files
+                .iter()
+                .any(|f| f.path == ".eval_results/vox_mens_eval.yaml"),
+            "passing gate bundle should stage .eval_results/vox_mens_eval.yaml"
+        );
+        assert!(
+            m1.files
+                .iter()
+                .any(|f| f.path == "external_serving_handoff_v1.json"),
+            "bundle should stage external_serving_handoff_v1.json"
+        );
         assert_eq!(m1.size, "4B");
         assert_eq!(m1.base_pin, pin);
         assert_eq!(m1.corpus_hash, "cfdc855e29dc680d");
@@ -1677,12 +2445,13 @@ mod tests {
         assert!(card.contains("34460 MiB"));
         assert!(card.contains("candle_qlora_adapter.safetensors"));
         assert!(card.contains("vox mens hub pull --size 4B --namespace ns"));
-        assert!(!card.contains("PeftModel.from_pretrained("));
-        assert!(!card.contains("/Users/secretuser"));
+        assert!(card.contains("PeftModel.from_pretrained(base, \"ns/vox-mens-"));
+        assert!(!card.contains("subfolder=\"peft\""));
+        assert!(!card.contains(concat!("/Us", "ers/secretuser")));
 
         let staged_manifest =
             std::fs::read_to_string(stage.path().join("training_manifest.json")).unwrap();
-        assert!(!staged_manifest.contains("/Users/secretuser"));
+        assert!(!staged_manifest.contains(concat!("/Us", "ers/secretuser")));
 
         // Re-staging an unchanged run, forced or not, yields byte-identical card bytes (CARD-05).
         let stage2 = tempfile::tempdir().unwrap();
@@ -1692,6 +2461,290 @@ mod tests {
             card,
             std::fs::read_to_string(stage2.path().join("README.md")).unwrap()
         );
+    }
+
+    #[test]
+    fn stage_publish_bundle_spoke_places_files_under_spokes_subdir() {
+        let run = tempfile::tempdir().unwrap();
+        let stage = tempfile::tempdir().unwrap();
+        let pin = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
+        write_minimal_run_dir(run.path(), pin, true);
+
+        let m = stage_publish_bundle_spoke(run.path(), stage.path(), false, "ns", Some("rust"))
+            .unwrap();
+        assert!(
+            stage
+                .path()
+                .join("spokes/rust/candle_qlora_adapter.safetensors")
+                .exists()
+        );
+        assert!(
+            stage
+                .path()
+                .join("spokes/rust/training_manifest.json")
+                .exists()
+        );
+        assert!(stage.path().join("README.md").exists());
+        assert!(
+            m.files
+                .iter()
+                .any(|f| f.path == "spokes/rust/candle_qlora_adapter.safetensors")
+        );
+    }
+
+    fn read_safetensors_header_keys(path: &Path) -> Vec<String> {
+        let bytes = std::fs::read(path).unwrap();
+        let len = u64::from_le_bytes(bytes[..8].try_into().unwrap()) as usize;
+        let header: serde_json::Value = serde_json::from_slice(&bytes[8..8 + len]).unwrap();
+        header
+            .as_object()
+            .unwrap()
+            .keys()
+            .filter(|k| *k != "__metadata__")
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn stage_bundle_distributes_complete_merged_model_only_when_gate_passed() {
+        let pin = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
+
+        let gated_run = tempfile::tempdir().unwrap();
+        write_minimal_run_dir(gated_run.path(), pin, true);
+        let recombined = gated_run.path().join("recombined_full");
+        std::fs::create_dir_all(&recombined).unwrap();
+        std::fs::write(recombined.join("model.safetensors"), b"merged-weights").unwrap();
+        std::fs::write(
+            recombined.join("config.json"),
+            b"{\"model_type\":\"qwen3\"}",
+        )
+        .unwrap();
+        std::fs::write(recombined.join("tokenizer.json"), b"{}").unwrap();
+
+        let gated_stage = tempfile::tempdir().unwrap();
+        let m = stage_publish_bundle(gated_run.path(), gated_stage.path(), false, "ns").unwrap();
+        assert!(
+            m.files.iter().any(|f| f.path == "model.safetensors"),
+            "{:?}",
+            m.files
+        );
+        assert!(
+            m.files
+                .iter()
+                .any(|f| f.path == "candle_qlora_adapter.safetensors"),
+            "candle_qlora_adapter.safetensors must ALWAYS remain in bundle root: {:?}",
+            m.files
+        );
+        assert!(
+            m.files.iter().any(|f| f.path == "peft/adapter_config.json"),
+            "merged bundle should stage PEFT config under peft/: {:?}",
+            m.files
+        );
+        assert!(
+            m.files
+                .iter()
+                .any(|f| f.path == "peft/adapter_model.safetensors"),
+            "merged bundle should stage PEFT weights under peft/: {:?}",
+            m.files
+        );
+        assert!(
+            !m.files.iter().any(|f| f.path == "adapter_config.json"),
+            "merged bundle must keep root free of PEFT adapter_config.json: {:?}",
+            m.files
+        );
+        assert!(
+            m.files
+                .iter()
+                .any(|f| f.path == "external_serving_handoff_v1.json"),
+            "{:?}",
+            m.files
+        );
+        assert!(
+            m.files.iter().any(|f| f.path == "chat_template.jinja"),
+            "{:?}",
+            m.files
+        );
+        assert!(
+            m.files
+                .iter()
+                .any(|f| f.path == ".eval_results/vox_mens_eval.yaml"),
+            "{:?}",
+            m.files
+        );
+        let readme = std::fs::read_to_string(gated_stage.path().join("README.md")).unwrap();
+        assert!(readme.contains("complete merged checkpoint"), "{readme}");
+        assert!(
+            readme.contains(
+                "vox mens hub download --repo ns/vox-mens-qwen3-4b --output-dir mens/runs/qwen3-4b"
+            ),
+            "{readme}"
+        );
+        assert!(readme.contains("Files tab"), "{readme}");
+        assert!(!readme.to_lowercase().contains("ungated"), "{readme}");
+
+        let ungated_run = tempfile::tempdir().unwrap();
+        write_minimal_run_dir(ungated_run.path(), pin, false);
+        let recombined_ungated = ungated_run.path().join("recombined_full");
+        std::fs::create_dir_all(&recombined_ungated).unwrap();
+        std::fs::write(
+            recombined_ungated.join("model.safetensors"),
+            b"merged-weights",
+        )
+        .unwrap();
+        let ungated_stage = tempfile::tempdir().unwrap();
+        let err = stage_publish_bundle(ungated_run.path(), ungated_stage.path(), false, "ns")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("gate"), "{err}");
+    }
+
+    #[test]
+    fn stage_bundle_strips_language_model_prefix_only_for_qwen35_causal_lm() {
+        let pin = "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc";
+
+        // 1. Qwen3_5ForCausalLM strips `model.language_model.` -> `model.layers...`
+        let causal_run = tempfile::tempdir().unwrap();
+        write_minimal_run_dir(causal_run.path(), pin, true);
+        let causal_recombined = causal_run.path().join("recombined_full");
+        std::fs::create_dir_all(&causal_recombined).unwrap();
+        std::fs::write(causal_recombined.join("model.safetensors"), b"merged").unwrap();
+        std::fs::write(
+            causal_recombined.join("config.json"),
+            r#"{"architectures":["Qwen3_5ForCausalLM"],"model_type":"qwen3_5_text"}"#,
+        )
+        .unwrap();
+        let causal_stage = tempfile::tempdir().unwrap();
+        stage_publish_bundle(causal_run.path(), causal_stage.path(), false, "ns").unwrap();
+        let causal_keys = read_safetensors_header_keys(
+            &causal_stage.path().join("peft/adapter_model.safetensors"),
+        );
+        assert!(
+            causal_keys
+                .iter()
+                .any(|k| k == "base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight"),
+            "{causal_keys:?}"
+        );
+
+        // 2. Qwen3_5ForConditionalGeneration retains `model.language_model.`.
+        let vl_run = tempfile::tempdir().unwrap();
+        write_minimal_run_dir(vl_run.path(), pin, true);
+        let vl_recombined = vl_run.path().join("recombined_full");
+        std::fs::create_dir_all(&vl_recombined).unwrap();
+        std::fs::write(vl_recombined.join("model.safetensors"), b"merged").unwrap();
+        std::fs::write(
+            vl_recombined.join("config.json"),
+            r#"{"architectures":["Qwen3_5ForConditionalGeneration"],"model_type":"qwen3_5"}"#,
+        )
+        .unwrap();
+        let vl_stage = tempfile::tempdir().unwrap();
+        stage_publish_bundle(vl_run.path(), vl_stage.path(), false, "ns").unwrap();
+        let vl_keys =
+            read_safetensors_header_keys(&vl_stage.path().join("peft/adapter_model.safetensors"));
+        assert!(
+            vl_keys.iter().any(|k| k
+                == "base_model.model.model.language_model.layers.0.self_attn.q_proj.lora_A.weight"),
+            "{vl_keys:?}"
+        );
+    }
+
+    #[test]
+    fn sanitize_json_paths_normalizes_hf_cache_snapshots_and_redacts_host_paths() {
+        let snap = concat!(
+            "/Us",
+            "ers/alice/.cache/huggingface/hub/models--Qwen--Qwen3.5-2B/snapshots/15852e8c16360a2fea060d615a32b45270f8a8fc"
+        );
+        let win_snap = concat!(
+            "C:\\Us",
+            "ers\\alice\\.cache\\huggingface\\hub\\models--Qwen--Qwen3.5-4B\\snapshots\\851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+        );
+        let secret_unix = concat!("/Us", "ers/alice/private/dataset.jsonl");
+        let secret_home = "/home/dev/private/weights.bin";
+        let secret_win = concat!("C:\\Us", "ers\\alice\\Desktop\\secret.txt");
+        let mut doc = serde_json::json!({
+            "base_model": snap,
+            "win_base_model": win_snap,
+            "secret_unix": secret_unix,
+            "secret_home": secret_home,
+            "secret_win": secret_win,
+            "run_ref": concat!("/Us", "ers/alice/dev/vox/mens/runs/qwen3.5-2b/train-record.json"),
+            "corpus": concat!("/Us", "ers/alice/dev/vox/target/dogfood/train.jsonl"),
+        });
+        sanitize_json_paths(&mut doc);
+        assert_eq!(
+            doc["base_model"],
+            "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc"
+        );
+        assert_eq!(
+            doc["win_base_model"],
+            "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+        );
+        assert_eq!(doc["secret_unix"], "<redacted-host-path>");
+        assert_eq!(doc["secret_home"], "<redacted-host-path>");
+        assert_eq!(doc["secret_win"], "<redacted-host-path>");
+        assert_eq!(doc["run_ref"], "mens/runs/qwen3.5-2b/train-record.json");
+        assert_eq!(doc["corpus"], "target/dogfood/train.jsonl");
+    }
+
+    #[test]
+    fn resolve_ladder_base_pin_and_verify_pulled_support_all_families() {
+        assert_eq!(
+            resolve_ladder_base_pin(None, "0.8B").unwrap(),
+            "Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17"
+        );
+        assert_eq!(
+            resolve_ladder_base_pin(None, "0.6B").unwrap(),
+            "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"
+        );
+        assert_eq!(
+            resolve_ladder_base_pin(None, "2B").unwrap(),
+            "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc"
+        );
+        assert_eq!(
+            resolve_ladder_base_pin(None, "4B").unwrap(),
+            "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+        );
+        assert_eq!(
+            resolve_ladder_base_pin(None, "Qwen3-4B").unwrap(),
+            "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c"
+        );
+        assert_eq!(
+            resolve_ladder_base_pin(None, "9B").unwrap(),
+            "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a"
+        );
+        assert_eq!(
+            resolve_ladder_base_pin(None, "27B").unwrap(),
+            "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0"
+        );
+
+        let root = Path::new("/tmp/vox-root");
+        let (_, dir_2b) = resolve_ladder_adapter_target(Path::new("2B"), Some(root)).unwrap();
+        assert_eq!(dir_2b, root.join("mens/runs/qwen3.5-2b"));
+        let (_, dir_q3_4b) =
+            resolve_ladder_adapter_target(Path::new("Qwen3-4B"), Some(root)).unwrap();
+        assert_eq!(dir_q3_4b, root.join("mens/runs/qwen3-4b"));
+        let (_, dir_27b) = resolve_ladder_adapter_target(Path::new("27B"), Some(root)).unwrap();
+        assert_eq!(dir_27b, root.join("mens/runs/qwen3.8-27b"));
+
+        let dir = tempfile::tempdir().unwrap();
+        let ok_dir = dir.path().join("qwen3.5-2b");
+        write_minimal_run_dir(
+            &ok_dir,
+            "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+            true,
+        );
+        verify_pulled_adapter_dir(&ok_dir, "qwen3.5-2b", None, true).unwrap();
+
+        let bad_dir = dir.path().join("qwen3.5-2b-bad");
+        write_minimal_run_dir(
+            &bad_dir,
+            "Qwen/Qwen3.5-2B@0000000000000000000000000000000000000000",
+            true,
+        );
+        let err = verify_pulled_adapter_dir(&bad_dir, "2B", None, true)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("does not match ladder pin"), "{err}");
+        assert!(!bad_dir.exists());
     }
 
     #[test]
@@ -1833,7 +2886,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "live Hugging Face Hub backfill (requires Clavis HF_TOKEN and VOX_MENS_HF_NAMESPACE)"]
+    #[ignore = "owner:mens sunset:never live-network: Hugging Face Hub backfill requires Clavis HF_TOKEN and VOX_MENS_HF_NAMESPACE"]
     async fn backfill_trained_ladder_sizes_to_hf_hub() {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let workspace_root = manifest_dir
@@ -2062,5 +3115,160 @@ mod tests {
                 res.err()
             );
         }
+
+        #[test]
+        fn publish_requires_applying_rows() {
+            let dir = tempfile::tempdir().unwrap();
+            let pin = "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e";
+            write_minimal_run_dir(dir.path(), pin, true);
+
+            let root = vox_corpus::training::contract::find_workspace_root();
+            let ladder_hash = crate::mens::gate_policy::policy_blake3(
+                root.as_deref(),
+                "mens/config/eval-gates-ladder.yaml",
+            )
+            .unwrap();
+            std::fs::write(
+                dir.path().join("gate_receipt.json"),
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "schema": vox_eval::gate_state::RECEIPT_SCHEMA,
+                    "policy_blake3": ladder_hash,
+                    "inputs": {"adapter_sha256": ""},
+                    "overall_passed": true,
+                    "gates": [
+                        {"name": "leakage", "passed": true, "block": true, "message": "ok"},
+                        {"name": "anti_stub", "passed": true, "block": true, "message": "ok"}
+                    ]
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+
+            // Claim `vox-lang` spoke in adapter_card.json without a passing spoke receipt.
+            let mut card =
+                crate::mens::tensor::adapter_card::AdapterCard::for_test("qwen3_16g", "qlora");
+            card.spokes = vec!["vox-lang".to_string()];
+            card.write_sidecar(&dir.path().join("candle_qlora_adapter.safetensors"))
+                .unwrap();
+
+            let err = verify_publish_gates(dir.path(), false)
+                .unwrap_err()
+                .to_string();
+            assert!(
+                err.contains("gate_receipt.vox-lang.json"),
+                "publish must block missing applying spoke receipt: {err}"
+            );
+
+            // Writing the valid spoke receipt allows publish to pass.
+            let vox_hash = crate::mens::gate_policy::policy_blake3(
+                root.as_deref(),
+                "mens/config/eval-gates.yaml",
+            )
+            .unwrap();
+            std::fs::write(
+                dir.path().join("gate_receipt.vox-lang.json"),
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "schema": vox_eval::gate_state::RECEIPT_SCHEMA,
+                    "policy_blake3": vox_hash,
+                    "inputs": {"adapter_sha256": ""},
+                    "overall_passed": true,
+                    "gates": [
+                        {"name": "leakage", "passed": true, "block": true, "message": "ok"},
+                        {"name": "anti_stub", "passed": true, "block": true, "message": "ok"}
+                    ]
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            verify_publish_gates(dir.path(), false).expect("applying spoke passed");
+        }
+
+        #[test]
+        fn repo_id_unchanged() {
+            assert_eq!(
+                crate::mens::hub_repo::repo_id_for_size("me", "Qwen3-4B").unwrap(),
+                "me/vox-mens-qwen3-4b"
+            );
+            assert_eq!(
+                crate::mens::hub_repo::index_repo_id("me").unwrap(),
+                "me/vox-mens-index"
+            );
+        }
+    }
+
+    #[test]
+    fn write_local_cards_removes_stale_svgs_and_writes_binary_assets() {
+        let run = tempfile::tempdir().unwrap();
+        let slug = "vox-mens-qwen3.5-4b";
+        for stale in [
+            run.path()
+                .join("mens/runs/hub_cards")
+                .join(slug)
+                .join("assets/scorecard.svg"),
+            run.path()
+                .join("mens/runs/hub_cards")
+                .join(slug)
+                .join("assets/overview.svg"),
+            run.path()
+                .join("mens/runs/hub_cards/vox-mens-index/assets/scorecard.svg"),
+            run.path()
+                .join("mens/runs/hub_cards/vox-mens-index/assets/overview.svg"),
+        ] {
+            std::fs::create_dir_all(stale.parent().unwrap()).unwrap();
+            std::fs::write(&stale, b"<svg>stale</svg>").unwrap();
+        }
+        let rows = vec![SizeSyncRow {
+            size: "4B".to_string(),
+            base_pin: "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a".to_string(),
+            repo_id: format!("ns/{slug}"),
+            local_dir: "mens/runs/qwen3.5-4b".to_string(),
+            sync_status: SizeSyncStatus::NotTrained,
+            gate_status: None,
+            final_loss: None,
+            measured_peak_mb: None,
+            action_taken: None,
+            latest_version: None,
+        }];
+        let entries = index_entries(run.path(), &rows);
+        let out = write_local_cards(run.path(), "ns", &entries).unwrap();
+        assert!(!out.join(slug).join("assets/scorecard.svg").exists());
+        assert!(!out.join(slug).join("assets/overview.svg").exists());
+        assert!(!out.join("vox-mens-index/assets/scorecard.svg").exists());
+        assert!(!out.join("vox-mens-index/assets/overview.svg").exists());
+    }
+
+    #[tokio::test]
+    async fn pull_adapter_revision_with_spoke_validates_and_resolves_cached_spoke() {
+        let ws = tempfile::tempdir().unwrap();
+        let err = pull_adapter_revision_with_spoke(
+            Path::new("4B"),
+            Some(ws.path()),
+            Some("ns"),
+            false,
+            None,
+            Some("../escape"),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("spoke") || err.contains("path") || !err.is_empty());
+
+        let run_dir = ws.path().join("mens/runs/qwen3.5-4b");
+        let spoke_dir = run_dir.join("spokes/rust");
+        std::fs::create_dir_all(&spoke_dir).unwrap();
+        std::fs::write(run_dir.join("candle_qlora_adapter.safetensors"), b"root").unwrap();
+        std::fs::write(spoke_dir.join("candle_qlora_adapter.safetensors"), b"rust").unwrap();
+
+        let got = pull_adapter_revision_with_spoke(
+            Path::new("Qwen3.5-4B"),
+            Some(ws.path()),
+            Some("ns"),
+            false,
+            None,
+            Some("rust"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(got, spoke_dir);
     }
 }

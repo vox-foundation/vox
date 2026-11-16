@@ -23,3 +23,7 @@ crates/vox-gui/src/commands/activity.rs
 # orchestrator.rs::get_context_budget reads the latest llm_interactions token
 # count for the honest context-window meter; typed-method migration pending. Exact-file allowance.
 crates/vox-gui/src/commands/orchestrator.rs
+# scientia_feed.rs test-only assertion verifying flushed agent_telemetry_flat row count. Exact-file allowance.
+crates/vox-orchestrator-mcp/src/http_gateway/scientia_feed.rs
+# review_flow.rs transitional token-attributed cost rollup query; typed-method migration pending. Exact-file allowance.
+crates/vox-scientia/src/review_flow.rs

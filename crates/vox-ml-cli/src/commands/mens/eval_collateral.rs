@@ -2098,12 +2098,9 @@ mod tests {
         assert_eq!(policy_alpha(&ladder).unwrap(), 0.05);
         let dir = tempfile::tempdir().unwrap();
         for (body, needle) in [
+            ("collateral_damage:\n  block: true\n", "sets no"),
             (
-                "version: \"1\"\ncollateral_damage:\n  block: true\n",
-                "sets no",
-            ),
-            (
-                "version: \"1\"\ncollateral_damage:\n  block: true\n  alpha: 1.5\n",
+                "collateral_damage:\n  block: true\n  alpha: 1.5\n",
                 "not in (0, 1)",
             ),
         ] {

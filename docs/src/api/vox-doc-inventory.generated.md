@@ -36,7 +36,6 @@ Replaces the retired Python inventory scripts; verify via `vox ci doc-inventory 
 | Dependency | Kind |
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
-| [`vox-repository`](./vox-repository.generated.md) | Normal |
 
 ## Dependency Topology
 
@@ -46,8 +45,6 @@ graph {
     node vox_doc_inventory: "vox-doc-inventory"
     node vox_bounded_fs: "vox-bounded-fs"
     vox_doc_inventory -> vox_bounded_fs
-    node vox_repository: "vox-repository"
-    vox_doc_inventory -> vox_repository
     node vox_cli: "vox-cli"
     vox_cli -> vox_doc_inventory
     node vox_cli_ci: "vox-cli-ci"

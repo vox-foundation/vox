@@ -32,6 +32,7 @@ commands:
 - { module: gamify, class: daemon, surfaces: [gamify], notes: "dev-only vox_gamify_* ops (internal exposure: loopback under dev; remote servers never serve them)" }
 - { module: gamify_settings, class: host, surfaces: [gamify, settings], notes: "reads and writes this machine's Vox config file" }
 - { module: graphify, class: host, surfaces: [] }
+- { module: gsd, class: daemon, surfaces: [gsd], notes: "GSD (Get Shit Done) milestone, phase, and CAS document workflow via vox_gsd_* daemon tools" }
 - { module: gui_db_pool, class: shell, surfaces: [], notes: "transient Drive store reset check only; zero persistent VoxDb handle in vox-gui" }
 - { module: harness, class: host, surfaces: [chat], notes: "split: get_task_diff = orch tool_call; list_repo_files = local git" }
 - { module: harness_eval, class: daemon, surfaces: [harness-health], notes: "GET /api/v2/harness/eval/{history,regressions}" }

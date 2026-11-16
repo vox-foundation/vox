@@ -135,10 +135,16 @@ pub struct ChatMessageParams {
     /// Optional override to force trigger autonomous research (true/false)
     #[serde(default)]
     pub force_research: Option<bool>,
+    /// Orthogonal continuum research mode override ("off", "auto", "fast", or "deep")
+    #[serde(default)]
+    pub research_mode: Option<String>,
     /// Optional research scope override ("local", "web", or "both")
     #[serde(default)]
     pub research_scope: Option<String>,
-    /// Optional domain mode override ("general", "shopping", "codegen")
+    /// Optional multi-wave budget override (clamped to `1..=5`, default `3` for deep and `1` otherwise)
+    #[serde(default)]
+    pub waves: Option<usize>,
+    /// Optional domain mode override ("general", "shopping", "codegen", or "scholarly")
     #[serde(default)]
     pub domain_mode: Option<String>,
     /// Optional site scope to restrict search (e.g. "github.com", "docs.rs")
@@ -575,6 +581,26 @@ mod chat_params_tests {
         assert_eq!(p.mode, None);
         assert_eq!(p.priority, None);
         assert_eq!(p.dry_run, None);
+        assert_eq!(p.research_mode, None);
+        assert_eq!(p.waves, None);
+    }
+
+    #[test]
+    fn continuum_research_params_deserialize() {
+        let json = r#"{
+            "prompt": "compare crag variants",
+            "research_mode": "deep",
+            "research_scope": "both",
+            "waves": 4,
+            "domain_mode": "scholarly",
+            "site_scope": "arxiv.org"
+        }"#;
+        let p: ChatMessageParams = serde_json::from_str(json).unwrap();
+        assert_eq!(p.research_mode.as_deref(), Some("deep"));
+        assert_eq!(p.research_scope.as_deref(), Some("both"));
+        assert_eq!(p.waves, Some(4));
+        assert_eq!(p.domain_mode.as_deref(), Some("scholarly"));
+        assert_eq!(p.site_scope.as_deref(), Some("arxiv.org"));
     }
 
     #[test]

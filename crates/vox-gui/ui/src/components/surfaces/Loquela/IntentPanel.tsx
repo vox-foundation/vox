@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Effort, IntentFields } from '../../../lib/intentSpec';
+import { VoxSelect } from '../../ui/Select';
 
 interface IntentPanelProps {
   intent: IntentFields;
@@ -31,16 +32,22 @@ export function IntentPanel({ intent, onChange, showEffort = true }: IntentPanel
           onChange={(e) => onChange({ acceptance: e.target.value })} className={`${FIELD_CLS} resize-none`} />
       </label>
       {showEffort && (
-        <label className="flex flex-col gap-1">
-          <span className={LABEL_CLS}>Effort</span>
-          <select aria-label="Effort" value={intent.effort}
-            onChange={(e) => onChange({ effort: e.target.value as Effort })} className={FIELD_CLS}>
-            <option value="">default</option>
-            <option value="background">background — when idle</option>
-            <option value="normal">normal</option>
-            <option value="urgent">urgent — jump the queue</option>
-          </select>
-        </label>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="intent-effort-select" className={LABEL_CLS}>Effort</label>
+          <VoxSelect
+            id="intent-effort-select"
+            aria-label="Effort"
+            value={intent.effort}
+            onValueChange={(v) => onChange({ effort: v as Effort })}
+            options={[
+              { value: '', label: 'default' },
+              { value: 'background', label: 'background — when idle' },
+              { value: 'normal', label: 'normal' },
+              { value: 'urgent', label: 'urgent — jump the queue' },
+            ]}
+            className={FIELD_CLS}
+          />
+        </div>
       )}
     </div>
   );

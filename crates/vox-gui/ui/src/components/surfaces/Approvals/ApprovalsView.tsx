@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { Glass } from '../../ui/Glass';
+import { BentoCard, BentoGrid, BentoScrollRegion, MasterDetailWorkbench } from '../../ui/BentoGrid';
 import { EmptyState } from '../../ui/EmptyState';
-import { StatusPill } from '../../ui/StatusPill';
 import { DataTable } from '../../ui/DataTable';
 import { Button } from '../../ui/Button';
 import { Segment } from '../../ui/Segment';
@@ -12,48 +11,24 @@ import { APPROVALS_POLL_MS } from '../../../config/constants';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { useLabel } from '../../../hooks/useLanguage';
 import {
-  type McpInvokeResult,
   parsePendingApprovals,
   unwrapMcpEnvelope,
 } from '../../../lib/mcpToolResult';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { voxTransport, getPermissionMode, setPermissionMode as setTransportPermissionMode } from '../../../transport';
 import type { Toast } from '../../../types/tauri';
-
-interface PendingApproval {
-  approval_id: string;
-  tool: string;
-  summary: string;
-  requested_at_ms: number;
-}
+import {
+  ApprovalsInspectorPane,
+  PERMISSION_MODE_OPTIONS,
+  type PendingApproval,
+  type PermissionMode,
+  formatRequestedAt,
+} from './ApprovalsInspectorPane';
 
 interface ApprovalsViewProps {
   pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }
-
-/**
- * T0.3: mirrors `vox_orchestrator_mcp::permission_modes::PermissionMode`'s
- * wire strings (`contracts/orchestration/permission-modes.v1.yaml`).
- *
- * The toggle below is the UI for `../../../transport.ts`'s shared
- * `getPermissionMode`/`setPermissionMode` module state — that shared state
- * (not local component state) is what `voxTransport.invokeMcpTool` /
- * `voxTransport.callTool` actually read on every subsequent tool call, so
- * selecting a mode here measurably changes daemon-side auto-approve
- * behavior for calls made from anywhere in the app, not just this view.
- * `DispatchRequest`'s own top-level field carries it — never folded into a
- * tool's `args` — so the dispatch gate reads it from an authenticated
- * channel, not from tool-call JSON.
- */
-type PermissionMode = 'ask' | 'accept_edits' | 'accept_all' | 'plan';
-
-const PERMISSION_MODE_OPTIONS: { id: PermissionMode; label: string; hint: string }[] = [
-  { id: 'ask', label: 'Ask', hint: 'Always park dangerous tool calls for approval (default).' },
-  { id: 'accept_edits', label: 'Accept Edits', hint: 'Auto-approve reversible file edits; still park destructive actions.' },
-  { id: 'accept_all', label: 'Accept All', hint: 'Auto-approve mutating and destructive tool calls.' },
-  { id: 'plan', label: 'Plan', hint: 'Read-only / planning mode.' },
-];
 
 const PERMISSION_MODE_STORAGE_KEY = 'vox.approvals.permission_mode';
 
@@ -61,13 +36,6 @@ function isKnownMode(value: unknown): value is PermissionMode {
   return value === 'ask' || value === 'accept_edits' || value === 'accept_all' || value === 'plan';
 }
 
-/**
- * Resolve the mode to show/apply on mount: prefer whatever's already live
- * in the shared transport state (e.g. set earlier this session), then fall
- * back to localStorage, then the safe `ask` default. Also pushes the
- * resolved value back into the shared transport state so it's active
- * immediately, even before the user touches the toggle.
- */
 function resolveAndApplyInitialPermissionMode(): PermissionMode {
   const live = getPermissionMode();
   if (isKnownMode(live)) return live;
@@ -83,18 +51,6 @@ function resolveAndApplyInitialPermissionMode(): PermissionMode {
   return resolved;
 }
 
-function formatRequestedAt(ms: number): string {
-  if (!Number.isFinite(ms) || ms <= 0) return '—';
-  const deltaSec = Math.round((Date.now() - ms) / 1000);
-  let rel: string;
-  if (deltaSec < 5) rel = 'just now';
-  else if (deltaSec < 60) rel = `${deltaSec}s ago`;
-  else if (deltaSec < 3600) rel = `${Math.floor(deltaSec / 60)}m ago`;
-  else if (deltaSec < 86400) rel = `${Math.floor(deltaSec / 3600)}h ago`;
-  else rel = `${Math.floor(deltaSec / 86400)}d ago`;
-  return `${rel} · ${new Date(ms).toLocaleTimeString()}`;
-}
-
 export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsViewProps) {
   const embedded = useIsEmbeddedSurface();
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
@@ -104,11 +60,12 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
     resolveAndApplyInitialPermissionMode
   );
   const [alwaysAllow, setAlwaysAllow] = useState<Record<string, boolean>>({});
+  const [queueFilter, setQueueFilter] = useState<'all' | 'shell'>('all');
+  const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
+  const queueRegionRef = React.useRef<HTMLDivElement | null>(null);
 
   const setMode = useCallback((mode: PermissionMode) => {
     setPermissionModeState(mode);
-    // Write through to the shared transport state — this is what actually
-    // reaches `invoke_mcp_tool` calls made from anywhere in the app.
     setTransportPermissionMode(mode);
     try {
       window.localStorage?.setItem(PERMISSION_MODE_STORAGE_KEY, mode);
@@ -120,9 +77,6 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
   const refresh = useCallback(async () => {
     try {
       const res = await voxTransport.invokeMcpTool('vox_pending_approvals', {});
-      // F-02 gap: a null/undefined resolution (e.g. no response from the
-      // backend) must not be dereferenced — treat it as a failed call
-      // rather than throwing a raw TypeError into the catch below.
       setApprovals(
         parsePendingApprovals({
           tool: 'vox_pending_approvals',
@@ -139,7 +93,6 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
 
   useEffect(() => {
     refresh();
-    // Embedded mini-render: one initial fetch only, no repeating poll.
     if (embedded) return;
     const id = setInterval(refresh, APPROVALS_POLL_MS);
     return () => clearInterval(id);
@@ -149,18 +102,8 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
     async (approvalId: string, outcome: 'approved' | 'rejected', tool: string) => {
       setResolving(approvalId);
       try {
-        // T0.3: "always allow this tool in this repo" — persist the
-        // allowlist entry alongside resolving the current approval. Fires
-        // before resolve so a failure here doesn't silently drop the
-        // approval decision itself; failures are toasted but non-fatal.
         if (outcome === 'approved' && alwaysAllow[approvalId]) {
           try {
-            // Note: vox_add_approval_allowlist_entry is itself
-            // `always_requires_approval: true` server-side (T0.3 follow-up
-            // fix) — this call parks for a human decision regardless of the
-            // currently selected mode, exactly like any other dangerous
-            // tool. It shows up as a NEW pending approval that `refresh()`
-            // below will surface.
             const allowRes = await voxTransport.invokeMcpTool('vox_add_approval_allowlist_entry', { tool });
             if (!allowRes || allowRes.is_error) {
               pushToast({ tone: 'warn', title: 'Allowlist not saved', body: tool, cause: 'backend-error' });
@@ -204,12 +147,38 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
     [pushToast, refresh, gamifyEnabled, alwaysAllow]
   );
 
+  const shellApprovalsCount = approvals.filter((a) => /shell|exec|bash|cmd/i.test(a.tool)).length;
+  const displayedApprovals =
+    queueFilter === 'shell'
+      ? approvals.filter((a) => /shell|exec|bash|cmd/i.test(a.tool))
+      : approvals;
+  const selectedApproval =
+    displayedApprovals.find((a) => a.approval_id === selectedApprovalId) ??
+    displayedApprovals[0] ??
+    null;
+
   const columns = [
     {
       key: 'approval_id',
       header: 'Request ID',
       width: 150,
-      render: (r: PendingApproval) => <span className="font-mono text-text-muted">#{r.approval_id}</span>
+      render: (r: PendingApproval) => {
+        const isCurrent = selectedApproval?.approval_id === r.approval_id;
+        return (
+          <button
+            type="button"
+            data-testid={`select-approval-${r.approval_id}`}
+            onClick={() => setSelectedApprovalId(r.approval_id)}
+            className={`rounded px-1.5 py-0.5 font-mono text-left transition-colors ${
+              isCurrent
+                ? 'bg-brass/15 text-brass'
+                : 'text-text-muted hover:bg-overlay-subtle hover:text-text-primary'
+            }`}
+          >
+            #{r.approval_id}
+          </button>
+        );
+      },
     },
     {
       key: 'tool',
@@ -278,28 +247,109 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
     },
   ];
 
+  const modeIndex = Math.max(
+    0,
+    PERMISSION_MODE_OPTIONS.findIndex((m) => m.id === permissionMode),
+  );
+
+  const masterPane = (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <BentoGrid preset="triad" data-testid="approvals-security-deck">
+        <BentoCard className="border-[#D4AF37]/35">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Active Gate Mode</span>
+            <RomanWaxSealBadge label={permissionMode.replace(/_/g, ' ')} tone="gold" />
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+            {PERMISSION_MODE_OPTIONS.find((m) => m.id === permissionMode)?.hint}
+          </p>
+        </BentoCard>
+
+        <BentoCard className="border-[#D4AF37]/35">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Authenticated Wire</span>
+            <RomanWaxSealBadge label="DispatchRequest" tone="emerald" />
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+            Permission mode rides on the top-level authenticated IPC envelope rather than untrusted tool JSON arguments.
+          </p>
+        </BentoCard>
+
+        <BentoCard className="border-[#D4AF37]/35">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Allowlist Guard</span>
+            <RomanWaxSealBadge label={`${approvals.length} queued`} tone={approvals.length > 0 ? 'crimson' : 'emerald'} />
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+            Adding a tool to the repository allowlist (Always allow) requires explicit HITL confirmation.
+          </p>
+        </BentoCard>
+      </BentoGrid>
+
+      <BentoScrollRegion ariaLabel="Pending approval queue" className="flex-1 pr-1">
+        <div ref={queueRegionRef} aria-live="polite">
+          <DataTable
+            rows={displayedApprovals}
+            columns={columns}
+            getRowId={(r) => r.approval_id}
+            loading={loading}
+            density="compact"
+            emptyState={
+              <EmptyState
+                icon={<Icon.check className="size-8 text-emerald-300" />}
+                title="No pending approvals"
+                description="Dangerous tool invocations will park here for a human to review."
+              />
+            }
+          />
+        </div>
+      </BentoScrollRegion>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-4 p-4 h-full overflow-auto">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-4">
       <RomanSurfaceHeader
         domainTag="REVIEW · APPROVALS"
         title="Pre-Execution Approval Ledger & Security Gate"
         subtitle="Inspect parked tool executions, permission policies, and capability gates."
-        waxSealBadge={approvals.length > 0 ? "GATE PENDING" : "GATE SECURED"}
+        waxSealBadge={approvals.length > 0 ? 'GATE PENDING' : 'GATE SECURED'}
         icon={<Icon.shield className="size-5 text-[#F3E5AB]" />}
         gauges={[
           {
             label: 'PENDING',
             valueText: `${approvals.length}`,
-            ratio: Math.min(1, approvals.length / 10),
+            ratio:
+              approvals.length === 0
+                ? 0
+                : queueFilter === 'shell'
+                  ? shellApprovalsCount / approvals.length
+                  : displayedApprovals.length / approvals.length,
             tone: approvals.length > 0 ? 'crimson' : 'emerald',
             purpose: 'Parked actions requiring explicit human approval',
+            actionHint:
+              queueFilter === 'shell'
+                ? 'Click to show all parked approvals'
+                : 'Click to filter queue to shell/exec approvals',
+            active: queueFilter === 'shell',
+            onClick: () => {
+              setQueueFilter((prev) => (prev === 'shell' ? 'all' : 'shell'));
+              queueRegionRef.current?.scrollIntoView?.({ block: 'nearest' });
+            },
           },
           {
             label: 'MODE',
             valueText: permissionMode.toUpperCase().slice(0, 6),
-            ratio: 1,
+            ratio: loading ? 0 : (modeIndex + 1) / PERMISSION_MODE_OPTIONS.length,
             tone: 'gold',
             purpose: 'Active permission gate security posture',
+            actionHint: 'Click to cycle active permission gate mode',
+            active: permissionMode !== 'ask',
+            onClick: () => {
+              const next =
+                PERMISSION_MODE_OPTIONS[(modeIndex + 1) % PERMISSION_MODE_OPTIONS.length]!;
+              setMode(next.id);
+            },
           },
         ]}
         actions={
@@ -321,98 +371,27 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         }
       />
 
-      <div aria-live="polite">
-        <DataTable
-          rows={approvals}
-          columns={columns}
-          getRowId={r => r.approval_id}
-          loading={loading}
-          density="compact"
-          emptyState={
-            <EmptyState
-              icon={<Icon.check className="size-8 text-emerald-300" />}
-              title="No pending approvals"
-              description="Dangerous tool invocations will park here for a human to review."
-            />
-          }
-        />
-      </div>
-
-      <div
-        data-testid="approvals-security-deck"
-        className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
-      >
-        <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Active Gate Mode</span>
-            <RomanWaxSealBadge label={permissionMode.replace(/_/g, ' ')} tone="gold" />
-          </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
-            {PERMISSION_MODE_OPTIONS.find((m) => m.id === permissionMode)?.hint}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Authenticated Wire</span>
-            <RomanWaxSealBadge label="DispatchRequest" tone="emerald" />
-          </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
-            Permission mode rides on the top-level authenticated IPC envelope rather than untrusted tool JSON arguments.
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Allowlist Guard</span>
-            <RomanWaxSealBadge label={`${approvals.length} queued`} tone={approvals.length > 0 ? 'crimson' : 'emerald'} />
-          </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
-            Adding a tool to the repository allowlist (Always allow) requires explicit HITL confirmation.
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
-        <div className="mb-2.5 flex items-center justify-between">
-          <span className="font-display text-[10px] tracking-widest text-brass uppercase">
-            Tool Capability Risk Classification Matrix
-          </span>
-          <span className="rounded border border-[#D4AF37]/25 bg-bg-elevated px-2 py-0.5 font-mono text-[10px] text-text-secondary">
-            contracts/terminal/exec-policy.v1.yaml
-          </span>
-        </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4 text-[11px]">
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-emerald-600">read_only</span>
-              <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[9px] text-emerald-600">AUTO</span>
-            </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_search_query, vox_skill_list</div>
-          </div>
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-text-primary">writes_files</span>
-              <span className="rounded border border-[#D4AF37]/40 bg-[#78350F]/20 px-1.5 py-0.5 font-mono text-[9px] text-text-primary">ACCEPT EDITS</span>
-            </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_patch, vox_plan_resume</div>
-          </div>
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-amber-600">shell_exec</span>
-              <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[9px] text-amber-600">ASK GATE</span>
-            </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_run_shell, vox_mesh_dispatch</div>
-          </div>
-          <div className="rounded-lg border border-[#D4AF37]/25 bg-bg-elevated p-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-rose-600">policy_mutation</span>
-              <span className="rounded border border-rose-400/30 bg-rose-400/10 px-1.5 py-0.5 font-mono text-[9px] text-rose-600">ALWAYS HITL</span>
-            </div>
-            <div className="mt-1 font-mono text-[10px] text-text-secondary">vox_add_approval_allowlist_entry</div>
-          </div>
-        </div>
-      </div>
+      <MasterDetailWorkbench
+        storageKey="vox.layout.approvals.v4"
+        detailTitle="Approval Policy & Payload"
+        detailDescription="Selected approval command payload, capability risk posture, and quick-resolve controls."
+        hasActiveDetail={selectedApprovalId !== null}
+        defaultMasterPct={60}
+        master={masterPane}
+        detail={
+          <ApprovalsInspectorPane
+            selected={selectedApproval}
+            permissionMode={permissionMode}
+            resolvingId={resolving}
+            alwaysAllowChecked={selectedApproval ? !!alwaysAllow[selectedApproval.approval_id] : false}
+            onToggleAlwaysAllow={(checked) => {
+              if (!selectedApproval) return;
+              setAlwaysAllow((prev) => ({ ...prev, [selectedApproval.approval_id]: checked }));
+            }}
+            onResolve={(id, outcome, tool) => void resolve(id, outcome, tool)}
+          />
+        }
+      />
     </div>
   );
 }

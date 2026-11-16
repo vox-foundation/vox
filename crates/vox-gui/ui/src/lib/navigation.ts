@@ -13,6 +13,7 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
   policies: { parent: 'runs', child: 'policies' },
   // Agents — watch/steer the swarm.
   dashboard: { parent: 'agents', child: 'dashboard' },
+  gsd: { parent: 'agents', child: 'gsd' },
   flow: { parent: 'agents', child: 'flow' },
   tasks: { parent: 'agents', child: 'tasks' },
   mesh: { parent: 'agents', child: 'mesh' },
@@ -124,7 +125,7 @@ export type TopLevelView = typeof TOP_LEVEL_VIEWS[number];
 /** Sub-tab display order per parent (registry rows are alphabetical; UI order is intent order). */
 export const CHILD_ORDER_BY_PARENT: Record<string, string[]> = {
   runs: ['approvals', 'needs-you', 'runs', 'policies'],
-  agents: ['dashboard', 'flow', 'tasks', 'mesh', 'sub-agents'],
+  agents: ['dashboard', 'gsd', 'flow', 'tasks', 'mesh', 'sub-agents'],
   knowledge: ['memory', 'scientia', 'research', 'activity', 'publications', 'vox-search'],
   workspace: ['console', 'repository', 'browser', 'harness', 'coderabbit'],
   commands: ['catalog', 'skills'],

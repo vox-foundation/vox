@@ -1,0 +1,148 @@
+// vox:caps fs process env
+// scripts/sync-gsd-skills.vox
+//
+// Populate the agent skills mount (`.agents/skills/` or `--target=...`) from
+// the in-repo GSD suite (`crates/vox-skills/skills/gsd/`) and retained core
+// skills under `crates/vox-skills/skills/superpowers/` (such as `brainstorming.skill.md`).
+//
+// Usage:
+//   vox run --mode interp scripts/sync-gsd-skills.vox              # dry-run (default)
+//   vox run --mode interp scripts/sync-gsd-skills.vox -- --write   # copy into the mount
+//   vox run --mode interp scripts/sync-gsd-skills.vox -- --target=.vox/skills
+//
+// Environment:
+//   VOX_REPO_ROOT — workspace root (default ".")
+
+import fs;
+import process;
+import env;
+
+fn repo_root() to str {
+    let root_opt = env.get("VOX_REPO_ROOT");
+    if root_opt.is_some() {
+        return root_opt.unwrap();
+    }
+    return ".";
+}
+
+fn join_path(base: str, rel: str) to str {
+    if base.ends_with("/") {
+        return base + rel;
+    }
+    return base + "/" + rel;
+}
+
+fn has_flag(argv: list[str], flag: str) to bool {
+    for arg in argv {
+        if arg == flag {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn target_from_argv(argv: list[str]) to str {
+    for arg in argv {
+        if arg.starts_with("--target=") {
+            return arg.replace("--target=", "");
+        }
+    }
+    let n = argv.len();
+    for i in range(0, n) {
+        if argv.get(i).unwrap() == "--target" {
+            if i + 1 < n {
+                return argv.get(i + 1).unwrap();
+            }
+        }
+    }
+    return ".agents/skills";
+}
+
+fn list_skill_files(src_root: str) to list[str] {
+    let mut names = [];
+    if not fs.is_dir(src_root) {
+        return names;
+    }
+    match fs.list_dir(src_root) {
+        Ok(entries) => {
+            for entry in entries {
+                if entry.ends_with(".skill.md") {
+                    let file = join_path(src_root, entry);
+                    if fs.is_file(file) {
+                        names = names.push(entry);
+                    }
+                }
+            }
+        }
+        Error(_) => {
+            return names;
+        }
+    }
+    return names;
+}
+
+fn sync_dir(src_root: str, dst_root: str, write_mode: bool) to int {
+    let skills = list_skill_files(src_root);
+    let mut copied = 0;
+    for name in skills {
+        let src = join_path(src_root, name);
+        let dst = join_path(dst_root, name);
+        if write_mode {
+            match fs.copy(src, dst) {
+                Ok(_) => {
+                    copied = copied + 1;
+                    print("  copied " + name);
+                }
+                Error(m) => {
+                    print("sync-gsd-skills: copy " + name + ": " + m);
+                    process.exit(1);
+                }
+            }
+        } else {
+            print("  would copy " + name + " -> " + dst);
+            copied = copied + 1;
+        }
+    }
+    return copied;
+}
+
+fn main() {
+    let root = repo_root();
+    let gsd_src = join_path(root, "crates/vox-skills/skills/gsd");
+    let extra_src = join_path(root, "crates/vox-skills/skills/superpowers");
+    let argv = env.args();
+    let write_mode = has_flag(argv, "--write");
+    let target_rel = target_from_argv(argv);
+    let dst_root = join_path(root, target_rel);
+
+    let gsd_skills = list_skill_files(gsd_src);
+    let extra_skills = list_skill_files(extra_src);
+    if gsd_skills.len() == 0 {
+        print("sync-gsd-skills: no *.skill.md files under " + gsd_src);
+        process.exit(1);
+    }
+
+    print("sync-gsd-skills: found " + str(gsd_skills.len()) + " gsd skills + " + str(extra_skills.len()) + " retained utility/brainstorming skills");
+    print("sync-gsd-skills: target=" + dst_root);
+    print("sync-gsd-skills: mode=" + (if write_mode { "write" } else { "dry-run" }));
+
+    if write_mode {
+        match fs.mkdir(dst_root) {
+            Ok(_) => {}
+            Error(m) => {
+                print("sync-gsd-skills: mkdir " + dst_root + ": " + m);
+                process.exit(1);
+            }
+        }
+    }
+
+    let gsd_count = sync_dir(gsd_src, dst_root, write_mode);
+    let extra_count = sync_dir(extra_src, dst_root, write_mode);
+    let total = gsd_count + extra_count;
+
+    if write_mode {
+        print("sync-gsd-skills: synced " + str(total) + " skills into the mount");
+    } else {
+        print("sync-gsd-skills: pass --write to populate the mount (" + str(total) + " candidates)");
+    }
+}

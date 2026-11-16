@@ -45,10 +45,10 @@ pub struct OrganicSearchSpokeReceipt {
     /// Whether organic search succeeded (`matched_rank.is_some()` and `evidence_grounding_ratio >= 0.80`).
     pub search_recalled: bool,
     /// Whether RAG context grounding verified all required identifiers in the retrieved chunks (`RAG-SYNTH-02`).
-    #[serde(default = "default_true_flag")]
+    #[serde(default = "rag_grounding_default_true")]
     pub rag_context_verified: bool,
     /// Whether context-conditioned synthesis resisted a Rank-1 distractor chunk (`RAG-SYNTH-02`).
-    #[serde(default = "default_true_flag")]
+    #[serde(default = "rag_grounding_default_true")]
     pub distractor_resilient: bool,
     /// Whether deep code compilation / `rustc` `.rmeta` / AST / schema / disk verification succeeded.
     pub compilation_verified: bool,
@@ -60,7 +60,7 @@ pub struct OrganicSearchSpokeReceipt {
     pub roundtrip_receipt: SpokeRoundtripReceipt,
 }
 
-const fn default_true_flag() -> bool {
+const fn rag_grounding_default_true() -> bool {
     true
 }
 

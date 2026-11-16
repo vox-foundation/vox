@@ -61,24 +61,24 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
         <RomanTooltip
           title="Civilization Crystals"
           purpose="Rare engineering currency awarded for zero-cascade efficiency and optimization thrift."
-          statusBadge={`${profile.crystals} ◆`}
+          statusBadge={`${profile.crystals} Crystals`}
         >
           <Stat
             label="Crystals"
             value={String(profile.crystals)}
-            icon={<Icon.denariusCoin className="size-3.5 text-brass" />}
+            icon={<Icon.crystalGem className="size-3.5 shrink-0 text-brass" aria-hidden="true" />}
           />
         </RomanTooltip>
 
         <RomanTooltip
           title="Reputation Lumens"
           purpose="Permanent verified reputation score earned across crate guilds and compiler contributions."
-          statusBadge={`${profile.lumens} ☼`}
+          statusBadge={`${profile.lumens} Lumens`}
         >
           <Stat
             label="Lumens"
             value={`${profile.lumens}`}
-            icon={<Icon.brazierTorch className="size-3.5 text-[#F59E0B]" />}
+            icon={<Icon.solInvictus className="size-3.5 shrink-0 text-[#F59E0B]" aria-hidden="true" />}
           />
         </RomanTooltip>
 

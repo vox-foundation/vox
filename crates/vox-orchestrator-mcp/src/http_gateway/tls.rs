@@ -94,7 +94,7 @@ impl TlsListener {
                     Ok(v) => v,
                     Err(e) => {
                         tracing::warn!(error = %e, "mcp-http tcp accept failed");
-                        tokio::time::sleep(Duration::from_millis(50)).await;
+                        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
                         continue;
                     }
                 };

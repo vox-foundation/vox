@@ -655,3 +655,44 @@ fn adversarial_and_real_query_spoke_suite_64_achieves_100_percent_across_all_spo
     );
     assert!(escaped_rg.execution_passed);
 }
+
+#[test]
+fn gsd_mcp_and_agent_harness_roundtrip_passes() {
+    let mcp = verify_mcp_roundtrip(
+        "gsd_mcp_new_milestone",
+        "Initialize GSD milestone v7.0 via MCP.",
+        r#"{"tool_name":"vox_gsd_new_milestone","arguments":{"version":"v7.0","title":"GSD Integration"}}"#,
+        Some(&McpToolSpec {
+            allowed_tools: vec!["vox_gsd_new_milestone".to_string()],
+            required_arg_keys: vec!["version".to_string(), "title".to_string()],
+        }),
+    );
+    assert!(
+        mcp.execution_passed,
+        "diags={:?}",
+        mcp.oracle_receipt.diagnostics
+    );
+
+    let harness = verify_agent_harness_roundtrip(
+        "gsd_harness_wave_plan",
+        "Plan GSD phase 411 wave DAG.",
+        r#"{
+            "goal": "Implement GSD Axis GUI view",
+            "steps": ["Add commands/gsd.rs", "Add GsdStudioView.tsx"],
+            "files": ["crates/vox-gui/src/commands/gsd.rs"],
+            "budget_tokens": 6000,
+            "max_steps": 4,
+            "verification_gate": "timeout 300s pnpm --dir crates/vox-gui/ui exec vitest run"
+        }"#,
+        Some(&AgentHarnessSpec {
+            allowed_path_prefixes: vec!["crates/vox-gui/".to_string()],
+            max_steps: 5,
+            max_budget_tokens: 16_000,
+        }),
+    );
+    assert!(
+        harness.execution_passed,
+        "diags={:?}",
+        harness.oracle_receipt.diagnostics
+    );
+}

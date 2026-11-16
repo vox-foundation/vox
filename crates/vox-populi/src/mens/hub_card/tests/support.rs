@@ -54,8 +54,8 @@ pub(crate) fn evidence_run(adapter_ckpt: &str) -> tempfile::TempDir {
     dir
 }
 
-/// Pin of the 1.7B base the case files were taken from.
-pub(crate) const PIN_17: &str = "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"; // gitleaks:allow
+/// Pin of the 2B Nov 2026 base the case files were taken from.
+pub(crate) const PIN_2: &str = "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc"; // gitleaks:allow
 
 /// One card case: a record set in `fixtures/hub_cards/cases/<file>.json` under `key`, plus the
 /// held-out evidence it is rendered with.
@@ -80,12 +80,12 @@ pub(crate) fn passing_collateral_report(req: &CollateralRequirement) -> serde_js
     crate::mens::gate_policy::passing_collateral_report(req)
 }
 
-/// 1.7B, retired-rule collateral pass, adapter evidence from the current serving path.
+/// 2B, retired-rule collateral pass, adapter evidence from the current serving path.
 pub(crate) const NEEDS_RE_GATE: Case = Case {
-    key: "needs_re_gate_1_7b",
-    file: "1_7b.json",
-    size: "1.7B",
-    pin: PIN_17,
+    key: "needs_re_gate_2b",
+    file: "states.json",
+    size: "2B",
+    pin: PIN_2,
     ckpt: Some(CURRENT_CKPT),
     adapter: true,
     base_ckpt: true,
@@ -98,7 +98,7 @@ pub(crate) const STALE_SERVING: Case = Case {
     ..NEEDS_RE_GATE
 };
 
-/// The 1.7B records with a collateral report that satisfies the current rule.
+/// The 2B records with a collateral report that satisfies the current rule.
 pub(crate) const PASSED: Case = Case {
     passing: true,
     ..NEEDS_RE_GATE
@@ -106,7 +106,10 @@ pub(crate) const PASSED: Case = Case {
 
 /// Write the case's records and evidence into `tmp` and return the run dir.
 pub(crate) fn case_run_dir(case: &Case, tmp: &Path) -> PathBuf {
-    let run = tmp.join(format!("qwen3-{}", case.size.to_ascii_lowercase()));
+    let run_rel = crate::mens::hub_repo::local_run_dir_for_size(case.pin)
+        .unwrap_or_else(|_| format!("mens/runs/qwen3-{}", case.size.to_ascii_lowercase()));
+    let run_slug = run_rel.strip_prefix("mens/runs/").unwrap_or(&run_rel);
+    let run = tmp.join(run_slug);
     std::fs::create_dir_all(&run).expect("run dir");
     let text =
         std::fs::read_to_string(fixture_root().join("cases").join(case.file)).expect("case file");
@@ -197,34 +200,34 @@ pub(crate) const CURRENT_CKPT: &str = "evidence/heldout_adapter_nothink.ckpt.jso
 /// The real 4B adapter checkpoint header, which carries no serving field.
 pub(crate) const LEGACY_CKPT: &str = "evidence/legacy_serving/heldout_adapter_nothink.ckpt.jsonl";
 
-const PIN_06: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"; // gitleaks:allow
-const PIN_14: &str = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"; // gitleaks:allow
-const PIN_32: &str = "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"; // gitleaks:allow
+const PIN_08: &str = "Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17"; // gitleaks:allow
+const PIN_9: &str = "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a"; // gitleaks:allow
+const PIN_27: &str = "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0"; // gitleaks:allow
 
-/// 0.6B: trained, the collateral check failed on a slice.
+/// 0.8B: trained, the collateral check failed on a slice.
 pub(crate) const FAILED: Case = Case {
     key: "failed_0_6b",
     file: "states.json",
-    size: "0.6B",
-    pin: PIN_06,
+    size: "0.8B",
+    pin: PIN_08,
     ..NEEDS_RE_GATE
 };
 
-/// 14B: trained, no collateral report and no gate receipt.
+/// 9B: trained, no collateral report and no gate receipt.
 pub(crate) const NOT_EVALUATED: Case = Case {
-    key: "not_evaluated_14b",
+    key: "not_evaluated_9b",
     file: "states.json",
-    size: "14B",
-    pin: PIN_14,
+    size: "9B",
+    pin: PIN_9,
     ..NEEDS_RE_GATE
 };
 
-/// 32B: a train record that says it was not trained; no adapter and no evidence.
+/// 27B: a train record that says it was not trained; no adapter and no evidence.
 pub(crate) const NOT_TRAINED: Case = Case {
-    key: "not_trained_32b",
+    key: "not_trained_27b",
     file: "states.json",
-    size: "32B",
-    pin: PIN_32,
+    size: "27B",
+    pin: PIN_27,
     ckpt: None,
     adapter: false,
     ..NEEDS_RE_GATE
@@ -242,8 +245,7 @@ pub(crate) const NO_EXAMPLES: Case = Case {
     ..PASSED
 };
 
-const PIN_4: &str = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c"; // gitleaks:allow
-const PIN_8: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"; // gitleaks:allow
+const PIN_4: &str = "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"; // gitleaks:allow
 
 /// 4B: gate passed, adapter evidence from the current serving path.
 const PASSED_4B: Case = Case {
@@ -253,11 +255,13 @@ const PASSED_4B: Case = Case {
 };
 
 fn sync_row(case: &Case, status: SizeSyncStatus, version: Option<&str>) -> SizeSyncRow {
+    let local_dir = crate::mens::hub_repo::local_run_dir_for_size(case.pin)
+        .unwrap_or_else(|_| format!("mens/runs/qwen3-{}", case.size.to_ascii_lowercase()));
     SizeSyncRow {
         size: case.size.to_string(),
         base_pin: case.pin.to_string(),
-        repo_id: format!("ns/{}", repo_name(case.size)),
-        local_dir: format!("mens/runs/qwen3-{}", case.size.to_ascii_lowercase()),
+        repo_id: format!("ns/{}", repo_name(case.pin)),
+        local_dir,
         sync_status: status,
         gate_status: None,
         final_loss: None,
@@ -270,7 +274,7 @@ fn sync_row(case: &Case, status: SizeSyncStatus, version: Option<&str>) -> SizeS
 /// One entry per ladder size, built from `cases` (sync status and Hub tag alongside each).
 fn ladder(
     tmp: &Path,
-    cases: [(Case, SizeSyncStatus, Option<&str>); 6],
+    cases: [(Case, SizeSyncStatus, Option<&str>); 5],
 ) -> Vec<(SizeSyncRow, RunRecords)> {
     cases
         .iter()
@@ -282,9 +286,9 @@ fn ladder(
         .collect()
 }
 
-/// The ladder as the index sees it with `four_b` as the 4B case: 0.6B failed, 1.7B needs a
-/// re-gate with evidence from an earlier serving path, 8B needs a re-gate with current-serving
-/// evidence, 14B not evaluated, 32B not trained.
+/// The Nov 2026 5-rung ladder as the index sees it with `four_b` as the 4B case:
+/// 0.6B failed, 2B needs a re-gate with legacy-serving evidence, 4B passed,
+/// 9B not evaluated, 27B not trained.
 fn ladder_with(tmp: &Path, four_b: Case) -> Vec<(SizeSyncRow, RunRecords)> {
     use SizeSyncStatus::{Diverged, InSync, LocalOnly, NotTrained};
     ladder(
@@ -293,15 +297,6 @@ fn ladder_with(tmp: &Path, four_b: Case) -> Vec<(SizeSyncRow, RunRecords)> {
             (FAILED, Diverged, Some("v5")),
             (STALE_SERVING, LocalOnly, None),
             (four_b, InSync, Some("v2")),
-            (
-                Case {
-                    size: "8B",
-                    pin: PIN_8,
-                    ..NEEDS_RE_GATE
-                },
-                LocalOnly,
-                None,
-            ),
             (NOT_EVALUATED, LocalOnly, None),
             (NOT_TRAINED, NotTrained, None),
         ],
@@ -313,7 +308,7 @@ pub(crate) fn ladder_entries(tmp: &Path) -> Vec<(SizeSyncRow, RunRecords)> {
     ladder_with(tmp, PASSED_4B)
 }
 
-/// The ladder with no passed size: 4B needs a re-gate like 8B.
+/// The ladder with no passed size: 4B needs a re-gate like 2B.
 pub(crate) fn ladder_entries_no_passed(tmp: &Path) -> Vec<(SizeSyncRow, RunRecords)> {
     ladder_with(
         tmp,
@@ -346,7 +341,7 @@ pub(crate) fn cards_of(entries: &[(SizeSyncRow, RunRecords)]) -> Vec<(String, St
                 base_pin: &row.base_pin,
                 namespace: "ns",
             };
-            (repo_name(&row.size), render_model_card(&cx, rec))
+            (repo_name(&row.base_pin), render_model_card(&cx, rec))
         })
         .collect();
     cards.push(("vox-mens-index".into(), render_index_readme("ns", entries)));
@@ -369,8 +364,12 @@ pub(crate) fn index_row(
 ) -> IndexRow {
     IndexRow {
         size: size.to_string(),
+        model_label: crate::mens::hub_repo::model_label_for(size),
+        local_run_dir: crate::mens::hub_repo::local_run_dir_for_size(size)
+            .unwrap_or_else(|_| format!("mens/runs/qwen3-{}", size.to_ascii_lowercase())),
         repo_id: format!("ns/{}", repo_name(size)),
         trained: true,
+        merged: false,
         spoke_id: None,
         gate,
         adapter_evidence: evidence,

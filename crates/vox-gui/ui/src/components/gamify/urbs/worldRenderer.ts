@@ -48,6 +48,14 @@ import {
 import {
   drawScreenSpaceHydraulicOverlay,
 } from './hydraulicNetwork';
+import {
+  drawArrowRightBadge,
+  drawArrowUpBadge,
+  drawCheckBadge,
+  drawCrossBadge,
+  drawDiamondBadge,
+  drawTriangleUpBadge,
+} from './canvasVectorBadges';
 
 export interface HarnessSnapshot {
   /** null = tap unavailable → landmark renders unlit. */
@@ -3056,12 +3064,16 @@ function drawRomanCalloutPill(
   metric: string,
   borderColor: string,
   textColor: string,
+  badgeKind?: 'diamond' | 'triangle',
+  trailingArrow?: boolean,
 ) {
   ctx.save();
   ctx.font = 'bold 9.5px Cinzel, Georgia, serif';
   const fullText = `${title} · ${metric}`;
   const tw = ctx.measureText(fullText).width;
-  const pw = tw + 18;
+  const leadPad = badgeKind ? 14 : 0;
+  const trailPad = trailingArrow ? 12 : 0;
+  const pw = tw + 18 + leadPad + trailPad;
   const ph = 18;
   const rx = x - pw / 2;
   const ry = y - ph / 2;
@@ -3074,10 +3086,28 @@ function drawRomanCalloutPill(
   ctx.fill();
   ctx.stroke();
 
+  if (badgeKind === 'diamond') {
+    drawDiamondBadge(ctx, rx + 10, y + 0.5, 3.6, {
+      fill: textColor,
+      stroke: borderColor,
+      lineWidth: 1,
+    });
+  } else if (badgeKind === 'triangle') {
+    drawTriangleUpBadge(ctx, rx + 10, y + 0.5, 3.8, {
+      fill: textColor,
+      stroke: borderColor,
+      lineWidth: 1,
+    });
+  }
+
+  if (trailingArrow) {
+    drawArrowRightBadge(ctx, rx + pw - 9, y + 0.5, 3.2, textColor, 1.35);
+  }
+
   ctx.fillStyle = textColor;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(fullText, x, y + 0.5);
+  ctx.fillText(fullText, x + (leadPad - trailPad) / 2, y + 0.5);
   ctx.restore();
 }
 
@@ -3096,11 +3126,13 @@ function drawWorksiteFileDiffSlab(
   const statusTag = gitStatus || 'M';
   const diffLabel = `+${added}/-${deleted}`;
   const headerText = `${statusTag} ${basename}`;
-  const subText = agentRole ? `⚙ ${agentRole} · ${diffLabel}` : diffLabel;
+  const subText = agentRole ? `${agentRole} · ${diffLabel}` : diffLabel;
+  const subIndent = agentRole ? 11 : 0;
+  const errPad = hasError ? 12 : 0;
 
   ctx.font = "bold 8.5px 'Palatino', 'Palatino Linotype', Georgia, serif";
-  const w1 = ctx.measureText(headerText).width;
-  const w2 = ctx.measureText(subText).width;
+  const w1 = ctx.measureText(headerText).width + errPad;
+  const w2 = ctx.measureText(subText).width + subIndent;
   const pw = Math.max(84, Math.max(w1, w2) + 16);
   const ph = 26;
   const rx = x - pw / 2;
@@ -3120,20 +3152,31 @@ function drawWorksiteFileDiffSlab(
   ctx.textBaseline = 'middle';
   ctx.fillStyle = hasError ? '#991b1b' : '#1C140C';
   ctx.fillText(headerText, rx + 6, ry + 8.5);
+  if (hasError) {
+    drawCrossBadge(ctx, rx + pw - 9, ry + 8.5, 3, '#991b1b', 1.4);
+  }
+
+  if (agentRole) {
+    drawDiamondBadge(ctx, rx + 9.5, ry + 18.5, 3.1, {
+      fill: '#D4AF37',
+      stroke: '#8C6214',
+      lineWidth: 0.9,
+    });
+  }
 
   ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
   ctx.fillStyle = '#5C4428';
-  ctx.fillText(subText, rx + 6, ry + 18.5);
+  ctx.fillText(subText, rx + 6 + subIndent, ry + 18.5);
   ctx.restore();
 }
 
 const SEMIOTIC_ARCHETYPE_BY_LAYER: Record<number, { glyph: string; title: string; pillBg: string; pillBorder: string }> = {
-  0: { glyph: '🏛', title: 'VAULT', pillBg: '#EFE7D6', pillBorder: '#B38728' },
-  1: { glyph: '🏛', title: 'ACROPOLIS', pillBg: '#F5EFE4', pillBorder: '#D4AF37' },
-  2: { glyph: '🏺', title: 'ROTUNDA', pillBg: '#EFE7D6', pillBorder: '#C59B27' },
-  3: { glyph: '⚖', title: 'PRAETORIVM', pillBg: '#F3E5AB', pillBorder: '#D4AF37' },
-  4: { glyph: '🔥', title: 'THERMAE', pillBg: '#EFE7D6', pillBorder: '#D97706' },
-  5: { glyph: '🏟', title: 'COLOSSEVM', pillBg: '#F5EFE4', pillBorder: '#B38728' },
+  0: { glyph: 'I', title: 'VAULT', pillBg: '#EFE7D6', pillBorder: '#B38728' },
+  1: { glyph: 'II', title: 'ACROPOLIS', pillBg: '#F5EFE4', pillBorder: '#D4AF37' },
+  2: { glyph: 'III', title: 'ROTUNDA', pillBg: '#EFE7D6', pillBorder: '#C59B27' },
+  3: { glyph: 'IV', title: 'PRAETORIVM', pillBg: '#F3E5AB', pillBorder: '#D4AF37' },
+  4: { glyph: 'V', title: 'THERMAE', pillBg: '#EFE7D6', pillBorder: '#D97706' },
+  5: { glyph: 'VI', title: 'COLOSSEVM', pillBg: '#F5EFE4', pillBorder: '#B38728' },
 };
 
 function drawDistrictMicroHudBadge(
@@ -3159,34 +3202,46 @@ function drawDistrictMicroHudBadge(
   const churnLabel = addedSum > 0 || deletedSum > 0 ? `+${addedSum}/-${deletedSum}` : 'clean';
   const costRate = ((d.buildings.length * 0.005) + (isActive ? 0.02 : 0)).toFixed(2);
 
-  let line1 = `${archetype.glyph} ${title} · ${layerLabel} ${archetype.title} (${locK}k LoC)`;
+  let line1Badge: 'triangle' | 'arrowUp' | null = null;
+  let line1 = `${archetype.glyph} · ${title} · ${layerLabel} ${archetype.title} (${locK}k LoC)`;
   if (blastMeta?.role === 'impacted') {
-    line1 = `⚡ ${title} · ${layerLabel} BLAST RADIUS`;
+    line1 = `${title} · ${layerLabel} BLAST RADIUS`;
+    line1Badge = 'triangle';
   } else if (blastMeta?.role === 'provider') {
-    line1 = `⬆ ${title} · ${layerLabel} UPSTREAM`;
+    line1 = `${title} · ${layerLabel} UPSTREAM`;
+    line1Badge = 'arrowUp';
   }
 
+  let line2Badge: 'cross' | 'triangle' | 'diamond' | 'check' | null =
+    errCount > 0 ? 'cross' : isActive ? 'diamond' : 'check';
   let line2 =
     errCount > 0
-      ? `▲ ${errCount} ERR · ✓ ${healthPct}% · ${churnLabel}`
+      ? `${errCount} ERR · ${healthPct}% · ${churnLabel}`
       : isActive
-        ? `◆ LLM STREAMING · ✓ ${healthPct}% · ${churnLabel} · $${costRate}/m`
-        : `✓ ${healthPct}% check · ${churnLabel} · $${costRate}/m`;
+        ? `LLM STREAMING · ${healthPct}% · ${churnLabel} · $${costRate}/m`
+        : `${healthPct}% check · ${churnLabel} · $${costRate}/m`;
   if (blastMeta?.role === 'origin' && (blastMeta.downstreamCount ?? 0) > 0) {
-    line2 =
-      errCount > 0
-        ? `▲ ${errCount} ERR · Blast Radius: ${blastMeta.downstreamCount} downstream · ${churnLabel}`
-        : `Blast Radius: ${blastMeta.downstreamCount} downstream · ${churnLabel}`;
+    if (errCount > 0) {
+      line2 = `${errCount} ERR · Blast Radius: ${blastMeta.downstreamCount} downstream · ${churnLabel}`;
+      line2Badge = 'triangle';
+    } else {
+      line2 = `Blast Radius: ${blastMeta.downstreamCount} downstream · ${churnLabel}`;
+      line2Badge = null;
+    }
   } else if (lens === 'architecture') {
     line2 = `${layerLabel} ${archetype.title} · Fan-in ${d.fanIn ?? 0} · Out ${d.deps?.length ?? 0}`;
+    line2Badge = null;
   } else if (lens === 'cost') {
     line2 = `BURN $${costRate}/min · ${isActive ? 'Frontier Cloud' : 'MENS Local'}`;
+    line2Badge = null;
   }
 
   ctx.font = 'bold 9px Cinzel, Palatino, Georgia, serif';
-  const w1 = ctx.measureText(line1).width;
+  const w1Raw = ctx.measureText(line1).width;
+  const w1 = w1Raw + (line1Badge ? 14 : 0);
   ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
-  const w2 = ctx.measureText(line2).width;
+  const w2Raw = ctx.measureText(line2).width;
+  const w2 = w2Raw + (line2Badge ? 14 : 0);
 
   const pw = Math.max(w1, w2) + 22;
   const ph = 30;
@@ -3225,11 +3280,41 @@ function drawDistrictMicroHudBadge(
     ctx.fill();
   }
 
+  const line1Offset = line1Badge ? 6 : 0;
+  if (line1Badge === 'triangle') {
+    drawTriangleUpBadge(ctx, x - w1Raw / 2 - 4, ry + 9.5, 3.4, {
+      fill: '#d97706',
+      stroke: '#92400e',
+      lineWidth: 0.9,
+    });
+  } else if (line1Badge === 'arrowUp') {
+    drawArrowUpBadge(ctx, x - w1Raw / 2 - 4, ry + 9.5, 3.4, '#1C140C', 1.4);
+  }
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 9px Cinzel, Palatino, Georgia, serif';
   ctx.fillStyle = '#1C140C';
-  ctx.fillText(line1, x, ry + 9.5);
+  ctx.fillText(line1, x + line1Offset, ry + 9.5);
+
+  const line2Offset = line2Badge ? 6 : 0;
+  if (line2Badge === 'cross') {
+    drawCrossBadge(ctx, x - w2Raw / 2 - 4, ry + 21, 3.1, '#991b1b', 1.4);
+  } else if (line2Badge === 'triangle') {
+    drawTriangleUpBadge(ctx, x - w2Raw / 2 - 4, ry + 21, 3.2, {
+      fill: '#dc2626',
+      stroke: '#991b1b',
+      lineWidth: 0.9,
+    });
+  } else if (line2Badge === 'diamond') {
+    drawDiamondBadge(ctx, x - w2Raw / 2 - 4, ry + 21, 3.1, {
+      fill: '#D4AF37',
+      stroke: '#8C6214',
+      lineWidth: 0.9,
+    });
+  } else if (line2Badge === 'check') {
+    drawCheckBadge(ctx, x - w2Raw / 2 - 4, ry + 21, 3.2, '#15803d', 1.5);
+  }
 
   ctx.font = "600 8px 'Palatino', 'Palatino Linotype', Georgia, serif";
   ctx.fillStyle =
@@ -3238,7 +3323,7 @@ function drawDistrictMicroHudBadge(
       : blastMeta?.role === 'impacted'
         ? '#92400e'
         : '#5C4428';
-  ctx.fillText(line2, x, ry + 21);
+  ctx.fillText(line2, x + line2Offset, ry + 21);
   ctx.restore();
 }
 
@@ -3443,31 +3528,28 @@ export class WorldRenderer {
       const hasError = d.buildings.some((b) => (s.buildings[b.path]?.errors ?? 0) > 0);
       const isSelected = s.selectedDistrict === d.name;
 
-      // Subtle engraved golden astrolabe ring only on selected or error district
+      // Continuous engraved golden astrolabe ring on selected or error district (zero dashed lines)
       if (isSelected || hasError || hasActiveTask) {
         ctx.save();
         ctx.strokeStyle = hasError
           ? 'rgba(185, 28, 28, 0.55)'
           : 'rgba(212, 175, 55, 0.55)';
         ctx.lineWidth = isSelected ? 1.8 : 1.1;
-        ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.ellipse(rawCenter.px, rawCenter.py - elev + 6, 44, 22, 0, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.setLineDash([]);
         ctx.restore();
       }
 
-      // Wrought-Iron Perimeter Portcullis & Bronze Padlocks when district is quarantined (`URBS-QUARANTINE-03`)
+      // Continuous Wrought-Iron Perimeter Portcullis & Bronze Border when district is quarantined (`URBS-QUARANTINE-03`)
       if (s.quarantinedDistricts?.includes(d.name)) {
         const c00 = worldPx(layout, d.x0, d.y0);
         const c10 = worldPx(layout, d.x1, d.y0);
         const c11 = worldPx(layout, d.x1, d.y1);
         const c01 = worldPx(layout, d.x0, d.y1);
         ctx.save();
-        ctx.strokeStyle = 'rgba(217, 119, 6, 0.92)';
-        ctx.lineWidth = 2.4;
-        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = 'rgba(217, 119, 6, 0.88)';
+        ctx.lineWidth = 2.2;
         ctx.beginPath();
         ctx.moveTo(c00.px, c00.py - elev - 14);
         ctx.lineTo(c10.px, c10.py - elev - 14);
@@ -3475,7 +3557,6 @@ export class WorldRenderer {
         ctx.lineTo(c01.px, c01.py - elev - 14);
         ctx.closePath();
         ctx.stroke();
-        ctx.setLineDash([]);
         ctx.restore();
       }
     }
@@ -3625,10 +3706,11 @@ export class WorldRenderer {
           ctx,
           qx,
           qy,
-          '🔒 QUARANTINED',
+          'QUARANTINED',
           'read-only guardrail',
           'rgba(245, 158, 11, 0.92)',
           '#fde68a',
+          'diamond',
         );
       }
     }
@@ -3649,10 +3731,11 @@ export class WorldRenderer {
         ctx,
         cx,
         cy,
-        '⚔ WRITE-SET COLLISION',
-        `${col.agentALabel} × ${col.agentBLabel}`,
+        'WRITE-SET COLLISION',
+        `${col.agentALabel} x ${col.agentBLabel}`,
         'rgba(239, 68, 68, 0.94)',
         '#fecaca',
+        'triangle',
       );
     }
 
@@ -3678,10 +3761,12 @@ export class WorldRenderer {
         ctx,
         kx,
         ky,
-        edge.layer_violation ? '⚠ LAYER VIOLATION' : '🏛 PONS CONTRACTVS',
-        `L${edge.from_layer ?? 1}→L${edge.to_layer ?? 1} · ${edge.call_site_count ?? 1} calls`,
+        edge.layer_violation ? 'LAYER VIOLATION' : 'PONS CONTRACTVS',
+        `L${edge.from_layer ?? 1} AD L${edge.to_layer ?? 1} · ${edge.call_site_count ?? 1} calls`,
         edge.layer_violation ? 'rgba(239, 68, 68, 0.92)' : 'rgba(56, 189, 248, 0.88)',
         edge.layer_violation ? '#fecaca' : '#e0f2fe',
+        edge.layer_violation ? 'triangle' : 'diamond',
+        true,
       );
     }
 

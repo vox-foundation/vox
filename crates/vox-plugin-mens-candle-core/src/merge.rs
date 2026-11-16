@@ -107,7 +107,7 @@ pub fn lora_factors_by_base_key(
         .with_context(|| format!("read adapter {}", adapter_path.display()))?;
     let st = SafeTensors::deserialize(&bytes).context("parse adapter safetensors")?;
 
-    let alpha = meta.alpha as f64;
+    let alpha = meta.effective_alpha_f64();
     let rank = meta.rank;
     let mut out: HashMap<String, LoraFactors> = HashMap::new();
 
@@ -261,7 +261,7 @@ pub fn merge_qlora_into_base_subset(
     let adapter_st =
         SafeTensors::deserialize(&adapter_bytes).context("parse adapter safetensors")?;
 
-    let alpha = meta.alpha as f64;
+    let alpha = meta.effective_alpha_f64();
     let rank = meta.rank;
 
     let mut inferred_family = AdapterFamily::Unknown;
@@ -304,14 +304,13 @@ pub fn merge_qlora_into_base_subset(
         let merged = if w.dims() == delta.dims() {
             w.broadcast_add(&delta)?
         } else if w.dim(1)? == delta.dim(1)? && w.dim(0)? > delta.dim(0)? {
-            // Packed projections (e.g. Qwen 3.5/3.8 with attn_output_gate packed into q_proj):
-            // The LoRA delta applies to the first `delta_rows`, while remaining rows (attention gates)
-            // are preserved unperturbed from the base model.
-            let delta_rows = delta.dim(0)?;
-            let w_top = w.narrow(0, 0, delta_rows)?;
-            let w_bottom = w.narrow(0, delta_rows, w.dim(0)? - delta_rows)?;
-            let merged_top = w_top.broadcast_add(&delta)?;
-            Tensor::cat(&[&merged_top, &w_bottom], 0)?
+            anyhow::bail!(
+                "adapter logical key `{logical}` (`{base_key}`) shape {:?} is smaller than base weight shape {:?}; \
+                 interleaved `q_proj` ([2*q_rows, d_model]) cannot be top-half-sliced without corrupting half the heads — \
+                 retrain with full-row `[2*q_rows, d_model]` adapters",
+                delta.dims(),
+                w.dims()
+            );
         } else {
             w.broadcast_add(&delta)?
         };
@@ -578,5 +577,44 @@ mod tests {
         for (e, g) in exp_flat.iter().zip(got_flat.iter()) {
             assert!((e - g).abs() < 1e-5, "expected {e} got {g}");
         }
+    }
+
+    #[test]
+    fn merge_refuses_truncated_half_row_q_proj_adapter() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dev = Device::Cpu;
+        let base_rows = 8usize;
+        let q_rows = 4usize;
+        let d = 4usize;
+        let rank = 2usize;
+
+        let w_bytes = vec![0u8; base_rows * d * 4];
+        let mut base_map: HashMap<String, TensorView<'_>> = HashMap::new();
+        base_map.insert(
+            "model.layers.0.self_attn.q_proj.weight".into(),
+            TensorView::new(Dtype::F32, vec![base_rows, d], w_bytes.as_slice()).unwrap(),
+        );
+        let base_path = dir.path().join("model.safetensors");
+        std::fs::write(&base_path, serialize(&base_map, None).unwrap()).unwrap();
+
+        let a = Tensor::ones(&[rank, d], DType::F32, &dev).unwrap();
+        let b = Tensor::ones(&[q_rows, rank], DType::F32, &dev).unwrap();
+        let (ad_path, meta) = write_adapter_fixture(
+            dir.path(),
+            "layer_0_q",
+            "model.layers.0.self_attn.q_proj.weight",
+            &a,
+            &b,
+            rank,
+            4,
+        );
+        let out_path = dir.path().join("merged.safetensors");
+        let err = merge_qlora_into_base_subset(&[base_path], &ad_path, &meta, &out_path)
+            .expect_err("truncated half-row q_proj adapter must error instead of slicing top half");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("interleaved `q_proj`"),
+            "unexpected error message: {msg}"
+        );
     }
 }

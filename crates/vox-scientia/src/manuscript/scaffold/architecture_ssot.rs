@@ -209,6 +209,23 @@ pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String,
         input.empirical_outcome_summary
     ));
 
+    if input.status == "research"
+        || !input.codebase_refs.is_empty()
+        || !input.verified_claims.is_empty()
+    {
+        doc.push_str("### Epistemic Architecture Flow\n\n");
+        let diagram = format!(
+            "flowchart LR\n  S[\"Session #{sid} (stability {stab:.2})\"] --> C[\"{claims} verified claims\"]\n  C --> R[\"{refs} codebase refs\"]\n  R --> G[\"{gaps} gap remediations\"]",
+            sid = input.session_id,
+            stab = input.stability_score,
+            claims = input.verified_claims.len(),
+            refs = input.codebase_refs.len(),
+            gaps = input.gaps_and_recommendations.len(),
+        );
+        doc.push_str(&render_code_fence("vox-diagram", &diagram, false));
+        doc.push('\n');
+    }
+
     if !input.codebase_refs.is_empty() {
         doc.push_str("### Codebase Targets & Reality Audit\n\n");
         let headers = ["Crate", "File Path", "Lines", "Codebase Reality"];
@@ -294,6 +311,7 @@ pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String,
 
     // Section 5: Code Verification & Sandbox Reproducibility Evidence
     doc.push_str("## 4. Code Verification & Sandbox Reproducibility Evidence\n\n");
+    let allow_skip_doctest = input.status != "research" && input.training_eligible;
     for (i, probe) in input.sandbox_probes.iter().enumerate() {
         doc.push_str(&format!(
             "### Probe #{}: {} ({})\n\n",
@@ -301,14 +319,19 @@ pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String,
             probe.title,
             if probe.success { "PASSED" } else { "FAILED" }
         ));
+        let fence_lang = if !allow_skip_doctest && probe.language.eq_ignore_ascii_case("vox") {
+            "text"
+        } else {
+            probe.language.as_str()
+        };
         doc.push_str(&render_code_fence(
-            &probe.language,
+            fence_lang,
             &probe.original_snippet,
-            true,
+            allow_skip_doctest,
         ));
         if let Some(ref repaired) = probe.repaired_snippet {
             doc.push_str("\n**Self-Corrected Repair:**\n\n");
-            doc.push_str(&render_code_fence(&probe.language, repaired, true));
+            doc.push_str(&render_code_fence(fence_lang, repaired, allow_skip_doctest));
         }
         if !probe.compiler_output.is_empty() {
             doc.push_str("\n**Compiler Output:**\n\n");
@@ -344,6 +367,110 @@ pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String,
     }
 
     Ok(doc)
+}
+
+/// Pure in-memory frontmatter + `<!-- kb:summary -->` + fence validator aligned with
+/// `vox-doc-pipeline` governance rules for Architecture SSOT documents.
+pub fn validate_architecture_ssot_markdown(markdown: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let trimmed = markdown.trim_start();
+    let Some(after_start) = trimmed
+        .strip_prefix("---\n")
+        .or_else(|| trimmed.strip_prefix("---\r\n"))
+    else {
+        errors.push("missing YAML frontmatter opening `---`".to_string());
+        return errors;
+    };
+    let Some((frontmatter, body)) = after_start
+        .split_once("\n---\n")
+        .or_else(|| after_start.split_once("\r\n---\r\n"))
+    else {
+        errors.push("missing YAML frontmatter closing `---`".to_string());
+        return errors;
+    };
+
+    let get_fm = |key: &str| -> Option<String> {
+        let prefix = format!("{key}:");
+        frontmatter.lines().find_map(|line| {
+            let line = line.trim();
+            line.strip_prefix(&prefix).map(|rest| {
+                rest.trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .trim()
+                    .to_string()
+            })
+        })
+    };
+
+    for required in [
+        "title",
+        "description",
+        "category",
+        "status",
+        "topic",
+        "domain",
+        "authorship",
+    ] {
+        match get_fm(required) {
+            Some(v) if !v.is_empty() => {}
+            _ => errors.push(format!("missing or empty frontmatter key `{required}`")),
+        }
+    }
+
+    if let Some(cat) = get_fm("category")
+        && cat != "Architecture SSOTs"
+    {
+        errors.push(format!(
+            "category must be \"Architecture SSOTs\", got {cat:?}"
+        ));
+    }
+
+    let status_val = get_fm("status").unwrap_or_default();
+    const VALID_STATUS: &[&str] = &[
+        "approved",
+        "current",
+        "experimental",
+        "legacy",
+        "research",
+        "roadmap",
+        "deprecated",
+    ];
+    if !status_val.is_empty() && !VALID_STATUS.contains(&status_val.as_str()) {
+        errors.push(format!("invalid status {status_val:?}"));
+    }
+
+    if let Some(auth) = get_fm("authorship")
+        && (auth == "llm-assisted" || auth == "llm-generated")
+        && get_fm("authorship_model").is_none_or(|m| m.is_empty())
+    {
+        errors.push("missing `authorship_model` for LLM-assisted/generated doc".to_string());
+    }
+
+    let summary_body = body
+        .split("<!-- kb:summary -->")
+        .nth(1)
+        .and_then(|s| s.split("<!-- /kb:summary -->").next());
+    match summary_body {
+        Some(sb) => {
+            let wc = sb.split_whitespace().count();
+            if !(40..=120).contains(&wc) {
+                errors.push(format!(
+                    "<!-- kb:summary --> word count must be 40..=120, got {wc}"
+                ));
+            }
+        }
+        None => errors.push("missing `<!-- kb:summary -->` block".to_string()),
+    }
+
+    if markdown.contains("```mermaid") {
+        errors.push("forbidden `mermaid` fence detected; use `vox-diagram`".to_string());
+    }
+    if status_val == "research" && markdown.contains("// vox:skip") {
+        errors.push("research SSOT docs must not emit `// vox:skip`".to_string());
+    }
+
+    errors
 }
 
 #[cfg(test)]
@@ -396,5 +523,45 @@ mod tests {
             (40..=120).contains(&word_count),
             "expected 40..=120 words in kb:summary, got {word_count}"
         );
+    }
+
+    #[test]
+    fn test_research_ssot_emits_vox_diagram_and_validates_cleanly() {
+        let input = ArchitectureSsotInput {
+            slug: "research-doc".into(),
+            title: "Research SSOT".into(),
+            description: "Empirical research synthesis.".into(),
+            category: "Architecture SSOTs".into(),
+            status: "research".into(),
+            training_eligible: false,
+            training_rationale: None,
+            sort_order: None,
+            session_id: 9,
+            stability_score: 0.91,
+            executive_summary: "Grounded summary.".into(),
+            hypothesis: "Hypothesis evaluated.".into(),
+            empirical_outcome_summary: "Outcome verified.".into(),
+            codebase_refs: vec![],
+            competitive_matrix: vec![],
+            verified_claims: vec![],
+            sandbox_probes: vec![SandboxExecutionRecord {
+                title: "Probe".into(),
+                language: "vox".into(),
+                original_snippet: "fn ok() -> bool { true }".into(),
+                repaired_snippet: None,
+                compiler_output: "ok".into(),
+                success: true,
+            }],
+            gaps_and_recommendations: vec![],
+            roadmap_phases: vec![],
+            authorship_model: Some("vox-deep-research".into()),
+        };
+        let doc = render_architecture_ssot(&input).expect("render");
+        assert!(doc.contains("status: \"research\""));
+        assert!(doc.contains("```vox-diagram"));
+        assert!(!doc.contains("```mermaid"));
+        assert!(!doc.contains("// vox:skip"));
+        let errs = validate_architecture_ssot_markdown(&doc);
+        assert!(errs.is_empty(), "unexpected validation errors: {errs:?}");
     }
 }

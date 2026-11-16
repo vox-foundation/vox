@@ -24,7 +24,8 @@ test('create -> reprioritize -> cancel round-trip', async ({ page }) => {
   // Reprioritize to Urgent via the row's priority select (values: 2/1/0).
   const row = page.locator('tr', { hasText: 'Ship the release notes' });
   const prioritySelect = row.getByRole('combobox').first();
-  await prioritySelect.selectOption('2');
+  await prioritySelect.click();
+  await page.getByRole('option', { name: 'Urgent' }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -32,7 +33,7 @@ test('create -> reprioritize -> cancel round-trip', async ({ page }) => {
       ),
     )
     .toBe(1);
-  await expect(prioritySelect).toHaveValue('2'); // survives the post-action refresh (stateful mock)
+  await expect(prioritySelect).toContainText('Urgent');
 
   // Cancel removes the row.
   await row.getByTitle('Cancel task').click();

@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
-import { type UnlistenFn } from '@tauri-apps/api/event';
 import { ChatTranscript } from './ChatTranscript';
 import type { StreamItem } from '../../../types/dashboard';
 import { EmptyState } from '../../ui/EmptyState';
-import { Icon } from '../../ui/Icons';
+import { Icon, KeycapIcon } from '../../ui/Icons';
 import {
   ChatExecutionRail,
   countCompletedTurns,
@@ -16,7 +14,7 @@ import {
 } from './ChatExecutionRail';
 import type { RailRouting } from '../../../lib/routingSummary';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
-import { listPlanNodes } from '../../../transport';
+import { invokeCmd, listPlanNodes, termSessionList, termSessionOpen } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../../lib/domIds';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
@@ -43,11 +41,15 @@ import { EmbeddedSurfaceProvider } from '../../dashboard/EmbeddedSurfaceContext'
 import { useStore } from 'zustand';
 import { useLudusStore } from '../../gamify/store';
 import { Tooltip } from '../../ui/Tooltip';
+import { RomanMedallion, RomanBrassGauge } from '../../ui/RomanTooltip';
+import { RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import {
   getTerminalBridgeState,
+  publishTerminalBridgeState,
   subscribeTerminalBridge,
   type TerminalBridgeState,
 } from '../../../lib/terminalBridge';
+import { TerminalSessionPane } from '../Console/TerminalSessionPane';
 import {
   ALWAYS_CORE_DOCK_PANEL_IDS as ALWAYS_CORE,
   CORE_DOCK_PANEL_IDS as CORE_PANEL_IDS,
@@ -272,41 +274,42 @@ export function ApprovalsDockPanel(props: IDockviewPanelProps<{ pendingApprovals
 
 export function TerminalDockPanel(props: IDockviewPanelProps<{ onNavigate?: (viewKey: string) => void }>) {
   const [termState, setTermState] = useState<TerminalBridgeState>(() => getTerminalBridgeState());
+  useEffect(() => subscribeTerminalBridge(setTermState), []);
+
   useEffect(() => {
-    return subscribeTerminalBridge(setTermState);
-  }, []);
+    if (termState.activeSessionId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = typeof termSessionList === 'function' ? await termSessionList().catch(() => []) : [];
+        const sid =
+          Array.isArray(list) && list.length > 0 && list[0]?.id
+            ? list[0].id
+            : await termSessionOpen(80, 24);
+        if (!cancelled && sid) publishTerminalBridgeState({ activeSessionId: sid });
+      } catch {
+        // ignore offline/mock
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [termState.activeSessionId]);
 
   return (
-    <div data-testid="chat-dock-terminal" className="flex h-full flex-col overflow-hidden p-2 text-xs">
-      <div className="flex items-center justify-between border-b border-border-subtle pb-1.5 font-mono text-[11px]">
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-(--color-status-info)">
-            {termState.activeSessionId ? `term:${termState.activeSessionId}` : 'term:ready'}
-          </span>
-          <span className="text-text-muted">· {termState.blocks.length} blocks</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => props.params.onNavigate?.('console')}
-          className="text-brass hover:underline"
-        >
-          Open Console
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto pt-2 font-mono text-[11px] text-text-secondary">
-        {termState.blocks.length === 0 ? (
-          <div className="text-center text-text-muted">No terminal blocks recorded yet.</div>
-        ) : (
-          termState.blocks.slice(-5).map((block) => (
-            <div key={block.id} className="mb-2 rounded border border-border-subtle bg-overlay-subtle p-1.5">
-              <div className="font-semibold text-text-primary">$ {block.input}</div>
-              <pre className="max-h-20 overflow-y-auto whitespace-pre-wrap text-[11px] text-text-muted">
-                {block.output.map((c) => c.text).join('')}
-              </pre>
-            </div>
-          ))
-        )}
-      </div>
+    <div data-testid="chat-dock-terminal" className="flex h-full min-h-0 flex-col overflow-hidden bg-bg-surface text-xs">
+      <TerminalSessionPane
+        compact
+        autoOpenSession={false}
+        sessionId={termState.activeSessionId}
+        controlMode={termState.controlMode}
+        pinnedBlockIds={termState.pinnedBlockIds}
+        onSessionResolved={(sid) => publishTerminalBridgeState({ activeSessionId: sid })}
+        onBlocksChange={(blocks) => publishTerminalBridgeState({ blocks })}
+        onPinnedBlocksChange={(pinnedBlockIds) => publishTerminalBridgeState({ pinnedBlockIds })}
+        onControlSyncFromBackend={(controlMode) => publishTerminalBridgeState({ controlMode })}
+        onOpenConsole={() => props.params.onNavigate?.('console')}
+      />
     </div>
   );
 }
@@ -681,7 +684,7 @@ export function ChatSurface({
   const confirmSecretaryTask = async (payload: SecretaryProposedPayload) => {
     setSecretaryToast(null);
     try {
-      await invoke('secretary_confirm_task', {
+      await invokeCmd('secretary_confirm_task', {
         sessionId: payload.session_id,
         intent: payload.intent,
         activeSkill: activeSkillId ?? null,
@@ -826,8 +829,8 @@ export function ChatSurface({
 
   useEffect(() => {
     let cancelled = false;
-    invoke<{ energy?: number; max_energy?: number }>('get_ludus_profile')
-      .catch(() => invoke<{ energy?: number; max_energy?: number }>('gamify_profile'))
+    invokeCmd<{ energy?: number; max_energy?: number }>('get_ludus_profile')
+      .catch(() => invokeCmd<{ energy?: number; max_energy?: number }>('gamify_profile'))
       .then((prof) => {
         if (!cancelled && prof && typeof prof.energy === 'number') {
           setLudusEnergy({
@@ -901,6 +904,7 @@ export function ChatSurface({
           agentStreamItems={agentStreamItems}
           sessionId={activeId}
           onExcludeSkill={onExcludeSkill}
+          onNavigate={onNavigate}
         />
       )}
       {composer != null ? (
@@ -1175,11 +1179,16 @@ export function ChatSurface({
   const positionForActivation = (
     api: DockviewApi,
     def: (typeof panelDefs)[ChatDockPanelId],
-  ): { direction: 'right' | 'below'; referencePanel: string } | undefined => {
+  ): { direction: 'right' | 'below' | 'within'; referencePanel: string } | undefined => {
     const liveContainerWidth = dockRootRef.current?.clientWidth ?? 0;
+    const liveContainerHeight = dockRootRef.current?.clientHeight ?? 0;
     const isCompactDesktop = liveContainerWidth > 0 && liveContainerWidth < 1560;
+    const isShortViewport = liveContainerHeight > 0 && liveContainerHeight < 680;
     const last = activationOrderRef.current[activationOrderRef.current.length - 1];
     if (last && api.getPanel(last)) {
+      if (liveContainerWidth > 0 && (isShortViewport || activationOrderRef.current.length >= 3)) {
+        return { direction: 'within', referencePanel: last };
+      }
       const direction =
         isCompactDesktop || activationOrderRef.current.length >= OPT_IN_ROW_STACK_THRESHOLD
           ? 'below'
@@ -1187,7 +1196,10 @@ export function ChatSurface({
       return { direction, referencePanel: last };
     }
     if (isCompactDesktop && api.getPanel('executionRail')) {
-      return { direction: 'below', referencePanel: 'executionRail' };
+      return {
+        direction: isShortViewport ? 'within' : 'below',
+        referencePanel: 'executionRail',
+      };
     }
     const anchor = def.referenceChain.find(candidateId => api.getPanel(candidateId));
     return anchor ? { direction: 'right', referencePanel: anchor } : undefined;
@@ -1197,12 +1209,20 @@ export function ChatSurface({
   const addDefaultPanel = (api: DockviewApi, id: ChatDockPanelId) => {
     const def = panelDefs[id];
     const isOptIn = (OPT_IN_PANEL_IDS as readonly string[]).includes(id);
-    const position = isOptIn
-      ? positionForActivation(api, def)
-      : (() => {
-          const referencePanel = def.referenceChain.find(candidateId => api.getPanel(candidateId));
-          return referencePanel ? ({ direction: 'right', referencePanel } as const) : undefined;
-        })();
+    const liveDockH = dockRootRef.current?.clientHeight ?? 0;
+    const position =
+      liveDockH > 0 &&
+      liveDockH < 680 &&
+      id !== 'transcript' &&
+      id !== 'executionRail' &&
+      api.getPanel('executionRail')
+        ? ({ direction: 'within', referencePanel: 'executionRail' } as const)
+        : isOptIn
+          ? positionForActivation(api, def)
+          : (() => {
+              const referencePanel = def.referenceChain.find(candidateId => api.getPanel(candidateId));
+              return referencePanel ? ({ direction: 'right', referencePanel } as const) : undefined;
+            })();
     api.addPanel({
       id,
       component: id,
@@ -1294,9 +1314,32 @@ export function ChatSurface({
     api.getPanel('browser')?.update({ params: panelDefs.browser.params });
   });
 
+  useEffect(() => {
+    const el = dockRootRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const syncTranscriptFloor = () => {
+      const cw = el.clientWidth;
+      if (cw <= 0) return;
+      const minW = cw < 1050 ? Math.max(360, Math.floor(cw * 0.48)) : TRANSCRIPT_MIN_WIDTH_PX;
+      dockApiRef.current?.getPanel('transcript')?.api.setConstraints?.({ minimumWidth: minW });
+    };
+    syncTranscriptFloor();
+    const ro = new ResizeObserver(syncTranscriptFloor);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const applyWorkspacePreset = (presetPanels: ChatDockPanelId[]) => {
     const api = dockApiRef.current;
     if (!api) return;
+    const liveW = dockRootRef.current?.clientWidth ?? 0;
+    const liveH = dockRootRef.current?.clientHeight ?? 0;
+    if (liveW > 0 && liveW < 1050) {
+      api.getPanel('transcript')?.api.setConstraints?.({
+        minimumWidth: Math.max(360, Math.floor(liveW * 0.48)),
+      });
+    }
+    const isCompactMulti = liveH > 0 && liveH < 680;
     const targetSet = new Set<string>(['transcript', ...presetPanels]);
     api.panels.forEach((p) => {
       if (!targetSet.has(p.id)) {
@@ -1315,7 +1358,7 @@ export function ChatSurface({
       const position =
         addedRightIds.length === 0
           ? ({ direction: 'right', referencePanel: 'transcript' } as const)
-          : addedRightIds.length === 1
+          : addedRightIds.length === 1 && !isCompactMulti
             ? ({ direction: 'below', referencePanel: addedRightIds[0]! } as const)
             : ({ direction: 'within', referencePanel: addedRightIds[addedRightIds.length - 1]! } as const);
       api.addPanel({
@@ -1381,7 +1424,7 @@ export function ChatSurface({
       data-testid="chat-header-layout-presets"
       className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-border-subtle bg-overlay-solid/90 px-1.5 py-0.5 font-mono text-[11px]"
     >
-      <span className="px-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">Layout:</span>
+      <span className="px-1 text-[11px] uppercase tracking-[0.08em] text-text-muted max-[1023px]:hidden">Layout:</span>
       <button
         type="button"
         data-testid="chat-header-preset-focus"
@@ -1425,14 +1468,19 @@ export function ChatSurface({
         type="button"
         data-testid="urbs-tactical-map-toggle"
         onClick={toggleTacticalMapDock}
-        title="Toggle Split-Dock Tactical Map (⌘M / Alt+M)"
-        className={`whitespace-nowrap rounded px-2 py-0.5 transition ${
+        title="Toggle Split-Dock Tactical Map (Mod+M / Alt+M)"
+        className={`inline-flex items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 transition ${
           isTacticalMapOpen
             ? 'border border-brass/60 bg-brass/20 text-brass font-medium shadow-xs'
             : 'text-text-muted hover:bg-overlay-hover hover:text-brass'
         }`}
       >
-        🏛 Tactical Map ⌘M
+        <Icon.romanColumn className="size-3 shrink-0" aria-hidden="true" />
+        <span>Tactical Map</span>
+        <span className="inline-flex items-center gap-0.5 max-[1160px]:hidden">
+          <KeycapIcon keyName="Mod" className="size-3 shrink-0" />
+          <span>M</span>
+        </span>
       </button>
     </div>
   );
@@ -1450,7 +1498,10 @@ export function ChatSurface({
           onClick={() => setPanelsMenuOpen(o => !o)}
           className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-muted transition hover:border-brass/40 hover:text-brass"
         >
-          <span className="font-mono text-xs">Panels ▾</span>
+          <span className="inline-flex items-center gap-1 font-mono text-xs">
+            <span>Panels</span>
+            <Icon.chevronDown className="size-3 shrink-0" aria-hidden="true" />
+          </span>
         </button>
       </Tooltip>
       {panelsMenuOpen ? (
@@ -1582,13 +1633,20 @@ export function ChatSurface({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           data-testid="chat-top-header-bar"
-          className="mb-1.5 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle/80 bg-overlay-solid/85 px-3 py-1.5"
+          data-roman-frieze="true"
+          className="vox-animate-marble-sheen mb-1.5 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-brass/45 bg-overlay-solid/90 px-3 py-1.5 shadow-xs"
         >
           <div className="flex min-w-0 items-center gap-2 font-mono text-xs">
-            <span className="text-text-muted">Chat</span>
+            <RomanMedallion active size="sm">
+              <Icon.message className="size-3.5" aria-hidden="true" />
+            </RomanMedallion>
+            <span className="font-display font-semibold uppercase tracking-[0.13em] text-text-primary">Chat</span>
             <span className="text-text-muted">/</span>
             <span className="truncate font-medium text-text-primary">
               {activeId || 'Active Session'}
+            </span>
+            <span className="max-md:hidden">
+              <RomanWaxSealBadge label="LIVE" tone="emerald" />
             </span>
             {selectedDistrictFilter && (
               <button
@@ -1598,12 +1656,21 @@ export function ChatSurface({
                 className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-brass/50 bg-brass/15 px-2 py-0.5 font-mono text-[11px] font-medium text-brass hover:bg-brass/25"
                 title="Clear Urbs District Filter"
               >
-                <span>🏛 District Filter: {selectedDistrictFilter}</span>
+                <span>District Filter: {selectedDistrictFilter}</span>
                 <span aria-hidden="true">×</span>
               </button>
             )}
           </div>
           <div className="flex items-center gap-2">
+            <div className="max-xl:hidden">
+              <RomanBrassGauge
+                label="DOCKS"
+                valueText={`${openPanelIds.size} OPEN`}
+                ratio={Math.min(1, openPanelIds.size / 6)}
+                tone="gold"
+                purpose="Active docked workspace panels inside Chat"
+              />
+            </div>
             {layoutPresetsBar}
             {!tabBarTrailingSlot ? panelsMenu : null}
           </div>
@@ -1786,9 +1853,9 @@ export function ChatSurface({
                 type="button"
                 aria-label="Close routing panel"
                 onClick={() => setRoutingOpen(false)}
-                className="rounded-md border border-border-subtle px-2 py-1 font-mono text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                className="inline-flex items-center justify-center rounded-md border border-border-subtle px-2 py-1 font-mono text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
               >
-                ✕
+                <Icon.close className="size-3.5 shrink-0" aria-hidden="true" />
               </button>
             </div>
             {routingDrawerTab === 'matrix' ? (

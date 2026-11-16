@@ -205,6 +205,7 @@ pub fn resolution_for_tier(
             // "cloud" pick doesn't land on a weak model by the scorer's default.
             allow_cheapest_fallback: false,
             enforce_free_tier_only: false,
+            exclude_local_http: true,
             complexity: base.complexity.max(8),
             ..base
         },
@@ -315,6 +316,10 @@ pub(crate) struct PersistedSessionChatPosture {
     pub mode: Option<String>,
     #[serde(default)]
     pub execution_mode: Option<String>,
+    #[serde(default)]
+    pub research_mode: Option<String>,
+    #[serde(default)]
+    pub domain_mode: Option<String>,
     #[serde(default)]
     pub oversight_level: Option<String>,
     #[serde(default)]
@@ -590,5 +595,18 @@ mod tests {
             build_governance_context_hint(Some("plan"), Some("high"), None).as_deref(),
             Some("[EXECUTION GOVERNANCE]: mode=plan, oversight_level=high")
         );
+    }
+
+    #[test]
+    fn persisted_posture_roundtrips_research_and_domain_mode() {
+        let posture = PersistedSessionChatPosture {
+            research_mode: Some("deep".to_string()),
+            domain_mode: Some("scholarly".to_string()),
+            ..Default::default()
+        };
+        let raw = serde_json::to_string(&posture).expect("serialize");
+        let parsed: PersistedSessionChatPosture = serde_json::from_str(&raw).expect("deserialize");
+        assert_eq!(parsed.research_mode.as_deref(), Some("deep"));
+        assert_eq!(parsed.domain_mode.as_deref(), Some("scholarly"));
     }
 }

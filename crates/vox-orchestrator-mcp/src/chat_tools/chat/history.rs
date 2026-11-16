@@ -379,6 +379,8 @@ pub async fn chat_regenerate(state: &ServerState, args: serde_json::Value) -> St
             oversight_level: None,
             kb_scope: None,
             grounding_check_enabled: None,
+            research_mode: None,
+            waves: None,
         };
         return super::message::chat_message(state, params).await;
     }

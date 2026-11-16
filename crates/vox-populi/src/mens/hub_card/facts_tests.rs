@@ -3,14 +3,29 @@ use crate::mens::gate_policy::passing_collateral_report;
 use serde_json::json;
 use vox_eval::reasoning_bench::SLICE_SIZE;
 
-const PIN: &str = "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e";
+const PIN: &str = "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc"; // gitleaks:allow
+
+fn pin_for(size: &str) -> &'static str {
+    match size {
+        "0.8B" => "Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17", // gitleaks:allow
+        "0.6B" => "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",   // gitleaks:allow
+        "2B" => PIN,
+        "4B" => "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a", // gitleaks:allow
+        "9B" => "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a", // gitleaks:allow
+        "27B" => "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0", // gitleaks:allow
+        _ => PIN,
+    }
+}
 
 /// Write `files` (relative path, JSON) into a fresh run dir, optionally with weights, and load it.
 fn load(size: &str, adapter: bool, files: &[(&str, Value)]) -> RunRecords {
     let root = tempfile::tempdir().unwrap();
+    let pin = pin_for(size);
+    let slug = crate::mens::hub_repo::local_run_dir_for_size(pin)
+        .unwrap_or_else(|_| format!("mens/runs/qwen3-{}", size.to_ascii_lowercase()));
     let dir = root
         .path()
-        .join(format!("qwen3-{}", size.to_ascii_lowercase()));
+        .join(slug.strip_prefix("mens/runs/").unwrap_or(&slug));
     std::fs::create_dir_all(&dir).unwrap();
     if adapter {
         std::fs::write(dir.join("candle_qlora_adapter.safetensors"), b"").unwrap();
@@ -18,7 +33,7 @@ fn load(size: &str, adapter: bool, files: &[(&str, Value)]) -> RunRecords {
     for (rel, v) in files {
         std::fs::write(dir.join(rel), v.to_string()).unwrap();
     }
-    RunRecords::load(&dir, size, PIN)
+    RunRecords::load(&dir, size, pin)
 }
 
 fn trained_record(size: &str) -> Value {
@@ -45,12 +60,12 @@ fn passing_receipt() -> Value {
 
 #[test]
 fn stale_pass_is_needs_re_gate() {
-    // Shape of mens/runs/qwen3-1.7b: status pass, 32-item slices, no rule, pins or grader.
+    // Shape of a 2B run with retired 32-item slices and no rule, pins or grader.
     let rec = load(
-        "1.7B",
+        "2B",
         true,
         &[
-            ("train-record.json", trained_record("1.7B")),
+            ("train-record.json", trained_record("2B")),
             ("gate_receipt.json", passing_receipt()),
             (
                 "collateral_damage_report.json",
@@ -80,12 +95,12 @@ fn stale_pass_is_needs_re_gate() {
 
 #[test]
 fn no_collateral_is_not_evaluated() {
-    // Shape of mens/runs/qwen3-14b: trained, receipt written with missing gates, no collateral report.
+    // Shape of mens/runs/qwen3.5-9b: trained, receipt written with missing gates, no collateral report.
     let rec = load(
-        "14B",
+        "9B",
         true,
         &[
-            ("train-record.json", trained_record("14B")),
+            ("train-record.json", trained_record("9B")),
             (
                 "gate_receipt.json",
                 json!({
@@ -114,13 +129,13 @@ fn no_collateral_is_not_evaluated() {
 
 #[test]
 fn no_adapter_is_not_trained() {
-    // Shape of mens/runs/qwen3-32b: only a not_trained train-record.
+    // Shape of mens/runs/qwen3.8-27b: only a not_trained train-record.
     let rec = load(
-        "32B",
+        "27B",
         false,
         &[(
             "train-record.json",
-            json!({"status": "not_trained", "reason": "above non-fitting 4B (D-06)", "size": "32B"}),
+            json!({"status": "not_trained", "reason": "above 9B staging (v7.7)", "size": "27B"}),
         )],
     );
     let fact = gate_of(&rec);
@@ -129,7 +144,7 @@ fn no_adapter_is_not_trained() {
     assert_eq!(
         fact.blocker,
         Some(Blocker::NoAdapter {
-            record_reason: Some("above non-fitting 4B (D-06)".to_string())
+            record_reason: Some("above 9B staging (v7.7)".to_string())
         })
     );
 }
@@ -181,10 +196,10 @@ fn retired_rule_fail_reads_failed_and_quotes_refusal() {
 fn current_pass_is_passed() {
     let req = load_requirement(None).unwrap();
     let rec = load(
-        "1.7B",
+        "2B",
         true,
         &[
-            ("train-record.json", trained_record("1.7B")),
+            ("train-record.json", trained_record("2B")),
             ("gate_receipt.json", passing_receipt()),
             (
                 "collateral_damage_report.json",
@@ -202,10 +217,10 @@ fn current_pass_is_passed() {
 fn missing_requirement_fails_closed() {
     let req = load_requirement(None).unwrap();
     let mut rec = load(
-        "1.7B",
+        "2B",
         true,
         &[
-            ("train-record.json", trained_record("1.7B")),
+            ("train-record.json", trained_record("2B")),
             ("gate_receipt.json", passing_receipt()),
             (
                 "collateral_damage_report.json",
@@ -224,10 +239,10 @@ fn refused_receipt_gate_with_current_collateral_is_failed() {
     receipt["overall_passed"] = json!(false);
     receipt["gates"][2] = json!({"name": "pass_at_k", "passed": false, "block": true, "message": "pass@1=0.100 (min=0.250)"});
     let rec = load(
-        "1.7B",
+        "2B",
         true,
         &[
-            ("train-record.json", trained_record("1.7B")),
+            ("train-record.json", trained_record("2B")),
             ("gate_receipt.json", receipt),
             (
                 "collateral_damage_report.json",
@@ -394,5 +409,67 @@ mod checkpoints {
             Some(item_lines(LEGACY_CKPT))
         );
         assert_eq!(rec.adapter_serving, None);
+    }
+
+    #[test]
+    fn has_complete_merged_model_detects_single_and_sharded_recombined_full() {
+        let single = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(single.path().join("recombined_full")).unwrap();
+        std::fs::write(
+            single.path().join("recombined_full/model.safetensors"),
+            b"weights",
+        )
+        .unwrap();
+        let rec_single = RunRecords::load(single.path(), "4B", pin_for("4B"));
+        assert!(rec_single.has_complete_merged_model);
+        assert!(
+            rec_single
+                .merged_model_files
+                .iter()
+                .any(|f| f == "model.safetensors")
+        );
+
+        let sharded_index_only = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(sharded_index_only.path().join("recombined_full")).unwrap();
+        std::fs::write(
+            sharded_index_only
+                .path()
+                .join("recombined_full/model.safetensors.index.json"),
+            b"{}",
+        )
+        .unwrap();
+        let rec_index = RunRecords::load(sharded_index_only.path(), "9B", pin_for("9B"));
+        assert!(rec_index.has_complete_merged_model);
+
+        let sharded_full = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(sharded_full.path().join("recombined_full")).unwrap();
+        std::fs::write(
+            sharded_full
+                .path()
+                .join("recombined_full/model-00001-of-00002.safetensors"),
+            b"shard1",
+        )
+        .unwrap();
+        std::fs::write(
+            sharded_full
+                .path()
+                .join("recombined_full/model.safetensors.index.json"),
+            b"{}",
+        )
+        .unwrap();
+        let rec_sharded = RunRecords::load(sharded_full.path(), "27B", pin_for("27B"));
+        assert!(rec_sharded.has_complete_merged_model);
+        assert!(
+            rec_sharded
+                .merged_model_files
+                .iter()
+                .any(|f| f == "model-00001-of-00002.safetensors")
+        );
+        assert!(
+            rec_sharded
+                .merged_model_files
+                .iter()
+                .any(|f| f == "model.safetensors.index.json")
+        );
     }
 }

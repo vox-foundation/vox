@@ -28,6 +28,7 @@ Primary navigation:
 - Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
 - AgentOS / ACI SSOT: [`docs/src/architecture/agentos-ssot-2026.md`](docs/src/architecture/agentos-ssot-2026.md)
 - Agent discovery index: [`docs/src/.well-known/llms.txt`](docs/src/.well-known/llms.txt)
+- **Surfacing UI & Documentation in Agent Decisions:** When answering user questions, designing features, or routing capabilities, consult the in-repo GUI surface catalog ([`crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`](crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts) and [`crates/vox-gui/README.md`](crates/vox-gui/README.md)), the unified CLI/MCP/GUI capability index (`vox explain <thing>`, `vox features --domain <d>`, MCP `vox_capability_explain` / `vox_capability_features` / `vox_search_query`), and the documentation engine ([`docs-astro/README.md`](docs-astro/README.md) and `docs/src/`) so relevant Vox Axis GUI views (all 32 `SURFACE_REGISTRY` surfaces) and docs are proactively surfaced to the operator.
 
 ## Research and Documentation Storage (IDE Agent Directive)
 
@@ -744,22 +745,22 @@ interception work in the first place.
 
 ## Multi-Repository Federation & Cross-Repo Documentation Sync (Required, SSOT)
 
-Vox is federated across four sibling repositories under the **`vox-foundation`** GitHub organization (local workspace root `~/dev/`):
+Vox is federated across four sibling repositories under the **`vox-foundation`** GitHub organization (default sibling layout under a shared parent directory):
 
 | Repository | GitHub Target | Local Checkout | Primary Role & Deployment Binding |
 |---|---|---|---|
-| **`vox`** | `vox-foundation/vox` *(public)* | `/Users/brbrainerd/dev/vox` | Core compiler, runtime, CLI, MCP server, MENS ML studio, and canonical architecture/contract SSOT (`docs/src/`, `contracts/`). |
-| **`vox-axis`** | `vox-foundation/vox-axis` *(public)* | `/Users/brbrainerd/dev/vox-axis` | Desktop Tauri 2 operator console (`vox-gui` + React/Vite frontend `ui/`, 32 `SURFACE_REGISTRY` views, animated `.webp` tours, real generated `.webp` architecture diagrams). |
-| **`voxlang.org`** | `vox-foundation/voxlang.org` *(public)* | `/Users/brbrainerd/dev/voxlang.org` | Public Astro + Starlight documentation site (deployed to **Cloudflare Pages** `voxlang.org`) + **Coolify** `/v1/eval` browser sandbox (`vox-eval.compose.yml` -> `eval.voxlang.org`). |
-| **`vox-ops`** | `vox-foundation/vox-ops` *(private)* | `/Users/brbrainerd/dev/vox-ops` | Private telemetry ingestion (`vox-ops-telemetry-ingest`), fleet orchestration, and **Coolify** `telemetry.voxlang.org` stack (`docker/vox-telemetry.compose.yml`). Never push public. |
+| **`vox`** | `vox-foundation/vox` *(public)* | `.` | Core compiler, runtime, CLI, MCP server, MENS ML studio, and canonical architecture/contract SSOT (`docs/src/`, `contracts/`). |
+| **`vox-axis`** | `vox-foundation/vox-axis` *(public)* | `../vox-axis` | Desktop Tauri 2 operator console (`vox-gui` + React/Vite frontend `ui/`, 32 `SURFACE_REGISTRY` views, animated `.webp` tours, real generated `.webp` architecture diagrams). |
+| **`voxlang.org`** | `vox-foundation/voxlang.org` *(public)* | `../voxlang.org` | Public Astro + Starlight documentation site (deployed to **Cloudflare Pages** `voxlang.org`) + **Coolify** `/v1/eval` browser sandbox (`vox-eval.compose.yml` -> `eval.voxlang.org`). |
+| **`vox-ops`** | `vox-foundation/vox-ops` *(private)* | `../vox-ops` | Private telemetry ingestion (`vox-ops-telemetry-ingest`), fleet orchestration, and **Coolify** `telemetry.voxlang.org` stack (`docker/vox-telemetry.compose.yml`). Never push public. |
 
 ### Cross-Repo Agent Rules (Enforced Across All 4 Repos)
 
-1. **Always-Loaded Context Awareness:** Every repository has its own `AGENTS.md` (and `CLAUDE.md` symlink), plus the parent workspace hub at `/Users/brbrainerd/dev/AGENTS.md`. Before changing shared contracts, CLI commands, MCP tools, GUI surfaces, or docs layouts, read [`docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md`](docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md) and [`docs/src/architecture/cross-repo-federation-and-standalone-sovereignty-ssot-2026.md`](docs/src/architecture/cross-repo-federation-and-standalone-sovereignty-ssot-2026.md).
+1. **Always-Loaded Context Awareness:** Every repository has its own `AGENTS.md` (and `CLAUDE.md` symlink), plus the optional parent workspace hub at `../AGENTS.md`. Before changing shared contracts, CLI commands, MCP tools, GUI surfaces, or docs layouts, read [`docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md`](docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md) and [`docs/src/architecture/cross-repo-federation-and-standalone-sovereignty-ssot-2026.md`](docs/src/architecture/cross-repo-federation-and-standalone-sovereignty-ssot-2026.md).
 2. **Keep Documentation & Visual Tours Up to Date:**
-   - When adding or modifying a GUI surface in `vox-axis` (`crates/vox-gui/ui/src/lib/surfaceRegistry.ts`), update the screen catalog in `/Users/brbrainerd/dev/vox-axis/README.md` (and `/Users/brbrainerd/dev/vox/crates/vox-gui/README.md`), re-capture Playwright screenshots (`assets/screens/*.png`), and regenerate the animated `.webp` tours (`assets/tours/*.webp`).
+   - When adding or modifying a GUI surface in `vox-axis` (`crates/vox-gui/ui/src/lib/surfaceRegistry.ts`), update the screen catalog in `../vox-axis/README.md` (and `crates/vox-gui/README.md`), re-capture Playwright screenshots (`assets/screens/*.png`), and regenerate the animated `.webp` tours (`assets/tours/*.webp`).
    - Architecture diagrams in repository READMEs (`assets/diagrams/*.webp`) MUST be real generated raster graphics (`.webp` / `.png`), **never hand-drawn `.svg` files**.
-   - When changing `docs-astro/` or Coolify `/v1/eval` (`vox-eval.compose.yml`), sync with `/Users/brbrainerd/dev/voxlang.org` so Cloudflare Pages (`voxlang.org`) and Coolify (`eval.voxlang.org`) stay in lockstep.
+   - When changing `docs-astro/` or Coolify `/v1/eval` (`vox-eval.compose.yml`), sync with `../voxlang.org` so Cloudflare Pages (`voxlang.org`) and Coolify (`eval.voxlang.org`) stay in lockstep.
 3. **Verification Gates Before Push:**
    - Run `vox ci cross-repo-parity`, `vox ci federated-symbol-graph`, and `vox ci standalone-sovereignty` to verify contract SHA-256 parity, zero cross-repo broken symbol edges, and zero runtime server dependencies in `vox`.
    - All public GitHub pushes MUST target `https://github.com/vox-foundation/<repo>.git` (never personal `brbrainerd/*` namespaces).

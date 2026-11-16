@@ -40,6 +40,12 @@ The stdlib-only worker package lives in `worker/vox_bridge/`.
 
 ## Public API Surface
 
+### Modules
+
+| Module | Description |
+|---|---|
+| `frame_stream` | — |
+
 ### Structs
 
 | Struct | Description |
@@ -84,10 +90,24 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `struct` | `BridgeConfig` | `pub struct BridgeConfig` | [`crates/vox-python-bridge/src/lib.rs#L31-L36`](../../../crates/vox-python-bridge/src/lib.rs#L31-L36) | Worker spawn and protocol limits. `worker_cmd` selects the real interpreter or a test double; it is argv, never a shell string. |
-| `struct` | `HandleRef` | `pub struct HandleRef` | [`crates/vox-python-bridge/src/lib.rs#L51-L56`](../../../crates/vox-python-bridge/src/lib.rs#L51-L56) | One worker-resident object. A generation from a dead worker is stale. |
-| `struct` | `Reply` | `pub struct Reply` | [`crates/vox-python-bridge/src/lib.rs#L60-L63`](../../../crates/vox-python-bridge/src/lib.rs#L60-L63) | Successful reply. `value` is the JSON result payload; `body` is opaque. |
-| `enum` | `BridgeError` | `pub enum BridgeError` | [`crates/vox-python-bridge/src/lib.rs#L66-L71`](../../../crates/vox-python-bridge/src/lib.rs#L66-L71) | — |
-| `fn` | `protocol` | `pub fn protocol(msg: impl Into<String>) -> Self` | [`crates/vox-python-bridge/src/lib.rs#L74-L76`](../../../crates/vox-python-bridge/src/lib.rs#L74-L76) | — |
-| `fn` | `worker_root` | `pub fn worker_root() -> std::path::PathBuf` | [`crates/vox-python-bridge/src/lib.rs#L80-L82`](../../../crates/vox-python-bridge/src/lib.rs#L80-L82) | Directory that contains the `vox_bridge` package. Put it on `PYTHONPATH`. |
+| `struct` | `BridgeConfig` | `pub struct BridgeConfig` | [`crates/vox-python-bridge/src/lib.rs#L36-L41`](../../../crates/vox-python-bridge/src/lib.rs#L36-L41) | Worker spawn and protocol limits. `worker_cmd` selects the real interpreter or a test double; it is argv, never a shell string. |
+| `struct` | `HandleRef` | `pub struct HandleRef` | [`crates/vox-python-bridge/src/lib.rs#L58-L63`](../../../crates/vox-python-bridge/src/lib.rs#L58-L63) | One worker-resident object. A generation from a dead worker is stale. |
+| `struct` | `Reply` | `pub struct Reply` | [`crates/vox-python-bridge/src/lib.rs#L67-L70`](../../../crates/vox-python-bridge/src/lib.rs#L67-L70) | Successful reply. `value` is the JSON result payload; `body` is opaque. |
+| `enum` | `BridgeError` | `pub enum BridgeError` | [`crates/vox-python-bridge/src/lib.rs#L73-L78`](../../../crates/vox-python-bridge/src/lib.rs#L73-L78) | — |
+| `fn` | `protocol` | `pub fn protocol(msg: impl Into<String>) -> Self` | [`crates/vox-python-bridge/src/lib.rs#L81-L83`](../../../crates/vox-python-bridge/src/lib.rs#L81-L83) | — |
+| `fn` | `worker_root` | `pub fn worker_root() -> std::path::PathBuf` | [`crates/vox-python-bridge/src/lib.rs#L87-L89`](../../../crates/vox-python-bridge/src/lib.rs#L87-L89) | Directory that contains the `vox_bridge` package. Put it on `PYTHONPATH`. |
+| `fn` | `frame_stream::clamp_frame_batch_size` | `pub fn clamp_frame_batch_size(requested: usize) -> usize` | [`crates/vox-python-bridge/src/frame_stream.rs#L20-L26`](../../../crates/vox-python-bridge/src/frame_stream.rs#L20-L26) | — |
+| `struct` | `frame_stream::FrameFieldSchema` | `pub struct FrameFieldSchema` | [`crates/vox-python-bridge/src/frame_stream.rs#L29-L33`](../../../crates/vox-python-bridge/src/frame_stream.rs#L29-L33) | — |
+| `struct` | `frame_stream::FrameSchemaManifest` | `pub struct FrameSchemaManifest` | [`crates/vox-python-bridge/src/frame_stream.rs#L36-L40`](../../../crates/vox-python-bridge/src/frame_stream.rs#L36-L40) | — |
+| `struct` | `frame_stream::FrameChunkPage` | `pub struct FrameChunkPage` | [`crates/vox-python-bridge/src/frame_stream.rs#L43-L52`](../../../crates/vox-python-bridge/src/frame_stream.rs#L43-L52) | — |
+| `struct` | `frame_stream::FrameChunkCursor` | `pub struct FrameChunkCursor` | [`crates/vox-python-bridge/src/frame_stream.rs#L66-L77`](../../../crates/vox-python-bridge/src/frame_stream.rs#L66-L77) | Incremental `O(batch_size)` cursor over an Arrow IPC stream or RFC-4180 CSV reader. |
+| `fn` | `frame_stream::from_arrow_ipc_reader` | `pub fn from_arrow_ipc_reader<R: Read + Send + 'static>(` | [`crates/vox-python-bridge/src/frame_stream.rs#L102`](../../../crates/vox-python-bridge/src/frame_stream.rs#L102) | — |
+| `fn` | `frame_stream::from_arrow_ipc_bytes` | `pub fn from_arrow_ipc_bytes(bytes: Vec<u8>, batch_size: usize) -> Result<Self, BridgeError>` | [`crates/vox-python-bridge/src/frame_stream.rs#L126-L128`](../../../crates/vox-python-bridge/src/frame_stream.rs#L126-L128) | — |
+| `fn` | `frame_stream::from_csv_reader` | `pub fn from_csv_reader<R: BufRead + Send + 'static>(` | [`crates/vox-python-bridge/src/frame_stream.rs#L130`](../../../crates/vox-python-bridge/src/frame_stream.rs#L130) | — |
+| `fn` | `frame_stream::schema_manifest` | `pub fn schema_manifest(&self) -> FrameSchemaManifest` | [`crates/vox-python-bridge/src/frame_stream.rs#L154-L160`](../../../crates/vox-python-bridge/src/frame_stream.rs#L154-L160) | — |
+| `fn` | `frame_stream::batch_size` | `pub fn batch_size(&self) -> usize` | [`crates/vox-python-bridge/src/frame_stream.rs#L163-L165`](../../../crates/vox-python-bridge/src/frame_stream.rs#L163-L165) | — |
+| `fn` | `frame_stream::rows_emitted` | `pub fn rows_emitted(&self) -> usize` | [`crates/vox-python-bridge/src/frame_stream.rs#L168-L170`](../../../crates/vox-python-bridge/src/frame_stream.rs#L168-L170) | — |
+| `fn` | `frame_stream::is_exhausted` | `pub fn is_exhausted(&self) -> bool` | [`crates/vox-python-bridge/src/frame_stream.rs#L173-L175`](../../../crates/vox-python-bridge/src/frame_stream.rs#L173-L175) | — |
+| `fn` | `frame_stream::next_chunk` | `pub fn next_chunk(&mut self) -> Result<Option<FrameChunkPage>, BridgeError>` | [`crates/vox-python-bridge/src/frame_stream.rs#L177-L187`](../../../crates/vox-python-bridge/src/frame_stream.rs#L177-L187) | — |
+| `fn` | `frame_stream::read_page` | `pub fn read_page(` | [`crates/vox-python-bridge/src/frame_stream.rs#L189`](../../../crates/vox-python-bridge/src/frame_stream.rs#L189) | — |
 

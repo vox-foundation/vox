@@ -31,6 +31,7 @@ export const LEXICON: Record<string, LexEntry> = {
   'explorer-title': { en: 'Capability Explorer', la: 'Facultatum Explorator' },
   flow: { en: 'Flow', la: 'Fluxus' },
   gamify: { en: 'Gamify', la: 'Ludus' },
+  gsd: { en: 'GSD', la: 'Perfectio' },
   harness: { en: 'Harness', la: 'Apparatus' },
   'harness-health': { en: 'Harness Health', la: 'Salus Apparatus' },
   matrix: { en: 'Routing', la: 'Itinera' },

@@ -31,6 +31,9 @@ pub fn quantize(req: &QuantizeRequest) -> Result<QuantReport, QuantizeError> {
     let mut total_quant: u64 = 0;
 
     for name in src.tensor_names() {
+        if crate::policy::is_vision_or_mtp_key(name) {
+            continue;
+        }
         let t = src.load_f32(name)?;
         let shape = t.dims().to_vec();
         let params: usize = shape.iter().product();

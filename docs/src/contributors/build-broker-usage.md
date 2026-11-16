@@ -1,180 +1,129 @@
 ---
 title: "Build broker — machine-wide cargo coordination"
-description: "How the vox-cargo-shim build broker caps concurrent cargo builds machine-wide, its tunables, install steps, and how to inspect its audit log with vox-broker."
+description: "How the vox-cargo-shim build broker serializes per-target builds, coalesces duplicate in-flight checks/tests, auto-discovers sccache, and enforces post-queue timeouts."
 category: "Contributors"
+status: "current"
+topic: "build-system"
+domain: "platform"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-7"
 ---
 
 # Build broker (machine-wide cargo coordination)
 
-When many agents / IDE tabs / git hooks build across many worktrees on one
-machine, they (a) pile up on cargo's `target` and global package-cache locks and
-(b) saturate CPU/RAM/IO. The build broker is a `cargo`-named shim that puts every
-build through a **machine-wide concurrency cap** so at most _N_ cargo builds run
-at once, turning a 13-way pileup into an orderly, observable queue — without a
-daemon.
+<!-- kb:summary -->
+Explains how the daemonless `vox-cargo-shim` build broker eliminates multi-agent `target/.cargo-lock` contention across worktrees. The shim runs a four-stage pipeline: leader-follower flight coalescing under `inflight/flights/`, per-target `FairQueue` serialization under `targets/<target_hash>/` before global slot acquisition, adaptive machine-wide concurrency slots under `slots/slot_*`, and post-queue process-group execution with `VOX_BROKER_RUN_TIMEOUT_SECS`. Covers zero-config `sccache` discovery, opt-in `VOX_WORKSTREAM` target isolation, multi-package `cargo test -p` batching, and read-only `vox-broker` telemetry inspection.
+<!-- /kb:summary -->
 
-## How it works
+When many agents, IDE tabs, and verification jobs build across worktrees on one machine, they pile up on Cargo's `target/.cargo-lock` and package-cache locks while saturating CPU, RAM, and disk I/O. The build broker is a daemonless `cargo`-named shim (`crates/vox-cargo-shim`) placed on `PATH` ahead of the rustup proxy so concurrent builds coordinate through a deterministic, observable four-stage pipeline.
 
-`crates/vox-cargo-shim` builds a binary literally named `cargo`. Placed on PATH
-ahead of the rustup proxy, it intercepts `build`/`test`/`check`/`clippy`/`run`/
-`bench`, acquires one of _N_ global slots (a cross-process file-lock semaphore),
-runs the **real** cargo (the rustup proxy, so `rust-toolchain.toml` / `+toolchain`
-still work), records a metric, and releases the slot. Everything else — or any
-error — falls straight through to real cargo. It is never a hard dependency.
+## Four-stage admission pipeline
 
-State lives **outside any repo** at `~/.vox/build-broker/` (overridable via
-`VOX_BROKER_HOME`) so concurrent agents' `git clean`/checkout can't wipe it:
+Every intercepted `build`, `test`, `check`, `clippy`, `run`, or `bench` invocation passes through four ordered stages before invoking the real toolchain `cargo` (preserving `rust-toolchain.toml` and `+toolchain` overrides):
 
-- `slots/slot_*` — the N-slot semaphore.
-- `inflight/*` — in-flight build identities (for coalescing metrics).
-- `metrics.jsonl` — one record per build (machine-readable).
-- `broker.log` — one human-readable line per build (every worktree, one place).
+1. **Stage A — In-flight leader-follower coalescing (`inflight/flights/`):** After computing the child environment (`sccache` discovery and optional workstream target isolation) and canonical `CARGO_TARGET_DIR`, the shim hashes `(effective_subcmd, argv_hash, env_hash, target_hash, cwd_hash, toolchain)`. Eligible `check`, `build`, `clippy`, `test`, and `cargo run` build-phase invocations attach directly to an active leader's unlocked per-flight `.stdout`/`.stderr`/`.exit` streams guarded by a 0-byte `fs2`-locked `.lock` file without claiming any queue ticket or global slot. Coalescing automatically invalidates when workspace source, manifest, contract, or directory mtimes advance, and skips `--message-format*` calls or snapshot-mutating test runs (`INSTA_UPDATE`, `UPDATE_EXPECT`, `SNAPSHOT_UPDATE`, `TRYBUILD=overwrite`).
+2. **Stage B — Per-target `FairQueue` (`targets/<target_hash>/`):** Callers targeting the same canonical `CARGO_TARGET_DIR` serialize in FIFO ticket order **before** acquiring a machine-wide concurrency slot, keeping global slots free for independent worktrees or isolated `--target-dir` builds. Immediately after `FairQueue::acquire`, a queued duplicate replays a fresh leader receipt (`try_replay_recent_leader`) in `0ms` without taking a global slot.
+3. **Stage C — Adaptive machine-wide slot cap (`slots/slot_*` and `inflight/`):** Once at the head of its target queue, the leader claims an adaptive cross-process file-lock slot bounded by host parallelism, 1-minute load average, and `VOX_BROKER_RESERVED_SLOTS`.
+4. **Stage D — Post-queue process-group runner (`runner`):** Active execution starts inside an isolated process group (`process_group(0)` on Unix; `CREATE_NO_WINDOW` + `taskkill /T /F` tree reaper on Windows). The `VOX_BROKER_RUN_TIMEOUT_SECS` timer begins strictly **after** Stages B and C complete; for `cargo run`, once the brokered build step exits `0`, the shim hands off to real `cargo run` via `exec_real` outside broker locks.
 
-Safety: prefers the `~/.cargo/bin` proxy and skips sibling shim copies; a hard
-`VOX_BROKER_DEPTH` guard aborts at depth ≥ 2 so a misconfiguration can never
-fork-bomb.
+State lives outside any checkout at `~/.vox/build-broker/` (overridable via `VOX_BROKER_HOME`) so `cargo clean` and `git clean` never wipe active locks or history:
 
-## Tunables (env)
+- `targets/<target_hash>/` — per-target FIFO ticket markers and `run.lock`.
+- `inflight/flights/` — 0-byte `.lock` files paired with unlocked `.meta`, `.stdout`, `.stderr`, and `.exit` coalescing artifacts.
+- `inflight/*` — top-level active build markers for concurrency accounting.
+- `slots/slot_*` — machine-wide N-slot file-lock semaphore.
+- `metrics.jsonl` — backward-compatible JSONL telemetry records.
+- `broker.log` — human-readable per-build audit lines across all worktrees.
 
-- **Admission adapts to the machine.** The first build always starts. Another starts only
-  while the 1-minute load average is below the machine's available parallelism (some cores
-  are idle); otherwise it waits. Where the OS reports no load average, builds run one at a
-  time. There is no fixed default count.
-- `VOX_BROKER_MAX_CONCURRENT` — optional upper bound on simultaneous builds. Unset, the
-  bound is the machine's available parallelism, and load decides.
-- `VOX_BROKER_RESERVED_SLOTS` — slots subtracted from the host cap for a build
-  domain the file-lock semaphore cannot see, chiefly a containerised CI runner
-  sharing this host's CPU/RAM but not its mount namespace (the broker's
-  `flock`-based semaphore is invisible across that boundary, so a container's
-  builds would otherwise run uncounted alongside the host's). Effective cap is
-  `max(1, base_cap - reserved)` — it never drops to 0, since a cap of 0 slots
-  would spin forever. Applies after `VOX_BROKER_MAX_CONCURRENT` too: an
-  explicit override is still reduced by the reservation. A non-numeric or
-  negative value is ignored (treated as 0). Default: 0 (no reservation).
-- `VOX_BROKER_HOME` — relocate broker state (tests / isolation).
-- `VOX_BROKER_DEBUG` — print resolution and exit without building.
+Safety: the shim prefers the `~/.cargo/bin` rustup proxy, skips sibling copies in its own directory, and enforces a hard `VOX_BROKER_DEPTH` guard that aborts with exit `70` at depth `>= 2` so a misconfigured `PATH` never fork-bombs.
+
+## Tunables (env and CLI)
+
+- **Adaptive slot sizing (default):** The first build always starts; additional builds start while the 1-minute load average stays below host parallelism. On platforms without load-average reporting, builds serialize one at a time unless overridden.
+- `VOX_BROKER_MAX_CONCURRENT` — optional upper bound on simultaneous machine-wide builds (default: available host parallelism modulated by load).
+- `VOX_BROKER_RESERVED_SLOTS` — slots subtracted from the host cap (`max(1, base_cap - reserved)`) for containerized runners sharing CPU/RAM across a separate mount namespace. Non-numeric or negative values are treated as `0`.
+- `VOX_BROKER_HOME` — relocate broker state directory (default: `~/.vox/build-broker`, used for test isolation).
+- `VOX_BROKER_DEBUG` — print resolved shim/toolchain/argument metadata to stderr and exit `0` without building.
+- `VOX_BROKER_NO_SCCACHE=1` — disable automatic `RUSTC_WRAPPER=sccache` injection. When unset and `RUSTC_WRAPPER` is not already defined in the caller environment, the shim scans `PATH` for `sccache` and injects it automatically (never commit hardcoded `[build] rustc-wrapper` or `[env] RUSTC_WRAPPER` in `.cargo/config.toml`; enforced by `vox ci dev-loop-guard`).
+- `VOX_BROKER_COALESCE=0` — disable Stage A/B leader-follower flight coalescing (`1`/unset enables coalescing for eligible subcommands).
+- `VOX_ISOLATED_TARGET=1` and `VOX_WORKSTREAM=<slug>` — opt-in workstream target isolation. When no explicit `--target-dir`, `--manifest-path`, or non-empty `CARGO_TARGET_DIR` is supplied, the shim routes `CARGO_TARGET_DIR` to `<worktree>/target/ws-<slug>` (or reads an ASCII `[A-Za-z0-9_-]{1,48}` slug from `<worktree>/.vox/agent-target`). When both isolated target routing and `sccache` are active, the shim sets `CARGO_INCREMENTAL=0` (if unset) so crate artifacts share `.sccache` across workstreams.
+- `VOX_BROKER_RUN_TIMEOUT_SECS=<secs>` (alias `VOX_BROKER_BUILD_TIMEOUT_SECS=<secs>`) and CLI flag `--broker-run-timeout <secs>` — post-queue active execution timeout (precedence: `--broker-run-timeout` > `VOX_BROKER_RUN_TIMEOUT_SECS` > `VOX_BROKER_BUILD_TIMEOUT_SECS`; `0` or unset disables). Starts counting strictly after `target_wait` and `slot_wait` finish; on expiry, kills the child process tree and returns exit code `124`. Keep outer `timeout 900s` only as a coarse wall-clock backstop.
+
+## Batching multi-package checks and tests
+
+Even with per-target `FairQueue` fairness, invoking Cargo `N` times sequentially re-parses workspace metadata and re-acquires `target/.cargo-lock` `N` times. Combine independent package checks or unit/integration test targets into a single batched Cargo command:
+
+```sh
+VOX_BROKER_RUN_TIMEOUT_SECS=300 cargo test -p vox-build-queue -p vox-cli-ci --lib --tests
+```
+
+For PowerShell sessions on Windows, set the post-queue timeout before running the batched command:
+
+```powershell
+$env:VOX_BROKER_RUN_TIMEOUT_SECS = "300"
+cargo test -p vox-build-queue -p vox-cli-ci --lib --tests
+```
 
 ## Install (per machine, git-proof)
 
-The installer is dry-run by default — it prints exactly what it would do and
-changes nothing until you pass `--apply`. Prepending a binary literally named
-`cargo` onto PATH is a machine-wide change, so always look at the plan first:
+The installer defaults to dry-run mode and prints its plan without modifying disk until `--apply` is passed:
 
 ```sh
 vox run scripts/broker-install.vox              # dry run: prints the plan, touches nothing
-vox run scripts/broker-install.vox -- --apply   # builds, installs, and edits your shell profile
+vox run scripts/broker-install.vox -- --apply   # builds, installs cargo + vox-broker, updates shell profile
 ```
 
-`--apply` builds `vox-cargo-shim` in release mode, copies every binary it
-produces into `${VOX_BROKER_HOME:-$HOME/.vox/build-broker}/bin/` (preserving
-the exec bit), installs a copy of the installer itself alongside it (so a
-later remediation step has an absolute, checkout-free path to re-run), and
-idempotently prepends that `bin/` dir to `PATH` **ahead of `~/.cargo/bin`** in
-your detected login-shell profile (zsh → `.zshrc`; bash → `.bash_profile` on
-macOS / `.bashrc` on Linux; fish → `.config/fish/config.fish`; anything else →
-`.profile`). The PATH block is delimited by fixed marker comments
-(`# >>> vox build broker >>>` / `# <<< vox build broker <<<`) so re-running
-`--apply` replaces the block in place instead of duplicating it. The profile
-is written via a temp file + atomic `mv` and is never truncated — if the
-detected profile doesn't exist yet, the installer creates it and says so.
+Passing `--apply` builds `crates/vox-cargo-shim` in release mode, copies every produced binary (`cargo` and `vox-broker`, with `.exe` on Windows) plus a self-install copy of `broker-install.vox` into `${VOX_BROKER_HOME:-$HOME/.vox/build-broker}/bin/`, and idempotently prepends that `bin/` directory ahead of `~/.cargo/bin` in your login-shell profile using `# >>> vox build broker >>>` / `# <<< vox build broker <<<` markers via atomic temp-file replacement.
 
-Useful flags:
+Useful installer flags:
 
-- `--profile <path>` — write the PATH block to this file instead of the
-  auto-detected profile. Mainly for testing in an isolated temp file.
-- `--no-profile` — install the binaries but make no profile edit (you'll add
-  the directory to PATH yourself).
-- `--help` — usage.
+- `--profile <path>` — write the `PATH` marker block to an explicit file (useful for isolated testing).
+- `--no-profile` — install binaries into `$VOX_BROKER_HOME/bin` without editing any shell profile.
+- `--help` — print options and broker environment tunables.
 
-**Manual fallback**, if you'd rather not run the script (or the crate's set
-of `[[bin]]` targets has grown since this doc was written — enumerate them
-from `crates/vox-cargo-shim/Cargo.toml` rather than assuming just `cargo`):
+Manual fallback (using `--manifest-path` because `crates/vox-cargo-shim` is intentionally excluded from the root `[workspace]`):
 
 ```sh
 cargo build --release --manifest-path crates/vox-cargo-shim/Cargo.toml
 mkdir -p ~/.vox/build-broker/bin
-cp target/release/cargo[.exe] ~/.vox/build-broker/bin/
+cp target/release/cargo target/release/vox-broker ~/.vox/build-broker/bin/
 ```
-
-(`-p vox-cargo-shim` does not resolve here — the crate is excluded from the
-main workspace so its `cargo`-named binary can't be entangled in the
-workspace's own cargo resolution — hence `--manifest-path`.)
 
 ## Activate (per environment)
 
-Prepend the shim dir to PATH **ahead of `~/.cargo/bin`** so cargo invocations are
-intercepted. `vox run scripts/broker-install.vox -- --apply` does the
-POSIX-shell-profile route below for you; the IDE / Windows routes still need
-manual setup:
+Prepend the shim directory to `PATH` ahead of `~/.cargo/bin` so bare `cargo` invocations route through the broker:
 
-- **POSIX shells (macOS / Linux):** `vox run scripts/broker-install.vox -- --apply` adds
-  an `export PATH="…/.vox/build-broker/bin:$PATH"` block to your `.zshrc`,
-  `.bash_profile`/`.bashrc`, or `.config/fish/config.fish` (fish uses
-  `set -gx PATH … $PATH`, not `export`). This covers all future-launched
-  shells and agents.
-- **Persistent user scope (Windows):** prepend `…\.vox\build-broker\bin` to
-  the user `PATH` env var (covers all future-launched shells/agents).
-- **VS Code / Cursor / Antigravity / Windsurf:** add the same dir to
-  `terminal.integrated.env.osx.PATH`, `terminal.integrated.env.linux.PATH`, or
-  `terminal.integrated.env.windows.PATH` (pick the one matching your OS) for
-  live, already-running IDEs (applies to newly spawned terminals — reload the
-  window or open a new terminal).
+- **POSIX shells (macOS / Linux):** `vox run scripts/broker-install.vox -- --apply` updates `.zshrc`, `.bash_profile`/`.bashrc`, `.config/fish/config.fish`, or `.profile` for future login shells.
+- **Persistent user scope (Windows):** prepend `%USERPROFILE%\.vox\build-broker\bin` ahead of `%USERPROFILE%\.cargo\bin` in the user `PATH` environment variable.
+- **VS Code / Cursor / Antigravity / Windsurf:** add `~/.vox/build-broker/bin` to `terminal.integrated.env.osx.PATH`, `terminal.integrated.env.linux.PATH`, or `terminal.integrated.env.windows.PATH` and open a new integrated terminal (existing processes keep their launch-time `PATH`).
 
-A running process keeps its launch-time environment, so already-running agents
-pick up the shim only on a **new terminal / window reload**.
+## Observe (`vox-broker` telemetry and log tokens)
 
-## Observe (verify it's working)
-
-Verifying activation is a two-step check, because `which -a cargo` only reads
-the **current process's** PATH — it proves nothing about a profile edit it
-never re-read, and will keep showing only the rustup proxy no matter how
-correct the installer was:
+Verify `PATH` activation in a fresh login shell rather than an already-running shell:
 
 ```sh
-# 1. The edit: confirm the profile actually has the marker block and the bin path.
-grep -A1 '>>> vox build broker >>>' ~/.zshrc   # or your detected profile
-
-# 2. The effect: a FRESH login shell re-reads the profile, so check there —
-#    not in the shell you're already sitting in.
-sh -lc 'command -v cargo'
-zsh -lc 'which -a cargo'      # first hit should be …/.vox/build-broker/bin/cargo
+grep -A1 '>>> vox build broker >>>' ~/.zshrc
+zsh -lc 'which -a cargo'
 ```
 
-Once activated, `vox-broker` (installed alongside the shim, on the same PATH
-entry) reads the broker's own audit files for you — no more `tail -f` plus a
-`grep`:
+Use the strictly read-only `vox-broker` companion binary (installed alongside the shim; never creates directories or mutates state, and exits `0` cleanly on fresh machines) to inspect queue splits, coalescing hits, and timeouts:
 
 ```sh
-vox-broker stats   # summary over metrics.jsonl: p50/p95 queue wait, coalesce rate,
-                    # and the coalescing-daemon go/no-go verdict
-vox-broker log     # last 20 lines of broker.log (add -n N for a different count)
-vox-broker status  # effective cap, any VOX_BROKER_RESERVED_SLOTS reservation,
-                    # a sampled count of busy slots, and the broker home path
+vox-broker stats        # summary over metrics.jsonl with split waits, coalesce rate, and timeout counts
+vox-broker log -n 20    # last 20 lines of broker.log
+vox-broker status       # broker home, effective cap, reservations, and sampled busy slots
 ```
 
-`vox-broker` is strictly read-only: it never creates, deletes, or modifies any
-broker state (including the broker home directory itself), and its slot count
-in `status` is an explicit sample, not a snapshot — another process can take
-or release a slot between the read and your acting on it. Before the broker has
-ever run, every subcommand says so plainly and exits 0, rather than printing a
-row of zeros.
-
-A `broker.log` line reads e.g.:
+Output from `vox-broker stats` (`Summary::render()`) surfaces exact split-wait and coalescing tokens (`builds=`, `p50_wait=`, `p95_wait=`, `target_p95=`, `slot_p95=`, `compile_p50=`, `coalesce_rate=`, `coalesced=`, `timeouts=`):
 
 ```text
-<ts> test   wait=  4200ms ran= 18000ms ahead=3 cap=4 coalesce=false exit=0 <worktree>
+builds=42 p50_wait=120ms p95_wait=3400ms (target_p95=3100ms slot_p95=300ms compile_p50=6200ms) coalesce_rate=28.6% coalesced=9 timeouts=0 -> BUILD-DAEMON: recommended (coalesce>=10% and queue waits present)
 ```
 
-`ahead>0` / `wait>0` means the cap absorbed contention that would otherwise have
-blocked opaquely on cargo's locks or thrashed the machine. For anyone who wants
-the raw files instead: `~/.vox/build-broker/broker.log` (human-readable,
-one line per build, every worktree) and `~/.vox/build-broker/metrics.jsonl`
-(machine-readable, one JSON record per build) — both overridable via
-`VOX_BROKER_HOME`.
+Each `broker.log` entry (`vox-broker log`) records per-invocation split timings and outcomes (`wait=`, `target_wait=`, `slot_wait=`, `compile=`, `ahead=`, `cap=`, `coalesce=`, `coalesced=`, `timeout=`, `exit=`):
 
-## Evidence gate (coalescing daemon)
+```text
+1794724550233 test   wait=  4200ms target_wait=3900ms slot_wait=300ms compile=18000ms ahead=3 cap=6 coalesce=true coalesced=false timeout=false exit=0 /path/to/worktree
+```
 
-`metrics.jsonl` records `would_coalesce` per build. A coalescing daemon (Layer 1b)
-is only worth building if a material share of builds are true duplicates; until
-the data shows that, the daemonless cap is the final form. See
-`docs/superpowers/specs/2026-06-18-unified-build-broker-design.md`.
+High `target_wait` with low `slot_wait` indicates same-worktree `target/.cargo-lock` serialization (mitigate by batching `cargo test -p` packages or enabling `VOX_ISOLATED_TARGET=1` with `VOX_WORKSTREAM`); high `slot_wait` indicates machine-wide CPU saturation across concurrent worktrees.

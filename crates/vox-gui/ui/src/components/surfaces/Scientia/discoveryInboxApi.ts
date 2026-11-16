@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /**
  * Typed wrappers over the Task-18 Discovery Inbox Tauri commands. Every invoke
@@ -23,12 +23,12 @@ export interface DiscoveryInboxRow {
 
 /** List unacknowledged discoveries, newest first (default limit 50). */
 export function listDiscoveryInbox(limit?: number): Promise<DiscoveryInboxRow[]> {
-  return invoke<DiscoveryInboxRow[]>('list_discovery_inbox', {
+  return invokeCmd<DiscoveryInboxRow[]>('list_discovery_inbox', {
     limit: limit ?? null,
   });
 }
 
 /** Mark a discovery row acknowledged; it then drops out of the inbox list. */
 export function acknowledgeDiscovery(id: number): Promise<void> {
-  return invoke<void>('acknowledge_discovery', { id });
+  return invokeCmd<void>('acknowledge_discovery', { id });
 }

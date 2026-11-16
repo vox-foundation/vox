@@ -396,11 +396,11 @@ mod tests {
             supported_parameters: vec![],
         };
         let mut reg = crate::models::ModelRegistry::default();
-        reg.register(entry("qwen/qwen-3.6-27b", ProviderType::Ollama));
+        reg.register(entry("qwen/qwen-3.8-27b", ProviderType::Ollama));
         reg.register(entry("acme/hosted-1", ProviderType::OpenRouter));
         let installed = sync_installed_ollama(&mut reg, "http://127.0.0.1:9".into()).await;
         assert_eq!(installed, 0);
-        assert!(reg.get("qwen/qwen-3.6-27b").is_none());
+        assert!(reg.get("qwen/qwen-3.8-27b").is_none());
         assert!(reg.get("acme/hosted-1").is_some());
     }
 

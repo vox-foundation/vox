@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /** The daemon's fire-and-forget research.run envelope. */
 export interface ResearchRunHandle {
@@ -67,7 +67,7 @@ export async function startResearchAsync(args: {
   if (args.siteScope && args.siteScope.trim()) {
     payload.siteScope = args.siteScope.trim();
   }
-  return invoke<ResearchRunHandle>('start_research_async', payload);
+  return invokeCmd<ResearchRunHandle>('start_research_async', payload);
 }
 
 export interface DocDraftPreview {
@@ -88,7 +88,7 @@ export interface PublishDocResult {
 }
 
 export async function generateResearchDocDraft(sessionId: number): Promise<DocDraftPreview> {
-  return invoke<DocDraftPreview>('generate_research_doc_draft', { sessionId });
+  return invokeCmd<DocDraftPreview>('generate_research_doc_draft', { sessionId });
 }
 
 export async function publishResearchDoc(
@@ -96,7 +96,7 @@ export async function publishResearchDoc(
   slug: string,
   content: string,
 ): Promise<PublishDocResult> {
-  return invoke<PublishDocResult>('publish_research_doc', { sessionId, slug, content });
+  return invokeCmd<PublishDocResult>('publish_research_doc', { sessionId, slug, content });
 }
 
 export interface SandboxProbeOutcome {
@@ -109,7 +109,7 @@ export async function executeSandboxProbe(
   code: string,
   language: string,
 ): Promise<SandboxProbeOutcome> {
-  return invoke<SandboxProbeOutcome>('execute_sandbox_probe', { code, language });
+  return invokeCmd<SandboxProbeOutcome>('execute_sandbox_probe', { code, language });
 }
 
 export interface ProviderProbeResult {
@@ -127,13 +127,13 @@ export async function probeSearchProvider(
   provider: string,
   query: string,
 ): Promise<ProviderProbeResult> {
-  return invoke<ProviderProbeResult>('probe_search_provider', { provider, query });
+  return invokeCmd<ProviderProbeResult>('probe_search_provider', { provider, query });
 }
 
 export async function probeAllSearchProviders(
   query: string,
 ): Promise<ProviderProbeResult[]> {
-  return invoke<ProviderProbeResult[]>('probe_all_search_providers', { query });
+  return invokeCmd<ProviderProbeResult[]>('probe_all_search_providers', { query });
 }
 
 export interface QuotaUsageDto {
@@ -178,13 +178,13 @@ export interface ResearchEngineConfigDto {
 }
 
 export async function getResearchEngineStatus(): Promise<ResearchEngineStatusDto> {
-  return invoke<ResearchEngineStatusDto>('get_research_engine_status');
+  return invokeCmd<ResearchEngineStatusDto>('get_research_engine_status');
 }
 
 export async function saveResearchEngineConfig(
   config: ResearchEngineConfigDto,
 ): Promise<void> {
-  return invoke<void>('save_research_engine_config', { config });
+  return invokeCmd<void>('save_research_engine_config', { config });
 }
 
 /**

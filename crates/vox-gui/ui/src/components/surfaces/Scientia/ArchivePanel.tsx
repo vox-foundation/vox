@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from '../../ui/Icons';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
@@ -184,9 +185,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
               <ul className="mt-2 space-y-1">
                 {report.required_missing.map((f) => (
                   <li key={f} className="flex items-center gap-2 font-mono text-[12px] text-rose-200/90">
-                    <span aria-hidden className="text-rose-400/70">
-                      ☐
-                    </span>
+                    <Icon.square aria-hidden="true" className="size-3.5 shrink-0 text-rose-400/70" />
                     {f}
                   </li>
                 ))}

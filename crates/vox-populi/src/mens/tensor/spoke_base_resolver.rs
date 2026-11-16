@@ -31,12 +31,19 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "vox-gen",
     // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
     "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_0_6b",    // Qwen3-0.6B QLoRA r16 shared ladder recipe
     "qwen3_6g",      // Qwen3-1.7B QLoRA (6 GB class), live selector rung
     "qwen3_12g",     // Qwen3-4B QLoRA (10-12 GB class), live selector rung
     "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
     "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
     "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
     "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
+    // Qwen3.5 / Qwen3.8 hybrid-DeltaNet ladder presets (Stage C, Nov 2026).
+    "qwen35_0_8b",
+    "qwen35_2b",
+    "qwen35_4b",
+    "qwen35_9b",
+    "qwen38_27b",
 ];
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -314,12 +321,17 @@ pub fn resolve_base_model(
     let overlay = load_overlay(root)?;
     let vram_mb = match vram_mb_override {
         Some(v) => v,
+        #[cfg(feature = "mens")]
         None => {
             let gb =
                 crate::mens::tensor::vram_autodetect::get_system_vram_gb().ok_or_else(|| {
                     anyhow::anyhow!("no GPU VRAM detected; cannot size base tag '{base_model}'")
                 })?;
             (gb * 1024.0) as u32
+        }
+        #[cfg(not(feature = "mens"))]
+        None => {
+            anyhow::bail!("no GPU VRAM detected; cannot size base tag '{base_model}'")
         }
     };
     Ok(pick_base(&overlay, base_model, vram_mb)?.hf_id.clone())
@@ -335,13 +347,20 @@ pub struct Qwen3LivePick {
     pub free_mb: u32,
 }
 
-const QWEN3_SIZE_TOKENS: &[&str] = &["0.6B", "1.7B", "4B", "8B", "14B", "32B"];
+const QWEN3_SIZE_TOKENS: &[&str] = &["0.6B", "1.7B", "2B", "4B", "8B", "9B", "14B", "27B", "32B"];
 
 fn qwen3_size_token(size: &str) -> Option<&'static str> {
     if let Some(token) = QWEN3_SIZE_TOKENS.iter().copied().find(|t| *t == size) {
         return Some(token);
     }
-    for prefix in ["Qwen3-", "Qwen/Qwen3-"] {
+    for prefix in [
+        "Qwen3.8-",
+        "Qwen/Qwen3.8-",
+        "Qwen3.5-",
+        "Qwen/Qwen3.5-",
+        "Qwen3-",
+        "Qwen/Qwen3-",
+    ] {
         if let Some(rest) = size.strip_prefix(prefix)
             && let Some(token) = QWEN3_SIZE_TOKENS.iter().copied().find(|t| *t == rest)
         {
@@ -355,13 +374,19 @@ fn pin_repo_id(hf_id: &str) -> &str {
     hf_id.split_once('@').map_or(hf_id, |(repo, _)| repo)
 }
 
-fn preset_for_qwen3_size_token(token: &str) -> anyhow::Result<&'static str> {
+fn preset_for_qwen_repo_or_size(repo_or_size: &str, token: &str) -> anyhow::Result<&'static str> {
+    if repo_or_size.contains("Qwen3.5-") && token == "4B" {
+        return Ok("qwen35_4b");
+    }
     match token {
-        "0.6B" => Ok("qwen3_dev_cpu"),
+        "0.6B" => Ok("qwen3_0_6b"),
         "1.7B" => Ok("qwen3_6g"),
+        "2B" => Ok("qwen35_2b"),
         "4B" => Ok("qwen3_12g"),
         "8B" => Ok("qwen3_16g"),
+        "9B" => Ok("qwen35_9b"),
         "14B" => Ok("qwen3_24g"),
+        "27B" => Ok("qwen38_27b"),
         "32B" => Ok("qwen3_96g"),
         other => anyhow::bail!("no qwen3_code QLoRA preset for size {other}"),
     }
@@ -380,7 +405,8 @@ pub fn select_qwen3_code_qlora_for_free_mb(free_mb: u32) -> anyhow::Result<Qwen3
     let mut filtered = HashMap::new();
     filtered.insert("qwen3_code".to_string(), rows);
     let winner = pick_base(&filtered, "qwen3_code", free_mb)?;
-    let token = qwen3_size_token(pin_repo_id(&winner.hf_id)).ok_or_else(|| {
+    let repo_id = pin_repo_id(&winner.hf_id);
+    let token = qwen3_size_token(repo_id).ok_or_else(|| {
         anyhow::anyhow!(
             "winning qwen3_code qlora row '{}' is not a dense Qwen3 size",
             winner.hf_id
@@ -389,13 +415,13 @@ pub fn select_qwen3_code_qlora_for_free_mb(free_mb: u32) -> anyhow::Result<Qwen3
     Ok(Qwen3LivePick {
         hf_id: winner.hf_id.clone(),
         size_token: token.to_string(),
-        preset: preset_for_qwen3_size_token(token)?.to_string(),
+        preset: preset_for_qwen_repo_or_size(repo_id, token)?.to_string(),
         floor_mb: winner.floor_mb,
         free_mb,
     })
 }
 
-/// Explicit Qwen3 size spelling (`0.6B`, `1.7B`, `4B`, `8B`, `14B`, `32B`, `Qwen3-<size>`, `Qwen/Qwen3-<size>`).
+/// Explicit Qwen3/3.5/3.8 size spelling (`0.6B`, `1.7B`, `2B`, `4B`, `8B`, `9B`, `14B`, `27B`, `32B`, `Qwen3-<size>`, `Qwen/Qwen3-<size>`, `Qwen3.5-<size>`, `Qwen3.8-<size>`).
 /// Refuses when the QLoRA floor exceeds `free_mb`.
 pub fn explicit_qwen3_code_qlora_for_free_mb(
     size: &str,
@@ -403,17 +429,24 @@ pub fn explicit_qwen3_code_qlora_for_free_mb(
 ) -> anyhow::Result<Qwen3LivePick> {
     let token = qwen3_size_token(size)
         .ok_or_else(|| anyhow::anyhow!("unknown Qwen3 size spelling '{size}'"))?;
-    let repo = format!("Qwen/Qwen3-{token}");
     let overlay = load_embedded_overlay()?;
     let rows = overlay
         .get("qwen3_code")
         .ok_or_else(|| anyhow::anyhow!("train_bases has no qwen3_code tag"))?;
+    let explicit_family = size
+        .strip_prefix("Qwen/")
+        .unwrap_or(size)
+        .split_once('-')
+        .map(|(fam, _)| fam);
     let row = rows
         .iter()
         .find(|base| {
-            base.methods.iter().any(|method| method == "qlora") && pin_repo_id(&base.hf_id) == repo
+            let repo = pin_repo_id(&base.hf_id);
+            base.methods.iter().any(|method| method == "qlora")
+                && qwen3_size_token(repo) == Some(token)
+                && explicit_family.is_none_or(|fam| repo.contains(&format!("{fam}-{token}")))
         })
-        .ok_or_else(|| anyhow::anyhow!("no qwen3_code qlora row for '{repo}'"))?;
+        .ok_or_else(|| anyhow::anyhow!("no qwen3_code qlora row for '{size}'"))?;
     if row.floor_mb > free_mb {
         anyhow::bail!(
             "Qwen3 size '{size}' QLoRA floor {} MB exceeds free memory {free_mb} MB",
@@ -423,7 +456,7 @@ pub fn explicit_qwen3_code_qlora_for_free_mb(
     Ok(Qwen3LivePick {
         hf_id: row.hf_id.clone(),
         size_token: token.to_string(),
-        preset: preset_for_qwen3_size_token(token)?.to_string(),
+        preset: preset_for_qwen_repo_or_size(&row.hf_id, token)?.to_string(),
         floor_mb: row.floor_mb,
         free_mb,
     })
@@ -688,7 +721,7 @@ mod tests {
         let overlay = load_overlay(workspace_root()).expect("load overlay");
         let cases: &[(u32, Option<(&str, &str)>)] = &[
             (6144, None),
-            // Below the cheapest agentic_default Qwen3 rung (Qwen3.8-27B, 34000)
+            // Below the cheapest agentic_default Qwen3 rung (Qwen3-8B QLoRA, 36500)
             // nothing fits: fail closed rather than fall to a retired Qwen2.5 base.
             (11500, None),
             (13926, None),
@@ -702,12 +735,10 @@ mod tests {
             // disclosed, intended consequence of adding a more capable,
             // cheaper-to-run rung, not a regression; see the scope ruling
             // in .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
-            (41779, Some(("Qwen3.8-27B", "qlora"))),
-            (55706, Some(("Qwen3-14B", "lora"))),
-            // Qwen3-8B / 14B QLoRA floors are the Metal estimate (122876 / 195382),
-            // so the 14B un-quantized LoRA rung (44000, an older estimate) wins here.
-            (83558, Some(("Qwen3-14B", "lora"))),
-            (111411, Some(("Qwen3-32B", "lora"))),
+            (41779, Some(("Qwen3-8B", "qlora"))),
+            (55706, Some(("Qwen3-14B", "qlora"))),
+            (83558, Some(("Qwen3.8-27B", "qlora"))),
+            (111411, Some(("Qwen3-32B", "qlora"))),
         ];
         for &(live_mb, expected) in cases {
             let got = pick_base(&overlay, "agentic_default", live_mb);
@@ -739,9 +770,10 @@ mod tests {
     }
 
     #[test]
-    fn mac_128g_prefers_unquantized_32b_lora() {
+    fn mac_128g_selects_quantized_32b_qlora() {
         // 128 GiB physical - 12 GiB GUI reserve = 116 GiB usable = 118_784 MB.
-        // At that budget the un-quantized 32B rung must outrank the QLoRA one.
+        // The earlier un-quantized 32B [lora] rung peaked at 353,743 MiB and is retired;
+        // 116 GiB now resolves quantized Qwen3-32B [qlora].
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
             .nth(2)
@@ -754,43 +786,36 @@ mod tests {
             base.hf_id
         );
         assert!(
-            base.methods.iter().any(|m| m == "lora"),
-            "at 116 GiB the un-quantized LoRA rung should win, got methods: {:?}",
+            base.methods.iter().any(|m| m == "qlora"),
+            "at 116 GiB the quantized QLoRA rung should win, got methods: {:?}",
+            base.methods
+        );
+        assert!(
+            !base.methods.iter().any(|m| m == "lora"),
+            "unquantized BF16 lora rung must not be offered at 32B, got methods: {:?}",
             base.methods
         );
     }
 
     #[test]
     fn resolve_base_model_picks_27b_at_measured_big_box_memory() {
-        // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung (floor_mb
-        // 34000) must be resolvable at a real, hardware-measured Mac memory
-        // tier, AND must NOT displace Qwen3-32B as the real 128 GB
-        // (~118_784 MB) default — that pin flip is Phase 3's job, not this
-        // task's. See the scope ruling in
-        // .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
         let root = workspace_root();
 
-        // Positive case: the real, hardware-measured 41779 MB tier (also
-        // pinned in agentic_default_rungs_pin_live_available_mb) — above the
-        // new rung's floor (34000) and below the next rung up (Qwen3-14B
-        // LoRA at 44000), so only the 27B rung fits. This proves
-        // reachability on hardware this file already models, not merely in
-        // the abstract.
-        let mid = resolve_base_model(root, "agentic_default", Some(41_779))
-            .expect("41_779 MB should resolve the Qwen3.8-27B QLoRA rung");
+        // At 83_558 MB (above 27B QLoRA floor 68000, below 32B QLoRA floor 100000),
+        // agentic_default resolves the Nov 2026 verified Qwen3.8-27B QLoRA pin.
+        let mid = resolve_base_model(root, "agentic_default", Some(83_558))
+            .expect("83_558 MB should resolve the Qwen3.8-27B QLoRA rung");
         assert_eq!(
-            mid, "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
-            "41_779 MB agentic_default must resolve Qwen3.8-27B, got {mid}"
+            mid, "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+            "83_558 MB agentic_default must resolve Qwen3.8-27B, got {mid}"
         );
 
-        // Negative case (the non-goal): a real 128 GB Mac (116 GiB usable =
-        // 118_784 MB) must still resolve Qwen3-32B, not Qwen3.8-27B — no pin
-        // flip at the top end.
+        // A real 128 GB Mac (116 GiB usable = 118_784 MB) resolves Qwen3-32B.
         let big_box = resolve_base_model(root, "agentic_default", Some(118_784))
             .expect("118_784 MB should resolve a base");
         assert_eq!(
             big_box, "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
-            "118_784 MB agentic_default must still resolve Qwen3-32B (no pin flip yet), got {big_box}"
+            "118_784 MB agentic_default must still resolve Qwen3-32B, got {big_box}"
         );
     }
 
@@ -804,17 +829,56 @@ mod tests {
         .expect("Qwen3-8B has a license: entry in gpu-specs.yaml");
         assert_eq!(license, "apache-2.0");
         assert!(!attribution_required);
+
+        assert_eq!(
+            resolve_license_class(
+                Some(workspace_root()),
+                Some("Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0"),
+                None,
+            )
+            .expect("Qwen3.8-27B has apache-2.0 license entry"),
+            ("apache-2.0".to_string(), false)
+        );
+        assert_eq!(
+            resolve_license_class(
+                Some(workspace_root()),
+                Some(
+                    "XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B@1f09ddcc1a0ea45751ae0dfe2af20d533168c46f"
+                ),
+                None,
+            )
+            .expect("MiMo-V2.6-Distill-Qwen-9B has mit + attribution_required license entry"),
+            ("mit".to_string(), true)
+        );
     }
 
-    /// Qwen3.8-27B has no `license:` entry in gpu-specs.yaml today — its real
-    /// license could not be confirmed with confidence, so it is deliberately
-    /// left unmapped rather than guessed. Resolving it with no override must
-    /// be a hard error, never a silent fallback (e.g. to `apache-2.0`).
+    /// A model with no `license:` entry in gpu-specs.yaml (or an unmapped ID)
+    /// must hard-error rather than silently falling back to a permissive default.
     #[test]
     fn resolve_license_class_hard_errors_when_base_has_no_license_entry() {
-        let err = resolve_license_class(
+        let unmapped_err = resolve_license_class(
             Some(workspace_root()),
-            Some("Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"),
+            Some("someone/unmapped-no-license@0123456789abcdef0123456789abcdef01234567"),
+            None,
+        )
+        .unwrap_err();
+        assert!(
+            unmapped_err
+                .to_string()
+                .contains("no license_class resolved"),
+            "got: {unmapped_err}"
+        );
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("mens/config")).expect("mkdir");
+        std::fs::write(
+            dir.path().join("mens/config/gpu-specs.yaml"),
+            "train_bases:\n  custom:\n    - { hf_id: \"org/Unlicensed-Model@deadbeef\", floor_mb: 16000, methods: [qlora], floor_measured: false }\n",
+        )
+        .expect("write overlay");
+        let err = resolve_license_class(
+            Some(dir.path()),
+            Some("org/Unlicensed-Model@deadbeef"),
             None,
         )
         .unwrap_err();
@@ -913,11 +977,11 @@ mod tests {
         };
         assert_eq!(
             floors("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
-            [122876]
+            [36500, 122876]
         );
         assert_eq!(
             floors("Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"),
-            [44000, 195382]
+            [44000, 55000, 195382]
         );
         assert_eq!(
             floors("Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"),
@@ -1003,6 +1067,11 @@ mod tests {
             "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
             "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
             "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+            "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+            "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+            "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+            "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+            "Qwen/Qwen3Guard-Gen-0.6B@fada3b2f655b89601929198343c94cd2f64d93cc",
         ] {
             assert_eq!(
                 resolve_license_class(Some(workspace_root()), Some(pin), None).expect(pin),
@@ -1019,13 +1088,15 @@ mod tests {
             "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
         )
         .expect("overlay loads");
-        assert_eq!(notes.len(), 2, "{notes:?}");
+        assert_eq!(notes.len(), 3, "{notes:?}");
         assert!(
             notes.iter().all(|n| n.contains("floor unmeasured")),
             "{notes:?}"
         );
         assert!(
-            notes.iter().any(|n| n.contains("195382")) && notes.iter().any(|n| n.contains("44000")),
+            notes.iter().any(|n| n.contains("195382"))
+                && notes.iter().any(|n| n.contains("55000"))
+                && notes.iter().any(|n| n.contains("44000")),
             "{notes:?}"
         );
         assert_eq!(

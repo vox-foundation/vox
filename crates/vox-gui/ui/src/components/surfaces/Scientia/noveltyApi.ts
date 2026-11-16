@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /**
  * Typed wrapper over the `get_novelty_assessment` Tauri command (Task 17).
@@ -62,5 +62,5 @@ export interface NoveltyAssessment {
 
 /** Assess novelty for one publication from its stored evidence bundle. */
 export function getNoveltyAssessment(publicationId: string): Promise<NoveltyAssessment> {
-  return invoke<NoveltyAssessment>('get_novelty_assessment', { publicationId });
+  return invokeCmd<NoveltyAssessment>('get_novelty_assessment', { publicationId });
 }

@@ -122,7 +122,7 @@ export function summaryText(s: TurnTraceSummary): string {
     parts.push(
       s.receiptsUnverified > 0
         ? `${s.receiptsVerified}/${receipts} receipts verified`
-        : `${plural(receipts, 'receipt', 'receipts')} ✓`,
+        : `${plural(receipts, 'receipt', 'receipts')} verified`,
     );
   }
   if (s.delegations > 0) parts.push(`${s.delegations} delegated`);

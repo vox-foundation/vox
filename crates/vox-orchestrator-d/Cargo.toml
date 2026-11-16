@@ -16,7 +16,7 @@ vox-orchestrator = { workspace = true, features = ["token-counting"] }
 # Shipping MCP server: keep the full default tool surface (news/scientia/visus).
 vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "token-counting", "web-scrape"] }
 vox-skills.workspace = true
-vox-terminal-core = { path = "../vox-terminal-core" }
+vox-terminal-core = { workspace = true, features = ["vox-lang"] }
 vox-db.workspace = true
 vox-secrets.workspace = true
 vox-config.workspace = true

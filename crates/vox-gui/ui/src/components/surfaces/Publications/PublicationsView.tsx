@@ -1,50 +1,34 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { PUBLICATION_STAGES, groupByStage, PublicationManifest } from '../../../lib/pipeline';
 import { useLabel } from '../../../hooks/useLanguage';
-import { draftManuscript, renderLatex } from '../../../api/scientia';
+import {
+  computeWorthinessAxes,
+  draftManuscript,
+  listPublicationClaims,
+  recommendPublicationVenue,
+  renderLatex,
+  type PublicationClaimsDto,
+  type VenueRecommendationDto,
+} from '../../../api/scientia';
+import { DirectPublicationDrawer } from '../Scientia/DirectPublicationDrawer';
+import { WorthinessRadarPanel } from '../Scientia/WorthinessRadarPanel';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
-
-interface ExecuteOutput {
-  exit_code: number;
-  stdout: string;
-  stderr: string;
-}
-
-interface ClaimRow {
-  id?: number;
-  text?: string;
-  verdict_label?: string;
-  confidence?: number;
-}
-
-interface ClaimsPayload {
-  publication_id: string;
-  claim_count: number;
-  claims: ClaimRow[];
-}
-
-interface VenueRecommendation {
-  candidate_class: string;
-  recommended_venues: string[];
-  reply_window_days: number;
-  negative_result_quota: number;
-  critic_allowed: boolean;
-  atlas_gate_applies: boolean;
-}
 
 export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
   const [manifests, setManifests] = useState<PublicationManifest[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<PublicationManifest | null>(null);
+  const [stageFilter, setStageFilter] = useState<'all' | 'published' | 'populated'>('all');
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      setManifests(await invoke<PublicationManifest[]>('list_publication_manifests', { limit: 200 }));
+      setManifests(await invokeCmd<PublicationManifest[]>('list_publication_manifests', { limit: 200 }));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Publications load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -55,9 +39,23 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const groups = groupByStage(manifests);
+  const publishedCount = (groups['published']?.length ?? 0) + (groups['archived']?.length ?? 0);
+  const populatedStageCount = PUBLICATION_STAGES.filter(
+    (s) => (groups[s]?.length ?? 0) > 0,
+  ).length;
+  const visibleStages: readonly string[] =
+    stageFilter === 'published'
+      ? PUBLICATION_STAGES.filter((s) => s === 'published')
+      : stageFilter === 'populated' && populatedStageCount > 0
+        ? PUBLICATION_STAGES.filter((s) => (groups[s]?.length ?? 0) > 0)
+        : PUBLICATION_STAGES;
+  const visibleManifestCount = visibleStages.reduce<number>(
+    (acc, s) => acc + (groups[s]?.length ?? 0),
+    0,
+  );
 
   return (
-    <section className="space-y-4">
+    <section className="@container/surface flex min-h-0 min-w-0 flex-col gap-3.5">
       <RomanSurfaceHeader
         domainTag="KNOWLEDGE · PUBLICATIONS"
         title="Publication Pipeline & Archival Ledger"
@@ -68,23 +66,45 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           {
             label: 'MANIFESTS',
             valueText: `${manifests.length}`,
-            ratio: Math.min(1, manifests.length / 20),
+            ratio: manifests.length > 0 ? visibleManifestCount / manifests.length : 0,
             tone: 'gold',
             purpose: 'Total publication pipeline manifests',
+            actionHint: 'Click to show all publication pipeline stages',
+            active: stageFilter === 'all' && manifests.length > 0,
+            onClick: () => setStageFilter('all'),
           },
           {
             label: 'PUBLISHED',
-            valueText: `${groups['archived']?.length ?? 0}`,
-            ratio: Math.min(1, (groups['archived']?.length ?? 0) / 10),
+            valueText: `${publishedCount}`,
+            ratio: manifests.length > 0 ? publishedCount / manifests.length : 0,
             tone: 'emerald',
-            purpose: 'Archived and released publications',
+            purpose: 'Published and released manuscripts out of total manifests',
+            actionHint:
+              stageFilter === 'published'
+                ? 'Click to show all publication stages'
+                : 'Click to filter board to published manuscripts',
+            active: stageFilter === 'published',
+            onClick: () => {
+              setStageFilter((f) => (f === 'published' ? 'all' : 'published'));
+              const firstPublished = groups['published']?.[0] ?? groups['archived']?.[0];
+              if (firstPublished) setSelected(firstPublished);
+            },
           },
           {
             label: 'STAGES',
-            valueText: `${PUBLICATION_STAGES.length}`,
-            ratio: 1,
+            valueText: `${populatedStageCount}/${PUBLICATION_STAGES.length}`,
+            ratio:
+              PUBLICATION_STAGES.length > 0
+                ? populatedStageCount / PUBLICATION_STAGES.length
+                : 0,
             tone: 'gold',
-            purpose: 'Active pipeline verification stages',
+            purpose: 'Pipeline verification stages currently holding manuscripts',
+            actionHint:
+              stageFilter === 'populated'
+                ? 'Click to show all lifecycle stages'
+                : 'Click to filter board to populated pipeline stages',
+            active: stageFilter === 'populated',
+            onClick: () => setStageFilter((f) => (f === 'populated' ? 'all' : 'populated')),
           },
         ]}
         actions={
@@ -98,84 +118,102 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           </button>
         }
       />
-      <div className="grid grid-cols-2 gap-2.5 pb-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        {PUBLICATION_STAGES.map(stage => (
-          <div key={stage} className="min-w-0">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-wide text-[#D4AF37]">{stage.replace(/_/g, ' ')}</span>
-              <span className="rounded-full border border-[#D4AF37]/30 bg-bg-surface px-1.5 font-mono text-[9px] text-[#F3E5AB]">{groups[stage].length}</span>
-            </div>
-            <div className="space-y-2">
-              {groups[stage].map(m => (
-                <button
-                  type="button"
-                  key={m.publication_id}
-                  onClick={() => setSelected(m)}
-                  className={`w-full rounded-lg border p-2 text-left transition-colors ${
-                    selected?.publication_id === m.publication_id
-                      ? 'border-[#D4AF37] bg-bg-elevated shadow-xs'
-                      : 'border-[#D4AF37]/25 bg-bg-surface hover:border-[#D4AF37]/50'
-                  }`}
-                >
-                  <div className="truncate font-mono text-[11px] text-[#F3E5AB]">{m.publication_id}</div>
-                  <div className="text-[10px] text-[#D6CEBF]">{m.content_type}</div>
-                </button>
-              ))}
-              {groups[stage].length === 0 && <div className="rounded-lg border border-dashed border-[#D4AF37]/20 p-2 text-center text-[10px] text-[#D6CEBF]/60">—</div>}
-            </div>
+      <BentoGrid preset="hero">
+        <BentoCard span={selected ? 'hero-main' : 'full'} className="gap-2.5 border-[#D4AF37]/35">
+          <div
+            className={
+              visibleStages.length === 1
+                ? 'grid grid-cols-1 gap-2.5'
+                : selected
+                  ? 'grid grid-cols-1 gap-2.5 @sm/surface:grid-cols-2 @xl/surface:grid-cols-3 @4xl/surface:grid-cols-4'
+                  : 'grid grid-cols-1 gap-2.5 @sm/surface:grid-cols-2 @xl/surface:grid-cols-3 @4xl/surface:grid-cols-4 @6xl/surface:grid-cols-7'
+            }
+          >
+            {visibleStages.map(stage => (
+              <div key={stage} className="min-w-0">
+                <div className="mb-2 flex items-center justify-between gap-1">
+                  <span className="truncate font-mono text-[10px] uppercase tracking-wide text-[#D4AF37]">{stage.replace(/_/g, ' ')}</span>
+                  <span className="shrink-0 rounded-full border border-[#D4AF37]/30 bg-bg-surface px-1.5 font-mono text-[9px] text-[#F3E5AB]">{groups[stage].length}</span>
+                </div>
+                {groups[stage].length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-[#D4AF37]/20 p-2 text-center text-[10px] text-[#D6CEBF]/60">—</div>
+                ) : (
+                  <BentoScrollRegion
+                    ariaLabel={`${stage.replace(/_/g, ' ')} stage manifests`}
+                    className="max-h-60 space-y-2 pr-0.5"
+                  >
+                    {groups[stage].map(m => (
+                      <button
+                        type="button"
+                        key={m.publication_id}
+                        onClick={() => setSelected(m)}
+                        className={`w-full rounded-lg border p-2 text-left transition-colors ${
+                          selected?.publication_id === m.publication_id
+                            ? 'border-[#D4AF37] bg-bg-elevated shadow-xs'
+                            : 'border-[#D4AF37]/25 bg-bg-surface hover:border-[#D4AF37]/50'
+                        }`}
+                      >
+                        <div className="truncate font-mono text-[11px] text-[#F3E5AB]">{m.publication_id}</div>
+                        <div className="truncate text-[10px] text-[#D6CEBF]">{m.content_type}</div>
+                      </button>
+                    ))}
+                  </BentoScrollRegion>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </BentoCard>
 
-      {selected ? (
-        <PublicationDetail
-          manifest={selected}
-          onClose={() => setSelected(null)}
-          pushToast={pushToast}
-        />
-      ) : (
-        <div
-          data-testid="publications-pipeline-overview"
-          className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
-        >
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">IMRaD &amp; LaTeX</span>
-              <RomanWaxSealBadge label={`${manifests.length} manifests`} tone="gold" />
-            </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
-              Select any card above to preview its generated IMRaD manuscript, compile LaTeX source, or inspect extracted epistemic claims.
-            </p>
+        {selected ? (
+          <BentoCard span="hero-rail" className="border-[#D4AF37]/35 p-0">
+            <PublicationDetail
+              manifest={selected}
+              onClose={() => setSelected(null)}
+              pushToast={pushToast}
+            />
+          </BentoCard>
+        ) : (
+          <div data-testid="publications-pipeline-overview" className="col-span-full min-w-0">
+            <BentoGrid preset="triad">
+              <div className="min-w-0 rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">IMRaD &amp; LaTeX</span>
+                  <RomanWaxSealBadge label={`${manifests.length} manifests`} tone="gold" />
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+                  Select any card above to preview its generated IMRaD manuscript, compile LaTeX source, or inspect extracted epistemic claims.
+                </p>
+              </div>
+              <div className="min-w-0 rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Claim Verification</span>
+                  <RomanWaxSealBadge label="MiniCheck" tone="gold" />
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+                  Every candidate paper undergoes automated claim extraction (<code className="text-[#F3E5AB]">vox scientia claims</code>) and confidence scoring before approval.
+                </p>
+              </div>
+              <div className="min-w-0 rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Archival Deposit</span>
+                  <RomanWaxSealBadge label="DOI + SWHID" tone="emerald" />
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
+                  Tracks Zenodo DOI reservation, ORCID attribution, and Software Heritage (SWHID) source archival across 7 lifecycle stages.
+                </p>
+              </div>
+            </BentoGrid>
           </div>
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Claim Verification</span>
-              <RomanWaxSealBadge label="MiniCheck" tone="gold" />
-            </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
-              Every candidate paper undergoes automated claim extraction (<code className="text-[#F3E5AB]">vox scientia claims</code>) and confidence scoring before approval.
-            </p>
-          </div>
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3.5">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-[10px] tracking-widest text-[#D4AF37] uppercase">Archival Deposit</span>
-              <RomanWaxSealBadge label="DOI + SWHID" tone="emerald" />
-            </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-[#D6CEBF]">
-              Tracks Zenodo DOI reservation, ORCID attribution, and Software Heritage (SWHID) source archival across 7 lifecycle stages.
-            </p>
-          </div>
-        </div>
-      )}
+        )}
+      </BentoGrid>
     </section>
   );
 }
 
 /**
- * Drill-down panel for one publication (F4): its lifecycle state, extracted
- * claims (`vox scientia claims`), and the venue-routing recommendation for its
- * class (`vox scientia publication-venue-recommend`). Both reuse the shared
- * `execute_command` bridge over existing CLI subcommands — no new backend.
+ * Drill-down panel for one publication (F4 / STUD-01 / STUD-02): its lifecycle state,
+ * 6-axis worthiness radar, direct publication flywheel drawer, extracted claims
+ * (`scientia_publication_claims`), and venue-routing recommendation (`scientia_publication_venue_recommend`).
  */
 function PublicationDetail({
   manifest,
@@ -186,44 +224,22 @@ function PublicationDetail({
   onClose: () => void;
   pushToast: SurfaceDecoratorProps['pushToast'];
 }) {
-  const [claims, setClaims] = useState<ClaimsPayload | null>(null);
-  const [venue, setVenue] = useState<VenueRecommendation | null>(null);
+  const [claims, setClaims] = useState<PublicationClaimsDto | null>(null);
+  const [venue, setVenue] = useState<VenueRecommendationDto | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewText, setPreviewText] = useState<string | null>(null);
   const [previewKind, setPreviewKind] = useState<'imrad' | 'latex' | null>(null);
+  const [replayScore, setReplayScore] = useState<number | undefined>(undefined);
 
   const load = useCallback(async () => {
     setBusy(true);
     setClaims(null);
     setVenue(null);
     try {
-      const claimsOut = await invoke<ExecuteOutput>('execute_command', {
-        path: ['scientia', 'claims'],
-        args: { __argv: ['--publication-id', manifest.publication_id] },
-      });
-      if (claimsOut.exit_code === 0) {
-        try {
-          setClaims(JSON.parse(claimsOut.stdout) as ClaimsPayload);
-        } catch (parseErr) {
-          pushToast({ tone: 'warn', title: 'Claims (parse error)', body: `${String(parseErr)} — raw: ${claimsOut.stdout.slice(0, 200)}`, cause: 'backend-error' });
-        }
-      } else {
-        pushToast({ tone: 'warn', title: 'Claims', body: claimsOut.stderr || `exit ${claimsOut.exit_code}`, cause: 'backend-error' });
-      }
-
-      const venueOut = await invoke<ExecuteOutput>('execute_command', {
-        path: ['scientia', 'publication-venue-recommend'],
-        args: { __argv: ['--candidate-class', manifest.content_type] },
-      });
-      if (venueOut.exit_code === 0) {
-        try {
-          setVenue(JSON.parse(venueOut.stdout) as VenueRecommendation);
-        } catch (parseErr) {
-          pushToast({ tone: 'warn', title: 'Venue (parse error)', body: `${String(parseErr)} — raw: ${venueOut.stdout.slice(0, 200)}`, cause: 'backend-error' });
-        }
-      }
-      // A non-zero venue exit is expected when content_type isn't a known
-      // finding class; leave venue null and show the "no routing" state.
+      const claimsPayload = await listPublicationClaims(manifest.publication_id);
+      setClaims(claimsPayload);
+      const venuePayload = await recommendPublicationVenue(manifest.content_type);
+      setVenue(venuePayload);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Publication detail', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -233,6 +249,18 @@ function PublicationDetail({
 
   useEffect(() => { load(); }, [load]);
 
+  const worthinessAxes = computeWorthinessAxes({
+    totalClaims: claims?.claim_count ?? 0,
+    supportedClaims: (claims?.claims ?? []).filter((c) =>
+      (c.verdict ?? c.verdict_label ?? '').toLowerCase().includes('support'),
+    ).length,
+    contradictedClaims: (claims?.claims ?? []).filter((c) => {
+      const v = (c.verdict ?? c.verdict_label ?? '').toLowerCase();
+      return v.includes('contradict') || v.includes('refut');
+    }).length,
+    replayScore,
+  });
+
   // Lifecycle stepper: the ordered stages a publication passes through. The
   // current stage is derived from the manifest state via the same stage grouping
   // the board uses.
@@ -241,7 +269,7 @@ function PublicationDetail({
   const resolvedStageIdx = stageIdx === -1 ? 0 : stageIdx;
 
   return (
-    <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-4">
+    <div className="min-w-0 p-3.5 @2xl/surface:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate font-mono text-sm text-[#F3E5AB]">{manifest.publication_id}</div>
@@ -301,7 +329,7 @@ function PublicationDetail({
 
       {previewText && (
         <div data-testid="publication-artifact-preview" className="mb-4 rounded-lg border border-[#D4AF37]/30 bg-bg-surface p-3">
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <span className="font-mono text-xs uppercase tracking-wider text-brass">
               {previewKind === 'latex' ? 'LaTeX Document Preview' : 'IMRaD Manuscript Preview'}
             </span>
@@ -316,9 +344,11 @@ function PublicationDetail({
               Close Preview
             </button>
           </div>
-          <pre className="max-h-52 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-primary">
-            {previewText}
-          </pre>
+          <BentoScrollRegion ariaLabel="Manuscript preview content" className="max-h-52">
+            <pre className="whitespace-pre-wrap font-mono text-[11px] text-text-primary">
+              {previewText}
+            </pre>
+          </BentoScrollRegion>
         </div>
       )}
 
@@ -334,9 +364,22 @@ function PublicationDetail({
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="mb-4 space-y-3">
+        <WorthinessRadarPanel axes={worthinessAxes} compact />
+        <DirectPublicationDrawer
+          publicationId={manifest.publication_id}
+          pushToast={pushToast}
+          compact
+          onReplayVerified={(score) => setReplayScore(score)}
+          onFlywheelAdvanced={() => {
+            void load();
+          }}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 @xl/surface:grid-cols-2">
         {/* Claims */}
-        <div>
+        <div className="min-w-0">
           <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-brass">
             Claims {claims ? `(${claims.claim_count})` : ''}
           </div>
@@ -345,18 +388,20 @@ function PublicationDetail({
               {busy ? 'Loading…' : 'No extracted claims. Run claim extraction first.'}
             </div>
           ) : (
-            <ul className="space-y-1">
-              {claims.claims.map((c, i) => (
-                <li key={c.id ?? i} className="rounded-lg border border-[#D4AF37]/25 bg-bg-surface p-2">
-                  <div className="text-[12px] text-text-primary">{c.text ?? '(no text)'}</div>
-                  {c.verdict_label && (
-                    <div className="mt-0.5 font-mono text-[10px] text-brass">
-                      {c.verdict_label}{typeof c.confidence === 'number' ? ` · ${c.confidence.toFixed(2)}` : ''}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <BentoScrollRegion ariaLabel="Extracted manuscript claims" className="max-h-52">
+              <ul className="space-y-1">
+                {claims.claims.map((c, i) => (
+                  <li key={c.id ?? i} className="rounded-lg border border-[#D4AF37]/25 bg-bg-surface p-2">
+                    <div className="text-[12px] text-text-primary">{c.text ?? '(no text)'}</div>
+                    {c.verdict_label && (
+                      <div className="mt-0.5 font-mono text-[10px] text-brass">
+                        {c.verdict_label}{typeof c.confidence === 'number' ? ` · ${c.confidence.toFixed(2)}` : ''}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </BentoScrollRegion>
           )}
         </div>
 

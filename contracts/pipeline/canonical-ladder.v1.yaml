@@ -52,3 +52,15 @@ fixtures:
     path: examples/golden/py_array_stats.vox
     proves: [py_array_stats]
     targets: [rust-script]
+  - id: py_frame_report
+    path: examples/golden/py_frame_report.vox
+    proves: [py_frame_report]
+    targets: [interp]
+  - id: py_tensor_infer
+    path: examples/golden/py_tensor_infer.vox
+    proves: [py_tensor_infer]
+    targets: [interp]
+  - id: py_escape_psd
+    path: examples/golden/py_escape_psd.vox
+    proves: [py_escape_psd]
+    targets: [interp]

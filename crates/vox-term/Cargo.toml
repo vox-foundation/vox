@@ -1,9 +1,13 @@
 [package]
 name = "vox-term"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
 description = "Headless-capable ratatui TUI front-end for vox-terminal-core."
-license = "Apache-2.0"
+license.workspace = true
+
+[features]
+default = []
+vox-lang = ["vox-terminal-core/vox-lang"]
 
 [lib]
 name = "vox_term"
@@ -14,7 +18,7 @@ name = "vox-term"
 path = "src/main.rs"
 
 [dependencies]
-vox-terminal-core  = { path = "../vox-terminal-core" }
+vox-terminal-core  = { workspace = true }
 ratatui            = { workspace = true }
 crossterm          = { workspace = true, features = ["event-stream"] }
 reedline           = { workspace = true }

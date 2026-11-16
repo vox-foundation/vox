@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v7.4 — (`axis-live-functional-v74`) — Vox Axis End-to-End Live Control Wiring, Zero-Emoji Icon/Graphic System, shadcn/Tailwind v4 Ecosystem Upgrade & Concept-Art Bento CV Flywheel",
+  "phases": [
+    {
+      "number": "431",
+      "name": "Dual-Theme CSS Escape Hatches, Portal Z-Index Scale & shadcn/Radix Primitive Kit",
+      "status": "complete"
+    },
+    {
+      "number": "432",
+      "name": "Zero-Emoji & Zero-Dingbat Vector Semiotics & Generated Graphics Sweep",
+      "status": "complete"
+    },
+    {
+      "number": "433",
+      "name": "Rust/MCP Seam Closure, Single `voxTransport` Funnel & Honest IPC Contract",
+      "status": "complete"
+    },
+    {
+      "number": "434",
+      "name": "End-to-End Live Control, Rotary Knob, Brass Gauge & Interactive Telemetry Wiring",
+      "status": "complete"
+    },
+    {
+      "number": "435",
+      "name": "`@container` Concept-Art Bento Compaction & Resizable Master-Detail Rollout",
+      "status": "complete"
+    },
+    {
+      "number": "436",
+      "name": "Concept-Art Plates, Full-Document Accessibility, Static Audit & Multi-Pass CV Flywheel Convergence",
+      "status": "complete"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
+  },
+  "updated_at": "2026-11-14T20:43:20.865Z"
+}

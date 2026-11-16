@@ -17,6 +17,17 @@ const STRONG_ROW = {
 const invokeMock = vi.fn((cmd: string, _args?: unknown) => {
   if (cmd === 'list_discovery_inbox') return Promise.resolve([STRONG_ROW]);
   if (cmd === 'acknowledge_discovery') return Promise.resolve();
+  if (cmd === 'promote_scientia_candidate') {
+    return Promise.resolve({
+      ok: true,
+      publication_id: 'pub-commit-abc123',
+      candidate_id: 'commit-abc123',
+      session_id: 1,
+      title: 'Promoted Finding',
+      claims_seeded: 3,
+      stage: 'draft',
+    });
+  }
   return Promise.resolve(null);
 });
 vi.mock('@tauri-apps/api/core', () => ({
@@ -25,7 +36,8 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 // Mock the transport bridge: listenScientiaQueue rejects (no Tauri).
 const listenDiscoverySurfacedMock = vi.fn().mockRejectedValue(new Error('not in tauri'));
-vi.mock('../../../transport', () => ({
+vi.mock('../../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../transport')>()),
   listenScientiaQueue: vi.fn().mockRejectedValue(new Error('not in tauri')),
   listenDiscoverySurfaced: (...args: unknown[]) => listenDiscoverySurfacedMock(...args),
 }));
@@ -75,5 +87,25 @@ describe('DiscoveryInbox', () => {
     await waitFor(() => {
       expect(screen.queryByText('commit-abc123')).toBeNull();
     });
+  });
+
+  it('1-click Promote to Publication invokes promote_scientia_candidate and notifies toast', async () => {
+    const pushToast = vi.fn();
+    render(<LanguageProvider><DiscoveryInbox pushToast={pushToast} /></LanguageProvider>);
+    await screen.findByText('commit-abc123');
+
+    fireEvent.click(screen.getByTestId('promote-candidate-7'));
+
+    await waitFor(() => {
+      expect(
+        invokeMock.mock.calls.some(([cmd]) => cmd === 'promote_scientia_candidate'),
+      ).toBe(true);
+    });
+    expect(pushToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tone: 'ok',
+        title: 'Promoted to publication',
+      }),
+    );
   });
 });

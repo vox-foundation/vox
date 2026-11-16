@@ -10,6 +10,7 @@
 #[cfg(feature = "script-execution")]
 mod build_lock;
 pub use vox_cli_core::build_service;
+pub mod argv_normalize;
 pub mod cli_actions;
 pub mod cli_args;
 /// Re-exported from `vox-codegen` for callers that drive the build pipeline
@@ -118,7 +119,9 @@ pub use vox_cli_core::init_tracing_for_cli;
     name = "vox",
     about = "The Vox AI-native language compiler",
     long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested\n\nVisualization:\n  vox gui (alias: vox axis)   — launch Axis, the native Vox GUI dashboard & catalog",
-    version = VOX_VERSION
+    version = VOX_VERSION,
+    infer_subcommands = true,
+    infer_long_args = true
 )]
 pub struct VoxCliRoot {
     /// Global application options.
@@ -422,7 +425,8 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::py::PyCmd,
     },
-    /// Agentic Planning tools: Create, replan, and bypass planning steps (`vox plan`).
+    /// Agentic Planning & GSD (Get Shit Done) workflow tools (`vox plan` / `vox gsd`).
+    #[command(visible_alias = "gsd")]
     Plan {
         /// Subcommand.
         #[command(subcommand)]
@@ -720,7 +724,19 @@ pub enum Cli {
     ///
     /// Runs under a real terminal, over SSH, or with TERM=dumb (plain-text output).
     /// Ctrl-C exits cleanly.
-    Term,
+    Term {
+        /// Re-attach to an existing daemon terminal session (defaults to "latest" when bare).
+        #[arg(
+            long,
+            value_name = "SESSION_ID",
+            num_args = 0..=1,
+            default_missing_value = "latest"
+        )]
+        attach: Option<String>,
+        /// Force an in-process local terminal host instead of connecting to vox-orchestrator-d.
+        #[arg(long)]
+        local: bool,
+    },
 }
 
 /// A sink that emits each event as a compact JSON line to stderr.

@@ -8,7 +8,7 @@ test.describe('Approvals interactions', () => {
     await addMockInitScript(page, installTauriMock, 'approvals');
     await page.goto('/');
     await page.waitForSelector('nav', { timeout: 15_000 });
-    await expect(page.getByText('#AP-000001')).toBeVisible();
+    await expect(page.getByTestId('select-approval-AP-000001')).toBeVisible();
   });
 
   test('approve resolves, toasts, and removes the row', async ({ page }) => {

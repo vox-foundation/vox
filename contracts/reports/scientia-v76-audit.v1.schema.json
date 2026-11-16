@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/schemas/reports/scientia-v76-audit.v1.schema.json",
+  "title": "Scientia v7.6 6-Axis Audit & Live Bug Reproduction Report",
+  "x-vox-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "x-vox-version",
+    "schema_version",
+    "stage",
+    "deterministic_seed",
+    "six_axes",
+    "live_bug_reproductions",
+    "cassette_summary"
+  ],
+  "properties": {
+    "x-vox-version": {
+      "type": "integer",
+      "const": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["before", "after"]
+    },
+    "deterministic_seed": {
+      "type": "integer",
+      "const": 20260447
+    },
+    "six_axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "performance",
+        "quality",
+        "verification",
+        "integration",
+        "socrates_calibration",
+        "novelty_detection"
+      ],
+      "properties": {
+        "performance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "simulated_fast_p50_ms",
+            "simulated_deep_p95_ms",
+            "kv_cache_prefix_stability_ratio",
+            "session_detail_ipc_payload_bytes",
+            "gui_cli_db_spawn_count"
+          ],
+          "properties": {
+            "simulated_fast_p50_ms": { "type": "integer", "minimum": 0 },
+            "simulated_deep_p95_ms": { "type": "integer", "minimum": 0 },
+            "kv_cache_prefix_stability_ratio": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "session_detail_ipc_payload_bytes": { "type": "integer", "minimum": 0 },
+            "gui_cli_db_spawn_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "quality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "groundedness_mean",
+            "citation_precision_mean",
+            "multi_hop_bridge_recall_mean",
+            "domain_coverage_modes"
+          ],
+          "properties": {
+            "groundedness_mean": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "citation_precision_mean": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "multi_hop_bridge_recall_mean": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "domain_coverage_modes": {
+              "type": "array",
+              "minItems": 4,
+              "items": {
+                "type": "string",
+                "enum": ["general", "shopping", "codegen", "scholarly"]
+              }
+            }
+          }
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "claim_precision",
+            "contradiction_detection_recall",
+            "contradiction_false_support_rate",
+            "mock_verifier_fallback_rate"
+          ],
+          "properties": {
+            "claim_precision": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "contradiction_detection_recall": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "contradiction_false_support_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "mock_verifier_fallback_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+          }
+        },
+        "integration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "composer_continuum_fidelity_rate",
+            "doc_publish_artifact_retention_rate",
+            "sequenced_event_replay_supported"
+          ],
+          "properties": {
+            "composer_continuum_fidelity_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "doc_publish_artifact_retention_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "sequenced_event_replay_supported": { "type": "boolean" }
+          }
+        },
+        "socrates_calibration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ece",
+            "brier_score",
+            "selective_abstention_f1"
+          ],
+          "properties": {
+            "ece": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "brier_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "selective_abstention_f1": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+          }
+        },
+        "novelty_detection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "prior_art_recall_at_5",
+            "false_novelty_rate",
+            "embedder_l3_shared"
+          ],
+          "properties": {
+            "prior_art_recall_at_5": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "false_novelty_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "embedder_l3_shared": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "live_bug_reproductions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "composer_research_scope_overwritten",
+        "research_turn_waves_hardcoded_to_one",
+        "none_to_novel_false_positive_rate",
+        "artifact_json_wiped_on_doc_publish",
+        "mock_verifier_fallback_rate",
+        "contradiction_false_support_rate",
+        "kv_cache_prefix_stability_ratio",
+        "session_detail_ipc_payload_bytes",
+        "gui_cli_db_spawn_count"
+      ],
+      "properties": {
+        "composer_research_scope_overwritten": { "type": "boolean" },
+        "research_turn_waves_hardcoded_to_one": { "type": "boolean" },
+        "none_to_novel_false_positive_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "artifact_json_wiped_on_doc_publish": { "type": "boolean" },
+        "mock_verifier_fallback_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "contradiction_false_support_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "kv_cache_prefix_stability_ratio": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "session_detail_ipc_payload_bytes": { "type": "integer", "minimum": 0 },
+        "gui_cli_db_spawn_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cassette_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_cases",
+        "socrates_cases",
+        "claim_pairs",
+        "novelty_bundles"
+      ],
+      "properties": {
+        "query_cases": { "type": "integer", "minimum": 1 },
+        "socrates_cases": { "type": "integer", "minimum": 1 },
+        "claim_pairs": { "type": "integer", "minimum": 1 },
+        "novelty_bundles": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "paired_comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blinded_judge_protocol",
+        "before_report_path",
+        "axes"
+      ],
+      "properties": {
+        "blinded_judge_protocol": { "type": "boolean" },
+        "before_report_path": { "type": "string", "minLength": 1 },
+        "axes": {
+          "type": "array",
+          "minItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "axis",
+              "label",
+              "metric",
+              "before_value",
+              "after_value",
+              "delta",
+              "higher_is_better",
+              "ci_low",
+              "ci_high",
+              "ni_margin",
+              "ni_verdict",
+              "superior"
+            ],
+            "properties": {
+              "axis": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "metric": { "type": "string", "minLength": 1 },
+              "before_value": { "type": "number" },
+              "after_value": { "type": "number" },
+              "delta": { "type": "number" },
+              "higher_is_better": { "type": "boolean" },
+              "ci_low": { "type": "number" },
+              "ci_high": { "type": "number" },
+              "ni_margin": { "type": "number", "minimum": 0.0 },
+              "ni_verdict": {
+                "type": "string",
+                "enum": ["non_inferior", "inconclusive", "inferior"]
+              },
+              "superior": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "lessons_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quarantined_findings_count",
+        "corroborated_promotions_count",
+        "proposed_effort_rules_count",
+        "auto_dpo_pairs_minted",
+        "unreviewed_ssot_mutations"
+      ],
+      "properties": {
+        "quarantined_findings_count": { "type": "integer", "minimum": 0 },
+        "corroborated_promotions_count": { "type": "integer", "minimum": 0 },
+        "proposed_effort_rules_count": { "type": "integer", "minimum": 0 },
+        "auto_dpo_pairs_minted": { "type": "integer", "minimum": 0 },
+        "unreviewed_ssot_mutations": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

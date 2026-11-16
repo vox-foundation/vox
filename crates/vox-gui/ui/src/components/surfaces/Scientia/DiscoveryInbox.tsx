@@ -171,6 +171,16 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
 
   const openReview = useCallback((publicationId: string) => {
     seedDiscoveryPresetForLegacyKey('discovery-review');
+    try {
+      window.localStorage.setItem('vox_discovery_review_seed', publicationId);
+    } catch {
+      /* localStorage unavailable */
+    }
+    window.dispatchEvent(
+      new CustomEvent('vox://scientia-open-studio', {
+        detail: { publicationId },
+      }),
+    );
     window.dispatchEvent(
       new CustomEvent('vox://navigate-surface', {
         detail: { view: 'activity', publicationId },
@@ -263,6 +273,14 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                       setBusyId(r.id);
                       try {
                         const promoted = await promoteCandidate(r.publication_id);
+                        try {
+                          window.localStorage.setItem(
+                            'vox_discovery_review_seed',
+                            promoted.publication_id,
+                          );
+                        } catch {
+                          /* localStorage unavailable */
+                        }
                         pushToast({
                           tone: 'ok',
                           title: 'Promoted to publication',

@@ -1,5 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { invokeCmd, listenEvent, type UnlistenFn } from '../../../transport';
 import type { SubAgentNode } from './types';
 
 export interface SubagentTreeEdge {
@@ -63,7 +62,7 @@ export function buildSubAgentTree(edges: SubagentTreeEdge[]): SubAgentNode[] {
  *  to the chat turn/session that caused it (Phase D Task D3 — e.g.
  *  `agentsForSession`/`pausedAgentForSession`) should use this, not `fetchTree()`. */
 export async function fetchEdges(): Promise<SubagentTreeEdge[]> {
-  const edges = await invoke<SubagentTreeEdge[]>('list_subagent_tree');
+  const edges = await invokeCmd<SubagentTreeEdge[]>('list_subagent_tree');
   if (!Array.isArray(edges)) {
     console.warn('SubAgents: list_subagent_tree resolved a non-array payload', edges);
     return [];
@@ -79,5 +78,5 @@ export async function fetchTree(): Promise<SubAgentNode[]> {
 /** Subscribe to live agent-events; rejects outside Tauri (caller degrades). */
 export const SUBAGENT_ACTIVITY_EVENT = 'vox://agent-events';
 export function listenActivity(onEvent: (e: { id: number; timestamp_ms: number; kind: { type: string; [k: string]: unknown } }) => void): Promise<UnlistenFn> {
-  return listen(SUBAGENT_ACTIVITY_EVENT, (e) => onEvent(e.payload as { id: number; timestamp_ms: number; kind: { type: string; [k: string]: unknown } }));
+  return listenEvent(SUBAGENT_ACTIVITY_EVENT, (e) => onEvent(e.payload as { id: number; timestamp_ms: number; kind: { type: string; [k: string]: unknown } }));
 }

@@ -186,8 +186,8 @@
     {
       "crate": "vox-config",
       "compile_s": 3.2,
-      "dependents": 66,
-      "blast_s": 600.0,
+      "dependents": 65,
+      "blast_s": 599.0,
       "fan_in": 43,
       "touches_90d": 59,
       "churn_compile_pain_score": 188.8
@@ -195,8 +195,8 @@
     {
       "crate": "vox-config-derive",
       "compile_s": 1.6,
-      "dependents": 67,
-      "blast_s": 601.0,
+      "dependents": 66,
+      "blast_s": 600.0,
       "fan_in": 1,
       "touches_90d": 1,
       "churn_compile_pain_score": 1.6
@@ -204,9 +204,9 @@
     {
       "crate": "vox-constrained-gen",
       "compile_s": 0.5,
-      "dependents": 5,
-      "blast_s": 51.0,
-      "fan_in": 2,
+      "dependents": 1,
+      "blast_s": 1.0,
+      "fan_in": 1,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.5
     },
@@ -240,8 +240,8 @@
     {
       "crate": "vox-crypto",
       "compile_s": 0.3,
-      "dependents": 72,
-      "blast_s": 611.0,
+      "dependents": 71,
+      "blast_s": 610.0,
       "fan_in": 16,
       "touches_90d": 5,
       "churn_compile_pain_score": 1.5
@@ -366,8 +366,8 @@
     {
       "crate": "vox-git",
       "compile_s": 1.1,
-      "dependents": 67,
-      "blast_s": 601.0,
+      "dependents": 66,
+      "blast_s": 600.0,
       "fan_in": 9,
       "touches_90d": 2,
       "churn_compile_pain_score": 2.2
@@ -411,8 +411,8 @@
     {
       "crate": "vox-http-client",
       "compile_s": 0.7,
-      "dependents": 71,
-      "blast_s": 610.0,
+      "dependents": 70,
+      "blast_s": 609.0,
       "fan_in": 24,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.7
@@ -483,8 +483,8 @@
     {
       "crate": "vox-llm-config",
       "compile_s": 0.2,
-      "dependents": 67,
-      "blast_s": 600.0,
+      "dependents": 66,
+      "blast_s": 599.0,
       "fan_in": 1,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.2
@@ -492,8 +492,8 @@
     {
       "crate": "vox-llm-egress",
       "compile_s": 0.9,
-      "dependents": 67,
-      "blast_s": 601.0,
+      "dependents": 66,
+      "blast_s": 599.0,
       "fan_in": 4,
       "touches_90d": 22,
       "churn_compile_pain_score": 19.8
@@ -528,8 +528,8 @@
     {
       "crate": "vox-mesh-transport",
       "compile_s": 0.0,
-      "dependents": 2,
-      "blast_s": 0.0,
+      "dependents": 5,
+      "blast_s": 51.0,
       "fan_in": 1,
       "touches_90d": 79,
       "churn_compile_pain_score": 0.0
@@ -539,7 +539,7 @@
       "compile_s": 1.6,
       "dependents": 77,
       "blast_s": 615.0,
-      "fan_in": 13,
+      "fan_in": 11,
       "touches_90d": 3,
       "churn_compile_pain_score": 4.8
     },
@@ -557,15 +557,15 @@
       "compile_s": 0.9,
       "dependents": 5,
       "blast_s": 54.0,
-      "fan_in": 3,
+      "fan_in": 2,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.8
     },
     {
       "crate": "vox-openai",
       "compile_s": 0.5,
-      "dependents": 68,
-      "blast_s": 601.0,
+      "dependents": 67,
+      "blast_s": 600.0,
       "fan_in": 4,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.0
@@ -602,7 +602,7 @@
       "compile_s": 1.1,
       "dependents": 11,
       "blast_s": 243.0,
-      "fan_in": 4,
+      "fan_in": 3,
       "touches_90d": 1,
       "churn_compile_pain_score": 1.1
     },
@@ -674,7 +674,7 @@
       "compile_s": 3.3,
       "dependents": 42,
       "blast_s": 474.0,
-      "fan_in": 17,
+      "fan_in": 16,
       "touches_90d": 9,
       "churn_compile_pain_score": 29.7
     },
@@ -809,7 +809,7 @@
       "compile_s": 0.9,
       "dependents": 56,
       "blast_s": 562.0,
-      "fan_in": 9,
+      "fan_in": 8,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.8
     },
@@ -897,9 +897,9 @@
     {
       "crate": "vox-repository",
       "compile_s": 2.7,
-      "dependents": 53,
-      "blast_s": 589.0,
-      "fan_in": 20,
+      "dependents": 23,
+      "blast_s": 408.0,
+      "fan_in": 14,
       "touches_90d": 6,
       "churn_compile_pain_score": 16.2
     },
@@ -908,7 +908,7 @@
       "compile_s": 7.2,
       "dependents": 20,
       "blast_s": 414.0,
-      "fan_in": 7,
+      "fan_in": 6,
       "touches_90d": 0,
       "churn_compile_pain_score": 0.0
     },
@@ -917,7 +917,7 @@
       "compile_s": 6.8,
       "dependents": 8,
       "blast_s": 238.0,
-      "fan_in": 4,
+      "fan_in": 3,
       "touches_90d": 277,
       "churn_compile_pain_score": 1883.6
     },
@@ -935,7 +935,7 @@
       "compile_s": 0.8,
       "dependents": 21,
       "blast_s": 385.0,
-      "fan_in": 3,
+      "fan_in": 2,
       "touches_90d": 1,
       "churn_compile_pain_score": 0.8
     },
@@ -962,7 +962,7 @@
       "compile_s": 0.7,
       "dependents": 74,
       "blast_s": 613.0,
-      "fan_in": 7,
+      "fan_in": 6,
       "touches_90d": 2,
       "churn_compile_pain_score": 1.4
     },
@@ -971,7 +971,7 @@
       "compile_s": 14.7,
       "dependents": 19,
       "blast_s": 407.0,
-      "fan_in": 7,
+      "fan_in": 6,
       "touches_90d": 43,
       "churn_compile_pain_score": 632.1
     },
@@ -996,8 +996,8 @@
     {
       "crate": "vox-secrets",
       "compile_s": 1.8,
-      "dependents": 70,
-      "blast_s": 610.0,
+      "dependents": 69,
+      "blast_s": 609.0,
       "fan_in": 36,
       "touches_90d": 47,
       "churn_compile_pain_score": 84.6
@@ -1043,7 +1043,7 @@
       "compile_s": 1.6,
       "dependents": 32,
       "blast_s": 462.0,
-      "fan_in": 7,
+      "fan_in": 6,
       "touches_90d": 4,
       "churn_compile_pain_score": 6.4
     },
@@ -1061,7 +1061,7 @@
       "compile_s": 9.8,
       "dependents": 13,
       "blast_s": 258.0,
-      "fan_in": 4,
+      "fan_in": 3,
       "touches_90d": 14,
       "churn_compile_pain_score": 137.2
     },
@@ -1086,8 +1086,8 @@
     {
       "crate": "vox-telemetry",
       "compile_s": 2.3,
-      "dependents": 70,
-      "blast_s": 611.0,
+      "dependents": 69,
+      "blast_s": 610.0,
       "fan_in": 16,
       "touches_90d": 15,
       "churn_compile_pain_score": 34.5
@@ -1167,9 +1167,9 @@
     {
       "crate": "vox-workflow-runtime",
       "compile_s": 0.0,
-      "dependents": 1,
-      "blast_s": 0.0,
-      "fan_in": 1,
+      "dependents": 4,
+      "blast_s": 51.0,
+      "fan_in": 2,
       "touches_90d": 103,
       "churn_compile_pain_score": 0.0
     },

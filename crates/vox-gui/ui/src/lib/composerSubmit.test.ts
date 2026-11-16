@@ -30,7 +30,7 @@ describe('userAppendInput', () => {
 describe('App.tsx composer persist wiring (C2)', () => {
   it('routes the chat_append_message payload through userAppendInput', () => {
     const app = readFileSync(resolve(__dirname, '../App.tsx'), 'utf8');
-    const call = app.indexOf("invoke('chat_append_message'");
+    const call = app.indexOf("invokeCmd('chat_append_message'");
     expect(call).toBeGreaterThan(-1);
     // The FIRST chat_append_message invoke in App.tsx is the composer
     // user-persist path (the later one at ~849 persists assistant replies);

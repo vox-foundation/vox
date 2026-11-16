@@ -44,6 +44,8 @@ only after precision is proven.
 | Docs name a nonexistent CLI command/flag or call a shipped command planned | `docs_cli_claims` | Rust stage, pulldown-cmark mentions + clap tree | blocking | pre-push fast + PR CI linux via ssot-drift | short flags not checked; registry-only paths checked for existence only |
 | Guard passes when its input is missing (silent no-op) | `check_links` / `retired_symbol_check` / `check_docs_ssot` input checks | Rust guards | blocking | pre-push fast + PR CI | retired-input branches removed; mutation-proved by temp-dir tests |
 | Docs page unreachable by links | `docs_orphan_pages` | Rust stage over claims::prune link graph | blocking | pre-push fast + PR CI linux via ssot-drift | zero reader-facing orphans, whole-tree reported; mutation-proved |
+| Docs freshness ledger / reality findings / external links drift | `docs-drift-refresh` + `scripts/lychee-triage.vox` | Scheduled workflow (`04:23 UTC` Sun) + Vox triage script | non-blocking (`fail: false`) | weekly draft PR (`bot/docs-drift-refresh`, never auto-merged) | idempotent writes (`write_ledger_if_changed`, `write_json_if_changed`); 403/429/5xx propose `.lycheeignore` |
+| Docs-system map (`docs-system-ssot.md`) §4/§6 diverges from gates or workflows | `docs_system_parity` (in `vox ci ssot-drift`) | Rust stage + `GATE_PROBES` + `CLOSED_GAPS` | blocking | pre-push fast + PR CI via `ssot-drift` | Verifies §4 gates, `Where it runs` targets/workflows, code needles, and closed gaps; mutation-proved |
 | Pattern drift (reqwest bypass, path/timeout/version literals, bearer header, serde-default dup) | `vox-drift-check` (6 rules) | regex | Warning | pre-push fast / CI | Existing. |
 
 ## Open gaps (deliberately not yet automated)

@@ -376,6 +376,9 @@ pub(super) fn resolve_mentions_with_rules(
         if filename.starts_with("rule:") {
             continue;
         }
+        if filename == "term" || filename.starts_with("term:") {
+            continue;
+        }
         let found = index
             .get(filename)
             .and_then(|paths| pick_mention_path(paths, filename, workspace_root))
@@ -496,5 +499,36 @@ mod tests {
         assert!(expanded.contains("<user_rules>"));
         assert!(expanded.contains("<rule name=\"rust-strict\">"));
         assert!(!expanded.contains("@rule:rust-strict"));
+    }
+
+    #[test]
+    fn resolve_mentions_with_rules_skips_term_citations_and_expands_real_files() {
+        let cache = Arc::new(parking_lot::Mutex::new(None));
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(tmp.path().join("terminal.rs"), "pub fn init_term() {}\n")
+            .expect("write terminal.rs");
+        std::fs::write(
+            tmp.path().join("Cargo.toml"),
+            "[package]\nname = \"demo\"\n",
+        )
+        .expect("write Cargo.toml");
+        // Even if files named `term` existed or did not exist, `@term` and `@term:*` are skipped.
+        std::fs::write(tmp.path().join("term"), "DO_NOT_INLINE_TERM_FILE\n")
+            .expect("write decoy term file");
+
+        let (expanded, mut files) = resolve_mentions_with_rules(
+            "Check @term and @term:last and [ref @term:sess_1#3:L1-10] with @terminal.rs and @Cargo.toml",
+            tmp.path(),
+            &cache,
+            &[],
+        );
+        files.sort();
+        assert_eq!(
+            files,
+            vec!["Cargo.toml".to_string(), "terminal.rs".to_string()]
+        );
+        assert!(!expanded.contains("DO_NOT_INLINE_TERM_FILE"));
+        assert!(expanded.contains("pub fn init_term()"));
+        assert!(expanded.contains("name = \"demo\""));
     }
 }

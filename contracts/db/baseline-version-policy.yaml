@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 97
+  repository_baseline_integer: 99
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
@@ -41,7 +41,8 @@ policy:
   # Also includes workflow durability schema additions (workflow_run_log.args_json, wake_at_ms, parked_reason, workflow_patch_log) and model_benchmark_results.
   # re-updated for 97: Research Trial Tier-A tables (trial_campaigns, trial_campaigns_log, trial_runs, trial_samples) + llm_interactions.trial_run_label.
   # re-updated for 97 (digest refresh): Autonomy UX attention_events + v1.7 ops_agent_telemetry (agent_events, cost_records, agent_sessions) + Turso covering/composite indexes, redundant left-prefix index pruning, scientia_embedding_cache.vector_blob, and consolidated sidecar tables (telemetry_upload_spool, mesh_replay_nonces, mesh_local_nodes).
-  repository_baseline_digest_hex: "0x890cd115cd95efc0d60350937c8fb90b794bdca3472c905606110b9a55afaf0c"
+  # re-updated for 98: GSD suite persistence tables (gsd_milestones, gsd_phases, gsd_documents, gsd_decisions).
+  repository_baseline_digest_hex: "0x57e677717da73a3007e8abbb919427cec9c106ee012152b95f1602e22a7e2b9b"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

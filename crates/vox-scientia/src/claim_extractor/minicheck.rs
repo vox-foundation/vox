@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MiniCheckBackend {
+    #[cfg(test)]
     Mock,
     Http {
         endpoint: String,
@@ -24,6 +25,7 @@ pub struct MiniCheckVerifier {
 /// If one side (claim or context sentence) contains any of these tokens and the other
 /// does not, the pair is treated as a potential contradiction.  This is a surface-form
 /// heuristic — it is NOT a full NLI model.
+#[cfg(test)]
 const NEGATORS: &[&str] = &[
     "not", "no", "never", "fails", "cannot", "doesn't", "does not", "won't", "isn't", "aren't",
 ];
@@ -37,6 +39,11 @@ struct MiniCheckRequest<'a> {
 
 #[derive(Deserialize)]
 struct MiniCheckResponse {
+    #[serde(default)]
+    verdict: Option<String>,
+    #[serde(default)]
+    confidence: Option<f64>,
+    #[serde(default)]
     support_score: f64,
     /// Optional contradiction score returned by the endpoint.
     /// Absent in responses from endpoints that do not implement it (defaults to 0.0).
@@ -45,10 +52,24 @@ struct MiniCheckResponse {
 }
 
 impl MiniCheckVerifier {
+    #[cfg(test)]
     pub fn mock() -> Self {
         Self {
             backend: MiniCheckBackend::Mock,
             abstain_threshold: 0.3,
+        }
+    }
+
+    /// Returns `true` only when backed by the test-only `Mock` verifier.
+    #[must_use]
+    pub const fn is_mock_backend(&self) -> bool {
+        #[cfg(test)]
+        {
+            matches!(self.backend, MiniCheckBackend::Mock)
+        }
+        #[cfg(not(test))]
+        {
+            false
         }
     }
 
@@ -73,27 +94,42 @@ impl MiniCheckVerifier {
     /// Construct a production verifier: HTTP endpoint when `VOX_MINICHECK_ENDPOINT`
     /// is configured, otherwise `CalibratedHybrid` routed through `vox_actor_runtime::llm`.
     pub fn from_env_or_calibrated() -> Self {
-        if let Ok(url) = std::env::var("VOX_MINICHECK_ENDPOINT")
-            && !url.trim().is_empty()
-        {
-            return Self::http(url);
-        }
-        Self::calibrated_hybrid(vox_config::model_defaults::CLAIM_EXTRACTION)
+        Self::from_env()
     }
 
     pub fn from_env_with_lookup(
-        lookup: impl FnOnce(&str) -> Result<String, std::env::VarError>,
+        mut lookup: impl FnMut(&str) -> Result<String, std::env::VarError>,
     ) -> Self {
         if let Ok(url) = lookup("VOX_MINICHECK_ENDPOINT")
             && !url.trim().is_empty()
         {
-            return Self::http(url);
+            return Self::http(url.trim().to_string());
         }
-        Self::mock()
+        let model = lookup("VOX_MINICHECK_MODEL")
+            .ok()
+            .map(|m| m.trim().to_string())
+            .filter(|m| !m.is_empty())
+            .unwrap_or_else(|| vox_config::model_defaults::CLAIM_EXTRACTION.to_string());
+        Self::calibrated_hybrid(model)
     }
 
     pub fn from_env() -> Self {
-        Self::from_env_with_lookup(|k| std::env::var(k))
+        let resolved_endpoint =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMinicheckEndpoint);
+        if let Some(url) = resolved_endpoint
+            .expose()
+            .map(str::trim)
+            .filter(|u| !u.is_empty())
+        {
+            return Self::http(url.to_string());
+        }
+        let resolved_model = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMinicheckModel);
+        let model = resolved_model
+            .expose()
+            .map(str::trim)
+            .filter(|m| !m.is_empty())
+            .unwrap_or(vox_config::model_defaults::CLAIM_EXTRACTION);
+        Self::calibrated_hybrid(model.to_string())
     }
 
     pub async fn verify_claim(
@@ -103,6 +139,7 @@ impl MiniCheckVerifier {
     ) -> Result<VerifierOutput, Box<dyn std::error::Error + Send + Sync>> {
         let claim_id = fnv1a_hash(claim);
         match &self.backend {
+            #[cfg(test)]
             MiniCheckBackend::Mock => {
                 let claim_words: Vec<&str> = claim.split_whitespace().collect();
 
@@ -242,34 +279,16 @@ impl MiniCheckVerifier {
                 })
             }
             MiniCheckBackend::CalibratedHybrid { model } => {
-                let lexical = Box::pin(
-                    Self {
-                        backend: MiniCheckBackend::Mock,
-                        abstain_threshold: self.abstain_threshold,
-                    }
-                    .verify_claim(claim, context),
-                )
-                .await?;
-                let claim_numbers: Vec<String> = claim
-                    .split_whitespace()
-                    .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
-                    .filter(|w| !w.is_empty() && w.chars().any(|c| c.is_ascii_digit()))
-                    .map(|w| w.to_ascii_lowercase())
-                    .collect();
-                let context_lower = context.to_ascii_lowercase();
-                let numeric_conflict = !claim_numbers.is_empty()
-                    && claim_numbers.iter().any(|n| !context_lower.contains(n));
-
-                if lexical.contradiction_score >= 0.6 {
+                let tier0 =
+                    crate::claim_extractor::tier0_lexical::evaluate_tier0_lexical(claim, context);
+                if tier0.contradiction_score >= 0.60 || tier0.support_score >= 0.75 {
                     return Ok(VerifierOutput {
+                        claim_id,
+                        support_score: tier0.support_score,
+                        contradiction_score: tier0.contradiction_score,
+                        abstained: tier0.support_score < self.abstain_threshold
+                            && tier0.contradiction_score < 0.60,
                         verifier_model: "calibrated-hybrid:lexical".to_string(),
-                        ..lexical
-                    });
-                }
-                if !numeric_conflict && lexical.support_score >= 0.85 {
-                    return Ok(VerifierOutput {
-                        verifier_model: "calibrated-hybrid:lexical".to_string(),
-                        ..lexical
                     });
                 }
 
@@ -278,32 +297,23 @@ impl MiniCheckVerifier {
                 {
                     let support_score = support_score.clamp(0.0, 1.0);
                     let contradiction_score = contradiction_score.clamp(0.0, 1.0);
-                    return Ok(VerifierOutput {
-                        claim_id,
-                        support_score,
-                        contradiction_score,
-                        abstained: support_score < self.abstain_threshold
-                            && contradiction_score < 0.5,
-                        verifier_model: format!("calibrated-hybrid:{model}"),
-                    });
+                    if support_score.max(contradiction_score) >= self.abstain_threshold {
+                        return Ok(VerifierOutput {
+                            claim_id,
+                            support_score,
+                            contradiction_score,
+                            abstained: false,
+                            verifier_model: format!("calibrated-hybrid:{model}"),
+                        });
+                    }
                 }
 
-                let calibrated_support = if numeric_conflict {
-                    (lexical.support_score * 0.45).clamp(0.0, 1.0)
-                } else {
-                    lexical.support_score
-                };
-                let calibrated_contradiction = if numeric_conflict {
-                    lexical.contradiction_score.max(0.65)
-                } else {
-                    lexical.contradiction_score
-                };
                 Ok(VerifierOutput {
                     claim_id,
-                    support_score: calibrated_support,
-                    contradiction_score: calibrated_contradiction,
-                    abstained: calibrated_support < self.abstain_threshold
-                        && calibrated_contradiction < 0.5,
+                    support_score: tier0.support_score,
+                    contradiction_score: tier0.contradiction_score,
+                    abstained: tier0.support_score < self.abstain_threshold
+                        && tier0.contradiction_score < 0.60,
                     verifier_model: "calibrated-hybrid:lexical".to_string(),
                 })
             }
@@ -313,20 +323,31 @@ impl MiniCheckVerifier {
 
 async fn llm_entailment_verify(model: &str, claim: &str, context: &str) -> Option<(f64, f64)> {
     use vox_actor_runtime::ActivityResult;
-    use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, llm_chat};
+    use vox_actor_runtime::llm::cascade::{ResearchStage, cascade_for_research_stage};
+    use vox_actor_runtime::llm::{LlmChatMessage, infer_with_retry};
     use vox_actor_runtime::llm_result::maybe_strip_markdown_json_fences;
+    use vox_actor_runtime::model_resolution::RouteResolutionInput;
 
-    if context.trim().is_empty() || claim.trim().is_empty() {
+    if context.trim().is_empty() || claim.trim().is_empty() || model.trim().is_empty() {
         return None;
     }
-    let system = "You are a scientific claim entailment verifier. Given a claim and evidence context, respond ONLY with JSON: {\"support_score\": <0.0..1.0>, \"contradiction_score\": <0.0..1.0>}.".to_string();
+    let input = RouteResolutionInput {
+        openrouter_model: model.to_string(),
+        ..Default::default()
+    };
+    let mut candidates = cascade_for_research_stage(ResearchStage::Verification, &input);
+    if candidates.is_empty() {
+        return None;
+    }
+    for candidate in &mut candidates {
+        candidate.temperature = Some(0.0);
+        candidate.max_tokens = Some(160);
+    }
+    let system = "You are a SciFact scientific claim entailment verifier. Given a claim and evidence context, classify entailment (Supported, Contradicted, or Abstain) and respond ONLY with JSON: {\"verdict\": \"Supported|Contradicted|Abstain\", \"support_score\": <0.0..1.0>, \"contradiction_score\": <0.0..1.0>}.".to_string();
     let truncated_ctx: String = context.chars().take(4000).collect();
     let user = format!("Claim: {claim}\nEvidence Context:\n{truncated_ctx}");
-    let mut cfg = LlmConfig::openrouter(model);
-    cfg.temperature = Some(0.0);
-    cfg.max_tokens = Some(120);
     let options = vox_actor_runtime::ActivityOptions::default();
-    match llm_chat(
+    match infer_with_retry(
         &options,
         vec![
             LlmChatMessage {
@@ -340,13 +361,24 @@ async fn llm_entailment_verify(model: &str, claim: &str, context: &str) -> Optio
                 ..Default::default()
             },
         ],
-        cfg,
+        candidates,
     )
     .await
     {
-        ActivityResult::Ok(Ok(resp)) => {
+        ActivityResult::Ok(Ok((resp, _cfg))) => {
             let clean = maybe_strip_markdown_json_fences(&resp.content);
             let parsed: MiniCheckResponse = serde_json::from_str(clean).ok()?;
+            if parsed.support_score > 0.0 || parsed.contradiction_score > 0.0 {
+                return Some((parsed.support_score, parsed.contradiction_score));
+            }
+            if let Some(label) = parsed.verdict.as_deref() {
+                let conf = parsed.confidence.unwrap_or(0.85).clamp(0.0, 1.0);
+                return match label.trim().to_ascii_lowercase().as_str() {
+                    "supported" | "support" => Some((conf, 0.0)),
+                    "contradicted" | "contradict" => Some((0.0, conf)),
+                    _ => Some((0.0, 0.0)),
+                };
+            }
             Some((parsed.support_score, parsed.contradiction_score))
         }
         _ => None,
@@ -360,6 +392,7 @@ mod tests {
     #[test]
     fn mock_verifier_returns_result() {
         let verifier = MiniCheckVerifier::mock();
+        assert!(verifier.is_mock_backend());
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = rt
             .block_on(verifier.verify_claim(
@@ -370,16 +403,6 @@ mod tests {
         assert!(result.support_score >= 0.0 && result.support_score <= 1.0);
     }
 
-    /// Mock lexical-negation asymmetry: claim asserts a fact, context denies it.
-    ///
-    /// Scoring walkthrough (punctuation-stripped, prefix-tolerant matching):
-    ///   claim = "The cache reduces latency."  →  4 tokens [the, cache, reduces, latency]
-    ///   context sentence = "The cache does not reduce latency"
-    ///   matches: the ✓, cache ✓, reduces→reduce (prefix) ✓, latency ✓ → 4/4
-    ///   overlap_score = 1.0
-    ///   claim has no negator; context sentence contains "does not" → asymmetry = true
-    ///   contradiction_score = 1.0  (= overlap_score)
-    ///   support_score = min(1.0−1.0, 1.0) = 0.0
     #[test]
     fn negation_mismatch_yields_contradiction_score() {
         let verifier = MiniCheckVerifier::mock();
@@ -403,8 +426,6 @@ mod tests {
         );
     }
 
-    /// When claim and context are the same affirmative sentence, no negation
-    /// asymmetry exists and contradiction_score must be 0.0.
     #[test]
     fn agreeing_text_has_zero_contradiction() {
         let verifier = MiniCheckVerifier::mock();
@@ -420,6 +441,7 @@ mod tests {
     #[test]
     fn calibrated_hybrid_supports_clean_containment_and_flags_numeric_conflict() {
         let verifier = MiniCheckVerifier::calibrated_hybrid("anthropic/claude-3.5-haiku");
+        assert!(!verifier.is_mock_backend());
         let rt = tokio::runtime::Runtime::new().unwrap();
         let clean = rt
             .block_on(verifier.verify_claim(
@@ -437,7 +459,41 @@ mod tests {
                 "The cache does not reduce latency.",
             ))
             .unwrap();
-        assert!(neg.contradiction_score >= 0.6, "{neg:?}");
+        assert!(neg.contradiction_score >= 0.85, "{neg:?}");
+        assert!(neg.support_score <= 0.15, "{neg:?}");
+    }
+
+    #[test]
+    fn tier0_calibrated_handles_antonym_numeric_and_statcheck_contradictions() {
+        let verifier = MiniCheckVerifier::calibrated_hybrid("anthropic/claude-3.5-haiku");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let antonym = rt
+            .block_on(verifier.verify_claim(
+                "The April 2026 deployment reduced p95 latency to 12ms.",
+                "The April 2026 deployment increased p95 latency to 84ms across all regions.",
+            ))
+            .unwrap();
+        assert!(antonym.contradiction_score >= 0.85, "{antonym:?}");
+        assert!(antonym.support_score <= 0.15, "{antonym:?}");
+
+        let numeric = rt
+            .block_on(verifier.verify_claim(
+                "Cache hit rate reached 95 percent under load.",
+                "Cache hit rate reached 41 percent under load.",
+            ))
+            .unwrap();
+        assert!(numeric.contradiction_score >= 0.85, "{numeric:?}");
+        assert!(numeric.support_score <= 0.15, "{numeric:?}");
+
+        let statcheck = rt
+            .block_on(verifier.verify_claim(
+                "The effect is statistically significant (p < 0.01).",
+                "The effect is not statistically significant (p = 0.42).",
+            ))
+            .unwrap();
+        assert!(statcheck.contradiction_score >= 0.85, "{statcheck:?}");
+        assert!(statcheck.support_score <= 0.15, "{statcheck:?}");
     }
 }
 
@@ -447,13 +503,14 @@ mod semcov_wave2_tests {
     use super::*;
 
     #[test]
-    fn from_env_returns_mock_when_env_var_absent() {
+    fn from_env_returns_calibrated_hybrid_when_env_var_absent() {
         let verifier =
             MiniCheckVerifier::from_env_with_lookup(|_| Err(std::env::VarError::NotPresent));
         assert!(
-            matches!(verifier.backend, MiniCheckBackend::Mock),
-            "expected Mock backend when VOX_MINICHECK_ENDPOINT is unset"
+            matches!(verifier.backend, MiniCheckBackend::CalibratedHybrid { .. }),
+            "expected CalibratedHybrid backend when VOX_MINICHECK_ENDPOINT is unset"
         );
+        assert!(!verifier.is_mock_backend());
     }
 
     #[test]

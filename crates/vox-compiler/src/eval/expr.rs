@@ -704,6 +704,35 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
 
             let o = eval_expr(interp, obj)?;
+            if let VoxValue::PyObject(raw) = &o {
+                if method != "decode" {
+                    return Err(EvalError::AssertionFailed(format!(
+                        "Cannot call `{method}` on opaque PyObject; call `.decode(...)` first."
+                    )));
+                }
+                if args.len() > 1 {
+                    return Err(EvalError::AssertionFailed(
+                        "PyObject.decode expects at most 1 argument".into(),
+                    ));
+                }
+                let hint = if let Some(arg) = args.first() {
+                    decode_type_hint_from_hir(&arg.value).or_else(|| {
+                        eval_expr(interp, &arg.value).ok().and_then(|v| match v {
+                            VoxValue::Str(s) => Some(s.as_ref().to_string()),
+                            _ => None,
+                        })
+                    })
+                } else {
+                    None
+                };
+                return Ok(
+                    match crate::python_escape_support::json_to_vox_value(raw, hint.as_deref()) {
+                        Ok(v) => VoxValue::Result(Ok(Box::new(v))),
+                        Err(e) => VoxValue::Result(Err(crate::eval::value::err_str(e))),
+                    },
+                );
+            }
+
             let mut eval_args = Vec::new();
             for a in args {
                 if method == "astype"
@@ -727,18 +756,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     "shape" => super::builtins::materialize_shape(interp, &plan, &caps),
                     _ => super::builtins::materialize_to_list(interp, &plan, &caps),
                 };
-                return match result {
-                    VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
-                    VoxValue::_Denied(what) => {
-                        let (ns, denied_method) =
-                            what.split_once('.').unwrap_or((what.as_str(), ""));
-                        Err(EvalError::CapabilityDenied {
-                            ns: ns.to_string(),
-                            method: denied_method.to_string(),
-                        })
-                    }
-                    other => Ok(other),
-                };
+                return eval_host_result(result);
             }
 
             if method == "collect"
@@ -748,18 +766,67 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 let plan = plan.clone();
                 let caps = interp.caps.clone();
                 let result = super::builtins::materialize_collect(interp, &plan, &caps);
-                return match result {
-                    VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
-                    VoxValue::_Denied(what) => {
-                        let (ns, denied_method) =
-                            what.split_once('.').unwrap_or((what.as_str(), ""));
-                        Err(EvalError::CapabilityDenied {
-                            ns: ns.to_string(),
-                            method: denied_method.to_string(),
-                        })
-                    }
-                    other => Ok(other),
+                return eval_host_result(result);
+            }
+
+            if method == "save"
+                && let VoxValue::PlotPlan(plan) = &o
+            {
+                let Some(VoxValue::Str(out_path)) = eval_args.first() else {
+                    return Err(EvalError::AssertionFailed(
+                        "Plot.save requires a file path string".into(),
+                    ));
                 };
+                let plan = plan.clone();
+                let out_path = out_path.to_string();
+                let caps = interp.caps.clone();
+                let result =
+                    super::builtins::materialize_plot_save(interp, &plan, &out_path, &caps);
+                return eval_host_result(result);
+            }
+
+            if method == "load_exported"
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "tensor")
+                })
+            {
+                let Some(VoxValue::Str(path)) = eval_args.first() else {
+                    return Err(EvalError::AssertionFailed(
+                        "tensor.load_exported requires a model path string".into(),
+                    ));
+                };
+                let caps = interp.caps.clone();
+                let result = super::builtins::materialize_tensor_load(interp, path.as_ref(), &caps);
+                return eval_host_result(result);
+            }
+
+            if let VoxValue::PyModule { module, .. } = &o {
+                let module = module.clone();
+                let caps = interp.caps.clone();
+                let result = super::builtins::materialize_escape_call(
+                    interp, &module, method, eval_args, &caps,
+                );
+                return eval_host_result(result);
+            }
+
+            if method == "run"
+                && let VoxValue::TensorModel(model) = &o
+            {
+                let model = model.clone();
+                let mut inputs = Vec::with_capacity(eval_args.len());
+                for arg in &eval_args {
+                    let VoxValue::ArrayPlan(plan) = arg else {
+                        return Err(EvalError::AssertionFailed(
+                            "Model.run inputs must be Array values".into(),
+                        ));
+                    };
+                    inputs.push(plan.clone());
+                }
+                let caps = interp.caps.clone();
+                let result =
+                    super::builtins::materialize_tensor_run(interp, &model, &inputs, &caps);
+                return eval_host_result(result);
             }
 
             // Closure-taking method dispatch — handled here (not in
@@ -1400,6 +1467,62 @@ fn apply_closure_method(
             Err(e) => Ok(Some(VoxValue::Result(Err(e.clone())))),
         },
         _ => Ok(None),
+    }
+}
+
+fn decode_type_hint_from_hir(expr: &HirExpr) -> Option<String> {
+    match expr {
+        HirExpr::StringLit(s, _) => Some(s.clone()),
+        HirExpr::Ident(name, _)
+            if matches!(
+                name.as_str(),
+                "int"
+                    | "Int"
+                    | "i64"
+                    | "float"
+                    | "Float"
+                    | "f64"
+                    | "f32"
+                    | "str"
+                    | "Str"
+                    | "String"
+                    | "string"
+                    | "bool"
+                    | "Bool"
+                    | "Unit"
+                    | "unit"
+            ) =>
+        {
+            Some(name.clone())
+        }
+        HirExpr::Index(base, inner, _) => {
+            let HirExpr::Ident(container, _) = base.as_ref() else {
+                return None;
+            };
+            let inner_s = decode_type_hint_from_hir(inner)?;
+            Some(format!("{container}[{inner_s}]"))
+        }
+        _ => None,
+    }
+}
+
+fn eval_host_result(result: VoxValue) -> Result<VoxValue, EvalError> {
+    match result {
+        VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
+        VoxValue::_Denied(what) => {
+            if let Some(rest) = what.strip_prefix("py.unverified.") {
+                return Err(EvalError::CapabilityDenied {
+                    ns: "py.unverified".to_string(),
+                    method: rest.to_string(),
+                });
+            }
+            let (ns, denied_method) = what.split_once('.').unwrap_or((what.as_str(), ""));
+            Err(EvalError::CapabilityDenied {
+                ns: ns.to_string(),
+                method: denied_method.to_string(),
+            })
+        }
+        other => Ok(other),
     }
 }
 

@@ -34,7 +34,7 @@ describe('TurnTrace', () => {
   it('a clean turn is one collapsed summary row', () => {
     render(<TurnTrace events={CLEAN} verbosity="normal" latencyMs={4100} />);
     const summary = screen.getByTestId('chat-trace-summary');
-    expect(summary).toHaveTextContent('acme/widget-5.5 · 1 tool · 1 receipt ✓ · 1 delegated · 3 research waves · 4.1s');
+    expect(summary).toHaveTextContent('acme/widget-5.5 · 1 tool · 1 receipt verified · 1 delegated · 3 research waves · 4.1s');
     expect(summary).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByTestId('chat-trace-steps')).not.toBeVisible();
   });
@@ -116,7 +116,7 @@ describe('golden turn (same example the Rust golden test checks)', () => {
     if (!golden) throw new Error('contract has no golden_turn');
     render(<TurnTrace events={golden.events} verbosity="normal" />);
     const summary = screen.getByTestId('chat-trace-summary');
-    expect(summary).toHaveTextContent('acme/widget-5.5 · 1 tool · 1 receipt ✓');
+    expect(summary).toHaveTextContent('acme/widget-5.5 · 1 tool · 1 receipt verified');
     expect(summary).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getAllByTestId('chat-trace-step').map((li) => li.getAttribute('data-kind'))).toEqual([
       'routing_decision',

@@ -67,6 +67,6 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `fn` | `redact_owned` | `pub fn redact_owned(text: &str) -> String` | [`crates/vox-redact/src/lib.rs#L67-L74`](../../../crates/vox-redact/src/lib.rs#L67-L74) | Redact PII/secret patterns in free text. Conservative: unknown patterns pass through. |
-| `fn` | `redact_args` | `pub fn redact_args(value: &serde_json::Value) -> serde_json::Value` | [`crates/vox-redact/src/lib.rs#L100-L118`](../../../crates/vox-redact/src/lib.rs#L100-L118) | Recursively redact a JSON value: values under secret-ish keys become `"[REDACTED]"`; all other string scalars are run through [`redact_owned`]. |
+| `fn` | `redact_owned` | `pub fn redact_owned(text: &str) -> String` | [`crates/vox-redact/src/lib.rs#L90-L102`](../../../crates/vox-redact/src/lib.rs#L90-L102) | Redact PII/secret patterns in free text. Conservative: unknown patterns pass through. |
+| `fn` | `redact_args` | `pub fn redact_args(value: &serde_json::Value) -> serde_json::Value` | [`crates/vox-redact/src/lib.rs#L128-L146`](../../../crates/vox-redact/src/lib.rs#L128-L146) | Recursively redact a JSON value: values under secret-ish keys become `"[REDACTED]"`; all other string scalars are run through [`redact_owned`]. |
 

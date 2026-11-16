@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use vox_code_audit::rules::{Finding, Language, Severity};
 
 pub mod bearer_header;
+pub mod hardcoded_abs_dir;
 pub mod reqwest_bypass;
 pub mod serde_default_dup;
 pub mod timeout_literal;
@@ -45,6 +46,7 @@ pub fn all_drift_rules() -> Vec<Box<dyn DriftRule>> {
         Box::new(version_string::VersionStringRule),
         Box::new(bearer_header::BearerHeaderRule),
         Box::new(vox_dir_unanchored::VoxDirUnanchoredRule),
+        Box::new(hardcoded_abs_dir::HardcodedAbsDirRule),
     ]
 }
 

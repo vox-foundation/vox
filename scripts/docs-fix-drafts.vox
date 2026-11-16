@@ -8,6 +8,9 @@
 // meets promotion thresholds (`precision >= 80%`, `false_positive_rate <= 10%`,
 // `open_draft_branches <= 3`) before staging any human-reviewed draft PRs.
 //
+// Note: `.github/workflows/docs-self-heal.yml` runs the read-only verifier; weekly
+// write-side draft PR staging is owned by `.github/workflows/docs-drift-refresh.yml`.
+//
 // Usage:
 //   vox run scripts/docs-fix-drafts.vox
 //   vox run scripts/docs-fix-drafts.vox -- --dry-run

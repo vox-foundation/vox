@@ -5,13 +5,14 @@
 # crates/vox-populi/src/mens/tensor/calibration.rs for how a row gets
 # measured.
 #
-# candle-metal has NO row here as of 2026-09-11: exactly one real
-# candle-metal measurement exists (Qwen3-0.6B, batch=2 x seq=512, on
-# docs/src/architecture/measurements/2026-09-11-candle-metal-calibration.json)
-# and one point cannot determine a slope, so `fit_a_lane` correctly refuses
-# to fit it. `MemoryModels::get` fails closed for candle-metal today,
-# pointing at `vox mens probe --measure`. Do not seed this row from the old
-# MLX-based estimate or any other external reference — measure it for real.
+# candle-metal (gradient_checkpointing: true) is calibrated from real PeakSampler
+# training runs on Apple M5 Max (`Qwen/Qwen3.5-2B` at `tokens_per_step` 512
+# and 2048) recorded in
+# `docs/src/architecture/measurements/2026-11-13-candle-metal-qwen35-calibration.json`.
+# `candle-metal` with `gradient_checkpointing: false` has NO row here and still
+# fails closed (`MemoryModels::get` points at `vox mens probe --measure`).
+# Never seed a missing row from the old MLX-based estimate or any external
+# reference — measure it for real.
 #
 # candle-cuda is seeded (not measured) from constants that were calibrated
 # in memory_budget.rs (RESIDENT_GIB_PER_B_PARAMS=3.5, FIXED_OVERHEAD_GIB=1.6,
@@ -37,3 +38,7 @@ lanes:
     gradient_checkpointing: true
     act_bytes_per_lht: 186.3620764597089
     source: seeded
+  - lane: candle-metal
+    gradient_checkpointing: true
+    act_bytes_per_lht: 162.48240311940512
+    source: measured

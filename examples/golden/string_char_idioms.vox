@@ -1,0 +1,128 @@
+// ---
+// title: "String Character Traversal, ASCII Code Points, and Token Normalization"
+// description: "Idiomatic Vox string processing using chars(), ord(), chr(), split(), to_lowercase(), starts_with(), contains(), and slice() without char literals."
+// syntax_version: "0.6.0"
+// status: golden
+// category: example
+// constructs: [fn, str, for, chars, ord, chr, split, to_lowercase, list, @test]
+// last_validated: 2026-11-15
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: intermediate
+// ---
+// @training_prompt: Process strings in Vox using single-character str values from s.chars(), ord(), chr(), split(), to_lowercase(), starts_with(), and contains().
+
+/// Mirror ASCII letters using the Atbash cipher (A<->Z, a<->z) while leaving non-letters unchanged.
+fn atbash_letters(text: str) to str {
+    let upper_a: int = "A".ord()
+    let upper_z: int = "Z".ord()
+    let lower_a: int = "a".ord()
+    let lower_z: int = "z".ord()
+    let mut out: str = ""
+    for ch in text.chars() {
+        let code: int = ch.ord()
+        if code >= upper_a and code <= upper_z {
+            out = out + chr(upper_z - (code - upper_a))
+        } else if code >= lower_a and code <= lower_z {
+            out = out + chr(lower_z - (code - lower_a))
+        } else {
+            out = out + ch
+        }
+    }
+    return out
+}
+
+/// Remove case-insensitive duplicate tags while preserving the original casing of the first appearance.
+fn unique_tags_preserve_first(tags: list[str]) to list[str] {
+    let mut seen_lower: list[str] = []
+    let mut kept: list[str] = []
+    for tag in tags {
+        let key: str = tag.to_lowercase()
+        if not seen_lower.contains(key) {
+            seen_lower.push(key)
+            kept.push(tag)
+        }
+    }
+    return kept
+}
+
+/// Count whitespace-separated words in `sentence` that end with `suffix`.
+fn count_words_with_suffix(sentence: str, suffix: str) to int {
+    let mut hits: int = 0
+    for word in sentence.split(" ") {
+        if len(word) > 0 and word.ends_with(suffix) {
+            hits = hits + 1
+        }
+    }
+    return hits
+}
+
+/// Parse a non-negative ASCII decimal integer string without leading spaces; return -1 if invalid or empty.
+fn parse_nonneg_decimal(raw: str) to int {
+    if len(raw) is 0 {
+        return -1
+    }
+    let zero: int = "0".ord()
+    let nine: int = "9".ord()
+    let mut val: int = 0
+    for ch in raw.chars() {
+        let code: int = ch.ord()
+        if code < zero or code > nine {
+            return -1
+        }
+        val = val * 10 + (code - zero)
+    }
+    return val
+}
+
+/// Validate a colon-separated `host_id:port` numeric pair where host_id is 1..999 and port is 1..65535.
+fn is_valid_numeric_endpoint(spec: str) to bool {
+    let parts: list[str] = spec.split(":")
+    if len(parts) isnt 2 {
+        return false
+    }
+    let host_num: int = match parts[0] {
+        Some(h) => parse_nonneg_decimal(h)
+        None => -1
+    }
+    let port_num: int = match parts[1] {
+        Some(p) => parse_nonneg_decimal(p)
+        None => -1
+    }
+    return host_num >= 1 and host_num <= 999 and port_num >= 1 and port_num <= 65535
+}
+
+/// Check whether `candidate` is a cyclic shift of `reference` when double-concatenated.
+fn is_cyclic_word_shift(reference: str, candidate: str) to bool {
+    if len(reference) isnt len(candidate) {
+        return false
+    }
+    if len(reference) is 0 {
+        return true
+    }
+    let doubled: str = reference + reference
+    return doubled.contains(candidate)
+}
+
+@test
+fn test_string_char_idioms() to Unit {
+    assert(atbash_letters("Abc-Z!") is "Zyx-A!")
+    assert(unique_tags_preserve_first(["Vox", "rust", "VOX", "Metal", "RUST"]) is ["Vox", "rust", "Metal"])
+    assert(count_words_with_suffix("testing running jumping fast", "ing") is 3)
+    assert(is_valid_numeric_endpoint("42:8080") is true)
+    assert(is_valid_numeric_endpoint("42:99999") is false)
+    assert(is_cyclic_word_shift("orbit", "bitor") is true)
+    assert(is_cyclic_word_shift("orbit", "botir") is false)
+}
+
+// EXPECT: string_char_idioms ok
+pub fn main() {
+    assert(atbash_letters("Abc-Z!") is "Zyx-A!")
+    assert(unique_tags_preserve_first(["Vox", "rust", "VOX", "Metal", "RUST"]) is ["Vox", "rust", "Metal"])
+    assert(count_words_with_suffix("testing running jumping fast", "ing") is 3)
+    assert(is_valid_numeric_endpoint("42:8080") is true)
+    assert(is_valid_numeric_endpoint("42:99999") is false)
+    assert(is_cyclic_word_shift("orbit", "bitor") is true)
+    assert(is_cyclic_word_shift("orbit", "botir") is false)
+    print("string_char_idioms ok")
+}

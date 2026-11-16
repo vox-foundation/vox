@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Icon } from '../ui/Icons';
 
 export interface VersionMismatchBannerProps {
   mismatch: { daemon: string; gui: string } | null;
@@ -20,9 +21,9 @@ export function VersionMismatchBanner({ mismatch }: VersionMismatchBannerProps) 
         type="button"
         aria-label="Dismiss version mismatch warning"
         onClick={() => setDismissedFor(key)}
-        className="shrink-0 rounded-sm px-1.5 py-0.5 text-amber-200/70 hover:bg-amber-400/10 hover:text-amber-200"
+        className="inline-flex shrink-0 items-center justify-center rounded-sm px-1.5 py-0.5 text-amber-200/70 hover:bg-amber-400/10 hover:text-amber-200"
       >
-        ✕
+        <Icon.close className="size-3.5" aria-hidden="true" />
       </button>
     </div>
   );

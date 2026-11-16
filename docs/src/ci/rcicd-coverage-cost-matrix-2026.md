@@ -25,7 +25,7 @@ This document implements the RCICD audit plan: what is covered where, what belon
 | `ci.yml` | PR + push `main` | Build, lint, guards, nextest, llvm-cov, audits, integration lanes | High |
 | `docs-quality.yml` | Path-filtered PR/`main` | Doc lint, doctest-md, Starlight build | Medium |
 | `docs-deploy.yml` | Path-filtered push `main` | Site deploy | Medium |
-| `link_checker.yml` | PR + push `main` | External links | Medium |
+| `docs-drift-refresh.yml` | Schedule (`04:23 UTC` Sun) + `workflow_dispatch` | Docs ledger/findings + non-blocking external links draft PR | Low |
 | `ssot-drift.yml` | PR + push `main` | Crate version / dashboard SSOT (overlaps theme with `ci.yml`, not identical steps) | Low–medium |
 | `mutation-nightly.yml` / `bench-nightly.yml` | Schedule | Nightly quality / perf (`cargo mutants` for the first) | High (scheduled) |
 | `mobile-e2e-android.yml` | Path-filtered PR/push (`apps/vox-mental-tracker/**`) | Android emulator E2E | High |

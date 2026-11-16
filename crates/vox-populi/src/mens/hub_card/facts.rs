@@ -33,6 +33,10 @@ const LEGACY_EVIDENCE: &[&str] = &[
 #[derive(Debug, Clone, Default)]
 pub struct RunRecords {
     pub has_adapter: bool,
+    /// Relative paths of complete merged checkpoint files (`vox mens merge-qlora`) when present.
+    pub merged_model_files: Vec<String>,
+    /// Whether a complete merged checkpoint (`recombined_full/model.safetensors`, sharded index, or merged safetensors) exists.
+    pub has_complete_merged_model: bool,
     pub train_record: Option<Value>,
     pub run_summary: Option<Value>,
     pub training_manifest: Option<Value>,
@@ -100,17 +104,27 @@ fn read_ckpt(path: &Path) -> Option<(Vec<String>, Option<String>)> {
 }
 
 /// Read and downsample telemetry loss curve from `telemetry.jsonl`.
+/// Scoped to the active run when `target_run_id` matches a `train_start` payload `run_id`,
+/// or to the final segment in the file so retries never mix curves.
 /// Returns `(ema_smoothed_pts, raw_pts)`.
-fn read_telemetry_loss(path: &Path) -> (Vec<(u32, f32)>, Vec<(u32, f32)>) {
+fn read_telemetry_loss(
+    path: &Path,
+    target_run_id: Option<&str>,
+) -> (Vec<(u32, f32)>, Vec<(u32, f32)>) {
     let Ok(content) = std::fs::read_to_string(path) else {
         return (Vec::new(), Vec::new());
     };
-    let mut raw_pts = Vec::new();
+    let mut segments: Vec<(Option<String>, Vec<(u32, f32)>)> = vec![(None, Vec::new())];
     for line in content.lines() {
         let Ok(v) = serde_json::from_str::<Value>(line) else {
             continue;
         };
         let event = v["event"].as_str();
+        if event == Some("train_start") {
+            let run_id = v["payload"]["run_id"].as_str().map(str::to_string);
+            segments.push((run_id, Vec::new()));
+            continue;
+        }
         if event == Some("train_step") || event == Some("step") {
             let payload = &v["payload"];
             let step = payload["step"]
@@ -119,11 +133,28 @@ fn read_telemetry_loss(path: &Path) -> (Vec<(u32, f32)>, Vec<(u32, f32)>) {
             let loss = payload["loss"].as_f64();
             if let (Some(s), Some(l)) = (step, loss)
                 && l.is_finite()
+                && let Some((_, pts)) = segments.last_mut()
             {
-                raw_pts.push((s as u32, l as f32));
+                pts.push((s as u32, l as f32));
             }
         }
     }
+    let mut raw_pts = target_run_id
+        .and_then(|want| {
+            segments
+                .iter()
+                .rev()
+                .find(|(id, pts)| id.as_deref() == Some(want) && !pts.is_empty())
+                .map(|(_, pts)| pts.clone())
+        })
+        .or_else(|| {
+            segments
+                .into_iter()
+                .rev()
+                .find(|(_, pts)| !pts.is_empty())
+                .map(|(_, pts)| pts)
+        })
+        .unwrap_or_default();
     if raw_pts.is_empty() {
         return (Vec::new(), Vec::new());
     }
@@ -168,12 +199,102 @@ pub fn compare_json_path(run_dir: &Path, size: &str, base_pin: &str) -> Option<s
     if staged.is_file() {
         return Some(staged);
     }
-    let rev = base_pin.split_once('@')?.1;
-    let p = run_dir
-        .parent()?
-        .join("reasoning_compare")
-        .join(format!("Qwen3-{size}-{}.json", rev.get(..12)?));
-    p.is_file().then_some(p)
+    let (repo, rev) = base_pin.split_once('@')?;
+    let rev12 = rev.get(..12)?;
+    let compare_dir = run_dir.parent()?.join("reasoning_compare");
+    if let Some(repo_short) = repo.rsplit('/').next().filter(|s| !s.is_empty()) {
+        let by_repo = compare_dir.join(format!("{repo_short}-{rev12}.json"));
+        if by_repo.is_file() {
+            return Some(by_repo);
+        }
+    }
+    let model_label = crate::mens::hub_repo::model_label_for(if base_pin.trim().is_empty() {
+        size
+    } else {
+        base_pin
+    });
+    let by_label = compare_dir.join(format!("{model_label}-{rev12}.json"));
+    if by_label.is_file() {
+        return Some(by_label);
+    }
+    let legacy = compare_dir.join(format!("Qwen3-{size}-{rev12}.json"));
+    legacy.is_file().then_some(legacy)
+}
+
+/// Detect complete merged checkpoint files created by `vox mens merge-qlora` in `run_dir`.
+///
+/// Prefers `recombined_full/` (full SafeTensors + tokenizer + config written with `--keep-merged`),
+/// or standalone `merged_model.safetensors` / `merged.safetensors` / `model.safetensors` / sharded
+/// `model-*-of-*.safetensors` in `run_dir` root. Never treats training adapter checkpoints
+/// (`candle_qlora_adapter.safetensors`, `checkpoint_*.safetensors`) as complete merged models.
+pub fn detect_merged_checkpoint_files(run_dir: &Path) -> Vec<(std::path::PathBuf, String)> {
+    const CONFIG_AND_TOKENIZER: &[&str] = &[
+        "model.safetensors.index.json",
+        "config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "generation_config.json",
+        "special_tokens_map.json",
+    ];
+    let mut out = Vec::new();
+    let recombined = run_dir.join("recombined_full");
+    if recombined.is_dir()
+        && let Ok(rd) = std::fs::read_dir(&recombined)
+    {
+        let mut weights = Vec::new();
+        let mut extras = Vec::new();
+        for entry in rd.flatten() {
+            let p = entry.path();
+            if !p.is_file() {
+                continue;
+            }
+            let Some(name) = p.file_name().and_then(|n| n.to_str()).map(str::to_string) else {
+                continue;
+            };
+            if name.ends_with(".safetensors") {
+                weights.push((p, name));
+            } else if CONFIG_AND_TOKENIZER.contains(&name.as_str()) {
+                extras.push((p, name));
+            }
+        }
+        if !weights.is_empty() {
+            out.extend(weights);
+            out.extend(extras);
+            out.sort_by(|a, b| a.1.cmp(&b.1));
+            return out;
+        }
+    }
+
+    if let Ok(rd) = std::fs::read_dir(run_dir) {
+        for entry in rd.flatten() {
+            let p = entry.path();
+            if !p.is_file() {
+                continue;
+            }
+            let Some(name) = p.file_name().and_then(|n| n.to_str()).map(str::to_string) else {
+                continue;
+            };
+            let is_merged_weight = matches!(
+                name.as_str(),
+                "merged_model.safetensors" | "merged.safetensors" | "model.safetensors"
+            ) || (name.starts_with("model-")
+                && name.ends_with(".safetensors")
+                && name.contains("-of-"));
+            if is_merged_weight {
+                out.push((p, name));
+            }
+        }
+    }
+    if !out.is_empty() {
+        for &extra in CONFIG_AND_TOKENIZER {
+            let p = run_dir.join(extra);
+            if p.is_file() {
+                out.push((p, extra.to_string()));
+            }
+        }
+        out.sort_by(|a, b| a.1.cmp(&b.1));
+    }
+    out
 }
 
 impl RunRecords {
@@ -205,24 +326,52 @@ impl RunRecords {
                 None => (None, None),
             };
         // A compare file is keyed by base revision; only use it when it scored this rung's run dir.
-        let rung = format!("qwen3-{}", size.to_ascii_lowercase());
+        let legacy_rung = format!("qwen3-{}", size.to_ascii_lowercase());
+        let family_rung =
+            crate::mens::hub_repo::local_run_dir_for_size(if base_pin.trim().is_empty() {
+                size
+            } else {
+                base_pin
+            })
+            .ok()
+            .map(|d| d.trim_start_matches("mens/runs/").to_string());
+        let run_dir_name = run_dir.file_name().and_then(|n| n.to_str());
         let compare = compare_json_path(run_dir, size, base_pin)
             .and_then(|p| read_json(&p))
             .filter(|c| {
                 c["status"].as_str() != Some("compared")
-                    || c["adapter"]["dir"]
-                        .as_str()
-                        .is_some_and(|d| d.trim_end_matches('/').ends_with(&rung))
+                    || c["adapter"]["dir"].as_str().is_some_and(|d| {
+                        let trimmed = d.trim_end_matches(['/', '\\']);
+                        trimmed.ends_with(&legacy_rung)
+                            || family_rung.as_deref().is_some_and(|r| trimmed.ends_with(r))
+                            || run_dir_name
+                                .is_some_and(|name| !name.is_empty() && trimmed.ends_with(name))
+                    })
             });
-        let (telemetry_loss, telemetry_raw) = read_telemetry_loss(&run_dir.join("telemetry.jsonl"));
+        let run_summary = j("run_summary.json");
+        let target_run_id = run_summary.as_ref().and_then(|s| s["run_id"].as_str());
+        let (telemetry_loss, telemetry_raw) =
+            read_telemetry_loss(&run_dir.join("telemetry.jsonl"), target_run_id);
         let root = vox_corpus::training::contract::find_workspace_root();
         let collateral_req = load_requirement(root.as_deref()).ok();
         let spoke_gates = crate::mens::gate_policy::spoke_gate_rows(run_dir, root.as_deref());
+        let merged_model_files: Vec<String> = detect_merged_checkpoint_files(run_dir)
+            .into_iter()
+            .map(|(_, rel)| rel)
+            .collect();
+        let has_complete_merged_model = !merged_model_files.is_empty()
+            || run_dir.join("recombined_full/model.safetensors").is_file()
+            || run_dir
+                .join("recombined_full/model.safetensors.index.json")
+                .is_file()
+            || run_dir.join("model.safetensors.index.json").is_file();
         Self {
             has_adapter: run_dir.join("candle_qlora_adapter.safetensors").is_file()
                 || run_dir.join("adapter.safetensors").is_file(),
+            merged_model_files,
+            has_complete_merged_model,
             train_record: j("train-record.json"),
-            run_summary: j("run_summary.json"),
+            run_summary,
             training_manifest: j("training_manifest.json"),
             adapter_manifest: j("adapter_manifest.json"),
             adapter_card: j("adapter_card.json"),
@@ -546,6 +695,119 @@ mod record_tests {
         assert!(!rec.has_adapter && rec.train_record.is_none() && rec.collateral.is_none());
         assert_eq!(heldout_scores(&rec), (None, None));
         assert!(compare_json_path(d.path(), "0.6B", "Qwen/Qwen3-0.6B@abcdef0123456789").is_none());
+    }
+
+    #[test]
+    fn compare_json_path_finds_qwen35_qwen38_and_legacy_qwen3_reports() {
+        let rev = "0123456789abcdef0123456789abcdef01234567";
+        let rev12 = &rev[..12];
+
+        for (rung, size, pin, expected_file) in [
+            (
+                "qwen3.5-4b",
+                "4B",
+                format!("Qwen/Qwen3.5-4B@{rev}"),
+                format!("Qwen3.5-4B-{rev12}.json"),
+            ),
+            (
+                "qwen3.8-27b",
+                "27B",
+                format!("Qwen/Qwen3.8-27B@{rev}"),
+                format!("Qwen3.8-27B-{rev12}.json"),
+            ),
+            (
+                "qwen3-4b",
+                "4B",
+                format!("Qwen/Qwen3-4B@{rev}"),
+                format!("Qwen3-4B-{rev12}.json"),
+            ),
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let run_dir = root.path().join(rung);
+            let compare_dir = root.path().join("reasoning_compare");
+            std::fs::create_dir_all(&run_dir).unwrap();
+            std::fs::create_dir_all(&compare_dir).unwrap();
+            let report = compare_dir.join(&expected_file);
+            std::fs::write(&report, b"{}").unwrap();
+
+            assert_eq!(
+                compare_json_path(&run_dir, size, &pin),
+                Some(report),
+                "expected {expected_file} for {pin}"
+            );
+        }
+
+        // Legacy fallback when only `Qwen3-{size}-{rev12}.json` exists on disk.
+        let root = tempfile::tempdir().unwrap();
+        let run_dir = root.path().join("qwen3.5-4b");
+        let compare_dir = root.path().join("reasoning_compare");
+        std::fs::create_dir_all(&run_dir).unwrap();
+        std::fs::create_dir_all(&compare_dir).unwrap();
+        let legacy = compare_dir.join(format!("Qwen3-4B-{rev12}.json"));
+        std::fs::write(&legacy, b"{}").unwrap();
+        assert_eq!(
+            compare_json_path(&run_dir, "4B", &format!("Qwen/Qwen3.5-4B@{rev}")),
+            Some(legacy)
+        );
+
+        // Staged file inside `run_dir/evidence/` still wins over `reasoning_compare/`.
+        std::fs::create_dir_all(run_dir.join("evidence")).unwrap();
+        let staged = run_dir.join("evidence/reasoning_compare.json");
+        std::fs::write(&staged, b"{}").unwrap();
+        assert_eq!(
+            compare_json_path(&run_dir, "4B", &format!("Qwen/Qwen3.5-4B@{rev}")),
+            Some(staged)
+        );
+    }
+
+    #[test]
+    fn load_accepts_compared_report_for_qwen35_and_qwen38_run_dirs() {
+        let rev = "0123456789abcdef0123456789abcdef01234567";
+        let rev12 = &rev[..12];
+
+        for (rung, size, pin, file_name) in [
+            (
+                "qwen3.5-4b",
+                "4B",
+                format!("Qwen/Qwen3.5-4B@{rev}"),
+                format!("Qwen3.5-4B-{rev12}.json"),
+            ),
+            (
+                "qwen3.8-27b",
+                "27B",
+                format!("Qwen/Qwen3.8-27B@{rev}"),
+                format!("Qwen3.8-27B-{rev12}.json"),
+            ),
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let run_dir = root.path().join(rung);
+            let compare_dir = root.path().join("reasoning_compare");
+            std::fs::create_dir_all(&run_dir).unwrap();
+            std::fs::create_dir_all(&compare_dir).unwrap();
+            let report = compare_dir.join(&file_name);
+
+            let matching = serde_json::json!({
+                "status": "compared",
+                "adapter": {"dir": format!("mens/runs/{rung}/")}
+            });
+            std::fs::write(&report, matching.to_string()).unwrap();
+            let loaded = RunRecords::load(&run_dir, size, &pin);
+            assert!(
+                loaded.compare.is_some(),
+                "expected compare report retained for {rung}"
+            );
+
+            let mismatched = serde_json::json!({
+                "status": "compared",
+                "adapter": {"dir": "mens/runs/qwen3.5-2b"}
+            });
+            std::fs::write(&report, mismatched.to_string()).unwrap();
+            let filtered = RunRecords::load(&run_dir, size, &pin);
+            assert!(
+                filtered.compare.is_none(),
+                "expected compare report filtered for mismatched adapter dir on {rung}"
+            );
+        }
     }
 }
 

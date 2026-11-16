@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
-import { Icon } from '../../ui/Icons';
+import { Icon, KeycapIcon } from '../../ui/Icons';
 import { Popover } from '../../ui/Popover';
+import { RomanRotaryKnob } from '../../ui/RomanRotaryKnob';
+import { VoxSelect } from '../../ui/Select';
+import { Slider } from '../../ui/Slider';
 import { Tooltip } from '../../ui/Tooltip';
-import { voxTransport } from '../../../transport';
+import { invokeCmd, voxTransport } from '../../../transport';
 import { steerChatQueue } from '../../../transport/t3Wave3Rpc';
 import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
 import { computeIntelliSenseItems, type IntelliSenseItem } from '../../../lib/intellisenseEngine';
@@ -364,7 +366,7 @@ export function Loquela({
   // interactive chat task, so fetch that on mount and adopt it if it differs
   // (unless the user has already made their own choice in the meantime).
   useEffect(() => {
-    invoke<{ clutch: ClutchId; risk: RiskId }>('resolve_default_task_policy', {
+    invokeCmd<{ clutch: ClutchId; risk: RiskId }>('resolve_default_task_policy', {
       category: 'Chat',
       source: 'interactive',
     })
@@ -384,6 +386,8 @@ export function Loquela({
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
+  const [samplingTemp, setSamplingTemp] = useState<number>(0.7);
+  const [groundingFloor, setGroundingFloor] = useState<number>(70);
   // Explicit, user-visible choice between the synchronous "quick chat" reply
   // path and dispatching this as a background orchestrator task. Both go to
   // the same `chat_turn` command; this only picks `execution`.
@@ -416,7 +420,7 @@ export function Loquela({
       );
     }
     void Promise.resolve(
-      invoke('set_session_chat_posture', {
+      invokeCmd('set_session_chat_posture', {
         sessionId: null,
         posture: nextPosture,
       }),
@@ -427,7 +431,7 @@ export function Loquela({
 
   useEffect(() => {
     void Promise.resolve(
-      invoke<{
+      invokeCmd<{
         clutch?: ClutchId | null;
         risk?: RiskId | null;
         tier?: string | null;
@@ -543,7 +547,11 @@ export function Loquela({
       }
     };
     const onPointerDown = (e: PointerEvent) => {
-      if (tierOpen && !tierRootRef.current?.contains(e.target as Node)) setTierOpen(false);
+      const inPortaledPopover =
+        e.target instanceof Element && Boolean(e.target.closest('[data-slot="popover-content"]'));
+      if (tierOpen && !inPortaledPopover && !tierRootRef.current?.contains(e.target as Node)) {
+        setTierOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onPointerDown);
@@ -586,7 +594,7 @@ export function Loquela({
     filePickerDebounceRef.current = setTimeout(async () => {
       setFileSuggestionsLoading(true);
       try {
-        const paths = await invoke<string[]>("list_repo_files", {
+        const paths = await invokeCmd<string[]>("list_repo_files", {
           query: atQuery || null,
           limit: LOQUELA_FILE_PICKER_LIMIT,
         });
@@ -609,7 +617,7 @@ export function Loquela({
       setModelLoadStatus('loading');
       Promise.all([
         voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT),
-        invoke<ProviderStatus[]>('inference_provider_status').catch(() => []),
+        invokeCmd<ProviderStatus[]>('inference_provider_status').catch(() => []),
       ]).then(([models, statuses]) => {
         if (cancelled) return;
         if (!Array.isArray(models)) {
@@ -858,7 +866,7 @@ export function Loquela({
     if (transcribing) return;
     if (!recording) {
       try {
-        await invoke('start_mic_capture');
+        await invokeCmd('start_mic_capture');
         setRecording(true);
         toast?.({ tone: 'info', title: 'Recording', body: 'Listening — tap the mic again to stop.', cmd: 'oratio.transcribe', cause: 'backend-ok' });
       } catch (e) {
@@ -870,7 +878,7 @@ export function Loquela({
     setRecording(false);
     setTranscribing(true);
     try {
-      const transcript = await invoke<string>('stop_mic_capture_and_transcribe');
+      const transcript = await invokeCmd<string>('stop_mic_capture_and_transcribe');
       const t = (transcript || '').trim();
       if (t) {
         setText(prev => (prev ? `${prev.replace(/\s*$/, '')} ${t}` : t));
@@ -1246,7 +1254,7 @@ export function Loquela({
       : null;
 
   return (
-    <div className="pointer-events-auto" data-testid="loquela-composer">
+    <div className="@container pointer-events-auto" data-testid="loquela-composer">
       <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-lg" : ""}`}>
         {(chips.length > 0 || hasPinnedTermBlocks || hasFailedTermBlocks || hasActiveSession) && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
@@ -1298,9 +1306,10 @@ export function Loquela({
               <span
                 aria-hidden="true"
                 data-testid="loquela-ghost"
-                className="pointer-events-none absolute right-2 top-2 font-mono text-[11px] text-text-muted"
+                className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1 font-mono text-[11px] text-text-muted"
               >
-                {activeIntelliSenseItem?.label} ⇥
+                <span>{activeIntelliSenseItem?.label}</span>
+                <KeycapIcon keyName="Tab" className="size-3 inline-block shrink-0" />
               </span>
             )}
             <textarea
@@ -1314,7 +1323,7 @@ export function Loquela({
               onBlur={() => setTimeout(() => setFocused(false), 120)}
               rows={1}
               placeholder="Describe a task — e.g. ‘harden cryptographic invariants’ (/ commands, @ context)"
-              className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-text-primary placeholder:text-text-muted outline-hidden`}
+              className={`min-h-[38px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[13.5px] leading-snug text-text-primary placeholder:text-text-muted outline-hidden`}
             />
 
             <IntelliSensePopover
@@ -1366,7 +1375,8 @@ export function Loquela({
                     aria-label="Steer active turn"
                     className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-brass/50 bg-brass/15 px-2.5 font-display text-[11px] uppercase tracking-[0.13em] text-brass transition hover:bg-brass/25"
                   >
-                    ⚡ Steer
+                    <Icon.bolt className="size-3" aria-hidden="true" />
+                    <span>Steer</span>
                   </button>
                   <button
                     type="button"
@@ -1396,7 +1406,9 @@ export function Loquela({
               >
                 <Icon.stop className="size-3.5" />
                 <span className="font-display text-[11px] uppercase tracking-[0.13em]">Stop</span>
-                <kbd className="rounded-sm border border-current px-1 text-[11px] opacity-75">↵</kbd>
+                <kbd className="inline-flex items-center rounded-sm border border-current px-1 py-0.5 text-[11px] opacity-75">
+                  <KeycapIcon keyName="Enter" className="size-2.5" />
+                </kbd>
               </button>
             </div>
           ) : (
@@ -1414,7 +1426,9 @@ export function Loquela({
               >
                 <Icon.send className="size-3.5" />
                 Run
-                <kbd className="rounded-sm border border-current px-1 text-[11px] opacity-80">↵</kbd>
+                <kbd className="inline-flex items-center rounded-sm border border-current px-1 py-0.5 text-[11px] opacity-80">
+                  <KeycapIcon keyName="Enter" className="size-2.5" />
+                </kbd>
               </button>
             </Tooltip>
           )}
@@ -1424,11 +1438,11 @@ export function Loquela({
           <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} showEffort={executionMode === 'task'} />
         )}
 
+        <div ref={postureRootRef} className="w-full">
         <div
-          ref={postureRootRef}
-          className="loquela-bar relative mt-1.5 flex flex-wrap items-center gap-1 border-t border-border-subtle/60 pt-1.5 text-[11px] whitespace-nowrap"
+          className="loquela-bar relative mt-1.5 flex flex-nowrap items-center gap-1 border-t border-border-subtle/60 pt-1.5 text-[11px] whitespace-nowrap"
         >
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <Tooltip content="Attach local file(s) to context" side="top">
               <button type="button" data-loquela-toolbar-item="true" aria-label="Attach local file(s) to context" onClick={attachContext} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-brass/40 transition">
                 <Icon.plus className="size-3.5" aria-hidden="true" />
@@ -1479,374 +1493,20 @@ export function Loquela({
                   setSkillOpen(false);
                   setKeybindHudOpen(false);
                 }}
-                className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 font-medium transition ${
+                className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2 font-medium transition ${
                   postureOpen
                     ? 'border-brass/60 bg-brass/20 text-brass shadow-sm'
                     : 'border-brass/35 bg-brass/10 text-brass hover:border-brass/55 hover:bg-brass/16'
                 }`}
               >
-                <Icon.bolt className="size-3 text-brass" aria-hidden="true" />
+                <Icon.bolt className="size-3 text-brass shrink-0" aria-hidden="true" />
                 <span>
-                  {CLUTCH_DETENTS.find((d) => d.id === control.clutch)?.label ?? control.clutch} · {control.risk}
+                  {CLUTCH_DETENTS.find((d) => d.id === control.clutch)?.label ?? control.clutch}
+                  <span className="@max-[720px]:hidden"> · {control.risk}</span>
                 </span>
-                <Icon.chevR className="size-2.5 rotate-90 text-brass" aria-hidden="true" />
+                <Icon.chevR className="size-2.5 rotate-90 text-brass shrink-0" aria-hidden="true" />
               </button>
             </Tooltip>
-
-            <div
-              data-testid="loquela-posture-popover"
-              role="region"
-              aria-label="Execution Posture & Routing"
-              className={
-                postureOpen
-                  ? 'order-first mb-1.5 w-full basis-full space-y-2 rounded-xl border border-brass/40 bg-bg-elevated/95 p-3 text-[11px] whitespace-normal shadow-md'
-                  : 'sr-only'
-              }
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2">
-                <span className="font-display text-[11px] font-semibold uppercase tracking-[0.13em] text-brass">
-                  Execution Posture & Routing
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    data-testid="loquela-live-posture-badge"
-                    title="Active session posture — persists in real time across future chat turns, plans, and background tasks (Alt+1..4/C Mode · Alt+R Risk · Alt+T Tier · Alt+M Track · Alt+O Ovs · Alt+K @kb)"
-                    className="inline-flex h-6 items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-2.5 font-mono text-[11px] text-brass"
-                  >
-                    <span className="size-1.5 rounded-full bg-(--color-status-pass)" aria-hidden="true" />
-                    <span>
-                      Live · {control.clutch}/{control.risk} · {isRoutingTierId(effectiveTierId) ? effectiveTierId : 'pinned'} · @{kbScope}
-                    </span>
-                  </span>
-
-                  <div className="relative">
-                    <button
-                      type="button"
-                      data-testid="loquela-keybind-hud-toggle"
-                      data-keybind="Alt+/"
-                      aria-keyshortcuts="Alt+/"
-                      aria-expanded={keybindHudOpen}
-                      aria-label="Session posture keyboard shortcuts"
-                      onClick={() => setKeybindHudOpen((o) => !o)}
-                      className="inline-flex h-6 items-center gap-1 rounded-full border border-border-subtle bg-overlay-subtle px-2 font-mono text-[11px] text-text-secondary transition hover:border-brass/50 hover:text-brass"
-                    >
-                      <span>Keys</span>
-                      <span className="text-text-muted">Alt+/</span>
-                    </button>
-                    <Popover open={keybindHudOpen}>
-                      <div
-                        data-testid="loquela-keybind-hud-panel"
-                        role="dialog"
-                        aria-label="Real-time session posture shortcuts"
-                        className="w-72 space-y-1.5 p-1 font-mono text-[11px]"
-                      >
-                        <div className="flex items-center justify-between border-b border-border-subtle pb-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">
-                          <span>Real-Time Session Knobs</span>
-                          <span className="text-brass">Persisted</span>
-                        </div>
-                        <button
-                          type="button"
-                          data-testid="loquela-hud-cycle-clutch"
-                          onClick={() => {
-                            const nextClutch = CLUTCH_CYCLE[(CLUTCH_CYCLE.indexOf(control.clutch) + 1) % CLUTCH_CYCLE.length];
-                            userTouchedControlRef.current = true;
-                            setControl((c) => ({ ...c, clutch: nextClutch }));
-                            syncSessionPosture({ clutch: nextClutch });
-                          }}
-                          className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
-                        >
-                          <span className="text-text-secondary">Mode (Alt+1..4 / Alt+C)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{control.clutch}</span>
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="loquela-hud-cycle-risk"
-                          onClick={() => {
-                            const nextRisk = RISK_CYCLE[(RISK_CYCLE.indexOf(control.risk) + 1) % RISK_CYCLE.length];
-                            userTouchedControlRef.current = true;
-                            setControl((c) => ({ ...c, risk: nextRisk }));
-                            syncSessionPosture({ risk: nextRisk });
-                          }}
-                          className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
-                        >
-                          <span className="text-text-secondary">Risk Posture (Alt+R)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{control.risk}</span>
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="loquela-hud-cycle-tier"
-                          onClick={() => {
-                            const curTier = isRoutingTierId(tier) ? (tier as (typeof TIER_CYCLE)[number]) : 'auto';
-                            const nextTier = TIER_CYCLE[(TIER_CYCLE.indexOf(curTier) + 1) % TIER_CYCLE.length];
-                            setTier(nextTier);
-                            onModelPick?.(null);
-                            syncSessionPosture({ tier: nextTier });
-                          }}
-                          className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
-                        >
-                          <span className="text-text-secondary">Runtime Tier (Alt+T)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{isRoutingTierId(effectiveTierId) ? effectiveTierId : 'pinned'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="loquela-hud-cycle-track"
-                          onClick={() => {
-                            const nextSend = SEND_MODE_CYCLE[(SEND_MODE_CYCLE.indexOf(executionMode) + 1) % SEND_MODE_CYCLE.length];
-                            setExecutionMode(nextSend);
-                            syncSessionPosture({ execution_mode: nextSend });
-                          }}
-                          className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
-                        >
-                          <span className="text-text-secondary">Send Track (Alt+M)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{executionMode}</span>
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="loquela-hud-cycle-oversight"
-                          onClick={() => {
-                            const nextOvs = OVERSIGHT_CYCLE[(OVERSIGHT_CYCLE.indexOf(oversightLevel) + 1) % OVERSIGHT_CYCLE.length];
-                            setOversightLevel(nextOvs);
-                            syncSessionPosture({ oversight_level: nextOvs });
-                          }}
-                          className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
-                        >
-                          <span className="text-text-secondary">Oversight (Alt+O)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{oversightLevel}</span>
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="loquela-hud-cycle-kb"
-                          onClick={() => {
-                            const nextKb = KB_SCOPE_CYCLE[(KB_SCOPE_CYCLE.indexOf(kbScope) + 1) % KB_SCOPE_CYCLE.length];
-                            setKbScope(nextKb);
-                            syncSessionPosture({ kb_scope: nextKb });
-                          }}
-                          className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
-                        >
-                          <span className="text-text-secondary">@kb Scope (Alt+K)</span>
-                          <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">@{kbScope}</span>
-                        </button>
-                      </div>
-                    </Popover>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 items-center gap-x-2.5 gap-y-2 pt-0.5 sm:grid-cols-[5.5rem_1fr]">
-                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
-                  Mode & Risk
-                </span>
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <DriveConsole
-                    control={control}
-                    onControlChange={(n) => {
-                      userTouchedControlRef.current = true;
-                      setControl((c) => {
-                        const updated = { ...c, ...n };
-                        syncSessionPosture({ clutch: updated.clutch, risk: updated.risk });
-                        return updated;
-                      });
-                    }}
-                    spentUsd={sessionBudget?.spent ?? 0}
-                    budgetUsd={sessionBudget?.source === 'daemon' ? sessionBudget.cap : 0}
-                    riskExtra={riskSlot}
-                  />
-                </div>
-
-                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
-                  Oversight & @kb
-                </span>
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <div className="relative inline-flex items-center">
-                    <select
-                      aria-label="Oversight level"
-                      aria-keyshortcuts="Alt+O"
-                      data-keybind="Alt+O"
-                      title="Oversight posture (Alt+O to cycle)"
-                      data-testid="loquela-oversight-select"
-                      data-unified-knob="true"
-                      value={oversightLevel}
-                      onChange={(e) => {
-                        const next = e.target.value as OversightLevelId;
-                        setOversightLevel(next);
-                        syncSessionPosture({ oversight_level: next });
-                        invoke('invoke_mcp_tool', {
-                          tool: 'orch.oversight_set',
-                          args: { level: next },
-                          permissionMode: null,
-                        }).catch((err) => {
-                          toast?.({
-                            tone: 'warn',
-                            title: 'Oversight sync deferred',
-                            body: sanitizeErrorForToast(err),
-                            cause: 'backend-error',
-                          });
-                        });
-                      }}
-                      className={`h-7 cursor-pointer appearance-none rounded-md border pl-2.5 pr-5 font-mono text-[11px] transition hover:brightness-110 focus:outline-hidden focus:ring-1 focus:ring-brass/40 ${OVERSIGHT_TONE[oversightLevel]}`}
-                    >
-                      <option value="relaxed">Ovs 1: Relaxed</option>
-                      <option value="guided">Ovs 2: Guided</option>
-                      <option value="balanced">Ovs 3: Balanced</option>
-                      <option value="cautious">Ovs 4: Cautious</option>
-                      <option value="strict">Ovs 5: Strict</option>
-                    </select>
-                    <Icon.chevR className="pointer-events-none absolute right-1.5 size-2.5 rotate-90 text-text-muted" aria-hidden="true" />
-                  </div>
-
-                  <div className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2">
-                    <span className="font-mono text-[11px] text-text-muted">
-                      Lv{OVERSIGHT_CYCLE.indexOf(oversightLevel) + 1}
-                    </span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      step={1}
-                      aria-label="Oversight slider"
-                      data-testid="loquela-oversight-slider"
-                      value={Math.max(1, OVERSIGHT_CYCLE.indexOf(oversightLevel) + 1)}
-                      onChange={(e) => {
-                        const idx = Math.max(0, Math.min(4, Number(e.target.value) - 1));
-                        const next = OVERSIGHT_CYCLE[idx] ?? 'balanced';
-                        setOversightLevel(next);
-                        syncSessionPosture({ oversight_level: next });
-                        invoke('invoke_mcp_tool', {
-                          tool: 'orch.oversight_set',
-                          args: { level: next },
-                          permissionMode: null,
-                        }).catch(() => {});
-                      }}
-                      className="h-1.5 w-16 cursor-pointer accent-brass"
-                    />
-                  </div>
-
-                  <div className="relative inline-flex items-center">
-                    <select
-                      aria-label="KB context scope"
-                      aria-keyshortcuts="Alt+K"
-                      data-keybind="Alt+K"
-                      title="@kb retrieval scope (Alt+K to cycle)"
-                      data-testid="loquela-kb-scope-select"
-                      data-unified-knob="true"
-                      value={kbScope}
-                      onChange={(e) => {
-                        const nextKb = e.target.value as KbScopeMode;
-                        setKbScope(nextKb);
-                        syncSessionPosture({ kb_scope: nextKb });
-                      }}
-                      className={`h-7 cursor-pointer appearance-none rounded-md border pl-2.5 pr-5 font-mono text-[11px] transition hover:brightness-110 focus:outline-hidden focus:ring-1 focus:ring-brass/40 ${KB_SCOPE_TONE[kbScope]}`}
-                    >
-                      <option value="auto">@kb:auto</option>
-                      <option value="docs">@kb:docs</option>
-                      <option value="code">@kb:code</option>
-                      <option value="memory">@kb:memory</option>
-                      <option value="verified">@kb:verified</option>
-                      <option value="off">@kb:off</option>
-                    </select>
-                    <Icon.chevR className="pointer-events-none absolute right-1.5 size-2.5 rotate-90 text-text-muted" aria-hidden="true" />
-                  </div>
-                </div>
-
-                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
-                  Skill & Checks
-                </span>
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      aria-expanded={skillOpen}
-                      aria-label="Choose skill"
-                      onClick={() => {
-                        setSkillOpen((o) => !o);
-                        setTierOpen(false);
-                        setModeOpen(false);
-                      }}
-                      className="inline-flex h-7 items-center gap-1 rounded-md border border-brass/30 bg-brass/10 px-2.5 text-brass hover:bg-brass/18"
-                    >
-                      <Icon.bolt className="size-3" />
-                      <span className="text-brass">Skill</span>{' '}
-                      <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : 'auto'}</span>
-                      <Icon.chevR className="size-2.5 rotate-90 text-brass" />
-                    </button>
-                    <Popover open={skillOpen}>
-                      <div className="max-h-64 overflow-y-auto overscroll-contain">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveSkill(null);
-                            setSkillOpen(false);
-                          }}
-                          className="block w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary"
-                        >
-                          auto
-                        </button>
-                        {skills.map((s) => {
-                          const skillId = s.capability_id ?? s.command;
-                          return (
-                            <button
-                              type="button"
-                              key={skillId}
-                              onClick={() => {
-                                setActiveSkill({ id: skillId, name: s.command, command: s.command });
-                                setSkillOpen(false);
-                              }}
-                              className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${
-                                activeSkill?.id === skillId ? 'bg-overlay-subtle text-brass' : 'text-text-secondary'
-                              }`}
-                            >
-                              <span>{s.command}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </Popover>
-                  </div>
-
-                  <button
-                    type="button"
-                    aria-label="Structured intent"
-                    aria-expanded={intentOpen}
-                    onClick={() => setIntentOpen((o) => !o)}
-                    className={`inline-flex h-7 items-center gap-1 rounded-md border px-2.5 transition ${
-                      hasIntent(intent) || intentOpen
-                        ? 'border-brass/40 bg-brass/12 text-brass'
-                        : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
-                    }`}
-                  >
-                    <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
-                  </button>
-
-                  <button
-                    type="button"
-                    data-testid="loquela-auto-socrates-toggle"
-                    aria-pressed={kbScope === 'verified'}
-                    onClick={() => {
-                      const nextKb: KbScopeMode = kbScope === 'verified' ? 'auto' : 'verified';
-                      setKbScope(nextKb);
-                      syncSessionPosture({ kb_scope: nextKb });
-                    }}
-                    className={`inline-flex h-7 items-center gap-2 rounded-md border px-2.5 font-mono text-[11px] transition ${
-                      kbScope === 'verified'
-                        ? 'border-(--color-status-pass)/50 bg-(--color-status-pass)/15 text-(--color-status-pass)'
-                        : 'border-(--color-status-pass)/35 bg-(--color-status-pass)/10 text-(--color-status-pass) hover:border-(--color-status-pass)/60'
-                    }`}
-                  >
-                    <span>Auto Socrates</span>
-                    <span
-                      className={`inline-flex h-3.5 w-6 items-center rounded-full p-0.5 transition ${
-                        kbScope === 'verified' ? 'justify-end bg-(--color-status-pass)' : 'justify-end bg-(--color-status-pass)/80'
-                      }`}
-                      aria-hidden="true"
-                    >
-                      <span className="size-2.5 rounded-full bg-white shadow-xs" />
-                    </span>
-                  </button>
-
-                  {trailingSlot}
-                </div>
-              </div>
-            </div>
           </div>
 
           {typeof queueDepth === 'number' && queueDepth > 0 && (
@@ -1860,7 +1520,7 @@ export function Loquela({
             </button>
           )}
 
-          <div className="relative flex items-center gap-1.5" ref={tierRootRef}>
+          <div className="relative flex min-w-0 shrink items-center gap-1" ref={tierRootRef}>
             <Tooltip content="Select which model tier to run on (Alt+T to cycle)" side="top">
               <button
                 type="button"
@@ -1870,19 +1530,21 @@ export function Loquela({
                 aria-expanded={tierOpen}
                 aria-label="Choose model tier"
                 onClick={() => { setTierOpen(o => !o); setPostureOpen(false); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }}
-                className={`inline-flex h-7 items-center gap-1 rounded-full border px-2.5 transition ${
+                className={`inline-flex h-7 min-w-0 items-center gap-1 rounded-full border px-2 transition ${
                   TIER_BUTTON_TONE[isRoutingTierId(effectiveTierId) ? effectiveTierId : 'cloud'] ?? TIER_BUTTON_TONE.auto
                 }`}
               >
-                <Icon.cpu className="size-3 text-(--color-status-info)" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
-                <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
+                <Icon.cpu className="size-3 shrink-0 text-(--color-status-info)" />
+                <span className="text-text-muted @max-[740px]:hidden">Run on</span>
+                <span className="@max-[680px]:max-w-[7ch] max-w-[11ch] truncate text-text-primary">{triggerLabel}</span>
+                <Icon.chevR className="size-2.5 shrink-0 text-text-muted rotate-90" />
               </button>
             </Tooltip>
             {modelLoadStatus === 'error' && (
-              <span className="font-mono text-[11px] text-(--color-status-warn)" data-testid="model-load-status">Models unavailable</span>
+              <span className="font-mono text-[11px] text-(--color-status-warn) @max-[760px]:hidden" data-testid="model-load-status">Models unavailable</span>
             )}
             {modelLoadStatus === 'empty' && (
-              <span className="font-mono text-[11px] text-text-muted" data-testid="model-load-status">No models loaded</span>
+              <span className="font-mono text-[11px] text-text-muted @max-[760px]:hidden" data-testid="model-load-status">No models loaded</span>
             )}
             <Popover open={tierOpen}>
               <div className="w-[min(22rem,80vw)]">
@@ -1924,7 +1586,7 @@ export function Loquela({
             </Popover>
           </div>
 
-          <div className="relative">
+          <div className="relative shrink-0">
             <Tooltip content="Choose send mode (Quick chat, Background task, Plan — Alt+M to cycle)" side="top">
               <button
                 type="button"
@@ -1934,10 +1596,11 @@ export function Loquela({
                 aria-expanded={modeOpen}
                 aria-label="Choose send mode"
                 onClick={() => { setModeOpen(o => !o); setPostureOpen(false); setTierOpen(false); setSkillOpen(false); }}
-                className={`inline-flex h-7 items-center gap-1 rounded-full border px-2.5 transition ${SEND_MODE_TONE[executionMode]}`}
+                className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 transition ${SEND_MODE_TONE[executionMode]}`}
               >
-                <Icon.bolt className="size-3" /><span>{SEND_MODES.find(m => m.id === executionMode)?.label}</span>
-                <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
+                <Icon.bolt className="size-3 shrink-0" />
+                <span className="@max-[520px]:max-w-[5ch] @max-[680px]:max-w-[7ch] max-w-[10ch] truncate">{SEND_MODES.find(m => m.id === executionMode)?.label}</span>
+                <Icon.chevR className="size-2.5 shrink-0 text-text-muted rotate-90" />
               </button>
             </Tooltip>
             <Popover open={modeOpen}>
@@ -1966,7 +1629,7 @@ export function Loquela({
             data-loquela-toolbar-item="true"
             onClick={() => setPostureOpen((o) => !o)}
             title="Active @kb retrieval scope (click to configure in Posture & Routing, or Alt+K to cycle)"
-            className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 font-mono text-[11px] transition ${KB_SCOPE_TONE[kbScope]}`}
+            className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-1.5 font-mono text-[11px] transition ${KB_SCOPE_TONE[kbScope]}`}
           >
             <span>@kb:{kbScope}</span>
           </button>
@@ -1977,19 +1640,403 @@ export function Loquela({
               data-testid="loquela-compact-context-chip"
               onClick={() => void onSlashCommand?.('/compact', { setText })}
               title="Summarize and compact context window to save ~60–80% tokens on subsequent turns"
-              className="inline-flex h-7 items-center gap-1 rounded-full border border-(--color-status-pass)/35 bg-(--color-status-pass)/10 px-2 font-mono text-[11px] text-(--color-status-pass) hover:bg-(--color-status-pass)/20"
+              className="@max-[820px]:hidden inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-(--color-status-pass)/35 bg-(--color-status-pass)/10 px-2 font-mono text-[11px] text-(--color-status-pass) hover:bg-(--color-status-pass)/20"
             >
               Compact Context (~{Math.round(Math.max(tokens, contextTokens) / 1000)}k tok)
             </button>
           )}
 
           {estCost != null && (
-            <div className="ml-auto flex items-center gap-2">
+            <div className="@max-[820px]:hidden ml-auto flex shrink-0 items-center gap-2">
               <span className="font-mono text-[11px] text-text-muted tabular-nums" data-testid="loquela-cost-estimate">
                 ~{tokens} tok · {estCost === 0 ? '$0.000 (Local · 0% markup)' : `~$${estCost.toFixed(3)} (0% markup)`}
               </span>
             </div>
           )}
+        </div>
+
+        <div
+          data-testid="loquela-posture-popover"
+          role="region"
+          aria-label="Execution Posture & Routing"
+          className={
+            postureOpen
+              ? 'mt-2 w-full space-y-2 rounded-xl border border-brass/40 bg-bg-elevated/98 p-3 text-[11px] whitespace-normal shadow-md'
+              : 'sr-only'
+          }
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2">
+            <span className="font-display text-[11px] font-semibold uppercase tracking-[0.13em] text-brass">
+              Execution Posture & Routing
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span
+                data-testid="loquela-live-posture-badge"
+                title="Active session posture — persists in real time across future chat turns, plans, and background tasks (Alt+1..4/C Mode · Alt+R Risk · Alt+T Tier · Alt+M Track · Alt+O Ovs · Alt+K @kb)"
+                className="inline-flex h-6 items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-2.5 font-mono text-[11px] text-brass"
+              >
+                <span className="size-1.5 rounded-full bg-(--color-status-pass)" aria-hidden="true" />
+                <span>
+                  Live · {control.clutch}/{control.risk} · {isRoutingTierId(effectiveTierId) ? effectiveTierId : 'pinned'} · @{kbScope}
+                </span>
+              </span>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  data-testid="loquela-keybind-hud-toggle"
+                  data-keybind="Alt+/"
+                  aria-keyshortcuts="Alt+/"
+                  aria-expanded={keybindHudOpen}
+                  aria-label="Session posture keyboard shortcuts"
+                  onClick={() => setKeybindHudOpen((o) => !o)}
+                  className="inline-flex h-6 items-center gap-1 rounded-full border border-border-subtle bg-overlay-subtle px-2 font-mono text-[11px] text-text-secondary transition hover:border-brass/50 hover:text-brass"
+                >
+                  <span>Keys</span>
+                  <span className="text-text-muted">Alt+/</span>
+                </button>
+                <Popover open={keybindHudOpen}>
+                  <div
+                    data-testid="loquela-keybind-hud-panel"
+                    role="dialog"
+                    aria-label="Real-time session posture shortcuts"
+                    className="w-72 space-y-1.5 p-1 font-mono text-[11px]"
+                  >
+                    <div className="flex items-center justify-between border-b border-border-subtle pb-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">
+                      <span>Real-Time Session Knobs</span>
+                      <span className="text-brass">Persisted</span>
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="loquela-hud-cycle-clutch"
+                      onClick={() => {
+                        const nextClutch = CLUTCH_CYCLE[(CLUTCH_CYCLE.indexOf(control.clutch) + 1) % CLUTCH_CYCLE.length];
+                        userTouchedControlRef.current = true;
+                        setControl((c) => ({ ...c, clutch: nextClutch }));
+                        syncSessionPosture({ clutch: nextClutch });
+                      }}
+                      className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
+                    >
+                      <span className="text-text-secondary">Mode (Alt+1..4 / Alt+C)</span>
+                      <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{control.clutch}</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="loquela-hud-cycle-risk"
+                      onClick={() => {
+                        const nextRisk = RISK_CYCLE[(RISK_CYCLE.indexOf(control.risk) + 1) % RISK_CYCLE.length];
+                        userTouchedControlRef.current = true;
+                        setControl((c) => ({ ...c, risk: nextRisk }));
+                        syncSessionPosture({ risk: nextRisk });
+                      }}
+                      className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
+                    >
+                      <span className="text-text-secondary">Risk Posture (Alt+R)</span>
+                      <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{control.risk}</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="loquela-hud-cycle-tier"
+                      onClick={() => {
+                        const curTier = isRoutingTierId(tier) ? (tier as (typeof TIER_CYCLE)[number]) : 'auto';
+                        const nextTier = TIER_CYCLE[(TIER_CYCLE.indexOf(curTier) + 1) % TIER_CYCLE.length];
+                        setTier(nextTier);
+                        onModelPick?.(null);
+                        syncSessionPosture({ tier: nextTier });
+                      }}
+                      className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
+                    >
+                      <span className="text-text-secondary">Runtime Tier (Alt+T)</span>
+                      <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{isRoutingTierId(effectiveTierId) ? effectiveTierId : 'pinned'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="loquela-hud-cycle-track"
+                      onClick={() => {
+                        const nextSend = SEND_MODE_CYCLE[(SEND_MODE_CYCLE.indexOf(executionMode) + 1) % SEND_MODE_CYCLE.length];
+                        setExecutionMode(nextSend);
+                        syncSessionPosture({ execution_mode: nextSend });
+                      }}
+                      className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
+                    >
+                      <span className="text-text-secondary">Send Track (Alt+M)</span>
+                      <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{executionMode}</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="loquela-hud-cycle-oversight"
+                      onClick={() => {
+                        const nextOvs = OVERSIGHT_CYCLE[(OVERSIGHT_CYCLE.indexOf(oversightLevel) + 1) % OVERSIGHT_CYCLE.length];
+                        setOversightLevel(nextOvs);
+                        syncSessionPosture({ oversight_level: nextOvs });
+                      }}
+                      className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
+                    >
+                      <span className="text-text-secondary">Oversight (Alt+O)</span>
+                      <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">{oversightLevel}</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="loquela-hud-cycle-kb"
+                      onClick={() => {
+                        const nextKb = KB_SCOPE_CYCLE[(KB_SCOPE_CYCLE.indexOf(kbScope) + 1) % KB_SCOPE_CYCLE.length];
+                        setKbScope(nextKb);
+                        syncSessionPosture({ kb_scope: nextKb });
+                      }}
+                      className="flex w-full items-center justify-between rounded px-1.5 py-1 text-left hover:bg-overlay-subtle"
+                    >
+                      <span className="text-text-secondary">@kb Scope (Alt+K)</span>
+                      <span className="rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[11px] text-brass">@{kbScope}</span>
+                    </button>
+                  </div>
+                </Popover>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 items-center gap-x-2.5 gap-y-2 pt-0.5 sm:grid-cols-[5.5rem_1fr]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+              Mode & Risk
+            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <DriveConsole
+                control={control}
+                onControlChange={(n) => {
+                  userTouchedControlRef.current = true;
+                  setControl((c) => {
+                    const updated = { ...c, ...n };
+                    syncSessionPosture({ clutch: updated.clutch, risk: updated.risk });
+                    return updated;
+                  });
+                }}
+                spentUsd={sessionBudget?.spent ?? 0}
+                budgetUsd={sessionBudget?.source === 'daemon' ? sessionBudget.cap : 0}
+                riskExtra={riskSlot}
+              />
+            </div>
+
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+              Oversight & @kb
+            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <div className="relative inline-flex items-center" data-keybind="Alt+O">
+                <VoxSelect
+                  size="xs"
+                  aria-label="Oversight level"
+                  title="Oversight posture (Alt+O to cycle)"
+                  data-testid="loquela-oversight-select"
+                  value={oversightLevel}
+                  onValueChange={(v) => {
+                    const next = v as OversightLevelId;
+                    setOversightLevel(next);
+                    syncSessionPosture({ oversight_level: next });
+                    invokeCmd('invoke_mcp_tool', {
+                      tool: 'orch.oversight_set',
+                      args: { level: next },
+                    }).catch((err) => {
+                      toast?.({
+                        tone: 'warn',
+                        title: 'Oversight sync deferred',
+                        body: sanitizeErrorForToast(err),
+                        cause: 'backend-error',
+                      });
+                    });
+                  }}
+                  options={[
+                    { value: 'relaxed', label: 'Ovs 1: Relaxed' },
+                    { value: 'guided', label: 'Ovs 2: Guided' },
+                    { value: 'balanced', label: 'Ovs 3: Balanced' },
+                    { value: 'cautious', label: 'Ovs 4: Cautious' },
+                    { value: 'strict', label: 'Ovs 5: Strict' },
+                  ]}
+                  className={`h-7 w-auto shrink-0 font-mono text-[11px] ${OVERSIGHT_TONE[oversightLevel]}`}
+                />
+              </div>
+
+              <div className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2">
+                <span className="font-mono text-[11px] text-text-muted">
+                  Lv{OVERSIGHT_CYCLE.indexOf(oversightLevel) + 1}
+                </span>
+                <Slider
+                  ariaLabel="Oversight slider"
+                  data-testid="loquela-oversight-slider"
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={[Math.max(1, OVERSIGHT_CYCLE.indexOf(oversightLevel) + 1)]}
+                  onValueChange={(vals) => {
+                    const raw = vals[0];
+                    if (raw === undefined) return;
+                    const idx = Math.max(0, Math.min(4, raw - 1));
+                    const next = OVERSIGHT_CYCLE[idx] ?? 'balanced';
+                    setOversightLevel(next);
+                    syncSessionPosture({ oversight_level: next });
+                    invokeCmd('invoke_mcp_tool', {
+                      tool: 'orch.oversight_set',
+                      args: { level: next },
+                    }).catch(() => {});
+                  }}
+                  className="w-16"
+                />
+              </div>
+
+              <div className="relative inline-flex items-center" data-keybind="Alt+K">
+                <VoxSelect
+                  size="xs"
+                  aria-label="KB context scope"
+                  title="@kb retrieval scope (Alt+K to cycle)"
+                  data-testid="loquela-kb-scope-select"
+                  value={kbScope}
+                  onValueChange={(v) => {
+                    const nextKb = v as KbScopeMode;
+                    setKbScope(nextKb);
+                    syncSessionPosture({ kb_scope: nextKb });
+                  }}
+                  options={[
+                    { value: 'auto', label: '@kb:auto' },
+                    { value: 'docs', label: '@kb:docs' },
+                    { value: 'code', label: '@kb:code' },
+                    { value: 'memory', label: '@kb:memory' },
+                    { value: 'verified', label: '@kb:verified' },
+                    { value: 'off', label: '@kb:off' },
+                  ]}
+                  className={`h-7 w-auto shrink-0 font-mono text-[11px] ${KB_SCOPE_TONE[kbScope]}`}
+                />
+              </div>
+            </div>
+
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+              Precision & Sampling
+            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <RomanRotaryKnob
+                ariaLabel="Sampling temperature"
+                size="sm"
+                min={0}
+                max={2}
+                step={0.05}
+                defaultValue={0.7}
+                detents={[0, 0.7, 1, 2]}
+                value={samplingTemp}
+                formatValue={(v) => `${v.toFixed(2)} temp`}
+                onValueChange={setSamplingTemp}
+              />
+              <div className="flex min-w-[140px] flex-1 items-center gap-2 rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5">
+                <span className="font-mono text-[11px] text-text-muted">Floor</span>
+                <Slider
+                  ariaLabel="Grounding confidence floor"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={[groundingFloor]}
+                  onValueChange={(vals) => setGroundingFloor(vals[0] ?? 70)}
+                  className="w-24 flex-1"
+                />
+                <span className="font-mono text-[11px] tabular-nums text-text-secondary">
+                  {groundingFloor}%
+                </span>
+              </div>
+            </div>
+
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+              Skill & Checks
+            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-expanded={skillOpen}
+                  aria-label="Choose skill"
+                  onClick={() => {
+                    setSkillOpen((o) => !o);
+                    setTierOpen(false);
+                    setModeOpen(false);
+                  }}
+                  className="inline-flex h-7 items-center gap-1 rounded-md border border-brass/30 bg-brass/10 px-2.5 text-brass hover:bg-brass/18"
+                >
+                  <Icon.bolt className="size-3" />
+                  <span className="text-brass">Skill</span>{' '}
+                  <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : 'auto'}</span>
+                  <Icon.chevR className="size-2.5 rotate-90 text-brass" />
+                </button>
+                <Popover open={skillOpen}>
+                  <div className="max-h-64 overflow-y-auto overscroll-contain">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveSkill(null);
+                        setSkillOpen(false);
+                      }}
+                      className="block w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary"
+                    >
+                      auto
+                    </button>
+                    {skills.map((s) => {
+                      const skillId = s.capability_id ?? s.command;
+                      return (
+                        <button
+                          type="button"
+                          key={skillId}
+                          onClick={() => {
+                            setActiveSkill({ id: skillId, name: s.command, command: s.command });
+                            setSkillOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${
+                            activeSkill?.id === skillId ? 'bg-overlay-subtle text-brass' : 'text-text-secondary'
+                          }`}
+                        >
+                          <span>{s.command}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Popover>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Structured intent"
+                aria-expanded={intentOpen}
+                onClick={() => setIntentOpen((o) => !o)}
+                className={`inline-flex h-7 items-center gap-1 rounded-md border px-2.5 transition ${
+                  hasIntent(intent) || intentOpen
+                    ? 'border-brass/40 bg-brass/12 text-brass'
+                    : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
+                }`}
+              >
+                <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
+              </button>
+
+              <button
+                type="button"
+                data-testid="loquela-auto-socrates-toggle"
+                aria-pressed={kbScope === 'verified'}
+                onClick={() => {
+                  const nextKb: KbScopeMode = kbScope === 'verified' ? 'auto' : 'verified';
+                  setKbScope(nextKb);
+                  syncSessionPosture({ kb_scope: nextKb });
+                }}
+                className={`inline-flex h-7 items-center gap-2 rounded-md border px-2.5 font-mono text-[11px] transition ${
+                  kbScope === 'verified'
+                    ? 'border-(--color-status-pass)/50 bg-(--color-status-pass)/15 text-(--color-status-pass)'
+                    : 'border-(--color-status-pass)/35 bg-(--color-status-pass)/10 text-(--color-status-pass) hover:border-(--color-status-pass)/60'
+                }`}
+              >
+                <span>Auto Socrates</span>
+                <span
+                  className={`inline-flex h-3.5 w-6 items-center rounded-full p-0.5 transition ${
+                    kbScope === 'verified' ? 'justify-end bg-(--color-status-pass)' : 'justify-end bg-(--color-status-pass)/80'
+                  }`}
+                  aria-hidden="true"
+                >
+                  <span className="size-2.5 rounded-full bg-white shadow-xs" />
+                </span>
+              </button>
+
+              {trailingSlot}
+            </div>
+          </div>
+        </div>
         </div>
       </Glass>
     </div>

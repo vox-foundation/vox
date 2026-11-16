@@ -1,6 +1,6 @@
 //! `contracts/mens/training-presets.v1.yaml` lists every `KNOWN_PRESETS` id (SSOT parity).
 
-#![cfg(feature = "mens-train")]
+#![cfg(feature = "mens")]
 
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -171,7 +171,12 @@ const KNOWN_PARAMS_B: &[(&str, f64)] = &[
     ("Qwen/Qwen3-8B", 8.0),
     ("Qwen/Qwen3-14B", 14.0),
     ("Qwen/Qwen3-32B", 32.0),
+    ("Qwen/Qwen3.5-0.8B", 0.8),
+    ("Qwen/Qwen3.5-2B", 2.0),
+    ("Qwen/Qwen3.5-4B", 4.0),
+    ("Qwen/Qwen3.5-9B", 9.0),
     ("Qwen/Qwen3.8-27B", 27.856),
+    ("Qwen/Qwen3Guard-Gen-0.6B", 0.6),
 ];
 
 /// Bare on-disk weight size (MiB) for `params_b` parameters stored at
@@ -205,17 +210,13 @@ fn bare_weight_mib(params_b: f64, bytes_per_param: f64) -> f64 {
 ///    alone cannot be a real QLoRA/LoRA floor.
 /// 2. For QLoRA rungs at 8B and above (the 0.6B CPU/dev rung's fixed overhead
 ///    dominates at that size and is excluded, matching `memory_budget.rs`'s
-///    own `FIXED_OVERHEAD_GIB`), `floor_mb` sits within 2.0x-4.0x of the bare
-///    NF4 weight size computed from the model's *nominal* param count. This
-///    check's `bare_weight_mib` is a simpler, nominal-params approximation
-///    than the per-tensor accounting `gpu-specs.yaml:273-291`'s own comment
-///    uses (which nets out non-NF4-quantized embed/lm_head tensors, sized
-///    differently per model), so this test's computed ratios (~2.56x-3.93x
-///    across 8B/14B-QLoRA/32B-QLoRA/27B) don't line up 1:1 with that
-///    comment's own 2.25x-2.96x figures — TDD on this test surfaced that
-///    mismatch (see the Task 7 brief and report), and the fix was to widen
-///    this test's band to fit the approximation's real spread, not to
-///    mass-edit `floor_mb` to chase either number.
+///    own `FIXED_OVERHEAD_GIB`), `floor_mb` sits within 2.0x-9.0x of the bare
+///    NF4 weight size computed from the model's *nominal* param count. Unmeasured
+///    estimated rungs sit around 2.56x-3.93x; measured Metal QLoRA rungs under
+///    Nov 2026 calibration (`docs/src/architecture/measurements/2026-11-13-candle-metal-qwen35-calibration.md`)
+///    reach up to 7.84x peak / 8.39x floor on `Qwen/Qwen3.5-9B` because `<=10B`
+///    models enable `cache_dequantized=true` (resident BF16 weights + 248,320 untied
+///    vocab embeddings/lm_head) and `Qwen/Qwen3.8-27B` reaches ~5x at `seq_len=1024`.
 #[test]
 fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -283,12 +284,12 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
             if is_qlora && params_b >= 8.0 {
                 let ratio = floor_mb as f64 / bare;
                 assert!(
-                    (2.0..=4.0).contains(&ratio),
+                    (2.0..=9.0).contains(&ratio),
                     "{bare_id} floor_mb={} MB is {ratio:.2}x its bare NF4 weight size \
-                     ({bare:.0} MiB, nominal-params approximation) — outside the 2.0x-4.0x \
-                     band this test's approximation spans for the 8B/14B-QLoRA/32B-QLoRA/27B \
-                     rungs today; this is real drift, not a reason to mass-edit floor_mb \
-                     (see the Task 7 brief)",
+                     ({bare:.0} MiB, nominal-params approximation) — outside the 2.0x-9.0x \
+                     band (unmeasured rungs span 2.56x-3.93x; measured Metal QLoRA rungs \
+                     with <=10B cache_dequantized BF16 GPU cache and untied 248k vocab span \
+                     up to ~8.4x)",
                     floor_mb
                 );
             }

@@ -22,9 +22,8 @@ describe('IsolationPanel', () => {
   it('confirms before changing the default isolation strategy (does not fire immediately)', () => {
     const onSetDefault = vi.fn();
     render(<IsolationPanel status={STATUS} onSetDefault={onSetDefault} />);
-    fireEvent.change(screen.getByLabelText('Default strategy'), {
-      target: { value: 'separate_branches' },
-    });
+    fireEvent.click(screen.getByLabelText('Default strategy'));
+    fireEvent.click(screen.getByRole('option', { name: /separate branches/i }));
     // Destructive: must not call through until confirmed.
     expect(onSetDefault).not.toHaveBeenCalled();
     // A confirm dialog appears.
@@ -34,18 +33,16 @@ describe('IsolationPanel', () => {
   it('fires onSetDefault only after the confirm action', () => {
     const onSetDefault = vi.fn();
     render(<IsolationPanel status={STATUS} onSetDefault={onSetDefault} />);
-    fireEvent.change(screen.getByLabelText('Default strategy'), {
-      target: { value: 'separate_branches' },
-    });
+    fireEvent.click(screen.getByLabelText('Default strategy'));
+    fireEvent.click(screen.getByRole('option', { name: /separate branches/i }));
     fireEvent.click(screen.getByRole('button', { name: /change strategy/i }));
     expect(onSetDefault).toHaveBeenCalledWith('separate_branches');
   });
 
   it('every button carries an explicit type="button"', () => {
     render(<IsolationPanel status={STATUS} onSetDefault={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText('Default strategy'), {
-      target: { value: 'separate_branches' },
-    });
+    fireEvent.click(screen.getByLabelText('Default strategy'));
+    fireEvent.click(screen.getByRole('option', { name: /separate branches/i }));
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
     }

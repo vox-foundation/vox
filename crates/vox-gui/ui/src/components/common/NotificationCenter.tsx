@@ -111,7 +111,12 @@ export function NotificationCenter({ notices, onMarkAllRead }: Props) {
                     <span className="ml-auto text-[11px] text-text-muted">{n.source}</span>
                   </div>
                   {n.body && <div className="break-words text-text-muted">{n.body}</div>}
-                  {n.cmd && <div className="font-mono text-[11px] text-text-muted">▸ {n.cmd}</div>}
+                  {n.cmd && (
+                    <div className="flex items-center gap-1 font-mono text-[11px] text-text-muted">
+                      <Icon.chevR className="size-3 shrink-0" aria-hidden="true" />
+                      <span>{n.cmd}</span>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

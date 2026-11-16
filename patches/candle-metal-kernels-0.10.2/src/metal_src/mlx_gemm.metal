@@ -1481,3 +1481,544 @@ instantiate_gemm_transpose_helper(f16, half, f16, half, 32, 64, 16, 1, 2)
 #if defined(__HAVE_BFLOAT__)
 instantiate_gemm_transpose_helper(bf16, bfloat, bf16, bfloat, 32, 64, 16, 1, 2)
 #endif
+
+// ============================================================
+// Fast coalesced M=1 GEMV for [1, K] @ [N, K]^T (nt decode path)
+// ============================================================
+template <typename T>
+[[kernel]] void gemv_nt(
+    const device T* A [[buffer(0)]],
+    const device T* B [[buffer(1)]],
+    device T* D [[buffer(2)]],
+    const constant int& N [[buffer(3)]],
+    const constant int& K [[buffer(4)]],
+    const constant int& ldb [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]) {
+  constexpr int SG_PER_TG = 4;
+  constexpr int ROWS_PER_SG = 4;
+  const int row0 = (int(tid.x) * SG_PER_TG + int(simd_group_id)) * ROWS_PER_SG;
+  if (row0 >= N) {
+    return;
+  }
+  const bool has1 = (row0 + 1) < N;
+  const bool has2 = (row0 + 2) < N;
+  const bool has3 = (row0 + 3) < N;
+  const size_t stride = size_t(ldb);
+  const device T* w0 = B + size_t(row0) * stride;
+  const device T* w1 = has1 ? (w0 + stride) : w0;
+  const device T* w2 = has2 ? (w0 + 2 * stride) : w0;
+  const device T* w3 = has3 ? (w0 + 3 * stride) : w0;
+
+  float acc0 = 0.0f;
+  float acc1 = 0.0f;
+  float acc2 = 0.0f;
+  float acc3 = 0.0f;
+
+  const int k4 = K & ~3;
+  for (int col = int(simd_lane_id) * 4; col < k4; col += 128) {
+    float x0 = float(A[col]);
+    float x1 = float(A[col + 1]);
+    float x2 = float(A[col + 2]);
+    float x3 = float(A[col + 3]);
+
+    acc0 = fma(x0, float(w0[col]), acc0);
+    acc0 = fma(x1, float(w0[col + 1]), acc0);
+    acc0 = fma(x2, float(w0[col + 2]), acc0);
+    acc0 = fma(x3, float(w0[col + 3]), acc0);
+
+    if (has1) {
+      acc1 = fma(x0, float(w1[col]), acc1);
+      acc1 = fma(x1, float(w1[col + 1]), acc1);
+      acc1 = fma(x2, float(w1[col + 2]), acc1);
+      acc1 = fma(x3, float(w1[col + 3]), acc1);
+    }
+    if (has2) {
+      acc2 = fma(x0, float(w2[col]), acc2);
+      acc2 = fma(x1, float(w2[col + 1]), acc2);
+      acc2 = fma(x2, float(w2[col + 2]), acc2);
+      acc2 = fma(x3, float(w2[col + 3]), acc2);
+    }
+    if (has3) {
+      acc3 = fma(x0, float(w3[col]), acc3);
+      acc3 = fma(x1, float(w3[col + 1]), acc3);
+      acc3 = fma(x2, float(w3[col + 2]), acc3);
+      acc3 = fma(x3, float(w3[col + 3]), acc3);
+    }
+  }
+
+  for (int c = k4 + int(simd_lane_id); c < K; c += 32) {
+    float xv = float(A[c]);
+    acc0 = fma(xv, float(w0[c]), acc0);
+    if (has1) acc1 = fma(xv, float(w1[c]), acc1);
+    if (has2) acc2 = fma(xv, float(w2[c]), acc2);
+    if (has3) acc3 = fma(xv, float(w3[c]), acc3);
+  }
+
+  acc0 = simd_sum(acc0);
+  if (has1) acc1 = simd_sum(acc1);
+  if (has2) acc2 = simd_sum(acc2);
+  if (has3) acc3 = simd_sum(acc3);
+
+  if (simd_lane_id == 0) {
+    D[row0] = static_cast<T>(acc0);
+    if (has1) D[row0 + 1] = static_cast<T>(acc1);
+    if (has2) D[row0 + 2] = static_cast<T>(acc2);
+    if (has3) D[row0 + 3] = static_cast<T>(acc3);
+  }
+}
+
+template [[host_name("gemv_nt_f32")]] [[kernel]] void gemv_nt<float>(
+    const device float* A [[buffer(0)]],
+    const device float* B [[buffer(1)]],
+    device float* D [[buffer(2)]],
+    const constant int& N [[buffer(3)]],
+    const constant int& K [[buffer(4)]],
+    const constant int& ldb [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]);
+
+template [[host_name("gemv_nt_f16")]] [[kernel]] void gemv_nt<half>(
+    const device half* A [[buffer(0)]],
+    const device half* B [[buffer(1)]],
+    device half* D [[buffer(2)]],
+    const constant int& N [[buffer(3)]],
+    const constant int& K [[buffer(4)]],
+    const constant int& ldb [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]);
+
+#if defined(__HAVE_BFLOAT__)
+template [[host_name("gemv_nt_bf16")]] [[kernel]] void gemv_nt<bfloat>(
+    const device bfloat* A [[buffer(0)]],
+    const device bfloat* B [[buffer(1)]],
+    device bfloat* D [[buffer(2)]],
+    const constant int& N [[buffer(3)]],
+    const constant int& K [[buffer(4)]],
+    const constant int& ldb [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]);
+#endif
+
+constant float NF4_LUT_TABLE[16] = {
+    -1.0f,
+    -0.696192800998688f,
+    -0.525073051452637f,
+    -0.394917488098145f,
+    -0.284441381692887f,
+    -0.184773430228233f,
+    -0.091050036251545f,
+    0.0f,
+    0.079580299556255f,
+    0.160930201411247f,
+    0.246112301945686f,
+    0.337915241718292f,
+    0.440709829330444f,
+    0.562617003917694f,
+    0.722956836223602f,
+    1.0f
+};
+
+template <typename T>
+METAL_FUNC float nf4_deq_scalar(uint code, float scale) {
+  return float(static_cast<T>(NF4_LUT_TABLE[code] * scale));
+}
+
+template <typename T>
+[[kernel]] void nf4_gemv(
+    const device T* A [[buffer(0)]],
+    const device uchar* Q [[buffer(1)]],
+    const device float* S [[buffer(2)]],
+    device T* D [[buffer(3)]],
+    const constant int& N [[buffer(4)]],
+    const constant int& K [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]) {
+  constexpr int SG_PER_TG = 4;
+  constexpr int ROWS_PER_SG = 4;
+  const int row0 = (int(tid.x) * SG_PER_TG + int(simd_group_id)) * ROWS_PER_SG;
+  if (row0 >= N) {
+    return;
+  }
+  const bool has1 = (row0 + 1) < N;
+  const bool has2 = (row0 + 2) < N;
+  const bool has3 = (row0 + 3) < N;
+
+  const size_t q_row_bytes = size_t(K >> 1);
+  const size_t s_row_elems = size_t(K >> 6);
+
+  const device uchar* q0_u8 = Q + size_t(row0) * q_row_bytes;
+  const device uchar* q1_u8 = has1 ? (q0_u8 + q_row_bytes) : q0_u8;
+  const device uchar* q2_u8 = has2 ? (q0_u8 + 2 * q_row_bytes) : q0_u8;
+  const device uchar* q3_u8 = has3 ? (q0_u8 + 3 * q_row_bytes) : q0_u8;
+
+  const device ushort* q0_u16 = reinterpret_cast<const device ushort*>(q0_u8);
+  const device ushort* q1_u16 = reinterpret_cast<const device ushort*>(q1_u8);
+  const device ushort* q2_u16 = reinterpret_cast<const device ushort*>(q2_u8);
+  const device ushort* q3_u16 = reinterpret_cast<const device ushort*>(q3_u8);
+
+  const device float* s0 = S + size_t(row0) * s_row_elems;
+  const device float* s1 = has1 ? (s0 + s_row_elems) : s0;
+  const device float* s2 = has2 ? (s0 + 2 * s_row_elems) : s0;
+  const device float* s3 = has3 ? (s0 + 3 * s_row_elems) : s0;
+
+  float acc0 = 0.0f;
+  float acc1 = 0.0f;
+  float acc2 = 0.0f;
+  float acc3 = 0.0f;
+
+  const int k128 = K & ~127;
+  for (int base = 0; base < k128; base += 128) {
+    const int col = base + int(simd_lane_id) * 4;
+    const float x0 = float(A[col]);
+    const float x1 = float(A[col + 1]);
+    const float x2 = float(A[col + 2]);
+    const float x3 = float(A[col + 3]);
+
+    const int u16_idx = (base >> 2) + int(simd_lane_id);
+    const int blk_idx = (base >> 6) + int(simd_lane_id >> 4);
+
+    {
+      const ushort p = q0_u16[u16_idx];
+      const float sc = s0[blk_idx];
+      acc0 = fma(x0, nf4_deq_scalar<T>(p & 0xFu, sc), acc0);
+      acc0 = fma(x1, nf4_deq_scalar<T>((p >> 4) & 0xFu, sc), acc0);
+      acc0 = fma(x2, nf4_deq_scalar<T>((p >> 8) & 0xFu, sc), acc0);
+      acc0 = fma(x3, nf4_deq_scalar<T>((p >> 12) & 0xFu, sc), acc0);
+    }
+    if (has1) {
+      const ushort p = q1_u16[u16_idx];
+      const float sc = s1[blk_idx];
+      acc1 = fma(x0, nf4_deq_scalar<T>(p & 0xFu, sc), acc1);
+      acc1 = fma(x1, nf4_deq_scalar<T>((p >> 4) & 0xFu, sc), acc1);
+      acc1 = fma(x2, nf4_deq_scalar<T>((p >> 8) & 0xFu, sc), acc1);
+      acc1 = fma(x3, nf4_deq_scalar<T>((p >> 12) & 0xFu, sc), acc1);
+    }
+    if (has2) {
+      const ushort p = q2_u16[u16_idx];
+      const float sc = s2[blk_idx];
+      acc2 = fma(x0, nf4_deq_scalar<T>(p & 0xFu, sc), acc2);
+      acc2 = fma(x1, nf4_deq_scalar<T>((p >> 4) & 0xFu, sc), acc2);
+      acc2 = fma(x2, nf4_deq_scalar<T>((p >> 8) & 0xFu, sc), acc2);
+      acc2 = fma(x3, nf4_deq_scalar<T>((p >> 12) & 0xFu, sc), acc2);
+    }
+    if (has3) {
+      const ushort p = q3_u16[u16_idx];
+      const float sc = s3[blk_idx];
+      acc3 = fma(x0, nf4_deq_scalar<T>(p & 0xFu, sc), acc3);
+      acc3 = fma(x1, nf4_deq_scalar<T>((p >> 4) & 0xFu, sc), acc3);
+      acc3 = fma(x2, nf4_deq_scalar<T>((p >> 8) & 0xFu, sc), acc3);
+      acc3 = fma(x3, nf4_deq_scalar<T>((p >> 12) & 0xFu, sc), acc3);
+    }
+  }
+
+  if (k128 < K) {
+    const int col = k128 + int(simd_lane_id) * 2;
+    const float x0 = float(A[col]);
+    const float x1 = float(A[col + 1]);
+    const int byte_idx = (k128 >> 1) + int(simd_lane_id);
+    const int blk_idx = k128 >> 6;
+
+    {
+      const uchar b = q0_u8[byte_idx];
+      const float sc = s0[blk_idx];
+      acc0 = fma(x0, nf4_deq_scalar<T>(b & 0xFu, sc), acc0);
+      acc0 = fma(x1, nf4_deq_scalar<T>(b >> 4, sc), acc0);
+    }
+    if (has1) {
+      const uchar b = q1_u8[byte_idx];
+      const float sc = s1[blk_idx];
+      acc1 = fma(x0, nf4_deq_scalar<T>(b & 0xFu, sc), acc1);
+      acc1 = fma(x1, nf4_deq_scalar<T>(b >> 4, sc), acc1);
+    }
+    if (has2) {
+      const uchar b = q2_u8[byte_idx];
+      const float sc = s2[blk_idx];
+      acc2 = fma(x0, nf4_deq_scalar<T>(b & 0xFu, sc), acc2);
+      acc2 = fma(x1, nf4_deq_scalar<T>(b >> 4, sc), acc2);
+    }
+    if (has3) {
+      const uchar b = q3_u8[byte_idx];
+      const float sc = s3[blk_idx];
+      acc3 = fma(x0, nf4_deq_scalar<T>(b & 0xFu, sc), acc3);
+      acc3 = fma(x1, nf4_deq_scalar<T>(b >> 4, sc), acc3);
+    }
+  }
+
+  acc0 = simd_sum(acc0);
+  if (has1) acc1 = simd_sum(acc1);
+  if (has2) acc2 = simd_sum(acc2);
+  if (has3) acc3 = simd_sum(acc3);
+
+  if (simd_lane_id == 0) {
+    D[row0] = static_cast<T>(acc0);
+    if (has1) D[row0 + 1] = static_cast<T>(acc1);
+    if (has2) D[row0 + 2] = static_cast<T>(acc2);
+    if (has3) D[row0 + 3] = static_cast<T>(acc3);
+  }
+}
+
+template [[host_name("nf4_gemv_f32")]] [[kernel]] void nf4_gemv<float>(
+    const device float* A [[buffer(0)]],
+    const device uchar* Q [[buffer(1)]],
+    const device float* S [[buffer(2)]],
+    device float* D [[buffer(3)]],
+    const constant int& N [[buffer(4)]],
+    const constant int& K [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]);
+
+template [[host_name("nf4_gemv_f16")]] [[kernel]] void nf4_gemv<half>(
+    const device half* A [[buffer(0)]],
+    const device uchar* Q [[buffer(1)]],
+    const device float* S [[buffer(2)]],
+    device half* D [[buffer(3)]],
+    const constant int& N [[buffer(4)]],
+    const constant int& K [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]);
+
+#if defined(__HAVE_BFLOAT__)
+template [[host_name("nf4_gemv_bf16")]] [[kernel]] void nf4_gemv<bfloat>(
+    const device bfloat* A [[buffer(0)]],
+    const device uchar* Q [[buffer(1)]],
+    const device float* S [[buffer(2)]],
+    device bfloat* D [[buffer(3)]],
+    const constant int& N [[buffer(4)]],
+    const constant int& K [[buffer(5)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]);
+#endif
+
+template <typename T, int BM>
+[[kernel]] void nf4_gemv_batch(
+    const device T* A [[buffer(0)]],
+    const device uchar* Q [[buffer(1)]],
+    const device float* S [[buffer(2)]],
+    device T* D [[buffer(3)]],
+    const constant int& M [[buffer(4)]],
+    const constant int& N [[buffer(5)]],
+    const constant int& K [[buffer(6)]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]],
+    uint3 tid [[threadgroup_position_in_grid]]) {
+  constexpr int SG_PER_TG = 4;
+  constexpr int ROWS_PER_SG = 2;
+  constexpr int ROWS_PER_TG = SG_PER_TG * ROWS_PER_SG;
+  const int row0 = int(tid.x) * ROWS_PER_TG + int(simd_group_id) * ROWS_PER_SG;
+  if (row0 >= N || M <= 0 || M > BM) {
+    return;
+  }
+  const int row1 = row0 + 1;
+  const bool valid1 = (row1 < N);
+
+  const size_t q_row_bytes = size_t(K >> 1);
+  const size_t s_row_elems = size_t(K >> 6);
+  const device uchar* q0_u8 = Q + size_t(row0) * q_row_bytes;
+  const device ushort* q0_u16 = reinterpret_cast<const device ushort*>(q0_u8);
+  const device float* s0_row = S + size_t(row0) * s_row_elems;
+  const device uchar* q1_u8 = valid1 ? (q0_u8 + q_row_bytes) : q0_u8;
+  const device ushort* q1_u16 = reinterpret_cast<const device ushort*>(q1_u8);
+  const device float* s1_row = valid1 ? (s0_row + s_row_elems) : s0_row;
+
+  float acc0[BM];
+  float acc1[BM];
+#pragma clang loop unroll(full)
+  for (int m = 0; m < BM; ++m) {
+    acc0[m] = 0.0f;
+    acc1[m] = 0.0f;
+  }
+
+  const int k128 = K & ~127;
+  for (int base = 0; base < k128; base += 128) {
+    const int col = base + int(simd_lane_id) * 4;
+    const int u16_idx = (base >> 2) + int(simd_lane_id);
+    const int blk_idx = (base >> 6) + int(simd_lane_id >> 4);
+    const ushort p0 = q0_u16[u16_idx];
+    const float sc0 = s0_row[blk_idx];
+    const float w00 = nf4_deq_scalar<T>(p0 & 0xFu, sc0);
+    const float w01 = nf4_deq_scalar<T>((p0 >> 4) & 0xFu, sc0);
+    const float w02 = nf4_deq_scalar<T>((p0 >> 8) & 0xFu, sc0);
+    const float w03 = nf4_deq_scalar<T>((p0 >> 12) & 0xFu, sc0);
+
+    if (valid1) {
+      const ushort p1 = q1_u16[u16_idx];
+      const float sc1 = s1_row[blk_idx];
+      const float w10 = nf4_deq_scalar<T>(p1 & 0xFu, sc1);
+      const float w11 = nf4_deq_scalar<T>((p1 >> 4) & 0xFu, sc1);
+      const float w12 = nf4_deq_scalar<T>((p1 >> 8) & 0xFu, sc1);
+      const float w13 = nf4_deq_scalar<T>((p1 >> 12) & 0xFu, sc1);
+#pragma clang loop unroll(full)
+      for (int m = 0; m < BM; ++m) {
+        if (m < M) {
+          const device T* am = A + size_t(m) * size_t(K) + size_t(col);
+          const float a0 = float(am[0]);
+          const float a1 = float(am[1]);
+          const float a2 = float(am[2]);
+          const float a3 = float(am[3]);
+          acc0[m] = fma(a0, w00, acc0[m]);
+          acc0[m] = fma(a1, w01, acc0[m]);
+          acc0[m] = fma(a2, w02, acc0[m]);
+          acc0[m] = fma(a3, w03, acc0[m]);
+          acc1[m] = fma(a0, w10, acc1[m]);
+          acc1[m] = fma(a1, w11, acc1[m]);
+          acc1[m] = fma(a2, w12, acc1[m]);
+          acc1[m] = fma(a3, w13, acc1[m]);
+        }
+      }
+    } else {
+#pragma clang loop unroll(full)
+      for (int m = 0; m < BM; ++m) {
+        if (m < M) {
+          const device T* am = A + size_t(m) * size_t(K) + size_t(col);
+          acc0[m] = fma(float(am[0]), w00, acc0[m]);
+          acc0[m] = fma(float(am[1]), w01, acc0[m]);
+          acc0[m] = fma(float(am[2]), w02, acc0[m]);
+          acc0[m] = fma(float(am[3]), w03, acc0[m]);
+        }
+      }
+    }
+  }
+
+  if (k128 < K) {
+    const int col = k128 + int(simd_lane_id) * 2;
+    const int byte_idx = (k128 >> 1) + int(simd_lane_id);
+    const int blk_idx = k128 >> 6;
+    const uchar b0 = q0_u8[byte_idx];
+    const float sc0 = s0_row[blk_idx];
+    const float w00 = nf4_deq_scalar<T>(b0 & 0xFu, sc0);
+    const float w01 = nf4_deq_scalar<T>(b0 >> 4, sc0);
+#pragma clang loop unroll(full)
+    for (int m = 0; m < BM; ++m) {
+      if (m < M) {
+        const device T* Am = A + size_t(m) * size_t(K) + size_t(col);
+        acc0[m] = fma(float(Am[0]), w00, acc0[m]);
+        acc0[m] = fma(float(Am[1]), w01, acc0[m]);
+      }
+    }
+    if (valid1) {
+      const uchar b1 = q1_u8[byte_idx];
+      const float sc1 = s1_row[blk_idx];
+      const float w10 = nf4_deq_scalar<T>(b1 & 0xFu, sc1);
+      const float w11 = nf4_deq_scalar<T>(b1 >> 4, sc1);
+#pragma clang loop unroll(full)
+      for (int m = 0; m < BM; ++m) {
+        if (m < M) {
+          const device T* Am = A + size_t(m) * size_t(K) + size_t(col);
+          acc1[m] = fma(float(Am[0]), w10, acc1[m]);
+          acc1[m] = fma(float(Am[1]), w11, acc1[m]);
+        }
+      }
+    }
+  }
+
+#pragma clang loop unroll(full)
+  for (int m = 0; m < BM; ++m) {
+    const float total = simd_sum(acc0[m]);
+    if (m < M && simd_lane_id == 0) {
+      D[size_t(m) * size_t(N) + size_t(row0)] = static_cast<T>(total);
+    }
+  }
+  if (valid1) {
+#pragma clang loop unroll(full)
+    for (int m = 0; m < BM; ++m) {
+      const float total = simd_sum(acc1[m]);
+      if (m < M && simd_lane_id == 0) {
+        D[size_t(m) * size_t(N) + size_t(row1)] = static_cast<T>(total);
+      }
+    }
+  }
+}
+
+#define INSTANTIATE_NF4_GEMV_BATCH(TNAME, TTYPE)                               \
+  template [[host_name("nf4_gemv_batch4_" #TNAME)]] [[kernel]] void            \
+  nf4_gemv_batch<TTYPE, 4>(                                                    \
+      const device TTYPE* A [[buffer(0)]],                                     \
+      const device uchar* Q [[buffer(1)]],                                     \
+      const device float* S [[buffer(2)]],                                     \
+      device TTYPE* D [[buffer(3)]],                                           \
+      const constant int& M [[buffer(4)]],                                     \
+      const constant int& N [[buffer(5)]],                                     \
+      const constant int& K [[buffer(6)]],                                     \
+      uint simd_lane_id [[thread_index_in_simdgroup]],                         \
+      uint simd_group_id [[simdgroup_index_in_threadgroup]],                   \
+      uint3 tid [[threadgroup_position_in_grid]]);                             \
+  template [[host_name("nf4_gemv_batch8_" #TNAME)]] [[kernel]] void            \
+  nf4_gemv_batch<TTYPE, 8>(                                                    \
+      const device TTYPE* A [[buffer(0)]],                                     \
+      const device uchar* Q [[buffer(1)]],                                     \
+      const device float* S [[buffer(2)]],                                     \
+      device TTYPE* D [[buffer(3)]],                                           \
+      const constant int& M [[buffer(4)]],                                     \
+      const constant int& N [[buffer(5)]],                                     \
+      const constant int& K [[buffer(6)]],                                     \
+      uint simd_lane_id [[thread_index_in_simdgroup]],                         \
+      uint simd_group_id [[simdgroup_index_in_threadgroup]],                   \
+      uint3 tid [[threadgroup_position_in_grid]]);                             \
+  template [[host_name("nf4_gemv_batch16_" #TNAME)]] [[kernel]] void           \
+  nf4_gemv_batch<TTYPE, 16>(                                                   \
+      const device TTYPE* A [[buffer(0)]],                                     \
+      const device uchar* Q [[buffer(1)]],                                     \
+      const device float* S [[buffer(2)]],                                     \
+      device TTYPE* D [[buffer(3)]],                                           \
+      const constant int& M [[buffer(4)]],                                     \
+      const constant int& N [[buffer(5)]],                                     \
+      const constant int& K [[buffer(6)]],                                     \
+      uint simd_lane_id [[thread_index_in_simdgroup]],                         \
+      uint simd_group_id [[simdgroup_index_in_threadgroup]],                   \
+      uint3 tid [[threadgroup_position_in_grid]]);
+
+INSTANTIATE_NF4_GEMV_BATCH(f32, float)
+INSTANTIATE_NF4_GEMV_BATCH(f16, half)
+#if defined(__HAVE_BFLOAT__)
+INSTANTIATE_NF4_GEMV_BATCH(bf16, bfloat)
+#endif
+#undef INSTANTIATE_NF4_GEMV_BATCH
+
+template <typename T>
+[[kernel]] void nf4_dequant(
+    const device uchar* Q [[buffer(0)]],
+    const device float* S [[buffer(1)]],
+    device T* Out [[buffer(2)]],
+    const constant uint& num_bytes [[buffer(3)]],
+    uint gid [[thread_position_in_grid]]) {
+  if (gid >= num_bytes) {
+    return;
+  }
+  const uchar b = Q[gid];
+  const float scale = S[gid >> 5];
+  const size_t out_idx = size_t(gid) << 1;
+  Out[out_idx] = static_cast<T>(NF4_LUT_TABLE[b & 0xFu] * scale);
+  Out[out_idx + 1] = static_cast<T>(NF4_LUT_TABLE[b >> 4] * scale);
+}
+
+template [[host_name("nf4_dequant_f32")]] [[kernel]] void nf4_dequant<float>(
+    const device uchar* Q [[buffer(0)]],
+    const device float* S [[buffer(1)]],
+    device float* Out [[buffer(2)]],
+    const constant uint& num_bytes [[buffer(3)]],
+    uint gid [[thread_position_in_grid]]);
+
+template [[host_name("nf4_dequant_f16")]] [[kernel]] void nf4_dequant<half>(
+    const device uchar* Q [[buffer(0)]],
+    const device float* S [[buffer(1)]],
+    device half* Out [[buffer(2)]],
+    const constant uint& num_bytes [[buffer(3)]],
+    uint gid [[thread_position_in_grid]]);
+
+#if defined(__HAVE_BFLOAT__)
+template [[host_name("nf4_dequant_bf16")]] [[kernel]] void nf4_dequant<bfloat>(
+    const device uchar* Q [[buffer(0)]],
+    const device float* S [[buffer(1)]],
+    device bfloat* Out [[buffer(2)]],
+    const constant uint& num_bytes [[buffer(3)]],
+    uint gid [[thread_position_in_grid]]);
+#endif

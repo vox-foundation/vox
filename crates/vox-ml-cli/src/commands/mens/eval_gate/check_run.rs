@@ -45,6 +45,66 @@ fn find_upward(rel: &str) -> Option<PathBuf> {
 /// current working directory at all (e.g. a packaged binary run outside the
 /// workspace), the precondition can't be evaluated and is reported as
 /// not-applicable rather than failing closed on an environment difference.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct DirFingerprint {
+    path: PathBuf,
+    exists: bool,
+    jsonl_files: Vec<(PathBuf, u64, Option<std::time::SystemTime>)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct LeakageCacheKey {
+    bench_path: PathBuf,
+    bench_len: u64,
+    bench_modified: Option<std::time::SystemTime>,
+    dirs: Vec<DirFingerprint>,
+}
+
+fn build_leakage_cache_key(bench_path: &Path, corpus_dirs: &[&Path]) -> LeakageCacheKey {
+    let canonical_bench =
+        std::fs::canonicalize(bench_path).unwrap_or_else(|_| bench_path.to_path_buf());
+    let bench_meta = std::fs::metadata(&canonical_bench).ok();
+    let bench_len = bench_meta.as_ref().map_or(0, |m| m.len());
+    let bench_modified = bench_meta.and_then(|m| m.modified().ok());
+
+    let dirs = corpus_dirs
+        .iter()
+        .map(|dir| {
+            let canonical_dir = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+            let exists = canonical_dir.exists();
+            let mut jsonl_files = Vec::new();
+            if exists && let Ok(rd) = std::fs::read_dir(&canonical_dir) {
+                for entry in rd.flatten() {
+                    let path = entry.path();
+                    if path.extension().and_then(|e| e.to_str()) == Some("jsonl") {
+                        let meta = std::fs::metadata(&path).ok();
+                        let len = meta.as_ref().map_or(0, |m| m.len());
+                        let modified = meta.and_then(|m| m.modified().ok());
+                        jsonl_files.push((path, len, modified));
+                    }
+                }
+            }
+            jsonl_files.sort_by(|a, b| a.0.cmp(&b.0));
+            DirFingerprint {
+                path: canonical_dir,
+                exists,
+                jsonl_files,
+            }
+        })
+        .collect();
+
+    LeakageCacheKey {
+        bench_path: canonical_bench,
+        bench_len,
+        bench_modified,
+        dirs,
+    }
+}
+
+static LEAKAGE_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<LeakageCacheKey, std::result::Result<(), String>>>,
+> = std::sync::OnceLock::new();
+
 pub(crate) fn check_leakage_precondition(results: &mut Vec<GateResult>) {
     const BENCH_REL: &str = "mens/data/heldout_bench/manifest.json";
     let Some(bench_path) = find_upward(BENCH_REL) else {
@@ -70,7 +130,20 @@ pub(crate) fn check_leakage_precondition(results: &mut Vec<GateResult>) {
     };
     let corpus_dir_refs: Vec<&Path> = corpus_dirs.iter().map(PathBuf::as_path).collect();
 
-    match assert_no_text_leakage(&bench_path, &corpus_dir_refs) {
+    let cache =
+        LEAKAGE_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    let key = build_leakage_cache_key(&bench_path, &corpus_dir_refs);
+    let outcome = {
+        let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+        guard
+            .entry(key)
+            .or_insert_with(|| {
+                assert_no_text_leakage(&bench_path, &corpus_dir_refs).map_err(|e| e.to_string())
+            })
+            .clone()
+    };
+
+    match outcome {
         Ok(()) => results.push(GateResult {
             name: "leakage".to_string(),
             passed: true,
@@ -80,7 +153,7 @@ pub(crate) fn check_leakage_precondition(results: &mut Vec<GateResult>) {
         Err(e) => results.push(GateResult {
             name: "leakage".to_string(),
             passed: false,
-            message: e.to_string(),
+            message: e,
             block: true,
         }),
     }
@@ -447,6 +520,84 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                     }),
                 }
             }
+        }
+    }
+
+    // --- suite gates (338-07 / 338-08) ---------------------------------------
+    for (suite_name, gate) in &policy.suites {
+        let rel = gate
+            .report_file
+            .clone()
+            .unwrap_or_else(|| format!("suite_report.{suite_name}.json"));
+        let report_path = run_dir.join(&rel);
+        let req_rep = gate.require_report.unwrap_or(false);
+        let block = gate.block || req_rep;
+        if !report_path.is_file() {
+            if block {
+                results.push(GateResult {
+                    name: format!("suite.{suite_name}"),
+                    passed: false,
+                    message: format!("{rel} missing"),
+                    block: true,
+                });
+            }
+            continue;
+        }
+        let content = read_utf8_path_capped(&report_path)?;
+        match serde_json::from_str::<vox_eval::suite_report::SuiteReport>(&content) {
+            Ok(report) => {
+                let base_rel = format!("suite_report.{suite_name}.base.json");
+                let base_path = run_dir.join(&base_rel);
+                let base_report = if base_path.is_file() {
+                    read_utf8_path_capped(&base_path).ok().and_then(|s| {
+                        serde_json::from_str::<vox_eval::suite_report::SuiteReport>(&s).ok()
+                    })
+                } else {
+                    None
+                };
+                let floors = vox_eval::suite_report::SuiteFloors {
+                    min_pass_rate: gate.min_pass_rate.unwrap_or(0.0),
+                    min_group_pass_rate: gate.min_group_pass_rate,
+                    alpha: gate.max_mcnemar_p.unwrap_or(0.05),
+                };
+                let verdict =
+                    vox_eval::suite_report::suite_verdict(&report, base_report.as_ref(), &floors);
+                let mut passed = verdict.passed;
+                let mut reasons = verdict.reasons;
+                if let Some(min_n) = gate.min_problem_count
+                    && report.n < min_n
+                {
+                    passed = false;
+                    reasons.push(format!(
+                        "suite item count {} below min_problem_count {min_n}",
+                        report.n
+                    ));
+                }
+                let msg = if passed {
+                    format!(
+                        "passed (n={}, pass_rate={:.3}, base_rate={})",
+                        report.n,
+                        report.pass_rate,
+                        base_report
+                            .as_ref()
+                            .map_or_else(|| "none".to_string(), |b| format!("{:.3}", b.pass_rate))
+                    )
+                } else {
+                    reasons.join("; ")
+                };
+                results.push(GateResult {
+                    name: format!("suite.{suite_name}"),
+                    passed,
+                    message: msg,
+                    block,
+                });
+            }
+            Err(e) => results.push(GateResult {
+                name: format!("suite.{suite_name}"),
+                passed: false,
+                message: format!("invalid {rel}: {e}"),
+                block,
+            }),
         }
     }
 

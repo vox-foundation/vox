@@ -99,6 +99,7 @@ pub fn handles(name: &str) -> bool {
         "vox_checkpoint_restore" => true,
         "vox_muse_pool_spawn" => true,
         "vox_muse_pool_adopt" => true,
+        "vox_guest_share_list" => true,
         "vox_guest_share_mint" => true,
         "vox_guest_share_moderate" => true,
         "vox_session_import_external" => true,
@@ -338,6 +339,9 @@ pub async fn dispatch(
         }
         "vox_muse_pool_adopt" => {
             Ok(crate::t3_wave3_tools::handle_muse_pool_adopt(state, args).await)
+        }
+        "vox_guest_share_list" => {
+            Ok(crate::t3_wave3_tools::handle_guest_share_list(state, args).await)
         }
         "vox_guest_share_mint" => {
             Ok(crate::t3_wave3_tools::handle_guest_share_mint(state, args).await)

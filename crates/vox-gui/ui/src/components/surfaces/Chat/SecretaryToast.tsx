@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Icon } from '../../ui/Icons';
 
 export interface SecretaryToastProps {
   /** The task intent text extracted from the chat message. */
@@ -39,7 +40,7 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onConfirm }
       className="flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-base/95 px-3 py-2 shadow-lg backdrop-blur-xs"
     >
       {/* Secretary icon */}
-      <span className="shrink-0 text-[11px] text-text-muted" aria-hidden>📋</span>
+      <Icon.list className="size-3.5 shrink-0 text-brass" aria-hidden="true" />
 
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-text-muted">Suggested task</p>
@@ -64,11 +65,11 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onConfirm }
       {/* Dismiss button */}
       <button
         type="button"
-        aria-label="Dismiss suggested task"
+        aria-label="Dismiss"
         onClick={onDismiss}
-        className="shrink-0 rounded-sm p-0.5 text-text-muted hover:text-text-secondary transition"
+        className="inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 text-text-muted hover:text-text-secondary transition"
       >
-        ✕
+        <Icon.close className="size-3.5" aria-hidden="true" />
       </button>
     </div>
   );

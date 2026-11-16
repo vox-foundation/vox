@@ -49,6 +49,50 @@ pub async fn connect_workspace_journey_optional(
     .await
 }
 
+// vox:defactored-from vox-repository 2026-11-12 (avoids vox-db -> vox-repository edge)
+fn find_project_manifest_root(start: &Path) -> Option<std::path::PathBuf> {
+    let mut current = if start.as_os_str().is_empty() {
+        std::env::current_dir().ok()?
+    } else if start.is_absolute() {
+        std::fs::canonicalize(start).unwrap_or_else(|_| start.to_path_buf())
+    } else {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        std::fs::canonicalize(cwd.join(start)).unwrap_or_else(|_| cwd.join(start))
+    };
+    loop {
+        if current.join("Vox.toml").is_file() || current.join("Cargo.toml").is_file() {
+            return Some(current);
+        }
+        if !current.pop() {
+            return std::env::current_dir().ok();
+        }
+    }
+}
+
+pub(crate) fn discover_repo_root_and_flag(start: &Path) -> (std::path::PathBuf, bool) {
+    let abs = if start.as_os_str().is_empty() {
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+    } else if start.is_absolute() {
+        std::fs::canonicalize(start).unwrap_or_else(|_| start.to_path_buf())
+    } else {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        std::fs::canonicalize(cwd.join(start)).unwrap_or_else(|_| cwd.join(start))
+    };
+    let mut probe = abs.clone();
+    let git_root = loop {
+        if probe.join(".git").exists() {
+            break Some(probe);
+        }
+        if !probe.pop() {
+            break None;
+        }
+    };
+    let effective = git_root.clone().unwrap_or(abs);
+    let root = std::fs::canonicalize(&effective).unwrap_or(effective);
+    let is_real_project = git_root.is_some() || root.join("Vox.toml").is_file();
+    (root, is_real_project)
+}
+
 /// Like [`connect_workspace_journey_optional`], but uses `start_dir` for repository discovery
 /// (falls back to `"."` if `None`).
 pub async fn connect_workspace_journey_optional_at(
@@ -63,17 +107,11 @@ pub async fn connect_workspace_journey_optional_at(
                 .map(std::path::Path::to_path_buf)
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| Path::new(".").to_path_buf());
-            let discover_hint =
-                vox_repository::find_project_manifest_root(&hint).unwrap_or_else(|| hint.clone());
-            let repo = vox_repository::discover_repository_or_fallback(&discover_hint);
+            let discover_hint = find_project_manifest_root(&hint).unwrap_or_else(|| hint.clone());
+            let (root, is_real_project) = discover_repo_root_and_flag(&discover_hint);
 
-            // `discover_repository_or_fallback` treats an arbitrary, non-project directory as
-            // its own "root" (no git work tree, no Vox.toml to walk up to). Writing
-            // `.vox/store.db` there litters directories that were never opted into a Vox
-            // project (fresh `vox term` / `vox init` cwd). Only use the project-local store
-            // when the discovered root is an actual project; otherwise go straight to the
-            // user-level canonical store, same as the on-open-failure fallback below.
-            let is_real_project = repo.git_root.is_some() || repo.vox_toml.is_some();
+            // Only use the project-local store when the discovered root is an actual project;
+            // otherwise go straight to the user-level canonical store.
             if !is_real_project {
                 if workspace_journey_fallback_canonical_enabled() {
                     return connect_canonical_optional(surface, skip_log).await;
@@ -81,7 +119,7 @@ pub async fn connect_workspace_journey_optional_at(
                 return None;
             }
 
-            match open_project_db_at_root(&repo.root).await {
+            match open_project_db_at_root(&root).await {
                 Ok(db) => Some(db),
                 Err(e) => {
                     if !skip_log {
@@ -89,7 +127,7 @@ pub async fn connect_workspace_journey_optional_at(
                             target: "vox_db::workspace_journey_store",
                             surface = surface.as_str(),
                             error = %e,
-                            repo_root = %repo.root.display(),
+                            repo_root = %root.display(),
                             "open workspace journey store (.vox/store.db) failed"
                         );
                     }

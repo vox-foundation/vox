@@ -25,7 +25,8 @@ const mocks = vi.hoisted(() => ({
   listModels: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock('../../transport', () => ({
+vi.mock('../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../transport')>()),
   voxTransport: { listModels: mocks.listModels },
   listenAgentEvents: vi.fn().mockImplementation(
     async (handler: (frame: AgentFrame) => void) => {

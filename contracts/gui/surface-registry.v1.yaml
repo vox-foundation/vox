@@ -585,14 +585,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: null
+- view_key: gsd
   cli_group: plan
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
+  representation_tier: live_backend
+  nav_label: GSD
+  nav_icon: flow
+  nav_group: operate
+  parent_surface: agents
+  notes: GSD (Get Shit Done) milestones, phases, waves & CAS documents
 - view_key: null
   cli_group: play
   representation_tier: none

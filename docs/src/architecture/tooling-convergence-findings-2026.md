@@ -368,7 +368,7 @@ Ship these in any order; each is independent and small.
    Pros: silent drift becomes visible. Risks: PRs without installed hooks
    start failing — that's the point, but flag in CONTRIBUTING.
 4. **Pick one link checker.** Recommend keeping lychee
-   ([`link_checker.yml`](../../../.github/workflows/link_checker.yml)) and
+   (`link_checker.yml`, replaced by [`.github/workflows/docs-drift-refresh.yml`](../../../.github/workflows/docs-drift-refresh.yml)) and
    removing `vox ci check-links` (it's a thin reimplementation). Pros: one
    maintainer surface. Risks: lychee config differs slightly; reconcile
    ignores once.

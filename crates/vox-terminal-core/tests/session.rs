@@ -77,11 +77,22 @@ async fn organic_submit_evaluates_vox_shell_and_routed_agent_prompts() {
     let id = host.open(OpenSpec::default()).await.unwrap();
 
     // 1. Vox-native expression evaluation
-    let vox_id = host.submit(&id, "40 + 2").unwrap();
-    let vox_block = host.block(&id, vox_id).unwrap();
-    assert_eq!(vox_block.kind, BlockKind::VoxNative);
-    assert_eq!(vox_block.status, BlockStatus::Ok);
-    assert!(vox_block.plain_output().contains("42"));
+    #[cfg(feature = "vox-lang")]
+    {
+        let vox_id = host.submit(&id, "40 + 2").unwrap();
+        let vox_block = host.block(&id, vox_id).unwrap();
+        assert_eq!(vox_block.kind, BlockKind::VoxNative);
+        assert_eq!(vox_block.status, BlockStatus::Ok);
+        assert!(vox_block.plain_output().contains("42"));
+    }
+    #[cfg(not(feature = "vox-lang"))]
+    {
+        let vox_id = host.submit(&id, "let x = 42").unwrap();
+        let vox_block = host.block(&id, vox_id).unwrap();
+        assert_eq!(vox_block.kind, BlockKind::VoxNative);
+        assert_eq!(vox_block.status, BlockStatus::Failed);
+        assert!(vox_block.plain_output().contains("vox-lang"));
+    }
 
     // 2. Unprefixed shell command (as submitted from GUI Console InputEditor)
     let sh_id = host.submit(&id, "echo organic-console-line").unwrap();

@@ -74,6 +74,19 @@ pub enum CorpusAction {
         #[arg(short, long, default_value = "mens/data/mix_sources/docs.jsonl")]
         output: std::path::PathBuf,
     },
+    /// Extract GSD workflow, skill, roadmap, and MCP supervision pairs
+    ExtractGsd {
+        /// Repository root containing `.planning/` and `assets/skills/`
+        #[arg(default_value = ".")]
+        dir: std::path::PathBuf,
+        /// Output JSONL file
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/gsd_workflows.jsonl"
+        )]
+        output: std::path::PathBuf,
+    },
     /// Synthesize Rust structural translation pairs
     RustMine {
         /// Source directory of Rust code
@@ -452,6 +465,20 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             );
             Ok(())
         }
+        CorpusAction::ExtractGsd { dir, output } => {
+            let config = vox_corpus::corpus::extract_gsd::ExtractGsdConfig {
+                root: dir,
+                ..Default::default()
+            };
+            let pairs = vox_corpus::corpus::extract_gsd::extract_gsd_corpus(&config)?;
+            let count = vox_corpus::corpus::extract_gsd::write_gsd_to_jsonl(&pairs, &output)?;
+            println!(
+                "✓ Extracted {} GSD workflow pairs → {}",
+                count,
+                output.display()
+            );
+            Ok(())
+        }
         CorpusAction::RustMine { source_dir, output } => {
             generate::run_rust_mine(&source_dir, &output).await
         }
@@ -498,14 +525,20 @@ pub async fn run(action: CorpusAction) -> Result<()> {
         CorpusAction::Mix {
             config,
             allow_missing_sources,
-        } => vox_corpus::corpus::run_mix_with_options(
-            &config,
-            None,
-            vox_corpus::corpus::MixRunOptions {
-                strict: !allow_missing_sources,
-                write_report: true,
-            },
-        ),
+        } => {
+            if let Ok(cfg) = vox_corpus::corpus::mix::MixConfigSchema::load(&config) {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                vox_corpus::training::mix_prepare::ensure_missing_mix_sources(&cfg, &cwd);
+            }
+            vox_corpus::corpus::run_mix_with_options(
+                &config,
+                None,
+                vox_corpus::corpus::MixRunOptions {
+                    strict: !allow_missing_sources,
+                    write_report: true,
+                },
+            )
+        }
         CorpusAction::Replay {
             chatml: _chatml,
             min_score: _min_score,

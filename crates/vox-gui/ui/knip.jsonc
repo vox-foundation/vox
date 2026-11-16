@@ -41,5 +41,5 @@
     "test-results/**",
     "tokens/**"
   ],
-  "ignoreDependencies": ["@tauri-apps/api", "postcss"]
+  "ignoreDependencies": ["@tauri-apps/api", "postcss", "tw-animate-css"]
 }

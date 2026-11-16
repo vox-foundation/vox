@@ -72,7 +72,6 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Normal |
 | [`vox-lsp`](./vox-lsp.generated.md) | Normal |
 | [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | Normal |
-| [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
 | [`vox-openai`](./vox-openai.generated.md) | Normal |
 | [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Normal |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Normal |
@@ -145,6 +144,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `git_tools` | Thin `git` CLI wrappers scoped to the discovered git root. |
 | `grammar_tools` | Grammar export tools |
 | `graph_tools` | Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`). |
+| `gsd_tools` | GSD (Get Shit Done) workflow suite tools (`vox_gsd_*`). |
 | `gui_ops` | GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`). |
 | `gui_registry_tools` | — |
 | `history_tools` | `vox_search_history`: first-parent repo history for agents (same facade as `vox graph history`). |
@@ -174,6 +174,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `task_tools` | Orchestrator task submit/status/cancel/drain tools. |
 | `toestub_tools` | TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management. |
 | `tool_aliases` | — |
+| `tool_catalog` | — |
 | `tool_envelope` | — |
 | `tool_images` | Strip `image_base64` from MCP tool JSON and build image parts for chat. |
 | `tool_search` | `vox_tool_search` — keyword search over the tool registry (progressive disclosure). |

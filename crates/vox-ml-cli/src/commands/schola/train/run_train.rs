@@ -8,10 +8,32 @@ use std::path::{Path, PathBuf};
 // Reference: docs/src/architecture/research-cl-qlora-minimum-corpus-2026.md
 const MIN_CORPUS_PAIRS: usize = 100;
 
+/// Resolve a corpus path from a direct `.jsonl` file, `<data_dir>/train.jsonl`, or a
+/// relative `training_contract.yaml` override.
+fn resolve_corpus_threshold_path(data_dir: &Path, workspace_root: Option<&Path>) -> PathBuf {
+    if data_dir.is_file() {
+        return data_dir.to_path_buf();
+    }
+    let direct = data_dir.join("train.jsonl");
+    if direct.is_file() {
+        return direct;
+    }
+    if let Ok(resolved) =
+        vox_corpus::training::preflight::validate_train_preflight(data_dir, None, workspace_root)
+        && resolved.path.is_file()
+    {
+        return resolved.path;
+    }
+    direct
+}
+
 /// Hard-fails if `train.jsonl` is missing (previously silently skipped the whole gate) or
 /// has fewer than [`MIN_CORPUS_PAIRS`] non-blank lines.
-pub(crate) fn check_corpus_threshold(data_dir: &Path) -> Result<()> {
-    let train_jsonl = data_dir.join("train.jsonl");
+pub(crate) fn check_corpus_threshold_with_root(
+    data_dir: &Path,
+    workspace_root: Option<&Path>,
+) -> Result<()> {
+    let train_jsonl = resolve_corpus_threshold_path(data_dir, workspace_root);
     if !train_jsonl.exists() {
         // A missing train.jsonl is not "no corpus check needed" -- it means the corpus
         // was never built (or the data dir is wrong). Silently skipping here let
@@ -23,9 +45,27 @@ pub(crate) fn check_corpus_threshold(data_dir: &Path) -> Result<()> {
             train_jsonl.display()
         );
     }
-    let pair_count = std::fs::read_to_string(&train_jsonl)
-        .map(|s| s.lines().filter(|l| !l.trim().is_empty()).count())
-        .unwrap_or(0);
+    let pair_count = match std::fs::File::open(&train_jsonl) {
+        Ok(file) => {
+            use std::io::BufRead;
+            let reader = std::io::BufReader::new(file);
+            let mut count = 0usize;
+            for line in reader.lines() {
+                match line {
+                    Ok(l) if !l.trim().is_empty() => {
+                        count += 1;
+                        if count >= MIN_CORPUS_PAIRS {
+                            break;
+                        }
+                    }
+                    Ok(_) => {}
+                    Err(_) => break,
+                }
+            }
+            count
+        }
+        Err(_) => 0,
+    };
     if pair_count < MIN_CORPUS_PAIRS {
         anyhow::bail!(
             "Corpus has {} validated pairs (minimum: {}). \
@@ -42,9 +82,14 @@ pub(crate) fn check_corpus_threshold(data_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Hard-fails if `train.jsonl` is missing or below [`MIN_CORPUS_PAIRS`] lines.
+pub(crate) fn check_corpus_threshold(data_dir: &Path) -> Result<()> {
+    check_corpus_threshold_with_root(data_dir, None)
+}
+
 #[cfg(test)]
 mod corpus_threshold_tests {
-    use super::{MIN_CORPUS_PAIRS, check_corpus_threshold};
+    use super::{MIN_CORPUS_PAIRS, check_corpus_threshold, check_corpus_threshold_with_root};
 
     #[test]
     fn missing_train_jsonl_is_a_hard_error() {
@@ -93,6 +138,33 @@ mod corpus_threshold_tests {
         check_corpus_threshold(&dir).expect("corpus at threshold must pass");
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn direct_relative_jsonl_file_path_passes() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("custom_train.jsonl");
+        let lines = "{\"prompt\":\"a\",\"response\":\"b\"}\n".repeat(MIN_CORPUS_PAIRS);
+        std::fs::write(&file, lines).unwrap();
+        check_corpus_threshold(&file).expect("direct jsonl file path must pass threshold");
+    }
+
+    #[test]
+    fn relative_training_contract_override_passes() {
+        let root = tempfile::tempdir().unwrap();
+        let shared = root.path().join("dogfood");
+        let mix_dir = root.path().join("dogfood_mix");
+        std::fs::create_dir_all(&shared).unwrap();
+        std::fs::create_dir_all(&mix_dir).unwrap();
+        let lines = "{\"prompt\":\"a\",\"response\":\"b\"}\n".repeat(MIN_CORPUS_PAIRS);
+        std::fs::write(shared.join("train_mixed.jsonl"), lines).unwrap();
+        std::fs::write(
+            mix_dir.join("training_contract.yaml"),
+            "train_path: ../dogfood/train_mixed.jsonl\n",
+        )
+        .unwrap();
+        check_corpus_threshold_with_root(&mix_dir, Some(root.path()))
+            .expect("relative training_contract override must pass threshold");
+    }
 }
 
 /// Live free accelerator memory for this run's device. A CPU run has no
@@ -121,12 +193,22 @@ pub(super) fn pick_train_size(
 ) -> Result<vox_populi::mens::tensor::size_select::Selection> {
     use vox_populi::mens::tensor::size_select;
     let overlay = size_select::load_ladder_overlay(workspace_root)?;
-    size_select::select_size(
-        &overlay,
-        live_free_memory(device_kind).as_ref(),
-        explicit,
-        force_train_env(),
-    )
+    let free = live_free_memory(device_kind);
+    let force = force_train_env();
+    let sel = size_select::select_size(&overlay, free.as_ref(), explicit, force)?;
+    if explicit.is_some()
+        && matches!(sel, size_select::Selection::PassThrough(_))
+        && overlay.contains_key("qwen3_5_code")
+    {
+        return size_select::select_size_for_tag(
+            &overlay,
+            "qwen3_5_code",
+            free.as_ref(),
+            explicit,
+            force,
+        );
+    }
+    Ok(sel)
 }
 
 /// Re-read free memory once right before the download (D-05): an automatic
@@ -416,7 +498,7 @@ pub async fn run_train(
         "Dispatching training payload to native orchestra"
     );
 
-    check_corpus_threshold(&data_dir)?;
+    check_corpus_threshold_with_root(&data_dir, workspace_root.as_deref())?;
 
     // Make sure the plugin the selector will dispatch to is installed and
     // loadable, self-healing a missing/stale one (opt out with
@@ -637,7 +719,7 @@ mod tests {
             "{}",
             p.rung.hf_id
         );
-        assert_eq!(p.rung.preset, "qwen3_dev_cpu");
+        assert_eq!(p.rung.preset, "qwen3_0_6b");
         assert!(p.explicit);
         assert!(p.note.contains("fit not checked"), "{}", p.note);
     }

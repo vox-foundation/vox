@@ -55,7 +55,6 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | [`vox-grammar-export`](./vox-grammar-export.generated.md) | Normal |
 | [`vox-language-surface`](./vox-language-surface.generated.md) | Normal |
 | [`vox-python-bridge`](./vox-python-bridge.generated.md) | Normal |
-| [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-shell-stdlib-types`](./vox-shell-stdlib-types.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
@@ -88,6 +87,7 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | `parser` | — |
 | `pipeline` | — |
 | `python_array_support` | — |
+| `python_escape_support` | — |
 | `python_frame_support` | — |
 | `react_bridge` | — |
 | `required_capabilities` | — |
@@ -126,10 +126,10 @@ graph {
     vox_compiler -> vox_language_surface
     node vox_python_bridge: "vox-python-bridge"
     vox_compiler -> vox_python_bridge
-    node vox_repository: "vox-repository"
-    vox_compiler -> vox_repository
     node vox_secrets: "vox-secrets"
     vox_compiler -> vox_secrets
+    node vox_shell_stdlib_types: "vox-shell-stdlib-types"
+    vox_compiler -> vox_shell_stdlib_types
     node vox_audit: "vox-audit"
     vox_audit -> vox_compiler
     node vox_cli: "vox-cli"
@@ -207,11 +207,11 @@ graph {
 | `fn` | `builtin_registry::builtin_entry_result_ty` | `pub fn builtin_entry_result_ty(entry: BuiltinRegistryEntry) -> Ty` | [`crates/vox-compiler/src/builtin_registry.rs#L58-L64`](../../../crates/vox-compiler/src/builtin_registry.rs#L58-L64) | Result type for a registry entry (`Result[str]` or `Result[unit]`). |
 | `fn` | `builtin_registry::builtin_registry_entries` | `pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry]` | [`crates/vox-compiler/src/builtin_registry.rs#L68`](../../../crates/vox-compiler/src/builtin_registry.rs#L68) | Stable subset of builtins with shared registry ownership. |
 | `fn` | `builtin_registry::lookup_builtin` | `pub fn lookup_builtin(` | [`crates/vox-compiler/src/builtin_registry.rs#L504`](../../../crates/vox-compiler/src/builtin_registry.rs#L504) | — |
-| `fn` | `builtin_registry::std_root_field_ty` | `pub fn std_root_field_ty(field: &str) -> Option<Ty>` | [`crates/vox-compiler/src/builtin_registry.rs#L529-L555`](../../../crates/vox-compiler/src/builtin_registry.rs#L529-L555) | `std.<field>` type members on the root namespace. |
-| `fn` | `builtin_registry::std_namespace_method_ty` | `pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty>` | [`crates/vox-compiler/src/builtin_registry.rs#L559`](../../../crates/vox-compiler/src/builtin_registry.rs#L559) | `std.<namespace>.<method>` signatures used by type checking. |
-| `fn` | `builtin_registry::std_namespace_runtime_call` | `pub fn std_namespace_runtime_call(` | [`crates/vox-compiler/src/builtin_registry.rs#L850`](../../../crates/vox-compiler/src/builtin_registry.rs#L850) | Shared runtime call lowering for `std.<namespace>.<method>` in Rust codegen. |
-| `fn` | `builtin_registry::namespace_builtin_owned` | `pub fn namespace_builtin_owned(namespace: &str) -> bool` | [`crates/vox-compiler/src/builtin_registry.rs#L1372-L1376`](../../../crates/vox-compiler/src/builtin_registry.rs#L1372-L1376) | True if `namespace` is owned by the canonical [`NAMESPACE_BUILTINS`] table (i.e. its full method set is declared there). Used by the typecheck gate. |
-| `fn` | `builtin_registry::namespace_builtin_listed` | `pub fn namespace_builtin_listed(namespace: &str, method: &str) -> bool` | [`crates/vox-compiler/src/builtin_registry.rs#L1380-L1384`](../../../crates/vox-compiler/src/builtin_registry.rs#L1380-L1384) | True if `(namespace, method)` is listed in [`NAMESPACE_BUILTINS`]. |
+| `fn` | `builtin_registry::std_root_field_ty` | `pub fn std_root_field_ty(field: &str) -> Option<Ty>` | [`crates/vox-compiler/src/builtin_registry.rs#L529-L557`](../../../crates/vox-compiler/src/builtin_registry.rs#L529-L557) | `std.<field>` type members on the root namespace. |
+| `fn` | `builtin_registry::std_namespace_method_ty` | `pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty>` | [`crates/vox-compiler/src/builtin_registry.rs#L561`](../../../crates/vox-compiler/src/builtin_registry.rs#L561) | `std.<namespace>.<method>` signatures used by type checking. |
+| `fn` | `builtin_registry::std_namespace_runtime_call` | `pub fn std_namespace_runtime_call(` | [`crates/vox-compiler/src/builtin_registry.rs#L852`](../../../crates/vox-compiler/src/builtin_registry.rs#L852) | Shared runtime call lowering for `std.<namespace>.<method>` in Rust codegen. |
+| `fn` | `builtin_registry::namespace_builtin_owned` | `pub fn namespace_builtin_owned(namespace: &str) -> bool` | [`crates/vox-compiler/src/builtin_registry.rs#L1374-L1378`](../../../crates/vox-compiler/src/builtin_registry.rs#L1374-L1378) | True if `namespace` is owned by the canonical [`NAMESPACE_BUILTINS`] table (i.e. its full method set is declared there). Used by the typecheck gate. |
+| `fn` | `builtin_registry::namespace_builtin_listed` | `pub fn namespace_builtin_listed(namespace: &str, method: &str) -> bool` | [`crates/vox-compiler/src/builtin_registry.rs#L1382-L1386`](../../../crates/vox-compiler/src/builtin_registry.rs#L1382-L1386) | True if `(namespace, method)` is listed in [`NAMESPACE_BUILTINS`]. |
 | `fn` | `canonical_json::sort_json_value_keys` | `pub fn sort_json_value_keys(v: &mut serde_json::Value)` | [`crates/vox-compiler/src/canonical_json.rs#L10-L31`](../../../crates/vox-compiler/src/canonical_json.rs#L10-L31) | Recursively sort JSON object keys for cross-toolchain-stable canonical bytes. |
 | `struct` | `codegen_ts::GeneratedFiles` | `pub struct GeneratedFiles` | [`crates/vox-compiler/src/codegen_ts.rs#L17-L20`](../../../crates/vox-compiler/src/codegen_ts.rs#L17-L20) | Output of TypeScript code generation. |
 | `fn` | `codegen_ts::generate` | `pub fn generate(_hir: &HirModule) -> Result<GeneratedFiles, String>` | [`crates/vox-compiler/src/codegen_ts.rs#L29-L36`](../../../crates/vox-compiler/src/codegen_ts.rs#L29-L36) | Generate TypeScript/TSX code from HIR.  # Errors  Returns `Err` with diagnostic code `E0404` when the TS codegen backend is not available in this build.  Callers in production use `vox-codegen` directly; this shim is for compiler-internal test utilities only. |

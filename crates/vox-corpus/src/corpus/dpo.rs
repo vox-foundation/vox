@@ -57,29 +57,13 @@ pub fn generate_dpo_from_extract(config: &DpoConfig) -> anyhow::Result<usize> {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        if chosen.is_empty() {
+        if chosen.is_empty() || prompt.trim().is_empty() {
             continue;
         }
 
-        // Generate rejected sample by mutating 'chosen'
-        // For Vox files, we use the ast_mutator if it's not a generic prompt
-        let rejected =
-            if chosen.contains("fn ") || chosen.contains("actor ") || chosen.contains("@") {
-                // Try to parse and mutate
-                if let Ok(result) = vox_compiler::pipeline::run_frontend_str(&chosen, "<dpo-gen>") {
-                    let mutations = ast_mutator::generate_mutations(&chosen, &result.module);
-                    if !mutations.is_empty() {
-                        ast_mutator::apply_mutations(&chosen, mutations)
-                    } else {
-                        // Fallback: simple string manipulation
-                        chosen.replace("fn ", "function ")
-                    }
-                } else {
-                    chosen.replace("fn ", "function ")
-                }
-            } else {
-                chosen.replace("let ", "var ")
-            };
+        let Some(rejected) = build_verified_vox_rejected(&chosen) else {
+            continue;
+        };
 
         if rejected == chosen {
             // Skip pairs where mutation failed to change anything
@@ -104,6 +88,84 @@ pub fn generate_dpo_from_extract(config: &DpoConfig) -> anyhow::Result<usize> {
     }
 
     Ok(count)
+}
+
+/// Unwraps an enclosing markdown ` ```vox ... ``` ` or ` ``` ... ``` ` code fence if present,
+/// returning `(inner_source, was_fenced)`.
+fn unwrap_optional_vox_fence(src: &str) -> (&str, bool) {
+    let trimmed = src.trim();
+    if let Some(rest) = trimmed
+        .strip_prefix("```vox")
+        .or_else(|| trimmed.strip_prefix("```"))
+    {
+        // Require newline right after the opening fence language tag so backticks mid-line aren't stripped.
+        if let Some((_, body)) = rest.split_once('\n')
+            && let Some(inner) = body.strip_suffix("```")
+        {
+            return (inner.trim_end(), true);
+        }
+    }
+    (src, false)
+}
+
+/// Returns `true` when `src` (after stripping any enclosing markdown `vox` fence) has retired
+/// syntax violations, fails to parse/lower, or produces typecheck errors.
+fn fails_vox_frontend(src: &str) -> bool {
+    let (inner, _) = unwrap_optional_vox_fence(src);
+    if !crate::corpus::corpus_readiness::check_vox_retired_and_enforcement_rules(inner).is_empty() {
+        return true;
+    }
+    let Ok(result) = vox_compiler::pipeline::run_frontend_str(inner, "<dpo-gen>") else {
+        return true;
+    };
+    result
+        .diagnostics
+        .iter()
+        .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
+}
+
+/// Produce a strictly worse Vox `rejected` sample ONLY after verifying `chosen`
+/// compiles cleanly with zero typecheck errors and zero retired-syntax violations,
+/// and verifying the degraded candidate actually fails the Vox frontend.
+fn build_verified_vox_rejected(chosen: &str) -> Option<String> {
+    let (inner, was_fenced) = unwrap_optional_vox_fence(chosen);
+    let wrap = |mutated: String| -> String {
+        if was_fenced {
+            format!("```vox\n{mutated}\n```")
+        } else {
+            mutated
+        }
+    };
+
+    if !crate::corpus::corpus_readiness::check_vox_retired_and_enforcement_rules(inner).is_empty() {
+        return None;
+    }
+    let result = vox_compiler::pipeline::run_frontend_str(inner, "<dpo-gen>").ok()?;
+    let has_errors = result
+        .diagnostics
+        .iter()
+        .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error);
+    if has_errors {
+        return None;
+    }
+
+    let mutations = ast_mutator::generate_mutations(inner, &result.module);
+    if !mutations.is_empty() {
+        let mutated = ast_mutator::apply_mutations(inner, mutations);
+        if mutated != inner && fails_vox_frontend(&mutated) {
+            return Some(wrap(mutated));
+        }
+    }
+
+    for (from, to) in [("fn ", "function "), ("return ", "ret "), ("let ", "var ")] {
+        if inner.contains(from) {
+            let candidate = inner.replacen(from, to, 1);
+            if candidate != inner && fails_vox_frontend(&candidate) {
+                return Some(wrap(candidate));
+            }
+        }
+    }
+    None
 }
 
 /// Mine PR code-review findings into Rust-review DPO preference pairs (R.2).
@@ -418,5 +480,80 @@ mod review_dpo_tests {
         let result = strip_return_type(src);
         assert!(!result.contains("-> i32"));
         assert!(result.contains("pub async fn compute"));
+    }
+
+    #[test]
+    fn generate_dpo_skips_unparseable_and_retired_chosen() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("in.jsonl");
+        let output = dir.path().join("out.jsonl");
+        let rows = format!(
+            "{}\n{}\n{}\n",
+            serde_json::json!({
+                "prompt": "Write add",
+                "response": "fn add(a: int, b: int) to int {\n    return a + b\n}",
+                "category": "vox_fn",
+                "source": "golden/add.vox"
+            }),
+            serde_json::json!({
+                "prompt": "Retired syntax",
+                "response": "@component fn Old() to Element {\n    return <div></div>\n}",
+                "category": "vox_component"
+            }),
+            serde_json::json!({
+                "prompt": "Broken code",
+                "response": "fn broken( { let x = ",
+                "category": "vox_fn"
+            }),
+        );
+        std::fs::write(&input, rows).unwrap();
+        let cfg = DpoConfig {
+            input,
+            output: output.clone(),
+            limit: 0,
+        };
+        let count = generate_dpo_from_extract(&cfg).unwrap();
+        assert_eq!(
+            count, 1,
+            "only compiler-valid chosen should yield DPO pairs"
+        );
+        let emitted = std::fs::read_to_string(&output).unwrap();
+        let parsed: DpoPair = serde_json::from_str(emitted.trim()).unwrap();
+        assert_ne!(parsed.chosen, parsed.rejected);
+        assert!(parsed.chosen.contains("fn add"));
+        assert!(
+            super::fails_vox_frontend(&parsed.rejected),
+            "rejected candidate must fail compiler frontend verification: {}",
+            parsed.rejected
+        );
+    }
+
+    #[test]
+    fn dpo_generator_handles_markdown_fenced_vox_responses() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("fenced.jsonl");
+        let output = dir.path().join("out.jsonl");
+        let row = serde_json::json!({
+            "prompt": "Write fenced add",
+            "response": "```vox\nfn add(a: int, b: int) to int {\n    return a + b\n}\n```",
+            "category": "vox_fn",
+            "source": "docs/add.md"
+        });
+        std::fs::write(&input, format!("{row}\n")).unwrap();
+        let cfg = DpoConfig {
+            input,
+            output: output.clone(),
+            limit: 0,
+        };
+        let count = generate_dpo_from_extract(&cfg).unwrap();
+        assert_eq!(
+            count, 1,
+            "markdown-fenced valid Vox should yield a DPO pair"
+        );
+        let emitted = std::fs::read_to_string(&output).unwrap();
+        let parsed: DpoPair = serde_json::from_str(emitted.trim()).unwrap();
+        assert_ne!(parsed.chosen, parsed.rejected);
+        assert!(parsed.rejected.starts_with("```vox\n"));
+        assert!(parsed.rejected.ends_with("\n```"));
     }
 }

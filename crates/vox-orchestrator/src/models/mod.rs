@@ -35,6 +35,7 @@ pub mod vram;
 
 pub use auto_select::{
     AutoModelSelection, select_for_free_memory, select_optimal_local_model_for_host,
+    select_optimal_spoke_and_size,
 };
 pub use cost_tier::{
     CHEAP_COST_PER_1K_USD, CostTier, blended_cost_per_1k, cost_tier_for, cost_tier_for_blended,
@@ -51,9 +52,10 @@ pub use policy::{
 #[cfg(feature = "runtime")]
 pub use registry::llm_config_for_spec;
 pub use registry::{
-    ConversationalRoutingDecision, ConversationalSessionReport, ConversationalTurnMode,
-    ConversationalTurnReceipt, MIN_CALLS_FOR_CONFIDENT_RANK, ModelRegistry, ModelScore,
-    MultiSpokeHarnessStepReceipt, MultiSpokeHarnessWorkflowReport, SotaHarnessScorecardV1,
+    B3_RETRIEVAL_EMBEDDER_PIN, ConversationalRoutingDecision, ConversationalSessionReport,
+    ConversationalTurnMode, ConversationalTurnReceipt, MIN_CALLS_FOR_CONFIDENT_RANK, ModelRegistry,
+    ModelScore, MultiSpokeHarnessStepReceipt, MultiSpokeHarnessWorkflowReport,
+    SotaHarnessScorecardV1, research_expert_reward_hook, route_retrieval_lane_to_embedder,
     wilson_score_interval,
 };
 pub use routing_task::RoutingTask;

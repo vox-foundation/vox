@@ -66,15 +66,19 @@ function SessionRow({
   }
 
   return (
-    <div role="tab" aria-selected={isActive}
+    <div role="tab" aria-selected={isActive} tabIndex={isActive ? 0 : -1}
          onClick={() => onSessionChange(s.session_id)}
          onDoubleClick={() => setEditing(true)}
+         onKeyDown={e => {
+           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSessionChange(s.session_id); }
+           else if (showArchive && e.key === 'Delete') { e.preventDefault(); onArchiveSession(s.session_id); }
+         }}
          className={`flex items-start justify-between gap-1.5 rounded-md px-2 py-1.5 text-[11px] leading-snug cursor-pointer transition group ${
            isActive
-             ? 'border-l-2 border-brass bg-brass/12 text-brass font-medium shadow-2xs'
+             ? 'border-l-2 border-brass bg-brass/15 text-text-primary font-semibold shadow-2xs'
              : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
          }`}>
-      <span title={s.title} className="min-w-0 flex-1 line-clamp-2 wrap-break-word">{s.title}</span>
+      <span data-allow-ellipsis="true" title={s.title} className="min-w-0 flex-1 line-clamp-2 wrap-break-word">{s.title}</span>
       <span className="mt-0.5 flex items-center gap-1 shrink-0">
         {hasPendingIssue && (
           <span
@@ -97,11 +101,9 @@ function SessionRow({
           <span
             role="button"
             tabIndex={0}
+            aria-label="Archive"
             onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onArchiveSession(s.session_id); }
-            }}
-            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
+            className="opacity-0 group-hover:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
           >
             Archive
           </span>

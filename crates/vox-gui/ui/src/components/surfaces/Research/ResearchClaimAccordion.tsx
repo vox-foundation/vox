@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Icon } from '../../ui/Icons';
 import { TrustChip, type TrustSignal } from './TrustChip';
 import { VerdictBadge } from '../Scientia/ClaimsView';
 import { SafeExternalLink } from './SafeExternalLink';
@@ -67,8 +68,12 @@ export function ResearchClaimAccordion({
           {contradictedCount > 0 ? ` · ${contradictedCount} contradicted` : ''} · {sourceCount}{' '}
           source{sourceCount === 1 ? '' : 's'}
         </span>
-        <span className="font-mono text-xs text-text-muted" aria-hidden="true">
-          {expanded ? '▲' : '▼'}
+        <span className="inline-flex items-center font-mono text-xs text-text-muted" aria-hidden="true">
+          {expanded ? (
+            <Icon.chevronUp className="size-3.5 shrink-0" />
+          ) : (
+            <Icon.chevronDown className="size-3.5 shrink-0" />
+          )}
         </span>
       </button>
       {expanded && (

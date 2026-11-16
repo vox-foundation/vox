@@ -9,6 +9,8 @@ import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
 import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
 
 interface Props {
@@ -28,9 +30,10 @@ const LIVE_TOPOLOGY_NODES = [
     velocity: '84 t/s',
     tool: 'dispatch_subtasks',
     status: 'Executing',
-    tone: 'text-amber-300 border-amber-500/40 bg-amber-500/10',
-    spark: 'M2,14 L12,11 L22,12 L32,8 L42,9 L52,5 L62,6',
-    stroke: '#e5a93c',
+    tone: 'text-[#785312] border-[#C59B27]/55 bg-[#D4AF37]/15 font-semibold',
+    spark: 'M1,18 L32,14 L64,15 L96,10 L128,11 L164,6 L199,7',
+    area: 'M1,18 L32,14 L64,15 L96,10 L128,11 L164,6 L199,7 L199,22 L1,22 Z',
+    stroke: '#B8860B',
   },
   {
     id: 'agent-research',
@@ -39,9 +42,10 @@ const LIVE_TOPOLOGY_NODES = [
     velocity: '126 t/s',
     tool: 'search_docs',
     status: 'Grounding',
-    tone: 'text-cyan-300 border-cyan-500/40 bg-cyan-500/10',
-    spark: 'M2,13 L12,12 L22,9 L32,10 L42,6 L52,7 L62,4',
-    stroke: '#22d3ee',
+    tone: 'text-[#6B4C12] border-[#B38728]/55 bg-[#F3E5AB]/30 font-semibold',
+    spark: 'M1,17 L32,15 L64,11 L96,12 L128,7 L164,8 L199,5',
+    area: 'M1,17 L32,15 L64,11 L96,12 L128,7 L164,8 L199,5 L199,22 L1,22 Z',
+    stroke: '#9A5812',
   },
   {
     id: 'agent-verify',
@@ -50,9 +54,10 @@ const LIVE_TOPOLOGY_NODES = [
     velocity: '210 t/s',
     tool: 'run_tests',
     status: 'Validated',
-    tone: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10',
-    spark: 'M2,14 L12,10 L22,11 L32,7 L42,5 L52,6 L62,3',
-    stroke: '#34d399',
+    tone: 'text-[#14532D] border-[#1B6B3A]/45 bg-[#1B6B3A]/12 font-semibold',
+    spark: 'M1,18 L32,13 L64,14 L96,9 L128,6 L164,7 L199,4',
+    area: 'M1,18 L32,13 L64,14 L96,9 L128,6 L164,7 L199,4 L199,22 L1,22 Z',
+    stroke: '#3F5E1D',
   },
 ] as const;
 
@@ -64,6 +69,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
   const [error, setError] = useState<string | null>(null);
   const [diffByApproval, setDiffByApproval] = useState<Record<string, string | null>>({});
   const [selectedDagId, setSelectedDagId] = useState<string>('orch-lead');
+  const [laneFilter, setLaneFilter] = useState<'all' | 'approvals' | 'questions' | 'withheld'>('all');
 
   const refresh = useCallback(async () => {
     try {
@@ -193,84 +199,158 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
   }
 
   const openAttentionTotal = approvals.length + effectiveNeedsYou.length;
+  const totalFeedbackItems = openAttentionTotal + effectiveWithheld.length;
+  const withheldShare = totalFeedbackItems > 0 ? effectiveWithheld.length / totalFeedbackItems : 0;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-bg-base">
-      <div className="flex items-center justify-between border-b border-[#D4AF37]/30 bg-bg-surface px-4 py-2.5">
-        <div className="flex items-center gap-2.5">
-          <RomanMedallion active size="sm" {...({ icon: 'brazierTorch', tone: 'gold' } as any)}>
-            <Icon.brazierTorch className="size-3.5 text-text-primary" aria-hidden="true" />
-          </RomanMedallion>
-          <h2 className="font-display text-sm font-semibold tracking-wider uppercase text-text-primary">{needsYouTitle}</h2>
-          <span className="rounded-full border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass">
-            {openAttentionTotal} open
-          </span>
+    <div className="@container/surface flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-bg-base">
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D4AF37]/30 bg-bg-surface px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <RomanMedallion active size="sm" {...({ icon: 'brazierTorch', tone: 'gold' } as any)}>
+              <Icon.brazierTorch className="size-3.5 text-text-primary" aria-hidden="true" />
+            </RomanMedallion>
+            <h2 className="font-display text-sm font-semibold tracking-wider uppercase text-text-primary">{needsYouTitle}</h2>
+            <span className="rounded-full border border-brass/35 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass">
+              {openAttentionTotal} open
+            </span>
+          </div>
         </div>
-        {!embedded && (
-          <span className="font-mono text-[10px] text-text-secondary">
-            Attention Queue &amp; Live Execution DAG
-          </span>
-        )}
-      </div>
+      ) : (
+        <div className="px-4 pt-3">
+          <RomanSurfaceHeader
+            domainTag="ATTENTION · ORACLE GATE"
+            title={needsYouTitle}
+            subtitle="Synchronized operator approvals, high-information clarifications, and live execution DAG"
+            waxSealBadge={openAttentionTotal > 0 ? `${openAttentionTotal} OPEN` : 'CLEAR'}
+            icon={<Icon.brazierTorch className="size-5 text-[#F3E5AB]" aria-hidden="true" />}
+            gauges={[
+              {
+                label: 'Attention',
+                valueText: `${openAttentionTotal} open`,
+                ratio: totalFeedbackItems > 0 ? openAttentionTotal / totalFeedbackItems : 0,
+                tone: openAttentionTotal > 0 ? 'gold' : 'emerald',
+                purpose: 'Open tool approvals and high-information-gain questions awaiting operator input',
+                actionHint:
+                  laneFilter === 'approvals' || laneFilter === 'questions'
+                    ? 'Click to show all attention lanes'
+                    : 'Click to isolate active operator items',
+                active: laneFilter === 'approvals' || laneFilter === 'questions',
+                onClick: () =>
+                  setLaneFilter((prev) =>
+                    prev === 'all' ? (approvals.length > 0 ? 'approvals' : 'questions') : 'all',
+                  ),
+              },
+              {
+                label: 'Auto-Gated',
+                valueText:
+                  totalFeedbackItems > 0
+                    ? `${Math.round(withheldShare * 100)}% (${effectiveWithheld.length})`
+                    : '0 withheld',
+                ratio: withheldShare,
+                tone: 'emerald',
+                purpose: 'Share of low-entropy doubts autonomously gated without interrupting focus',
+                actionHint:
+                  laneFilter === 'withheld'
+                    ? 'Click to restore full attention stream'
+                    : 'Click to expand policy-withheld items',
+                active: laneFilter === 'withheld',
+                onClick: () =>
+                  setLaneFilter((prev) => (prev === 'withheld' ? 'all' : 'withheld')),
+              },
+            ]}
+          />
+        </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <BentoScrollRegion ariaLabel="Needs You workspace" className="flex-1 p-4 space-y-4">
         {!embedded && (
           <div
             data-testid="needs-you-kpi-strip"
-            className="grid grid-cols-2 gap-2.5 lg:grid-cols-4"
+            className="grid grid-cols-1 gap-2.5 @xs/surface:grid-cols-2 @3xl/surface:grid-cols-4"
           >
             {[
               {
+                id: 'agents',
                 label: 'Active Agents',
                 value: '3 Running',
                 badge: '100% Healthy',
-                badgeTone: 'text-emerald-700 border-emerald-500/30 bg-emerald-500/10',
-                spark: 'M2,16 L16,13 L30,14 L44,9 L58,10 L72,6 L86,5',
-                stroke: '#34d399',
+                badgeTone: 'text-[#14532D] border-[#1B6B3A]/40 bg-[#1B6B3A]/12 font-semibold',
+                spark: 'M1,20 L34,16 L68,17 L102,11 L136,12 L170,7 L199,5',
+                area: 'M1,20 L34,16 L68,17 L102,11 L136,12 L170,7 L199,5 L199,24 L1,24 Z',
+                stroke: '#3F5E1D',
               },
               {
+                id: 'approvals',
                 label: 'Pending Approvals',
                 value: `${openAttentionTotal} Action${openAttentionTotal === 1 ? '' : 's'}`,
                 badge: 'Needs You',
-                badgeTone: 'text-amber-700 border-amber-500/35 bg-amber-500/12',
-                spark: 'M2,14 L16,15 L30,11 L44,12 L58,8 L72,9 L86,6',
-                stroke: '#e5a93c',
+                badgeTone: 'text-[#785312] border-[#C59B27]/55 bg-[#D4AF37]/15 font-semibold',
+                spark: 'M1,18 L34,19 L68,14 L102,15 L136,10 L170,11 L199,7',
+                area: 'M1,18 L34,19 L68,14 L102,15 L136,10 L170,11 L199,7 L199,24 L1,24 Z',
+                stroke: '#B8860B',
               },
               {
+                id: 'budget',
                 label: 'Session Budget',
                 value: '$0.18 / $10.00',
                 badge: '1.8% Used',
-                badgeTone: 'text-cyan-700 border-cyan-500/30 bg-cyan-500/10',
-                spark: 'M2,17 L16,16 L30,15 L44,14 L58,13 L72,12 L86,11',
-                stroke: '#22d3ee',
+                badgeTone: 'text-[#6B4C12] border-[#B38728]/50 bg-[#F3E5AB]/30 font-semibold',
+                spark: 'M1,21 L34,19 L68,18 L102,16 L136,15 L170,13 L199,11',
+                area: 'M1,21 L34,19 L68,18 L102,16 L136,15 L170,13 L199,11 L199,24 L1,24 Z',
+                stroke: '#9A5812',
               },
               {
+                id: 'routing',
                 label: 'Routing Health',
                 value: '99.8%',
                 badge: '14ms p50',
-                badgeTone: 'text-emerald-700 border-emerald-500/30 bg-emerald-500/10',
-                spark: 'M2,12 L16,11 L30,12 L44,10 L58,11 L72,9 L86,9',
-                stroke: '#34d399',
+                badgeTone: 'text-[#14532D] border-[#1B6B3A]/40 bg-[#1B6B3A]/12 font-semibold',
+                spark: 'M1,15 L34,13 L68,14 L102,11 L136,12 L170,9 L199,8',
+                area: 'M1,15 L34,13 L68,14 L102,11 L136,12 L170,9 L199,8 L199,24 L1,24 Z',
+                stroke: '#3F5E1D',
               },
             ].map((kpi) => (
               <div
                 key={kpi.label}
-                className="flex flex-col justify-between rounded-xl border border-border-subtle bg-bg-surface/85 px-3 py-2.5 shadow-sm"
+                className="flex flex-col justify-between rounded-xl border border-[#C59B27]/55 bg-bg-surface px-3 py-2.5 shadow-sm"
               >
                 <div className="flex items-center justify-between gap-1.5">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                  <span className="font-display text-[10px] font-bold uppercase tracking-wider text-text-secondary">
                     {kpi.label}
                   </span>
                   <span className={`rounded border px-1.5 py-0.5 font-mono text-[9px] ${kpi.badgeTone}`}>
                     {kpi.badge}
                   </span>
                 </div>
-                <div className="mt-1.5 flex items-end justify-between gap-2">
-                  <span className="font-display text-base font-semibold text-text-primary">
+                <div className="mt-1 flex items-baseline justify-between gap-2">
+                  <span className="font-display text-base font-bold text-text-primary">
                     {kpi.value}
                   </span>
-                  <svg viewBox="0 0 88 20" className="h-5 w-20 shrink-0 overflow-visible" aria-hidden="true">
-                    <path d={kpi.spark} fill="none" stroke={kpi.stroke} strokeWidth="1.6" strokeLinecap="round" />
+                </div>
+                <div className="mt-1.5 w-full">
+                  <svg
+                    data-cv-sparkline="true"
+                    viewBox="0 0 200 24"
+                    preserveAspectRatio="none"
+                    className="h-6 w-full block overflow-visible"
+                    aria-hidden="true"
+                  >
+                    <defs>
+                      <linearGradient id={`ny-kpi-${kpi.id}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={kpi.stroke} stopOpacity="0.32" />
+                        <stop offset="100%" stopColor={kpi.stroke} stopOpacity="0.02" />
+                      </linearGradient>
+                    </defs>
+                    <path d={kpi.area} fill={`url(#ny-kpi-${kpi.id})`} />
+                    <path
+                      d={kpi.spark}
+                      fill="none"
+                      stroke={kpi.stroke}
+                      strokeWidth="1.75"
+                      vectorEffect="non-scaling-stroke"
+                      strokeLinecap="round"
+                    />
                   </svg>
                 </div>
               </div>
@@ -278,12 +358,12 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
           </div>
         )}
 
-        <div className={embedded ? 'space-y-4' : 'grid grid-cols-1 gap-4 lg:grid-cols-12'}>
-          <div className={embedded ? 'space-y-4' : 'space-y-4 lg:col-span-6'}>
-            {approvals.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="ds-section-head">Approvals</h3>
+        <BentoGrid preset="balanced" className="items-start">
+          {(laneFilter === 'all' || laneFilter === 'approvals') && (
+            <BentoCard as="section" className="gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="ds-section-head">Approvals</h3>
+                {approvals.length > 0 ? (
                   <RomanTooltip
                     title="Bulk Approve Low-Risk Actions"
                     purpose="Immediately authorizes all pending tool calls categorized as read-only or low-risk to proceed without individual confirmation."
@@ -302,133 +382,163 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       Bulk approve low-risk
                     </button>
                   </RomanTooltip>
-                </div>
-                <ul role="list" className="flex flex-col gap-2.5 mt-2">
-                  {approvals.map((a) => (
-                    <li
-                      key={a.approval_id}
-                      className="flex flex-col gap-2 rounded-xl border border-brass/35 bg-bg-surface/90 p-3 shadow-sm"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-wider text-amber-700">
-                            Pending Approval
-                          </span>
-                          <div className="font-mono text-[11px] font-semibold text-text-primary truncate">
-                            {a.tool}
-                          </div>
-                        </div>
-                        <span className="font-mono text-[10px] text-text-muted">gate ·oversight</span>
-                      </div>
-                      <div className="rounded-md border border-border-subtle bg-bg-elevated px-2.5 py-1.5 font-mono text-[11px] text-text-primary truncate">
-                        {a.summary}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        <RomanTooltip
-                          title="Approve Tool Execution"
-                          purpose="Permits the agent to execute this specific command or tool call and proceed with its plan."
-                          actionHint="Grant execution authorization"
-                        >
-                          <button
-                            type="button"
-                            aria-label={`Approve ${a.summary}`}
-                            onClick={() => handleResolveApproval(a.approval_id, a.summary, 'approved')}
-                            className="rounded-md border border-amber-400 bg-amber-400 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-950 shadow-[0_0_12px_rgba(251,191,36,0.3)] hover:bg-amber-300"
-                          >
-                            Approve
-                          </button>
-                        </RomanTooltip>
-                        <RomanTooltip
-                          title="Reject Tool Execution"
-                          purpose="Denies execution of this tool call, returning an authorization error back to the agent so it re-plans."
-                          actionHint="Halt this command and request an alternate plan"
-                        >
-                          <button
-                            type="button"
-                            aria-label={`Reject ${a.summary}`}
-                            onClick={() => handleResolveApproval(a.approval_id, a.summary, 'rejected')}
-                            className="rounded-md border border-rose-500/45 bg-rose-500/12 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-500/22"
-                          >
-                            Reject
-                          </button>
-                        </RomanTooltip>
-                        <button
-                          type="button"
-                          data-testid={`needs-you-inspect-diff-${a.approval_id}`}
-                          onClick={() => void handleInspectApprovalDiff(a.approval_id)}
-                          className="rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
-                        >
-                          {diffByApproval[a.approval_id] != null ? 'Hide Diff' : 'Inspect Diff'}
-                        </button>
-                      </div>
-                      {diffByApproval[a.approval_id] != null && (
-                        <pre
-                          data-testid={`needs-you-diff-preview-${a.approval_id}`}
-                          className="mt-1 max-h-32 overflow-x-auto rounded-md border border-border-subtle bg-bg-elevated p-2 font-mono text-[10px] leading-relaxed text-emerald-700"
-                        >
-                          {diffByApproval[a.approval_id]}
-                        </pre>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                ) : (
+                  <span className="font-mono text-[10px] text-text-muted">0 pending</span>
+                )}
               </div>
-            )}
+              <BentoScrollRegion ariaLabel="Pending approvals lane" className="max-h-96 pr-1">
+                {approvals.length === 0 ? (
+                  <div className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-5 text-center font-mono text-[11px] text-text-muted">
+                    No pending tool approvals.
+                  </div>
+                ) : (
+                  <ul role="list" className="flex flex-col gap-2.5">
+                    {approvals.map((a) => (
+                      <li
+                        key={a.approval_id}
+                        className="flex flex-col gap-2 rounded-xl border border-brass/35 bg-bg-surface/90 p-3 shadow-sm"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-wider text-amber-700">
+                              Pending Approval
+                            </span>
+                            <div className="font-mono text-[11px] font-semibold text-text-primary truncate">
+                              {a.tool}
+                            </div>
+                          </div>
+                          <span className="font-mono text-[10px] text-text-muted">gate ·oversight</span>
+                        </div>
+                        <div className="rounded-md border border-border-subtle bg-bg-elevated px-2.5 py-1.5 font-mono text-[11px] text-text-primary truncate">
+                          {a.summary}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                          <RomanTooltip
+                            title="Approve Tool Execution"
+                            purpose="Permits the agent to execute this specific command or tool call and proceed with its plan."
+                            actionHint="Grant execution authorization"
+                          >
+                            <button
+                              type="button"
+                              aria-label={`Approve ${a.summary}`}
+                              onClick={() => handleResolveApproval(a.approval_id, a.summary, 'approved')}
+                              className="rounded-md border border-amber-400 bg-amber-400 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-950 shadow-[0_0_12px_rgba(251,191,36,0.3)] hover:bg-amber-300"
+                            >
+                              Approve
+                            </button>
+                          </RomanTooltip>
+                          <RomanTooltip
+                            title="Reject Tool Execution"
+                            purpose="Denies execution of this tool call, returning an authorization error back to the agent so it re-plans."
+                            actionHint="Halt this command and request an alternate plan"
+                          >
+                            <button
+                              type="button"
+                              aria-label={`Reject ${a.summary}`}
+                              onClick={() => handleResolveApproval(a.approval_id, a.summary, 'rejected')}
+                              className="rounded-md border border-rose-500/45 bg-rose-500/12 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-500/22"
+                            >
+                              Reject
+                            </button>
+                          </RomanTooltip>
+                          <button
+                            type="button"
+                            data-testid={`needs-you-inspect-diff-${a.approval_id}`}
+                            onClick={() => void handleInspectApprovalDiff(a.approval_id)}
+                            className="rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                          >
+                            {diffByApproval[a.approval_id] != null ? 'Hide Diff' : 'Inspect Diff'}
+                          </button>
+                        </div>
+                        {diffByApproval[a.approval_id] != null && (
+                          <pre
+                            role="region"
+                            aria-label={`Approval diff ${a.approval_id}`}
+                            tabIndex={0}
+                            data-testid={`needs-you-diff-preview-${a.approval_id}`}
+                            className="mt-1 max-h-32 overflow-x-auto rounded-md border border-border-subtle bg-bg-elevated p-2 font-mono text-[10px] leading-relaxed text-emerald-700"
+                          >
+                            {diffByApproval[a.approval_id]}
+                          </pre>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </BentoScrollRegion>
+            </BentoCard>
+          )}
 
-            <div>
-              <h3 className="ds-section-head">Questions &amp; doubts</h3>
-              {effectiveNeedsYou.length === 0 ? (
-                <EmptyState
-                  variant="no-data"
-                  title="Nothing needs you"
-                  description="The agent is proceeding autonomously. Check back when questions or doubts arise."
-                />
-              ) : (
-                <div className="space-y-2 mt-2">
-                  {effectiveNeedsYou.map((item) => (
-                    <FeedbackCard
-                      key={item.feedbackId}
-                      row={item}
-                      onResolve={handleResolve}
-                      onOpenContext={onOpenContext}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+          {(laneFilter === 'all' || laneFilter === 'questions') && (
+            <BentoCard as="section" className="gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="ds-section-head">Questions &amp; doubts</h3>
+                <span className="font-mono text-[10px] text-text-muted">{effectiveNeedsYou.length} active</span>
+              </div>
+              <BentoScrollRegion ariaLabel="Questions and doubts lane" className="max-h-96 pr-1">
+                {effectiveNeedsYou.length === 0 ? (
+                  <EmptyState
+                    variant="no-data"
+                    title="Nothing needs you"
+                    description="The agent is proceeding autonomously. Check back when questions or doubts arise."
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    {effectiveNeedsYou.map((item) => (
+                      <FeedbackCard
+                        key={item.feedbackId}
+                        row={item}
+                        onResolve={handleResolve}
+                        onOpenContext={onOpenContext}
+                      />
+                    ))}
+                  </div>
+                )}
+              </BentoScrollRegion>
+            </BentoCard>
+          )}
 
-            {effectiveWithheld.length > 0 && (
-              <details className="group border border-border-subtle rounded-xl bg-overlay-subtle overflow-hidden">
-                <summary className="text-[11px] font-semibold text-text-muted hover:text-text-secondary cursor-pointer px-3 py-2 select-none tracking-wider uppercase list-none flex items-center justify-between">
-                  <span>Withheld by policy ({effectiveWithheld.length})</span>
-                  <span className="transition-transform group-open:rotate-180">▼</span>
-                </summary>
-                <div className="p-2 border-t border-border-subtle space-y-2">
-                  {effectiveWithheld.map((item) => (
-                    <FeedbackCard
-                      key={item.feedbackId}
-                      row={item}
-                      onResolve={handleResolve}
-                      onOpenContext={onOpenContext}
-                    />
-                  ))}
-                </div>
-              </details>
-            )}
-          </div>
+          {(laneFilter === 'all' || laneFilter === 'withheld') && (
+            <BentoCard as="section" className="gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="ds-section-head">Withheld by policy ({effectiveWithheld.length})</h3>
+                <span className="font-mono text-[10px] text-text-muted">auto-gated</span>
+              </div>
+              <BentoScrollRegion ariaLabel="Withheld by policy lane" className="max-h-96 pr-1">
+                {effectiveWithheld.length === 0 ? (
+                  <div className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-5 text-center font-mono text-[11px] text-text-muted">
+                    No low-entropy items withheld by policy.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {effectiveWithheld.map((item) => (
+                      <FeedbackCard
+                        key={item.feedbackId}
+                        row={item}
+                        onResolve={handleResolve}
+                        onOpenContext={onOpenContext}
+                      />
+                    ))}
+                  </div>
+                )}
+              </BentoScrollRegion>
+            </BentoCard>
+          )}
+        </BentoGrid>
 
-          {!embedded && (
+        {!embedded && (
+          <BentoGrid preset="hero" className="items-stretch">
             <div
               data-testid="needs-you-live-dag"
-              className="flex flex-col justify-between rounded-xl border border-[#D4AF37]/30 bg-bg-surface p-3.5 lg:col-span-6 shadow-[inset_0_1px_0_rgba(243,229,171,0.1)]"
+              className="flex min-w-0 flex-col justify-between rounded-xl border border-[#D4AF37]/30 bg-bg-surface p-3.5 shadow-[inset_0_1px_0_rgba(243,229,171,0.1)] @3xl/surface:col-span-6"
             >
               <div>
-                <div className="flex items-center justify-between border-b border-[#D4AF37]/25 pb-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D4AF37]/25 pb-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <RomanMedallion active size="sm" {...({ icon: 'astrolabeRadar', tone: 'gold' } as any)}>
                       <Icon.astrolabeRadar className="size-3.5 text-text-primary" aria-hidden="true" />
                     </RomanMedallion>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
                         Live Agent Topology &amp; Execution DAG
                       </h3>
@@ -552,9 +662,10 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       <text x="330" y="84" textAnchor="middle" fill="#3F4D1E" fontSize="9.5" fontWeight="700" fontFamily="'Cinzel', 'Palatino', Georgia, serif">
                         VERIFIER · 210 t/s
                       </text>
-                      <text x="330" y="98" textAnchor="middle" fill="#5C4428" fontSize="8.5" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
-                        crates/vox-compiler · tests ✓
+                      <text x="324" y="98" textAnchor="middle" fill="#5C4428" fontSize="8.5" fontFamily="'Palatino', 'Palatino Linotype', Georgia, serif">
+                        crates/vox-compiler · tests
                       </text>
+                      <Icon.check x={384} y={90} width={9} height={9} className="text-[#3F4D1E]" aria-hidden="true" />
                     </g>
                   </svg>
                 </div>
@@ -567,14 +678,14 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       type="button"
                       data-testid={`needs-you-dag-node-${node.id}`}
                       onClick={() => setSelectedDagId(node.id)}
-                      className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition ${
+                      className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${
                         selectedDagId === node.id
                           ? 'border-brass/55 bg-brass/10'
                           : 'border-border-subtle bg-overlay-subtle hover:border-white/20'
                       }`}
                     >
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono text-[11px] font-semibold text-text-primary">
                             {node.role}
                           </span>
@@ -588,8 +699,21 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       </div>
                       <div className="flex shrink-0 items-center gap-2.5">
                         <span className="font-mono text-[11px] font-semibold text-brass">{node.velocity}</span>
-                        <svg viewBox="0 0 64 18" className="h-4 w-14 overflow-visible" aria-hidden="true">
-                          <path d={node.spark} fill="none" stroke={node.stroke} strokeWidth="1.5" strokeLinecap="round" />
+                        <svg
+                          viewBox="0 0 200 22"
+                          preserveAspectRatio="none"
+                          className="h-5 w-24 overflow-visible"
+                          aria-hidden="true"
+                        >
+                          <path d={node.area} fill={node.stroke} fillOpacity="0.16" />
+                          <path
+                            d={node.spark}
+                            fill="none"
+                            stroke={node.stroke}
+                            strokeWidth="1.6"
+                            vectorEffect="non-scaling-stroke"
+                            strokeLinecap="round"
+                          />
                         </svg>
                       </div>
                     </button>
@@ -597,7 +721,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 </div>
               </div>
 
-              <div className="mt-3 flex items-center justify-between rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 font-mono text-[10px] text-text-secondary">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 font-mono text-[10px] text-text-secondary">
                 <span>
                   Selected: <strong className="text-brass">{selectedDagNode.role}</strong> ({selectedDagNode.model})
                 </span>
@@ -606,87 +730,86 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                 </span>
               </div>
             </div>
-          )}
-        </div>
 
-        {!embedded && (
-          <div
-            data-testid="needs-you-route-telemetry-table"
-            className="rounded-xl border border-border-subtle bg-bg-surface/85 p-3.5"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
-                Recent Route Decisions &amp; Run Telemetry
-              </span>
-              <span className="font-mono text-[10px] text-text-muted">Live K-prefix cache &amp; spoke telemetry</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] text-left font-mono text-[11px] tabular-nums">
-                <thead>
-                  <tr className="border-b border-border-subtle text-[10px] uppercase tracking-wider text-text-muted">
-                    <th className="py-1.5 pr-3">Run ID</th>
-                    <th className="py-1.5 pr-3">Task Class</th>
-                    <th className="py-1.5 pr-3">Model</th>
-                    <th className="py-1.5 pr-3">Velocity / Lat</th>
-                    <th className="py-1.5 pr-3">Cost</th>
-                    <th className="py-1.5 text-right">Gate</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle text-text-secondary">
-                  {[
-                    {
-                      runId: 'a091819-1761d53e',
-                      task: 'Schema Migration & Shell Gate',
-                      model: 'anthropic/claude-sonnet',
-                      vel: '84 t/s · 14ms',
-                      cost: '$0.014',
-                      gate: 'Running',
-                      tone: 'border-amber-500/40 bg-amber-500/12 text-amber-700',
-                    },
-                    {
-                      runId: 'a021819-1891a599',
-                      task: 'Hybrid RRF Corpus Grounding',
-                      model: 'google/gemini-pro',
-                      vel: '126 t/s · 22ms',
-                      cost: '$0.008',
-                      gate: 'Running',
-                      tone: 'border-cyan-500/40 bg-cyan-500/12 text-cyan-700',
-                    },
-                    {
-                      runId: 'a021846-1e44041d',
-                      task: '8-Spoke AST & TOESTUB Verification',
-                      model: 'mens/vox-qwen3-14b-r6',
-                      vel: '210 t/s · 6ms',
-                      cost: '$0.000',
-                      gate: 'Verified',
-                      tone: 'border-emerald-500/40 bg-emerald-500/12 text-emerald-700',
-                    },
-                  ].map((r) => (
-                    <tr key={r.runId}>
-                      <td className="py-1.5 pr-3 text-text-muted">{r.runId}</td>
-                      <td className="py-1.5 pr-3">
-                        <span className="mr-1.5 rounded border border-emerald-500/35 bg-emerald-500/12 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">
-                          PASS
-                        </span>
-                        <span className="text-text-primary">{r.task}</span>
-                      </td>
-                      <td className="py-1.5 pr-3 text-brass">{r.model}</td>
-                      <td className="py-1.5 pr-3 text-emerald-700">{r.vel}</td>
-                      <td className="py-1.5 pr-3">{r.cost}</td>
-                      <td className="py-1.5 text-right">
-                        <span className={`rounded border px-1.5 py-0.5 text-[9px] ${r.tone}`}>{r.gate}</span>
-                      </td>
+            <div
+              data-testid="needs-you-route-telemetry-table"
+              className="flex min-w-0 flex-col rounded-xl border border-border-subtle bg-bg-surface/85 p-3.5 @3xl/surface:col-span-6"
+            >
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
+                  Recent Route Decisions &amp; Run Telemetry
+                </span>
+                <span className="font-mono text-[10px] text-text-muted">Live K-prefix cache &amp; spoke telemetry</span>
+              </div>
+              <BentoScrollRegion ariaLabel="Recent route decisions and run telemetry" className="flex-1">
+                <table className="w-full min-w-[34rem] text-left font-mono text-[11px] tabular-nums">
+                  <thead>
+                    <tr className="border-b border-border-subtle text-[10px] uppercase tracking-wider text-text-muted">
+                      <th className="py-1.5 pl-2.5 pr-3">Run ID</th>
+                      <th className="py-1.5 pr-3">Task Class</th>
+                      <th className="py-1.5 pr-3">Model</th>
+                      <th className="py-1.5 pr-3">Velocity / Lat</th>
+                      <th className="py-1.5 pr-3">Cost</th>
+                      <th className="py-1.5 pr-2.5 text-right">Gate</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle text-text-secondary">
+                    {[
+                      {
+                        runId: 'a091819-1761d53e',
+                        task: 'Schema Migration & Shell Gate',
+                        model: 'anthropic/claude-sonnet',
+                        vel: '84 t/s · 14ms',
+                        cost: '$0.014',
+                        gate: 'Running',
+                        tone: 'border-[#C59B27]/55 bg-[#D4AF37]/15 text-[#785312] font-semibold',
+                      },
+                      {
+                        runId: 'a021819-1891a599',
+                        task: 'Hybrid RRF Corpus Grounding',
+                        model: 'google/gemini-pro',
+                        vel: '126 t/s · 22ms',
+                        cost: '$0.008',
+                        gate: 'Running',
+                        tone: 'border-[#B38728]/55 bg-[#F3E5AB]/30 text-[#6B4C12] font-semibold',
+                      },
+                      {
+                        runId: 'a021846-1e44041d',
+                        task: '8-Spoke AST & TOESTUB Verification',
+                        model: 'mens/vox-qwen3-14b-r6',
+                        vel: '210 t/s · 6ms',
+                        cost: '$0.000',
+                        gate: 'Verified',
+                        tone: 'border-[#1B6B3A]/45 bg-[#1B6B3A]/12 text-[#14532D] font-semibold',
+                      },
+                    ].map((r) => (
+                      <tr key={r.runId}>
+                        <td className="py-2 pl-2.5 pr-3 text-text-muted">{r.runId}</td>
+                        <td className="py-2 pr-3">
+                          <span className="mr-1.5 rounded border border-[#1B6B3A]/40 bg-[#1B6B3A]/12 px-1 py-0.5 text-[9px] font-semibold text-[#14532D]">
+                            PASS
+                          </span>
+                          <span className="text-text-primary">{r.task}</span>
+                        </td>
+                        <td className="py-2 pr-3 text-brass">{r.model}</td>
+                        <td className="py-2 pr-3 text-[#14532D] font-medium">{r.vel}</td>
+                        <td className="py-2 pr-3">{r.cost}</td>
+                        <td className="py-2 pr-2.5 text-right">
+                          <span className={`rounded border px-1.5 py-0.5 text-[9px] ${r.tone}`}>{r.gate}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </BentoScrollRegion>
             </div>
-          </div>
+          </BentoGrid>
         )}
 
-        <div
+        <BentoGrid
+          preset="balanced"
           data-testid="needs-you-attention-deck"
-          className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3"
+          className="pt-1"
         >
           <div className="rounded-xl border border-[#D4AF37]/30 bg-bg-surface p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
@@ -757,8 +880,8 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
               Unifies tool approvals, blocking clarifications, and skill proposals in one synchronized attention stream.
             </p>
           </div>
-        </div>
-      </div>
+        </BentoGrid>
+      </BentoScrollRegion>
     </div>
   );
 }

@@ -10,7 +10,6 @@
 //! has no transitive-dep weight.
 
 use async_trait::async_trait;
-use sha3::{Digest, Sha3_256};
 use vox_research_events::ResearchEvent;
 
 use super::heuristics::date_slug;
@@ -142,13 +141,15 @@ fn scan(repo_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<Resea
         if count < MIN_CONSUMERS {
             continue;
         }
-        let mut h = Sha3_256::new();
-        h.update(PRODUCER_NAME.as_bytes());
-        h.update(b"::");
-        h.update(dep.as_bytes());
-        h.update(count.to_le_bytes());
-        let digest = h.finalize();
-        let sha8: String = digest.iter().take(4).map(|b| format!("{b:02x}")).collect();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(PRODUCER_NAME.as_bytes());
+        payload.extend_from_slice(b"::");
+        payload.extend_from_slice(dep.as_bytes());
+        payload.extend_from_slice(&count.to_le_bytes());
+        let sha8: String = crate::compliance_hash_hex(&payload)
+            .chars()
+            .take(8)
+            .collect();
         let finding_id = format!("algimp-{slug}-dep-{sha8}");
         let score = ((count as f64) / 20.0).min(1.0);
         out.push(ResearchEvent::FindingCandidateProposed {

@@ -15,8 +15,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { DashboardLayout, DashboardWidget } from '../../lib/dashboardLayout';
 import { reorderDashboardWidgets, resizeDashboardWidget, effectiveColumns, MIN_COL_PX } from '../../lib/dashboardGrid';
+import { backendAvailable } from '../../lib/backendGuard';
 import { SHELL_PREFERENCE_KEYS } from '../../lib/shellPersistence';
 import { validateDashboardLayout } from '../../lib/dashboardLayout';
+import { voxTransport } from '../../transport';
+import { Icon } from '../ui/Icons';
 
 export interface DashboardGridProps {
   layout: DashboardLayout;
@@ -157,12 +160,12 @@ function SortableWidgetCell({
       {customizeMode && (
         <button
           type="button"
-          className="absolute left-2 top-2 z-10 cursor-grab rounded-sm border border-border-subtle bg-bg-base/80 px-1.5 py-0.5 font-mono text-[10px] text-text-muted active:cursor-grabbing"
+          className="absolute left-2 top-2 z-10 inline-flex items-center justify-center cursor-grab rounded-sm border border-border-subtle bg-bg-base/80 px-1 py-0.5 font-mono text-[10px] text-text-muted active:cursor-grabbing"
           aria-label={`Drag to reorder ${widget.kind}`}
           {...attributes}
           {...listeners}
         >
-          ⋮⋮
+          <Icon.gripVertical className="size-3.5" aria-hidden="true" />
         </button>
       )}
       {customizeMode && (
@@ -198,13 +201,56 @@ function StaticWidgetCell({
 }
 
 export function persistDashboardLayout(layout: DashboardLayout): void {
+  const serialized = JSON.stringify(layout);
   try {
     window.localStorage.setItem(
       SHELL_PREFERENCE_KEYS.dashboardLayout,
-      JSON.stringify(layout),
+      serialized,
     );
   } catch {
     // ignore quota / private mode
+  }
+  if (
+    backendAvailable() &&
+    typeof voxTransport?.setGuiPreference === 'function'
+  ) {
+    void Promise.resolve(
+      voxTransport.setGuiPreference(
+        SHELL_PREFERENCE_KEYS.dashboardLayout,
+        serialized,
+      ),
+    ).catch(() => {});
+  }
+}
+
+export async function hydrateDashboardLayoutFromBackend(
+  _fallback: DashboardLayout,
+): Promise<DashboardLayout | null> {
+  if (
+    !backendAvailable() ||
+    typeof voxTransport?.getGuiPreference !== 'function'
+  ) {
+    return null;
+  }
+  try {
+    const raw = await voxTransport.getGuiPreference(
+      SHELL_PREFERENCE_KEYS.dashboardLayout,
+    );
+    if (!raw || typeof raw !== 'string' || raw.trim() === '') {
+      return null;
+    }
+    const validated = validateDashboardLayout(JSON.parse(raw));
+    try {
+      window.localStorage.setItem(
+        SHELL_PREFERENCE_KEYS.dashboardLayout,
+        JSON.stringify(validated),
+      );
+    } catch {
+      // ignore quota / private mode
+    }
+    return validated;
+  } catch {
+    return null;
   }
 }
 

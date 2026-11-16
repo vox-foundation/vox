@@ -177,6 +177,41 @@ pub fn register_hir_module(
             ),
         );
     }
+    for p in &module.py_imports {
+        if env.lookup(&p.alias).is_some() {
+            diags.push(Diagnostic::error(
+                format!(
+                    "Import alias conflict: '{}' is already defined in this module",
+                    p.alias
+                ),
+                p.span,
+                "",
+            ));
+            continue;
+        }
+        if let Some(hint) = crate::python_escape_support::is_denied_python_target(&p.module, None) {
+            diags.push(
+                Diagnostic::error(
+                    format!(
+                        "Python module '{}' is in the Denied tier and cannot be imported. {hint}",
+                        p.module
+                    ),
+                    p.span,
+                    "",
+                )
+                .with_suggestion(hint),
+            );
+            continue;
+        }
+        env.define(
+            p.alias.clone(),
+            Binding::new(
+                Ty::Named(format!("PyModule::{}", p.module)),
+                false,
+                BindingKind::Import,
+            ),
+        );
+    }
     // Register tables BEFORE functions so a function signature that names a
     // table as a (possibly nested) type — e.g. `fn f(rows: List[HealthEventLog])`
     // — resolves the table name to its field-bearing `Ty::Table(...)` via the

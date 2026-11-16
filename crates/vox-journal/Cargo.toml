@@ -1,16 +1,16 @@
 [package]
 name = "vox-journal"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
 description = "Generic append-only JSON Lines file journal for Vox. Crash-safe via per-record sync_data; replays on open. Used as the durable substrate by vox-workflow-runtime, vox-actor-runtime, and the mobile-shipped vox-runtime-rn (via uniffi)."
-license = "Apache-2.0"
+license.workspace = true
 publish = false
 
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [dependencies]
-vox-runtime = { path = "../vox-runtime" }
+vox-runtime = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

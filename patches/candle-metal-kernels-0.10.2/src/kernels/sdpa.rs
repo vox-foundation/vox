@@ -12,6 +12,16 @@ pub enum SdpaDType {
     F32,
 }
 
+impl SdpaDType {
+    #[inline]
+    const fn size_in_bytes(self) -> usize {
+        match self {
+            Self::BF16 | Self::F16 => 2,
+            Self::F32 => 4,
+        }
+    }
+}
+
 /// SDPA full is supported when:
 /// - q head dim == 64, 128
 /// - no mask
@@ -202,12 +212,13 @@ pub fn call_sdpa_full(
         };
         encoder.use_resource(mask, MTLResourceUsage::Read);
 
+        let elem_bytes = itype.size_in_bytes();
         set_params!(
             encoder,
             (
-                (q_buffer, q_offset),
-                (k_buffer, k_offset),
-                (v_buffer, v_offset),
+                (q_buffer, q_offset * elem_bytes),
+                (k_buffer, k_offset * elem_bytes),
+                (v_buffer, v_offset * elem_bytes),
                 output,
                 params,
                 mask_params,
@@ -215,12 +226,13 @@ pub fn call_sdpa_full(
             )
         );
     } else {
+        let elem_bytes = itype.size_in_bytes();
         set_params!(
             encoder,
             (
-                (q_buffer, q_offset),
-                (k_buffer, k_offset),
-                (v_buffer, v_offset),
+                (q_buffer, q_offset * elem_bytes),
+                (k_buffer, k_offset * elem_bytes),
+                (v_buffer, v_offset * elem_bytes),
                 output,
                 params
             )
@@ -325,12 +337,13 @@ pub fn call_sdpa_vector(
     // q = (bs, qhead, seq, hidden)
     // k/v = (bs, kv_head, kv_seq, hidden)
 
+    let elem_bytes = itype.size_in_bytes();
     set_params!(
         encoder,
         (
-            (q_buffer, q_offset),
-            (k_buffer, k_offset),
-            (v_buffer, v_offset),
+            (q_buffer, q_offset * elem_bytes),
+            (k_buffer, k_offset * elem_bytes),
+            (v_buffer, v_offset * elem_bytes),
             output,
             gqa_factor,
             n,
@@ -446,12 +459,13 @@ pub fn call_sdpa_vector_2pass(
         // q = (bs, qhead, seq, hidden)
         // k/v = (bs, kv_head, kv_seq, hidden)
 
+        let elem_bytes = itype.size_in_bytes();
         set_params!(
             encoder,
             (
-                (q_buffer, q_offset),
-                (k_buffer, k_offset),
-                (v_buffer, v_offset),
+                (q_buffer, q_offset * elem_bytes),
+                (k_buffer, k_offset * elem_bytes),
+                (v_buffer, v_offset * elem_bytes),
                 intermediate,
                 sums,
                 maxs,

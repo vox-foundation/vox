@@ -1,6 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { backendAvailable, BackendUnavailableError } from './lib/backendGuard';
+import {
+  parsePendingApprovals,
+  type McpInvokeResult,
+  type PendingApprovalRow,
+} from './lib/mcpToolResult';
 import { MODEL_LIST_LIMIT } from './config/constants';
 import type { ActionManifest } from './types/actionManifest';
 import type {
@@ -75,6 +80,39 @@ function safeListen<T>(
   return listen<T>(event, handler);
 }
 // __VOX_RAW_IPC_END__
+
+export type { UnlistenFn };
+
+/**
+ * Typed IPC command gateway for Vox Axis surfaces and domain transport helpers.
+ * Routes 100% through `safeInvoke` (`backendAvailable()` guarded) and threads
+ * the active `PermissionMode` onto `invoke_mcp_tool` calls when non-null.
+ */
+export function invokeCmd<T = unknown>(
+  cmd: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  if (
+    cmd === 'invoke_mcp_tool' &&
+    args !== undefined &&
+    !('permissionMode' in args) &&
+    currentPermissionMode !== null
+  ) {
+    return safeInvoke<T>(cmd, { ...args, permissionMode: currentPermissionMode });
+  }
+  return safeInvoke<T>(cmd, args);
+}
+
+/**
+ * Typed IPC event listener gateway for Vox Axis surfaces and hooks.
+ * Routes 100% through `safeListen` (`backendAvailable()` guarded).
+ */
+export function listenEvent<T = unknown>(
+  event: string,
+  handler: (event: { payload: T }) => void,
+): Promise<UnlistenFn> {
+  return safeListen<T>(event, handler);
+}
 
 /** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
 export const ORCH_STATUS_EVENT = 'vox://orch-status';
@@ -342,14 +380,16 @@ class VoxTransport {
   async getRegistry(): Promise<RegistryFile> {
     if (this.registryCache) return this.registryCache;
     if (!this.registryFetch) {
-      this.registryFetch = safeInvoke<RegistryFile>('get_full_registry').then(r => {
-        this.registryCache = r;
-        // Build an index for fast lookups.
-        this.registryIndex = new Map(
-          r.operations.map(op => [op.path.join('_'), op])
-        );
-        return r;
-      });
+      this.registryFetch = safeInvoke<RegistryFile>('get_full_registry')
+        .then((r) => {
+          this.registryCache = r;
+          this.registryIndex = new Map(r.operations.map((op) => [op.path.join('_'), op]));
+          return r;
+        })
+        .catch((err) => {
+          this.registryFetch = null;
+          throw err;
+        });
     }
     return this.registryFetch;
   }
@@ -366,10 +406,15 @@ class VoxTransport {
   async getActionManifest(): Promise<ActionManifest> {
     if (this.actionManifestCache) return this.actionManifestCache;
     if (!this.actionManifestFetch) {
-      this.actionManifestFetch = safeInvoke<ActionManifest>('get_action_manifest').then((m) => {
-        this.actionManifestCache = m;
-        return m;
-      });
+      this.actionManifestFetch = safeInvoke<ActionManifest>('get_action_manifest')
+        .then((m) => {
+          this.actionManifestCache = m;
+          return m;
+        })
+        .catch((err) => {
+          this.actionManifestFetch = null;
+          throw err;
+        });
     }
     return this.actionManifestFetch;
   }
@@ -692,6 +737,10 @@ class VoxTransport {
     return safeInvoke('mercatus_save_config', { config });
   }
 
+  async oratioTranscribe(seconds: number): Promise<{ text: string; raw_text?: string; refined_text?: string | null }> {
+    return safeInvoke('oratio_transcribe', { seconds });
+  }
+
   /** Vox Urbs (gamify town): workspace crate/file scan for the town layout. */
   workspaceTownScan(): Promise<TownScan> {
     return safeInvoke<TownScan>('workspace_town_scan');
@@ -734,6 +783,70 @@ class VoxTransport {
 
   clearTaskPolicyOverride(scopeKind: 'category' | 'source', scopeKey: string): Promise<void> {
     return safeInvoke<void>('clear_task_policy_override', { scopeKind, scopeKey });
+  }
+
+  termHistoryRecord(command: string, cwd?: string, exitCode?: number): Promise<boolean | null> {
+    return termHistoryRecord(command, cwd, exitCode);
+  }
+
+  termHistoryQuery(query = '', cwd?: string, limit = 50): Promise<TermHistoryEntryDto[] | null> {
+    return termHistoryQuery(query, cwd, limit);
+  }
+
+  termHistoryClear(): Promise<boolean> {
+    return termHistoryClear();
+  }
+
+  termComplete(req: TermCompletionRequestDto): Promise<TermCompletionItemDto[] | null> {
+    return termComplete(req);
+  }
+
+  termRunbooksList(cwd?: string): Promise<TermRunbookDto[] | null> {
+    return termRunbooksList(cwd);
+  }
+
+  termSessionVoxify(sessionId: string, shellHint?: string): Promise<boolean> {
+    return termSessionVoxify(sessionId, shellHint);
+  }
+
+  termAgentPrompt(sessionId: string, prompt: string): Promise<TermAgentTurnDto> {
+    return termAgentPrompt(sessionId, prompt);
+  }
+
+  termAgentExplainFix(
+    sessionId: string,
+    blockId: number,
+    mode: 'explain' | 'fix',
+  ): Promise<TermAgentTurnDto> {
+    return termAgentExplainFix(sessionId, blockId, mode);
+  }
+
+  termAgentCancel(sessionId: string, blockId: number): Promise<boolean> {
+    return termAgentCancel(sessionId, blockId);
+  }
+
+  termSlashExec(sessionId: string, rawLine: string): Promise<TermSlashResultDto> {
+    return termSlashExec(sessionId, rawLine);
+  }
+
+  termBlockFeedback(
+    sessionId: string,
+    blockId: number,
+    verdict: 'accepted' | 'rejected' | 'corrected',
+    correctedCommand?: string,
+    originalCommand?: string,
+  ): Promise<TermFeedbackResultDto> {
+    return termBlockFeedback(sessionId, blockId, verdict, correctedCommand, originalCommand);
+  }
+
+  listTerminalPendingApprovals(sessionId?: string | null): Promise<PendingApprovalRow[]> {
+    return listTerminalPendingApprovals(sessionId);
+  }
+
+  resolveTerminalApproval(
+    input: ResolveTerminalApprovalInput,
+  ): Promise<{ is_error?: boolean; result?: unknown }> {
+    return resolveTerminalApproval(input);
   }
 }
 
@@ -822,13 +935,31 @@ export function ptyClose(tabId: string): Promise<void> {
 export type TermBlockOrigin =
   | { kind: 'user' }
   | { kind: 'agent'; agent_id: string }
+  | { kind: 'system' }
   | 'user'
-  | 'agent';
+  | 'agent'
+  | 'system';
 
-export type TermBlockStatus = 'Running' | 'Ok' | 'Failed' | 'Cancelled';
+export type TermBlockStatus = 'Running' | 'AwaitingInput' | 'Ok' | 'Failed' | 'Cancelled';
+
+export type TermSecurityLevelWire =
+  | 'l1_read_only'
+  | 'l2_workspace_build'
+  | 'l3_structured_default'
+  | 'l4_host_gated'
+  | 'l5_autopilot_floor';
+
+export type TermControlModeWire = 'manual' | 'co_pilot' | 'autopilot';
+
+export type TermPromptKindWire =
+  | 'yes_no'
+  | 'credential'
+  | 'selection'
+  | 'press_enter'
+  | 'interactive_tui';
 
 export interface TermOutputChunk {
-  stream: 'Stdout' | 'Stderr' | 'Meta';
+  stream: 'Stdout' | 'Stderr' | 'Agent' | 'Meta';
   text: string;
   ts_ms: number;
 }
@@ -838,16 +969,105 @@ export interface TermBlockDto {
   kind: unknown;
   status: TermBlockStatus;
   origin?: TermBlockOrigin;
+  pinned?: boolean;
+  credential_prompt?: boolean;
   input: string;
   output: TermOutputChunk[];
   exit_code: number | null;
   started_ms: number;
   ended_ms: number | null;
+  cwd?: string | null;
+  git_branch?: string | null;
+  prompt_tail?: string;
+  prompt_kind?: TermPromptKindWire | null;
 }
+
+export type TermSessionEventWire =
+  | {
+      BlockOpened: {
+        id: number;
+        kind?: unknown;
+        input?: string;
+        origin?: TermBlockOrigin | null;
+        cwd?: string | null;
+        git_branch?: string | null;
+      };
+    }
+  | {
+      OutputAppended: {
+        id: number;
+        chunk: {
+          stream: TermOutputChunk['stream'];
+          text: string;
+          ts_ms?: number;
+        };
+      };
+    }
+  | {
+      BlockClosed: {
+        id: number;
+        exit_code?: number | null;
+        status?: TermBlockStatus | null;
+      };
+    }
+  | {
+      AgentMessage: {
+        text: string;
+      };
+    }
+  | {
+      CwdChanged: {
+        cwd: string;
+        git_branch?: string | null;
+      };
+    }
+  | {
+      AltScreenChanged: {
+        active: boolean;
+      };
+    }
+  | {
+      SnapshotResync: {
+        blocks: Array<Partial<TermBlockDto> & { id: number; input: string }>;
+        resync_required?: boolean;
+        alt_screen?: boolean;
+        cwd?: string | null;
+        git_branch?: string | null;
+      };
+    }
+  | {
+      BlockAwaitingInput: {
+        id: number;
+        prompt_tail: string;
+        prompt_kind: TermPromptKindWire;
+        credential_prompt?: boolean;
+      };
+    }
+  | {
+      BlockPinned: {
+        id: number;
+        pinned: boolean;
+      };
+    }
+  | {
+      SecurityLevelChanged: {
+        security_level: TermSecurityLevelWire | string;
+      };
+    }
+  | {
+      ControlModeChanged: {
+        control_mode: TermControlModeWire | string;
+      };
+    };
 
 export interface TermSessionInfoDto {
   id: string;
   blocks: number;
+  security_level?: TermSecurityLevelWire;
+  control_mode?: TermControlModeWire;
+  alt_screen?: boolean;
+  cwd?: string | null;
+  git_branch?: string | null;
 }
 
 export interface TermAttachmentDto {
@@ -855,6 +1075,13 @@ export interface TermAttachmentDto {
   blocks: TermBlockDto[];
   replay_utf8: string;
   seq: number;
+  replayed_events?: TermSessionEventWire[];
+  resync_required?: boolean;
+  alt_screen?: boolean;
+  cwd?: string | null;
+  git_branch?: string | null;
+  security_level?: TermSecurityLevelWire;
+  control_mode?: TermControlModeWire;
 }
 
 export interface TermOutputPayload {
@@ -865,7 +1092,7 @@ export interface TermOutputPayload {
 
 export interface TermEventPayload {
   session_id: string;
-  event: Record<string, unknown>;
+  event: TermSessionEventWire | Record<string, unknown>;
 }
 
 export function termSessionOpen(cols: number, rows: number): Promise<string> {
@@ -876,8 +1103,14 @@ export function termSessionList(): Promise<TermSessionInfoDto[]> {
   return safeInvoke<TermSessionInfoDto[]>('term_session_list');
 }
 
-export function termSessionAttach(sessionId: string): Promise<TermAttachmentDto> {
-  return safeInvoke<TermAttachmentDto>('term_session_attach', { sessionId });
+export function termSessionAttach(
+  sessionId: string,
+  afterSeq?: number | null,
+): Promise<TermAttachmentDto> {
+  return safeInvoke<TermAttachmentDto>(
+    'term_session_attach',
+    afterSeq != null ? { sessionId, afterSeq } : { sessionId },
+  );
 }
 
 export function termSessionInput(sessionId: string, data: string): Promise<void> {
@@ -894,6 +1127,287 @@ export function termSessionResize(sessionId: string, cols: number, rows: number)
 
 export function termSessionClose(sessionId: string): Promise<void> {
   return safeInvoke('term_session_close', { sessionId });
+}
+
+export function termSessionSetSecurity(
+  sessionId: string,
+  securityLevel: TermSecurityLevelWire,
+): Promise<void> {
+  return safeInvoke('term_session_set_security', { sessionId, securityLevel });
+}
+
+export function termSessionSetControl(
+  sessionId: string,
+  controlMode: TermControlModeWire,
+): Promise<void> {
+  return safeInvoke('term_session_set_control', { sessionId, controlMode });
+}
+
+export function termSessionPin(
+  sessionId: string,
+  blockId: number,
+  pinned: boolean,
+): Promise<void> {
+  return safeInvoke('term_session_pin', { sessionId, blockId, pinned });
+}
+
+export function termSessionPromoteBg(
+  sessionId: string,
+  blockId?: number | null,
+): Promise<boolean> {
+  return safeInvoke<boolean>('term_session_promote_bg', {
+    sessionId,
+    ...(blockId != null ? { blockId } : {}),
+  });
+}
+
+export interface TermHistoryEntryDto {
+  command: string;
+  cwd?: string | null;
+  exit_code?: number | null;
+  ts_ms: number;
+}
+
+export type TermCompletionKindDto =
+  | 'executable'
+  | 'builtin'
+  | 'path'
+  | 'directory'
+  | 'git_ref'
+  | 'subcommand'
+  | 'flag'
+  | 'vox_macro'
+  | 'slash'
+  | 'history';
+
+export interface TermCompletionItemDto {
+  label: string;
+  insert_text: string;
+  kind: TermCompletionKindDto;
+  detail?: string | null;
+  score: number;
+  replace_start: number;
+  replace_end: number;
+}
+
+export interface TermCompletionRequestDto {
+  line: string;
+  cursor: number;
+  cwd?: string;
+  shellMode?: string;
+  limit?: number;
+}
+
+export interface TermRunbookParamDto {
+  name: string;
+  default_value?: string | null;
+  description?: string | null;
+  options: string[];
+}
+
+export interface TermRunbookDto {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  kind: 'vox' | 'markdown';
+  command_template: string;
+  params: TermRunbookParamDto[];
+  tags: string[];
+}
+
+export function termHistoryRecord(
+  command: string,
+  cwd?: string,
+  exitCode?: number,
+): Promise<boolean | null> {
+  return safeInvoke<boolean>('term_history_record', {
+    command,
+    ...(cwd !== undefined ? { cwd } : {}),
+    ...(exitCode !== undefined ? { exitCode } : {}),
+  }).catch(() => null);
+}
+
+export function termHistoryQuery(
+  query = '',
+  cwd?: string,
+  limit = 50,
+): Promise<TermHistoryEntryDto[] | null> {
+  return safeInvoke<TermHistoryEntryDto[]>('term_history_query', {
+    query,
+    ...(cwd !== undefined ? { cwd } : {}),
+    limit,
+  }).catch(() => null);
+}
+
+export function termHistoryClear(): Promise<boolean> {
+  return safeInvoke<void>('term_history_clear').then(
+    () => true,
+    () => false,
+  );
+}
+
+export function termComplete(
+  req: TermCompletionRequestDto,
+): Promise<TermCompletionItemDto[] | null> {
+  return safeInvoke<TermCompletionItemDto[]>('term_complete', {
+    line: req.line,
+    cursor: req.cursor,
+    ...(req.cwd !== undefined ? { cwd: req.cwd } : {}),
+    ...(req.shellMode !== undefined ? { shellMode: req.shellMode } : {}),
+    ...(req.limit !== undefined ? { limit: req.limit } : {}),
+  }).catch(() => null);
+}
+
+export function termRunbooksList(cwd?: string): Promise<TermRunbookDto[] | null> {
+  return safeInvoke<TermRunbookDto[]>(
+    'term_runbooks_list',
+    cwd !== undefined ? { cwd } : {},
+  ).catch(() => null);
+}
+
+export function termSessionVoxify(
+  sessionId: string,
+  shellHint?: string,
+): Promise<boolean> {
+  return safeInvoke<void>('term_session_voxify', {
+    sessionId,
+    ...(shellHint !== undefined ? { shellHint } : {}),
+  }).then(
+    () => true,
+    () => false,
+  );
+}
+
+export interface TermAgentTurnDto {
+  block_id: number;
+  status: string;
+  proposed_command?: string | null;
+  provider?: string | null;
+  model?: string | null;
+}
+
+export interface TermSlashResultDto {
+  command: string;
+  block_id?: number | null;
+  delegated_to?: string | null;
+  output: string;
+}
+
+export interface TermFeedbackResultDto {
+  recorded: boolean;
+  session_id: string;
+  block_id: number;
+  verdict: string;
+}
+
+export interface ResolveTerminalApprovalInput {
+  approvalId: string;
+  outcome: 'approved' | 'rejected' | 'modified';
+  modifiedCommand?: string;
+  steeringNote?: string;
+  allowPattern?: string;
+}
+
+function offlineOrRethrow<T>(err: unknown, fallback: T): Promise<T> {
+  return err instanceof BackendUnavailableError ? Promise.resolve(fallback) : Promise.reject(err);
+}
+
+export function termAgentPrompt(sessionId: string, prompt: string): Promise<TermAgentTurnDto> {
+  return safeInvoke<TermAgentTurnDto>('term_agent_prompt', { sessionId, prompt }).catch((err) =>
+    offlineOrRethrow(err, {
+      block_id: 0,
+      status: 'offline',
+      proposed_command: null,
+      provider: null,
+      model: null,
+    }),
+  );
+}
+
+export function termAgentExplainFix(
+  sessionId: string,
+  blockId: number,
+  mode: 'explain' | 'fix',
+): Promise<TermAgentTurnDto> {
+  return safeInvoke<TermAgentTurnDto>('term_agent_explain_fix', {
+    sessionId,
+    blockId,
+    mode,
+  }).catch((err) =>
+    offlineOrRethrow(err, {
+      block_id: 0,
+      status: 'offline',
+      proposed_command: null,
+      provider: null,
+      model: null,
+    }),
+  );
+}
+
+export function termAgentCancel(sessionId: string, blockId: number): Promise<boolean> {
+  return safeInvoke<boolean>('term_agent_cancel', { sessionId, blockId }).catch(() => false);
+}
+
+export function termSlashExec(sessionId: string, rawLine: string): Promise<TermSlashResultDto> {
+  const cmd = rawLine.trim().split(/\s+/)[0] ?? '/';
+  return safeInvoke<TermSlashResultDto>('term_slash_exec', { sessionId, rawLine }).catch((err) =>
+    offlineOrRethrow(err, {
+      command: cmd.startsWith('/') ? cmd : `/${cmd}`,
+      block_id: null,
+      delegated_to: null,
+      output: '',
+    }),
+  );
+}
+
+export function termBlockFeedback(
+  sessionId: string,
+  blockId: number,
+  verdict: 'accepted' | 'rejected' | 'corrected',
+  correctedCommand?: string,
+  originalCommand?: string,
+): Promise<TermFeedbackResultDto> {
+  return safeInvoke<TermFeedbackResultDto>('term_block_feedback', {
+    sessionId,
+    blockId,
+    verdict,
+    ...(correctedCommand !== undefined ? { correctedCommand } : {}),
+    originalCommand: originalCommand ?? null,
+  }).catch((err) =>
+    offlineOrRethrow(err, {
+      recorded: false,
+      session_id: sessionId,
+      block_id: blockId,
+      verdict,
+    }),
+  );
+}
+
+export function listTerminalPendingApprovals(
+  sessionId?: string | null,
+): Promise<PendingApprovalRow[]> {
+  return voxTransport
+    .invokeMcpTool('vox_pending_approvals', {})
+    .then((res) => {
+      const rows = parsePendingApprovals(res as McpInvokeResult).filter(
+        (r) => r.tool === 'vox_terminal_exec' || r.tool === 'vox_terminal_send_input',
+      );
+      return sessionId ? rows.filter((r) => !r.session_id || r.session_id === sessionId) : rows;
+    })
+    .catch(() => []);
+}
+
+export function resolveTerminalApproval(
+  input: ResolveTerminalApprovalInput,
+): Promise<{ is_error?: boolean; result?: unknown }> {
+  return voxTransport.invokeMcpTool('vox_resolve_approval', {
+    approval_id: input.approvalId,
+    outcome: input.outcome,
+    ...(input.modifiedCommand ? { modified_command: input.modifiedCommand } : {}),
+    ...(input.steeringNote ? { steering_note: input.steeringNote } : {}),
+    ...(input.allowPattern ? { allow_pattern: input.allowPattern } : {}),
+  });
 }
 
 export interface AutoModelRecommendation {
@@ -1014,6 +1528,27 @@ export function policyEdit(id: string, title?: string, description?: string): Pr
 /** Send a free-form note to an agent's A2A inbox. Resolves to the message id. */
 export function sendToAgent(agentId: string, body: string): Promise<string> {
   return safeInvoke<string>('send_to_agent', { agentId, body });
+}
+
+export interface SendTerminalBlockToAgentArgs {
+  agentId: string;
+  sessionId: string;
+  blockId: number;
+  lineStart?: number | null;
+  lineEnd?: number | null;
+  note?: string | null;
+}
+
+/** Resolve and scrub a terminal block on the backend and send it to an agent's durable A2A inbox. */
+export function sendTerminalBlockToAgent(args: SendTerminalBlockToAgentArgs): Promise<string> {
+  return safeInvoke<string>('send_terminal_block_to_agent', {
+    agentId: args.agentId,
+    sessionId: args.sessionId,
+    blockId: args.blockId,
+    lineStart: args.lineStart ?? null,
+    lineEnd: args.lineEnd ?? null,
+    note: args.note ?? null,
+  });
 }
 
 export interface ContextBudgetPayload {
@@ -1277,34 +1812,49 @@ export function getTaskDiff(path: string | null = null): Promise<string> {
   return safeInvoke<string>('get_task_diff', { path });
 }
 
-export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
-  // `invoke_mcp_tool` (crates/vox-gui/src/commands/mcp.rs) is a Tauri command
-  // returning `Result<Value, String>` — Tauri's IPC delivers this to JS as an
-  // already-deserialized object `{ tool, is_error, result }`, never a JSON
-  // string. `result` is the daemon's own `{ success, data, error? }` envelope
-  // (already a parsed object too). Do NOT JSON.parse either — both are
-  // objects. (Previously this called `JSON.parse(res)` on the object, which
-  // JS coerces to the literal string "[object Object]" before JSON.parse
-  // ever runs, throwing `SyntaxError: "[object Object]" is not valid JSON`.)
-  const res = await safeInvoke<{ result: { success: boolean; data?: unknown; error?: string } }>(
-    'invoke_mcp_tool',
-    { tool: 'vox_feedback_list', args: {} },
-  );
-  const parsed = res.result;
-  if (!parsed.success) {
-    throw new Error(parsed.error || 'Failed to list feedback');
+function extractDaemonError(err: unknown, fallback: string): string {
+  if (typeof err === 'string' && err.trim()) return err;
+  if (err && typeof err === 'object') {
+    const rec = err as { message?: unknown; code?: unknown };
+    if (typeof rec.message === 'string' && rec.message.trim()) return rec.message;
+    if (typeof rec.code === 'string' && rec.code.trim()) return rec.code;
   }
-  return normalizeFeedback(parsed.data);
+  return fallback;
+}
+
+export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
+  // Tauri delivers `invoke_mcp_tool` as a parsed `{ is_error, result }` object (never JSON.parse).
+  const res = await safeInvoke<{
+    is_error?: boolean;
+    result?: { success?: boolean; data?: unknown; error?: unknown } | string;
+  }>('invoke_mcp_tool', {
+    tool: 'vox_feedback_list',
+    args: {},
+    ...(currentPermissionMode !== null ? { permissionMode: currentPermissionMode } : {}),
+  });
+  const parsed = res?.result;
+  if (typeof parsed === 'string') {
+    if (res?.is_error) throw new Error(parsed || 'Failed to list feedback');
+  } else if (res?.is_error || !parsed || parsed.success === false || ('error' in parsed && parsed.error)) {
+    throw new Error(extractDaemonError(parsed?.error, 'Failed to list feedback'));
+  }
+  return normalizeFeedback(typeof parsed === 'object' && parsed ? parsed.data : undefined);
 }
 
 export async function feedbackResolve(feedbackId: string, action: Record<string, unknown>): Promise<void> {
-  const res = await safeInvoke<{ result: { success: boolean; error?: string } }>('invoke_mcp_tool', {
+  const res = await safeInvoke<{
+    is_error?: boolean;
+    result?: { success?: boolean; error?: unknown } | string;
+  }>('invoke_mcp_tool', {
     tool: 'vox_resolve_feedback',
-    args: { feedback_id: feedbackId, action }
+    args: { feedback_id: feedbackId, action },
+    ...(currentPermissionMode !== null ? { permissionMode: currentPermissionMode } : {}),
   });
-  const parsed = res.result;
-  if (!parsed.success) {
-    throw new Error(parsed.error || 'Failed to resolve feedback');
+  const parsed = res?.result;
+  if (typeof parsed === 'string') {
+    if (res?.is_error) throw new Error(parsed || 'Failed to resolve feedback');
+  } else if (res?.is_error || !parsed || parsed.success === false || ('error' in parsed && parsed.error)) {
+    throw new Error(extractDaemonError(parsed?.error, 'Failed to resolve feedback'));
   }
 }
 
@@ -1431,9 +1981,11 @@ export interface ChatTurnInput {
    *  `ChatTurnInput::chat_session_id`. */
   chat_session_id?: string | null;
   force_research?: boolean | null;
+  research_mode?: 'off' | 'auto' | 'fast' | 'deep' | null;
   research_scope?: string | null;
   domain_mode?: string | null;
   site_scope?: string | null;
+  waves?: number | null;
   /** End-to-end ChatHop correlation (UUID minted once per send). */
   trace_id?: string | null;
   /** Per-submit turn id (UUID); pairs with Drive `last_turn_id`. */
@@ -1541,6 +2093,30 @@ export function scientiaPublicationReplay<T = unknown>(
   measuredScore: number,
 ): Promise<T> {
   return safeInvoke<T>('scientia_publication_replay', { publicationId, measuredScore });
+}
+
+export function scientiaPublicationClaims<T = unknown>(publicationId: string): Promise<T> {
+  return safeInvoke<T>('scientia_publication_claims', { publicationId });
+}
+
+export function scientiaPublicationVenueRecommend<T = unknown>(
+  candidateClass: string,
+): Promise<T> {
+  return safeInvoke<T>('scientia_publication_venue_recommend', { candidateClass });
+}
+
+export function scientiaPublicationFlywheelAdvance<T = unknown>(
+  publicationId: string,
+  targetStage?: string | null,
+): Promise<T> {
+  return safeInvoke<T>('scientia_publication_flywheel_advance', {
+    publicationId,
+    targetStage: targetStage ?? null,
+  });
+}
+
+export function scientiaV76AuditDiff<T = unknown>(): Promise<T> {
+  return safeInvoke<T>('scientia_v76_audit_diff');
 }
 
 export * from './transport/t3Wave3Rpc';

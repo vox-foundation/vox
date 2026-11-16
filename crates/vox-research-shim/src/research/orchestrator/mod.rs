@@ -23,6 +23,7 @@
 //! discovery / `VOX_REPOSITORY_ROOT` when comparing Codex rows from CLI subprocesses vs MCP.
 
 mod config;
+pub mod domain_modes;
 pub(crate) mod helpers;
 pub(super) mod model_dispatch;
 pub mod pipeline;
@@ -34,6 +35,7 @@ mod web_gather;
 pub use config::{ABSTENTION_MARKER, ProgressCallback, ResearchConfig};
 pub use pipeline::{
     run_research, run_research_with_context, run_research_with_context_and_session,
+    run_research_with_warm_seed,
 };
 pub use wave::{
     ContradictionCategory, ContradictionRecord, ContradictionStatus, TerminationReason,

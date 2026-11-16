@@ -28,7 +28,11 @@ pub struct SherpaModelPaths {
 }
 
 /// Default HF model ID for Sherpa download.
-pub const DEFAULT_SHERPA_HF_MODEL: &str = "k2-fsa/sherpa-onnx-whisper-tiny.en";
+pub const DEFAULT_SHERPA_HF_MODEL: &str = "csukuangfj/sherpa-onnx-whisper-tiny.en";
+/// Pinned HF commit SHA for the default Sherpa Whisper model.
+pub const DEFAULT_SHERPA_HF_REVISION: &str = "d026532c022fa99fd789d6b32446a1df7b6bfc43";
+/// Pinned HF commit SHA for the default Sherpa Parakeet transducer model.
+pub const DEFAULT_SHERPA_TRANSDUCER_HF_REVISION: &str = "ed5d745623472f97cfc2e6c2916ee248798fc5a8";
 
 /// Approximate download size for [`DEFAULT_SHERPA_HF_MODEL`] (and, when
 /// overridden, whatever `VOX_ORATIO_SHERPA_HF_MODEL`/`VOX_ORATIO_SHERPA_MODEL`
@@ -39,7 +43,7 @@ pub const DEFAULT_SHERPA_HF_MODEL: &str = "k2-fsa/sherpa-onnx-whisper-tiny.en";
 /// a HEAD request), which acquisition-time and resolution-time code must not
 /// make just to report a number. So this is deliberately "unknown" rather
 /// than an invented figure — check the model card before downloading.
-pub const SHERPA_WHISPER_SIZE_NOTE: &str = "unknown (not verifiable offline) — see https://huggingface.co/k2-fsa/sherpa-onnx-whisper-tiny.en \
+pub const SHERPA_WHISPER_SIZE_NOTE: &str = "unknown (not verifiable offline) — see https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en \
      for the real repo file sizes before downloading";
 
 /// Resolved paths to Sherpa-ONNX NeMo transducer model artifacts (e.g. Parakeet-TDT).
@@ -115,6 +119,36 @@ fn transducer_model_id() -> String {
         .unwrap_or_else(|_| DEFAULT_SHERPA_TRANSDUCER_HF_MODEL.to_string())
 }
 
+/// Split an HF repo spec (`owner/repo` or `owner/repo@rev`) into `(repo_id, revision)`.
+///
+/// Precedence: inline `@rev` on `spec` -> non-empty `env_revision` ->
+/// `default_revision` when `repo_id == default_model` -> `"main"`.
+fn split_hf_repo_and_revision<'a>(
+    spec: &'a str,
+    default_model: &str,
+    default_revision: &'a str,
+    env_revision: Option<&'a str>,
+) -> (&'a str, &'a str) {
+    let trimmed = spec.trim();
+    let (repo_id, inline_rev) = match trimmed.split_once('@') {
+        Some((repo, rev)) if !repo.trim().is_empty() && !rev.trim().is_empty() => {
+            (repo.trim(), Some(rev.trim()))
+        }
+        _ => (trimmed, None),
+    };
+    let env_rev = env_revision.map(str::trim).filter(|s| !s.is_empty());
+    let revision = if let Some(rev) = inline_rev {
+        rev
+    } else if let Some(rev) = env_rev {
+        rev
+    } else if repo_id == default_model {
+        default_revision
+    } else {
+        "main"
+    };
+    (repo_id, revision)
+}
+
 /// Build the "not available locally" error resolution returns instead of
 /// downloading: names the model, its approximate size, and both ways to
 /// obtain it.
@@ -182,9 +216,15 @@ pub fn ensure_sherpa_transducer_model_paths() -> Result<SherpaTransducerModelPat
     ensure_download_allowed(&model_id)?;
     print_download_notice(&model_id, SHERPA_TRANSDUCER_SIZE_NOTE);
 
-    let revision = "main";
+    let env_revision = std::env::var("VOX_ORATIO_SHERPA_HF_REVISION").ok();
+    let (repo_id, revision) = split_hf_repo_and_revision(
+        &model_id,
+        DEFAULT_SHERPA_TRANSDUCER_HF_MODEL,
+        DEFAULT_SHERPA_TRANSDUCER_HF_REVISION,
+        env_revision.as_deref(),
+    );
     let client = hf_hub::HFClientSync::new().context("HF API init")?;
-    let (owner, name) = hf_hub::split_id(&model_id);
+    let (owner, name) = hf_hub::split_id(repo_id);
     let repo = client.model(owner, name);
     let fetch = |filename: &str| {
         repo.download_file()
@@ -243,9 +283,15 @@ pub fn ensure_sherpa_model_paths() -> Result<SherpaModelPaths> {
     ensure_download_allowed(&model_id)?;
     print_download_notice(&model_id, SHERPA_WHISPER_SIZE_NOTE);
 
-    let revision = "main";
+    let env_revision = std::env::var("VOX_ORATIO_SHERPA_HF_REVISION").ok();
+    let (repo_id, revision) = split_hf_repo_and_revision(
+        &model_id,
+        DEFAULT_SHERPA_HF_MODEL,
+        DEFAULT_SHERPA_HF_REVISION,
+        env_revision.as_deref(),
+    );
     let client = hf_hub::HFClientSync::new().context("HF API init")?;
-    let (owner, name) = hf_hub::split_id(&model_id);
+    let (owner, name) = hf_hub::split_id(repo_id);
     let repo = client.model(owner, name);
     let fetch = |filename: &str| {
         repo.download_file()
@@ -453,5 +499,65 @@ mod tests {
         assert!(no_download_requested(Some("1")));
         assert!(no_download_requested(Some("true")));
         assert!(no_download_requested(Some("yes")));
+    }
+
+    #[test]
+    fn split_hf_repo_and_revision_prefers_inline_then_env_then_pinned_defaults() {
+        for rev in [
+            DEFAULT_SHERPA_HF_REVISION,
+            DEFAULT_SHERPA_TRANSDUCER_HF_REVISION,
+        ] {
+            assert_eq!(rev.len(), 40);
+            assert!(rev.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')));
+        }
+
+        assert_eq!(
+            split_hf_repo_and_revision(
+                DEFAULT_SHERPA_HF_MODEL,
+                DEFAULT_SHERPA_HF_MODEL,
+                DEFAULT_SHERPA_HF_REVISION,
+                None,
+            ),
+            (DEFAULT_SHERPA_HF_MODEL, DEFAULT_SHERPA_HF_REVISION)
+        );
+        assert_eq!(
+            split_hf_repo_and_revision(
+                DEFAULT_SHERPA_TRANSDUCER_HF_MODEL,
+                DEFAULT_SHERPA_TRANSDUCER_HF_MODEL,
+                DEFAULT_SHERPA_TRANSDUCER_HF_REVISION,
+                None,
+            ),
+            (
+                DEFAULT_SHERPA_TRANSDUCER_HF_MODEL,
+                DEFAULT_SHERPA_TRANSDUCER_HF_REVISION,
+            )
+        );
+        assert_eq!(
+            split_hf_repo_and_revision(
+                "some-owner/some-repo@deadbeef",
+                DEFAULT_SHERPA_HF_MODEL,
+                DEFAULT_SHERPA_HF_REVISION,
+                Some("ignored-env-rev"),
+            ),
+            ("some-owner/some-repo", "deadbeef")
+        );
+        assert_eq!(
+            split_hf_repo_and_revision(
+                DEFAULT_SHERPA_HF_MODEL,
+                DEFAULT_SHERPA_HF_MODEL,
+                DEFAULT_SHERPA_HF_REVISION,
+                Some("cafebabe1234"),
+            ),
+            (DEFAULT_SHERPA_HF_MODEL, "cafebabe1234")
+        );
+        assert_eq!(
+            split_hf_repo_and_revision(
+                "custom-owner/custom-sherpa",
+                DEFAULT_SHERPA_HF_MODEL,
+                DEFAULT_SHERPA_HF_REVISION,
+                Some("   "),
+            ),
+            ("custom-owner/custom-sherpa", "main")
+        );
     }
 }

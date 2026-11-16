@@ -285,6 +285,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Inference tier/modality config for routing (`InferenceConfig`, `TierProfile`) | `crates/vox-orchestrator/src/mode.rs` |
 | Embedded orchestration feature flags (YAML → runtime gates) | `crates/vox-orchestrator/src/orchestration_feature_flags.rs` |
 | Plan-mode trigger — React vs. plan (D2) | `crates/vox-orchestrator/src/planning/plan_mode_trigger.rs` |
+| GSD (Get Shit Done) lifecycle, `.planning/` parser/writer, wave DAG & CAS persistence | Types: `crates/vox-orchestrator-types/src/gsd.rs`; DB (schema v98): `crates/vox-db/src/store/ops_gsd.rs`; engine: `crates/vox-orchestrator/src/planning/gsd/`; CLI: `crates/vox-cli/src/commands/plan.rs`; MCP: `crates/vox-orchestrator-mcp/src/gsd_tools.rs`; GUI: `crates/vox-gui/src/commands/gsd.rs` & `components/surfaces/Gsd/`; MENS: `crates/vox-corpus/src/corpus/extract_gsd.rs`. SSOT: [`gsd-integration-ssot-2026.md`](./gsd-integration-ssot-2026.md) |
 | Risk matrix — HITL escalation (D5+D9) | `crates/vox-orchestrator/src/risk_matrix.rs` |
 | Privacy classifier — sensitivity detection (D8) | `crates/vox-orchestrator/src/privacy_classifier.rs` |
 | Cache predictor — prefix cache routing (D7) | `crates/vox-orchestrator/src/cache_predictor.rs` |

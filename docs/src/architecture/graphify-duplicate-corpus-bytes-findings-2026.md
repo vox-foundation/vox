@@ -16,7 +16,7 @@ three distinct declared `extraction_mode`s (`audit`, `crate-map`, `structural`).
 ## What is actually true
 
 **Two are byte-identical, not three.** Measured directly against
-`/Users/brbrainerd/dev/vox/.vox/cache/graphify/` on 2026-09-04:
+`.vox/cache/graphify/` on 2026-09-04:
 
 | Corpus | `extraction_mode` | Size (bytes) | sha256 | `git_sha` (manifest) |
 | --- | --- | --- | --- | --- |

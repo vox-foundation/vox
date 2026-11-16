@@ -5,6 +5,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../../ui/Dialog';
+import { Icon } from '../../ui/Icons';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { ResearchReportMarkdown } from './ResearchReportMarkdown';
 import {
@@ -181,9 +182,9 @@ export function DocPublishModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-text-muted hover:text-text-secondary text-lg leading-none px-2 py-1 rounded"
+            className="inline-flex items-center justify-center text-text-muted hover:text-text-secondary text-lg leading-none px-2 py-1 rounded"
           >
-            ✕
+            <Icon.close className="size-4 shrink-0" aria-hidden="true" />
           </button>
         </div>
 
@@ -313,11 +314,13 @@ export function DocPublishModal({
                         <span className="text-text-secondary">{c.label}</span>
                         {c.valid ? (
                           <span className="text-emerald-400 font-mono flex items-center gap-1">
-                            ✓ Passed
+                            <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
+                            <span>Passed</span>
                           </span>
                         ) : (
                           <span className="text-red-400 font-mono flex items-center gap-1">
-                            ✕ Missing or Invalid
+                            <Icon.close className="size-3.5 shrink-0" aria-hidden="true" />
+                            <span>Missing or Invalid</span>
                           </span>
                         )}
                       </li>

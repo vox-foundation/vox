@@ -55,7 +55,13 @@ pub fn meets_discovery_low_bar(result: &ResearchResult) -> bool {
 #[must_use]
 pub fn infer_candidate_class(text: &str) -> EventCandidateClass {
     let lower = text.to_ascii_lowercase();
-    if lower.contains("reproducib")
+    if lower.contains("model capability atlas") || lower.contains("capability epidemiology") {
+        EventCandidateClass::ModelCapabilityAtlas
+    } else if lower.contains("provider reliability atlas")
+        || lower.contains("reliability epidemiology")
+    {
+        EventCandidateClass::ProviderReliabilityAtlas
+    } else if lower.contains("reproducib")
         || lower.contains("sandbox")
         || lower.contains("compiler error")
         || lower.contains("ro-crate")
@@ -171,7 +177,8 @@ pub fn finding_candidate_from_research_result(result: &ResearchResult) -> Findin
             .join(" ")
     );
     let candidate_class = infer_candidate_class(&combined_corpus);
-    let title_hint = extract_title_hint(result);
+    let title_hint = extract_title_hint(result)
+        .or_else(|| Some(format!("Research Finding (Session #{session_id})")));
     let total_claims = result.research_metadata.claim_verdicts.len();
     let disputed_claims = result
         .research_metadata
@@ -181,6 +188,17 @@ pub fn finding_candidate_from_research_result(result: &ResearchResult) -> Findin
         .count();
     let contradiction_risk = if total_claims > 0 {
         Some((disputed_claims as f64 / total_claims as f64).clamp(0.0, 1.0))
+    } else {
+        Some(0.0)
+    };
+    let reproducibility_support = if total_claims > 0 {
+        let base_ratio = (supported.len() as f64 / total_claims as f64).clamp(0.0, 1.0);
+        let stability = result
+            .research_metadata
+            .wave_stability
+            .unwrap_or(1.0)
+            .clamp(0.0, 1.0);
+        Some((0.7 * base_ratio + 0.3 * stability).clamp(0.0, 1.0))
     } else {
         Some(0.0)
     };
@@ -218,7 +236,7 @@ pub fn finding_candidate_from_research_result(result: &ResearchResult) -> Findin
         confidence: Some(FindingCandidateConfidence {
             signal_strength: Some((quality_score as f64 / 100.0).clamp(0.0, 1.0)),
             contradiction_risk,
-            reproducibility_support: Some((supported.len() as f64 / 10.0).min(1.0)),
+            reproducibility_support,
         }),
         updated_at_ms: None,
     }
@@ -269,6 +287,10 @@ fn finding_row_from_candidate(
         .context("serialize confidence")?
         .unwrap_or_else(|| serde_json::json!({}));
     if let Some(obj) = confidence_value.as_object_mut() {
+        obj.insert(
+            "candidate_class".to_string(),
+            serde_json::json!(candidate.candidate_class),
+        );
         obj.insert(
             "manifest_metadata_json".to_string(),
             serde_json::Value::String(manifest_metadata_json.to_string()),

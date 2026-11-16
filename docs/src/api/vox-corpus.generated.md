@@ -49,7 +49,6 @@ Used by `vox-ml-cli` and downstream training pipelines.
 | [`vox-eval`](./vox-eval.generated.md) | Normal |
 | [`vox-kb-facets`](./vox-kb-facets.generated.md) | Normal |
 | [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | Normal |
-| [`vox-repository`](./vox-repository.generated.md) | Normal |
 
 ## Public API Surface
 
@@ -90,8 +89,6 @@ graph {
     vox_corpus -> vox_kb_facets
     node vox_mcp_registry: "vox-mcp-registry"
     vox_corpus -> vox_mcp_registry
-    node vox_repository: "vox-repository"
-    vox_corpus -> vox_repository
     node vox_cli: "vox-cli"
     vox_cli -> vox_corpus
     node vox_cli_research: "vox-cli-research"

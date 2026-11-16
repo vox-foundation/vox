@@ -328,11 +328,38 @@ pub fn check_unfilled_fixture_hole(
     }
 }
 
+// vox:defactored-from vox-repository 2026-11-12 (avoids vox-compiler -> vox-repository edge)
+fn resolve_repo_root_for_ci() -> std::path::PathBuf {
+    if let Ok(p) = std::env::var("VOX_REPO_ROOT") {
+        return std::path::PathBuf::from(p);
+    }
+    let d = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let mut probe = d.clone();
+    loop {
+        if probe.join("AGENTS.md").is_file() && probe.join("Cargo.toml").is_file() {
+            return probe;
+        }
+        if !probe.pop() {
+            break;
+        }
+    }
+    let mut probe = d.clone();
+    loop {
+        if probe.join("Vox.toml").is_file() || probe.join(".git").exists() {
+            return probe;
+        }
+        if !probe.pop() {
+            break;
+        }
+    }
+    d
+}
+
 /// Optional stale-hole guard backed by `contracts/reports/ai-fixture-holes/ledger.v1.json`.
 pub fn check_fixture_hole_staleness(
     hole: &crate::hir::nodes::boilerplate_grafts::HirHoleFixture,
 ) -> Option<Diagnostic> {
-    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let repo_root = resolve_repo_root_for_ci();
     let ledger_path = repo_root.join("contracts/reports/ai-fixture-holes/ledger.v1.json");
     let raw = std::fs::read_to_string(&ledger_path).ok()?;
     let json: serde_json::Value = serde_json::from_str(&raw).ok()?;

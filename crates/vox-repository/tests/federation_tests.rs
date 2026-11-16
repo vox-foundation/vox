@@ -122,7 +122,7 @@ fn test_contract_parity_detects_drift() {
 
     fs::create_dir_all(dir.path().join(".vox")).unwrap();
     fs::write(
-        dir.path().join(".vox/repositories.yaml"),
+        repo_catalog_manifest_path(dir.path()),
         r#"schema_version: 1
 repositories:
   - repository_id: repo-a
@@ -148,4 +148,168 @@ repositories:
     );
     assert_eq!(report.drifts[0].repo_a, "repo-a");
     assert_eq!(report.drifts[0].repo_b, "repo-b");
+}
+
+#[test]
+fn test_sync_federated_satellites_and_mirror_parity() {
+    let dir = tempdir().expect("tempdir");
+    let vox_root = dir.path().join("vox");
+    let axis_root = dir.path().join("vox-axis");
+
+    fs::create_dir_all(vox_root.join(".vox")).unwrap();
+    fs::create_dir_all(vox_root.join("contracts/gui")).unwrap();
+    fs::create_dir_all(vox_root.join("crates/vox-gui")).unwrap();
+    fs::create_dir_all(axis_root.join("contracts/gui")).unwrap();
+    fs::create_dir_all(axis_root.join("crates/vox-gui")).unwrap();
+
+    fs::write(
+        repo_catalog_manifest_path(&vox_root),
+        r#"schema_version: 1
+repositories:
+  - repository_id: vox
+    display_name: vox
+    root_path: .
+    shared_contracts:
+      - contracts/gui
+  - repository_id: vox-axis
+    display_name: vox-axis
+    root_path: crates/vox-gui
+    shared_contracts:
+      - contracts/gui
+"#,
+    )
+    .unwrap();
+
+    fs::write(vox_root.join("contracts/gui/surface.json"), "{\"v\":1}").unwrap();
+    fs::write(axis_root.join("contracts/gui/surface.json"), "{\"v\":0}").unwrap();
+    fs::write(vox_root.join("crates/vox-gui/README.md"), "# Axis V2").unwrap();
+    fs::write(axis_root.join("README.md"), "# Axis V1").unwrap();
+
+    let before = verify_cross_repo_contract_parity(&vox_root).expect("before parity");
+    assert!(!before.in_parity);
+    assert!(before.drifts.len() >= 2);
+
+    let summary = sync_federated_satellites(&vox_root).expect("sync failed");
+    assert!(
+        summary
+            .present_repositories
+            .contains(&"vox-axis".to_string())
+    );
+    assert!(summary.files_copied >= 2);
+
+    let after = verify_cross_repo_contract_parity(&vox_root).expect("after parity");
+    assert!(after.in_parity, "drifts remaining: {:?}", after.drifts);
+}
+
+#[test]
+fn test_core_module_leaf_facade_exports() {
+    let dir = tempdir().expect("tempdir");
+    fs::write(dir.path().join("Vox.toml"), "[vox]\nmodel = \"x\"\n").unwrap();
+    let ctx = vox_repository::core::discover_repository_or_fallback(dir.path());
+    assert!(!ctx.repository_id.is_empty());
+    let manifest_root = vox_repository::core::find_project_manifest_root(dir.path());
+    assert!(manifest_root.is_some());
+    let _ci_root = vox_repository::core::resolve_repo_root_for_ci();
+    let host = vox_repository::core::probe_host_capabilities();
+    assert!(host.arch.is_some());
+}
+
+#[test]
+fn test_hybrid_in_monorepo_surfaces_without_external_siblings() {
+    let dir = tempdir().expect("tempdir");
+    let vox_root = dir.path().join("vox");
+    let ops_root = dir.path().join("vox-ops");
+
+    fs::create_dir_all(vox_root.join(".vox")).unwrap();
+    fs::create_dir_all(vox_root.join("contracts/telemetry")).unwrap();
+    fs::create_dir_all(vox_root.join("contracts/gui")).unwrap();
+    fs::create_dir_all(vox_root.join("contracts/documentation")).unwrap();
+    fs::create_dir_all(vox_root.join("crates/vox-gui/contracts/gui")).unwrap();
+    fs::create_dir_all(vox_root.join("crates/vox-gui/contracts/telemetry")).unwrap();
+    fs::create_dir_all(vox_root.join("docs-astro/contracts/documentation")).unwrap();
+    fs::create_dir_all(ops_root.join("contracts/telemetry")).unwrap();
+
+    fs::write(
+        vox_root.join("contracts/telemetry/events.v1.yaml"),
+        "schema_version: 1\n",
+    )
+    .unwrap();
+    fs::write(
+        ops_root.join("contracts/telemetry/events.v1.yaml"),
+        "schema_version: 1\n",
+    )
+    .unwrap();
+    fs::write(
+        vox_root.join("contracts/gui/surface.json"),
+        "{\"version\":1}",
+    )
+    .unwrap();
+    fs::write(
+        vox_root.join("crates/vox-gui/contracts/gui/surface.json"),
+        "{\"version\":1}",
+    )
+    .unwrap();
+    fs::write(
+        vox_root.join("crates/vox-gui/contracts/telemetry/events.v1.yaml"),
+        "schema_version: 1\n",
+    )
+    .unwrap();
+    fs::write(
+        vox_root.join("contracts/documentation/taxonomy.yaml"),
+        "version: 1\n",
+    )
+    .unwrap();
+    fs::write(
+        vox_root.join("docs-astro/contracts/documentation/taxonomy.yaml"),
+        "version: 1\n",
+    )
+    .unwrap();
+
+    fs::write(
+        repo_catalog_manifest_path(&vox_root),
+        r#"schema_version: 1
+primary_repository_id: vox
+repositories:
+  - repository_id: vox
+    display_name: vox
+    root_path: .
+    shared_contracts:
+      - contracts/telemetry/
+      - contracts/gui/
+      - contracts/documentation/
+  - repository_id: vox-ops
+    display_name: vox-ops
+    root_path: ../vox-ops
+    optional: true
+    shared_contracts:
+      - contracts/telemetry/
+  - repository_id: vox-axis
+    display_name: vox-axis
+    root_path: crates/vox-gui
+    shared_contracts:
+      - contracts/gui/
+      - contracts/telemetry/
+  - repository_id: voxlang.org
+    display_name: voxlang.org
+    root_path: docs-astro
+    shared_contracts:
+      - contracts/documentation/
+"#,
+    )
+    .unwrap();
+
+    // Neither ../vox-axis nor ../voxlang.org exists on disk: hybrid resolution must still
+    // count 4/4 present repositories via canonical in-monorepo paths and skip absent external mirrors cleanly.
+    let parity = verify_cross_repo_contract_parity(&vox_root).expect("hybrid parity");
+    assert_eq!(parity.total_repositories, 4);
+    assert_eq!(parity.present_repositories, 4);
+    assert!(parity.in_parity, "drifts: {:?}", parity.drifts);
+
+    let sync = sync_federated_satellites(&vox_root).expect("hybrid sync");
+    assert_eq!(sync.present_repositories, vec!["vox-ops".to_string()]);
+    assert!(sync.skipped_repositories.contains(&"vox-axis".to_string()));
+    assert!(
+        sync.skipped_repositories
+            .contains(&"voxlang.org".to_string())
+    );
 }

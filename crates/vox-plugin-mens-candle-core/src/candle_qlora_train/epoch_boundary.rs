@@ -25,6 +25,8 @@ pub fn finish_epoch(
     val_steps: u32,
     last_loss_val: f32,
     progress_anchor_time: std::time::Instant,
+    total_tokens: usize,
+    micro_steps_executed: u32,
 ) -> Result<()> {
     let avg_loss = if epoch_steps > 0 {
         epoch_loss_sum / epoch_steps as f64
@@ -64,6 +66,8 @@ pub fn finish_epoch(
         wall_seconds_elapsed: progress_anchor_time.elapsed().as_secs_f64(),
         saved_at_utc: CheckpointState::now_utc(),
         data_fingerprint: config.data_fingerprint.clone(),
+        total_tokens,
+        micro_steps_executed,
     };
     epoch_state
         .save(out)

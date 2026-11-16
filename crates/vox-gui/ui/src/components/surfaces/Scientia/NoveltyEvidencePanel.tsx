@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../../ui/Icons';
 import type { NoveltyAssessment, NoveltyVerdictKind } from './noveltyApi';
 
 /** Human label + tone class for each verdict kind. */
@@ -52,7 +53,10 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
 
       {insufficient && (
         <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/6 px-3 py-2 font-mono text-[11px] text-amber-200/90">
-          <span aria-hidden="true">⚠</span> Retrieval failed or never ran — do not treat as novel.
+          <div className="flex items-center gap-1.5">
+            <Icon.alert className="size-3.5 shrink-0" aria-hidden="true" />
+            <span>Retrieval failed or never ran — do not treat as novel.</span>
+          </div>
           {assessment.insufficient_evidence_reason && (
             <div className="mt-1 text-amber-100/80">{assessment.insufficient_evidence_reason}</div>
           )}

@@ -24,20 +24,41 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
 
 // ── Phase B — replay-runner ───────────────────────────────────────────────────
 
+fn normalize_replay_report_score(
+    mut report: vox_scientia::replay::ReplayReport,
+    expected_outputs: usize,
+) -> vox_scientia::replay::ReplayReport {
+    report.measured_score = match report.outcome {
+        vox_scientia::replay::ReplayOutcome::Pass => 1.0,
+        vox_scientia::replay::ReplayOutcome::HashMismatch
+            if expected_outputs > 0 && report.diagnostics.len() < expected_outputs =>
+        {
+            0.5
+        }
+        vox_scientia::replay::ReplayOutcome::HashMismatch
+        | vox_scientia::replay::ReplayOutcome::NonZeroExit { .. }
+        | vox_scientia::replay::ReplayOutcome::TimedOut => 0.0,
+    };
+    report
+}
+
 /// `vox scientia publication-replay-execute --main-entity X.json --stage-dir DIR`
 ///
 /// Re-executes the `MainEntity` entry-point inside `stage_dir` and emits a
 /// `ReplayReport` JSON document on stdout. When `publication_id` is supplied,
-/// appends an `artifact_replayability_measured` row to `publication_status_events`.
+/// persists measured `artifact_replayability` (`1.0` / `0.5` / `0.0`) into
+/// `publication_manifests.metadata_json.scientia_evidence` and appends an
+/// `artifact_replayability_measured` row to `publication_status_events`.
 pub async fn replay_execute(
     main_entity_path: &Path,
     stage_dir: &Path,
     publication_id: Option<&str>,
 ) -> Result<()> {
     let main_entity: vox_scientia::ro_crate::MainEntity = read_json(main_entity_path)?;
-    let report = vox_scientia::replay::run_replay(stage_dir, &main_entity)
+    let raw_report = vox_scientia::replay::run_replay(stage_dir, &main_entity)
         .await
         .context("vox_scientia::replay::run_replay")?;
+    let report = normalize_replay_report_score(raw_report, main_entity.expected_output_paths.len());
     if let Some(pid) = publication_id {
         let db = vox_db::VoxDb::connect_default()
             .await
@@ -299,8 +320,8 @@ pub async fn critic_approve(
 /// manifest. The summary drives `WorthinessInputs::claim_evidence_coverage`
 /// on subsequent preflight runs.
 ///
-/// `VOX_MINICHECK_ENDPOINT` selects the HTTP verifier; absent → mock
-/// (deterministic word-overlap; useful for tests, low-signal in production).
+/// `SecretId::VoxMinicheckEndpoint` selects the HTTP verifier; absent → calibrated hybrid
+/// (Tier 0 deterministic lexical/antonym/numeric pre-filter + Tier 1 LLM entailment).
 ///
 /// [`ExtractedClaimsSummary`]: vox_publisher::scientia_evidence::ExtractedClaimsSummary
 pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
@@ -346,9 +367,19 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         }
     }
 
-    let verifier_model = if std::env::var("VOX_MINICHECK_ENDPOINT").is_ok() {
+    let resolved_endpoint =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMinicheckEndpoint);
+    let resolved_model = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMinicheckModel);
+    let verifier_model = if resolved_endpoint
+        .expose()
+        .is_some_and(|u| !u.trim().is_empty())
+    {
         "minicheck-http".to_string()
-    } else if let Ok(model) = std::env::var("VOX_MINICHECK_MODEL") {
+    } else if let Some(model) = resolved_model
+        .expose()
+        .map(str::trim)
+        .filter(|m| !m.is_empty())
+    {
         format!("calibrated-hybrid:{model}")
     } else {
         "calibrated-hybrid:lexical".to_string()
@@ -407,7 +438,14 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
     // begins reporting cost (thread it into `cost_usd` below). Provider/model
     // are tagged so the row is attributable. The other three phases (critic /
     // novelty / scholarly) emit no such row yet and stay 0.0 by construction.
-    let extraction_cost_usd = 0.0_f64;
+    let est_input_tokens =
+        ((manifest_row.body_markdown.len() + context_str.len()) / 4).max(1) as i64;
+    let est_output_tokens = ((total_atomic as usize) * 24).max(1) as i64;
+    let extraction_cost_usd = if summary.verifier_model != "calibrated-hybrid:lexical" {
+        (est_input_tokens as f64) * 0.000_000_8 + (est_output_tokens as f64) * 0.000_002_4
+    } else {
+        0.0_f64
+    };
     if let Err(e) = db
         .insert_scientia_cost_telemetry(
             "scientia-extractor",
@@ -416,14 +454,14 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
             "extraction",
             None,
             Some(&summary.verifier_model),
-            None,
-            None,
+            Some(est_input_tokens),
+            Some(est_output_tokens),
             extraction_cost_usd,
             Some(
                 &serde_json::json!({
                     "publication_id": publication_id,
                     "total_atomic": total_atomic,
-                    "cost_basis": "verifier reports no per-call $ today; 0.0 until instrumented",
+                    "cost_basis": "estimated token telemetry when verifier omits per-call $",
                 })
                 .to_string(),
             ),
@@ -600,27 +638,9 @@ pub async fn scientia_cost() -> Result<()> {
     let db = vox_db::VoxDb::connect_default()
         .await
         .context("connect to default Codex / VoxDb")?;
-    let (provider_rows, phase_rows, findings) = db
-        .scientia_cost_raw_this_quarter()
+    let rollup = vox_scientia::review_flow::assemble_scientia_cost_from_db(&db)
         .await
-        .context("query scientia cost data")?;
-    let by_provider: Vec<(String, f64)> = provider_rows
-        .into_iter()
-        .map(|r| (r.provider, r.total_usd))
-        .collect();
-    let mut inputs = vox_scientia::dashboard::cost::CostInputs {
-        extraction_usd: 0.0,
-        critic_usd: 0.0,
-        novelty_retrieval_usd: 0.0,
-        scholarly_submission_usd: 0.0,
-        by_provider,
-        findings_published_this_quarter: findings,
-    };
-    apply_phase_costs(
-        &mut inputs,
-        phase_rows.iter().map(|r| (r.phase.as_str(), r.total_usd)),
-    );
-    let rollup = vox_scientia::dashboard::cost::build_cost_rollup(&inputs);
+        .context("assemble scientia cost rollup")?;
     println!("{}", serde_json::to_string_pretty(&rollup)?);
     Ok(())
 }
@@ -631,6 +651,7 @@ pub async fn scientia_cost() -> Result<()> {
 /// `critic_usd`, `"novelty"`→`novelty_retrieval_usd`, `"scholarly"`→
 /// `scholarly_submission_usd`. Unknown phase strings are ignored (forward-compat
 /// for new phases). Pure (no IO) so the mapping is unit-testable without a DB.
+#[cfg_attr(not(test), allow(dead_code))]
 fn apply_phase_costs<'a>(
     inputs: &mut vox_scientia::dashboard::cost::CostInputs,
     phases: impl IntoIterator<Item = (&'a str, f64)>,
@@ -1351,6 +1372,42 @@ mod tests {
                 &events
             ),
             Some(1.0)
+        );
+    }
+
+    #[test]
+    fn normalize_replay_report_score_maps_pass_partial_and_fail() {
+        let base = vox_scientia::replay::ReplayReport {
+            outcome: vox_scientia::replay::ReplayOutcome::Pass,
+            wall_ms: 10,
+            measured_score: 0.0,
+            diagnostics: vec![],
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+        assert_eq!(
+            normalize_replay_report_score(base.clone(), 2).measured_score,
+            1.0
+        );
+
+        let partial = vox_scientia::replay::ReplayReport {
+            outcome: vox_scientia::replay::ReplayOutcome::HashMismatch,
+            diagnostics: vec!["only one of two mismatched".into()],
+            ..base.clone()
+        };
+        assert_eq!(
+            normalize_replay_report_score(partial, 2).measured_score,
+            0.5
+        );
+
+        let full_fail = vox_scientia::replay::ReplayReport {
+            outcome: vox_scientia::replay::ReplayOutcome::HashMismatch,
+            diagnostics: vec!["a".into(), "b".into()],
+            ..base
+        };
+        assert_eq!(
+            normalize_replay_report_score(full_fail, 2).measured_score,
+            0.0
         );
     }
 }

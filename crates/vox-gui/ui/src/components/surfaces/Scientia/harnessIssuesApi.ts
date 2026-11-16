@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /** One row of `scientia_harness_issues`. */
 export interface HarnessIssueRow {
@@ -27,14 +27,14 @@ export interface HarnessFixProposalRow {
 }
 
 export function listHarnessIssues(status?: string, source?: string): Promise<HarnessIssueRow[]> {
-  return invoke<HarnessIssueRow[]>('list_harness_issues', {
+  return invokeCmd<HarnessIssueRow[]>('list_harness_issues', {
     status: status ?? null,
     source: source ?? null,
   });
 }
 
 export function listHarnessIssuesForSession(sessionKey: string): Promise<HarnessIssueRow[]> {
-  return invoke<HarnessIssueRow[]>('list_harness_issues_for_session', { sessionKey });
+  return invokeCmd<HarnessIssueRow[]>('list_harness_issues_for_session', { sessionKey });
 }
 
 export function recordHarnessIssueDecision(
@@ -42,7 +42,7 @@ export function recordHarnessIssueDecision(
   decision: 'confirmed' | 'dismissed',
   reason?: string,
 ): Promise<void> {
-  return invoke<void>('record_harness_issue_decision', {
+  return invokeCmd<void>('record_harness_issue_decision', {
     issueId,
     decision,
     reason: reason ?? null,
@@ -50,17 +50,17 @@ export function recordHarnessIssueDecision(
 }
 
 export function scanTrainingCorpus(): Promise<number> {
-  return invoke<number>('scan_training_corpus');
+  return invokeCmd<number>('scan_training_corpus');
 }
 
 export function proposeHarnessIssueFix(issueId: number, targetPath: string): Promise<number> {
-  return invoke<number>('propose_harness_issue_fix', { issueId, targetPath });
+  return invokeCmd<number>('propose_harness_issue_fix', { issueId, targetPath });
 }
 
 export function listHarnessFixProposals(status?: string): Promise<HarnessFixProposalRow[]> {
-  return invoke<HarnessFixProposalRow[]>('list_harness_fix_proposals', { status: status ?? null });
+  return invokeCmd<HarnessFixProposalRow[]>('list_harness_fix_proposals', { status: status ?? null });
 }
 
 export function resolveHarnessFixProposal(proposalId: number, approve: boolean): Promise<void> {
-  return invoke<void>('resolve_harness_fix_proposal', { proposalId, approve });
+  return invokeCmd<void>('resolve_harness_fix_proposal', { proposalId, approve });
 }

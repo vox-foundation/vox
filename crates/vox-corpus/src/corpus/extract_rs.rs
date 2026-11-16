@@ -475,7 +475,7 @@ fn walk_dir_rs(
     Ok(())
 }
 
-/// Write extracted pairs to a JSONL file (appending).
+/// Write extracted pairs to a JSONL file (overwriting existing file).
 pub fn write_to_jsonl(pairs: &[RsTrainingPair], output: &Path) -> anyhow::Result<usize> {
     use std::io::Write;
     if let Some(parent) = output.parent() {
@@ -483,7 +483,8 @@ pub fn write_to_jsonl(pairs: &[RsTrainingPair], output: &Path) -> anyhow::Result
     }
     let mut f = std::fs::OpenOptions::new()
         .create(true)
-        .append(true)
+        .write(true)
+        .truncate(true)
         .open(output)
         .with_context(|| format!("open output {}", output.display()))?;
     for pair in pairs {

@@ -1,4 +1,5 @@
 import React from "react";
+import { Icon } from "../../ui/Icons";
 
 /** High-level Plan/Act/Verify phase tag. Mirrors the Rust `PavPhase` enum. */
 export type PavPhase = "planning" | "acting" | "verifying" | "done";
@@ -75,8 +76,8 @@ export function PhaseChip({
       )}
 
       {phase === "done" && (
-        <span className="text-(--color-status-pass)" aria-label="phase complete">
-          ✓
+        <span className="inline-flex items-center text-(--color-status-pass)" aria-label="phase complete">
+          <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
         </span>
       )}
     </span>

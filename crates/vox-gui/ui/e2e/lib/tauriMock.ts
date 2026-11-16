@@ -114,6 +114,38 @@ export function installTauriMock(viewKey: string): void {
     { session_id: 'mock-session-1', title: 'Mock chat', updated_at: 'now', message_count: 2, conversation_id: 1 },
   ] as any[];
 
+  (window as any).__MOCK_GSD_STATE__ = {
+    active_milestone: {
+      milestone_id: 'v7.0',
+      title: 'GSD Deep Suite Integration',
+      status: 'active',
+      start_phase: 407,
+      end_phase: 412,
+    },
+    phases: [
+      { milestone_id: 'v7.0', phase_number: 407, title: 'GSD Base Skills', status: 'completed', wave_count: 2 },
+      { milestone_id: 'v7.0', phase_number: 408, title: 'Orchestrator & VoxDb v98', status: 'completed', wave_count: 2 },
+      { milestone_id: 'v7.0', phase_number: 409, title: 'CLI & MCP Surface', status: 'completed', wave_count: 1 },
+      { milestone_id: 'v7.0', phase_number: 410, title: 'GSD Wave Scheduler', status: 'planned', wave_count: 2, plan_session_id: 'gsd-410' },
+      { milestone_id: 'v7.0', phase_number: 411, title: 'GSD Axis GUI Studio', status: 'planned', wave_count: 2, plan_session_id: 'gsd-411' },
+      { milestone_id: 'v7.0', phase_number: 412, title: 'MENS GSD Corpus & E2E', status: 'pending', wave_count: 1 },
+    ],
+    requirements: [
+      { req_id: 'GSD-GUI-01', phase_number: 411, description: 'Axis GUI GSD view + CAS viewer', satisfied: true },
+    ],
+    documents: [
+      { doc_id: 'v7.0:.planning/PROJECT.md', milestone_id: 'v7.0', kind: 'project', rel_path: '.planning/PROJECT.md', cas_hash: 'blake3_project_v70', byte_len: 128, updated_at_ms: Date.now() },
+      { doc_id: 'v7.0:.planning/ROADMAP.md', milestone_id: 'v7.0', kind: 'roadmap', rel_path: '.planning/ROADMAP.md', cas_hash: 'blake3_roadmap_v70', byte_len: 256, updated_at_ms: Date.now() },
+      { doc_id: 'v7.0:.planning/STATE.md', milestone_id: 'v7.0', kind: 'state', rel_path: '.planning/STATE.md', cas_hash: 'blake3_state_v70', byte_len: 96, updated_at_ms: Date.now() },
+    ],
+    doc_bodies: {
+      '.planning/PROJECT.md': '# Vox\n\nMilestone v7.0: GSD Deep Suite Integration',
+      '.planning/ROADMAP.md': '# Roadmap\n\n- Phase 407: GSD Base Skills\n- Phase 411: GSD Axis GUI Studio',
+      '.planning/STATE.md': '# State\n\nCurrent Phase: 411',
+    } as Record<string, string>,
+    next_recommended_skill: '/gsd-execute-phase 410',
+  };
+
   (window as any).__MOCK_VCS_ISOLATION__ = {
     strategy_default: 'shared_branch',
     per_agent: { '1': 'shared_branch', '3': 'separate_branches' },
@@ -220,26 +252,37 @@ export function installTauriMock(viewKey: string): void {
         success: true,
         data: [
           {
-            id: 'superpowers:test-driven-development',
-            name: 'test-driven-development',
-            version: '2.4.0',
-            category: 'engineering',
-            description: 'Enforces red-green-refactor verification loops before implementation code.',
-            tools: ['vox_test', 'vox_check'],
-            source: '.agents/skills/test-driven-development',
-            permissions: ['fs:read', 'exec:test'],
-            tags: ['tdd', 'verification', 'superpowers'],
+            id: 'brainstorming',
+            name: 'brainstorming',
+            version: '1.0.0',
+            category: 'gsd-planning',
+            description: 'Explores user intent, requirements and design before GSD planning.',
+            tools: ['vox_gsd_get_status', 'vox_gsd_new_milestone'],
+            source: 'assets/skills/brainstorming',
+            permissions: ['fs:read'],
+            tags: ['brainstorming', 'gsd'],
           },
           {
-            id: 'superpowers:systematic-debugging',
-            name: 'systematic-debugging',
-            version: '2.4.0',
-            category: 'diagnostics',
-            description: 'Root-cause hypothesis testing and binary-search fault isolation across crates.',
-            tools: ['vox_audit', 'vox_search_query'],
-            source: '.agents/skills/systematic-debugging',
-            permissions: ['fs:read'],
-            tags: ['debugging', 'root-cause', 'superpowers'],
+            id: 'gsd-new-milestone',
+            name: 'gsd-new-milestone',
+            version: '1.0.0',
+            category: 'gsd-lifecycle',
+            description: 'Initialize a new GSD milestone, requirements, and phased roadmap.',
+            tools: ['vox_gsd_new_milestone', 'vox_gsd_store_document'],
+            source: 'assets/skills/gsd-new-milestone',
+            permissions: ['fs:read', 'fs:write'],
+            tags: ['gsd', 'milestone'],
+          },
+          {
+            id: 'gsd-execute-phase',
+            name: 'gsd-execute-phase',
+            version: '1.0.0',
+            category: 'gsd-execution',
+            description: 'Execute all plans in a GSD phase with wave-aware parallelization.',
+            tools: ['vox_gsd_execute_phase', 'vox_gsd_verify_work'],
+            source: 'assets/skills/gsd-execute-phase',
+            permissions: ['fs:read', 'exec:test'],
+            tags: ['gsd', 'waves'],
           },
           {
             id: 'vox:cv-flywheel-audit',
@@ -260,10 +303,10 @@ export function installTauriMock(viewKey: string): void {
         success: true,
         data: [
           {
-            id: 'vox-plugin-superpowers',
-            version: '2.4.0',
+            id: 'vox-plugin-gsd',
+            version: '1.0.0',
             payload_kind: 'skill-bundle',
-            install_dir: 'crates/vox-skills/skills/superpowers',
+            install_dir: 'crates/vox-skills/skills/gsd',
           },
           {
             id: 'vox-plugin-browser-songhand',
@@ -274,7 +317,7 @@ export function installTauriMock(viewKey: string): void {
         ],
       };
     }
-    if (tool.includes('skill') || tool.includes('plugin')) return { skills: [{ id: 'superpowers', name: 'Superpowers', enabled: true }], plugins: [{ id: 'design', name: 'Design' }] };
+    if (tool.includes('skill') || tool.includes('plugin')) return { skills: [{ id: 'gsd-new-milestone', name: 'GSD Suite', enabled: true }], plugins: [{ id: 'design', name: 'Design' }] };
     if (tool.includes('vox_search_status')) {
       return {
         success: true,
@@ -306,6 +349,434 @@ export function installTauriMock(viewKey: string): void {
         },
       };
     }
+    if (tool === 'vox_gsd_get_status') {
+      const g = (window as any).__MOCK_GSD_STATE__;
+      return { success: true, data: { health: { healthy: true }, snapshot: { active_milestone: g.active_milestone, phases: g.phases, requirements: g.requirements, documents: g.documents, next_recommended_skill: g.next_recommended_skill } } };
+    }
+    if (tool === 'vox_gsd_get_progress') {
+      const g = (window as any).__MOCK_GSD_STATE__;
+      return { success: true, data: { active_milestone: g.active_milestone, phases: g.phases, requirements: g.requirements, documents: g.documents, next_recommended_skill: g.next_recommended_skill } };
+    }
+    if (tool === 'vox_gsd_new_milestone') {
+      const g = (window as any).__MOCK_GSD_STATE__;
+      const version = String(targs?.version ?? 'v7.1');
+      const title = String(targs?.title ?? `Milestone ${version}`);
+      const startPhase = Number(targs?.start_phase ?? 1);
+      const count = Number(targs?.phases ?? 3);
+      g.active_milestone = { milestone_id: version, title, status: 'active', start_phase: startPhase, end_phase: startPhase + count - 1 };
+      g.phases = Array.from({ length: count }, (_, i) => ({ milestone_id: version, phase_number: startPhase + i, title: `Phase ${startPhase + i}`, status: 'pending', wave_count: 1 }));
+      return { success: true, data: { active_milestone: g.active_milestone, phases: g.phases, requirements: g.requirements, documents: g.documents, next_recommended_skill: `/gsd-discuss-phase ${startPhase}` } };
+    }
+    if (tool === 'vox_gsd_plan_phase' || tool === 'vox_gsd_execute_phase' || tool === 'vox_gsd_verify_work') {
+      const g = (window as any).__MOCK_GSD_STATE__;
+      const pnum = Number(targs?.phase ?? 1);
+      const nextStatus = tool === 'vox_gsd_plan_phase' ? 'planned' : tool === 'vox_gsd_execute_phase' ? 'executing' : 'completed';
+      const target = g.phases.find((p: any) => p.phase_number === pnum);
+      if (target) target.status = nextStatus;
+      return { success: true, data: { milestone_id: g.active_milestone.milestone_id, phase: pnum, nodes: [] } };
+    }
+    if (tool === 'vox_gsd_complete_milestone') {
+      const g = (window as any).__MOCK_GSD_STATE__;
+      g.active_milestone.status = 'completed';
+      return { success: true, data: { active_milestone: g.active_milestone, phases: g.phases, requirements: g.requirements, documents: g.documents, next_recommended_skill: '/gsd-new-milestone' } };
+    }
+    if (tool === 'vox_gsd_list_documents') {
+      return { success: true, data: (window as any).__MOCK_GSD_STATE__.documents };
+    }
+    if (tool === 'vox_gsd_store_document') {
+      const g = (window as any).__MOCK_GSD_STATE__;
+      const rel = String(targs?.rel_path ?? '.planning/NOTES.md');
+      const content = String(targs?.content ?? '');
+      const hash = `blake3_mock_${rel.replace(/[^a-z0-9]/gi, '_')}`;
+      g.doc_bodies[rel] = content;
+      const existing = g.documents.find((d: any) => d.rel_path === rel);
+      const doc = { doc_id: `${g.active_milestone.milestone_id}:${rel}`, milestone_id: g.active_milestone.milestone_id, kind: targs?.kind ?? 'state', rel_path: rel, cas_hash: hash, byte_len: content.length, updated_at_ms: Date.now() };
+      if (existing) Object.assign(existing, doc);
+      else g.documents.push(doc);
+      return { success: true, data: doc };
+    }
+    if (tool === 'vox_gsd_get_document') {
+      const g = (window as any).__MOCK_GSD_STATE__;
+      const key = String(targs?.doc_id_or_path ?? '');
+      const rel = key.includes(':') ? key.split(':').slice(1).join(':') : key;
+      const doc = g.documents.find((d: any) => d.doc_id === key || d.rel_path === rel) ?? { rel_path: rel, cas_hash: 'blake3_mock' };
+      return { success: true, data: { document: doc, content: g.doc_bodies[rel] ?? '# Empty mock doc' } };
+    }
+    switch (tool) {
+      case 'vox_battery_status':
+        return {
+          success: true,
+          data: {
+            session_id: String(targs?.session_id ?? 'default'),
+            remaining_bu: 487.5,
+            four_hour_spent_bu: 12.5,
+            four_hour_limit_bu: 500,
+            four_hour_pct: 2.5,
+            monthly_spent_bu: 45,
+            monthly_limit_bu: 5000,
+            monthly_pct: 0.9,
+            total_cache_read_tokens: 1024,
+            fallback_to_local: false,
+          },
+        };
+      case 'vox_checkpoint_list': {
+        const tid = String(targs?.thread_id ?? 'default');
+        const store = ((window as any).__MOCK_CHECKPOINTS__ ??= {});
+        const list = (store[tid] ??= [
+          {
+            thread_id: tid,
+            turn_count: 1,
+            ref_name: `refs/vox/checkpoints/${tid}/turn/1`,
+            commit_oid: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4',
+            is_restore_point: false,
+          },
+        ]);
+        return { success: true, data: { thread_id: tid, checkpoints: list.map((c: any) => ({ ...c })) } };
+      }
+      case 'vox_checkpoint_capture': {
+        const tid = String(targs?.thread_id ?? 'default');
+        const store = ((window as any).__MOCK_CHECKPOINTS__ ??= {});
+        const list = (store[tid] ??= [
+          {
+            thread_id: tid,
+            turn_count: 1,
+            ref_name: `refs/vox/checkpoints/${tid}/turn/1`,
+            commit_oid: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4',
+            is_restore_point: false,
+          },
+        ]);
+        const nextTurn = Number(targs?.turn_count ?? list.length + 1);
+        const label = targs?.restore_label ? String(targs.restore_label) : null;
+        const rec = {
+          thread_id: tid,
+          turn_count: nextTurn,
+          ref_name: label
+            ? `refs/vox/checkpoints/${tid}/restore-point/${label}`
+            : `refs/vox/checkpoints/${tid}/turn/${nextTurn}`,
+          commit_oid: `${nextTurn.toString(16).padStart(8, '0')}9f8e7d6c5b4a3210fedcba9876543210`,
+          is_restore_point: Boolean(label),
+        };
+        list.push(rec);
+        return { success: true, data: rec };
+      }
+      case 'vox_checkpoint_restore': {
+        const tid = String(targs?.thread_id ?? 'default');
+        const targetTurn = Number(targs?.target_turn ?? 1);
+        const store = ((window as any).__MOCK_CHECKPOINTS__ ??= {});
+        if (Array.isArray(store[tid])) {
+          store[tid] = store[tid].filter((c: any) => c.turn_count <= targetTurn);
+        }
+        return {
+          success: true,
+          data: {
+            thread_id: tid,
+            restored_turn: targetTurn,
+            ref_name: `refs/vox/checkpoints/${tid}/turn/${targetTurn}`,
+          },
+        };
+      }
+      case 'vox_vcs_checkpoint_diff_summary': {
+        const tid = String(targs?.thread_id ?? 'default');
+        const targetTurn = Number(targs?.target_turn ?? 1);
+        return {
+          success: true,
+          data: {
+            thread_id: tid,
+            target_turn: targetTurn,
+            ref_name: `refs/vox/checkpoints/${tid}/turn/${targetTurn}`,
+            files: [
+              { file_path: 'crates/vox-gui/src/main.rs', added_lines: 12, deleted_lines: 3 },
+            ],
+          },
+        };
+      }
+      case 'vox_file_diff_and_diagnostics': {
+        const fp = String(targs?.file_path ?? 'crates/vox-gui/src/main.rs');
+        return {
+          success: true,
+          data: {
+            file_path: fp,
+            added_lines: 8,
+            deleted_lines: 2,
+            unified_diff: `--- a/${fp}\n+++ b/${fp}\n@@ -18,4 +18,10 @@\n+pub fn verified_contract() -> bool { true }`,
+            diagnostics: [],
+          },
+        };
+      }
+      case 'vox_stage_file':
+        return { success: true, data: { file_path: String(targs?.file_path ?? ''), staged: true } };
+      case 'vox_revert_file':
+        return { success: true, data: { file_path: String(targs?.file_path ?? ''), reverted: true } };
+      case 'vox_quarantine_list': {
+        const list: string[] = ((window as any).__MOCK_QUARANTINES__ ??= []);
+        return { success: true, data: { quarantined_paths: [...list] } };
+      }
+      case 'vox_quarantine_set': {
+        const prefix = String(targs?.path_prefix ?? '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+        const quarantined = Boolean(targs?.quarantined ?? true);
+        const set = new Set<string>(((window as any).__MOCK_QUARANTINES__ ??= []));
+        if (quarantined) set.add(prefix);
+        else set.delete(prefix);
+        const next = Array.from(set);
+        (window as any).__MOCK_QUARANTINES__ = next;
+        return {
+          success: true,
+          data: { path_prefix: prefix, quarantined, quarantined_paths: next },
+        };
+      }
+      case 'vox_muse_pool_spawn': {
+        const runId = String(targs?.run_id ?? 'muse-run-1');
+        const mids = Array.isArray(targs?.model_ids) ? targs.model_ids : ['anthropic/claude-sonnet', 'mens-8b'];
+        return {
+          success: true,
+          data: {
+            run_id: runId,
+            variant_count: mids.length,
+            variants: mids.map((m: string, idx: number) => ({
+              variant_index: idx + 1,
+              model_id: m,
+              branch_name: `vox/muse/${runId}/v${idx + 1}`,
+            })),
+          },
+        };
+      }
+      case 'vox_muse_pool_adopt': {
+        const runId = String(targs?.run_id ?? 'muse-run-1');
+        const wid = String(targs?.winning_variant_id ?? 'variant-1');
+        return {
+          success: true,
+          data: {
+            run_id: runId,
+            adopted_variant_id: wid,
+            adopted_branch_name: `vox/muse/${runId}/${wid}`,
+            pruned_variant_ids: [],
+          },
+        };
+      }
+      case 'vox_guest_share_list': {
+        const gs = ((window as any).__MOCK_GUEST_SHARE__ ??= { invites: [], submissions: [] });
+        const sid = targs?.session_id ? String(targs.session_id) : null;
+        return {
+          success: true,
+          data: {
+            invites: sid ? gs.invites.filter((i: any) => i.session_id === sid) : [...gs.invites],
+            submissions: sid ? gs.submissions.filter((s: any) => s.session_id === sid) : [...gs.submissions],
+          },
+        };
+      }
+      case 'vox_guest_share_mint': {
+        const gs = ((window as any).__MOCK_GUEST_SHARE__ ??= { invites: [], submissions: [] });
+        const sid = String(targs?.session_id ?? targs?.thread_id ?? 'default');
+        const perm = String(targs?.permission ?? 'suggest_prompt');
+        const ttl = Number(targs?.ttl_ms ?? 3_600_000);
+        const invId = `inv-${gs.invites.length + 1}`;
+        const sig = 'ed25519_mock_sig_a1b2c3d4';
+        const invite = {
+          invite_id: invId,
+          signature_hex: sig,
+          token: `${invId}:${sig}`,
+          session_id: sid,
+          permission: perm,
+          expires_at_ms: Date.now() + ttl,
+          revoked: false,
+        };
+        gs.invites.push(invite);
+        return { success: true, data: invite };
+      }
+      case 'vox_guest_share_redeem':
+        return {
+          success: true,
+          data: {
+            session_id: 'default',
+            permission: 'suggest_prompt',
+            expires_at_ms: Date.now() + 3_600_000,
+            valid: true,
+          },
+        };
+      case 'vox_guest_share_submit': {
+        const gs = ((window as any).__MOCK_GUEST_SHARE__ ??= { invites: [], submissions: [] });
+        const sub = {
+          submission_id: `gsub-${gs.submissions.length + 1}`,
+          session_id: 'default',
+          guest_name: String(targs?.guest_name ?? 'Guest Reviewer'),
+          prompt: String(targs?.prompt ?? ''),
+          status: 'pending',
+          submitted_at_ms: Date.now(),
+        };
+        gs.submissions.push(sub);
+        return { success: true, data: sub };
+      }
+      case 'vox_guest_share_moderate': {
+        const gs = ((window as any).__MOCK_GUEST_SHARE__ ??= { invites: [], submissions: [] });
+        const subId = String(targs?.submission_id ?? 'gsub-1');
+        const status = targs?.approve === false ? 'rejected' : 'approved';
+        const hit = gs.submissions.find((s: any) => s.submission_id === subId);
+        if (hit) hit.status = status;
+        return {
+          success: true,
+          data: { submission_id: subId, session_id: hit?.session_id ?? 'default', status },
+        };
+      }
+      case 'vox_consensus_run': {
+        const prompt = String(targs?.prompt ?? '');
+        const cModels = Array.isArray(targs?.models) && targs.models.length >= 2
+          ? targs.models
+          : ['anthropic/claude-sonnet', 'openai/gpt', 'mens/qwen3-8b'];
+        return {
+          success: true,
+          data: {
+            prompt,
+            models: cModels,
+            synthesis: `Consensus across ${cModels.length} legs converged on deterministic checkpoints.`,
+            total_elapsed_ms: 240,
+            rich_results: cModels.map((m: string, idx: number) => ({
+              model_id: m,
+              status: 'completed',
+              content: `Leg ${idx + 1} (${m}) verified "${prompt}".`,
+              reasoning: `Evaluated leg #${idx + 1}.`,
+              response_time_ms: 180 + idx * 40,
+              quality: { quality_score: 90 - idx * 2 },
+            })),
+          },
+        };
+      }
+      case 'vox_context_handoff': {
+        const turns = Array.isArray(targs?.turns) ? targs.turns : [];
+        return {
+          success: true,
+          data: {
+            formatted_prompt: `<context_handoff>\n${turns.map((t: any) => `[${t.role}]: ${t.content}`).join('\n')}\n</context_handoff>`,
+            truncated: false,
+          },
+        };
+      }
+      case 'vox_session_list_external': {
+        const h = String(targs?.source_harness ?? 'claude');
+        return {
+          success: true,
+          data: [
+            {
+              source_harness: h,
+              external_session_id: `${h}-session-1`,
+              file_path: `~/.${h}/projects/vox-session-1.jsonl`,
+              size_bytes: 2048,
+            },
+          ],
+        };
+      }
+      case 'vox_session_import_external': {
+        const h = String(targs?.source_harness ?? 'claude');
+        const eid = String(targs?.external_session_id ?? `${h}-session-1`);
+        return {
+          success: true,
+          data: {
+            source_harness: h,
+            external_session_id: eid,
+            title: `Imported ${h} session`,
+            messages: [
+              { role: 'user', content: 'Imported CLI prompt from external harness' },
+              { role: 'assistant', content: 'Imported assistant response with full context' },
+            ],
+          },
+        };
+      }
+      case 'vox_session_export_bundle':
+        return {
+          success: true,
+          data: {
+            schema_version: 1,
+            session_id: String(targs?.session_id ?? 'default'),
+            title: String(targs?.title ?? 'Exported Session'),
+            messages: Array.isArray(targs?.messages) ? targs.messages : [],
+          },
+        };
+      case 'vox_session_import_bundle': {
+        let parsed: any = { session_id: 'imported-1', title: 'Imported Bundle', messages: [] };
+        if (typeof targs?.bundle_json === 'string') {
+          try {
+            parsed = JSON.parse(targs.bundle_json);
+          } catch {
+            // keep default mock bundle
+          }
+        }
+        return {
+          success: true,
+          data: {
+            imported: true,
+            session_id: String(parsed?.session_id ?? 'imported-1'),
+            title: String(parsed?.title ?? 'Imported Bundle'),
+            message_count: Array.isArray(parsed?.messages) ? parsed.messages.length : 0,
+          },
+        };
+      }
+      case 'vox_chat_edit_message_in_place':
+        return {
+          success: true,
+          data: {
+            session_id: String(targs?.session_id ?? 'default'),
+            edited_message: {
+              id: String(targs?.message_id ?? 'msg-1'),
+              role: 'assistant',
+              content: String(targs?.new_content ?? ''),
+              edited_at: 1729363200,
+            },
+          },
+        };
+      case 'vox_chat_regenerate':
+        return {
+          success: true,
+          data: {
+            session_id: String(targs?.session_id ?? 'default'),
+            replay_prompt: String(targs?.prompt_override ?? ''),
+            removed_turns: 1,
+          },
+        };
+      case 'vox_chat_compact_up_to':
+        return {
+          success: true,
+          data: {
+            session_id: String(targs?.session_id ?? 'default'),
+            compact_message_index: Number(targs?.index ?? 1),
+            preserved_thought_signatures: [],
+          },
+        };
+      case 'vox_chat_stream_resume': {
+        const off = Number(targs?.char_offset ?? 0);
+        return {
+          success: true,
+          data: {
+            session_id: String(targs?.session_id ?? 'default'),
+            catch_up_delta: '',
+            char_offset: off,
+            next_char_offset: off,
+            last_seq: Number(targs?.after_seq ?? 0),
+            chunks: [],
+            cancelled: false,
+            completed: true,
+          },
+        };
+      }
+      case 'vox_chat_stream_cancel':
+        return {
+          success: true,
+          data: { session_id: String(targs?.session_id ?? 'default'), cancelled: true },
+        };
+      case 'vox_chat_queue_steer': {
+        const sid = String(targs?.session_id ?? 'default');
+        const prompt = String(targs?.prompt ?? '');
+        return {
+          success: true,
+          data: {
+            session_id: sid,
+            entry_id: String(targs?.entry_id ?? `q:${sid}`),
+            promoted_to_steer: Boolean(targs?.promote_to_steer ?? true),
+            steered_intervention: `[MID-TURN STEER INTERVENTION]: ${prompt}`,
+          },
+        };
+      }
+      default:
+        break;
+    }
     return { ok: true };
   };
 
@@ -316,6 +787,28 @@ export function installTauriMock(viewKey: string): void {
       (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
       try {
         switch (cmd) {
+        case 'gsd_get_status':
+          return mcpResult('vox_gsd_get_status', args).data;
+        case 'gsd_get_progress':
+          return mcpResult('vox_gsd_get_progress', args).data;
+        case 'gsd_new_milestone':
+          return mcpResult('vox_gsd_new_milestone', args?.input ?? args).data;
+        case 'gsd_discuss_phase':
+          return mcpResult('vox_gsd_discuss_phase', args).data;
+        case 'gsd_plan_phase':
+          return mcpResult('vox_gsd_plan_phase', args).data;
+        case 'gsd_execute_phase':
+          return mcpResult('vox_gsd_execute_phase', args).data;
+        case 'gsd_verify_work':
+          return mcpResult('vox_gsd_verify_work', args).data;
+        case 'gsd_complete_milestone':
+          return mcpResult('vox_gsd_complete_milestone', args).data;
+        case 'gsd_list_documents':
+          return mcpResult('vox_gsd_list_documents', args).data;
+        case 'gsd_store_document':
+          return mcpResult('vox_gsd_store_document', args).data;
+        case 'gsd_get_document':
+          return mcpResult('vox_gsd_get_document', args).data;
         case 'get_models_snapshot': {
           // Composed from the per-command fixtures so tauriMockRich's overrides flow through.
           const inv = (window as any).__TAURI_INTERNALS__.invoke;
@@ -402,7 +895,10 @@ export function installTauriMock(viewKey: string): void {
           { id: 'pol-2', domain: 'ci', group: 'runner', title: 'Self-hosted default', severity: 'warn', blocking: false, protected: false },
         ];
         case 'list_branches': return [{ branch: 'main', path: '.', isCurrent: true }];
-        case 'mercatus_load_config': return {
+        case 'mercatus_save_config':
+          (window as any).__MOCK_MERCATUS_CONFIG__ = args?.config ?? null;
+          return null;
+        case 'mercatus_load_config': return (window as any).__MOCK_MERCATUS_CONFIG__ ?? {
           _meta: {
             sources: {
               openrouter: { enabled: true, costUsd: 0.002, cadenceHours: 6, tier: 'live' },
@@ -777,9 +1273,19 @@ export function installTauriMock(viewKey: string): void {
         case 'term_session_input':
         case 'term_session_resize':
         case 'term_session_close':
+        case 'term_history_record':
           return null;
-        case 'term_session_open': {
-          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+        case 'term_session_open':
+        case 'term_session_list':
+        case 'term_session_attach':
+        case 'term_session_set_security':
+        case 'term_session_set_control':
+        case 'term_session_pin':
+        case 'term_session_submit':
+        case 'term_agent_prompt':
+        case 'term_slash_exec': {
+          const w = window as any;
+          const store = (w.__MOCK_TERM_SESSIONS__ ??= {
             's-1': {
               id: 's-1',
               blocks: [
@@ -797,108 +1303,26 @@ export function installTauriMock(viewKey: string): void {
               ],
               replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
               seq: 1,
+              control_mode: 'manual',
             },
           });
-          const nextIdx = (((window as any).__MOCK_TERM_NEXT_SESSION__ ??= 1) as number) + 1;
-          (window as any).__MOCK_TERM_NEXT_SESSION__ = nextIdx;
-          const sid = `s-${nextIdx}`;
-          store[sid] = {
-            id: sid,
-            blocks: [],
-            replay_utf8: `~/workspace/vox (${sid}) $ \r\n`,
-            seq: 1,
+          const emitEvent = (sid: string, sess: any, event: Record<string, unknown>) => {
+            sess.seq = Number(sess.seq ?? 0) + 1;
+            w.__TAURI_EMIT__?.('vox://term-event', { session_id: sid, seq: sess.seq, event });
           };
-          return sid;
-        }
-        case 'term_session_list': {
-          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
-            's-1': {
-              id: 's-1',
-              blocks: [
-                {
-                  id: 1,
-                  kind: 'Shell',
-                  status: 'Ok',
-                  origin: { kind: 'user' },
-                  input: 'vox run',
-                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
-                  exit_code: 0,
-                  started_ms: 1,
-                  ended_ms: 5,
-                },
-              ],
-              replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
-              seq: 1,
-            },
-          });
-          return Object.values(store).map((s: any) => ({
-            id: s.id,
-            blocks: s.blocks.length,
-          }));
-        }
-        case 'term_session_attach': {
-          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
-            's-1': {
-              id: 's-1',
-              blocks: [
-                {
-                  id: 1,
-                  kind: 'Shell',
-                  status: 'Ok',
-                  origin: { kind: 'user' },
-                  input: 'vox run',
-                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
-                  exit_code: 0,
-                  started_ms: 1,
-                  ended_ms: 5,
-                },
-              ],
-              replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
-              seq: 1,
-            },
-          });
-          const sid = String(args?.sessionId ?? 's-1');
-          const sess = store[sid] ?? store['s-1'];
-          return {
-            session_id: sid,
-            blocks: sess.blocks.map((b: any) => ({ ...b })),
-            replay_utf8: sess.replay_utf8,
-            seq: sess.seq,
+          const emitNewBlock = (sid: string, sess: any, block: any, rawDisplay: string, outText: string) => {
+            sess.blocks.push(block);
+            sess.replay_utf8 += `~/workspace/vox $ ${rawDisplay}\r\n${outText.replace(/\n/g, '\r\n')}`;
+            emitEvent(sid, sess, {
+              BlockOpened: { id: block.id, kind: block.kind, origin: block.origin, input: block.input },
+            });
+            for (const chunk of block.output) {
+              emitEvent(sid, sess, { OutputAppended: { id: block.id, chunk } });
+            }
+            emitEvent(sid, sess, {
+              BlockClosed: { id: block.id, exit_code: block.exit_code, status: block.status },
+            });
           };
-        }
-        case 'term_session_submit': {
-          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
-            's-1': {
-              id: 's-1',
-              blocks: [
-                {
-                  id: 1,
-                  kind: 'Shell',
-                  status: 'Ok',
-                  origin: { kind: 'user' },
-                  input: 'vox run',
-                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
-                  exit_code: 0,
-                  started_ms: 1,
-                  ended_ms: 5,
-                },
-              ],
-              replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
-              seq: 1,
-            },
-          });
-          const sid = String(args?.sessionId ?? 's-1');
-          const sess = (store[sid] ??= {
-            id: sid,
-            blocks: [],
-            replay_utf8: '',
-            seq: 0,
-          });
-          const bid = (((window as any).__MOCK_TERM_NEXT_BLOCK__ ??= 1) as number) + 1;
-          (window as any).__MOCK_TERM_NEXT_BLOCK__ = bid;
-          const rawLine = String(args?.line ?? '').trim();
-          const lower = rawLine.toLowerCase();
-
           const routePrompt = (prompt: string) => {
             const p = prompt.toLowerCase();
             if (p.includes('fix') || p.includes('bug') || p.includes('error') || p.includes('fail')) {
@@ -916,11 +1340,116 @@ export function installTauriMock(viewKey: string): void {
             return { task: 'CodeGen', model: 'anthropic/claude-sonnet', tier: 'Pro', axes: 'eff:33/prec:34/lat:33' };
           };
 
+          if (cmd === 'term_session_open') {
+            const nextIdx = ((w.__MOCK_TERM_NEXT_SESSION__ ??= 1) as number) + 1;
+            w.__MOCK_TERM_NEXT_SESSION__ = nextIdx;
+            const sid = `s-${nextIdx}`;
+            store[sid] = {
+              id: sid,
+              blocks: [],
+              replay_utf8: `~/workspace/vox (${sid}) $ \r\n`,
+              seq: 1,
+            };
+            return sid;
+          }
+          if (cmd === 'term_session_list') {
+            return Object.values(store).map((s: any) => ({
+              id: s.id,
+              blocks: s.blocks.length,
+              ...(s.security_level ? { security_level: s.security_level } : {}),
+              ...(s.control_mode ? { control_mode: s.control_mode } : {}),
+            }));
+          }
+          const sid = String(args?.sessionId ?? 's-1');
+          const sess = (store[sid] ??= { id: sid, blocks: [], replay_utf8: '', seq: 0 });
+          if (cmd === 'term_session_attach') {
+            return {
+              session_id: sid,
+              blocks: sess.blocks.map((b: any) => ({ ...b })),
+              replay_utf8: sess.replay_utf8,
+              seq: sess.seq,
+              ...(sess.security_level ? { security_level: sess.security_level } : {}),
+              ...(sess.control_mode ? { control_mode: sess.control_mode } : {}),
+            };
+          }
+          if (cmd === 'term_session_set_security') {
+            sess.security_level = String(args?.securityLevel ?? 'l3_structured_default');
+            emitEvent(sid, sess, { SecurityLevelChanged: { security_level: sess.security_level } });
+            return null;
+          }
+          if (cmd === 'term_session_set_control') {
+            sess.control_mode = String(args?.controlMode ?? 'co_pilot');
+            emitEvent(sid, sess, { ControlModeChanged: { control_mode: sess.control_mode } });
+            return null;
+          }
+          if (cmd === 'term_session_pin') {
+            const blockId = Number(args?.blockId);
+            const pinned = Boolean(args?.pinned);
+            for (const b of sess.blocks) {
+              if (b.id === blockId) b.pinned = pinned;
+            }
+            emitEvent(sid, sess, { BlockPinned: { id: blockId, pinned } });
+            return null;
+          }
+
+          const bid = ((w.__MOCK_TERM_NEXT_BLOCK__ ??= 1) as number) + 1;
+          w.__MOCK_TERM_NEXT_BLOCK__ = bid;
+
+          if (cmd === 'term_agent_prompt') {
+            const prompt = String(args?.prompt ?? '').trim();
+            const r = routePrompt(prompt);
+            const outText = `[routed model=${r.model} task=${r.task} tier=${r.tier} axes=${r.axes}] ${prompt}\n`;
+            const newBlock = {
+              id: bid,
+              kind: 'AgentTurn',
+              status: 'Ok',
+              origin: { kind: 'agent', agent_id: 'terminal-agent' },
+              input: `?${prompt}`,
+              output: [{ stream: 'Agent', text: outText, ts_ms: Date.now() }],
+              exit_code: 0,
+              started_ms: Date.now() - 5,
+              ended_ms: Date.now(),
+            };
+            emitNewBlock(sid, sess, newBlock, `?${prompt}`, outText);
+            return { block_id: bid, status: 'ok', proposed_command: null, provider: 'anthropic', model: r.model };
+          }
+          if (cmd === 'term_slash_exec') {
+            const rawLine = String(args?.rawLine ?? args?.command ?? '').trim();
+            const lower = rawLine.toLowerCase();
+            const headCmd = rawLine.split(/\s+/)[0] ?? '/';
+            let outText = `Slash command executed: ${rawLine}\n`;
+            if (lower.startsWith('/model route ') || lower.startsWith('/model explain ')) {
+              const prompt = rawLine.replace(/^\/model\s+(route|explain)\s+/i, '').trim();
+              const r = routePrompt(prompt);
+              outText = `[model]\nactive_model: ${r.model}\n[routed model=${r.model} task=${r.task} tier=${r.tier} axes=${r.axes}] ${prompt}\n`;
+            } else if (lower === '/help') {
+              outText = '[help]\nAvailable commands: /help /model /budget /skills /memory /context /sh /ai\n';
+            } else if (lower.startsWith('/model ')) {
+              const m = rawLine.slice(7).trim();
+              outText = `[model]\nactive_model: ${m}\nstatus: updated\nModel set to: ${m}\n`;
+            }
+            const newBlock = {
+              id: bid,
+              kind: 'SlashCommand',
+              status: 'Ok',
+              origin: { kind: 'user' },
+              input: rawLine,
+              output: [{ stream: 'Meta', text: outText, ts_ms: Date.now() }],
+              exit_code: 0,
+              started_ms: Date.now() - 5,
+              ended_ms: Date.now(),
+            };
+            emitNewBlock(sid, sess, newBlock, rawLine, outText);
+            return { command: headCmd.startsWith('/') ? headCmd : `/${headCmd}`, block_id: bid, delegated_to: null, output: outText };
+          }
+
+          const rawLine = String(args?.line ?? '').trim();
+          const lower = rawLine.toLowerCase();
           let kind = 'Shell';
           let inputText = rawLine;
           let stream = 'Stdout';
           let outText = `Executed: ${rawLine}\n`;
-          let exitCode = 0;
+          const exitCode = 0;
 
           if (rawLine.startsWith('?') || lower.startsWith('/ai ') || lower.startsWith('/agent ')) {
             kind = 'AgentTurn';
@@ -936,11 +1465,12 @@ export function installTauriMock(viewKey: string): void {
             if (lower.startsWith('/model route ') || lower.startsWith('/model explain ')) {
               const prompt = rawLine.replace(/^\/model\s+(route|explain)\s+/i, '').trim();
               const r = routePrompt(prompt);
-              outText = `[routed model=${r.model} task=${r.task} tier=${r.tier} axes=${r.axes}] ${prompt}\n`;
+              outText = `[model]\nactive_model: ${r.model}\n[routed model=${r.model} task=${r.task} tier=${r.tier} axes=${r.axes}] ${prompt}\n`;
             } else if (lower === '/help') {
-              outText = 'Available commands: /help /model /budget /skills /memory /context /sh /ai\n';
+              outText = '[help]\nAvailable commands: /help /model /budget /skills /memory /context /sh /ai\n';
             } else if (lower.startsWith('/model ')) {
-              outText = `Model set to: ${rawLine.slice(7).trim()}\n`;
+              const m = rawLine.slice(7).trim();
+              outText = `[model]\nactive_model: ${m}\nstatus: updated\nModel set to: ${m}\n`;
             } else {
               outText = `Slash command executed: ${rawLine}\n`;
             }
@@ -968,9 +1498,7 @@ export function installTauriMock(viewKey: string): void {
             started_ms: Date.now() - 5,
             ended_ms: Date.now(),
           };
-          sess.blocks.push(newBlock);
-          sess.seq += 1;
-          sess.replay_utf8 += `~/workspace/vox $ ${rawLine}\r\n${outText.replace(/\n/g, '\r\n')}`;
+          emitNewBlock(sid, sess, newBlock, rawLine, outText);
           return bid;
         }
         case 'invoke_mcp_tool': return { tool: args?.tool ?? 'unknown', is_error: false, result: mcpResult(args?.tool ?? '', args?.args) };
@@ -993,6 +1521,12 @@ export function installTauriMock(viewKey: string): void {
           if (p === 'diff') return { exit_code: 0, stdout: 'crates/vox-gui/ui/src/App.tsx | +12 -3\ncrates/vox-gui/ui/src/lib/cvFlywheel.ts | +48 -0', stderr: '' };
           return { exit_code: 0, stdout: 'ok', stderr: '' };
         }
+        case 'oratio_transcribe':
+          return {
+            text: 'vox check --workspace',
+            raw_text: 'vox check workspace',
+            refined_text: 'vox check --workspace',
+          };
         case 'submit_orchestrator_task': return { ok: true, task_id: '101', message: 'submitted' };
         // Single composer dispatch (dfb707f38): background turns return a task id to
         // correlate the agent-event stream against; sync turns return the reply itself.

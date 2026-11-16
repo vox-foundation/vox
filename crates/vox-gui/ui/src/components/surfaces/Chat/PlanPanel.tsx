@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { EmptyState } from '../../ui/EmptyState';
+import { Icon, PlanStepGlyph } from '../../ui/Icons';
 import {
   updatePlanNode,
   insertPlanNode,
@@ -31,16 +32,16 @@ interface PlanPanelProps {
   onDiscard?: () => void;
 }
 
-const STATUS_ICON: Record<PlanNodeStatus, string> = {
-  pending: '○',
-  queued: '◔',
-  in_progress: '◑',
-  completed: '●',
-  failed: '✕',
-  cancelled: '−',
-  superseded: '»',
-  blocked_on_approval: '⏸',
-};
+function planNodeGlyphState(status: PlanNodeStatus): string {
+  switch (status) {
+    case 'blocked_on_approval':
+      return 'blocked';
+    case 'superseded':
+      return 'skipped';
+    default:
+      return status;
+  }
+}
 
 const STATUS_COLOR: Record<PlanNodeStatus, string> = {
   pending: 'text-text-muted',
@@ -101,9 +102,13 @@ function PlanNodeRow({
             node.status === 'completed' ? 'pending' : 'completed',
           )
         }
-        className={`w-4 shrink-0 text-center transition hover:brightness-125 ${STATUS_COLOR[node.status]}`}
+        className={`inline-flex w-4 shrink-0 items-center justify-center text-center transition hover:brightness-125 ${STATUS_COLOR[node.status]}`}
       >
-        {STATUS_ICON[node.status]}
+        {node.status === 'cancelled' ? (
+          <Icon.minus className="size-3.5 shrink-0" aria-hidden="true" />
+        ) : (
+          <PlanStepGlyph state={planNodeGlyphState(node.status)} className="size-3.5 shrink-0" />
+        )}
       </button>
       {editable ? (
         <input
@@ -132,9 +137,9 @@ function PlanNodeRow({
           data-testid={`plan-node-edit-${node.node_id}`}
           aria-label={`Edit in-progress step: ${node.description}`}
           onClick={() => setExplicitEditing(true)}
-          className="shrink-0 rounded px-1 font-mono text-[11px] text-text-muted opacity-0 transition group-hover:opacity-100 hover:text-brass focus:opacity-100"
+          className="inline-flex shrink-0 items-center justify-center rounded px-1 font-mono text-[11px] text-text-muted opacity-0 transition group-hover:opacity-100 hover:text-brass focus:opacity-100"
         >
-          ✎
+          <Icon.penQuill className="size-3 shrink-0" aria-hidden="true" />
         </button>
       )}
       {onRemoveNode && (

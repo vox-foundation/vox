@@ -24,6 +24,14 @@
 
 use vox_db::store::ReviewDecisionRow;
 
+pub mod flywheel_exec;
+pub mod flywheel_gate;
+pub use flywheel_exec::{FlywheelAdvanceResult, FlywheelStage, flywheel_advance_from_db};
+pub use flywheel_gate::{
+    EmissionClearance, EmissionGateError, EmissionGateInput, ExternalEmissionGate,
+    ScholarlyTrustMode, sha3_256_hex,
+};
+
 // ── Trait for input decoupling ─────────────────────────────────────────────
 
 /// Sealed so only types in this crate can implement [`ReviewDecisionLike`].

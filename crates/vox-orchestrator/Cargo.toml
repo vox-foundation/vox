@@ -38,7 +38,7 @@ test-support = []
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm", "dep:vox-mesh-transport", "dep:iroh"]
 # `vox-speech` speech-to-text / refinement tools.
-oratio-rerank = ["dep:vox-speech"]
+oratio-rerank = []
 # `vox-publisher` syndication / scientia surfaces.
 news-publish = [
     "dep:vox-publisher",
@@ -108,7 +108,6 @@ vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = { workspace = true }
 anyhow.workspace = true
 serde_yaml.workspace = true
-vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"] }
 regex = { workspace = true }
 vox-corpus = { workspace = true }
 # In-process VCS backend. The single home for jj_lib:: calls; the orchestrator's
@@ -140,7 +139,6 @@ axum = { workspace = true, features = ["tokio", "http1", "json"], optional = tru
 glob.workspace = true
 ignore = { workspace = true }
 rand_distr = { workspace = true }
-async-stream.workspace = true
 
 # Daemon binary moved to crates/vox-orchestrator-d/ in 2026-05-08 reorg Phase 4.
 
@@ -154,7 +152,7 @@ serial_test = { workspace = true }
 tempfile = { workspace = true }
 tracing-test = { workspace = true }
 vox-actor-runtime = { workspace = true }
-vox-test-harness = { path = "../vox-test-harness" }
+vox-test-harness = { workspace = true }
 axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }

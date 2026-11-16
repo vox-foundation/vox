@@ -114,7 +114,7 @@ pub(crate) fn is_ci_active(opts: &PrePushOpts) -> bool {
 /// Workflows that run on `ubuntu-latest` (GH-hosted exceptions).
 const ACT_WORKFLOWS: &[&str] = &[
     ".github/workflows/docs-quality.yml",
-    ".github/workflows/link_checker.yml",
+    ".github/workflows/docs-drift-refresh.yml",
     ".github/workflows/ts-emit-noemit.yml",
 ];
 
@@ -497,11 +497,13 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     } else {
         let changed_rs: Vec<PathBuf> = changed_files
             .iter()
-            .filter(|f| f.ends_with(".rs"))
+            .filter(|f| is_fmt_scoped_rs_candidate(f))
             .map(|f| root.join(f))
             .filter(|p| p.is_file())
             .collect();
-        let cargo_toml_changed = changed_files.iter().any(|f| f.ends_with("Cargo.toml"));
+        let cargo_toml_changed = changed_files
+            .iter()
+            .any(|f| f.ends_with("Cargo.toml") && !f.starts_with("patches/"));
         let n_rs = changed_rs.len();
         let label = if n_rs == 0 {
             "rustfmt --check (scoped — skip: no changed .rs)".to_string()
@@ -944,6 +946,28 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     Ok(v)
 }
 
+/// Return the step labels emitted for a local pre-push tier (`complete = false` for fast, `true` for complete).
+pub(crate) fn tier_labels(root: &Path, complete: bool) -> Result<Vec<String>> {
+    let opts = PrePushOpts {
+        quick: !complete,
+        complete,
+        full: false,
+        ci: complete,
+        dry_run: true,
+        act: false,
+        report_json: None,
+        include_slow: false,
+        with_coverage: false,
+        since: None,
+        skip_complete: false,
+        enforce_budgets: false,
+    };
+    Ok(build_steps(root, &opts)?
+        .into_iter()
+        .map(|s| s.label)
+        .collect())
+}
+
 /// Run the GH-hosted exception workflows through `act`.
 pub fn run_act(root: &Path, dry_run: bool) -> Result<()> {
     let act_cmd = if dry_run {
@@ -1209,6 +1233,12 @@ fn changed_dirs_under_crates_from_set(changed_files: &BTreeSet<String>) -> Vec<P
         }
     }
     seen.into_iter().collect()
+}
+
+fn is_fmt_scoped_rs_candidate(rel: &str) -> bool {
+    rel.ends_with(".rs")
+        && !rel.starts_with("patches/")
+        && !rel.starts_with(vox_config::paths::REPO_SALVAGE_DIR_PREFIX)
 }
 
 fn step_fmt_scoped(root: &Path, changed_rs: &[PathBuf], cargo_toml_changed: bool) -> Result<()> {
@@ -2251,5 +2281,17 @@ mod tests {
             .filter(|f| f.ends_with(".md") && (f.starts_with("docs/") || !f.contains('/')))
             .collect();
         assert_eq!(filtered, vec!["README.md", "docs/src/index.md"]);
+    }
+
+    #[test]
+    fn fmt_scoped_candidate_skips_vendored_patches_and_salvage() {
+        assert!(is_fmt_scoped_rs_candidate("crates/vox-cli/src/main.rs"));
+        assert!(!is_fmt_scoped_rs_candidate(
+            "patches/candle-core-0.10.2/src/metal_backend/device.rs"
+        ));
+        assert!(!is_fmt_scoped_rs_candidate(
+            ".vox/salvage/vox-mens-compare/lib.rs"
+        ));
+        assert!(!is_fmt_scoped_rs_candidate("README.md"));
     }
 }

@@ -21,6 +21,9 @@ struct RustVisitor {
     /// literals can be tagged `in_const` / `LiteralContext::ConstDecl`. A counter
     /// (not a bool) tolerates pathological nesting like `const A: [u32; N] = …`.
     in_const_depth: u32,
+    /// Depth counter incremented on entry to `#[cfg(test)]` modules, `#[test]` /
+    /// `#[*::test]` fns, and `fn minimal_repro()` doc-snippet helpers.
+    in_test_depth: u32,
 }
 
 impl RustVisitor {
@@ -31,9 +34,43 @@ impl RustVisitor {
             col: lc.column,
         }
     }
+
+    fn has_test_attr(attrs: &[syn::Attribute]) -> bool {
+        attrs.iter().any(|attr| {
+            let path = attr.path();
+            if path.is_ident("test") || path.segments.last().is_some_and(|s| s.ident == "test") {
+                return true;
+            }
+            if path.is_ident("cfg")
+                && let Ok(ident) = attr.parse_args::<syn::Ident>()
+                && ident == "test"
+            {
+                return true;
+            }
+            false
+        })
+    }
 }
 
 impl<'ast> Visit<'ast> for RustVisitor {
+    fn visit_attribute(&mut self, node: &'ast syn::Attribute) {
+        if node.path().is_ident("doc") {
+            return;
+        }
+        syn::visit::visit_attribute(self, node);
+    }
+
+    fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
+        let is_test = Self::has_test_attr(&node.attrs);
+        if is_test {
+            self.in_test_depth += 1;
+        }
+        syn::visit::visit_item_mod(self, node);
+        if is_test {
+            self.in_test_depth -= 1;
+        }
+    }
+
     fn visit_item_const(&mut self, node: &'ast syn::ItemConst) {
         self.in_const_depth += 1;
         syn::visit::visit_item_const(self, node);
@@ -53,7 +90,9 @@ impl<'ast> Visit<'ast> for RustVisitor {
                 self.features.string_literals.push(LiteralLoc {
                     value: s.value(),
                     loc: Self::span_to_loc(s.span()),
-                    ctx: if in_const {
+                    ctx: if self.in_test_depth > 0 {
+                        LiteralContext::Test
+                    } else if in_const {
                         LiteralContext::ConstDecl
                     } else {
                         LiteralContext::Code
@@ -160,6 +199,10 @@ impl<'ast> Visit<'ast> for RustVisitor {
     }
 
     fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        let is_test = Self::has_test_attr(&node.attrs) || node.sig.ident == "minimal_repro";
+        if is_test {
+            self.in_test_depth += 1;
+        }
         let body_src = quote!(#node).to_string();
         let hash = xxh3_64(body_src.as_bytes());
         let sig_src = node.sig.ident.to_string();
@@ -180,6 +223,20 @@ impl<'ast> Visit<'ast> for RustVisitor {
             loc,
         });
         syn::visit::visit_item_fn(self, node);
+        if is_test {
+            self.in_test_depth -= 1;
+        }
+    }
+
+    fn visit_impl_item_fn(&mut self, node: &'ast syn::ImplItemFn) {
+        let is_test = Self::has_test_attr(&node.attrs) || node.sig.ident == "minimal_repro";
+        if is_test {
+            self.in_test_depth += 1;
+        }
+        syn::visit::visit_impl_item_fn(self, node);
+        if is_test {
+            self.in_test_depth -= 1;
+        }
     }
 }
 
@@ -188,6 +245,7 @@ impl LanguageExtractor for RustExtractor {
         let mut visitor = RustVisitor {
             features: ExtractedFeatures::new(path.to_path_buf(), Language::Rust),
             in_const_depth: 0,
+            in_test_depth: 0,
         };
         if let Ok(file) = syn::parse_file(content) {
             visitor.visit_file(&file);
@@ -234,9 +292,31 @@ mod tests {
 
     #[test]
     fn skips_doc_string_literals() {
-        // doc comments don't appear as string literals in the syn AST
-        let f = extract(r#"/// doc comment fn foo() {}"#);
+        // doc comments (`///` / `//!`) lower to `#[doc = "..."]` in syn; visit_attribute skips them
+        let f = extract(
+            r#"//! module doc "/home/alice/ignored"
+/// doc comment with "/Users/alice/foo"
+pub fn foo() {}
+"#,
+        );
         assert_eq!(f.string_literals.len(), 0);
+    }
+
+    #[test]
+    fn tags_cfg_test_literals_as_test_context() {
+        let f = extract(
+            r#"
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn t() {
+        let x = "/home/alice";
+    }
+}
+"#,
+        );
+        assert_eq!(f.string_literals.len(), 1);
+        assert_eq!(f.string_literals[0].ctx, LiteralContext::Test);
     }
 
     #[test]

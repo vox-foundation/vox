@@ -50,6 +50,7 @@ fn parse_origin_from_git_config(content: &str) -> Option<String> {
 }
 
 /// Discover repository context from a directory (typically process CWD or client-provided root).
+#[inline(never)]
 pub fn discover_repository(start: &Path) -> Result<RepositoryContext, RepositoryError> {
     let start_abs = absolutize(start)?;
     let git_root = find_git_work_tree(&start_abs);
@@ -98,6 +99,7 @@ fn bare_context_from_root(root: &Path) -> RepositoryContext {
 }
 
 /// Same as [`discover_repository`], but never fails: falls back to CWD with tracing.
+#[inline(never)]
 pub fn discover_repository_or_fallback(start: &Path) -> RepositoryContext {
     discover_repository(start).unwrap_or_else(|e| {
         tracing::warn!(target: "vox_repository", "discover_repository failed: {e}; falling back to CWD");

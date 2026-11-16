@@ -1263,6 +1263,90 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_gsd_complete_milestone
+  description: Archive and complete a verified GSD milestone cleanly across `.planning/` and VoxDb.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_gsd_discuss_phase
+  description: Record GSD phase design decisions and implementation context (`CONTEXT.md`).
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
+- name: vox_gsd_execute_phase
+  description: Prepare and dispatch wave-ordered GSD phase tasks via the native orchestrator DAG scheduler.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_gsd_get_document
+  description: Fetch a stored GSD document and its CAS-backed UTF-8 content from VoxDb or `.planning/`.
+  product_lane: ai
+  http_read_role_eligible: true
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_gsd_list_documents
+  description: List GSD documents stored under `.planning/` and indexed in VoxDb CAS.
+  product_lane: ai
+  http_read_role_eligible: true
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_gsd_new_milestone
+  description: Initialize a new GSD milestone (`PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `STATE.md`) and sync VoxDb.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_gsd_plan_phase
+  description: Generate or load wave-ordered `PLAN.md` and translate into validated orchestrator `PlanNode` DAG tasks.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
+- name: vox_gsd_progress
+  description: Compute GSD milestone progress, phase states, requirements completion, and recommended next skill.
+  product_lane: ai
+  http_read_role_eligible: true
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_gsd_status
+  description: Return workspace `.planning/` health diagnostics and live GSD snapshot.
+  product_lane: ai
+  http_read_role_eligible: true
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_gsd_store_document
+  description: Write a `.planning/` GSD markdown/JSON document and persist its Arca CAS hash in VoxDb.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_gsd_verify_work
+  description: Record verification evidence (`VERIFICATION.md`) and update phase completion in VoxDb.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
+- name: vox_guest_share_list
+  description: List guest share invites and pending moderation submissions, optionally filtered by thread.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_guest_share_mint
   description: Mint a signed guest share invite for a chat thread.
   product_lane: ai
@@ -2967,6 +3051,34 @@ tools:
   side_effect_class: read_only
   requires:
   - agent_fleet
+- name: vox_terminal_exec
+  description: Execute a shell command inside a stateful Axis PTY terminal session with AST/tier governance and bounded stall detection.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: spawns_process
+  requires: []
+- name: vox_terminal_read
+  description: Read scrubbed terminal blocks, incremental output, or line slices from a stateful Axis PTY terminal session.
+  product_lane: ai
+  http_read_role_eligible: true
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_terminal_send_input
+  description: Send non-secret stdin text to an interactive terminal block awaiting input, failing closed on credential prompts.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: spawns_process
+  requires: []
+- name: vox_terminal_sessions
+  description: List active Axis PTY terminal sessions with scrubbed working directory, security tier, and control mode metadata.
+  product_lane: ai
+  http_read_role_eligible: true
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_test_all
   description: Run cargo test for the entire workspace.
   product_lane: app

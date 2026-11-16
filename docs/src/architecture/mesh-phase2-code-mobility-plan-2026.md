@@ -36,7 +36,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. The
 - Auto-derived `activity_id` — Phase 1 stamps each activity call site with a stable id so the journal can replay it; we re-use that ID as the cache key in P2-T5.
 - `@remote` — Phase 1 attribute that marks a workflow eligible for mesh dispatch; the orchestrator already routes such calls through `crates/vox-orchestrator/src/a2a/dispatch/mesh.rs`.
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
+**Working directory.** Worktree at `.claude/worktrees/zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
 
 **Vox project rules honored.**
 

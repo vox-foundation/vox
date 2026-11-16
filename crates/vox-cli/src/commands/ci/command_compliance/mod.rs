@@ -119,6 +119,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     check_mcp_tool_wiring(repo_root, &mcp_mod, &mcp_dispatch, &mcp_tool_aliases)?;
     check_capability_registry(repo_root, &reg, &mcp_registry_raw)?;
     crate::commands::ci::operations_catalog::verify(repo_root)?;
+    super::cli_synonyms::run(repo_root, false)?;
     check_script_duals(&reg, &duals_doc, &scripts_readme)?;
     check_catalog_generation_smoke()?;
     check_command_registry_embed_matches_disk(repo_root)?;

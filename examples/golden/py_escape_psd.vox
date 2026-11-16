@@ -1,0 +1,23 @@
+// ---
+// title: "Tier 2 Python escape hatch (scipy.signal)"
+// description: "Typed escape-hatch call via curated .vox.pyi sidecar for scipy.signal.periodogram."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, import, python, uses]
+// training_eligible: true
+// difficulty: intermediate
+// ---
+
+import py sig from "scipy.signal"
+
+@uses(python)
+fn compute_psd(samples: list[float]) to list[float] {
+    return sig.periodogram(samples)
+}
+
+@uses(python)
+fn main() {
+    let psd = compute_psd([0.0, 1.0, 0.0, -1.0])
+    assert(len(psd) > 0)
+}

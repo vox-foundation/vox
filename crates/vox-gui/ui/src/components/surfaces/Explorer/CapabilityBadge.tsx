@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../../ui/Icons';
 import { cn } from '../../../lib/cn';
 
 export type CapabilityStatus = 'dedicated' | 'generic_form' | 'cli_only' | 'mcp_only';
@@ -9,14 +10,14 @@ export interface CapabilityBadgeProps extends React.HTMLAttributes<HTMLSpanEleme
 
 interface BadgeConfig {
   label: string;
-  glyph: string;
+  glyph: React.ReactNode;
   className: string;
 }
 
 const BADGE_CONFIGS: Record<CapabilityStatus, BadgeConfig> = {
   dedicated: {
     label: 'Dedicated surface',
-    glyph: '✓',
+    glyph: <Icon.check data-icon="check" className="size-3 shrink-0" aria-hidden="true" />,
     className: 'text-(--color-status-pass) ring-(--color-status-pass)/30',
   },
   generic_form: {
@@ -31,7 +32,7 @@ const BADGE_CONFIGS: Record<CapabilityStatus, BadgeConfig> = {
   },
   mcp_only: {
     label: 'MCP-only / orphan',
-    glyph: '◇',
+    glyph: <Icon.crystalGem data-icon="crystalGem" className="size-3 shrink-0" aria-hidden="true" />,
     className: 'text-(--color-status-warn) ring-(--color-status-warn)/30',
   },
 };
@@ -43,9 +44,13 @@ export function CapabilityBadge({ status, className, ...rest }: CapabilityBadgeP
   const config = BADGE_CONFIGS[status];
   return (
     <span className={cn(BASE_RECIPE, config.className, className)} {...rest}>
-      <span className="font-display font-bold" aria-hidden="true">
-        {config.glyph}
-      </span>
+      {typeof config.glyph === 'string' ? (
+        <span className="font-display font-bold" aria-hidden="true">
+          {config.glyph}
+        </span>
+      ) : (
+        config.glyph
+      )}
       <span>{config.label}</span>
     </span>
   );

@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "milestone": "v7.1",
+  "title": "Public Release Readiness, Zero-Red Gate Convergence & Codebase Hygiene Scorecard",
+  "generated_at": "2026-11-13T18:27:00Z",
+  "workspace_version": "0.6.0",
+  "phases_completed": 6,
+  "phases_total": 6,
+  "requirements_completed": 24,
+  "requirements_total": 24,
+  "gates": {
+    "vox_ci_pre_push": {
+      "command": "./target/debug/vox ci pre-push",
+      "exit_code": 0,
+      "duration_ms": 22186,
+      "summary": "profile `fast` — all checks passed (rustfmt scoped, line-endings, ssot-drift, doc-lint, drift-check)"
+    },
+    "vox_doc_pipeline_lint": {
+      "command": "./target/debug/vox-doc-pipeline --lint-only",
+      "exit_code": 0,
+      "summary": "vox-doc-pipeline lint complete — no hard errors"
+    },
+    "vox_arch_check": {
+      "command": "./target/debug/vox-arch-check",
+      "exit_code": 0,
+      "errors": 0,
+      "summary": "0 architecture layer or budget violations"
+    },
+    "vox_ci_fan_in_budget": {
+      "command": "./target/debug/vox ci fan-in-budget",
+      "exit_code": 0,
+      "summary": "14/14 tracked crates within snapshot; no regressions"
+    },
+    "vox_ci_secret_env_guard": {
+      "command": "./target/debug/vox ci secret-env-guard",
+      "exit_code": 0,
+      "summary": "secret-env-guard OK"
+    },
+    "vox_ci_crate_edges": {
+      "command": "./target/debug/vox ci crate-edges",
+      "exit_code": 0,
+      "live_edges": 699,
+      "summary": "crate-edges: OK (699 live in-tree edges within baseline)"
+    },
+    "vox_ci_ssot_drift": {
+      "command": "./target/debug/vox ci ssot-drift",
+      "exit_code": 0,
+      "summary": "ssot-drift: nested SSOT guards OK (131 crates API sync, 209 contracts, 0 digest drift)"
+    },
+    "vox_ci_cross_repo_parity": {
+      "command": "./target/debug/vox ci cross-repo-parity",
+      "exit_code": 0,
+      "present_repositories": 4,
+      "shared_contracts_verified": 56,
+      "summary": "cross-repo-parity OK (4/4 present repositories, 56 shared contract file(s) verified)"
+    },
+    "vox_ci_federated_symbol_graph": {
+      "command": "./target/debug/vox ci federated-symbol-graph",
+      "exit_code": 0,
+      "nodes": 404,
+      "cross_repo_edges": 8,
+      "summary": "federated-symbol-graph OK (vox, vox-ops, vox-axis, voxlang.org)"
+    },
+    "vox_ci_ignored_test_age": {
+      "command": "./target/debug/vox ci ignored-test-age --mode enforce",
+      "exit_code": 0,
+      "ignored_tests_scanned": 101,
+      "violations": 0,
+      "summary": "101 ignored test(s) scanned; 0 governance violation(s)"
+    },
+    "vox_drift_check": {
+      "command": "./target/debug/vox-drift-check . --severity warning",
+      "exit_code": 0,
+      "errors": 0,
+      "warnings": 0,
+      "summary": "No drift findings at Warning level or above (down from 37/41)"
+    },
+    "toestub_workspace_drift": {
+      "command": "./target/debug/toestub crates --min-severity error --rules arch/workspace_drift",
+      "exit_code": 0,
+      "errors": 0,
+      "summary": "0 arch/workspace_drift errors across 117 workspace crates (down from 544+)"
+    },
+    "toestub_non_god_object_errors": {
+      "command": "./target/debug/toestub crates --min-severity error",
+      "total_error_findings": 277,
+      "god_object_findings": 277,
+      "non_god_object_errors": 0,
+      "summary": "0 non-god_object toestub errors across 117 workspace crates"
+    },
+    "standalone_crates_distribution_parity": {
+      "command": "cargo test --locked -p voxup",
+      "exit_code": 0,
+      "public_crates_count": 33,
+      "tests_passed": 111,
+      "summary": "33/33 crates/_public.toml packages verified offline against profiles.v1.yaml"
+    }
+  },
+  "hygiene_metrics": {
+    "open_windows_count": 0,
+    "closed_windows_count": 2,
+    "root_stray_files_remaining": 0,
+    "deleted_crate_refs_in_root_docs": 0,
+    "forbidden_last_updated_frontmatter_in_root_docs": 0,
+    "unit_tests_verified_in_milestone": {
+      "vox_code_audit_lib": 486,
+      "vox_drift_check_lib": 73,
+      "voxup_all": 111,
+      "vox_populi_spoke_base_no_features": 29,
+      "vox_populi_training_presets_yaml_contract": 4,
+      "vox_ml_cli_reasoning_compare_default_features": 11,
+      "vox_ml_cli_cwd_regression": 12,
+      "vox_repository_federation": 8,
+      "vox_test_harness_lib": 15,
+      "vox_python_bridge_lib": 13,
+      "vox_actor_runtime_feedback": 1
+    }
+  }
+}

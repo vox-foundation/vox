@@ -2,10 +2,12 @@
 
 pub mod capability_index;
 mod capability_sync;
+pub mod cli_synonyms;
 mod command_compliance;
 pub mod command_sync;
 pub(crate) mod docs_cli_claims;
 pub(crate) mod docs_orphan_pages;
+pub(crate) mod docs_system_parity;
 mod eval_matrix;
 mod exec_policy_contract;
 mod gui_catalog_parity;

@@ -80,9 +80,13 @@ pub struct ChatTurnInput {
     #[serde(default)]
     pub research_scope: Option<String>,
     #[serde(default)]
+    pub research_mode: Option<String>,
+    #[serde(default)]
     pub domain_mode: Option<String>,
     #[serde(default)]
     pub site_scope: Option<String>,
+    #[serde(default)]
+    pub waves: Option<usize>,
     /// End-to-end ChatHop / telemetry correlation (UUID). GUI mints once per send.
     #[serde(default)]
     pub trace_id: Option<String>,
@@ -238,6 +242,7 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
     }
     for (key, val) in [
         ("research_scope", non_blank(&input.research_scope)),
+        ("research_mode", non_blank(&input.research_mode)),
         ("domain_mode", non_blank(&input.domain_mode)),
         ("site_scope", non_blank(&input.site_scope)),
         ("trace_id", non_blank(&input.trace_id)),
@@ -246,6 +251,9 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
         if let Some(v) = val {
             obj.insert(key.into(), serde_json::json!(v));
         }
+    }
+    if let Some(v) = input.waves {
+        obj.insert("waves".into(), serde_json::json!(v));
     }
     args
 }
@@ -726,6 +734,28 @@ mod tests {
     }
 
     #[test]
+    fn test_sync_tool_args_forwards_research_mode_and_waves_orthogonally() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s-chat-continuum",
+            "content": "Compare CRAG and GraphRAG prior art",
+            "research_mode": "deep",
+            "research_scope": "both",
+            "domain_mode": "scholarly",
+            "site_scope": "arxiv.org",
+            "waves": 4
+        }))
+        .expect("deserialize");
+
+        let args = sync_tool_args(&input);
+        assert_eq!(args["research_mode"], "deep");
+        assert_eq!(args["research_scope"], "both");
+        assert_eq!(args["domain_mode"], "scholarly");
+        assert_eq!(args["site_scope"], "arxiv.org");
+        assert_eq!(args["waves"], 4);
+        assert!(args.get("force_research").is_none());
+    }
+
+    #[test]
     fn plan_tool_args_includes_model_override_when_present() {
         let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
             "session_id": "s-plan-1",
@@ -865,8 +895,10 @@ mod tests {
                             kb_scope: Some(kb_scope.into()),
                             force_research: Some(true),
                             research_scope: Some("both".into()),
+                            research_mode: Some("deep".into()),
                             domain_mode: Some("codegen".into()),
                             site_scope: Some("docs.rs".into()),
+                            waves: Some(3),
                             trace_id: Some(format!("trace-{tested}")),
                             turn_id: Some(format!("turn-{tested}")),
                         };
@@ -881,6 +913,8 @@ mod tests {
                         assert_eq!(sync_args["priority"], priority);
                         assert_eq!(sync_args["dry_run"], dry_run);
                         assert_eq!(sync_args["grounding_check_enabled"], grounding);
+                        assert_eq!(sync_args["research_mode"], "deep");
+                        assert_eq!(sync_args["waves"], 3);
 
                         let bg = background_input(&input);
                         assert_eq!(bg.tier.as_deref(), Some(tier));

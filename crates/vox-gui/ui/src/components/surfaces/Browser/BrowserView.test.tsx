@@ -5,7 +5,8 @@ import { LanguageProvider } from '../../../hooks/useLanguage';
 import { __resetBackendAvailabilityForTests } from '../../../lib/backendGuard';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
-vi.mock('../../../transport', () => ({
+vi.mock('../../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../transport')>()),
   listenAgentEvents: () => Promise.resolve(() => {}),
   listenBrowserFrames: () => Promise.resolve(() => {}),
   listenPreviewAvailable: () => Promise.resolve(() => {}),

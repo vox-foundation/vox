@@ -59,6 +59,12 @@ pub struct CheckpointState {
     pub wall_seconds_elapsed: f64,
     /// RFC 3339 UTC timestamp when this checkpoint was saved.
     pub saved_at_utc: String,
+    /// Cumulative training tokens processed across all resumed segments of this run.
+    #[serde(default)]
+    pub total_tokens: usize,
+    /// Cumulative micro-steps executed across all resumed segments of this run.
+    #[serde(default)]
+    pub micro_steps_executed: u32,
 }
 
 impl CheckpointState {
@@ -174,6 +180,8 @@ mod tests {
             last_loss: 1.25,
             wall_seconds_elapsed: 120.5,
             saved_at_utc: CheckpointState::now_utc(),
+            total_tokens: 0,
+            micro_steps_executed: 0,
         };
         state.save(&dir).unwrap();
         let loaded = CheckpointState::load(&dir).expect("should load back");
@@ -223,6 +231,8 @@ mod tests {
             last_loss: 0.0,
             wall_seconds_elapsed: 0.0,
             saved_at_utc: String::new(),
+            total_tokens: 0,
+            micro_steps_executed: 0,
         };
         let path = CheckpointState::path_in(&dir);
         std::fs::write(&path, serde_json::to_string(&state).unwrap()).unwrap();

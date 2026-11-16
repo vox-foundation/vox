@@ -43,6 +43,12 @@ pub struct AdapterCard {
     /// What `training_syntax_fingerprint` is: `"ebnf-sha256"` until the Phase 13 behavioral fingerprint.
     #[serde(default)]
     pub syntax_fingerprint_kind: String,
+    /// Training lane identifiers consumed by this run (for spoke derivation).
+    #[serde(default)]
+    pub train_lanes: Vec<String>,
+    /// Explicit spoke names associated with this adapter (e.g. `["vox-lang"]`).
+    #[serde(default)]
+    pub spokes: Vec<String>,
 }
 
 /// Lowercase-hex SHA-256/BLAKE3-sized digest check (64 chars, no uppercase).
@@ -290,6 +296,8 @@ impl AdapterCard {
             training_manifest_digest: String::new(),
             training_syntax_fingerprint: String::new(),
             syntax_fingerprint_kind: String::new(),
+            train_lanes: Vec::new(),
+            spokes: Vec::new(),
         }
     }
 }

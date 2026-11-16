@@ -195,6 +195,11 @@ vox-similarity            = { path = "crates/vox-similarity", version = "0.6.0" 
 vox-skill-discovery       = { path = "crates/vox-skill-discovery" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
 vox-tauri-stt             = { path = "crates/vox-tauri-stt" }
+vox-term                  = { path = "crates/vox-term" }
+vox-terminal-core         = { path = "crates/vox-terminal-core" }
+vox-runtime               = { path = "crates/vox-runtime" }
+vox-journal               = { path = "crates/vox-journal" }
+vox-plugin-mens-candle-core = { path = "crates/vox-plugin-mens-candle-core" }
 
 
 
@@ -426,6 +431,15 @@ rand_distr         = "0.4"
 rand09             = { package = "rand", version = "0.9", features = ["small_rng"] }
 # Nanopublications: build, RSA-sign, and offline-validate signed RDF/TriG nanopubs (MIT licensed)
 nanopub            = "0.2"
+askama             = { version = "0.12", default-features = false, features = ["config"] }
+objc2-metal        = { version = "0.3.2", default-features = false }
+rcgen              = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+rusqlite           = { version = "0.32", default-features = false, features = ["bundled"] }
+sqlx               = { version = "0.9.0", default-features = false }
+tauri-build        = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+uniffi             = "0.28"
 
 
 [patch.crates-io]
@@ -437,6 +451,8 @@ peft-rs = { path = "patches/peft-rs-1.0.3" }
 aegis = { path = "patches/aegis-0.9.8" }
 # Vox: fix rank>4 strided reduce indexing on Metal (broke GQA K/V grads in QLoRA training).
 candle-metal-kernels = { path = "patches/candle-metal-kernels-0.10.2" }
+# Vox: bound Metal private_buffers pool, enforce exact bucket reuse, skip untracked frozen-weight grads, and add with_no_grad.
+candle-core = { path = "patches/candle-core-0.10.2" }
 
 [profile.release]
 lto = "thin"

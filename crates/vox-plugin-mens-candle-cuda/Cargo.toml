@@ -17,7 +17,7 @@ vox-tensor = { workspace = true }
 vox-secrets = { workspace = true }
 vox-eval = { workspace = true }
 vox-compiler = { workspace = true }
-vox-plugin-mens-candle-core = { path = "../vox-plugin-mens-candle-core" }
+vox-plugin-mens-candle-core = { workspace = true }
 abi_stable = { workspace = true }
 candle-core = { workspace = true }
 candle-nn = { workspace = true }

@@ -2800,6 +2800,24 @@ curated:
   - ci
   - ci-changes
   parameters: null
+- id: cli.ci.cli-synonyms
+  title: Ci Cli-synonyms
+  description_human: null
+  description_model: CLI operation `vox ci cli-synonyms`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - cli-synonyms
+  parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
   description_human: null
@@ -14943,6 +14961,24 @@ curated:
   cli_path:
   - plan
   parameters: null
+- id: cli.plan.complete-milestone
+  title: GSD Complete Milestone
+  description_human: Archive and complete a verified GSD milestone cleanly across `.planning/` and VoxDb.
+  description_model: null
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - complete-milestone
+  parameters: null
 - id: cli.plan.create
   title: Plan Create
   description_human: null
@@ -14960,6 +14996,132 @@ curated:
   cli_path:
   - plan
   - create
+  parameters: null
+- id: cli.plan.discuss-phase
+  title: GSD Discuss Phase
+  description_human: Record GSD phase design decisions and implementation context (`CONTEXT.md`).
+  description_model: null
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - discuss-phase
+  parameters: null
+- id: cli.plan.docs
+  title: GSD List Documents
+  description_human: List GSD documents stored under `.planning/` and indexed in VoxDb CAS.
+  description_model: null
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - docs
+  parameters: null
+- id: cli.plan.execute-phase
+  title: GSD Execute Phase
+  description_human: Prepare and dispatch wave-ordered GSD phase tasks via the native orchestrator DAG scheduler.
+  description_model: null
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - execute-phase
+  parameters: null
+- id: cli.plan.health
+  title: Plan Health
+  description_human: null
+  description_model: CLI operation `vox plan health`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - plan
+  - health
+  parameters: null
+- id: cli.plan.new-milestone
+  title: GSD New Milestone
+  description_human: Initialize a new GSD milestone (`PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `STATE.md`) and sync VoxDb.
+  description_model: null
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - new-milestone
+  parameters: null
+- id: cli.plan.plan-phase
+  title: GSD Plan Phase
+  description_human: Generate or load wave-ordered `PLAN.md` and translate into validated orchestrator `PlanNode` DAG tasks.
+  description_model: null
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - plan-phase
+  parameters: null
+- id: cli.plan.progress
+  title: GSD Progress
+  description_human: Compute GSD milestone progress, phase states, requirements completion, and recommended next skill.
+  description_model: null
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - progress
   parameters: null
 - id: cli.plan.replan
   title: Plan Replan
@@ -14996,6 +15158,24 @@ curated:
   cli_path:
   - plan
   - status
+  parameters: null
+- id: cli.plan.verify-work
+  title: GSD Verify Work
+  description_human: Record verification evidence (`VERIFICATION.md`) and update phase completion in VoxDb.
+  description_model: null
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: null
+  cli_path:
+  - plan
+  - verify-work
   parameters: null
 - id: cli.play
   title: Play
@@ -15586,6 +15766,24 @@ curated:
   mcp_tool: null
   cli_path:
   - py
+  parameters: null
+- id: cli.py.bind
+  title: Py Bind
+  description_human: null
+  description_model: CLI operation `vox py bind`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  - bind
   parameters: null
 - id: cli.py.doctor
   title: Py Doctor
@@ -17863,6 +18061,24 @@ curated:
   cli_path:
   - scientia
   - scout
+  parameters: null
+- id: cli.scientia.v76-audit
+  title: Scientia V76-audit
+  description_human: null
+  description_model: CLI operation `vox scientia v76-audit`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - scientia
+  - v76-audit
   parameters: null
 - id: cli.script
   title: Script
@@ -21644,6 +21860,198 @@ curated:
   mcp_tool: vox_git_status
   cli_path: null
   parameters: null
+- id: mcp.vox_gsd_complete_milestone
+  title: GSD Complete Milestone
+  description_human: null
+  description_model: Archive and complete a verified GSD milestone cleanly across `.planning/` and VoxDb.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_complete_milestone
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_discuss_phase
+  title: GSD Discuss Phase
+  description_human: null
+  description_model: Record GSD phase design decisions and implementation context (`CONTEXT.md`).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_discuss_phase
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_execute_phase
+  title: GSD Execute Phase
+  description_human: null
+  description_model: Prepare and dispatch wave-ordered GSD phase tasks via the native orchestrator DAG scheduler.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_execute_phase
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_get_document
+  title: GSD Get Document
+  description_human: null
+  description_model: Fetch a stored GSD document and its CAS-backed UTF-8 content from VoxDb or `.planning/`.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_get_document
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_list_documents
+  title: GSD List Documents
+  description_human: null
+  description_model: List GSD documents stored under `.planning/` and indexed in VoxDb CAS.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_list_documents
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_new_milestone
+  title: GSD New Milestone
+  description_human: null
+  description_model: Initialize a new GSD milestone (`PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `STATE.md`) and sync VoxDb.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_new_milestone
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_plan_phase
+  title: GSD Plan Phase
+  description_human: null
+  description_model: Generate or load wave-ordered `PLAN.md` and translate into validated orchestrator `PlanNode` DAG tasks.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_plan_phase
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_progress
+  title: GSD Progress
+  description_human: null
+  description_model: Compute GSD milestone progress, phase states, requirements completion, and recommended next skill.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_progress
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_status
+  title: GSD Status
+  description_human: null
+  description_model: Return workspace `.planning/` health diagnostics and live GSD snapshot.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_store_document
+  title: GSD Store Document
+  description_human: null
+  description_model: Write a `.planning/` GSD markdown/JSON document and persist its Arca CAS hash in VoxDb.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_store_document
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gsd_verify_work
+  title: GSD Verify Work
+  description_human: null
+  description_model: Record verification evidence (`VERIFICATION.md`) and update phase completion in VoxDb.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: null
+  mens_planner_visible: true
+  mcp_tool: vox_gsd_verify_work
+  cli_path: null
+  parameters: null
+- id: mcp.vox_guest_share_list
+  title: Guest Share List
+  description_human: null
+  description_model: List guest share invites and pending moderation submissions, optionally filtered by thread.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_guest_share_list
+  cli_path: null
+  parameters: null
 - id: mcp.vox_guest_share_mint
   title: Guest Share Mint
   description_human: null
@@ -25241,6 +25649,70 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_task_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_terminal_exec
+  title: Terminal Exec
+  description_human: null
+  description_model: Execute a shell command inside a stateful Axis PTY terminal session with AST/tier governance and bounded stall detection.
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: true
+  mcp_tool: vox_terminal_exec
+  cli_path: null
+  parameters: null
+- id: mcp.vox_terminal_read
+  title: Terminal Read
+  description_human: null
+  description_model: Read scrubbed terminal blocks, incremental output, or line slices from a stateful Axis PTY terminal session.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: true
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: true
+  mcp_tool: vox_terminal_read
+  cli_path: null
+  parameters: null
+- id: mcp.vox_terminal_send_input
+  title: Terminal Send Input
+  description_human: null
+  description_model: Send non-secret stdin text to an interactive terminal block awaiting input, failing closed on credential prompts.
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: true
+  mcp_tool: vox_terminal_send_input
+  cli_path: null
+  parameters: null
+- id: mcp.vox_terminal_sessions
+  title: Terminal Sessions
+  description_human: null
+  description_model: List active Axis PTY terminal sessions with scrubbed working directory, security tier, and control mode metadata.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: true
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: true
+  mcp_tool: vox_terminal_sessions
   cli_path: null
   parameters: null
 - id: mcp.vox_test_all

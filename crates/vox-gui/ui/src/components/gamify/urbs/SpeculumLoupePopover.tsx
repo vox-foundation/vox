@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../../ui/Icons';
 import type {
   CompilerDiagnosticSpanDto,
   FileDiffAndDiagnosticsDto,
@@ -83,7 +84,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            🔍 SPECVLVM CODICIS
+            SPECVLVM CODICIS
           </span>
           {districtLabel && (
             <span
@@ -136,6 +137,9 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             onClick={onClose}
             aria-label="Close Speculum Loupe"
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               background: 'var(--color-bg-elevated)',
               border: '1px solid var(--color-border-subtle)',
               color: 'var(--color-text-primary)',
@@ -147,7 +151,7 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
               lineHeight: 1,
             }}
           >
-            ×
+            <Icon.close className="size-3 shrink-0" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -276,6 +280,10 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
           disabled={busyAction !== null}
           onClick={() => onStageFile(diffData.file_path)}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
             flex: 1,
             padding: '5px 8px',
             fontSize: 10.5,
@@ -288,7 +296,8 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          ✓ Stage File
+          <Icon.check className="size-3 shrink-0" aria-hidden="true" />
+          <span>Stage File</span>
         </button>
         <button
           type="button"
@@ -296,6 +305,10 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
           disabled={busyAction !== null}
           onClick={() => onRevertFile(diffData.file_path)}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
             flex: 1,
             padding: '5px 8px',
             fontSize: 10.5,
@@ -308,7 +321,8 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          ↺ Revert File
+          <Icon.rotateCcw className="size-3 shrink-0" aria-hidden="true" />
+          <span>Revert File</span>
         </button>
         <button
           type="button"
@@ -318,6 +332,10 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             onDispatchFix(diffData.file_path, primaryDiag, diffData.unified_diff)
           }
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
             flex: 1.2,
             padding: '5px 8px',
             fontSize: 10.5,
@@ -330,7 +348,8 @@ export const SpeculumLoupePopover: React.FC<SpeculumLoupePopoverProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          ⚒ Fix Exact Error
+          <Icon.anvilForge className="size-3 shrink-0" aria-hidden="true" />
+          <span>Fix Exact Error</span>
         </button>
       </div>
     </div>

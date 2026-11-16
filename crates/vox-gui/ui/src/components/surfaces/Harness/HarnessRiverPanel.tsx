@@ -7,6 +7,8 @@ import {
   type ControlState,
 } from '../../../lib/driveConsole';
 import { SHELL_PREFERENCE_KEYS } from '../../../lib/shellPersistence';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { compactChatUpTo, voxTransport } from '../../../transport';
 import type { RailRouting } from '../../../lib/routingSummary';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { ChatExecutionTask } from '../Chat/ChatExecutionRail';
@@ -19,7 +21,35 @@ import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { EmbeddedSurfaceProvider } from '../../dashboard/EmbeddedSurfaceContext';
 import type { HarnessTierId } from './riverTypes';
 import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
+import { VoxSelect } from '../../ui/Select';
 import { Icon } from '../../ui/Icons';
+import { DiegeticFxStage } from '../../fx/DiegeticFxStage';
+
+type RiverTimeWindow = '15m' | '1h' | '24h' | 'session';
+
+const TIME_WINDOW_MS: Record<Exclude<RiverTimeWindow, 'session'>, number> = {
+  '15m': 15 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+};
+
+const VALID_TIME_WINDOWS = new Set<RiverTimeWindow>(['15m', '1h', '24h', 'session']);
+
+const DEFAULT_SLUICE_GATES: Record<string, boolean> = {
+  ast: true,
+  typeck: true,
+  toestub: true,
+  tests: true,
+};
+
+const QUICK_JUMP_SURFACE_MAP: Record<string, string> = {
+  operations: 'tasks',
+  tasks: 'tasks',
+  mens: 'mens',
+  models: 'models',
+  approvals: 'approvals',
+  'harness-health': 'harness-health',
+};
 
 function readStoredModelOverride(): string | null {
   try {
@@ -63,30 +93,117 @@ export function HarnessRiverPanel({
     () => getLatestModelOverride() ?? readStoredModelOverride(),
   );
   const [viewMode, setViewMode] = useState<'river' | 'urbs' | 'split'>('river');
-  const [timeWindow, setTimeWindow] = useState<'15m' | '1h' | '24h' | 'session'>('session');
+  const [timeWindow, setTimeWindow] = useState<RiverTimeWindow>('session');
   const [interceptorArmed, setInterceptorArmed] = useState(true);
-  const [sluiceGates, setSluiceGates] = useState<Record<string, boolean>>({
-    ast: true,
-    typeck: true,
-    toestub: true,
-    tests: true,
-  });
+  const [sluiceGates, setSluiceGates] = useState<Record<string, boolean>>(() => ({
+    ...DEFAULT_SLUICE_GATES,
+  }));
   const [aqueductReceipt, setAqueductReceipt] = useState<string | null>(null);
   const [aqueductYieldXp, setAqueductYieldXp] = useState<number>(250);
 
   useEffect(() => subscribeControlState(setBusControl), []);
   useEffect(() => subscribeModelOverride(setBusModelOverride), []);
 
+  useEffect(() => {
+    let active = true;
+    if (typeof voxTransport.getGuiPreference !== 'function') return;
+    void voxTransport
+      .getGuiPreference('vox.harness.time_window.v1')
+      .then((raw) => {
+        if (active && raw && VALID_TIME_WINDOWS.has(raw as RiverTimeWindow)) {
+          setTimeWindow(raw as RiverTimeWindow);
+        }
+      })
+      .catch(() => {});
+    void voxTransport
+      .getGuiPreference('vox.harness.interceptor_armed.v1')
+      .then((raw) => {
+        if (!active || !raw) return;
+        try {
+          const parsed: unknown = JSON.parse(raw);
+          if (typeof parsed === 'boolean') setInterceptorArmed(parsed);
+        } catch {
+          // ignore malformed preference
+        }
+      })
+      .catch(() => {});
+    void voxTransport
+      .getGuiPreference('vox.harness.sluice_gates.v1')
+      .then((raw) => {
+        if (!active || !raw) return;
+        try {
+          const parsed: unknown = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            const next: Record<string, boolean> = { ...DEFAULT_SLUICE_GATES };
+            for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+              if (typeof v === 'boolean') next[k] = v;
+            }
+            setSluiceGates(next);
+          }
+        } catch {
+          // ignore malformed preference
+        }
+      })
+      .catch(() => {});
+    void voxTransport
+      .getGuiPreference('vox.harness.claimed_yield_xp.v1')
+      .then((raw) => {
+        if (!active || !raw) return;
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed) && parsed >= 0) setAqueductYieldXp(parsed);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const effectiveControl = control ?? busControl;
   const effectiveModelOverride =
     chatModelOverride !== undefined ? chatModelOverride : (busModelOverride ?? readStoredModelOverride());
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  const { filteredTasks, filteredMessages } = useMemo(() => {
+    if (timeWindow === 'session') {
+      return { filteredTasks: tasks, filteredMessages: messages };
+    }
+    const cutoffMs = Date.now() - TIME_WINDOW_MS[timeWindow];
+    const nextTasks = tasks.filter((t) => {
+      const tsCandidate = t as ChatExecutionTask & {
+        updatedAtMs?: number;
+        createdAtMs?: number;
+        timestamp_ms?: number;
+      };
+      const ts = tsCandidate.updatedAtMs ?? tsCandidate.createdAtMs ?? tsCandidate.timestamp_ms;
+      if (typeof ts === 'number') return ts >= cutoffMs;
+      return t.status === 'in_progress' || t.status === 'running' || t.status === 'queued';
+    });
+    const nextMessages = messages
+      .filter((m) =>
+        typeof m.createdAtMs === 'number'
+          ? m.createdAtMs >= cutoffMs
+          : m.status === 'streaming' || m.status === 'pending',
+      )
+      .map((m) => {
+        if (!m.events || m.events.length === 0) return m;
+        return {
+          ...m,
+          events: m.events.filter((ev) => {
+            const evTs =
+              (ev as { timestamp_ms?: number; ts_ms?: number }).timestamp_ms ??
+              (ev as { ts_ms?: number }).ts_ms;
+            return typeof evTs === 'number' ? evTs >= cutoffMs : true;
+          }),
+        };
+      });
+    return { filteredTasks: nextTasks, filteredMessages: nextMessages };
+  }, [tasks, messages, timeWindow]);
+
   const snapshot = useMemo(
     () =>
       deriveRiverSnapshot({
-        tasks,
-        messages,
+        tasks: filteredTasks,
+        messages: filteredMessages,
         sessionSpentUsd,
         clutch: effectiveControl.clutch,
         risk: effectiveControl.risk,
@@ -94,8 +211,8 @@ export function HarnessRiverPanel({
         routing,
       }),
     [
-      tasks,
-      messages,
+      filteredTasks,
+      filteredMessages,
       sessionSpentUsd,
       effectiveControl.clutch,
       effectiveControl.risk,
@@ -193,9 +310,94 @@ export function HarnessRiverPanel({
   };
 
   const handleJump = (target: string) => {
+    const resolved = QUICK_JUMP_SURFACE_MAP[target] ?? target;
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('vox-surface-navigate', { detail: { surface: target } }));
+      window.dispatchEvent(new CustomEvent('vox-surface-navigate', { detail: { surface: resolved } }));
     }
+  };
+
+  const handleTimeWindowChange = (next: RiverTimeWindow) => {
+    const prev = timeWindow;
+    setTimeWindow(next);
+    void voxTransport
+      .setGuiPreference('vox.harness.time_window.v1', next)
+      .then(() => {
+        setAqueductReceipt(`Time window filtered to ${next}`);
+      })
+      .catch((err: unknown) => {
+        setTimeWindow(prev);
+        setAqueductReceipt(`Time window update failed: ${sanitizeErrorForToast(err)}`);
+      });
+  };
+
+  const handleToggleInterceptor = () => {
+    const prev = interceptorArmed;
+    const next = !prev;
+    setInterceptorArmed(next);
+    void voxTransport
+      .setGuiPreference('vox.harness.interceptor_armed.v1', JSON.stringify(next))
+      .then(() => {
+        setAqueductReceipt(
+          next ? 'Verification Gate armed (Zero-Cascade)' : 'Verification Gate set to standby',
+        );
+      })
+      .catch((err: unknown) => {
+        setInterceptorArmed(prev);
+        setAqueductReceipt(`Verification Gate update failed: ${sanitizeErrorForToast(err)}`);
+      });
+  };
+
+  const persistSluiceGates = (
+    prevGates: Record<string, boolean>,
+    nextGates: Record<string, boolean>,
+    successMsg: string,
+  ) => {
+    setSluiceGates(nextGates);
+    void voxTransport
+      .setGuiPreference('vox.harness.sluice_gates.v1', JSON.stringify(nextGates))
+      .then(() => {
+        setAqueductReceipt(successMsg);
+      })
+      .catch((err: unknown) => {
+        setSluiceGates(prevGates);
+        setAqueductReceipt(`Sluice gate update failed: ${sanitizeErrorForToast(err)}`);
+      });
+  };
+
+  const handleCompactContext = () => {
+    setAqueductReceipt('Compacting context reservoir…');
+    void compactChatUpTo({ sessionId: 'default', direction: 'up_to' })
+      .then((res) => {
+        setAqueductReceipt(
+          `Compacted Context Reservoir (${res.session_id} · turn #${res.compact_message_index})`,
+        );
+      })
+      .catch((err: unknown) => {
+        setAqueductReceipt(`Compact Context failed: ${sanitizeErrorForToast(err)}`);
+      });
+  };
+
+  const handleClaimYield = () => {
+    const prevXp = aqueductYieldXp;
+    const nextTotal = prevXp + 250;
+    setAqueductYieldXp(nextTotal);
+    const gamifyCall =
+      typeof voxTransport.recordGuiEvent === 'function'
+        ? voxTransport.recordGuiEvent('aqueduct_yield_claimed', { xpDelta: prevXp })
+        : Promise.resolve({ xpGranted: 250, lumensGranted: 18 });
+    void Promise.all([
+      gamifyCall,
+      voxTransport.setGuiPreference('vox.harness.claimed_yield_xp.v1', String(nextTotal)),
+    ])
+      .then(([res]) => {
+        const xp = res?.xpGranted && res.xpGranted > 0 ? res.xpGranted : 250;
+        const lum = res?.lumensGranted && res.lumensGranted > 0 ? res.lumensGranted : 18;
+        setAqueductReceipt(`Claimed +${xp} XP · +${lum} Denarii from verified Aqueduct cascade`);
+      })
+      .catch((err: unknown) => {
+        setAqueductYieldXp(prevXp);
+        setAqueductReceipt(`Claim Yield failed: ${sanitizeErrorForToast(err)}`);
+      });
   };
 
   return (
@@ -234,33 +436,55 @@ export function HarnessRiverPanel({
 
           <div className="flex flex-wrap items-center gap-1.5">
             {/* Quick-Jump Actions */}
-            <RomanTooltip
-              title="Operations Hub"
-              purpose="Jump to the system operations hub to monitor daemons, process threads, and MCP adapters."
-              actionHint="Open Operations Hub"
-            >
-              <button
-                type="button"
-                onClick={() => handleJump('operations')}
-                className="flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-bg-elevated px-2 py-1 font-mono text-[10px] font-semibold text-text-primary hover:border-[#D4AF37] transition"
+            {[
+              {
+                key: 'tasks',
+                label: 'Operations Hub',
+                purpose: 'Jump to the tasks operations queue to monitor active turns, hopper jobs, and agents.',
+                hint: 'Open Tasks Queue',
+              },
+              {
+                key: 'mens',
+                label: 'MENS Studio',
+                purpose: 'Jump to MENS Studio to inspect five-spoke datasets, adapter checkpoints, and benchmark rankings.',
+                hint: 'Open MENS Studio',
+              },
+              {
+                key: 'models',
+                label: 'Models',
+                purpose: 'Jump to Models to inspect provider routing, context windows, and benchmark leaderboards.',
+                hint: 'Open Models',
+              },
+              {
+                key: 'approvals',
+                label: 'Approvals',
+                purpose: 'Jump to Approvals to review pending human-in-the-loop tool gates and permissions.',
+                hint: 'Open Approvals',
+              },
+              {
+                key: 'harness-health',
+                label: 'Harness Health',
+                purpose: 'Jump to Harness Health to inspect live evaluation runs and regression flags.',
+                hint: 'Open Harness Health',
+              },
+            ].map((item) => (
+              <RomanTooltip
+                key={item.key}
+                title={item.label}
+                purpose={item.purpose}
+                actionHint={item.hint}
               >
-                <span>Operations Hub ↗</span>
-              </button>
-            </RomanTooltip>
-
-            <RomanTooltip
-              title="MENS Studio"
-              purpose="Jump to MENS Studio to inspect five-spoke datasets, adapter checkpoints, and benchmark rankings."
-              actionHint="Open MENS Studio"
-            >
-              <button
-                type="button"
-                onClick={() => handleJump('mens')}
-                className="flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-bg-elevated px-2 py-1 font-mono text-[10px] font-semibold text-text-primary hover:border-[#D4AF37] transition"
-              >
-                <span>MENS Studio ↗</span>
-              </button>
-            </RomanTooltip>
+                <button
+                  type="button"
+                  data-testid={`harness-jump-${item.key}`}
+                  onClick={() => handleJump(item.key)}
+                  className="flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-bg-elevated px-2 py-1 font-mono text-[10px] font-semibold text-text-primary hover:border-[#D4AF37] transition"
+                >
+                  <span>{item.label}</span>
+                  <Icon.externalLink className="size-3 shrink-0" aria-hidden="true" />
+                </button>
+              </RomanTooltip>
+            ))}
 
             {/* Harness Mode Switchers */}
             {gamifyEnabled && (
@@ -271,9 +495,9 @@ export function HarnessRiverPanel({
               >
                 {(
                   [
-                    { id: 'river', label: 'River' },
-                    { id: 'urbs', label: 'Urbs Civilization' },
-                    { id: 'split', label: 'Split' },
+                    { id: 'river', label: 'River', compactLabel: 'River' },
+                    { id: 'urbs', label: 'Urbs Civilization', compactLabel: 'Urbs' },
+                    { id: 'split', label: 'Split', compactLabel: 'Split' },
                   ] as const
                 ).map((m) => (
                   <RomanTooltip
@@ -293,7 +517,8 @@ export function HarnessRiverPanel({
                           : 'text-text-secondary hover:text-text-primary'
                       }`}
                     >
-                      {m.label}
+                      <span className="hidden sm:inline">{m.label}</span>
+                      <span className="sm:hidden">{m.compactLabel}</span>
                     </button>
                   </RomanTooltip>
                 ))}
@@ -369,19 +594,21 @@ export function HarnessRiverPanel({
                   <label htmlFor="river-time-window-select" className="font-display text-[8.5px] font-bold uppercase tracking-wider text-[#5C4318]">
                     Window:
                   </label>
-                  <select
+                  <VoxSelect
                     id="river-time-window-select"
                     aria-label="Time Window"
-                    data-unified-knob="true"
+                    data-testid="river-time-window-select"
+                    size="xs"
                     value={timeWindow}
-                    onChange={(e) => setTimeWindow(e.target.value as '15m' | '1h' | '24h' | 'session')}
-                    className="appearance-none rounded border border-[#C59B27]/65 bg-[#FAF6EE] px-2 py-0.5 font-mono text-[9.5px] font-semibold text-[#1C140C]"
-                  >
-                    <option value="15m">Last 15m</option>
-                    <option value="1h">Last 1h</option>
-                    <option value="24h">Last 24h</option>
-                    <option value="session">Current Session</option>
-                  </select>
+                    onValueChange={(next) => handleTimeWindowChange(next as RiverTimeWindow)}
+                    options={[
+                      { value: '15m', label: 'Last 15m' },
+                      { value: '1h', label: 'Last 1h' },
+                      { value: '24h', label: 'Last 24h' },
+                      { value: 'session', label: 'Current Session' },
+                    ]}
+                    className="h-6 w-auto min-w-[110px] border-[#C59B27]/65 bg-[#FAF6EE] px-2 py-0.5 font-mono text-[9.5px] font-semibold text-[#1C140C]"
+                  />
                 </div>
 
                 <RomanTooltip
@@ -392,7 +619,9 @@ export function HarnessRiverPanel({
                 >
                   <button
                     type="button"
-                    onClick={() => setInterceptorArmed((a) => !a)}
+                    data-testid="aqueduct-interceptor-gate"
+                    aria-pressed={interceptorArmed}
+                    onClick={handleToggleInterceptor}
                     className="flex items-center gap-1.5 rounded-full border border-[#059669]/65 bg-[#ECFDF5] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#065F46] hover:border-[#047857] transition"
                   >
                     <Icon.gladiusShield className="size-3 text-[#059669]" />
@@ -402,10 +631,16 @@ export function HarnessRiverPanel({
               </div>
             </div>
             <div className={condensed ? 'relative z-10 h-[170px] w-full' : 'relative z-10 h-[210px] xl:h-[250px] w-full'}>
+              <DiegeticFxStage
+                preset="river-cascade"
+                activeBoost={interceptorArmed ? 1.3 : 0.75}
+                intensity={1.15}
+                testId="harness-river-fx-stage"
+              />
               <canvas
                 ref={canvasRef}
                 data-testid="harness-river-canvas"
-                className="h-full w-full block"
+                className="relative z-10 h-full w-full block"
                 aria-label="Live alluvial particle stream and phase scanner"
               />
             </div>
@@ -440,8 +675,11 @@ export function HarnessRiverPanel({
                       data-testid={`aqueduct-sluice-gate-${g.id}`}
                       aria-pressed={open}
                       onClick={() => {
-                        setSluiceGates((prev) => ({ ...prev, [g.id]: !open }));
-                        setAqueductReceipt(
+                        const prevGates = sluiceGates;
+                        const nextGates = { ...prevGates, [g.id]: !open };
+                        persistSluiceGates(
+                          prevGates,
+                          nextGates,
                           `${g.label} ${!open ? 'OPENED (Flow Armed)' : 'CLOSED (Holding Stream)'}`,
                         );
                       }}
@@ -468,54 +706,57 @@ export function HarnessRiverPanel({
                   data-testid="aqueduct-action-dispatch"
                   onClick={() => {
                     onFocusComposer?.();
-                    setAqueductReceipt('⚔ Dispatched new task into Cursus II Balanced Hybrid channel');
+                    setAqueductReceipt('Dispatched new task into Cursus II Balanced Hybrid channel');
                   }}
                   className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  [Dispatch Task]
+                  Dispatch Task
                 </button>
                 <button
                   type="button"
                   data-testid="aqueduct-action-flush"
                   onClick={() => {
-                    setSluiceGates({ ast: true, typeck: true, toestub: true, tests: true });
-                    setAqueductReceipt('🌊 Flushed all 4 Aqueduct Sluice Gates — zero-cascade stream verified');
+                    persistSluiceGates(
+                      sluiceGates,
+                      { ...DEFAULT_SLUICE_GATES },
+                      'Flushed all 4 Aqueduct Sluice Gates — zero-cascade stream verified',
+                    );
                   }}
                   className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  [Flush Sluice Gate]
+                  Flush Sluice Gate
                 </button>
                 <button
                   type="button"
                   data-testid="aqueduct-action-reroute"
                   onClick={() => {
-                    onOpenRouting?.();
-                    setAqueductReceipt('⚖ Rerouted active LLM stream across 3-Tier Castellum Divisorium');
+                    if (onOpenRouting) {
+                      onOpenRouting();
+                    } else {
+                      handleJump('models');
+                    }
+                    setAqueductReceipt('Rerouted active LLM stream across 3-Tier Castellum Divisorium');
                   }}
                   className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  [Reroute Tier]
+                  Reroute Tier
                 </button>
                 <button
                   type="button"
                   data-testid="aqueduct-action-compact"
-                  onClick={() => {
-                    setAqueductReceipt('🏺 Compacted Context Reservoir (64% → 38% occupancy)');
-                  }}
+                  onClick={handleCompactContext}
                   className="rounded-md border border-[#8C6214]/85 bg-bg-elevated px-2 py-0.5 font-display text-[8.5px] font-semibold uppercase tracking-wider text-text-primary shadow-sm hover:border-[#D4AF37]"
                 >
-                  [Compact Context]
+                  Compact Context
                 </button>
                 <button
                   type="button"
                   data-testid="aqueduct-action-claim-yield"
-                  onClick={() => {
-                    setAqueductYieldXp((xp) => xp + 250);
-                    setAqueductReceipt('🏆 Claimed +250 XP · +18 Denarii from verified Aqueduct cascade!');
-                  }}
-                  className="rounded-md border border-[#B38728] bg-linear-to-b from-[#D4AF37] to-[#9A711C] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208] shadow-sm hover:brightness-110"
+                  onClick={handleClaimYield}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#B38728] bg-linear-to-b from-[#D4AF37] to-[#9A711C] px-2.5 py-0.5 font-display text-[8.5px] font-bold uppercase tracking-wider text-[#1A1208] shadow-sm hover:brightness-110"
                 >
-                  [Claim Yield +{aqueductYieldXp} XP · +18 ◆]
+                  <span>Claim Yield +{aqueductYieldXp} XP · +18</span>
+                  <Icon.waxSeal className="size-3 shrink-0" aria-hidden="true" />
                 </button>
               </div>
 

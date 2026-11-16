@@ -200,6 +200,7 @@ impl DetectionRule for CryptoBanDetector {
             return findings;
         }
 
+        let mut in_patch_section = false;
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
 
@@ -212,9 +213,13 @@ impl DetectionRule for CryptoBanDetector {
             {
                 continue;
             }
+            if is_cargo && trimmed.starts_with('[') {
+                in_patch_section = trimmed.starts_with("[patch.");
+                continue;
+            }
 
             let matched = if is_cargo {
-                self.cargo_banned_dep.is_match(trimmed)
+                !in_patch_section && self.cargo_banned_dep.is_match(trimmed)
             } else if is_rust {
                 if let Some(m) = self.rust_banned_use.find(line) {
                     !crate::rules::rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)

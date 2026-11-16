@@ -546,6 +546,8 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
         "agentos" => Ty::Named("StdAgentosNs".into()),
         "array" => Ty::Named("StdArrayNs".into()),
         "frame" => Ty::Named("StdFrameNs".into()),
+        "plot" => Ty::Named("StdPlotNs".into()),
+        "tensor" => Ty::Named("StdTensorNs".into()),
         "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
         "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
         "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),

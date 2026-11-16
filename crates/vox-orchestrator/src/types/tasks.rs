@@ -249,7 +249,7 @@ pub struct TaskEnqueueHints {
     /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
-    /// Optional procedural skill to guide the agent (e.g. `superpowers:tdd`).
+    /// Optional workflow skill to guide the agent (e.g. `gsd-execute-phase` or `brainstorming`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_skill: Option<String>,
     /// Optional tenant ID for budget tracking.
@@ -666,7 +666,7 @@ pub struct AgentTask {
     /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
-    /// Procedural skill currently guiding the agent's behavior (e.g. `superpowers:test-driven-development`).
+    /// Workflow skill currently guiding the agent's behavior (e.g. `gsd-execute-phase` or `brainstorming`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_skill: Option<String>,
     /// Optional tenant ID for budget tracking.

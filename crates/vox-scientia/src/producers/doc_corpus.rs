@@ -10,7 +10,6 @@
 //! a "we built and documented X" reproducibility-infra paper.
 
 use async_trait::async_trait;
-use sha3::{Digest, Sha3_256};
 use vox_research_events::ResearchEvent;
 
 use super::heuristics::date_slug;
@@ -60,14 +59,16 @@ fn scan(docs_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<Resea
         if line_count < MIN_LINES {
             return;
         }
-        let mut h = Sha3_256::new();
-        h.update(PRODUCER_NAME.as_bytes());
-        h.update(b"::");
-        h.update(path.to_string_lossy().as_bytes());
-        h.update(b"::");
-        h.update(contents.as_bytes());
-        let digest = h.finalize();
-        let sha8: String = digest.iter().take(4).map(|b| format!("{b:02x}")).collect();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(PRODUCER_NAME.as_bytes());
+        payload.extend_from_slice(b"::");
+        payload.extend_from_slice(path.to_string_lossy().as_bytes());
+        payload.extend_from_slice(b"::");
+        payload.extend_from_slice(contents.as_bytes());
+        let sha8: String = crate::compliance_hash_hex(&payload)
+            .chars()
+            .take(8)
+            .collect();
         let finding_id = format!("repinf-{slug}-doc-{sha8}");
         // Worthiness score scales with size up to a cap.
         let score = ((line_count as f64) / 1000.0).min(1.0);

@@ -8,22 +8,17 @@
 //! real memory pressure, but selecting it as the best-known-good point would
 //! recommend the shape that just failed.
 //!
-//! ## Current calibration status: `candle-metal` is NOT fit
+//! ## Current calibration status: `candle-metal` is calibrated (Nov 2026)
 //!
-//! As of 2026-09-11 exactly one real `Fits` record exists for the
-//! `candle-metal` lane (Qwen3-0.6B, batch=2×seq=512, on this repo's Apple M5
-//! Max dev host) — see
-//! `docs/src/architecture/measurements/2026-09-11-candle-metal-calibration.json`
-//! and its companion `.md` writeup for the full story, including a real
-//! `preset_schema.rs` bug that silently changed the requested shape. One
-//! point cannot determine a slope (`fit_a_lane` below refuses on purpose —
-//! see `single_real_candle_metal_point_refuses_to_fit`), so `a_candle_metal`
-//! has no fitted value yet. A second measurement (same host/lane, a
-//! different `tokens_per_step` or model) is a follow-up, not a blocker:
-//! callers needing a memory-budget coefficient for `candle-metal` today
-//! should treat it as `Seeded`/`Uncalibrated`, the same honest-absence
-//! pattern `accel_budget::query_accel_budget()` already uses for the CUDA
-//! lane on non-macOS (returns `None` rather than a fabricated number).
+//! `(candle-metal, gradient_checkpointing=true)` is now fitted via
+//! `fit_a_lane` from two `Fits` observations of `Qwen/Qwen3.5-2B`
+//! (`tokens_per_step` 512 and 2048) on Apple M5 Max in
+//! `docs/src/architecture/measurements/2026-11-13-candle-metal-qwen35-calibration.json`,
+//! giving `act_bytes_per_lht = 162.48240311940512` in
+//! `contracts/mens/memory-model.v1.yaml`. The historical single-point record
+//! (`2026-09-11-candle-metal-calibration.json`) remains pinned by
+//! `single_real_candle_metal_point_refuses_to_fit` below to guarantee
+//! single-point inputs still fail closed.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FitOutcome {
@@ -262,6 +257,33 @@ mod tests {
             fit_a_lane(&records).is_none(),
             "a_candle_metal must not be fit from a single point; it is honestly Uncalibrated \
              until a second measurement lands"
+        );
+    }
+
+    #[test]
+    fn qwen35_candle_metal_calibration_fits_the_shipped_contract_slope() {
+        use super::super::memory_model::{CalKey, CalSource, Lane, MemoryModels};
+
+        let raw = include_str!(
+            "../../../../../docs/src/architecture/measurements/2026-11-13-candle-metal-qwen35-calibration.json"
+        );
+        let doc: serde_json::Value = serde_json::from_str(raw).expect("valid JSON");
+        let records: Vec<CalibrationRecord> = serde_json::from_value(doc["records"].clone())
+            .expect("records parse as CalibrationRecord");
+
+        assert_eq!(records.len(), 6, "expected 6 calibration Fits records");
+        let fitted =
+            fit_a_lane(&records).expect("two distinct Qwen3.5-2B token counts fit a slope");
+
+        let models = MemoryModels::load_default().expect("load shipped memory-model.v1.yaml");
+        let contract_row = models
+            .get(&CalKey::new(Lane::CandleMetal, true).expect("valid CalKey"))
+            .expect("candle-metal gradient_checkpointing=true must be calibrated");
+        assert_eq!(contract_row.source, CalSource::Measured);
+        assert!(
+            (fitted - contract_row.act_bytes_per_lht).abs() < 1e-9,
+            "fitted {fitted} must match contract act_bytes_per_lht {}",
+            contract_row.act_bytes_per_lht
         );
     }
 }

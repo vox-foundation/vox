@@ -1,3 +1,4 @@
+#![cfg(feature = "runtime")]
 use std::sync::Arc;
 use vox_actor_runtime::scheduler::Scheduler;
 use vox_orchestrator::config::OrchestratorConfig;

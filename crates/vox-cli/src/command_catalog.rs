@@ -1212,4 +1212,75 @@ mod tests {
              contracts/operations/catalog.v1.yaml, then `vox ci operations-sync --target all --write`): {missing:?}"
         );
     }
+
+    #[test]
+    fn term_cli_exposes_attach_and_local_flags() {
+        run_on_big_stack(|| {
+            use clap::Parser;
+
+            let cases: &[(&[&str], Option<&str>, bool)] = &[
+                (&["vox", "term"], None, false),
+                (&["vox", "term", "--attach"], Some("latest"), false),
+                (
+                    &["vox", "term", "--attach", "--local"],
+                    Some("latest"),
+                    true,
+                ),
+                (
+                    &["vox", "term", "--attach", "term-2"],
+                    Some("term-2"),
+                    false,
+                ),
+                (
+                    &["vox", "term", "--attach=term-7", "--local"],
+                    Some("term-7"),
+                    true,
+                ),
+            ];
+
+            for &(argv, expected_attach, expected_local) in cases {
+                let parsed = crate::VoxCliRoot::try_parse_from(argv)
+                    .unwrap_or_else(|e| panic!("failed to parse {argv:?}: {e}"));
+                match parsed.cmd {
+                    crate::Cli::Term { attach, local } => {
+                        assert_eq!(attach.as_deref(), expected_attach, "argv={argv:?}");
+                        assert_eq!(local, expected_local, "argv={argv:?}");
+                    }
+                    _ => panic!("expected Cli::Term for {argv:?}"),
+                }
+            }
+
+            let catalog = build_catalog();
+            let term_entries: Vec<_> = catalog
+                .entries
+                .iter()
+                .filter(|e| e.path.first().map(String::as_str) == Some("term"))
+                .collect();
+            assert_eq!(
+                term_entries.len(),
+                1,
+                "expected single top-level `term` entry without nested subcommands"
+            );
+            let entry = term_entries[0];
+            assert_eq!(entry.path, vec!["term".to_string()]);
+            assert!(!entry.has_subcommands);
+
+            let attach_arg = entry
+                .arguments
+                .iter()
+                .find(|a| a.long.as_deref() == Some("attach"))
+                .expect("`vox term` catalog entry must expose `--attach`");
+            assert!(attach_arg.takes_value);
+            assert!(!attach_arg.required);
+            assert_eq!(attach_arg.value_kind, ArgValueKind::Value);
+
+            let local_arg = entry
+                .arguments
+                .iter()
+                .find(|a| a.long.as_deref() == Some("local"))
+                .expect("`vox term` catalog entry must expose `--local`");
+            assert!(!local_arg.takes_value);
+            assert_eq!(local_arg.value_kind, ArgValueKind::Flag);
+        });
+    }
 }

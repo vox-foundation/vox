@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLabel } from '../../../hooks/useLanguage';
+import { Icon } from '../../ui/Icons';
 import {
   defaultHudTiles,
   HUD_TILE_LABELS,
@@ -48,23 +49,23 @@ export function HudTilesEditor({ config, onChange }: HudTilesEditorProps) {
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                className={BTN}
+                className={`${BTN} inline-flex items-center justify-center`}
                 disabled={index === 0}
                 onClick={() => move(index, index - 1)}
                 aria-label={`Move ${HUD_TILE_LABELS[tile.kind]} up`}
                 title="Move up"
               >
-                ↑
+                <Icon.arrowUp className="size-3" aria-hidden="true" />
               </button>
               <button
                 type="button"
-                className={BTN}
+                className={`${BTN} inline-flex items-center justify-center`}
                 disabled={index === config.tiles.length - 1}
                 onClick={() => move(index, index + 1)}
                 aria-label={`Move ${HUD_TILE_LABELS[tile.kind]} down`}
                 title="Move down"
               >
-                ↓
+                <Icon.arrowDown className="size-3" aria-hidden="true" />
               </button>
             </div>
           </div>

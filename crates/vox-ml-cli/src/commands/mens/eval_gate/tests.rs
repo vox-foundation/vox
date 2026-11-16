@@ -685,6 +685,10 @@ fn gate_keys_inventory() {
             "collateral_damage",
             "commands::mens::eval_gate::tests::collateral_damage_gate_passes_a_paired_report_at_the_policy_alpha",
         ),
+        (
+            "suites",
+            "commands::mens::eval_spoke::tests::agent_suite_reports_oracle_gain_over_never_call",
+        ),
     ];
 
     let check_file = |rel_path: &str, expected_keys: &[&str]| {
@@ -724,10 +728,16 @@ fn gate_keys_inventory() {
     );
     check_file(
         "mens/config/eval-gates.yaml",
-        &["pass_at_k", "anti_stub", "supervised_ratio"],
+        &["pass_at_k", "anti_stub", "supervised_ratio", "suites"],
     );
-    check_file("mens/config/eval-gates-rust.yaml", &["supervised_ratio"]);
-    check_file("mens/config/eval-gates-agents.yaml", &["supervised_ratio"]);
+    check_file(
+        "mens/config/eval-gates-rust.yaml",
+        &["supervised_ratio", "suites"],
+    );
+    check_file(
+        "mens/config/eval-gates-agents.yaml",
+        &["supervised_ratio", "suites"],
+    );
 }
 
 #[test]

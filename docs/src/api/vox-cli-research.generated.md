@@ -159,6 +159,7 @@ Research commands (run/eval/infra/mesh-intake) extracted from vox-cli.
 | `scientia` | — |
 | `scientia_nanopub` | — |
 | `scientia_phase_handlers` | — |
+| `scientia_v76_audit` | — |
 | `scientia_worthiness_enrich` | — |
 | `scout` | — |
 | `secrets` | — |
@@ -241,18 +242,18 @@ graph {
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `enum` | `ResearchCmd` | `pub enum ResearchCmd` | [`crates/vox-cli-research/src/lib.rs#L80`](../../../crates/vox-cli-research/src/lib.rs#L80) | — |
-| `fn` | `run` | `pub async fn run(cmd: ResearchCmd) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L212-L275`](../../../crates/vox-cli-research/src/lib.rs#L212-L275) | — |
-| `fn` | `research_history` | `pub async fn research_history(limit: u32) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L282-L296`](../../../crates/vox-cli-research/src/lib.rs#L282-L296) | — |
-| `fn` | `research_show` | `pub async fn research_show(session_id: i64) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L298-L317`](../../../crates/vox-cli-research/src/lib.rs#L298-L317) | — |
-| `fn` | `research_preview` | `pub async fn research_preview(query: String, json: bool) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L319-L339`](../../../crates/vox-cli-research/src/lib.rs#L319-L339) | — |
-| `fn` | `research_result` | `pub async fn research_result(` | [`crates/vox-cli-research/src/lib.rs#L341`](../../../crates/vox-cli-research/src/lib.rs#L341) | — |
-| `fn` | `research_search` | `pub async fn research_search(query: String, limit: usize, json: bool) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L366-L383`](../../../crates/vox-cli-research/src/lib.rs#L366-L383) | — |
-| `fn` | `research_probe` | `pub async fn research_probe(` | [`crates/vox-cli-research/src/lib.rs#L434`](../../../crates/vox-cli-research/src/lib.rs#L434) | — |
-| `fn` | `research_flag` | `pub async fn research_flag(` | [`crates/vox-cli-research/src/lib.rs#L482`](../../../crates/vox-cli-research/src/lib.rs#L482) | — |
-| `fn` | `research_publish` | `pub async fn research_publish(session_id: i64, slug: Option<String>) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L532-L552`](../../../crates/vox-cli-research/src/lib.rs#L532-L552) | — |
-| `fn` | `research_watch` | `pub async fn research_watch(session_id: i64) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L562-L576`](../../../crates/vox-cli-research/src/lib.rs#L562-L576) | — |
-| `fn` | `run_research_query` | `pub async fn run_research_query(` | [`crates/vox-cli-research/src/lib.rs#L580`](../../../crates/vox-cli-research/src/lib.rs#L580) | Catalog handler anchor for `research.run` (`contracts/operations/catalog.v1.yaml`). |
+| `enum` | `ResearchCmd` | `pub enum ResearchCmd` | [`crates/vox-cli-research/src/lib.rs#L81`](../../../crates/vox-cli-research/src/lib.rs#L81) | — |
+| `fn` | `run` | `pub async fn run(cmd: ResearchCmd) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L213-L276`](../../../crates/vox-cli-research/src/lib.rs#L213-L276) | — |
+| `fn` | `research_history` | `pub async fn research_history(limit: u32) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L283-L297`](../../../crates/vox-cli-research/src/lib.rs#L283-L297) | — |
+| `fn` | `research_show` | `pub async fn research_show(session_id: i64) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L299-L318`](../../../crates/vox-cli-research/src/lib.rs#L299-L318) | — |
+| `fn` | `research_preview` | `pub async fn research_preview(query: String, json: bool) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L320-L340`](../../../crates/vox-cli-research/src/lib.rs#L320-L340) | — |
+| `fn` | `research_result` | `pub async fn research_result(` | [`crates/vox-cli-research/src/lib.rs#L342`](../../../crates/vox-cli-research/src/lib.rs#L342) | — |
+| `fn` | `research_search` | `pub async fn research_search(query: String, limit: usize, json: bool) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L367-L384`](../../../crates/vox-cli-research/src/lib.rs#L367-L384) | — |
+| `fn` | `research_probe` | `pub async fn research_probe(` | [`crates/vox-cli-research/src/lib.rs#L435`](../../../crates/vox-cli-research/src/lib.rs#L435) | — |
+| `fn` | `research_flag` | `pub async fn research_flag(` | [`crates/vox-cli-research/src/lib.rs#L483`](../../../crates/vox-cli-research/src/lib.rs#L483) | — |
+| `fn` | `research_publish` | `pub async fn research_publish(session_id: i64, slug: Option<String>) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L533-L553`](../../../crates/vox-cli-research/src/lib.rs#L533-L553) | — |
+| `fn` | `research_watch` | `pub async fn research_watch(session_id: i64) -> anyhow::Result<()>` | [`crates/vox-cli-research/src/lib.rs#L563-L577`](../../../crates/vox-cli-research/src/lib.rs#L563-L577) | — |
+| `fn` | `run_research_query` | `pub async fn run_research_query(` | [`crates/vox-cli-research/src/lib.rs#L581`](../../../crates/vox-cli-research/src/lib.rs#L581) | Catalog handler anchor for `research.run` (`contracts/operations/catalog.v1.yaml`). |
 | `struct` | `add_component::RegistryItem` | `pub struct RegistryItem` | [`crates/vox-cli-research/src/add_component.rs#L30-L43`](../../../crates/vox-cli-research/src/add_component.rs#L30-L43) | One registry item (`<name>.json`) returned by the shadcn registry. |
 | `struct` | `add_component::RegistryFile` | `pub struct RegistryFile` | [`crates/vox-cli-research/src/add_component.rs#L47-L55`](../../../crates/vox-cli-research/src/add_component.rs#L47-L55) | One file inside a registry item. |
 | `struct` | `add_component::ComponentsConfig` | `pub struct ComponentsConfig` | [`crates/vox-cli-research/src/add_component.rs#L59-L69`](../../../crates/vox-cli-research/src/add_component.rs#L59-L69) | Subset of `components.json` that drives placement and content transforms. |
@@ -267,6 +268,7 @@ graph {
 | `struct` | `audit::AuditArgs` | `pub struct AuditArgs` | [`crates/vox-cli-research/src/audit.rs#L169-L241`](../../../crates/vox-cli-research/src/audit.rs#L169-L241) | Run quality-gate checks defined in `contracts/ci/check-targets.v1.yaml`, OR run a CR-L gate from the `vox-audit` umbrella registry.  Two dispatch modes, mutually exclusive: • Default — iterates `check-targets.v1.yaml` and runs each entry. • `--gate <NAME>` / `--list-gates` — dispatches to `vox_audit::registry()` for the v1.0 LLM-target CR-L gates (CR-L0..L8). |
 | `fn` | `audit::run` | `pub fn run(args: &AuditArgs) -> Result<()>` | [`crates/vox-cli-research/src/audit.rs#L248-L288`](../../../crates/vox-cli-research/src/audit.rs#L248-L288) | Entry point called from the CLI dispatch (flag-based path; no nested subcommand). |
 | `fn` | `audit::run_audit_subcommand` | `pub fn run_audit_subcommand(cmd: &AuditSubcommand) -> Result<()>` | [`crates/vox-cli-research/src/audit.rs#L295-L338`](../../../crates/vox-cli-research/src/audit.rs#L295-L338) | Run a single core gate or the full trio (`vox audit core` / `--gate core`). |
+| `fn` | `audit::write_json_if_changed` | `pub fn write_json_if_changed<T: serde::Serialize>(` | [`crates/vox-cli-research/src/audit.rs#L1155`](../../../crates/vox-cli-research/src/audit.rs#L1155) | Write pretty-printed JSON to `path` only if its bytes differ from any existing file. |
 | `struct` | `audit_effort::EffortArgs` | `pub struct EffortArgs` | [`crates/vox-cli-research/src/audit_effort.rs#L26-L58`](../../../crates/vox-cli-research/src/audit_effort.rs#L26-L58) | `vox audit effort` flags. |
 | `fn` | `audit_effort::run` | `pub async fn run(args: EffortArgs) -> Result<()>` | [`crates/vox-cli-research/src/audit_effort.rs#L161-L238`](../../../crates/vox-cli-research/src/audit_effort.rs#L161-L238) | `vox audit effort` handler. |
 | `struct` | `audit_research_parity::ResearchParityArgs` | `pub struct ResearchParityArgs` | [`crates/vox-cli-research/src/audit_research_parity.rs#L6-L11`](../../../crates/vox-cli-research/src/audit_research_parity.rs#L6-L11) | — |
@@ -284,6 +286,5 @@ graph {
 | `fn` | `chat::verify_vox_snippet` | `pub fn verify_vox_snippet(source: &str) -> std::result::Result<(), String>` | [`crates/vox-cli-research/src/chat.rs#L149-L174`](../../../crates/vox-cli-research/src/chat.rs#L149-L174) | Validate `.vox` source using the full compiler frontend (`lex -> parse -> hir -> typeck`). Returns `Ok(())` if 0 errors, or `Err(formatted_diagnostics)` if errors exist. |
 | `fn` | `chat::run` | `pub async fn run(args: ChatArgs) -> Result<()>` | [`crates/vox-cli-research/src/chat.rs#L178`](../../../crates/vox-cli-research/src/chat.rs#L178) | Run `vox chat`: send `args.message` (with optional `args.system` prompt) to `args.model` via the shared `llm_chat` facade and print the reply. |
 | `fn` | `chat::build_sota_selection_request` | `pub fn build_sota_selection_request(` | [`crates/vox-cli-research/src/chat.rs#L379`](../../../crates/vox-cli-research/src/chat.rs#L379) | Build the SOTA routing request for a given [`SotaRoutingMode`] and user prompt. |
-| `struct` | `check_terminal::ExecPolicyV1` | `pub struct ExecPolicyV1` | [`crates/vox-cli-research/src/check_terminal.rs#L98-L108`](../../../crates/vox-cli-research/src/check_terminal.rs#L98-L108) | Terminal execution policy (mirrors `exec-policy.v1.schema.json`). |
-| `fn` | `check_terminal::validate_policy_yaml_against_schema` | `pub fn validate_policy_yaml_against_schema(` | [`crates/vox-cli-research/src/check_terminal.rs#L130`](../../../crates/vox-cli-research/src/check_terminal.rs#L130) | — |
+| `fn` | `check_terminal::validate_policy_yaml_against_schema` | `pub fn validate_policy_yaml_against_schema(` | [`crates/vox-cli-research/src/check_terminal.rs#L116`](../../../crates/vox-cli-research/src/check_terminal.rs#L116) | — |
 

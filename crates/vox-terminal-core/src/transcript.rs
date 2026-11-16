@@ -52,8 +52,12 @@ pub struct TranscriptEvent {
 /// Wraps `vox-journal`'s `FileJournal` so `Session` doesn't depend on it
 /// directly — callers that don't need persistence (tests, minimal builds) can
 /// use `NullSink` instead.
-pub trait TranscriptSink: Send + 'static {
+pub trait TranscriptSink: Send + Sync + 'static {
     fn append(&self, event: &TranscriptEvent) -> anyhow::Result<()>;
+
+    fn flush(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 /// A sink that discards events. Useful for tests and minimal builds.
@@ -85,5 +89,9 @@ impl TranscriptSink for JournalSink {
         self.journal
             .append(event)
             .map_err(|e| anyhow::anyhow!("{e}"))
+    }
+
+    fn flush(&self) -> anyhow::Result<()> {
+        self.journal.sync().map_err(|e| anyhow::anyhow!("{e}"))
     }
 }

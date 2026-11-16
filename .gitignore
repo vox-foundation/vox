@@ -58,8 +58,9 @@ docs-astro/public/robots.txt
 !/contracts/reports/gui-visual-review/cache.v1.json
 !/contracts/reports/gui-visual-review/bundle-cache.v1.json
 
-# Playwright HTML report (local e2e runs; never commit)
+# Playwright HTML report & transient screenshots/ledgers (local e2e runs; never commit)
 **/playwright-report/
+**/test-results/
 
 # === SCRATCH / EPHEMERAL / LOGS ===
 .tmp_metadata.json
@@ -198,6 +199,8 @@ docs/book/
 !contracts/kb/redteam/*.jsonl
 # Exception: the held-out reasoning slices (BENCH-02) are tracked contracts; mens/data/train.jsonl stays ignored.
 !mens/data/*_think/reasoning.jsonl
+!mens/data/agent_episodes/*.v1.jsonl
+!mens/data/rust_bench/*.v1.jsonl
 # Exception: the diagram-authoring eval set and its recorded runs are tracked contracts (EVAL-01).
 !contracts/eval/diagram-authoring/**/*.jsonl
 
@@ -278,6 +281,7 @@ gui-*.log
 
 # Superpowers brainstorm visual-companion scratch (local-only)
 .superpowers/
+.remediation-notes/
 
 # Local `act` artifact server output (see .actrc --artifact-server-path)
 .act-artifacts/

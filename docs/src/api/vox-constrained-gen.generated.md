@@ -65,8 +65,6 @@ graph {
     node vox_constrained_gen: "vox-constrained-gen"
     node vox_grammar_export: "vox-grammar-export"
     vox_constrained_gen -> vox_grammar_export
-    node vox_cli: "vox-cli"
-    vox_cli -> vox_constrained_gen
     node vox_ml_cli: "vox-ml-cli"
     vox_ml_cli -> vox_constrained_gen
 }
@@ -76,7 +74,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)

@@ -34,17 +34,41 @@ license = "MIT"
 pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
 skills = [
   "brainstorming",
-  "dispatching-parallel-agents",
-  "executing-plans",
-  "finishing-a-development-branch",
-  "receiving-code-review",
-  "requesting-code-review",
-  "subagent-driven-development",
-  "systematic-debugging",
-  "test-driven-development",
-  "using-git-worktrees",
-  "using-superpowers",
-  "verification-before-completion",
-  "writing-plans",
-  "writing-skills",
+]
+
+[[source]]
+repo = "https://github.com/open-gsd/gsd-core"
+license = "MIT"
+pin = "v7.0-gsd-core-vox-2026-11-13"
+skills = [
+  "gsd-add-tests",
+  "gsd-audit-fix",
+  "gsd-audit-milestone",
+  "gsd-audit-uat",
+  "gsd-autonomous",
+  "gsd-capture",
+  "gsd-code-review",
+  "gsd-complete-milestone",
+  "gsd-debug",
+  "gsd-discuss-phase",
+  "gsd-execute-phase",
+  "gsd-explore",
+  "gsd-extract-learnings",
+  "gsd-fast",
+  "gsd-health",
+  "gsd-map-codebase",
+  "gsd-mvp-phase",
+  "gsd-new-milestone",
+  "gsd-new-project",
+  "gsd-next",
+  "gsd-pause-work",
+  "gsd-phase",
+  "gsd-plan-phase",
+  "gsd-progress",
+  "gsd-quick",
+  "gsd-resume-work",
+  "gsd-ship",
+  "gsd-spec-phase",
+  "gsd-validate-phase",
+  "gsd-verify-work",
 ]

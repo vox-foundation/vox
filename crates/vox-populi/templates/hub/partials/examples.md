@@ -18,7 +18,7 @@ For {{ f.size }}, the examples are [
 {{ e.description }}
 {{ e.prompt_fence() }}
 {% for (is_base, s) in e.sides() %}
-{% if is_base %}Qwen3-{{ f.size }} base{% else %}{{ f.size }} adapter{% endif %} on `{{ e.id }}`: {{ s.verdict.phrase() }}
+{% if is_base %}{{ f.model_label }} base{% else %}{{ f.size }} adapter{% endif %} on `{{ e.id }}`: {{ s.verdict.phrase() }}
 {%- if let Some(n) = s.verdict.count() %} (count {{ n }}){% endif %}
 {%- if let Some(c) = s.verdict.check() %} `{{ c }}`{% endif %}.
 

@@ -26,6 +26,12 @@ impl Parser {
                 }
                 continue;
             }
+            if self.try_parse_py_module_import(&mut paths)? {
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+                continue;
+            }
             // `rust:` imports use the full parse_import_path handler.
             // All symbol imports go through parse_symbol_import which also accepts
             // `/` as a path separator and `as { name1, name2 }` destructuring.
@@ -233,6 +239,61 @@ impl Parser {
                 module_specifier,
                 binding,
             },
+            alias: None,
+            span: seg_start.merge(self.span()),
+        });
+        Ok(true)
+    }
+
+    /// `import py <alias> from "<module>"` — Tier 2 Python module escape-hatch import.
+    /// Uses contextual identifiers (`py`, `from`) with zero new lexer keywords.
+    fn try_parse_py_module_import(&mut self, paths: &mut Vec<ImportPath>) -> Result<bool, ()> {
+        let save = self.pos;
+        let seg_start = self.span();
+        let Token::Ident(first) = self.peek().clone() else {
+            return Ok(false);
+        };
+        if first != "py" {
+            return Ok(false);
+        }
+        self.advance();
+        let alias = match self.peek().clone() {
+            Token::Dot | Token::Slash => {
+                self.pos = save;
+                return Ok(false);
+            }
+            Token::Ident(a) | Token::TypeIdent(a) if a != "as" && a != "from" => {
+                self.advance();
+                a
+            }
+            _ => {
+                self.pos = save;
+                return Ok(false);
+            }
+        };
+        if !matches!(self.peek(), Token::Ident(w) if w == "from") {
+            self.pos = save;
+            return Ok(false);
+        }
+        self.advance(); // eat `from`
+        let module = match self.peek().clone() {
+            Token::StringLit(s) | Token::SingleStringLit(s) => {
+                self.advance();
+                s
+            }
+            _ => {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected a quoted module path after `from` in a Python import.",
+                    vec!["\"scipy.signal\"".into(), "\"pandas\"".into()],
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+        };
+        paths.push(ImportPath {
+            kind: ImportPathKind::PyModule { alias, module },
             alias: None,
             span: seg_start.merge(self.span()),
         });

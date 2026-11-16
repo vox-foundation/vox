@@ -163,11 +163,15 @@ mod tests {
 
     #[test]
     fn refuses_similarity_across_different_models_or_dims() {
-        let space_a =
-            VectorSpaceKey::from_model_spec("Alibaba-NLP/gte-modernbert-base@refs/pr/1", 4);
+        let space_a = VectorSpaceKey::from_model_spec(
+            "Alibaba-NLP/gte-modernbert-base@e7f32e3c00f91d699e8c43b53106206bcc72bb22",
+            4,
+        );
         let space_b = VectorSpaceKey::from_model_spec("text-embedding-3-small@default", 4);
-        let space_dim =
-            VectorSpaceKey::from_model_spec("Alibaba-NLP/gte-modernbert-base@refs/pr/1", 8);
+        let space_dim = VectorSpaceKey::from_model_spec(
+            "Alibaba-NLP/gte-modernbert-base@e7f32e3c00f91d699e8c43b53106206bcc72bb22",
+            8,
+        );
         let v1 = [1.0, 0.0, 0.0, 0.0];
         let v2 = [1.0, 0.0, 0.0, 0.0];
         assert!(cosine_similarity_checked(&space_a, &v1, &space_a, &v2).is_ok());

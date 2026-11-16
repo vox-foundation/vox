@@ -1,4 +1,5 @@
 # Mix configuration for populi-meta domain
+include_lanes: [vox_docs_qa, vox_codegen]
 output: mens/data/train_mixed_populi_meta.jsonl
 sources:
   - path: target/dogfood/populi_telemetry.jsonl

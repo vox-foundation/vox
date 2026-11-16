@@ -38,7 +38,7 @@ const DEFAULT_SESSION_LIMIT: u32 = 20;
 // `corroboration_counts`, so importing it would make an older persisted artifact fail to parse
 // instead of degrading; these mirrors tolerate missing/unknown fields and must be kept in sync by
 // hand when the real types change.
-mod artifact_mirror {
+pub(super) mod artifact_mirror {
     use serde::Deserialize;
 
     #[derive(Debug, Deserialize, Default)]
@@ -113,6 +113,22 @@ mod artifact_mirror {
     }
 
     #[derive(Debug, Deserialize, Default)]
+    pub struct CompetitiveRow {
+        #[serde(default)]
+        pub dimension: String,
+        #[serde(default)]
+        pub vox_feature: String,
+        #[serde(default)]
+        pub alternative_a_name: String,
+        #[serde(default)]
+        pub alternative_a_val: String,
+        #[serde(default)]
+        pub alternative_b_name: String,
+        #[serde(default)]
+        pub alternative_b_val: String,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
     pub struct ResearchResult {
         #[serde(default)]
         pub answer: String,
@@ -120,6 +136,8 @@ mod artifact_mirror {
         pub citations: Vec<Citation>,
         #[serde(default)]
         pub research_metadata: ResearchMetadata,
+        #[serde(default)]
+        pub competitive_matrix: Vec<CompetitiveRow>,
     }
 
     #[derive(Debug, Deserialize, Default)]
@@ -591,6 +609,37 @@ pub fn build_architecture_ssot_input(
         });
     }
 
+    let competitive_matrix: Vec<
+        vox_scientia::manuscript::scaffold::architecture_ssot::CompetitiveComparisonRow,
+    > = parsed
+        .as_ref()
+        .map(|a| {
+            a.result
+                .competitive_matrix
+                .iter()
+                .filter(|r| !r.dimension.trim().is_empty())
+                .map(|r| {
+                    vox_scientia::manuscript::scaffold::architecture_ssot::CompetitiveComparisonRow {
+                        dimension: r.dimension.clone(),
+                        vox_feature: r.vox_feature.clone(),
+                        alternative_a_name: if r.alternative_a_name.trim().is_empty() {
+                            "Baseline A".to_string()
+                        } else {
+                            r.alternative_a_name.clone()
+                        },
+                        alternative_a_val: r.alternative_a_val.clone(),
+                        alternative_b_name: if r.alternative_b_name.trim().is_empty() {
+                            "Baseline B".to_string()
+                        } else {
+                            r.alternative_b_name.clone()
+                        },
+                        alternative_b_val: r.alternative_b_val.clone(),
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     let empirical_outcome_summary = format!(
         "Verified {} claim(s) across {} codebase reference(s) with stability {:.2}.",
         verified_claims.len(),
@@ -604,7 +653,7 @@ pub fn build_architecture_ssot_input(
             "Empirically verified architecture findings and benchmarks for session #{session_id}."
         ),
         category: "Architecture SSOTs".into(),
-        status: "current".into(),
+        status: "research".into(),
         training_eligible: false,
         training_rationale: None,
         sort_order: None,
@@ -615,7 +664,7 @@ pub fn build_architecture_ssot_input(
         hypothesis,
         empirical_outcome_summary,
         codebase_refs,
-        competitive_matrix: vec![],
+        competitive_matrix,
         verified_claims,
         sandbox_probes,
         gaps_and_recommendations,
@@ -623,7 +672,8 @@ pub fn build_architecture_ssot_input(
         authorship_model: parsed
             .as_ref()
             .and_then(|a| a.result.research_metadata.synthesis_model.clone())
-            .filter(|m| !m.trim().is_empty()),
+            .filter(|m| !m.trim().is_empty())
+            .or_else(|| Some("vox-deep-research".to_string())),
     }
 }
 
@@ -646,12 +696,96 @@ pub async fn render_doc_draft_with_db(
         }
     }
 
-    let input = build_architecture_ssot_input(
+    let mut input = build_architecture_ssot_input(
         session_id,
         query_text.as_deref(),
         report_markdown.as_deref(),
         artifact_json.as_deref(),
     );
+
+    if let Some(db) = db {
+        if let Ok(claims_page) = db.list_session_claims_page(session_id, None, 100).await {
+            for item in claims_page.items {
+                if !input.verified_claims.iter().any(|c| c.object == item.text) {
+                    let verdict = item.verdict.unwrap_or_else(|| "Unverified".to_string());
+                    input.verified_claims.push(
+                        vox_scientia::manuscript::scaffold::architecture_ssot::EmpiricalClaimRow {
+                            subject: format!("DB Claim #{}", item.claim_id),
+                            predicate: verdict.to_ascii_lowercase(),
+                            object: item.text,
+                            verdict,
+                            confidence: item.confidence.unwrap_or(0.5),
+                            primary_evidence_source: item
+                                .verifier_model
+                                .unwrap_or_else(|| "scientia_claims".to_string()),
+                            trusty_uri: None,
+                        },
+                    );
+                }
+            }
+        }
+        if let Ok(sources_page) = db.list_session_sources_page(session_id, None, 100).await {
+            for src in sources_page.items {
+                let is_repo = src.url.starts_with("repo://")
+                    || src.url.contains("crates/")
+                    || src.url.contains("docs/");
+                if is_repo {
+                    let file_path = src.url.trim_start_matches("repo://").to_string();
+                    if !input.codebase_refs.iter().any(|r| r.file_path == file_path) {
+                        let crate_name = file_path
+                            .split('/')
+                            .nth(1)
+                            .unwrap_or("vox-workspace")
+                            .to_string();
+                        input.codebase_refs.push(
+                            vox_scientia::manuscript::scaffold::architecture_ssot::CodebaseReference {
+                                crate_name,
+                                file_path,
+                                line_start: None,
+                                line_end: None,
+                                observation: if src.snippet.trim().is_empty() {
+                                    src.title
+                                } else {
+                                    src.snippet.chars().take(160).collect()
+                                },
+                            },
+                        );
+                    }
+                }
+            }
+        }
+        let session_id_str = session_id.to_string();
+        if let Ok(rows) = db
+            .list_research_metrics_by_session(&session_id_str, None, 50)
+            .await
+        {
+            for (sid, metric_type, mv, meta) in rows.into_iter().rev() {
+                if sid != session_id_str {
+                    continue;
+                }
+                let metric_value: f64 = mv.unwrap_or(0.0);
+                if metric_type.contains("sandbox") || metric_type.contains("probe") {
+                    input.sandbox_probes.push(
+                        vox_scientia::manuscript::scaffold::architecture_ssot::SandboxExecutionRecord {
+                            title: format!("Metric probe: {metric_type}"),
+                            language: "text".to_string(),
+                            original_snippet: meta.unwrap_or_else(|| format!("{metric_type} = {metric_value:.3}")),
+                            repaired_snippet: None,
+                            compiler_output: format!("measured={metric_value:.3}"),
+                            success: metric_value >= 0.5,
+                        },
+                    );
+                }
+            }
+        }
+        input.empirical_outcome_summary = format!(
+            "Verified {} claim(s) across {} codebase reference(s) with stability {:.2}.",
+            input.verified_claims.len(),
+            input.codebase_refs.len(),
+            input.stability_score
+        );
+    }
+
     let title = input.title.clone();
     let slug = input.slug.clone();
     let filename = format!("{slug}-2026.md");
@@ -661,13 +795,18 @@ pub async fn render_doc_draft_with_db(
     })
     .await
     .map_err(|e| e.to_string())??;
+    let validation_errors =
+        vox_scientia::manuscript::scaffold::architecture_ssot::validate_architecture_ssot_markdown(
+            &markdown_content,
+        );
+    let is_valid = validation_errors.is_empty();
     Ok(DocDraftPreview {
         slug,
         title,
         filename,
         markdown_content,
-        is_valid: true,
-        validation_errors: vec![],
+        is_valid,
+        validation_errors,
     })
 }
 
@@ -704,6 +843,26 @@ pub async fn write_research_doc(
     content: &str,
 ) -> Result<PublishDocResult, String> {
     let (target_path, filename) = research_doc_target(repo_root, slug)?;
+    if content.trim_start().starts_with("---") {
+        let validation_errors =
+            vox_scientia::manuscript::scaffold::architecture_ssot::validate_architecture_ssot_markdown(
+                content,
+            );
+        if !validation_errors.is_empty() {
+            return Err(format!(
+                "Architecture SSOT frontmatter/kb-summary validation failed: {}",
+                validation_errors.join("; ")
+            ));
+        }
+    }
+    let existing_artifact_json = db
+        .get_research_artifact(session_id)
+        .await
+        .ok()
+        .flatten()
+        .map(|a| a.artifact_json)
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "{}".to_string());
     let (path, body) = (target_path.clone(), content.to_string());
     tokio::task::spawn_blocking(move || {
         vox_db::research_doc_io::atomic_write_secure(&path, body.as_bytes())
@@ -712,7 +871,7 @@ pub async fn write_research_doc(
     .await
     .map_err(|e| e.to_string())??;
     let indexed = db
-        .store_research_artifact(session_id, "{}", content)
+        .store_research_artifact(session_id, &existing_artifact_json, content)
         .await
         .is_ok();
     Ok(PublishDocResult {
@@ -1129,6 +1288,86 @@ pub async fn get_research_sessions(
     }
 }
 
+const MAX_INLINE_CLAIMS_PREVIEW: usize = 25;
+const MAX_INLINE_CLAIMS_BYTES: usize = 8 * 1024;
+const MAX_INLINE_DAG_NODES: usize = 40;
+const MAX_INLINE_MARKDOWN_PREVIEW_BYTES: usize = 4 * 1024;
+
+fn compact_claims_preview(claims: Vec<ResearchClaimDto>) -> Vec<ResearchClaimDto> {
+    let mut kept = Vec::with_capacity(claims.len().min(MAX_INLINE_CLAIMS_PREVIEW));
+    let mut bytes = 0usize;
+    for claim in claims.into_iter().take(MAX_INLINE_CLAIMS_PREVIEW) {
+        let item_bytes = serde_json::to_vec(&claim).map(|v| v.len()).unwrap_or(256);
+        if !kept.is_empty() && bytes + item_bytes > MAX_INLINE_CLAIMS_BYTES {
+            break;
+        }
+        bytes += item_bytes;
+        kept.push(claim);
+    }
+    kept
+}
+
+fn compact_dag_preview(mut dag: EpistemicDagDto) -> EpistemicDagDto {
+    let strip_snippets = dag.nodes.len() > 16;
+    if dag.nodes.len() > MAX_INLINE_DAG_NODES {
+        dag.nodes.truncate(MAX_INLINE_DAG_NODES);
+    }
+    if strip_snippets {
+        for node in &mut dag.nodes {
+            node.snippet = None;
+        }
+    }
+    let retained: std::collections::HashSet<&str> =
+        dag.nodes.iter().map(|n| n.id.as_str()).collect();
+    let edges = dag
+        .edges
+        .into_iter()
+        .filter(|e| retained.contains(e.source.as_str()) && retained.contains(e.target.as_str()))
+        .collect();
+    EpistemicDagDto {
+        nodes: dag.nodes,
+        edges,
+    }
+}
+
+fn spill_or_inline_artifact(
+    session_id: i64,
+    raw: &str,
+    claims_total: usize,
+    sources_total: usize,
+) -> String {
+    if let Some(ptr) = super::research_stream::maybe_spill_bytes(session_id, raw.as_bytes()) {
+        serde_json::json!({
+            "spilled": true,
+            "content_hash": ptr.content_hash,
+            "byte_len": ptr.byte_len,
+            "chunk_url": ptr.chunk_url,
+            "claims_total": claims_total,
+            "sources_total": sources_total,
+        })
+        .to_string()
+    } else {
+        raw.to_string()
+    }
+}
+
+fn spill_or_inline_markdown(session_id: i64, raw: &str) -> String {
+    if let Some(ptr) = super::research_stream::maybe_spill_bytes(session_id, raw.as_bytes()) {
+        let mut end = raw.len().min(MAX_INLINE_MARKDOWN_PREVIEW_BYTES);
+        while end > 0 && !raw.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!(
+            "{}\n\n<!-- spilled: {} ({} bytes) -->",
+            &raw[..end],
+            ptr.chunk_url.as_deref().unwrap_or(""),
+            ptr.byte_len
+        )
+    } else {
+        raw.to_string()
+    }
+}
+
 /// GET /api/v2/research/sessions/{id}
 pub async fn get_research_session_detail(
     State(gs): State<GatewayState>,
@@ -1164,6 +1403,16 @@ pub async fn get_research_session_detail(
     let epistemic_dag = artifact
         .as_ref()
         .and_then(|a| build_epistemic_dag(&session.query_text, &a.artifact_json));
+    let claims_total = summary.claims.len();
+    let sources_total = summary.source_count.unwrap_or(0);
+    let compact_claims = compact_claims_preview(summary.claims);
+    let compact_dag = epistemic_dag.map(compact_dag_preview);
+    let report_markdown = artifact
+        .as_ref()
+        .map(|a| spill_or_inline_markdown(session.id, &a.report_markdown));
+    let artifact_json = artifact.as_ref().map(|a| {
+        spill_or_inline_artifact(session.id, &a.artifact_json, claims_total, sources_total)
+    });
     ok(ResearchDetailDto {
         session: session_dto(
             session.id,
@@ -1172,13 +1421,13 @@ pub async fn get_research_session_detail(
             session.started_at_ms,
             session.finished_at_ms,
         ),
-        report_markdown: artifact.as_ref().map(|a| a.report_markdown.clone()),
-        artifact_json: artifact.as_ref().map(|a| a.artifact_json.clone()),
+        report_markdown,
+        artifact_json,
         confidence_tier: summary.confidence_tier,
-        claims: summary.claims,
+        claims: compact_claims,
         source_count: summary.source_count,
         citation_precision: summary.citation_precision,
-        epistemic_dag,
+        epistemic_dag: compact_dag,
         wave_count: summary.wave_count,
         wave_stability: summary.wave_stability,
         quality_score: summary.quality_score,
@@ -1287,6 +1536,11 @@ pub fn api_v2_router() -> Router<GatewayState> {
             "/research/persist-claims",
             post(post_research_persist_claims),
         )
+        .route(
+            "/research/frame-chunks/{stream_id}",
+            get(super::frame_stream::get_research_frame_chunks),
+        )
+        .merge(super::research_stream::api_v2_router())
         .merge(super::scientia::api_v2_router())
 }
 
@@ -1686,5 +1940,234 @@ mod tests {
                 .markdown_content
                 .contains("crates/vox-scientia/src/lib.rs")
         );
+    }
+
+    #[tokio::test]
+    async fn detail_spills_50x100_artifact_under_32kb_and_serves_chunk_and_pages() {
+        use axum::extract::Query;
+        use axum::http::StatusCode;
+
+        let (gs, db) = gateway_with_memory_db().await;
+        let sid = db
+            .create_research_session("s-50x100", "large research scale test")
+            .await
+            .unwrap();
+        let citations: Vec<Value> = (0..100)
+            .map(|i| {
+                serde_json::json!({
+                    "source_id": i,
+                    "url": format!("https://example.org/paper/{i}"),
+                    "title": format!("Source Title #{i}"),
+                    "snippet": "x".repeat(450),
+                    "confidence": 0.91
+                })
+            })
+            .collect();
+        let claim_verdicts: Vec<Value> = (0..50)
+            .map(|i| {
+                serde_json::json!({
+                    "claim": { "text": format!("Verified factual claim #{i}: {}", "detail ".repeat(18)), "claim_id": i + 1 },
+                    "verdict": "supported",
+                    "confidence": 0.93,
+                    "evidence_spans": [ { "source_id": i * 2 }, { "source_id": i * 2 + 1 } ],
+                    "resample_stability": 0.96
+                })
+            })
+            .collect();
+        let full_artifact = serde_json::json!({
+            "schema_version": 1,
+            "plan": { "subqueries": ["q1", "q2", "q3", "q4"] },
+            "result": {
+                "answer": "Grounded synthesis.",
+                "citations": citations,
+                "research_metadata": {
+                    "routing_tier": "DeepResearch",
+                    "source_count": 100,
+                    "claim_verdicts": claim_verdicts,
+                    "citation_audit": { "precision": 0.98 },
+                    "corroboration_counts": [[1, 3]],
+                    "wave_count": 3,
+                    "wave_stability": 0.94,
+                    "quality_score": 91,
+                    "synthesis_model": "test-synth-model"
+                }
+            }
+        })
+        .to_string();
+        let full_markdown = format!("# Report\n\n{}", "Long paragraph section. ".repeat(1500));
+        db.store_research_artifact(sid, &full_artifact, &full_markdown)
+            .await
+            .unwrap();
+
+        let resp_json = body(
+            get_research_session_detail(State(gs.clone()), peer(), HeaderMap::new(), Path(sid))
+                .await,
+        )
+        .await;
+        let payload_bytes = serde_json::to_vec(&resp_json).unwrap();
+        assert!(
+            payload_bytes.len() < 32 * 1024,
+            "expected compact summary < 32 KiB, got {} bytes",
+            payload_bytes.len()
+        );
+
+        let data = &resp_json["data"];
+        assert_eq!(data["confidence_tier"], "DeepResearch");
+        assert_eq!(data["source_count"], 100);
+        assert_eq!(data["citation_precision"], 0.98);
+        assert_eq!(data["wave_count"], 3);
+        assert_eq!(data["quality_score"], 91);
+        assert_eq!(data["synthesis_model"], "test-synth-model");
+        assert!(data["claims"].as_array().unwrap().len() <= MAX_INLINE_CLAIMS_PREVIEW);
+        assert!(data["epistemic_dag"]["nodes"].as_array().unwrap().len() <= MAX_INLINE_DAG_NODES);
+
+        let ptr: Value = serde_json::from_str(data["artifact_json"].as_str().unwrap()).unwrap();
+        assert_eq!(ptr["spilled"], true);
+        let hash = ptr["content_hash"].as_str().unwrap().to_string();
+        let chunk_resp = crate::gui_ops::research_stream::get_research_session_chunk(
+            State(gs.clone()),
+            peer(),
+            HeaderMap::new(),
+            Path((sid, hash)),
+        )
+        .await;
+        assert_eq!(chunk_resp.status(), StatusCode::OK);
+        let restored = axum::body::to_bytes(chunk_resp.into_body(), 1 << 22)
+            .await
+            .unwrap();
+        assert_eq!(restored.as_ref(), full_artifact.as_bytes());
+
+        let claims_p2 = body(
+            crate::gui_ops::research_stream::get_research_session_claims(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path(sid),
+                Query(crate::gui_ops::research_stream::PageQuery {
+                    offset: Some(25),
+                    cursor: None,
+                    limit: Some(25),
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(claims_p2["data"]["claims"].as_array().unwrap().len(), 25);
+        assert_eq!(claims_p2["data"]["has_more"], false);
+
+        let sources_p1 = body(
+            crate::gui_ops::research_stream::get_research_session_sources(
+                State(gs),
+                peer(),
+                HeaderMap::new(),
+                Path(sid),
+                Query(crate::gui_ops::research_stream::PageQuery {
+                    offset: Some(0),
+                    cursor: None,
+                    limit: Some(50),
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(sources_p1["data"]["sources"].as_array().unwrap().len(), 50);
+        assert_eq!(sources_p1["data"]["has_more"], true);
+    }
+
+    #[tokio::test]
+    async fn db_backed_claims_and_sources_paginate_with_offset() {
+        use axum::extract::Query;
+        use vox_db::NewResearchSessionSource;
+
+        let (gs, db) = gateway_with_memory_db().await;
+        let sid = db.create_research_session("s-db-page", "q").await.unwrap();
+        for i in 0..5u64 {
+            db.store_claim(sid, 100 + i, &format!("Claim {i}"), true, false, false)
+                .await
+                .unwrap();
+            db.upsert_session_source(&NewResearchSessionSource {
+                session_id: sid,
+                wave: 1,
+                url: format!("https://ex.org/{i}"),
+                title: "T".into(),
+                snippet: "S".into(),
+                provider: "openalex".into(),
+                domain: "ex.org".into(),
+                relevance_score: 0.8,
+                created_at_ms: 1000 + i as i64,
+            })
+            .await
+            .unwrap();
+        }
+        let pq1 = Query(crate::gui_ops::research_stream::PageQuery {
+            offset: Some(2),
+            cursor: None,
+            limit: Some(2),
+        });
+        let cp = body(
+            crate::gui_ops::research_stream::get_research_session_claims(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path(sid),
+                pq1,
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(cp["data"]["source"], "db");
+        assert_eq!(cp["data"]["claims"].as_array().unwrap().len(), 2);
+        assert_eq!(cp["data"]["has_more"], true);
+
+        let pq2 = Query(crate::gui_ops::research_stream::PageQuery {
+            offset: Some(3),
+            cursor: None,
+            limit: Some(5),
+        });
+        let sp = body(
+            crate::gui_ops::research_stream::get_research_session_sources(
+                State(gs),
+                peer(),
+                HeaderMap::new(),
+                Path(sid),
+                pq2,
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(sp["data"]["source"], "db");
+        assert_eq!(sp["data"]["sources"].as_array().unwrap().len(), 2);
+        assert_eq!(sp["data"]["has_more"], false);
+    }
+
+    #[tokio::test]
+    async fn write_research_doc_preserves_existing_artifact_json() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("docs/src/architecture")).unwrap();
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .unwrap();
+        let sid = db
+            .create_research_session("s-preserve", "probe preserve")
+            .await
+            .unwrap();
+        let rich = r#"{"plan":{"subqueries":["q1"]},"result":{"answer":"Grounded [1]"}}"#;
+        db.store_research_artifact(sid, rich, "# Grounded Report")
+            .await
+            .unwrap();
+        let draft = render_doc_draft_with_db(Some(&db), sid)
+            .await
+            .expect("draft");
+        assert!(draft.is_valid, "{:?}", draft.validation_errors);
+        assert!(draft.markdown_content.contains("status: \"research\""));
+        assert!(draft.markdown_content.contains("```vox-diagram"));
+        assert!(!draft.markdown_content.contains("```mermaid"));
+        assert!(!draft.markdown_content.contains("// vox:skip"));
+
+        write_research_doc(&db, dir.path(), sid, &draft.slug, &draft.markdown_content)
+            .await
+            .expect("publish");
+        let after = db.get_research_artifact(sid).await.unwrap().unwrap();
+        assert_eq!(after.artifact_json, rich);
     }
 }

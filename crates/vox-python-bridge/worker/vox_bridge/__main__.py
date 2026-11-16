@@ -50,14 +50,43 @@ def main() -> None:
         write_frame(rpc_out, result_header(request_id, value), reply_body)
 
 
+def _pkg_version(dist_name: str):
+    try:
+        from importlib import metadata
+
+        return metadata.version(dist_name)
+    except Exception:
+        return None
+
+
+def _apply_seed_if_present(params: dict) -> None:
+    seed = params.get("seed") if isinstance(params, dict) else None
+    if isinstance(seed, int) and not isinstance(seed, bool):
+        import random
+
+        random.seed(seed)
+
+
 def dispatch(method: str, params: dict, body: bytes, debug_ops: bool):
     if method == "execute_plan":
+        _apply_seed_if_present(params)
+        family = params.get("family") if isinstance(params, dict) else None
         # Imported here so numpy/polars stay unloaded until a plan runs, after
         # the stdout dup in main. Frame plans keep array_ops off the import path.
-        if isinstance(params, dict) and params.get("family") == "frame":
+        if family == "frame":
             from vox_bridge.frame_ops import execute_plan
 
             return execute_plan(params, body)
+        if family == "plot":
+            from vox_bridge.plot_ops import execute_plot_plan
+
+            return execute_plot_plan(params, body)
+        if family in ("tensor_load", "tensor_run"):
+            from vox_bridge.tensor_ops import execute_tensor_plan
+
+            return execute_tensor_plan(params, body)
+        if family == "escape_call":
+            return execute_escape_call(params)
         from vox_bridge.array_ops import execute_plan
 
         return execute_plan(params, body)
@@ -66,6 +95,12 @@ def dispatch(method: str, params: dict, body: bytes, debug_ops: bool):
             "python": platform.python_version(),
             "platform": platform.platform(),
             "pid": os.getpid(),
+            "packages": {
+                "python": platform.python_version(),
+                "numpy": _pkg_version("numpy"),
+                "polars": _pkg_version("polars"),
+                "torch": _pkg_version("torch"),
+            },
         }
     if method == "release":
         return {"released": list(params.get("ids") or [])}
@@ -74,6 +109,69 @@ def dispatch(method: str, params: dict, body: bytes, debug_ops: bool):
             raise RuntimeError("debug ops disabled")
         return debug_op(method, params)
     raise RuntimeError(f"unknown method {method}")
+
+
+_DENIED_ESCAPE_MODULES = {
+    "pickle",
+    "marshal",
+    "shelve",
+    "_pickle",
+    "subprocess",
+    "_posixsubprocess",
+    "importlib",
+    "_imp",
+    "imp",
+}
+
+
+def _is_denied_escape_target(module: str, symbol: str) -> bool:
+    top = module.split(".")[0]
+    if top in _DENIED_ESCAPE_MODULES:
+        return True
+    full = f"{module}.{symbol}" if symbol else module
+    if full in ("eval", "exec", "builtins.eval", "builtins.exec"):
+        return True
+    if symbol == "__import__":
+        return True
+    if symbol == "load" and (module == "torch" or module.startswith("torch.")):
+        return True
+    if module in ("os", "posix", "nt") and (
+        symbol in ("system", "popen")
+        or symbol.startswith("spawn")
+        or symbol.startswith("exec")
+    ):
+        return True
+    return False
+
+
+def _to_json_safe(val):
+    if val is None or isinstance(val, (bool, int, float, str)):
+        return val
+    if hasattr(val, "tolist"):
+        return _to_json_safe(val.tolist())
+    if isinstance(val, (list, tuple)):
+        return [_to_json_safe(x) for x in val]
+    if isinstance(val, dict):
+        return {str(k): _to_json_safe(v) for k, v in val.items()}
+    return repr(val)
+
+
+def execute_escape_call(params: dict):
+    import importlib
+
+    module = str(params.get("module", "")).strip()
+    symbol = str(params.get("symbol", "")).strip()
+    args = params.get("args") or []
+    if not module or not symbol:
+        raise RuntimeError("escape_call requires module and symbol")
+    if _is_denied_escape_target(module, symbol):
+        raise RuntimeError(f"py: denied Tier 2 Python target {module}.{symbol}")
+    mod = importlib.import_module(module)
+    fn = getattr(mod, symbol, None)
+    if fn is None or not callable(fn):
+        raise RuntimeError(f"py: module {module!r} has no callable {symbol!r}")
+    out = fn(*args)
+    return _to_json_safe(out)
 
 
 def debug_op(method: str, params: dict):

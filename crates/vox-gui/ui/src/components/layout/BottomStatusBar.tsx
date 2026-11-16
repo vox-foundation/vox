@@ -83,6 +83,8 @@ function Segment({
   buttonRef,
   ariaLabel,
   badge,
+  className = '',
+  valueMaxWidthClass = 'max-w-[18ch] xl:max-w-[36ch]',
 }: {
   testId: string;
   label: string;
@@ -94,6 +96,8 @@ function Segment({
   /** Set only on a card that opens a popover. */
   expanded?: boolean;
   buttonRef?: React.Ref<HTMLButtonElement>;
+  className?: string;
+  valueMaxWidthClass?: string;
 }) {
   return (
     <button
@@ -104,13 +108,13 @@ function Segment({
       aria-label={ariaLabel}
       aria-haspopup={expanded === undefined ? undefined : 'dialog'}
       aria-expanded={expanded}
-      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition ${className}`}
     >
       <span data-card-label className="uppercase tracking-[0.08em] text-text-muted">{label}</span>
       <span
         data-card-value
         title={value}
-        className="inline-block max-w-[44ch] truncate align-bottom font-mono tabular-nums text-text-secondary"
+        className={`inline-block ${valueMaxWidthClass} truncate align-bottom font-mono tabular-nums text-text-secondary`}
       >
         {value}
       </span>
@@ -222,6 +226,7 @@ export function BottomStatusBar({
             testId="bottom-status-bar-mesh"
             label={label}
             value={meshValue}
+            className="max-[1399px]:hidden"
             onClick={() => onNavigate('mesh')}
           />
         );
@@ -233,6 +238,8 @@ export function BottomStatusBar({
             label={label}
             value={routingCardValue(routingSummary)}
             ariaLabel="Open routing details"
+            className="max-[1199px]:hidden"
+            valueMaxWidthClass="max-w-[14ch] min-[1400px]:max-w-[24ch] 2xl:max-w-[36ch]"
             badge={
               routingProblems > 0 ? (
                 <span
@@ -262,6 +269,11 @@ export function BottomStatusBar({
                 ? `${(needsYouCount ?? 0) > 0 ? needsYouCount : '—'} · couldn't load ${needsYouDegraded.join(', ')}`
                 : String(needsYouCount ?? 0)
             }
+            className={
+              (needsYouCount ?? 0) === 0 && needsYouDegraded.length === 0
+                ? 'max-[1180px]:hidden'
+                : 'max-[1039px]:hidden'
+            }
             onClick={() => onNavigate('needs-you')}
           />
         );
@@ -275,10 +287,10 @@ export function BottomStatusBar({
       data-testid="bottom-status-bar"
       role="status"
       aria-label="Operator status"
-      className="vox-footer-frieze flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[11px] text-text-muted"
+      className="vox-footer-frieze relative z-(--z-shell-chrome) flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[11px] text-text-muted"
     >
-      <div className="relative flex min-w-0 flex-1">
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+      <div className="relative flex min-w-0 flex-1 items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
           {visible.map((kind) => renderSegment(kind))}
         </div>
         {openPanel === 'spend' ? (
@@ -287,7 +299,7 @@ export function BottomStatusBar({
             role="dialog"
             aria-label="Spend detail"
             data-testid="bottom-status-bar-spend-popover"
-            className="absolute bottom-full left-0 z-50 mb-1 w-64 rounded-lg border border-border-subtle bg-bg-base p-3 shadow-2xl"
+            className="absolute bottom-full left-0 z-(--z-popover) mb-1 w-64 rounded-lg border border-border-subtle bg-bg-base p-3 shadow-2xl"
           >
             <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-[11px]">
               <dt className="text-text-muted">Engine total</dt>
@@ -331,14 +343,15 @@ export function BottomStatusBar({
           onClick={() => setOpenPanel((p) => (p === 'configure' ? null : 'configure'))}
           aria-expanded={openPanel === 'configure'}
           aria-label="Configure status bar"
-          className="rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+          className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
         >
-          <span className="max-[639px]:sr-only">Configure </span>▾
+          <span className="max-[979px]:sr-only">Configure </span>
+          <Icon.chevronDown className="size-3 shrink-0" aria-hidden="true" />
         </button>
         {openPanel === 'configure' ? (
           <div
             ref={panelRef}
-            className="absolute bottom-full right-0 z-50 mb-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-2 shadow-2xl"
+            className="absolute bottom-full right-0 z-(--z-popover) mb-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-2 shadow-2xl"
           >
             {hudTilesConfig.tiles.map((tile) => (
               <label

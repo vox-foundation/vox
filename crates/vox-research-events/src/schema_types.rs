@@ -144,7 +144,7 @@ pub struct FindingCandidateV1 {
 // ---------------------------------------------------------------------------
 
 /// Source system for novelty hits.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NoveltySource {
     Openalex,
@@ -161,22 +161,23 @@ pub struct NormalizedHit {
     pub source: NoveltySource,
     pub work_uri: String,
     pub title: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lexical_score: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub semantic_score: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overlap_note: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cited_by_count: Option<u64>,
 }
 
 /// Recency bucket for overlap summary.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecencyBucket {
+    #[default]
     Unknown,
     Stale,
     Recent,
@@ -184,14 +185,14 @@ pub enum RecencyBucket {
 }
 
 /// Summary of overlap across all normalized hits.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OverlapSummary {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_lexical_score: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_semantic_score: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recency_bucket: Option<RecencyBucket>,
 }
 
@@ -201,9 +202,9 @@ pub struct OverlapSummary {
 pub struct QueryTrace {
     pub source: String,
     pub request_fingerprint_sha256: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub http_status: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cached: Option<bool>,
 }
 
@@ -218,10 +219,18 @@ pub struct NoveltyEvidenceBundle {
     pub query_digest_sha256: String,
     pub sources: Vec<NoveltySource>,
     pub normalized_hits: Vec<NormalizedHit>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overlap_summary: Option<OverlapSummary>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub query_traces: Option<Vec<QueryTrace>>,
+}
+
+impl NoveltyEvidenceBundle {
+    /// Borrow recorded query traces, or an empty slice when omitted.
+    #[must_use]
+    pub fn traces(&self) -> &[QueryTrace] {
+        self.query_traces.as_deref().unwrap_or(&[])
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -415,6 +424,76 @@ mod tests {
             back.normalized_hits[0].work_uri,
             "https://openalex.org/W12345"
         );
+    }
+
+    #[test]
+    fn novelty_evidence_bundle_ergonomics_and_strict_schema() {
+        use std::collections::HashSet;
+
+        let src = NoveltySource::Openalex;
+        let src_copy = src;
+        let mut src_set = HashSet::new();
+        src_set.insert(src_copy);
+        assert!(src_set.contains(&NoveltySource::Openalex));
+
+        let bucket = RecencyBucket::default();
+        let bucket_copy = bucket;
+        assert_eq!(bucket_copy, RecencyBucket::Unknown);
+        let mut bucket_set = HashSet::new();
+        bucket_set.insert(bucket_copy);
+        assert!(bucket_set.contains(&RecencyBucket::Unknown));
+
+        let summary_default = OverlapSummary::default();
+        assert_eq!(summary_default.max_lexical_score, None);
+
+        let minimal_json = serde_json::json!({
+            "schema_version": 1,
+            "bundle_id": "NEB-MIN",
+            "candidate_id": "FC-MIN",
+            "computed_at_ms": 1_700_000_000_000_i64,
+            "query_digest_sha256": "b".repeat(64),
+            "sources": ["openalex"],
+            "normalized_hits": [{
+                "source": "openalex",
+                "work_uri": "https://openalex.org/W999",
+                "title": "Minimal hit"
+            }]
+        });
+        let parsed: NoveltyEvidenceBundle =
+            serde_json::from_value(minimal_json).expect("minimal bundle deserializes");
+        assert!(parsed.traces().is_empty());
+        assert_eq!(parsed.normalized_hits[0].year, None);
+
+        let with_trace_json = serde_json::json!({
+            "schema_version": 1,
+            "bundle_id": "NEB-TR",
+            "candidate_id": "FC-TR",
+            "computed_at_ms": 1_700_000_000_001_i64,
+            "query_digest_sha256": "c".repeat(64),
+            "sources": ["semantic_scholar"],
+            "normalized_hits": [],
+            "overlap_summary": {},
+            "query_traces": [{
+                "source": "semantic_scholar",
+                "request_fingerprint_sha256": "d".repeat(64)
+            }]
+        });
+        let with_traces: NoveltyEvidenceBundle =
+            serde_json::from_value(with_trace_json).expect("trace bundle deserializes");
+        assert_eq!(with_traces.traces().len(), 1);
+        assert_eq!(with_traces.traces()[0].http_status, None);
+
+        let unknown_key_json = serde_json::json!({
+            "schema_version": 1,
+            "bundle_id": "NEB-BAD",
+            "candidate_id": "FC-BAD",
+            "computed_at_ms": 1_700_000_000_002_i64,
+            "query_digest_sha256": "e".repeat(64),
+            "sources": [],
+            "normalized_hits": [],
+            "unexpected_injected_field": true
+        });
+        assert!(serde_json::from_value::<NoveltyEvidenceBundle>(unknown_key_json).is_err());
     }
 
     #[test]

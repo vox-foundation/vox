@@ -51,12 +51,33 @@ impl CurationPolicy for DefaultPolicy {
                     Decision::Drop
                 }
             }
-            // Always keep agent turns and correction pairs.
-            TranscriptKind::AgentTurn { .. }
-            | TranscriptKind::Accepted { .. }
-            | TranscriptKind::Corrected { .. } => Decision::Keep,
+            // Always keep agent turns, non-credential accepted/rejected outcomes, and real corrections.
+            TranscriptKind::AgentTurn { .. } => Decision::Keep,
+            TranscriptKind::Accepted { block } => {
+                if block.credential_prompt {
+                    Decision::Drop
+                } else {
+                    Decision::Keep
+                }
+            }
+            TranscriptKind::Rejected { block } => {
+                if block.credential_prompt
+                    || (block.input.trim().is_empty() && block.output.is_empty())
+                {
+                    Decision::Drop
+                } else {
+                    Decision::Keep
+                }
+            }
+            TranscriptKind::Corrected { from, to } => {
+                if (from.trim().is_empty() && to.trim().is_empty()) || from.trim() == to.trim() {
+                    Decision::Drop
+                } else {
+                    Decision::Keep
+                }
+            }
             // Drop ephemeral / low-signal events.
-            TranscriptKind::ExitStatus { .. } | TranscriptKind::Rejected { .. } => Decision::Drop,
+            TranscriptKind::ExitStatus { .. } => Decision::Drop,
         }
     }
 }
@@ -154,5 +175,48 @@ mod tests {
         ];
         let kept = curate(&events, &DefaultPolicy::default());
         assert_eq!(kept.len(), 2);
+    }
+
+    #[test]
+    fn default_policy_retains_nonempty_rejected_and_drops_empty_or_credential_or_identical_correction()
+     {
+        use crate::block::{Block, BlockId, BlockKind};
+
+        let policy = DefaultPolicy::default();
+        let nonempty_rej = Block::new(BlockId(1), BlockKind::Shell, "rm -rf build");
+        assert_eq!(
+            policy.decide(&make(TranscriptKind::Rejected {
+                block: nonempty_rej
+            })),
+            Decision::Keep
+        );
+
+        let empty_rej = Block::new(BlockId(2), BlockKind::Shell, "   ");
+        assert_eq!(
+            policy.decide(&make(TranscriptKind::Rejected { block: empty_rej })),
+            Decision::Drop
+        );
+
+        let mut cred_rej = Block::new(BlockId(3), BlockKind::Shell, "sudo -S id");
+        cred_rej.credential_prompt = true;
+        assert_eq!(
+            policy.decide(&make(TranscriptKind::Rejected { block: cred_rej })),
+            Decision::Drop
+        );
+
+        assert_eq!(
+            policy.decide(&make(TranscriptKind::Corrected {
+                from: "cargo tset".into(),
+                to: "cargo test".into(),
+            })),
+            Decision::Keep
+        );
+        assert_eq!(
+            policy.decide(&make(TranscriptKind::Corrected {
+                from: "cargo test".into(),
+                to: "cargo test".into(),
+            })),
+            Decision::Drop
+        );
     }
 }

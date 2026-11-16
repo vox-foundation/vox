@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { listenAgentEvents, type AgentEventFrame } from '../../../transport';
+import { TERMINAL_MONO_STYLE } from './terminalTheme';
 
 interface Props {
   agentId: string;
@@ -41,10 +42,12 @@ export function AgentTab({ agentId }: Props) {
       aria-label="agent events"
       role="log"
       aria-live="polite"
-      style={{ fontFamily: 'monospace', fontSize: 12, padding: 8, overflowY: 'auto', height: '100%' }}
+      data-terminal-mono="true"
+      style={TERMINAL_MONO_STYLE}
+      className="h-full overflow-y-auto rounded border border-border-subtle bg-bg-surface p-2 text-xs leading-[1.45] text-text-primary"
     >
       {lines.length === 0 ? (
-        <p className="text-text-muted">waiting for events…</p>
+        <p className="text-text-muted">waiting for events...</p>
       ) : (
         lines.map((l, i) => <div key={i}>{l}</div>)
       )}

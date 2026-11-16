@@ -51,6 +51,24 @@ contracts:
     enforced_by:
       - vox ci command-compliance
 
+  - id: cli-semantic-aliases
+    path: contracts/cli/semantic-aliases.v1.json
+    owner: platform-ci
+    kind: json
+    description: Precomputed CLI semantic alias and foreign-idiom lockfile verified by antonym banlist and embedding cosine margin.
+    enforced_by:
+      - vox ci command-compliance
+      - vox ci cli-synonyms
+
+  - id: cli-semantic-aliases-schema
+    path: contracts/cli/semantic-aliases.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for contracts/cli/semantic-aliases.v1.json.
+    enforced_by:
+      - vox ci command-compliance
+      - vox ci cli-synonyms
+
   - id: capability-registry
     path: contracts/capability/capability-registry.yaml
     owner: platform-ci
@@ -1276,6 +1294,33 @@ contracts:
     description: Example novelty-evidence bundle JSON for schema validation CI.
     enforced_by:
       - vox ci scientia-novelty-ledger-contracts
+
+  - id: scientia-v76-audit-v1-schema
+    path: contracts/reports/scientia-v76-audit.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: JSON Schema for the deterministic v7.6 6-axis before/after Scientia audit report.
+    enforced_by:
+      - cargo test -p vox-cli-research --lib scientia_v76_audit
+      - vox ci contracts-index
+
+  - id: scientia-v76-before-baseline-v1
+    path: contracts/reports/scientia-v76-before-baseline.v1.json
+    owner: scientia
+    kind: json
+    description: Frozen pre-v7.6 6-axis Scientia benchmark and live bug reproduction baseline artifact.
+    enforced_by:
+      - cargo test -p vox-cli-research --lib scientia_v76_audit
+      - vox ci contracts-index
+
+  - id: scientia-v76-after-closure-v1
+    path: contracts/reports/scientia-v76-after-closure.v1.json
+    owner: scientia
+    kind: json
+    description: Post-remediation v7.6 6-axis Scientia closure audit report with paired non-inferiority comparison and quarantined lessons summary.
+    enforced_by:
+      - cargo test -p vox-cli-research --lib scientia_v76_audit
+      - vox ci contracts-index
 
   - id: scientia-evidence-graph-schema
     path: contracts/scientia/scientia-evidence-graph.schema.json

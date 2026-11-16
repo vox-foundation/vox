@@ -20,9 +20,12 @@ known_keys:
   - library_name
   - pipeline_tag
   - language
+  - datasets
+  - spaces
   - tags
   - model-index
   - widget
+library_name: [transformers, peft, vox]
 base_model:
   forbid_char: "@"
   # owner/name with no revision; the pin goes in base_model_revision

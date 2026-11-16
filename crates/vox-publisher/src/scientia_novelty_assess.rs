@@ -15,9 +15,7 @@ use vox_scientia::inspect_bridge::{
     NoveltyConfig, NoveltyVerdict, PolarizedHit,
 };
 
-use crate::scientia_finding_ledger::{
-    NormalizedPriorArtHit, NoveltyEvidenceBundleV1, to_contract_bundle,
-};
+use crate::scientia_finding_ledger::{NormalizedPriorArtHit, NoveltyEvidenceBundleV1};
 
 /// Explainable signal breakdown attached to every `NoveltyAssessment`.
 #[derive(Debug, Clone, Default, Serialize)]
@@ -98,9 +96,6 @@ pub fn assess_novelty(
     // ------------------------------------------------------------------
     // 1. Chrono-filter
     // ------------------------------------------------------------------
-    // Convert to the research-events type so we can use ChronoFilter directly.
-    let re_bundle = to_contract_bundle(bundle);
-
     // Build a ChronoFilter from claim_year.  ChronoFilter normally takes a Unix
     // timestamp, but its `filter_hits` method just compares `h.year < claim_year()`.
     // We synthesise a timestamp that maps to exactly `claim_year` via the inverse of
@@ -109,7 +104,7 @@ pub fn assess_novelty(
     let chrono_filter = ChronoFilter::new(claim_ts);
 
     let kept_refs: Vec<&vox_research_events::schema_types::NormalizedHit> =
-        chrono_filter.filter_hits(&re_bundle.normalized_hits);
+        chrono_filter.filter_hits(&bundle.normalized_hits);
     let excluded_future_hits = bundle.normalized_hits.len() - kept_refs.len();
 
     // ------------------------------------------------------------------
@@ -132,23 +127,23 @@ pub fn assess_novelty(
         vox_research_events::schema_types::OverlapSummary {
             max_lexical_score: max_lex_filtered,
             max_semantic_score: max_sem_filtered,
-            recency_bucket: re_bundle
+            recency_bucket: bundle
                 .overlap_summary
                 .as_ref()
-                .and_then(|o| o.recency_bucket.clone()),
+                .and_then(|o| o.recency_bucket),
         }
     });
 
     let filtered_bundle = vox_research_events::schema_types::NoveltyEvidenceBundle {
-        schema_version: re_bundle.schema_version,
-        bundle_id: re_bundle.bundle_id.clone(),
-        candidate_id: re_bundle.candidate_id.clone(),
-        computed_at_ms: re_bundle.computed_at_ms,
-        query_digest_sha256: re_bundle.query_digest_sha256.clone(),
-        sources: re_bundle.sources.clone(),
+        schema_version: bundle.schema_version,
+        bundle_id: bundle.bundle_id.clone(),
+        candidate_id: bundle.candidate_id.clone(),
+        computed_at_ms: bundle.computed_at_ms,
+        query_digest_sha256: bundle.query_digest_sha256.clone(),
+        sources: bundle.sources.clone(),
         normalized_hits: filtered_hits,
         overlap_summary: filtered_overlap,
-        query_traces: re_bundle.query_traces.clone(), // PRESERVE for InsufficientEvidence rule
+        query_traces: bundle.query_traces.clone(), // PRESERVE for InsufficientEvidence rule
     };
 
     // ------------------------------------------------------------------
@@ -163,29 +158,13 @@ pub fn assess_novelty(
     // ------------------------------------------------------------------
     // 4. Conflict detection
     // ------------------------------------------------------------------
-    // Map the filtered V1 hits back to PolarizedHit for the detector.
-    // We use the kept_refs (which still reference the original V1-shaped data
-    // via the round-tripped re_bundle) but re-index through the original bundle
-    // to access `overlap_note` on the publisher type.
-    //
-    // The chrono filter drops hits, so positional indexing into the original
-    // `bundle.normalized_hits` is wrong. Match each kept hit back to its
-    // original by `work_uri` to recover the polarity-bearing `overlap_note`.
     let polarized: Vec<PolarizedHit> = kept_refs
         .iter()
-        .map(|h| {
-            let polarity = bundle
-                .normalized_hits
-                .iter()
-                .find(|v1| v1.work_uri == h.work_uri)
-                .map(derive_polarity)
-                .unwrap_or(ClaimPolarity::Positive);
-            PolarizedHit {
-                work_uri: h.work_uri.clone(),
-                similarity: h.semantic_score.unwrap_or(0.0),
-                polarity,
-                excerpt: h.overlap_note.clone(),
-            }
+        .map(|h| PolarizedHit {
+            work_uri: h.work_uri.clone(),
+            similarity: h.semantic_score.unwrap_or(0.0),
+            polarity: derive_polarity(h),
+            excerpt: h.overlap_note.clone(),
         })
         .collect();
 
@@ -197,9 +176,7 @@ pub fn assess_novelty(
     // 5. Signal breakdown
     // ------------------------------------------------------------------
     let sources_succeeded = filtered_bundle
-        .query_traces
-        .as_deref()
-        .unwrap_or(&[])
+        .traces()
         .iter()
         .filter(|t| t.http_status.is_some_and(|s| (200..300).contains(&s)))
         .count();
@@ -349,7 +326,11 @@ mod tests {
             sources: vec![PriorArtSource::Manual],
             normalized_hits: hits,
             overlap_summary: None,
-            query_traces: traces,
+            query_traces: if traces.is_empty() {
+                None
+            } else {
+                Some(traces)
+            },
         }
     }
 

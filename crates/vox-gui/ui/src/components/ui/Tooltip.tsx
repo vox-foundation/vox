@@ -1,5 +1,28 @@
 import React from 'react';
-import * as RadixTooltip from '@radix-ui/react-tooltip';
+import { Tooltip as TooltipPrimitive } from 'radix-ui';
+import { cn } from '../../lib/cn';
+
+const TooltipProviderPresentContext = React.createContext(false);
+
+export interface TooltipProviderProps {
+  children: React.ReactNode;
+  delayDuration?: number;
+  skipDelayDuration?: number;
+}
+
+function TooltipProvider({
+  children,
+  delayDuration = 150,
+  skipDelayDuration = 300,
+}: TooltipProviderProps) {
+  return (
+    <TooltipProviderPresentContext.Provider value={true}>
+      <TooltipPrimitive.Provider delayDuration={delayDuration} skipDelayDuration={skipDelayDuration}>
+        {children}
+      </TooltipPrimitive.Provider>
+    </TooltipProviderPresentContext.Provider>
+  );
+}
 
 export interface TooltipProps {
   content: React.ReactNode;
@@ -11,7 +34,7 @@ export interface TooltipProps {
   className?: string;
 }
 
-export function Tooltip({
+function Tooltip({
   content,
   children,
   side = 'top',
@@ -20,32 +43,50 @@ export function Tooltip({
   delayDuration = 150,
   className = '',
 }: TooltipProps) {
+  const hasRootProvider = React.useContext(TooltipProviderPresentContext);
   const [open, setOpen] = React.useState(false);
+
   if (!content) return <>{children}</>;
 
-  return (
-    <RadixTooltip.Provider delayDuration={delayDuration}>
-      <RadixTooltip.Root open={open} onOpenChange={setOpen}>
-        <RadixTooltip.Trigger
-          asChild
+  const body = (
+    <TooltipPrimitive.Root open={open} onOpenChange={setOpen} delayDuration={delayDuration}>
+      <TooltipPrimitive.Trigger
+        asChild
+        data-slot="tooltip-trigger"
+        onPointerDown={() => setOpen(false)}
+        onClick={() => setOpen(false)}
+      >
+        {children}
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          data-slot="tooltip-content"
+          side={side}
+          align={align}
+          sideOffset={sideOffset}
+          collisionPadding={8}
           onPointerDown={() => setOpen(false)}
-          onClick={() => setOpen(false)}
+          className={cn(
+            'z-(--z-tooltip) max-w-xs rounded-md border border-border-strong bg-popover px-2.5 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md animate-in fade-in-0 zoom-in-95 pointer-events-none select-none',
+            className
+          )}
         >
-          {children}
-        </RadixTooltip.Trigger>
-        <RadixTooltip.Portal>
-          <RadixTooltip.Content
-            side={side}
-            align={align}
-            sideOffset={sideOffset}
-            onPointerDown={() => setOpen(false)}
-            className={`z-[99999] max-w-xs rounded-md border border-[#C59B27]/55 bg-bg-elevated px-2.5 py-1 text-xs text-text-primary shadow-[0_10px_24px_rgba(62,45,24,0.16),0_0_0_1px_rgba(255,252,245,0.85)_inset] backdrop-blur-md animate-in fade-in-0 zoom-in-95 pointer-events-none select-none ${className}`}
-          >
-            {content}
-            <RadixTooltip.Arrow className="fill-[var(--color-bg-elevated)]" />
-          </RadixTooltip.Content>
-        </RadixTooltip.Portal>
-      </RadixTooltip.Root>
-    </RadixTooltip.Provider>
+          {content}
+          <TooltipPrimitive.Arrow className="fill-popover" />
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
+  );
+
+  if (hasRootProvider) {
+    return body;
+  }
+
+  return (
+    <TooltipProvider delayDuration={delayDuration}>
+      {body}
+    </TooltipProvider>
   );
 }
+
+export { Tooltip, TooltipProvider };

@@ -1,53 +1,65 @@
 {
   "schema_version": 1,
   "fixtures": {
-    "auth_patterns": {
-      "tokens": 219,
-      "bytes": 1574
-    },
-    "mcp_tools": {
-      "tokens": 78,
-      "bytes": 798
-    },
-    "reactive_counter": {
-      "tokens": 186,
-      "bytes": 1360
-    },
     "hello": {
       "tokens": 67,
       "bytes": 621
+    },
+    "mcp_tools": {
+      "tokens": 74,
+      "bytes": 790
+    },
+    "py_escape_psd": {
+      "tokens": 92,
+      "bytes": 577
+    },
+    "dashboard_ui": {
+      "tokens": 111,
+      "bytes": 851
+    },
+    "web_routing_fullstack": {
+      "tokens": 179,
+      "bytes": 1086
+    },
+    "py_tensor_infer": {
+      "tokens": 134,
+      "bytes": 733
     },
     "error_propagation": {
       "tokens": 686,
       "bytes": 3110
     },
-    "durable_workflow_real": {
-      "tokens": 123,
-      "bytes": 932
+    "db_native_ir": {
+      "tokens": 90,
+      "bytes": 856
     },
-    "json_as_typed": {
-      "tokens": 1208,
-      "bytes": 8624
+    "reactive_counter": {
+      "tokens": 186,
+      "bytes": 1360
     },
-    "crud_api": {
-      "tokens": 250,
-      "bytes": 1551
+    "py_frame_report": {
+      "tokens": 130,
+      "bytes": 657
     },
     "scheduled_tick": {
       "tokens": 35,
       "bytes": 712
     },
-    "web_routing_fullstack": {
-      "tokens": 180,
-      "bytes": 1093
+    "auth_patterns": {
+      "tokens": 213,
+      "bytes": 1550
     },
-    "db_native_ir": {
-      "tokens": 95,
-      "bytes": 872
+    "json_as_typed": {
+      "tokens": 1208,
+      "bytes": 8624
     },
-    "dashboard_ui": {
-      "tokens": 111,
-      "bytes": 851
+    "durable_workflow_real": {
+      "tokens": 123,
+      "bytes": 932
+    },
+    "crud_api": {
+      "tokens": 242,
+      "bytes": 1520
     },
     "py_array_stats": {
       "tokens": 280,

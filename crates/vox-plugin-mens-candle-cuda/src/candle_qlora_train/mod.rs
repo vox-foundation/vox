@@ -108,6 +108,33 @@ impl TrainGraphModel {
         }
     }
 
+    /// Packed multi-document forward (`doc_ids.len() == seq_len`).
+    pub fn forward_packed(&self, input_ids: &Tensor, doc_ids: &[u32]) -> anyhow::Result<Tensor> {
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_packed(input_ids, doc_ids)?),
+        }
+    }
+
+    /// Checkpointed packed multi-document forward.
+    pub fn forward_checkpointed_packed(
+        &self,
+        input_ids: &Tensor,
+        doc_ids: &[u32],
+        n_segments: usize,
+    ) -> anyhow::Result<crate::model::CheckpointedForward> {
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_checkpointed_packed(input_ids, doc_ids, n_segments)?),
+        }
+    }
+
+    /// Whether any attention layer in this model is linear attention.
+    #[allow(dead_code)]
+    pub fn uses_linear_attention(&self) -> bool {
+        match self {
+            Self::Qwen35(m) => m.uses_linear_attention(),
+        }
+    }
+
     /// Recompute one checkpoint segment. See
     /// [`crate::model::Qwen35Model::recompute_segment`].
     pub fn recompute_segment(
@@ -116,6 +143,45 @@ impl TrainGraphModel {
     ) -> anyhow::Result<(candle_core::Var, Tensor)> {
         match self {
             Self::Qwen35(m) => Ok(m.recompute_segment(seg)?),
+        }
+    }
+}
+
+impl vox_plugin_mens_candle_core::candle_qlora_train::training_loop::forward::ForwardCeGraph
+    for TrainGraphModel
+{
+    type Segment = crate::model::CheckpointSegment;
+
+    fn forward_eager(&self, input_ids: &Tensor) -> anyhow::Result<Tensor> {
+        self.forward(input_ids)
+    }
+
+    fn forward_packed_eager(&self, input_ids: &Tensor, doc_ids: &[u32]) -> anyhow::Result<Tensor> {
+        self.forward_packed(input_ids, doc_ids)
+    }
+
+    fn forward_checkpointed_segments(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> anyhow::Result<(Tensor, Vec<Self::Segment>)> {
+        let ckpt = self.forward_checkpointed(input_ids, n_segments)?;
+        Ok((ckpt.logits, ckpt.segments))
+    }
+
+    fn forward_checkpointed_packed_segments(
+        &self,
+        input_ids: &Tensor,
+        doc_ids: &[u32],
+        n_segments: usize,
+    ) -> anyhow::Result<(Tensor, Vec<Self::Segment>)> {
+        let ckpt = self.forward_checkpointed_packed(input_ids, doc_ids, n_segments)?;
+        Ok((ckpt.logits, ckpt.segments))
+    }
+
+    fn num_layers(&self) -> usize {
+        match self {
+            Self::Qwen35(m) => m.layers.len(),
         }
     }
 }
@@ -164,7 +230,7 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
 // Moved to `vox-plugin-mens-candle-core::rope` — see that module's docs for
 // why (it used to be forked four ways: here, `inference.rs`, and both again
 // in the Metal plugin).
-use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq;
+pub(crate) use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq_with_llama3_scaling;
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -491,22 +557,34 @@ pub fn run_candle_qlora_train(
 
     // ── qlora-rs config ───────────────────────────────────────────────────────
     let rank = config.rank.max(1);
-    let alpha_u = config.alpha.round() as usize;
-    let qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
-    // On-the-fly dequant (no weight cache) is the default: qlora-rs now dequantizes
-    // NF4 on the GPU (vectorized tensor ops, no host roundtrip), so it is fast WITHOUT
-    // keeping every dequantized weight resident. That recovers the memory margin
-    // (3B ≈13.9 GiB vs ~15.8 GiB when cached) while staying near ~1 s/step.
-    // Opt INTO persistent caching with VOX_MENS_WEIGHT_CACHE=1 (slightly faster, but
-    // resident weights cost ~2 GiB — only worth it when VRAM is plentiful).
-    // Resident BF16 weight cache is the DEFAULT for training. On-the-fly dequant
-    // re-allocates all base weights every step, which fragments the CUDA pool until it
-    // OOMs over a long run (3B died ~step 30, 1.5B ~step 60 — only 0.5B survived). The
-    // cache dequantizes once (BF16, ~2 bytes/param resident) and is reused, so VRAM is
-    // stable for the whole run (verified: 1.5B trained 270+ steps, loss 9.6→1.5, no OOM).
-    // Opt OUT with VOX_MENS_NO_WEIGHT_CACHE=1.
-    let mut qlora_cfg = qlora_cfg;
-    qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_none();
+    let alpha_u = config.alpha.round().max(1.0) as usize;
+    let mut qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
+    qlora_cfg.lora.use_rslora = config.use_rslora;
+    // Resident BF16 weight cache is beneficial for compact models (<=10B approx linear
+    // params) because on-the-fly NF4 dequant re-allocates every step; for 27B/32B+ models
+    // keeping every layer's BF16 weight resident exceeds GPU VRAM, so default to on-the-fly
+    // dequantization above 10B params. Override with VOX_MENS_WEIGHT_CACHE=1 or
+    // VOX_MENS_NO_WEIGHT_CACHE=1.
+    let explicit_no_cache = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_some()
+        || std::env::var("VOX_MENS_WEIGHT_CACHE")
+            .is_ok_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
+    let explicit_cache = std::env::var("VOX_MENS_WEIGHT_CACHE")
+        .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+    let approx_linear_params = (bundle.layout.num_hidden_layers as u64)
+        .saturating_mul(12)
+        .saturating_mul(bundle.d_model as u64)
+        .saturating_mul(bundle.d_model as u64);
+    let auto_cache = if explicit_no_cache {
+        false
+    } else if explicit_cache {
+        true
+    } else {
+        approx_linear_params <= 10_000_000_000
+    };
+    train_log::info(&format!(
+        "QLoRA base weight mode: cache_dequantized={auto_cache} (approx_linear_params={approx_linear_params})"
+    ));
+    qlora_cfg.cache_dequantized = auto_cache;
     // Keep the base-weight (NF4 dequant) dtype identical to the activation dtype so the
     // qlora-rs base matmul runs without any activation<->weight dtype casts. On a real CUDA
     // device this is BF16 (the preset default); on CPU it falls back to F32 because BF16
@@ -553,8 +631,31 @@ pub fn run_candle_qlora_train(
     let mut model_layers_qwen35 = Vec::with_capacity(bundle.layout.num_hidden_layers);
     let mut adapter_layer_order: Vec<String> = Vec::new();
     let mut base_key_map: HashMap<String, String> = HashMap::new();
-    let synthesized_rope_inv_freq =
-        synthesize_rope_inv_freq(head_dim, bundle.layout.rope_theta, &device).ok();
+    let model_type = bundle.layout.model_type.as_str();
+    let zero_centered = bundle.layout.uses_zero_centered_rmsnorm();
+    let mut effective_config = config.clone();
+    effective_config.chatml.user_no_think_switch = config.chatml.user_no_think_switch
+        && vox_eval::qwen_reasoning::model_uses_no_think_user_switch(
+            config
+                .base_model
+                .as_deref()
+                .or(config.upstream_model_id.as_deref()),
+        )
+        && vox_eval::qwen_reasoning::model_uses_no_think_user_switch(
+            (!model_type.is_empty()).then_some(model_type),
+        );
+    let rms_norm_eps =
+        crate::hf_layout::HfTransformerLayout::parse_rms_norm_eps_path(&bundle.config_path)
+            .unwrap_or(1e-6);
+    let llama3_rope =
+        crate::hf_layout::HfTransformerLayout::parse_llama3_rope_scaling_path(&bundle.config_path);
+    let synthesized_rope_inv_freq = synthesize_rope_inv_freq_with_llama3_scaling(
+        bundle.layout.effective_rope_dim(head_dim),
+        bundle.layout.rope_theta,
+        llama3_rope,
+        &device,
+    )
+    .ok();
     if synthesized_rope_inv_freq.is_some() {
         train_log::info(
             "RoPE inv_freq tensors are optional in some HF shards; using synthesized inv_freq from config rope_theta when per-layer tensors are absent.",
@@ -598,8 +699,16 @@ pub fn run_candle_qlora_train(
             let w_ln2 = vb_mmap
                 .get(bundle.d_model, &ln2_key)?
                 .to_dtype(DType::F32)?;
-            let ln1 = candle_nn::RmsNorm::new(w_ln1, 1e-6);
-            let ln2 = candle_nn::RmsNorm::new(w_ln2, 1e-6);
+            let ln1 = vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
+                w_ln1,
+                rms_norm_eps,
+                zero_centered,
+            )?;
+            let ln2 = vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
+                w_ln2,
+                rms_norm_eps,
+                zero_centered,
+            )?;
 
             // ── Attention projections ────────────────────────────────────────
             let qwen35_attn = if is_qwen35 && layer_type == "linear_attention" {
@@ -669,8 +778,6 @@ pub fn run_candle_qlora_train(
 
                 let qkv_label = format!("l{i}.lin_qkv");
                 let z_label = format!("l{i}.lin_z");
-                let b_label = format!("l{i}.lin_b");
-                let a_label = format!("l{i}.lin_a");
                 let o_label = format!("l{i}.lin_o");
 
                 let qkv_proj = QuantizedLinear::from_weight_with_varbuilder(
@@ -685,18 +792,8 @@ pub fn run_candle_qlora_train(
                     &qlora_cfg,
                     vb.pp(&z_label),
                 )?;
-                let b_proj = QuantizedLinear::from_weight_with_varbuilder(
-                    &w_b,
-                    None,
-                    &qlora_cfg,
-                    vb.pp(&b_label),
-                )?;
-                let a_proj = QuantizedLinear::from_weight_with_varbuilder(
-                    &w_a,
-                    None,
-                    &qlora_cfg,
-                    vb.pp(&a_label),
-                )?;
+                let b_proj = crate::model::LinearProj::from_tensor(w_b)?;
+                let a_proj = crate::model::LinearProj::from_tensor(w_a)?;
                 let out_proj = QuantizedLinear::from_weight_with_varbuilder(
                     &w_o,
                     None,
@@ -708,10 +805,6 @@ pub fn run_candle_qlora_train(
                 base_key_map.insert(qkv_label, qkv_key);
                 adapter_layer_order.push(z_label.clone());
                 base_key_map.insert(z_label, z_key);
-                adapter_layer_order.push(b_label.clone());
-                base_key_map.insert(b_label, b_key);
-                adapter_layer_order.push(a_label.clone());
-                base_key_map.insert(a_label, a_key);
                 adapter_layer_order.push(o_label.clone());
                 base_key_map.insert(o_label, o_key);
 
@@ -725,7 +818,7 @@ pub fn run_candle_qlora_train(
                         conv_weight,
                         dt_bias,
                         a_log,
-                        norm: candle_nn::RmsNorm::new(norm_w, 1e-6),
+                        norm: candle_nn::RmsNorm::new(norm_w, rms_norm_eps),
                         num_k_heads: linear_key_heads,
                         num_v_heads: linear_value_heads,
                         head_k_dim: linear_key_dim,
@@ -741,14 +834,13 @@ pub fn run_candle_qlora_train(
                 let q_rows = n_heads * head_dim;
                 let q_fallback_rows = q_rows.saturating_mul(2);
                 // Load projection weights on the CPU (vb_mmap_cpu) — they are quantized on
-                // the CPU so the F32 base never costs GPU VRAM during build.
-                let mut w_q = vb_mmap_cpu
+                // the CPU so the F32 base never costs GPU VRAM during build. Keep all
+                // `2 * q_rows` rows when present so `split_q_and_gate` receives the
+                // Qwen3.5/3.8 sigmoid output gate instead of slicing it off.
+                let w_q = vb_mmap_cpu
                     .get((q_rows, bundle.d_model), &q_key)
                     .or_else(|_| vb_mmap_cpu.get((q_fallback_rows, bundle.d_model), &q_key))?
                     .to_dtype(DType::F32)?;
-                if w_q.dim(0)? > q_rows {
-                    w_q = w_q.narrow(0, 0, q_rows)?;
-                }
                 let w_k = vb_mmap_cpu
                     .get((kv_dim, bundle.d_model), &k_key)?
                     .to_dtype(DType::F32)?;
@@ -766,27 +858,28 @@ pub fn run_candle_qlora_train(
                         let bias_key = key_w.replace(".weight", ".bias");
                         let mut t = vb_mmap.get((rows,), &bias_key).ok();
                         if let (true, Some(fb)) = (t.is_none(), fallback) {
-                            t = vb_mmap
-                                .get((fb,), &bias_key)
-                                .ok()
-                                .and_then(|t| t.narrow(0, 0, rows).ok());
+                            t = vb_mmap.get((fb,), &bias_key).ok();
                         }
                         t.and_then(|t| t.to_dtype(DType::F32).ok())
                     };
-                let q_bias = load_bias(&q_key, q_rows, Some(q_fallback_rows));
+                let q_bias = load_bias(&q_key, w_q.dim(0)?, None);
                 let k_bias = load_bias(&k_key, kv_dim, None);
                 let v_bias = load_bias(&v_key, kv_dim, None);
 
-                // Dense Qwen3's per-head q_norm/k_norm (frozen, not LoRA-adapted;
-                // optional — pure Qwen2/Qwen2.5 checkpoints omit them). Must match
-                // inference.rs's loader or a served model drifts from what it
-                // trained against — confirmed load-bearing: a real Qwen/Qwen3-0.6B
-                // checkpoint produced fluent-looking garbage at inference without
-                // this being applied consistently on both sides.
-                let q_norm =
-                    vox_plugin_mens_candle_core::qk_norm::load_qk_norm(&vb_mmap, &q_key, head_dim);
-                let k_norm =
-                    vox_plugin_mens_candle_core::qk_norm::load_qk_norm(&vb_mmap, &k_key, head_dim);
+                let q_norm = vox_plugin_mens_candle_core::qk_norm::load_qk_norm_with_eps(
+                    &vb_mmap,
+                    &q_key,
+                    head_dim,
+                    rms_norm_eps,
+                    zero_centered,
+                );
+                let k_norm = vox_plugin_mens_candle_core::qk_norm::load_qk_norm_with_eps(
+                    &vb_mmap,
+                    &k_key,
+                    head_dim,
+                    rms_norm_eps,
+                    zero_centered,
+                );
 
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
@@ -907,12 +1000,7 @@ pub fn run_candle_qlora_train(
             } else {
                 head_dim
             };
-            let rope_dim = if let Some(frac) = bundle.layout.rope_partial_rotary_factor {
-                let d = ((rope_dim_base as f64) * frac).round() as usize;
-                d.max(2).min(rope_dim_base)
-            } else {
-                rope_dim_base
-            };
+            let rope_dim = bundle.layout.effective_rope_dim(rope_dim_base);
             let rope_half = (rope_dim / 2).max(1);
             let inv_candidates = if is_qwen35 && layer_type == "linear_attention" {
                 vec![format!("{layer_prefix}.linear_attn.rotary_emb.inv_freq")]
@@ -931,7 +1019,13 @@ pub fn run_candle_qlora_train(
                         .and_then(|t| t.to_dtype(DType::F32).ok())
                 })
                 .or_else(|| {
-                    synthesize_rope_inv_freq(rope_dim, bundle.layout.rope_theta, &device).ok()
+                    synthesize_rope_inv_freq_with_llama3_scaling(
+                        rope_dim,
+                        bundle.layout.rope_theta,
+                        llama3_rope,
+                        &device,
+                    )
+                    .ok()
                 })
                 .or_else(|| synthesized_rope_inv_freq.clone());
 
@@ -964,7 +1058,11 @@ pub fn run_candle_qlora_train(
                 .get(bundle.d_model, "model.norm.weight")?
                 .to_dtype(DType::F32)?
         };
-        let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
+        let final_norm = vox_plugin_mens_candle_core::qk_norm::build_rms_norm(
+            fnorm_w,
+            rms_norm_eps,
+            zero_centered,
+        )?;
         // LM head may be tied to the embeddings or a genuinely untied
         // `lm_head.weight` tensor (e.g. Qwen3.8-27B) — resolve_lm_head_source
         // picks the right one, matching serve's lookup-then-fallback. Build it
@@ -1007,14 +1105,22 @@ pub fn run_candle_qlora_train(
         )?;
         let w_lm = w_lm.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
-        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
-            &w_lm,
-            None,
-            &qlora_cfg,
-            vb.pp(&lm_label),
-        )?;
-        adapter_layer_order.push(lm_label.clone());
-        base_key_map.insert(lm_label, lm_base);
+        let lm_head = if config.lora_exclude_lm_head {
+            train_log::info(
+                "lora_exclude_lm_head=true: keeping lm_head frozen (excluded from LoRA VarMap).",
+            );
+            QuantizedLinear::from_weight_frozen(&w_lm, None, &qlora_cfg, &device)?
+        } else {
+            let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+                &w_lm,
+                None,
+                &qlora_cfg,
+                vb.pp(&lm_label),
+            )?;
+            adapter_layer_order.push(lm_label.clone());
+            base_key_map.insert(lm_label, lm_base);
+            lm_head
+        };
 
         (final_norm, lm_head)
     };
@@ -1063,8 +1169,9 @@ pub fn run_candle_qlora_train(
         planned_steps: Some(total_steps_planned),
     });
 
-    let resume = training_loop::apply_checkpoint_resume(&mut trainer, config, out, pairs.len())
-        .context("QLoRA checkpoint resume")?;
+    let resume =
+        training_loop::apply_checkpoint_resume(&mut trainer, &effective_config, out, pairs.len())
+            .context("QLoRA checkpoint resume")?;
 
     training_loop::preflight_masked_ce_finite(
         &model,
@@ -1072,7 +1179,7 @@ pub fn run_candle_qlora_train(
         &pairs,
         &tokenizer,
         &device,
-        config,
+        &effective_config,
         system_prompt,
         resume.start_epoch,
     )
@@ -1084,7 +1191,7 @@ pub fn run_candle_qlora_train(
         &bundle,
         resume,
         out,
-        config,
+        &effective_config,
         pairs,
         eval_pairs,
         &tokenizer,

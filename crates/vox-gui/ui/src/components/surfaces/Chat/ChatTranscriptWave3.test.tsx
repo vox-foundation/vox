@@ -1,8 +1,9 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChatTranscript, renderStructuredMessageText } from './ChatTranscript';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
+import { voxTransport } from '../../../transport';
 
 function makeMessages(count: number): ChatMessage[] {
   return Array.from({ length: count }, (_, idx) => ({
@@ -19,7 +20,45 @@ function makeMessages(count: number): ChatMessage[] {
 }
 
 describe('ChatTranscript Wave 3 Integration (T3-CHAT-UI-WIRE-01..04)', () => {
-  it('renders ConsensusGridView when Consensus (2-4) is triggered and opens LCA BranchComparisonModal', async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders ConsensusGridView when Consensus (2-4) succeeds and opens LCA BranchComparisonModal', async () => {
+    vi.spyOn(voxTransport, 'invokeMcpTool').mockImplementation(async (tool) => {
+      if (tool === 'vox_consensus_run') {
+        return {
+          is_error: false,
+          result: {
+            success: true,
+            data: {
+              prompt: 'How does VoxIdAllocatorV2 derive deterministic IDs?',
+              models: ['anthropic/claude-sonnet', 'openai/gpt', 'mens/qwen3-8b'],
+              synthesis: 'All legs converged on deterministic ID derivation.',
+              total_elapsed_ms: 310,
+              rich_results: [
+                {
+                  model_id: 'anthropic/claude-sonnet',
+                  status: 'completed',
+                  content: 'Leg 1 response',
+                  response_time_ms: 190,
+                  quality: { quality_score: 92 },
+                },
+                {
+                  model_id: 'openai/gpt',
+                  status: 'completed',
+                  content: 'Leg 2 response',
+                  response_time_ms: 220,
+                  quality: { quality_score: 89 },
+                },
+              ],
+            },
+          },
+        };
+      }
+      return { is_error: false, result: { success: true, data: { issues: [] } } };
+    });
+
     const messages = makeMessages(4);
     render(<ChatTranscript messages={messages} sessionId="session-wave3" />);
 
@@ -34,6 +73,27 @@ describe('ChatTranscript Wave 3 Integration (T3-CHAT-UI-WIRE-01..04)', () => {
     fireEvent.click(branchBtn);
 
     expect(screen.getByTestId('branch-comparison-modal')).toBeTruthy();
+  });
+
+  it('renders honest consensus-error-banner instead of fake legs when live consensus fails', async () => {
+    vi.spyOn(voxTransport, 'invokeMcpTool').mockImplementation(async (tool) => {
+      if (tool === 'vox_consensus_run') {
+        return { is_error: true, result: 'Provider quota exhausted' };
+      }
+      return { is_error: false, result: { success: true, data: { issues: [] } } };
+    });
+
+    const messages = makeMessages(4);
+    render(<ChatTranscript messages={messages} sessionId="session-wave3-err" />);
+
+    fireEvent.click(screen.getByTestId('chat-consensus-trigger'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('consensus-error-banner').textContent).toContain(
+        'Provider quota exhausted',
+      );
+    });
+    expect(screen.queryByTestId('consensus-grid-view')).toBeNull();
   });
 
   it('applies CHUNK_SIZE = 16 chunked lazy loading and deferred code block highlighting on > 20,000 char blocks', () => {

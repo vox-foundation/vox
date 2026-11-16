@@ -1,48 +1,14 @@
 ---
-title: "Superpowers SSoT"
-description: "Single Source of Truth for Vox Superpowers (Procedural Agentic Skills)."
+title: "Superpowers SSoT (Superseded by GSD)"
+description: "Supersession notice for procedural Superpowers skills; replaced by GSD while keeping brainstorming active."
 category: "Architecture SSOTs"
-status: "current"
+status: "deprecated"
 training_eligible: true
-training_rationale: "Defines the agentic framework for structured development workflows."
+training_rationale: "Historical note documenting the transition from procedural superpowers to GSD while preserving brainstorming."
 ---
-# Superpowers (Procedural Agentic Skills)
+# Superpowers (Superseded by GSD — `brainstorming` Retained)
 
-Superpowers are high-level, structured procedural workflows that enforce disciplined methodologies across the Vox agentic network. Unlike basic tool calls, Superpowers are **multi-phase execution graphs** that orchestrate multiple agents and tools to achieve complex engineering goals.
+The procedural `obra/superpowers` workflow skills (`writing-plans`, `executing-plans`, `subagent-driven-development`, `test-driven-development`, `systematic-debugging`, `verification-before-completion`, etc.) have been **superseded by the GSD (Get Shit Done) suite** (`v7.0`).
 
-## Core Philosophy
-
-1.  **Planning-First**: No Superpower may execute code without a verified and approved implementation plan.
-2.  **Verification-Locked**: Completion is only granted when automated tests (TDD) and architectural audits pass.
-3.  **Cross-Agent Orchestration**: Skills like `Research` and `Review` can trigger handoffs between specialized agents (e.g., Lane G for research synthesis).
-
-## The 14 Standard Superpowers
-
-| Skill | Category | Description |
-|---|---|---|
-| **Brainstorm** | Strategic | High-level ideation and problem space exploration. |
-| **Specify** | Strategic | Formalization of requirements into XML/Markdown specs. |
-| **Plan** | Strategic | Architecture of the execution graph and task decomposition. |
-| **TDD** | Execution | Red-Green-Refactor loop implementation. |
-| **Debug** | Execution | Root-cause analysis and automated repair cycle. |
-| **Refactor** | Execution | Improving structure without behavior change. |
-| **Review** | Verification | alignment check against specifications and lint rules. |
-| **Research** | Strategic | Autonomous context gathering from web/local corpora. |
-| **Mockup** | Execution | Browser-based UI prototype generation. |
-| **Audit** | Verification | Security and architectural boundary validation. |
-| **Document** | Execution | Synchronization of implementation and documentation. |
-| **Optimize** | Execution | Performance profiling and hotspot tuning. |
-| **Sync** | Strategic | VCS management and conflict resolution. |
-| **Deploy** | Execution | build, test, and release orchestration. |
-
-## Integration Wiring
-
-- **SkillRegistry**: Tracks installed Superpowers and their associated prompts/instructions.
-- **Orchestrator**: Injects Superpower-specific continuation instructions into the agent context.
-- **GUI Discovery**: The `SuperpowersCatalog` provides a visual interface for activating and configuring these workflows.
-
-## Safety & Guardrails
-
-- **Budgeting**: Superpowers are subject to financial and attention budgets.
-- **Rollout**: Experimental Superpowers use a rollout percentage (default 0%) until hardened.
-- **Shadow Mode**: Superpowers can run in observation mode to collect telemetry without mutating the repository.
+- **Retained:** `brainstorming` remains active in `assets/skills/brainstorming/` and `crates/vox-skills/skills/superpowers/brainstorming.skill.md`, transitioning directly to `gsd-spec-phase` / `gsd-plan-phase`.
+- **Canonical successor:** See [`docs/src/architecture/gsd-integration-ssot-2026.md`](./gsd-integration-ssot-2026.md) for the complete `30`-skill GSD suite, `VoxDb` v98 persistence, native orchestrator engine, GUI studio, and MENS corpus integration.

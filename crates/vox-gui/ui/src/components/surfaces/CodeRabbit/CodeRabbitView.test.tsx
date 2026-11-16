@@ -10,7 +10,8 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 
 const planMock = vi.fn();
-vi.mock('../../../transport', () => ({
+vi.mock('../../../transport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../transport')>()),
   codeRabbitPlan: (...a: unknown[]) => planMock(...a),
   codeRabbitReport: vi.fn().mockResolvedValue({}),
   codeRabbitRunAsync: vi.fn().mockResolvedValue(undefined),

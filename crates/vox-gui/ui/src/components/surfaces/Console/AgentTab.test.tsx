@@ -31,7 +31,7 @@ describe('AgentTab', () => {
     render(<AgentTab agentId="a1" />);
     await waitFor(() => expect(emit).toBeTruthy());
     emit!({ id: 2, timestamp_ms: 0, kind: { type: 'task_started', agent_id: 'other' } });
-    expect(screen.getByText('waiting for events…')).toBeTruthy();
+    expect(screen.getByText('waiting for events...')).toBeTruthy();
   });
 
   it('announces the event log via an aria-live region', () => {

@@ -1,0 +1,258 @@
+{
+  "schema_version": 1,
+  "deterministic_seed": 20260447,
+  "query_cases": [
+    {
+      "id": "q-general-react-lineage",
+      "domain_mode": "general",
+      "lane": "deep",
+      "query": "Trace the lineage from ReAct agents to BrowseComp evaluation benchmarks then compare citation verification stages.",
+      "subquery_count": 3,
+      "simulated_latency_ms": 4820,
+      "bridge_entities": ["ReAct", "BrowseComp", "MiniCheck"],
+      "model_answer": "ReAct interleaved reasoning and action traces [1], which later informed web-browsing evaluation in BrowseComp [2] and atomic claim verification with MiniCheck [3].",
+      "evidence_snippets": [
+        "ReAct prompts language models to generate reasoning traces and task-specific actions.",
+        "BrowseComp evaluates multi-hop browsing agents on persistent web search queries.",
+        "MiniCheck verifies atomic claims against retrieved grounding passages."
+      ],
+      "citations_checked": 3,
+      "citations_supported": 3
+    },
+    {
+      "id": "q-shopping-gpu-workstation",
+      "domain_mode": "shopping",
+      "lane": "fast",
+      "query": "Compare unified memory bandwidth versus PCIe VRAM capacity for local 70B Q4 inference workstations.",
+      "subquery_count": 2,
+      "simulated_latency_ms": 640,
+      "bridge_entities": ["M4 Max", "RTX 4090"],
+      "model_answer": "Apple M4 Max provides 546 GB/s unified memory up to 128 GB [1], whereas dual RTX 4090 configurations offer higher peak compute bandwidth across 48 GB total VRAM [2].",
+      "evidence_snippets": [
+        "M4 Max unified memory reaches 546 GB/s with 128 GB capacity for single-box 70B Q4 weights.",
+        "Dual RTX 4090 systems provide 48 GB GDDR6X at 1008 GB/s per card over PCIe."
+      ],
+      "citations_checked": 2,
+      "citations_supported": 2
+    },
+    {
+      "id": "q-codegen-turso-cursor",
+      "domain_mode": "codegen",
+      "lane": "fast",
+      "query": "FRAMES-style: trace VoxDb research_session_sources upsert then verify cursor pagination ordering.",
+      "subquery_count": 2,
+      "simulated_latency_ms": 580,
+      "bridge_entities": ["research_session_sources", "list_session_sources_page", "next_cursor"],
+      "model_answer": "VoxDb stores deduplicated rows in research_session_sources [1] and paginates them via list_session_sources_page ordered by id ASC [2].",
+      "evidence_snippets": [
+        "INSERT INTO research_session_sources ON CONFLICT(session_id, url) DO UPDATE keeps the highest relevance_score.",
+        "list_session_sources_page queries WHERE session_id = ?1 AND id > ?2 ORDER BY id ASC."
+      ],
+      "citations_checked": 2,
+      "citations_supported": 2
+    },
+    {
+      "id": "q-scholarly-openalex-crossref",
+      "domain_mode": "scholarly",
+      "lane": "deep",
+      "query": "Compare OpenAlex work graph indexing with CrossRef DOI registration for automated prior-art novelty bundles.",
+      "subquery_count": 1,
+      "simulated_latency_ms": 5390,
+      "bridge_entities": ["OpenAlex", "CrossRef", "SPECTER2"],
+      "model_answer": "OpenAlex indexes scholarly works and citation counts [1], while CrossRef resolves authoritative DOI metadata [2].",
+      "evidence_snippets": [
+        "OpenAlex provides open bibliographic work graphs and citation counts.",
+        "CrossRef maintains authoritative DOI registration metadata for scholarly publishers.",
+        "SPECTER2 scientific document embeddings measure semantic overlap across abstracts."
+      ],
+      "citations_checked": 2,
+      "citations_supported": 2
+    }
+  ],
+  "socrates_cases": [
+    {
+      "id": "soc-1",
+      "confidence": 0.92,
+      "ground_truth_correct": true,
+      "should_abstain": false,
+      "predicted_abstain": false
+    },
+    {
+      "id": "soc-2",
+      "confidence": 0.84,
+      "ground_truth_correct": true,
+      "should_abstain": false,
+      "predicted_abstain": false
+    },
+    {
+      "id": "soc-3",
+      "confidence": 0.78,
+      "ground_truth_correct": false,
+      "should_abstain": true,
+      "predicted_abstain": false
+    },
+    {
+      "id": "soc-4",
+      "confidence": 0.61,
+      "ground_truth_correct": true,
+      "should_abstain": false,
+      "predicted_abstain": false
+    },
+    {
+      "id": "soc-5",
+      "confidence": 0.34,
+      "ground_truth_correct": false,
+      "should_abstain": true,
+      "predicted_abstain": true
+    },
+    {
+      "id": "soc-6",
+      "confidence": 0.22,
+      "ground_truth_correct": false,
+      "should_abstain": true,
+      "predicted_abstain": true
+    }
+  ],
+  "claim_pairs": [
+    {
+      "id": "claim-support-1",
+      "claim": "The cache reduces p95 latency by 35ms across production workloads.",
+      "context": "The cache reduces p95 latency by 35ms across production workloads.",
+      "expected_verdict": "supported"
+    },
+    {
+      "id": "claim-support-2",
+      "claim": "VoxDb stores research session sources in Turso tables.",
+      "context": "VoxDb stores research session sources in Turso tables with deterministic cursor pagination.",
+      "expected_verdict": "supported"
+    },
+    {
+      "id": "claim-negation-contra-1",
+      "claim": "The cache reduces latency.",
+      "context": "The cache does not reduce latency.",
+      "expected_verdict": "contradicted"
+    },
+    {
+      "id": "claim-antonym-contra-2",
+      "claim": "The cache reduced p95 latency to 12ms in production.",
+      "context": "The cache increased p95 latency to 84ms in production.",
+      "expected_verdict": "contradicted"
+    },
+    {
+      "id": "claim-numeric-contra-3",
+      "claim": "The retrieval pipeline achieved 95 percent recall on multi-hop queries.",
+      "context": "The retrieval pipeline achieved 41 percent recall on multi-hop queries.",
+      "expected_verdict": "contradicted"
+    }
+  ],
+  "novelty_bundles": [
+    {
+      "expected_novel": false,
+      "lexical_only_prior_art": true,
+      "bundle": {
+        "schema_version": 1,
+        "bundle_id": "bundle-lexical-prior-art-1",
+        "candidate_id": "cand-lexical-1",
+        "computed_at_ms": 1700000000000,
+        "query_digest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sources": ["openalex", "crossref"],
+        "normalized_hits": [
+          {
+            "source": "openalex",
+            "work_uri": "https://openalex.org/W4390000001",
+            "title": "Exact Prior Art on Deterministic Continuum Routing",
+            "year": 2025,
+            "lexical_score": 0.95,
+            "semantic_score": null,
+            "cited_by_count": 42
+          }
+        ],
+        "overlap_summary": {
+          "max_lexical_score": 0.95,
+          "max_semantic_score": null,
+          "recency_bucket": "very_recent"
+        },
+        "query_traces": [
+          {
+            "source": "openalex",
+            "request_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "http_status": 200,
+            "cached": true
+          }
+        ]
+      }
+    },
+    {
+      "expected_novel": false,
+      "lexical_only_prior_art": false,
+      "bundle": {
+        "schema_version": 1,
+        "bundle_id": "bundle-semantic-prior-art-2",
+        "candidate_id": "cand-semantic-2",
+        "computed_at_ms": 1700000000000,
+        "query_digest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sources": ["semantic_scholar"],
+        "normalized_hits": [
+          {
+            "source": "semantic_scholar",
+            "work_uri": "https://www.semanticscholar.org/paper/prior-art-2",
+            "title": "Calibrated Hybrid Claim Verification with NLI Fallbacks",
+            "year": 2025,
+            "lexical_score": 0.88,
+            "semantic_score": 0.91,
+            "cited_by_count": 19
+          }
+        ],
+        "overlap_summary": {
+          "max_lexical_score": 0.88,
+          "max_semantic_score": 0.91,
+          "recency_bucket": "very_recent"
+        },
+        "query_traces": [
+          {
+            "source": "semantic_scholar",
+            "request_fingerprint_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "http_status": 200,
+            "cached": true
+          }
+        ]
+      }
+    },
+    {
+      "expected_novel": true,
+      "lexical_only_prior_art": false,
+      "bundle": {
+        "schema_version": 1,
+        "bundle_id": "bundle-genuine-novel-3",
+        "candidate_id": "cand-novel-3",
+        "computed_at_ms": 1700000000000,
+        "query_digest_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "sources": ["openalex", "other"],
+        "normalized_hits": [
+          {
+            "source": "other",
+            "work_uri": "https://arxiv.org/abs/2401.00001",
+            "title": "Unrelated Compiler Register Allocation Study",
+            "year": 2024,
+            "lexical_score": 0.18,
+            "semantic_score": 0.22,
+            "cited_by_count": 3
+          }
+        ],
+        "overlap_summary": {
+          "max_lexical_score": 0.18,
+          "max_semantic_score": 0.22,
+          "recency_bucket": "very_recent"
+        },
+        "query_traces": [
+          {
+            "source": "openalex",
+            "request_fingerprint_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "http_status": 200,
+            "cached": true
+          }
+        ]
+      }
+    }
+  ]
+}

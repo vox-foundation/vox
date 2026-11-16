@@ -61,8 +61,15 @@ fn usage() {
     print("  --help            Show this help.");
     print("");
     print("Env:");
-    print("  VOX_BROKER_HOME   Broker install root (default: $HOME/.vox/build-broker).");
-    print("  VOX_REPO_ROOT     Repo root (default \".\").");
+    print("  VOX_BROKER_HOME              Broker install/state root (default: $HOME/.vox/build-broker).");
+    print("  VOX_REPO_ROOT                Repo root (default \".\").");
+    print("  VOX_BROKER_MAX_CONCURRENT    Optional upper bound on simultaneous machine-wide builds.");
+    print("  VOX_BROKER_RESERVED_SLOTS    Slots reserved for containerized build domains (default: 0).");
+    print("  VOX_BROKER_COALESCE          Set 0 to disable in-flight leader-follower coalescing.");
+    print("  VOX_BROKER_NO_SCCACHE        Set 1 to disable automatic sccache injection from PATH.");
+    print("  VOX_ISOLATED_TARGET          Set 1 (with VOX_WORKSTREAM=<slug>) for target/ws-<slug> isolation.");
+    print("  VOX_WORKSTREAM               Workstream slug paired with VOX_ISOLATED_TARGET=1.");
+    print("  VOX_BROKER_RUN_TIMEOUT_SECS  Post-queue active run timeout in seconds (exits 124 on hang).");
 }
 
 fn detect_shell_name(shell: str) to str {
@@ -220,8 +227,15 @@ fn main() {
         print("  cargo build --release --manifest-path " + manifest);
         print("");
         print("Would install into: " + bin_dir);
-        print("  (every [[bin]] the vox-cargo-shim crate produces, e.g. cargo[.exe])");
+        print("  (every [[bin]] the vox-cargo-shim crate produces, e.g. cargo[.exe] and vox-broker[.exe])");
         print("  " + path.join(bin_dir, "broker-install.vox") + "  (self-install, for later remediation)");
+        print("");
+        print("Broker runtime tunables (active once on PATH):");
+        print("  - Per-target FairQueue + flight coalescing (VOX_BROKER_COALESCE=0 to disable)");
+        print("  - Auto sccache discovery on PATH (VOX_BROKER_NO_SCCACHE=1 to disable)");
+        print("  - Workstream target isolation (VOX_ISOLATED_TARGET=1 + VOX_WORKSTREAM=<slug>)");
+        print("  - Concurrency caps (VOX_BROKER_MAX_CONCURRENT, VOX_BROKER_RESERVED_SLOTS)");
+        print("  - Post-queue active run timeout (VOX_BROKER_RUN_TIMEOUT_SECS=<secs>)");
         print("");
         if no_profile {
             print("Would NOT edit any shell profile (--no-profile).");

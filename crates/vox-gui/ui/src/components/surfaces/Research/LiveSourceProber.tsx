@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { VoxSelect } from '../../ui/Select';
 import {
   probeSearchProvider,
   probeAllSearchProviders,
@@ -109,19 +110,17 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
           className="min-w-[200px] flex-1 rounded-lg border border-border-subtle bg-black/40 px-3 py-1.5 text-sm text-text-secondary outline-hidden focus:border-brass/40"
         />
 
-        <select
+        <VoxSelect
           value={provider}
-          onChange={(e) => setProvider(e.target.value)}
+          onValueChange={setProvider}
           aria-label="Search provider"
           data-testid="probe-provider-select"
-          className="rounded-lg border border-border-subtle bg-black/40 px-3 py-1.5 text-sm text-text-secondary outline-hidden focus:border-brass/40"
-        >
-          {SEARCH_PROVIDERS.map((p) => (
-            <option key={p.id} value={p.id} className="bg-neutral-900 text-text-secondary">
-              {p.label}
-            </option>
-          ))}
-        </select>
+          options={SEARCH_PROVIDERS.map((p) => ({
+            value: p.id,
+            label: p.label,
+          }))}
+          className="w-40 rounded-lg border-border-subtle bg-black/40 text-sm text-text-secondary"
+        />
 
         <button
           type="button"

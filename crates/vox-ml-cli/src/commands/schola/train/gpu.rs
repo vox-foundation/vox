@@ -302,6 +302,7 @@ pub(super) async fn run_gpu_training(
                 vram_limit_fraction,
             )
         };
+        let mut calibrated_vram_checked = false;
         match auto_size_outcome {
             Ok(outcome) => {
                 match apply_auto_size_outcome(
@@ -314,6 +315,7 @@ pub(super) async fn run_gpu_training(
                         batch_size: b,
                         seq_len: s,
                     } => {
+                        calibrated_vram_checked = true;
                         if no_explicit_sizing {
                             eprintln!(
                                 "  {} Auto-sized via sweep: batch_size {} → {} at seq_len {} \
@@ -334,10 +336,9 @@ pub(super) async fn run_gpu_training(
                         seq_len = s;
                     }
                     SizingDecision::NoMeasurement { reason, .. } => {
-                        // No calibration row for this lane (e.g. candle-metal has
-                        // none yet) — there is no measured basis to accept or
-                        // refuse this config, so this is NOT the same as a
-                        // measured refusal below.
+                        // No calibration row for this lane — there is no
+                        // measured basis to accept or refuse this config, so
+                        // this is NOT the same as a measured refusal below.
                         eprintln!(
                             "  {} VRAM check unavailable ({reason}); proceeding with \
                          batch_size={batch_size}, seq_len={seq_len} UNVERIFIED. This lane is \
@@ -347,6 +348,7 @@ pub(super) async fn run_gpu_training(
                         );
                     }
                     SizingDecision::ForcedPastRefusal { reason, .. } => {
+                        calibrated_vram_checked = true;
                         // The lane IS calibrated and plan_for/sweep measured a
                         // refusal, but the operator explicitly overrode it.
                         eprintln!(
@@ -428,12 +430,14 @@ pub(super) async fn run_gpu_training(
                     seq_len,
                 )
             };
-            // Metal has no calibrated plan_for lane (NoMeasurement above), so
-            // this estimate is its fit check: refuse past live free memory
-            // rather than let the OS kill the run mid-step (320 S2).
+            // Legacy Metal safety fallback applies ONLY when `memory_model::plan_for` / `sweep`
+            // did not evaluate a calibrated row (`NoMeasurement` or probe error). Once
+            // `(CandleMetal, true)` is calibrated in `memory-model.v1.yaml`, `plan_for`/`sweep`
+            // is authoritative and the uncalibrated heuristic must not override it.
             let metal = device_kind == vox_populi::mens::DeviceKind::Metal
                 || (device_kind == vox_populi::mens::DeviceKind::Best && cfg!(target_os = "macos"));
             if metal
+                && !calibrated_vram_checked
                 && let Some(free) = super::run_train::live_free_memory(device_kind)
                 && est_mb > free.mb
                 && !super::run_train::force_train_env()
@@ -446,20 +450,22 @@ pub(super) async fn run_gpu_training(
                     free.source
                 );
             }
-            if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
-                eprintln!(
-                    "  {} VRAM risk: est. {} MB > 85% of {} MB. Try --batch-size 2 --seq-len 256 or VOX_TRAIN_PROFILE=safe",
-                    "⚠".yellow(),
-                    est_mb,
-                    gpu_info.vram_mb
-                );
-            } else if gpu_info.vram_mb > 0 {
-                eprintln!(
-                    "  {} VRAM: est. ~{} MB / {} MB available",
-                    "✓".green(),
-                    est_mb,
-                    gpu_info.vram_mb
-                );
+            if !calibrated_vram_checked {
+                if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
+                    eprintln!(
+                        "  {} VRAM risk: est. {} MB > 85% of {} MB. Try --batch-size 2 --seq-len 256 or VOX_TRAIN_PROFILE=safe",
+                        "⚠".yellow(),
+                        est_mb,
+                        gpu_info.vram_mb
+                    );
+                } else if gpu_info.vram_mb > 0 {
+                    eprintln!(
+                        "  {} VRAM: est. ~{} MB / {} MB available",
+                        "✓".green(),
+                        est_mb,
+                        gpu_info.vram_mb
+                    );
+                }
             }
         }
     } else {
@@ -550,6 +556,10 @@ pub(super) async fn run_gpu_training(
         launch_argv: std::env::args().collect(),
         gradient_checkpointing,
         max_runtime_secs: opts.max_runtime_secs,
+        lora_exclude_lm_head: opts.lora_exclude_lm_head,
+        use_rslora: opts.use_rslora,
+        token_normalized_grad_accum: opts.token_normalized_grad_accum,
+        sequence_packing: opts.sequence_packing,
     };
     let model_name_for_stats = config
         .base_model
@@ -767,7 +777,7 @@ fn auto_size_with_budget(
     use vox_populi::mens::tensor::memory_model::{CalKey, ModelShape, sweep};
 
     let key = CalKey::new(lane, gradient_checkpointing)?;
-    let shape = ModelShape::from_model_dir(model_dir)?;
+    let shape = ModelShape::from_model_dir_for_qlora(model_dir)?;
 
     if let Err(e) = models.get(&key) {
         return Ok(AutoSizeOutcome::NoMeasurement(e.to_string()));
@@ -833,7 +843,7 @@ fn verify_request_with_budget(
     use vox_populi::mens::tensor::memory_model::{CalKey, ModelShape, Request, Verdict, plan_for};
 
     let key = CalKey::new(lane, gradient_checkpointing)?;
-    let shape = ModelShape::from_model_dir(model_dir)?;
+    let shape = ModelShape::from_model_dir_for_qlora(model_dir)?;
 
     if let Err(e) = models.get(&key) {
         return Ok(AutoSizeOutcome::NoMeasurement(e.to_string()));

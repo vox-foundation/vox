@@ -128,6 +128,13 @@ impl FairQueue {
             .any(|(n, k)| *n != seq && k == key)
     }
 
+    /// Timestamp (ms since epoch) recorded when ticket `seq` was issued, if the
+    /// marker file is still present.
+    pub fn ticket_timestamp_ms(&self, seq: u64) -> Option<u128> {
+        let content = std::fs::read_to_string(self.dir.join(format!("t{seq}"))).ok()?;
+        content.lines().next()?.trim().parse::<u128>().ok()
+    }
+
     /// Block until this caller holds the exclusive run lock, then return a
     /// `Ticket` whose drop releases the lock and removes the ticket marker.
     pub fn acquire(&self, seq: u64) -> Result<Ticket> {
@@ -219,5 +226,18 @@ mod tests {
         assert_eq!(h.len(), 16);
         assert_eq!(h, hash_path(p));
         assert!(h.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn ticket_timestamp_ms_reads_issued_marker() {
+        let tmp = tempfile::tempdir().unwrap();
+        let q = FairQueue::new(tmp.path(), "abc").unwrap();
+        let before = now_ms();
+        let seq = q.take_ticket("build|hash").unwrap();
+        let ts = q
+            .ticket_timestamp_ms(seq)
+            .expect("marker timestamp present");
+        let after = now_ms();
+        assert!(ts >= before && ts <= after);
     }
 }

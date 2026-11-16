@@ -6,6 +6,17 @@ use candle_core::quantized::GgmlDType;
 use std::collections::BTreeMap;
 use std::path::Path;
 
+/// Returns `true` for VLM vision tower or multi-token prediction weights
+/// that should be excluded from text-only quantization and safetensors reads.
+///
+/// Keep in sync with `vox_hf_layout::is_vision_or_mtp_key`.
+pub fn is_vision_or_mtp_key(key: &str) -> bool {
+    key.starts_with("model.visual.")
+        || key.starts_with("visual.")
+        || key.starts_with("mtp.")
+        || key.starts_with("model.mtp.")
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TensorRole {
     Embedding,
@@ -144,7 +155,7 @@ pub fn plan_quantize(
         s_max = s_max.max(file_len);
 
         for (name, entry) in crate::read::read_header(&path)? {
-            if name == "__metadata__" {
+            if name == "__metadata__" || is_vision_or_mtp_key(&name) {
                 continue;
             }
             let shape = crate::read::header_entry_shape(&entry).ok_or_else(|| {

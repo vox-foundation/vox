@@ -226,8 +226,7 @@ pub fn normalize_training_jsonl_line(
             let rec: ToolTraceRecord = serde_json::from_str(trimmed)
                 .map_err(|e| format!("tool_trace: invalid json: {e}"))?;
             let prompt = format!(
-                "[vox_tool_supervision]\nTask:\n{}\n\nRespond with a single JSON object describing the tool call and outcome. \
-                 Use keys: tool_name (string), arguments (object), result (any), success (boolean).\n",
+                "[vox_tool_supervision]\nTask:\n{}\n\nRespond with a <tool_call> JSON envelope using keys: name (string), arguments (object).\n",
                 rec.task_prompt.trim()
             );
             let response = if let Some(f) = rec
@@ -238,13 +237,10 @@ pub fn normalize_training_jsonl_line(
             {
                 f.to_string()
             } else {
-                let body = serde_json::json!({
-                    "tool_name": rec.tool_name,
-                    "arguments": json_or_string_fragment(&rec.arguments_json),
-                    "result": json_or_string_fragment(&rec.result_json),
-                    "success": rec.success,
-                });
-                body.to_string()
+                crate::tool_workflow_corpus::format_tool_call_envelope(
+                    &rec.tool_name,
+                    json_or_string_fragment(&rec.arguments_json),
+                )
             };
             let mut row = serde_json::Map::new();
             row.insert("prompt".to_string(), serde_json::Value::String(prompt));
@@ -355,6 +351,16 @@ pub fn normalize_training_jsonl_line(
             }
             serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
         }
+        Some("gsd_workflow") => {
+            let v: serde_json::Value =
+                serde_json::from_str(trimmed).map_err(|e| format!("invalid json: {e}"))?;
+            if v.get("prompt").and_then(|x| x.as_str()).is_none()
+                || v.get("response").and_then(|x| x.as_str()).is_none()
+            {
+                return Err("gsd_workflow: missing prompt or response".to_string());
+            }
+            Ok(trimmed.to_string())
+        }
         Some("workflow_trace") => {
             let rec: crate::tool_workflow_corpus::WorkflowTraceRecord =
                 serde_json::from_str(trimmed)
@@ -379,8 +385,75 @@ pub fn normalize_training_jsonl_line(
             );
             serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
         }
+        Some("tool_selection") => {
+            let rec: crate::corpus::tool_selection_synth::ToolSelectionRow =
+                serde_json::from_str(trimmed)
+                    .map_err(|e| format!("tool_selection: invalid json: {e}"))?;
+            let candidates = rec
+                .candidate_tools
+                .iter()
+                .map(|t| format!("- {t}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let prompt = format!(
+                "[vox_tool_selection]\nTask:\n{}\n\nCandidate tools:\n{}\n\nRespond with a <tool_call> JSON envelope using keys: name (string), arguments (object).\n",
+                rec.task.trim(),
+                candidates
+            );
+            let response = crate::tool_workflow_corpus::format_tool_call_envelope(
+                &rec.chosen_tool,
+                serde_json::json!({}),
+            );
+            let lane = if rec.lane.trim().is_empty() {
+                "vox_tool_selection"
+            } else {
+                rec.lane.trim()
+            };
+            build_structured_tool_sft_row(prompt, response, "tool_catalog", lane, 5)
+        }
+        Some("argument_generation") => {
+            let rec: crate::corpus::argument_generation_synth::ArgGenRow =
+                serde_json::from_str(trimmed)
+                    .map_err(|e| format!("argument_generation: invalid json: {e}"))?;
+            let prompt = format!(
+                "[vox_argument_generation]\nTask:\n{}\n\nTool: {}\nSchema:\n{}\n\nRespond with a <tool_call> JSON envelope using keys: name (string), arguments (object).\n",
+                rec.task.trim(),
+                rec.tool_name.trim(),
+                rec.tool_schema
+            );
+            let response = crate::tool_workflow_corpus::format_tool_call_envelope(
+                &rec.tool_name,
+                rec.arguments,
+            );
+            let lane = if rec.lane.trim().is_empty() {
+                "vox_argument_generation"
+            } else {
+                rec.lane.trim()
+            };
+            build_structured_tool_sft_row(prompt, response, "argument_schema", lane, 6)
+        }
         _ => Ok(trimmed.to_string()),
     }
+}
+
+fn build_structured_tool_sft_row(
+    prompt: String,
+    response: String,
+    category: &str,
+    lane: &str,
+    difficulty: u8,
+) -> Result<String, String> {
+    serde_json::to_string(&serde_json::json!({
+        "prompt": prompt,
+        "response": response,
+        "category": category,
+        "lane": lane,
+        "rating": 5_u8,
+        "difficulty": difficulty,
+        "response_mode": "structured",
+        "origin": "synthetic",
+    }))
+    .map_err(|e| e.to_string())
 }
 
 fn default_lane_from_row(row: &serde_json::Value) -> &'static str {
@@ -389,7 +462,11 @@ fn default_lane_from_row(row: &serde_json::Value) -> &'static str {
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_ascii_lowercase();
-    if category.contains("tool_trace") {
+    if category.contains("tool_catalog") || category.contains("tool_selection") {
+        "vox_tool_selection"
+    } else if category.contains("argument_schema") || category.contains("argument_generation") {
+        "vox_argument_generation"
+    } else if category.contains("tool_trace") || category.contains("gsd") {
         "vox_tooling"
     } else if category.contains("speech") || category.contains("asr_refine") {
         "vox_speech"
@@ -401,10 +478,10 @@ fn default_lane_from_row(row: &serde_json::Value) -> &'static str {
 }
 
 fn default_response_mode_for_lane(lane: &str) -> &'static str {
-    if lane == "vox_docs_qa" {
-        "prose_only"
-    } else {
-        "code_only"
+    match lane {
+        "vox_docs_qa" => "prose_only",
+        "vox_tool_selection" | "vox_argument_generation" => "structured",
+        _ => "code_only",
     }
 }
 
@@ -412,6 +489,8 @@ fn default_task_family_from_lane(lane: &str) -> &'static str {
     match lane {
         "vox_docs_qa" => "docs_qa",
         "vox_tooling" => "tool_trace",
+        "vox_tool_selection" => "tool_selection",
+        "vox_argument_generation" => "argument_generation",
         "vox_speech" => "speech_to_code",
         _ => "vox_codegen",
     }

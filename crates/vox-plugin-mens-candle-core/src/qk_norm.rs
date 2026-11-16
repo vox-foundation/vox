@@ -7,19 +7,42 @@
 //! key (`…self_attn.q_proj.weight` → `…self_attn.q_norm.weight`) — a plain
 //! `.weight` suffix swap would wrongly produce `q_proj_norm.weight`.
 
-use candle_core::DType;
+use candle_core::{DType, Tensor};
 use candle_nn::{RmsNorm, VarBuilder};
 
 /// RMSNorm epsilon Qwen3 uses for its Q/K norms.
 const QK_NORM_EPS: f64 = 1e-6;
 
-/// Load the Q or K norm that belongs to `proj_weight_key`, as F32.
-pub fn load_qk_norm(vb: &VarBuilder, proj_weight_key: &str, head_dim: usize) -> Option<RmsNorm> {
+/// Construct an [`RmsNorm`] in F32, optionally applying Qwen3.5 / Qwen3.8
+/// zero-centered weight parameterization (`1.0 + weight`).
+pub fn build_rms_norm(w: Tensor, eps: f64, zero_centered: bool) -> candle_core::Result<RmsNorm> {
+    let w = w.to_dtype(DType::F32)?;
+    let w = if zero_centered {
+        w.affine(1.0, 1.0)?
+    } else {
+        w
+    };
+    Ok(RmsNorm::new(w, eps))
+}
+
+/// Load the Q or K norm that belongs to `proj_weight_key`, as F32, using an
+/// explicit `eps` and `zero_centered` (`1.0 + weight`) setting.
+pub fn load_qk_norm_with_eps(
+    vb: &VarBuilder,
+    proj_weight_key: &str,
+    head_dim: usize,
+    eps: f64,
+    zero_centered: bool,
+) -> Option<RmsNorm> {
     let norm_key = proj_weight_key.replace("_proj.weight", "_norm.weight");
     vb.get((head_dim,), &norm_key)
         .ok()
-        .and_then(|t| t.to_dtype(DType::F32).ok())
-        .map(|w| RmsNorm::new(w, QK_NORM_EPS))
+        .and_then(|t| build_rms_norm(t, eps, zero_centered).ok())
+}
+
+/// Load the Q or K norm that belongs to `proj_weight_key`, as F32.
+pub fn load_qk_norm(vb: &VarBuilder, proj_weight_key: &str, head_dim: usize) -> Option<RmsNorm> {
+    load_qk_norm_with_eps(vb, proj_weight_key, head_dim, QK_NORM_EPS, false)
 }
 
 #[cfg(test)]
@@ -82,5 +105,26 @@ mod tests {
             norm.forward_diff(&x).is_ok(),
             "norm weight must be F32 to match F32 activations"
         );
+    }
+
+    #[test]
+    fn zero_centered_rms_norm_adds_one_to_weights() {
+        let dev = Device::Cpu;
+        let w = Tensor::new(&[0.0f32, 0.5, -0.25, 1.0], &dev).unwrap();
+        let norm = build_rms_norm(w, 1e-6, true).unwrap();
+        let x = Tensor::ones((1, 4), DType::F32, &dev).unwrap();
+        let y = norm
+            .forward_diff(&x)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+        for (got, want) in y.iter().zip([1.0f32, 1.5, 0.75, 2.0]) {
+            assert!(
+                (got - want).abs() < 1e-4,
+                "zero-centered weight must become 1+w={want}, got {got}"
+            );
+        }
     }
 }

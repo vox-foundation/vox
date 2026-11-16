@@ -8,6 +8,10 @@ read_role_tools:
   - vox_feedback_list
   - vox_git_diff
   - vox_git_status
+  - vox_gsd_get_document
+  - vox_gsd_list_documents
+  - vox_gsd_progress
+  - vox_gsd_status
   - vox_gui_components
   - vox_gui_rules
   - vox_gui_tokens
@@ -35,6 +39,8 @@ read_role_tools:
   - vox_semantic_fs_discover
   - vox_skill_discover
   - vox_task_status
+  - vox_terminal_read
+  - vox_terminal_sessions
   - vox_test_decision
   - vox_tool_search
   - vox_validate_diagram

@@ -11,6 +11,7 @@ export interface ResearchOption {
   shortLabel: string;
   hint: string;
   badge?: string;
+  continuumTier: string;
 }
 
 export const RESEARCH_OPTIONS: ResearchOption[] = [
@@ -18,26 +19,30 @@ export const RESEARCH_OPTIONS: ResearchOption[] = [
     id: 'auto',
     label: 'Auto (Socrates)',
     shortLabel: 'Auto',
-    hint: 'Evidence-weighted; Socrates decides whether & how deep to research',
+    hint: 'Evidence-weighted continuum; Socrates routes LocalRag, QuickWeb, or DeepMultiWave',
     badge: 'Socrates',
+    continuumTier: 'Adaptive',
   },
   {
     id: 'fast',
     label: 'Fast Web',
     shortLabel: 'Fast',
-    hint: '1-hop shallow web retrieval across search providers',
+    hint: '1-wave web & local retrieval with warm-seeded CRAG escalation on low coverage',
+    continuumTier: 'QuickWeb',
   },
   {
     id: 'deep',
     label: 'Deep Research',
     shortLabel: 'Deep',
-    hint: 'Multi-hop iterative exploration, cross-corpus synthesis & self-verification',
+    hint: 'Multi-wave iterative exploration (1..5 waves), cross-corpus synthesis & self-verification',
+    continuumTier: 'DeepMultiWave',
   },
   {
     id: 'off',
     label: 'Off',
     shortLabel: 'Off',
     hint: 'No external search; answers strictly from local context & model',
+    continuumTier: 'Direct',
   },
 ];
 
@@ -54,11 +59,21 @@ export function ResearchModeDropdown({
   const selected = RESEARCH_OPTIONS.find(o => o.id === mode) ?? RESEARCH_OPTIONS[0];
 
   return (
-    <div className={`relative ${className}`}>
+    <div
+      className={`relative ${className}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
       <Tooltip content={selected.hint} side="top">
         <button
           type="button"
+          data-testid="research-mode-trigger"
           aria-expanded={open}
+          aria-haspopup="dialog"
           aria-label={`Research mode: ${selected.label}`}
           onClick={() => setOpen(o => !o)}
           className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20 transition-colors"
@@ -83,14 +98,16 @@ export function ResearchModeDropdown({
         </button>
       </Tooltip>
 
-      <Popover open={open}>
-        <div className="w-64 p-1">
+      <Popover open={open} onOpenChange={setOpen}>
+        <div className="w-64 p-1" role="group" aria-label="Research continuum modes">
           {RESEARCH_OPTIONS.map(opt => {
             const isSelected = opt.id === mode;
             return (
               <button
                 key={opt.id}
                 type="button"
+                data-testid={`research-mode-option-${opt.id}`}
+                aria-pressed={isSelected}
                 aria-label={`Set research mode: ${opt.label}`}
                 onClick={() => {
                   onChange(opt.id);
@@ -121,6 +138,9 @@ export function ResearchModeDropdown({
                         {opt.badge}
                       </span>
                     )}
+                    <span className="ml-auto font-mono text-[11px] text-text-muted">
+                      {opt.continuumTier}
+                    </span>
                   </div>
                   <div className="font-mono text-[11px] text-text-muted leading-tight mt-0.5">
                     {opt.hint}

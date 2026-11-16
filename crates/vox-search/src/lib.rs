@@ -10,6 +10,7 @@ pub mod a2a_contract;
 pub mod arxiv;
 pub mod bundle;
 pub mod capture;
+pub mod chunk_spill;
 pub mod context;
 pub mod corroboration;
 pub mod crag;
@@ -72,6 +73,7 @@ pub use a2a_contract::{A2ARetrievalRefinement, A2ARetrievalRequest, A2ARetrieval
 pub use bundle::{
     RetrievalTriggerMode, diagnostics_value, run_search_with_verification, search_plan_value,
 };
+pub use chunk_spill::{ChunkSpillStore, SPILL_THRESHOLD_BYTES, SpillPointer};
 pub use context::SearchRuntimeContext;
 pub use embedding_env::embedding_config_from_env;
 pub use embeddings::EmbeddingService;

@@ -112,6 +112,7 @@ fn skip_unresolved_repo(repo: &ResolvedRepositoryDescriptor) -> RepoQuerySkipped
     }
 }
 
+#[inline(never)]
 pub fn repo_query_text(
     repo_root: &Path,
     params: &QueryTextParams,
@@ -252,6 +253,7 @@ pub fn repo_query_text(
     })
 }
 
+#[inline(never)]
 pub fn repo_query_file(
     repo_root: &Path,
     params: &QueryFileParams,
@@ -354,6 +356,7 @@ pub fn repo_query_file(
     })
 }
 
+#[inline(never)]
 pub fn repo_query_history(
     repo_root: &Path,
     params: &QueryHistoryParams,

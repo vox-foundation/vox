@@ -13,26 +13,28 @@ Welcome. This file is the **short golden path**; deeper policy lives in [AGENTS.
 ## Quick start
 
 1. Install **Rust** (see root `README.md` and [`docs/src/how-to/how-to-cli-ecosystem.md#installation`](docs/src/how-to/how-to-cli-ecosystem.md#installation)).
-2. From the repo root:  
-   `cargo check --workspace`
-3. Before pushing:  
-   `cargo run -p vox-cli -- ci line-endings` on your diff (see [runner contract](docs/src/ci/runner-contract.md)).
-4. If you touch CLI flags or help text:  
+2. Check or test the specific crate(s) you are working on (**always scope Cargo with `-p <crate>`** rather than `--workspace` across the 117-crate virtual workspace):  
+   `cargo check -p vox-cli`
+3. Run project automation via `.vox` scripts (`vox run scripts/<name>.vox` — do not add new `.sh`, `.ps1`, or `.py` glue scripts).
+4. Before pushing, run the aggregate local verification gate:  
+   `cargo run -p vox-cli -- ci pre-push` (see [runner contract](docs/src/ci/runner-contract.md)).
+5. If you touch CLI flags or help text:  
    `cargo run -p vox-cli -- ci command-compliance`
 
 ## Beyond `vox` itself
 
 `cargo build -p vox-cli` (and the `voxup` installer) give you the **CLI only**.
-These subsystems live in separate binaries or plugins and are *not* installed by
-either — `vox doctor` will keep reporting them as missing until you add them:
+These subsystems and verification tools live in separate binaries or plugins:
 
-| Subsystem | Install | Needed for |
+| Subsystem | Build / Install | Needed for |
 |---|---|---|
 | ML / mesh CLI | `cargo install --locked --path crates/vox-ml-cli --features populi` | `vox mens`, `vox populi` (both delegate to it; `populi` is **not** a default feature — a bare install yields a mesh-less binary) |
-| Orchestrator daemon | `cargo install --path crates/vox-orchestrator-d` | Axis; otherwise the GUI retries the spawn forever |
+| Orchestrator daemon | `cargo install --locked --path crates/vox-orchestrator-d` | Axis workbench & `vox kb` daemon operations (serves MCP over stdio/IPC) |
+| Documentation pipeline | `cargo build --locked -p vox-doc-pipeline` | Frontmatter, taxonomy facet, and link verification (`vox-doc-pipeline --lint-only`) |
+| Architecture & static audit | `cargo build --locked -p vox-arch-check -p vox-code-audit -p vox-drift-check` | Layer/fan-in guard (`vox-arch-check`), source policy (`toestub`), and drift lint (`vox-drift-check`) |
 | Mesh transport | `vox plugin install populi-mesh --yes` | Mesh control plane / A2A dispatch |
-| GPU backend | `vox plugin install mens-candle-metal --yes` (Apple Silicon)<br>`vox plugin install mens-candle-cuda --yes` (NVIDIA) | Accelerated inference |
-| Language server | `cargo build -p vox-lsp --release` | Editor integration |
+| GPU backend | `vox plugin install mens-candle-metal --yes` (Apple Silicon)<br>`vox plugin install mens-candle-cuda --yes` (NVIDIA) | Accelerated inference & QLoRA training |
+| Language server | `cargo build --locked -p vox-lsp --release` | Editor integration |
 
 The **Axis** GUI (`crates/vox-gui`) additionally needs its frontend built first —
 Tauri's `beforeDevCommand` / `beforeBuildCommand` are empty, so nothing builds

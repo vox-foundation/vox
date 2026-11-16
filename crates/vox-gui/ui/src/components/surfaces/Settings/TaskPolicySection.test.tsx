@@ -52,11 +52,12 @@ describe('TaskPolicySection', () => {
     // CodeGen already has an override (from the mock) — it must not appear as
     // an addable option; Automated (a source) must, since none are configured.
     const addScopeSelect = screen.getByLabelText(/add override for/i);
-    const optionLabels = Array.from(addScopeSelect.querySelectorAll('option')).map((o) => o.textContent);
+    fireEvent.click(addScopeSelect);
+    const optionLabels = screen.getAllByRole('option').map((o) => o.textContent);
     expect(optionLabels.some((l) => l?.includes('CodeGen'))).toBe(false);
     expect(optionLabels.some((l) => l?.includes('Automated'))).toBe(true);
 
-    fireEvent.change(addScopeSelect, { target: { value: 'source:Automated' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Source: Automated' }));
     fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
 
     await waitFor(() =>

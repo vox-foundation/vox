@@ -118,22 +118,80 @@ struct SafetensorsIndex {
     weight_map: std::collections::HashMap<String, String>,
 }
 
+/// True iff `key` belongs to the text backbone or LM head rather than a vision or MTP tower.
+#[must_use]
+pub fn is_text_tower_weight_key(key: &str) -> bool {
+    !vox_hf_layout::is_vision_or_mtp_key(key)
+}
+
 /// Given the parsed `weight_map` from `model.safetensors.index.json`
 /// (tensor key -> shard filename), return the set of shard filenames that
 /// carry at least one text-tower tensor. Vision/MTP-only shards are
 /// excluded. Pure, no I/O — classification is delegated to
-/// [`vox_hf_layout::is_vision_or_mtp_key`] rather than reimplemented here.
+/// [`is_text_tower_weight_key`] / [`vox_hf_layout::is_vision_or_mtp_key`]
+/// rather than reimplemented here.
 fn required_shard_filenames(
     weight_map: &std::collections::HashMap<String, String>,
 ) -> std::collections::HashSet<String> {
     weight_map
         .iter()
-        .filter(|(key, _)| !vox_hf_layout::is_vision_or_mtp_key(key))
+        .filter(|(key, _)| is_text_tower_weight_key(key))
         .map(|(_, shard)| shard.clone())
         .collect()
 }
 
-fn normalize_hf_token_env() {
+/// True iff `snap` contains `config.json`, `tokenizer.json`, and all text-tower weight shards
+/// (skipping vision/MTP-only shards listed in `model.safetensors.index.json`, and rejecting
+/// dangling symlinks or non-plain shard filenames).
+#[must_use]
+pub fn is_snapshot_complete(snap: &std::path::Path) -> bool {
+    if !(snap.join("config.json").is_file() && snap.join("tokenizer.json").is_file()) {
+        return false;
+    }
+    let index = snap.join("model.safetensors.index.json");
+    if std::fs::symlink_metadata(&index).is_err() {
+        return snap.join("model.safetensors").is_file();
+    }
+    let Ok(raw) = vox_bounded_fs::read_utf8_path_capped(&index) else {
+        return false;
+    };
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return false;
+    };
+    let Some(map) = v.get("weight_map").and_then(serde_json::Value::as_object) else {
+        return false;
+    };
+    let Some(shards) = map
+        .iter()
+        .filter(|(k, _)| is_text_tower_weight_key(k))
+        .map(|(_, val)| val.as_str())
+        .collect::<Option<std::collections::BTreeSet<&str>>>()
+    else {
+        return false;
+    };
+    let plain = |s: &str| {
+        matches!(
+            std::path::Path::new(s)
+                .components()
+                .collect::<Vec<_>>()
+                .as_slice(),
+            [std::path::Component::Normal(_)]
+        )
+    };
+    !shards.is_empty() && shards.iter().all(|s| plain(s) && snap.join(s).is_file())
+}
+
+/// Process-wide mutex serializing `HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN` / `VOX_MENS_NO_DOWNLOAD`
+/// mutations across parallel tasks and unit tests (Rust 2024 `std::env::set_var` safety).
+pub(crate) static HF_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Propagate Clavis `HuggingFaceToken` into `HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN` so `hf-hub` picks it up.
+pub fn normalize_hf_token_env() {
+    let _g = HF_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    normalize_hf_token_env_locked();
+}
+
+fn normalize_hf_token_env_locked() {
     let token_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken);
     let token = token_resolved.expose();
 
@@ -141,7 +199,7 @@ fn normalize_hf_token_env() {
         // hf-hub defaults to HF_TOKEN then HUGGING_FACE_HUB_TOKEN.
         // We set both to ensure the crate finds it regardless of its internal priority.
         #[allow(unsafe_code)]
-        // SAFETY: Called sequentially before spawning HF requests.
+        // SAFETY: Serialized across threads via `HF_ENV_LOCK`.
         unsafe {
             std::env::set_var("HF_TOKEN", token);
             std::env::set_var("HUGGING_FACE_HUB_TOKEN", token);
@@ -159,6 +217,8 @@ pub struct DownloadedModelFiles {
     pub tokenizer: Option<PathBuf>,
     pub tokenizer_config: Option<PathBuf>,
     pub chat_template: Option<PathBuf>,
+    pub generation_config: Option<PathBuf>,
+    pub special_tokens_map: Option<PathBuf>,
 }
 
 impl DownloadedModelFiles {
@@ -217,6 +277,8 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         let optional = |name: &str| Some(local_path.join(name)).filter(|p| p.exists());
         let tokenizer_config = optional("tokenizer_config.json");
         let chat_template = optional("chat_template.jinja");
+        let generation_config = optional("generation_config.json");
+        let special_tokens_map = optional("special_tokens_map.json");
         return Ok(DownloadedModelFiles {
             cache_dir: local_path,
             config,
@@ -224,6 +286,8 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
             tokenizer,
             tokenizer_config,
             chat_template,
+            generation_config,
+            special_tokens_map,
         });
     }
 
@@ -287,35 +351,33 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         }
     }
 
-    let mut tokenizer_config = None::<PathBuf>;
-    if siblings
-        .iter()
-        .any(|s| s.rfilename == "tokenizer_config.json")
-    {
-        tokenizer_config = Some(
-            repo.download_file()
-                .filename("tokenizer_config.json")
-                .maybe_revision(revision)
-                .send()
-                .await
-                .map_err(|e| anyhow::anyhow!("download tokenizer_config.json: {e}"))?,
-        );
+    // Download optional tokenizer / generation metadata when present in the repo manifest
+    // (`generation_config.json` and `special_tokens_map.json` are essential for Qwen3.5/Qwen3.8
+    // dual EOS `[248046, 248044]`).
+    let mut optional_files: [Option<PathBuf>; 4] = Default::default();
+    for (slot, name) in optional_files.iter_mut().zip([
+        "tokenizer_config.json",
+        "chat_template.jinja",
+        "generation_config.json",
+        "special_tokens_map.json",
+    ]) {
+        if siblings.iter().any(|s| s.rfilename == name) {
+            *slot = Some(
+                repo.download_file()
+                    .filename(name)
+                    .maybe_revision(revision)
+                    .send()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("download {name}: {e}"))?,
+            );
+        }
     }
-
-    let mut chat_template = None::<PathBuf>;
-    if siblings
-        .iter()
-        .any(|s| s.rfilename == "chat_template.jinja")
-    {
-        chat_template = Some(
-            repo.download_file()
-                .filename("chat_template.jinja")
-                .maybe_revision(revision)
-                .send()
-                .await
-                .map_err(|e| anyhow::anyhow!("download chat_template.jinja: {e}"))?,
-        );
-    }
+    let [
+        tokenizer_config,
+        chat_template,
+        generation_config,
+        special_tokens_map,
+    ] = optional_files;
 
     let mut weight_names: Vec<&str> = siblings
         .iter()
@@ -383,6 +445,8 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         tokenizer,
         tokenizer_config,
         chat_template,
+        generation_config,
+        special_tokens_map,
     })
 }
 
@@ -503,6 +567,213 @@ pub async fn upload_space_folder(
         .unwrap_or_else(|| "unknown".to_string()))
 }
 
+/// Ensure a Hugging Face Collection exists under `namespace` with the given `title`,
+/// `description`, and `(id, type)` items (for example `"model"`, `"space"`, or `"dataset"`).
+///
+/// Returns the resolved collection slug (e.g. `<namespace>/<title-slug>-<hex>`). Uses Clavis
+/// (`vox_secrets::SecretId::HuggingFaceToken`) and [`normalize_hf_token_env`]. HTTP `409 Conflict`
+/// responses when creating or adding items are treated idempotently as already present.
+pub async fn ensure_mens_collection(
+    namespace: &str,
+    title: &str,
+    description: &str,
+    items: &[(String, &str)],
+) -> anyhow::Result<String> {
+    let ns = namespace.trim();
+    if ns.is_empty() {
+        anyhow::bail!("ensure_mens_collection requires a non-empty namespace");
+    }
+    let title_trimmed = title.trim();
+    if title_trimmed.is_empty() {
+        anyhow::bail!("ensure_mens_collection requires a non-empty collection title");
+    }
+
+    normalize_hf_token_env();
+    let token_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken);
+    let token = token_resolved
+        .expose()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "missing Hugging Face token in Clavis (`vox_secrets::SecretId::HuggingFaceToken`)"
+            )
+        })?
+        .to_string();
+
+    let client = reqwest::Client::new();
+    let list_resp = client
+        .get("https://huggingface.co/api/collections")
+        .query(&[("owner", ns)])
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("HF Collections list failed for `{ns}`: {e}"))?;
+    if !list_resp.status().is_success() {
+        let status = list_resp.status();
+        let body = list_resp.text().await.unwrap_or_default();
+        anyhow::bail!("HF Collections list failed for `{ns}` ({status}): {body}");
+    }
+    let collections: Vec<serde_json::Value> = list_resp
+        .json()
+        .await
+        .map_err(|e| anyhow::anyhow!("parse HF Collections list response for `{ns}`: {e}"))?;
+
+    let existing = collections.into_iter().find(|c| {
+        c.get("title")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|t| {
+                t == title_trimmed || t == "VoxMens Fine-Tuned Qwen3.5 / Qwen3.8 / Qwen3 Models"
+            })
+    });
+
+    let desired_set: std::collections::HashSet<(String, String)> = items
+        .iter()
+        .map(|(id, kind)| (id.trim().to_string(), kind.trim().to_string()))
+        .collect();
+    let mut existing_items: std::collections::HashSet<(String, String)> =
+        std::collections::HashSet::new();
+    let mut stale_object_ids: Vec<(String, String)> = Vec::new();
+    let slug = if let Some(col) = existing {
+        let slug = col
+            .get("slug")
+            .and_then(serde_json::Value::as_str)
+            .map(ToString::to_string)
+            .ok_or_else(|| anyhow::anyhow!("HF Collection entry `{title_trimmed}` lacked slug"))?;
+        if let Some(arr) = col.get("items").and_then(serde_json::Value::as_array) {
+            let prefix = format!("{ns}/vox-mens-");
+            for item in arr {
+                let id = item
+                    .get("id")
+                    .or_else(|| item.get("item_id"))
+                    .and_then(serde_json::Value::as_str);
+                let kind = item
+                    .get("type")
+                    .or_else(|| item.get("item_type"))
+                    .and_then(serde_json::Value::as_str);
+                let obj_id = item.get("_id").and_then(serde_json::Value::as_str);
+                if let (Some(id), Some(kind)) = (id, kind) {
+                    if id.starts_with(&prefix)
+                        && !desired_set.contains(&(id.to_string(), kind.to_string()))
+                        && let Some(oid) = obj_id
+                    {
+                        stale_object_ids.push((oid.to_string(), id.to_string()));
+                    } else {
+                        existing_items.insert((id.to_string(), kind.to_string()));
+                    }
+                }
+            }
+        }
+        slug
+    } else {
+        // HF Collections descriptions are capped at 150 chars.
+        let desc: String = description.trim().chars().take(150).collect();
+        let create_body = serde_json::json!({
+            "title": title_trimmed,
+            "namespace": ns,
+            "description": desc,
+            "private": false,
+        });
+        let create_resp = client
+            .post("https://huggingface.co/api/collections")
+            .bearer_auth(&token)
+            .json(&create_body)
+            .send()
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("HF Collections create failed for `{title_trimmed}`: {e}")
+            })?;
+        let status = create_resp.status();
+        let create_text = create_resp.text().await.unwrap_or_default();
+        if !status.is_success() && status != reqwest::StatusCode::CONFLICT {
+            anyhow::bail!("HF Collections create failed ({status}): {create_text}");
+        }
+        let parsed_slug = serde_json::from_str::<serde_json::Value>(&create_text)
+            .ok()
+            .and_then(|v| {
+                v.get("slug")
+                    .and_then(serde_json::Value::as_str)
+                    .map(ToString::to_string)
+            });
+        if let Some(slug) = parsed_slug {
+            slug
+        } else if status == reqwest::StatusCode::CONFLICT {
+            let recheck_resp = client
+                .get("https://huggingface.co/api/collections")
+                .query(&[("owner", ns)])
+                .bearer_auth(&token)
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!("HF Collections re-list failed for `{ns}`: {e}"))?;
+            let recheck: Vec<serde_json::Value> = recheck_resp.json().await.map_err(|e| {
+                anyhow::anyhow!("parse HF Collections re-list response for `{ns}`: {e}")
+            })?;
+            recheck
+                .into_iter()
+                .find(|c| {
+                    c.get("title")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|t| t == title_trimmed)
+                })
+                .and_then(|c| {
+                    c.get("slug")
+                        .and_then(serde_json::Value::as_str)
+                        .map(ToString::to_string)
+                })
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "HF Collections create returned 409 for `{title_trimmed}` but no matching collection was found"
+                    )
+                })?
+        } else {
+            anyhow::bail!("HF Collections create response lacked `slug`: {create_text}");
+        }
+    };
+
+    for (oid, stale_repo) in stale_object_ids {
+        let del_url = format!("https://huggingface.co/api/collections/{slug}/items/{oid}");
+        let _ = client.delete(&del_url).bearer_auth(&token).send().await;
+        eprintln!("  pruned outmoded collection item `{stale_repo}` from `{slug}`");
+    }
+
+    for (item_id, item_type) in items {
+        let id = item_id.trim();
+        let kind = item_type.trim();
+        if id.is_empty() || kind.is_empty() {
+            continue;
+        }
+        if existing_items.contains(&(id.to_string(), kind.to_string())) {
+            continue;
+        }
+        let add_url = format!("https://huggingface.co/api/collections/{slug}/items");
+        let add_body = serde_json::json!({
+            "item": {
+                "id": id,
+                "type": kind,
+            }
+        });
+        let add_resp = client
+            .post(&add_url)
+            .bearer_auth(&token)
+            .json(&add_body)
+            .send()
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("HF Collection add item `{id}` ({kind}) to `{slug}` failed: {e}")
+            })?;
+        let status = add_resp.status();
+        if status == reqwest::StatusCode::CONFLICT || status.is_success() {
+            continue;
+        }
+        let err_body = add_resp.text().await.unwrap_or_default();
+        anyhow::bail!(
+            "HF Collection add item `{id}` ({kind}) to `{slug}` returned {status}: {err_body}"
+        );
+    }
+
+    Ok(slug)
+}
+
 /// Synchronously block on [`upload_model_folder`] using a dedicated thread runtime.
 pub fn upload_model_folder_blocking(
     repo_id: &str,
@@ -545,6 +816,7 @@ pub fn is_model_cached(repo_id: &str) -> anyhow::Result<bool> {
             .map_err(|e| anyhow::anyhow!("tokio runtime init failed: {e}"))
             .and_then(|rt| {
                 rt.block_on(async {
+                    normalize_hf_token_env();
                     let client = HFClient::new()
                         .map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
                     let info = client
@@ -613,9 +885,6 @@ pub async fn model_shape_from_hub(
 #[cfg(all(test, feature = "mens-hf-hub"))]
 #[allow(unsafe_code)] // Serialized env mutation for token sync tests (Rust 2024 `set_var` safety).
 mod tests {
-    use std::sync::Mutex;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn local_model_dir(extra: &[&str]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -652,21 +921,46 @@ mod tests {
             .expect("local model dir resolves");
         assert!(files.tokenizer_config.is_none());
         assert!(files.chat_template.is_none());
+        assert!(files.generation_config.is_none());
+        assert!(files.special_tokens_map.is_none());
         assert!(files.tokenizer.is_some());
+    }
+
+    #[tokio::test]
+    async fn local_dir_picks_up_generation_config_and_special_tokens_map() {
+        let dir = local_model_dir(&["generation_config.json", "special_tokens_map.json"]);
+        let files = super::download_model(dir.path().to_str().expect("utf8 path"))
+            .await
+            .expect("local model dir resolves");
+        assert_eq!(
+            files.generation_config.as_deref(),
+            Some(dir.path().join("generation_config.json").as_path())
+        );
+        assert_eq!(
+            files.special_tokens_map.as_deref(),
+            Some(dir.path().join("special_tokens_map.json").as_path())
+        );
+
+        let bare = local_model_dir(&[]);
+        let bare_files = super::download_model(bare.path().to_str().expect("utf8 path"))
+            .await
+            .expect("local model dir resolves");
+        assert!(bare_files.generation_config.is_none());
+        assert!(bare_files.special_tokens_map.is_none());
     }
 
     #[test]
     fn hf_token_propagates_to_hugging_face_hub_token() {
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = super::HF_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe {
             std::env::remove_var("HF_TOKEN");
             std::env::remove_var("HUGGING_FACE_HUB_TOKEN");
             std::env::set_var("HF_TOKEN", "from-hf-only");
         }
-        super::normalize_hf_token_env();
-        assert_eq!(
-            std::env::var("HUGGING_FACE_HUB_TOKEN").as_deref(),
-            Ok("from-hf-only")
+        super::normalize_hf_token_env_locked();
+        assert!(
+            std::env::var("HUGGING_FACE_HUB_TOKEN").as_deref() == Ok("from-hf-only"),
+            "HUGGING_FACE_HUB_TOKEN did not match expected test token"
         );
         unsafe {
             std::env::remove_var("HF_TOKEN");
@@ -676,14 +970,17 @@ mod tests {
 
     #[test]
     fn hugging_face_hub_token_propagates_to_hf_token() {
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = super::HF_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe {
             std::env::remove_var("HF_TOKEN");
             std::env::remove_var("HUGGING_FACE_HUB_TOKEN");
             std::env::set_var("HUGGING_FACE_HUB_TOKEN", "from-hub-only");
         }
-        super::normalize_hf_token_env();
-        assert_eq!(std::env::var("HF_TOKEN").as_deref(), Ok("from-hub-only"));
+        super::normalize_hf_token_env_locked();
+        assert!(
+            std::env::var("HF_TOKEN").as_deref() == Ok("from-hub-only"),
+            "HF_TOKEN did not match expected test token"
+        );
         unsafe {
             std::env::remove_var("HF_TOKEN");
             std::env::remove_var("HUGGING_FACE_HUB_TOKEN");
@@ -855,9 +1152,9 @@ mod tests {
         // same env var the token-propagation tests above touch are not
         // shared with this one, but `set_var`/`remove_var` require `unsafe`
         // under the module-level allow and any concurrent test mutating
-        // process env must be serialized — reuse `ENV_LOCK` rather than
+        // process env must be serialized — reuse `HF_ENV_LOCK` rather than
         // introduce a second, unguarded lock.
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = super::HF_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe {
             std::env::set_var(super::NO_DOWNLOAD_ENV, "1");
         }
@@ -942,5 +1239,102 @@ mod tests {
             &cache_entries(),
             "Qwen/Qwen3-8B@aaa"
         ));
+    }
+
+    #[test]
+    fn is_text_tower_weight_key_excludes_vision_and_mtp() {
+        assert!(super::is_text_tower_weight_key(
+            "model.language_model.embed_tokens.weight"
+        ));
+        assert!(super::is_text_tower_weight_key("lm_head.weight"));
+        assert!(!super::is_text_tower_weight_key(
+            "model.visual.patch_embed.proj.weight"
+        ));
+        assert!(!super::is_text_tower_weight_key("mtp.fc.weight"));
+    }
+
+    #[test]
+    fn is_snapshot_complete_vlm_index_ignores_missing_vision_shard() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("config.json"), b"{}").expect("config");
+        std::fs::write(dir.path().join("tokenizer.json"), b"{}").expect("tokenizer");
+        let index = serde_json::json!({
+            "weight_map": {
+                "model.language_model.embed_tokens.weight": "model-00001-of-00002.safetensors",
+                "model.visual.patch_embed.proj.weight": "model-00002-of-00002.safetensors"
+            }
+        });
+        std::fs::write(
+            dir.path().join("model.safetensors.index.json"),
+            index.to_string(),
+        )
+        .expect("index");
+        std::fs::write(dir.path().join("model-00001-of-00002.safetensors"), b"").expect("shard1");
+
+        assert!(super::is_snapshot_complete(dir.path()));
+    }
+
+    #[test]
+    fn is_snapshot_complete_returns_false_when_text_shard_missing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("config.json"), b"{}").expect("config");
+        std::fs::write(dir.path().join("tokenizer.json"), b"{}").expect("tokenizer");
+        let index = serde_json::json!({
+            "weight_map": {
+                "model.language_model.embed_tokens.weight": "model-00001-of-00002.safetensors",
+                "model.visual.patch_embed.proj.weight": "model-00002-of-00002.safetensors"
+            }
+        });
+        std::fs::write(
+            dir.path().join("model.safetensors.index.json"),
+            index.to_string(),
+        )
+        .expect("index");
+
+        assert!(!super::is_snapshot_complete(dir.path()));
+    }
+
+    #[test]
+    fn is_snapshot_complete_unsharded_with_model_safetensors() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("config.json"), b"{}").expect("config");
+        std::fs::write(dir.path().join("tokenizer.json"), b"{}").expect("tokenizer");
+        assert!(!super::is_snapshot_complete(dir.path()));
+
+        std::fs::write(dir.path().join("model.safetensors"), b"").expect("weights");
+        assert!(super::is_snapshot_complete(dir.path()));
+    }
+
+    #[test]
+    fn is_snapshot_complete_rejects_non_plain_shard_or_bad_value() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("config.json"), b"{}").expect("config");
+        std::fs::write(dir.path().join("tokenizer.json"), b"{}").expect("tokenizer");
+        std::fs::create_dir_all(dir.path().join("sub")).expect("subdir");
+        std::fs::write(dir.path().join("sub/shard.safetensors"), b"").expect("nested");
+
+        let escaped = serde_json::json!({
+            "weight_map": {
+                "model.language_model.embed_tokens.weight": "sub/shard.safetensors"
+            }
+        });
+        std::fs::write(
+            dir.path().join("model.safetensors.index.json"),
+            escaped.to_string(),
+        )
+        .expect("index");
+        assert!(!super::is_snapshot_complete(dir.path()));
+
+        let non_string = serde_json::json!({
+            "weight_map": {
+                "model.language_model.embed_tokens.weight": 42
+            }
+        });
+        std::fs::write(
+            dir.path().join("model.safetensors.index.json"),
+            non_string.to_string(),
+        )
+        .expect("index");
+        assert!(!super::is_snapshot_complete(dir.path()));
     }
 }

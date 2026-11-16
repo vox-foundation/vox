@@ -1,9 +1,15 @@
 //! Atomic-NEI novelty scoring over `NoveltyEvidenceBundle`.
 //!
-//! Uses `overlap_summary.max_semantic_score` as the primary signal.
-//! SPECTER2 integration is a stub — Phase 8 wires the actual model.
+//! Fuses Stage-1 lexical overlap (`max_lexical_score`, `NormalizedHit.lexical_score`,
+//! and shingle/MinHash text similarity) with Stage-2 semantic overlap (`max_semantic_score`),
+//! while respecting `ChronoFilter` recency weighting and `EvidenceConflict` signals.
 
-use vox_research_events::schema_types::{NoveltyEvidenceBundle, QueryTrace};
+use crate::inspect_bridge::chronofact::ChronoFilter;
+use crate::inspect_bridge::conflict::{ClaimPolarity, EvidenceConflictDetector, PolarizedHit};
+use crate::inspect_bridge::lexical_shingles::{calibrated_lexical_overlap, text_overlap_score};
+use vox_research_events::schema_types::{
+    NormalizedHit, NoveltyEvidenceBundle, QueryTrace, RecencyBucket,
+};
 
 /// Whether a single prior-art query trace represents a successful retrieval.
 ///
@@ -63,21 +69,50 @@ pub struct AtomicNoveltyScorer {
     pub config: NoveltyConfig,
 }
 
+fn derive_hit_polarity(hit: &NormalizedHit) -> ClaimPolarity {
+    let note = hit
+        .overlap_note
+        .as_deref()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if note.contains("contradict") || note.contains("dispute") || note.contains("refute") {
+        ClaimPolarity::Negative
+    } else {
+        ClaimPolarity::Positive
+    }
+}
+
+fn recency_weight(
+    bucket: Option<RecencyBucket>,
+    raw_overlap: f64,
+    not_novel_threshold: f64,
+) -> f64 {
+    match bucket {
+        // Keep >= not_novel_threshold hits unattenuated so established prior art is never cleared.
+        Some(RecencyBucket::Stale) if raw_overlap < not_novel_threshold => 0.95,
+        _ => 1.0,
+    }
+}
+
 impl AtomicNoveltyScorer {
     pub fn new(config: NoveltyConfig) -> Self {
         Self { config }
     }
 
-    /// Score a bundle.
-    ///
-    /// Decision ladder (uses `overlap_summary.max_semantic_score`):
-    /// - No hits, no scores, and no query traces → `InsufficientEvidence` (retrieval never ran)
-    /// - No hits, no scores, but at least one successful trace → `Novel` (empty search)
-    /// - `None` or `< novel_threshold`  → `Novel`
-    /// - `>= not_novel_threshold`        → `NotNovel` (URI from the hit with the highest
-    ///   `semantic_score`, falling back to the first hit if scores are absent)
-    /// - otherwise                       → `PossiblyNovel { closest_score }`
+    /// Score a bundle using fused lexical + semantic overlap, recency weighting,
+    /// and contradiction detection.
     pub fn score(&self, bundle: &NoveltyEvidenceBundle) -> NoveltyVerdict {
+        self.score_with_context(bundle, None, None)
+    }
+
+    /// Score a bundle with optional candidate text (for direct 3-gram shingle /
+    /// MinHash title overlap) and optional `ChronoFilter` temporal cutoff.
+    pub fn score_with_context(
+        &self,
+        bundle: &NoveltyEvidenceBundle,
+        candidate_text: Option<&str>,
+        chrono_filter: Option<&ChronoFilter>,
+    ) -> NoveltyVerdict {
         // Retrieval gate (must run BEFORE the similarity ladder): if we have
         // per-source query traces and *every* source failed, prior-art
         // retrieval did not succeed — we cannot conclude novelty.
@@ -90,46 +125,150 @@ impl AtomicNoveltyScorer {
             };
         }
 
-        // Derive max score from overlap_summary if present, otherwise scan hits directly.
-        let max_score = bundle
+        let hits: Vec<&NormalizedHit> = match chrono_filter {
+            Some(cf) => cf.filter_hits(&bundle.normalized_hits),
+            None => bundle.normalized_hits.iter().collect(),
+        };
+
+        let cand_clean = candidate_text.map(str::trim).filter(|s| !s.is_empty());
+
+        let mut per_hit_scores: Vec<(&NormalizedHit, Option<f64>)> = Vec::with_capacity(hits.len());
+        let mut hit_max_lexical: Option<f64> = None;
+        let mut hit_max_semantic: Option<f64> = None;
+
+        for hit in &hits {
+            let text_sim = cand_clean
+                .filter(|_| !hit.title.trim().is_empty())
+                .map(|cand| text_overlap_score(cand, &hit.title));
+            let lex_opt = if hit.lexical_score.is_some() || text_sim.is_some() {
+                let lex = calibrated_lexical_overlap(hit.lexical_score, text_sim);
+                hit_max_lexical = Some(hit_max_lexical.map_or(lex, |prev| prev.max(lex)));
+                Some(lex)
+            } else {
+                None
+            };
+            let sem_opt = hit
+                .semantic_score
+                .filter(|v| v.is_finite())
+                .map(|v| v.clamp(0.0, 1.0));
+            if let Some(sem) = sem_opt {
+                hit_max_semantic = Some(hit_max_semantic.map_or(sem, |prev| prev.max(sem)));
+            }
+            let hit_fused = match (sem_opt, lex_opt) {
+                (Some(s), Some(l)) => Some(s.max(l)),
+                (Some(s), None) => Some(s),
+                (None, Some(l)) => Some(l),
+                (None, None) => None,
+            };
+            per_hit_scores.push((hit, hit_fused));
+        }
+
+        // Derive summary lexical/semantic when chrono_filter did not strip all hits;
+        // if chrono_filter removed all hits, do not leak unfiltered summary scores.
+        let summary_allowed = chrono_filter.is_none() || !hits.is_empty();
+        let summary_semantic = if summary_allowed {
+            bundle
+                .overlap_summary
+                .as_ref()
+                .and_then(|s| s.max_semantic_score)
+                .filter(|v| v.is_finite())
+                .map(|v| v.clamp(0.0, 1.0))
+        } else {
+            None
+        };
+        let summary_lexical = if summary_allowed {
+            bundle
+                .overlap_summary
+                .as_ref()
+                .and_then(|s| s.max_lexical_score)
+                .filter(|v| v.is_finite())
+                .map(|v| v.clamp(0.0, 1.0))
+        } else {
+            None
+        };
+
+        let max_semantic = summary_semantic.or(hit_max_semantic);
+        let max_lexical = if summary_lexical.is_some() || hit_max_lexical.is_some() {
+            Some(calibrated_lexical_overlap(summary_lexical, hit_max_lexical))
+        } else {
+            None
+        };
+
+        let raw_fused = match (max_semantic, max_lexical) {
+            (Some(s), Some(l)) => Some(s.max(l)),
+            (Some(s), None) => Some(s),
+            (None, Some(l)) => Some(l),
+            (None, None) => None,
+        };
+
+        let recency_bucket = bundle
             .overlap_summary
             .as_ref()
-            .and_then(|s| s.max_semantic_score)
-            .or_else(|| {
-                bundle
-                    .normalized_hits
-                    .iter()
-                    .filter_map(|h| h.semantic_score)
-                    .reduce(f64::max)
-            });
+            .and_then(|s| s.recency_bucket);
+        let fused_overlap = raw_fused.map(|raw| {
+            let weight = recency_weight(recency_bucket, raw, self.config.not_novel_threshold);
+            (raw * weight).clamp(0.0, 1.0)
+        });
 
-        // No hits, no scores, and no retrieval traces → search never ran.
         let traces_absent = bundle
             .query_traces
             .as_ref()
             .map(|t| t.is_empty())
             .unwrap_or(true);
-        if bundle.normalized_hits.is_empty() && max_score.is_none() && traces_absent {
+
+        if hits.is_empty() && fused_overlap.is_none() {
+            if traces_absent {
+                return NoveltyVerdict::InsufficientEvidence {
+                    reason: "prior-art retrieval produced no evidence".into(),
+                };
+            }
+            return NoveltyVerdict::Novel;
+        }
+
+        // Hits exist, yet none carry semantic, lexical, or text-overlap scores:
+        // never treat unverified hits as `Novel`.
+        if fused_overlap.is_none() {
             return NoveltyVerdict::InsufficientEvidence {
-                reason: "prior-art retrieval produced no evidence".into(),
+                reason: "prior-art hits carry neither semantic nor lexical overlap scores".into(),
             };
         }
 
-        match max_score {
-            None => NoveltyVerdict::Novel,
+        // Check for opposing polarity evidence conflicts among high-similarity hits.
+        let polarized: Vec<PolarizedHit> = per_hit_scores
+            .iter()
+            .filter_map(|(h, fused)| {
+                fused.map(|similarity| PolarizedHit {
+                    work_uri: h.work_uri.clone(),
+                    similarity,
+                    polarity: derive_hit_polarity(h),
+                    excerpt: h.overlap_note.clone(),
+                })
+            })
+            .collect();
+        let detector = EvidenceConflictDetector::new(self.config.not_novel_threshold);
+        if let Some(conflict) = detector.detect(cand_clean.unwrap_or(""), &polarized)
+            && let Some(contra) = conflict.contradicting_hits.first()
+        {
+            return NoveltyVerdict::Contradicted {
+                conflicting_uri: contra.work_uri.clone(),
+            };
+        }
+
+        match fused_overlap {
+            None => NoveltyVerdict::InsufficientEvidence {
+                reason: "no lexical or semantic overlap signal available".into(),
+            },
             Some(score) if score < self.config.novel_threshold => NoveltyVerdict::Novel,
             Some(score) if score >= self.config.not_novel_threshold => {
-                // Find the URI of the hit with the highest semantic_score.
-                let closest_uri = bundle
-                    .normalized_hits
+                let closest_uri = per_hit_scores
                     .iter()
-                    .max_by(|a, b| {
-                        a.semantic_score
-                            .unwrap_or(0.0)
-                            .partial_cmp(&b.semantic_score.unwrap_or(0.0))
+                    .max_by(|(a, sa), (b, sb)| {
+                        sa.unwrap_or(0.0)
+                            .partial_cmp(&sb.unwrap_or(0.0))
                             .unwrap_or(std::cmp::Ordering::Equal)
+                            .then_with(|| a.year.unwrap_or(0).cmp(&b.year.unwrap_or(0)))
                     })
-                    .map(|h| h.work_uri.clone())
+                    .map(|(h, _)| h.work_uri.clone())
                     .unwrap_or_default();
                 NoveltyVerdict::NotNovel {
                     closest_hit_uri: closest_uri,
@@ -275,10 +414,86 @@ mod tests {
     }
 
     #[test]
-    fn no_summary_no_scores_is_novel() {
+    fn no_summary_no_scores_is_insufficient_evidence() {
         let bundle = make_bundle(vec![hit("doi:10.test", None)], None);
         let scorer = AtomicNoveltyScorer::default();
         let verdict = scorer.score(&bundle);
-        assert_eq!(verdict, NoveltyVerdict::Novel);
+        assert!(matches!(
+            verdict,
+            NoveltyVerdict::InsufficientEvidence { .. }
+        ));
+    }
+
+    #[test]
+    fn lexical_only_prior_art_without_semantic_is_not_novel() {
+        let mut h = hit("https://openalex.org/W4390000001", None);
+        h.title = "Exact Prior Art on Deterministic Continuum Routing".into();
+        h.year = Some(2025);
+        h.lexical_score = Some(0.95);
+        let mut bundle = make_bundle(vec![h], None);
+        bundle.overlap_summary = Some(OverlapSummary {
+            max_lexical_score: Some(0.95),
+            max_semantic_score: None,
+            recency_bucket: Some(RecencyBucket::VeryRecent),
+        });
+        bundle.query_traces = Some(vec![trace("openalex", Some(200), Some(true))]);
+        let scorer = AtomicNoveltyScorer::default();
+        assert!(matches!(
+            scorer.score(&bundle),
+            NoveltyVerdict::NotNovel { closest_hit_uri, similarity }
+            if closest_hit_uri == "https://openalex.org/W4390000001" && (similarity - 0.95).abs() < 1e-9
+        ));
+    }
+
+    #[test]
+    fn lexical_mid_overlap_without_semantic_is_possibly_novel() {
+        let mut h = hit("https://openalex.org/Wmid", None);
+        h.lexical_score = Some(0.62);
+        let mut bundle = make_bundle(vec![h], None);
+        bundle.query_traces = Some(vec![trace("openalex", Some(200), None)]);
+        let scorer = AtomicNoveltyScorer::default();
+        assert!(matches!(
+            scorer.score(&bundle),
+            NoveltyVerdict::PossiblyNovel { closest_score }
+            if (closest_score - 0.62).abs() < 1e-9
+        ));
+    }
+
+    #[test]
+    fn candidate_text_shingle_overlap_blocks_scoreless_false_novel() {
+        let mut h = hit("https://openalex.org/Wshingle", None);
+        h.title = "Deterministic Continuum Routing for Multi Agent Tool Graphs".into();
+        h.year = Some(2024);
+        let mut bundle = make_bundle(vec![h], None);
+        bundle.query_traces = Some(vec![trace("openalex", Some(200), None)]);
+        let scorer = AtomicNoveltyScorer::default();
+        let verdict = scorer.score_with_context(
+            &bundle,
+            Some("Deterministic Continuum Routing for Multi Agent Tool Graphs"),
+            Some(&ChronoFilter::new(1_760_000_000)),
+        );
+        assert!(matches!(
+            verdict,
+            NoveltyVerdict::NotNovel { closest_hit_uri, similarity }
+            if closest_hit_uri == "https://openalex.org/Wshingle" && similarity >= 0.99
+        ));
+    }
+
+    #[test]
+    fn conflict_hits_produce_contradicted_verdict() {
+        let mut h1 = hit("https://openalex.org/W1", Some(0.9));
+        h1.year = Some(2022);
+        let mut h2 = hit("https://openalex.org/W2", Some(0.9));
+        h2.year = Some(2021);
+        h2.overlap_note = Some("this work contradicts the proposed approach".into());
+        let mut bundle = make_bundle(vec![h1, h2], Some(0.9));
+        bundle.query_traces = Some(vec![trace("openalex", Some(200), None)]);
+        let scorer = AtomicNoveltyScorer::default();
+        assert_eq!(
+            scorer.score(&bundle),
+            NoveltyVerdict::Contradicted {
+                conflicting_uri: "https://openalex.org/W2".into()
+            }
+        );
     }
 }

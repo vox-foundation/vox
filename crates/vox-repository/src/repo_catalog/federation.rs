@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     RepoAccessMode, RepoCatalog, RepoCatalogError, RepositoryDescriptor,
-    load_repo_catalog_from_repo, resolve_repo_catalog,
+    load_repo_catalog_from_repo, repo_catalog_manifest_path, resolve_repo_catalog,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -102,6 +102,8 @@ pub fn default_federation_catalog() -> RepoCatalog {
                     "contracts/wire/".to_string(),
                     "contracts/ipc/".to_string(),
                     "contracts/telemetry/".to_string(),
+                    "contracts/gui/".to_string(),
+                    "contracts/documentation/".to_string(),
                 ],
                 cargo_patch_crates: Vec::new(),
                 ..Default::default()
@@ -207,6 +209,7 @@ fn collect_contract_files(
 
 /// Verify contract parity across all present repositories declared in `.vox/repositories.yaml`.
 /// Gracefully skips optional checkouts (`optional: true`) that are absent from disk.
+#[inline(never)]
 pub fn verify_cross_repo_contract_parity(
     workspace_root: &Path,
 ) -> Result<CrossRepoParityReport, RepoCatalogError> {
@@ -254,7 +257,12 @@ pub fn verify_cross_repo_contract_parity(
             continue;
         };
 
-        let root_path = PathBuf::from(root_str);
+        let root_path = if repo_id != "vox" {
+            resolve_external_satellite_root(workspace_root, &repo_id, root_str)
+                .unwrap_or_else(|| PathBuf::from(root_str))
+        } else {
+            PathBuf::from(root_str)
+        };
         if !root_path.exists() {
             if r.optional {
                 skipped_optional_repositories.push(r.display_name.clone());
@@ -319,6 +327,74 @@ pub fn verify_cross_repo_contract_parity(
         }
     }
 
+    // Also verify federated mirror parity (`README.md`, `AGENTS.md`, and generated surface indexes)
+    // when external sibling checkouts (`../vox-axis`, `../voxlang.org`) are present on disk.
+    let mirror_pairs: &[(&str, &str, &str)] = &[
+        ("vox-axis", "crates/vox-gui/README.md", "README.md"),
+        (
+            "vox-axis",
+            "crates/vox-gui/README.md",
+            "crates/vox-gui/README.md",
+        ),
+        (
+            "vox-axis",
+            "crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts",
+            "crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts",
+        ),
+        (
+            "vox-axis",
+            "crates/vox-gui/ui/src/generated/capabilityIndex.generated.ts",
+            "crates/vox-gui/ui/src/generated/capabilityIndex.generated.ts",
+        ),
+        ("voxlang.org", "docs-astro/README.md", "README.md"),
+        (
+            "voxlang.org",
+            "docs-astro/README.md",
+            "docs-astro/README.md",
+        ),
+        (
+            "voxlang.org",
+            "docs/src/.well-known/llms.txt",
+            "docs-astro/public/.well-known/llms.txt",
+        ),
+    ];
+    for r in &resolved.repositories {
+        let repo_id = r
+            .declared_repository_id
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .unwrap_or_else(|| r.display_name.clone());
+        let Some(target_root) = r.resolved_root.as_deref().and_then(|root_str| {
+            resolve_external_satellite_root(workspace_root, &repo_id, root_str)
+        }) else {
+            continue;
+        };
+        for (target_repo_id, src_rel, dst_rel) in mirror_pairs {
+            if repo_id == *target_repo_id {
+                let src_path = workspace_root.join(src_rel);
+                let dst_path = target_root.join(dst_rel);
+                if src_path.is_file()
+                    && let Ok(src_bytes) = std::fs::read(&src_path)
+                {
+                    let src_hash = blake3::hash(&src_bytes).to_hex().to_string();
+                    let dst_hash = std::fs::read(&dst_path)
+                        .map(|b| blake3::hash(&b).to_hex().to_string())
+                        .unwrap_or_else(|_| "MISSING".to_string());
+                    if src_hash != dst_hash {
+                        drifts.push(ContractDrift {
+                            relative_contract_path: format!("{src_rel} <-> {dst_rel}"),
+                            repo_a: "vox".to_string(),
+                            repo_a_blake3: src_hash,
+                            repo_b: repo_id.clone(),
+                            repo_b_blake3: dst_hash,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     let in_parity = drifts.is_empty();
     let verified_contracts_count = all_contract_paths.len();
 
@@ -333,8 +409,222 @@ pub fn verify_cross_repo_contract_parity(
     })
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SatelliteSyncSummary {
+    pub present_repositories: Vec<String>,
+    pub skipped_repositories: Vec<String>,
+    pub files_copied: usize,
+    pub files_checked: usize,
+}
+
+fn sync_dir_filtered(
+    src_dir: &Path,
+    dst_dir: &Path,
+    files_copied: &mut usize,
+    files_checked: &mut usize,
+) -> std::io::Result<()> {
+    if !src_dir.exists() {
+        return Ok(());
+    }
+    if src_dir.is_file() {
+        *files_checked += 1;
+        let src_bytes = std::fs::read(src_dir)?;
+        let needs_copy = match std::fs::read(dst_dir) {
+            Ok(dst_bytes) => blake3::hash(&src_bytes) != blake3::hash(&dst_bytes),
+            Err(_) => true,
+        };
+        if needs_copy {
+            if let Some(parent) = dst_dir.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(dst_dir, &src_bytes)?;
+            *files_copied += 1;
+        }
+        return Ok(());
+    }
+
+    for entry in walkdir::WalkDir::new(src_dir)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !matches!(
+                name.as_ref(),
+                ".git"
+                    | ".vox"
+                    | "node_modules"
+                    | "dist"
+                    | "target"
+                    | ".astro"
+                    | ".vox-diagram"
+                    | "artifacts"
+                    | "review-bundle"
+                    | "playwright-report"
+                    | "test-results"
+            )
+        })
+        .flatten()
+    {
+        if entry.file_type().is_file()
+            && let Ok(rel) = entry.path().strip_prefix(src_dir)
+        {
+            // Skip docs-astro/src/content/docs generated symlinks/mounts
+            let rel_str = rel.to_string_lossy().replace('\\', "/");
+            if rel_str.starts_with("src/content/docs/") || rel_str.starts_with("src/examples") {
+                continue;
+            }
+            *files_checked += 1;
+            let dst_file = dst_dir.join(rel);
+            let src_bytes = std::fs::read(entry.path())?;
+            let needs_copy = match std::fs::read(&dst_file) {
+                Ok(dst_bytes) => blake3::hash(&src_bytes) != blake3::hash(&dst_bytes),
+                Err(_) => true,
+            };
+            if needs_copy {
+                if let Some(parent) = dst_file.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&dst_file, &src_bytes)?;
+                *files_copied += 1;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Resolve an external sibling checkout outside `workspace_root` when present.
+///
+/// For hybrid entries (`vox-axis` rooted at `crates/vox-gui`, `voxlang.org` rooted at `docs-astro`),
+/// returns `Some("../<repo_id>")` only when a physical sibling checkout exists outside `workspace_root`,
+/// and `None` when operating purely against the canonical in-monorepo directory.
+fn resolve_external_satellite_root(
+    workspace_root: &Path,
+    repo_id: &str,
+    resolved_root: &str,
+) -> Option<PathBuf> {
+    let ws_canon =
+        std::fs::canonicalize(workspace_root).unwrap_or_else(|_| workspace_root.to_path_buf());
+    let candidate = PathBuf::from(resolved_root);
+    let cand_canon = std::fs::canonicalize(&candidate).unwrap_or_else(|_| candidate.clone());
+    if candidate.exists() && !cand_canon.starts_with(&ws_canon) {
+        return Some(candidate);
+    }
+    ws_canon
+        .parent()
+        .map(|parent| parent.join(repo_id))
+        .filter(|sibling| sibling.exists() && !sibling.starts_with(&ws_canon))
+}
+
+fn sync_dir_checked(
+    src_dir: &Path,
+    dst_dir: &Path,
+    files_copied: &mut usize,
+    files_checked: &mut usize,
+) -> Result<(), RepoCatalogError> {
+    sync_dir_filtered(src_dir, dst_dir, files_copied, files_checked).map_err(|source| {
+        RepoCatalogError::SyncSatellite {
+            path: dst_dir.display().to_string(),
+            source,
+        }
+    })
+}
+
+/// Synchronize shared contracts and federated mirror trees from `vox` (`workspace_root`)
+/// into all present satellite repositories (`../vox-ops`, `../vox-axis`, `../voxlang.org`).
+#[inline(never)]
+pub fn sync_federated_satellites(
+    workspace_root: &Path,
+) -> Result<SatelliteSyncSummary, RepoCatalogError> {
+    let resolved = resolve_repo_catalog(workspace_root)?;
+    let mut present_repositories = Vec::new();
+    let mut skipped_repositories = Vec::new();
+    let mut files_copied = 0usize;
+    let mut files_checked = 0usize;
+
+    for r in &resolved.repositories {
+        let repo_id = r
+            .declared_repository_id
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .unwrap_or_else(|| r.display_name.clone());
+        if repo_id == "vox" {
+            continue;
+        }
+        let Some(target_root) = r.resolved_root.as_deref().and_then(|root_str| {
+            resolve_external_satellite_root(workspace_root, &repo_id, root_str)
+        }) else {
+            skipped_repositories.push(repo_id);
+            continue;
+        };
+        present_repositories.push(repo_id.clone());
+
+        // 1. Sync declared shared_contracts
+        for contract_prefix in &r.shared_contracts {
+            let clean = contract_prefix.trim_matches('/');
+            let src = workspace_root.join(clean);
+            let dst = target_root.join(clean);
+            sync_dir_checked(&src, &dst, &mut files_copied, &mut files_checked)?;
+        }
+
+        // 2. Sync repository-specific federated mirrors
+        if repo_id == "vox-axis" {
+            sync_dir_checked(
+                &workspace_root.join("crates/vox-gui"),
+                &target_root.join("crates/vox-gui"),
+                &mut files_copied,
+                &mut files_checked,
+            )?;
+            sync_dir_checked(
+                &workspace_root.join("crates/vox-gui/README.md"),
+                &target_root.join("README.md"),
+                &mut files_copied,
+                &mut files_checked,
+            )?;
+        } else if repo_id == "voxlang.org" {
+            sync_dir_checked(
+                &workspace_root.join("docs-astro"),
+                &target_root.join("docs-astro"),
+                &mut files_copied,
+                &mut files_checked,
+            )?;
+            sync_dir_checked(
+                &workspace_root.join("crates/vox-doc-pipeline"),
+                &target_root.join("crates/vox-doc-pipeline"),
+                &mut files_copied,
+                &mut files_checked,
+            )?;
+            sync_dir_checked(
+                &workspace_root.join("docs-astro/README.md"),
+                &target_root.join("README.md"),
+                &mut files_copied,
+                &mut files_checked,
+            )?;
+            sync_dir_checked(
+                &workspace_root.join("docs/src/.well-known"),
+                &target_root.join("docs-astro/public/.well-known"),
+                &mut files_copied,
+                &mut files_checked,
+            )?;
+            sync_dir_checked(
+                &workspace_root.join("docs/src/assets"),
+                &target_root.join("docs-astro/public/assets"),
+                &mut files_copied,
+                &mut files_checked,
+            )?;
+        }
+    }
+
+    Ok(SatelliteSyncSummary {
+        present_repositories,
+        skipped_repositories,
+        files_copied,
+        files_checked,
+    })
+}
+
 /// Generates or toggles the `[patch.crates-io]` Cargo manifest block for atomic
 /// multi-repo local development linking across sibling checkouts.
+#[inline(never)]
 pub fn render_local_cargo_patch_block(
     workspace_root: &Path,
     enable: bool,
@@ -380,6 +670,7 @@ pub fn render_local_cargo_patch_block(
 
 /// Walk all present repositories in `.vox/repositories.yaml`, indexing package boundaries,
 /// shared contracts, and cross-repo edges for unified MCP visibility.
+#[inline(never)]
 pub fn refresh_federated_symbol_graph(
     workspace_root: &Path,
 ) -> Result<FederatedGraphSummary, RepoCatalogError> {
@@ -575,6 +866,7 @@ pub fn refresh_federated_symbol_graph(
 /// 2. Root `Cargo.toml` specifies `default-members = ["crates/vox-cli"]` (excluding `vox-gui` from default builds).
 /// 3. Telemetry defaults to opt-in / offline-safe (`VOX_OFFLINE=1` / `VOX_TELEMETRY=off` compatible).
 /// 4. `crates/vox-gui` (`vox-axis`) and `docs-astro` (`voxlang.org`) have self-contained manifests.
+#[inline(never)]
 pub fn verify_standalone_sovereignty(
     workspace_root: &Path,
 ) -> Result<StandaloneSovereigntyReport, RepoCatalogError> {
@@ -656,11 +948,48 @@ pub fn verify_standalone_sovereignty(
     // Telemetry offline safe: verifies offline posture
     let telemetry_offline_safe = true;
 
+    let machine_local_markers = [
+        concat!("/", "users/brbrainerd"),
+        concat!(":\\", "users\\owner"),
+        concat!(":/", "users/owner"),
+    ];
+    let sovereignty_checked_files = [
+        ("AGENTS.md", workspace_root.join("AGENTS.md")),
+        ("README.md", workspace_root.join("README.md")),
+        (
+            "crates/vox-gui/README.md",
+            workspace_root.join("crates/vox-gui/README.md"),
+        ),
+        (
+            "docs-astro/README.md",
+            workspace_root.join("docs-astro/README.md"),
+        ),
+        (
+            "repo_catalog_manifest",
+            repo_catalog_manifest_path(workspace_root),
+        ),
+    ];
+    for (rel_label, full) in sovereignty_checked_files {
+        if full.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&full)
+        {
+            let lower = raw.to_ascii_lowercase();
+            for marker in machine_local_markers {
+                if lower.contains(marker) {
+                    violations.push(format!(
+                        "{rel_label} contains machine-local path marker `{marker}`"
+                    ));
+                }
+            }
+        }
+    }
+
     let is_sovereign = root_cargo_has_no_ops_dep
         && root_cargo_default_members_ok
         && telemetry_offline_safe
         && vox_gui_manifest_ok
-        && docs_astro_manifest_ok;
+        && docs_astro_manifest_ok
+        && violations.is_empty();
 
     Ok(StandaloneSovereigntyReport {
         is_sovereign,

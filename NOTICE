@@ -13,4 +13,20 @@ Vendored subset: algorithmic-art, brand-guidelines, canvas-design, claude-api,
 frontend-design, internal-comms, mcp-builder, skill-creator, slack-gif-creator,
 theme-factory, web-artifacts-builder, webapp-testing.
 Pinned at commit b29e7cf65e5cb78a5ac33d582270551bc74a14eb.
+This product includes the brainstorming skill vendored from obra/superpowers
+(https://github.com/obra/superpowers), Copyright (c) 2025 Jesse Vincent.
+Licensed under the MIT License. See assets/skills/brainstorming/LICENSE.upstream.
+
+---
+
+This product includes the GSD (Get Shit Done) workflow skills adapted from
+open-gsd/gsd-core (https://github.com/open-gsd/gsd-core), Licensed under the
+MIT License.
+Vendored suite: gsd-add-tests, gsd-audit-fix, gsd-audit-milestone, gsd-audit-uat,
+gsd-autonomous, gsd-capture, gsd-code-review, gsd-complete-milestone, gsd-debug,
+gsd-discuss-phase, gsd-execute-phase, gsd-explore, gsd-extract-learnings,
+gsd-fast, gsd-health, gsd-map-codebase, gsd-mvp-phase, gsd-new-milestone,
+gsd-new-project, gsd-next, gsd-pause-work, gsd-phase, gsd-plan-phase,
+gsd-progress, gsd-quick, gsd-resume-work, gsd-ship, gsd-spec-phase,
+gsd-validate-phase, gsd-verify-work.
 See assets/skills/SOURCES.toml for full provenance.

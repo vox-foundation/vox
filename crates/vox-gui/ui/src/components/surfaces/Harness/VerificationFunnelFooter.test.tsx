@@ -21,6 +21,8 @@ describe('VerificationFunnelFooter', () => {
     expect(screen.getByText(/CANDIDATE TURNS/i)).toBeDefined();
     expect(screen.getByText(/ADVERSARIAL PASS/i)).toBeDefined();
     expect(screen.getByText(/FAILURE \/ DOUBT ATTRIBUTION/i)).toBeDefined();
-    expect(screen.getByText(/\+\d+ ◆/)).toBeDefined();
+    const yieldBadge = screen.getByTestId('ludus-crystal-yield');
+    expect(yieldBadge.textContent).toMatch(/\+\d+ XP · \+\d+/);
+    expect(yieldBadge.querySelector('svg')).not.toBeNull();
   });
 });

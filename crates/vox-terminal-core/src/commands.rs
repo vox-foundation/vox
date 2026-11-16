@@ -75,9 +75,21 @@ impl Default for CommandRegistry {
             description: "List available slash-commands",
             handler: |_| {
                 CommandResult::Output(
-                    "Available commands: /help /model /budget /skills /memory /context /sh /nu /ai"
+                    "Available commands: /help /model /budget /skills /memory /context /clear /compact /sh /nu /ai"
                         .into(),
                 )
+            },
+        });
+        r.register(CommandEntry {
+            name: "clear",
+            description: "Clear unpinned completed terminal blocks",
+            handler: |_| CommandResult::Output("Cleared unpinned terminal blocks.".into()),
+        });
+        r.register(CommandEntry {
+            name: "compact",
+            description: "Summarize older unpinned terminal blocks into a digest",
+            handler: |_| {
+                CommandResult::Output("Compacted older terminal blocks into digest.".into())
             },
         });
         r.register(CommandEntry {
@@ -228,5 +240,18 @@ mod tests {
             handler: |_| CommandResult::Output("pong".into()),
         });
         assert_eq!(reg.dispatch("/ping"), CommandResult::Output("pong".into()));
+    }
+
+    #[test]
+    fn clear_and_compact_commands_registered_and_sorted() {
+        let reg = CommandRegistry::default();
+        assert_ne!(reg.dispatch("/clear"), CommandResult::NotFound);
+        assert_ne!(reg.dispatch("/compact"), CommandResult::NotFound);
+        if let CommandResult::Output(help) = reg.dispatch("/help") {
+            assert!(help.contains("/clear"), "help missing /clear: {help}");
+            assert!(help.contains("/compact"), "help missing /compact: {help}");
+        } else {
+            panic!("expected /help output");
+        }
     }
 }

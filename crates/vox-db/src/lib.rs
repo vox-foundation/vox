@@ -146,6 +146,7 @@ mod questioning_telemetry;
 mod research;
 pub mod research_doc_io;
 pub mod research_pipeline;
+pub mod research_session_pages;
 /// KB-text sanitizer and provenance newtypes. Lives in `vox-db-types`.
 pub use vox_db_types::kb_text;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
@@ -274,14 +275,15 @@ pub use types::now_unix_ms;
 pub use vox_db_types::EvalRunParams;
 pub use vox_db_types::{
     CachedClaimVerdict, DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId,
-    DbUserId, MisguidanceReporter, PersistFailpoint, RecordMisguidanceParams,
-    ResearchArtifactRecord, ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult,
-    ResearchSessionRecord, ResearchSessionSummary, TRIAL_ADAPTER_TAGS, TRIAL_CAMPAIGN_LOG_EVENTS,
-    TRIAL_CAMPAIGN_STATUSES, TRIAL_MEMORY_ABLATION_FLAGS, TRIAL_RUN_STATUSES,
-    TRIAL_SAMPLE_VERDICTS, TRIAL_STOPPING_RULE_KINDS, TrialCampaignLogRow, TrialCampaignRecord,
-    TrialCampaignRow, TrialRunBatch, TrialRunOutcome, TrialRunRecord, TrialRunRow,
-    TrialSampleRecord, TrialSampleRow, TrialSpendPartition, is_valid_campaign_transition,
-    is_valid_run_transition,
+    DbUserId, MisguidanceReporter, NewResearchSessionSource, PersistFailpoint,
+    RecordMisguidanceParams, ResearchArtifactRecord, ResearchDefectClass,
+    ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord,
+    ResearchSessionSourceRecord, ResearchSessionSummary, SessionClaimPageItem, SessionClaimsPage,
+    SessionSourcesPage, TRIAL_ADAPTER_TAGS, TRIAL_CAMPAIGN_LOG_EVENTS, TRIAL_CAMPAIGN_STATUSES,
+    TRIAL_MEMORY_ABLATION_FLAGS, TRIAL_RUN_STATUSES, TRIAL_SAMPLE_VERDICTS,
+    TRIAL_STOPPING_RULE_KINDS, TrialCampaignLogRow, TrialCampaignRecord, TrialCampaignRow,
+    TrialRunBatch, TrialRunOutcome, TrialRunRecord, TrialRunRow, TrialSampleRecord, TrialSampleRow,
+    TrialSpendPartition, is_valid_campaign_transition, is_valid_run_transition,
 };
 pub use vox_orchestrator_types::trust::{
     ContextTrustTier, FindingTier, tier_for_curated, tier_for_knowledge_node_type,

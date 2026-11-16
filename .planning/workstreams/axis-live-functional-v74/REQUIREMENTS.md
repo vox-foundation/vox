@@ -1,0 +1,110 @@
+# Requirements: Vox Axis v7.4 (`axis-live-functional-v74`)
+
+**Defined:** 2026-11-14
+**Milestone:** v7.4 — Vox Axis End-to-End Live Control Wiring, Zero-Emoji Icon/Graphic System, shadcn/Tailwind v4 Ecosystem Upgrade & Concept-Art Bento CV Flywheel (`Phases 431–436`)
+**Workstream:** `.planning/workstreams/axis-live-functional-v74/`
+**Core Value:** Every dial, gauge, graph, rotary knob, and button in Vox Axis executes real backend or persisted state mutations with zero paper code or demo stubs, backed by 100% vector semiotics + generated Romanesque/Slate graphics, unified React 19 + Tailwind v4 shadcn/Radix primitives, smart `@container` Bento density, and multi-pass Concept-Art CV Flywheel verification.
+
+---
+
+## v1 Requirements (Milestone v7.4)
+
+Requirements for Milestone v7.4 (`Phases 431–436`). Every requirement maps to exactly one roadmap phase.
+
+### 1. Dual-Theme shadcn/Radix Primitive Kit & Portal Contract (`AXIS-SHADCN` — Phase 431)
+
+- [x] **AXIS-SHADCN-01**: Operator interacts with unified React 19 `radix-ui@^1.8.1` + `class-variance-authority@^0.7.1` `data-slot` primitives (`Button`, `Dialog`, `Popover`, `Select`, `DropdownMenu`, `Tabs`, `Switch`, `Slider`, `Checkbox`, `RadioGroup`, `Sheet`, `Accordion`, `Collapsible`, `ScrollArea`, `AlertDialog`) styled across all 4 Style Dictionary themes (`arcane`, `glacier`, `slate`, `high-contrast`) with live `tw-animate-css@^1.4.0` transitions and zero `index.css` `!important` clobbering (`:not([data-slot])` and scrim guards).
+- [x] **AXIS-SHADCN-02**: Operator tunes bounded continuous parameters (LLM temperature, routing exploration weight, `Oratio` VAD threshold, `Loquela` cadence, `VoxGraph` TTL) via tactile SVG `RomanRotaryKnob` (`role="slider"` ARIA + pointer capture + detents) and accessible Radix `Slider` (`aria-label` + `aria-valuetext` on `Thumb`, `onValueCommit` IPC debounce).
+- [x] **AXIS-SHADCN-03**: Operator searches, filters, sorts, and resizes dense datasets and panes via `cmdk@^1.1.1` (`Omnibar` & searchable comboboxes), `@tanstack/react-table@^9.3.1` (`DataTable`), and `react-resizable-panels@^4.22.1` (`Resizable` `<Group>`/`<Panel>`/`<Separator>` split workbenches).
+- [x] **AXIS-SHADCN-04**: Operator sees deterministic portal stacking (`--z-shell-chrome: 40` < `--z-drawer: 60` < `--z-dialog: 70` < `--z-popover: 80` < `--z-toast: 90` < `--z-tooltip: 100`) and zero horizontal scrollbar shift (`outerOverflowPx === 0`) when modal dialogs lock scroll (`h-dvh w-full max-w-full overflow-hidden` + `body[data-scroll-locked]` guard).
+
+### 2. Zero-Emoji & Zero-Dingbat Vector Icon & Generated Graphics System (`AXIS-ICONS` — Phase 432)
+
+- [x] **AXIS-ICONS-01**: Operator sees crisp stroke-normalized `lucide-react@^1.72.0` (`<VoxIcon strokeWidth={1.5} />`) and bespoke Romanesque SVG icons (`crates/vox-gui/ui/src/components/ui/Icons.tsx`) across all 50+ JSX files — zero raw pictographic emojis and zero BMP Unicode dingbats/arrows/shapes (`🔒`, `⚡`, `⚔`, `🌿`, `⛵`, `⚱`, `⚠️`, `⚙`, `⚒`, `✎`, `✂`, `⏸`, `★`, `☐`, `☼`, `▶`, `▼`, `↗`, `⚠`, `✓`, `✕`).
+- [x] **AXIS-ICONS-02**: Operator sees crisp Canvas 2D `Path2D` vector badges in `worldRenderer.ts` and `hydraulicNetwork.ts` and bespoke generated Romanesque/Slate graphical crests, medallions, and empty-state plates instead of text glyphs.
+- [x] **AXIS-ICONS-03**: Screen-reader and keyboard operators receive valid accessible names (`aria-label`) and non-zero bounding boxes (`iconIssueCount === 0`) on every icon-only button and status indicator, with all 5 legacy glyph-asserting Vitest suites (`Kpi.test.tsx`, `CapabilityBadge.test.tsx`, `ExplorerView.test.tsx`, `SecretaryToast.test.tsx`, `TurnTrace.test.tsx`) migrated cleanly.
+- [x] **AXIS-ICONS-04**: CI and Playwright enforce zero emoji/dingbat regressions via `zeroEmojiAndDingbat.test.ts` and an un-exempted full-DOM + portal glyph scanner in `crates/vox-gui/ui/e2e/review/audits.ts` (`[data-testid="urbs-imperium-inspector"]` exemption removed).
+
+### 3. Rust/MCP Seam Closure & Honest Single-Funnel IPC (`AXIS-IPC-HONESTY` — Phase 433)
+
+- [x] **AXIS-IPC-HONESTY-01**: Operator guest-share listing/moderation, external session listing/import, Muse pool adoption, consensus fan-out, and Mercatus config saves execute end-to-end against aligned Rust DTOs (`vox_guest_share_list` + fixed `GuestInviteRecord` / `winner` / `sessions` wire contracts in `crates/vox-orchestrator-mcp/src/t3_wave3_tools.rs`, `fs::create_dir_all` + change event in `crates/vox-gui/src/commands/mercatus.rs`, extended `vox_consensus_run` deadline in `crates/vox-gui/src/remote/calls.rs`).
+- [x] **AXIS-IPC-HONESTY-02**: Every frontend IPC command and event subscription across all 33 surfaces routes exclusively through `crates/vox-gui/ui/src/transport.ts` with `permissionMode` preserved (`ipcBoundaries.test.ts` direct `invoke` and `listen` allowlists reduced from `38`/`8` to `0`).
+- [x] **AXIS-IPC-HONESTY-03**: When Tauri/daemon calls fail at runtime, the operator sees honest error feedback (`sanitizeErrorForToast` + optimistic state rollback) — zero catch-and-fake `_demo` tokens, fake Git OIDs, or fabricated `500 BU` balances in `crates/vox-gui/ui/src/transport/t3Wave3Rpc.ts` when `backendAvailable() === true`.
+- [x] **AXIS-IPC-HONESTY-04**: In browser-only preview mode (`!backendAvailable()`), mutation controls surface an explicit disabled/preview reason rather than fabricating fake live receipts, enforced by `noPaperFallbackGuard.test.ts` and `sentryHonesty.ts`.
+
+### 4. End-to-End Live Control, Dial, Gauge, Knob & Chart Wiring (`AXIS-LIVE-CONTROLS` — Phase 434)
+
+- [x] **AXIS-LIVE-CONTROLS-01**: Operator clicks any navigation pill or checkpoint action in `HudPanels.tsx`, `HarnessRiverPanel.tsx`, and `ImperiumInspector.tsx` and lands on valid `SURFACE_REGISTRY` views / executes real typed `vcsCheckpointCapture` & `vcsCheckpointRestore` RPCs (zero dead `viewKey`s or `(...args: unknown[])` casts).
+- [x] **AXIS-LIVE-CONTROLS-02**: Operator triggers real backend mutations on all 11 previously local-only controls (`HarnessRiverPanel` time-window filter, `Compact Context`, `Claim Yield`, `Verification Gate`, `Sluice Gates I–IV`; `ImperiumInspector` `PRAETORIVM Approve` & `FORVM` routing knob; `LudusSandbox` `Pin Context` -> `set_session_context_pins` & `Yield`; `SessionInteropModal` live moderation & file picker; `Mercatus` config switches/thresholds).
+- [x] **AXIS-LIVE-CONTROLS-03**: Operator reads empirical backend-derived values on all ~65 `<RomanBrassGauge>` dials and `ContextWindowMeter.tsx` (zero hardcoded `0.78`/`0.85`/`92%` constants) and clicks header gauges to filter/focus the corresponding surface view or drawer.
+- [x] **AXIS-LIVE-CONTROLS-04**: Operator scrubs, zooms, and drills down into live Recharts telemetry (`<Brush>`, formatted axes, `<ReferenceLine>` caps, datum click filters), replaces all 28 native `<select>`s and 5 `<input type="range">`s with wired Radix/rotary controls, and retains custom `DashboardGrid` / `DockWorkspaceShell` arrangements across restarts via `getGuiPreference` / `setGuiPreference`.
+
+### 5. `@container` Smart Bento Arrangement & Whitespace Elimination (`AXIS-BENTO` — Phase 435)
+
+- [x] **AXIS-BENTO-01**: Operator works in purpose-built live `OratioStudioView` (push-to-talk `oratio_transcribe`, live mic VU meter, VAD `RomanRotaryKnob`, transcript history) and `PopuliMeshBentoView` (live QUIC peer topology, node health matrix, gossip probe controls), retiring generic 2-card `CommandCardsView` `<pre>` CLI dumps on `oratio` and `populi`.
+- [x] **AXIS-BENTO-02**: Operator inspects master-detail workflows without dead right-hand gutters (`>50%` empty whitespace eliminated) across Tier A (`catalog`, `harness-health`, `approvals`, `gsd`, `mercatus`, `vox-graph`) via `@container/surface` `<BentoGrid>` and `Resizable` horizontal splitters (`Sheet` drawer fallback `<960px`).
+- [x] **AXIS-BENTO-03**: Operator navigates dense, responsive Bento/table arrangements across Tier B CRUD & operational views (`policies`, `explorer`, `memory`, `repository`, `publications`, `scientia`, `models`, `coderabbit`, `runs`, `tasks`, `sub-agents`, `skills`, `activity`, `needs-you`, `settings`, `mesh`, `mens-runs`, `research`) that adapt cleanly inside both `1920×1080` monitors and `320px` Chat companion docks.
+- [x] **AXIS-BENTO-04**: Every scrollable Bento/table region satisfies keyboard focusability (`<BentoScrollRegion>` with `tabIndex={0}`, `role="region"`, `aria-label`) and preserves full-bleed KPI chart geometry (`chartPanelFillRatio >= 0.84`, `min-w-0 min-h-0`, `.v4` schema-validated layout storage keys).
+
+### 6. Concept-Art CV Flywheel, Full-Document Axe & Gate Convergence (`AXIS-CONCEPT-CV` — Phase 436)
+
+- [x] **AXIS-CONCEPT-CV-01**: Generic/boring views are redesigned against newly generated dual-theme (`arcane` Carrara White/Gold + `slate` Minimalist Basalt) concept-art plates (`crates/vox-gui/ui/public/assets/romanesque/v74-concept-*.jpg`) registered in `vlmVisionFlywheel.ts`.
+- [x] **AXIS-CONCEPT-CV-02**: Playwright `cv-flywheel.spec.ts` audits the full document **including open `document.body` Radix portals** (`Select`, `Dialog`, `DropdownMenu`, `Popover`, `Command`) with `axeViolations === 0`, `rawEmojiCount === 0`, `iconIssueCount === 0`, and `outerOverflowPx === 0` across `900×600`..`1920×1080` and all 4 themes.
+- [x] **AXIS-CONCEPT-CV-03**: Automated Playwright interaction tests click/drag/adjust dials, rotary knobs, gauges, chart brushes, and buttons across surfaces and assert real IPC round-trips + state persistence (zero silent `.catch(() => {})` or `sentryHonesty.ts` `fake_success` alerts).
+- [x] **AXIS-CONCEPT-CV-04**: Multi-pass `CV_STAGE=before` → `CV_STAGE=after` flywheel converges across all 33 surfaces and 14 docks (`visualAfterScore >= 0.90`, `vlmOverallScore >= 0.88`), passing `pnpm build`, `pnpm test`, `pnpm knip`, `vox-code-audit`, and inline Before/After carousels.
+
+---
+
+## v2 / Future Requirements (Deferred Post-v7.4)
+
+- **AXIS-FUTURE-01**: Multi-window detached tear-off OS windows for `DockWorkspaceShell` tabs (requires Tauri v2 multi-webview state bridge beyond single-window `dockview`).
+- **AXIS-FUTURE-02**: Custom WebGPU shader post-processing on `DiegeticFxStage` (deferred to avoid GPU contention during local MENS Metal QLoRA training).
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Running `npx shadcn@latest init` unedited | Overwrites Vox's 4-theme Style Dictionary CSS token contract and introduces banned `transition-all` classes (`vox/ui/layout-and-perf-hazards`). |
+| Network-fetched icon CDNs (`@iconify/react`) or mega-barrel `react-icons` | Violates Vox Axis 100% offline sovereign boot invariant and bloats Vite bundle size. |
+| Direct persistent `VoxDb` handles inside `crates/vox-gui` (`class: db`) | Violates `CORE-04` single-writer Turso/libSQL architecture (`vox-orchestrator-d` owns DB writes). |
+| Touching MENS training ladder files owned by sibling workstream `mens-nov2026-v73` | Parallel workstream `v7.3` (`Phases 425–430`) owns `crates/vox-populi` & `crates/vox-ml-cli` QLoRA calibration. |
+
+## Traceability
+
+Populated by `gsd-roadmapper` (`Phases 431–436`).
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| AXIS-SHADCN-01 | Phase 431 | Complete |
+| AXIS-SHADCN-02 | Phase 431 | Complete |
+| AXIS-SHADCN-03 | Phase 431 | Complete |
+| AXIS-SHADCN-04 | Phase 431 | Complete |
+| AXIS-ICONS-01 | Phase 432 | Complete |
+| AXIS-ICONS-02 | Phase 432 | Complete |
+| AXIS-ICONS-03 | Phase 432 | Complete |
+| AXIS-ICONS-04 | Phase 432 | Complete |
+| AXIS-IPC-HONESTY-01 | Phase 433 | Complete |
+| AXIS-IPC-HONESTY-02 | Phase 433 | Complete |
+| AXIS-IPC-HONESTY-03 | Phase 433 | Complete |
+| AXIS-IPC-HONESTY-04 | Phase 433 | Complete |
+| AXIS-LIVE-CONTROLS-01 | Phase 434 | Complete |
+| AXIS-LIVE-CONTROLS-02 | Phase 434 | Complete |
+| AXIS-LIVE-CONTROLS-03 | Phase 434 | Complete |
+| AXIS-LIVE-CONTROLS-04 | Phase 434 | Complete |
+| AXIS-BENTO-01 | Phase 435 | Complete |
+| AXIS-BENTO-02 | Phase 435 | Complete |
+| AXIS-BENTO-03 | Phase 435 | Complete |
+| AXIS-BENTO-04 | Phase 435 | Complete |
+| AXIS-CONCEPT-CV-01 | Phase 436 | Complete |
+| AXIS-CONCEPT-CV-02 | Phase 436 | Complete |
+| AXIS-CONCEPT-CV-03 | Phase 436 | Complete |
+| AXIS-CONCEPT-CV-04 | Phase 436 | Complete |
+
+**Coverage:**
+- v1 requirements: 24 total
+- Mapped to phases: 24
+- Unmapped: 0
+
+---
+*Requirements defined: 2026-11-14*
+*Last updated: 2026-11-14 after Milestone v7.4 roadmap creation (`Phases 431–436`)*

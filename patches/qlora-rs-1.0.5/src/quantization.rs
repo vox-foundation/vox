@@ -115,6 +115,17 @@ pub struct QuantizedTensor {
 }
 
 impl QuantizedTensor {
+    /// Unpack per-block float scales, reversing double quantization when enabled.
+    #[must_use]
+    pub(crate) fn unpacked_scales(&self) -> Vec<f32> {
+        if self.double_quant_enabled {
+            if let (Some(ref sq), Some(ref ss)) = (&self.scales_quantized, &self.scales_scales) {
+                return dequantize_double_scales(sq, ss);
+            }
+        }
+        self.scales.clone()
+    }
+
     /// Get the number of elements in the original tensor.
     #[must_use]
     pub fn numel(&self) -> usize {
@@ -206,31 +217,69 @@ fn quantize_per_tensor(tensor: &Tensor, config: &QuantizationConfig) -> Result<Q
     }
 
     let num_blocks = numel / config.block_size;
-    let mut scales = Vec::with_capacity(num_blocks);
-    let mut quantized = Vec::with_capacity(numel.div_ceil(2));
+    let block_size = config.block_size;
+    let n_threads = std::thread::available_parallelism()
+        .map(std::num::NonZeroUsize::get)
+        .unwrap_or(1);
 
-    for block_idx in 0..num_blocks {
-        let start = block_idx * config.block_size;
-        let end = start + config.block_size;
-        let block = &flat[start..end];
+    let (scales, quantized) =
+        if block_size >= 2 && block_size % 2 == 0 && num_blocks >= 1024 && n_threads > 1 {
+            let bytes_per_block = block_size / 2;
+            let mut scales = vec![0.0f32; num_blocks];
+            let mut quantized = vec![0u8; num_blocks * bytes_per_block];
+            let blocks_per_thread = num_blocks.div_ceil(n_threads);
 
-        // Compute absmax scale
-        let absmax = block.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
-        let scale = if absmax > 0.0 { absmax } else { 1.0 };
-        scales.push(scale);
+            std::thread::scope(|s| {
+                for ((flat_chunk, scales_chunk), q_chunk) in flat
+                    .chunks(blocks_per_thread * block_size)
+                    .zip(scales.chunks_mut(blocks_per_thread))
+                    .zip(quantized.chunks_mut(blocks_per_thread * bytes_per_block))
+                {
+                    s.spawn(move || {
+                        for (b_idx, block) in flat_chunk.chunks_exact(block_size).enumerate() {
+                            let absmax = block.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
+                            let scale = if absmax > 0.0 { absmax } else { 1.0 };
+                            scales_chunk[b_idx] = scale;
+                            let out_bytes = &mut q_chunk
+                                [b_idx * bytes_per_block..(b_idx + 1) * bytes_per_block];
+                            for (c_idx, chunk) in block.chunks_exact(2).enumerate() {
+                                let q0 = quantize_value_nf4(chunk[0] / scale);
+                                let q1 = quantize_value_nf4(chunk[1] / scale);
+                                out_bytes[c_idx] = (q1 << 4) | q0;
+                            }
+                        }
+                    });
+                }
+            });
+            (scales, quantized)
+        } else {
+            let mut scales = Vec::with_capacity(num_blocks);
+            let mut quantized = Vec::with_capacity(numel.div_ceil(2));
 
-        // Quantize each value in the block
-        for chunk in block.chunks(2) {
-            let q0 = quantize_value_nf4(chunk[0] / scale);
-            let q1 = if chunk.len() > 1 {
-                quantize_value_nf4(chunk[1] / scale)
-            } else {
-                0
-            };
-            // Pack two 4-bit values into one byte
-            quantized.push((q1 << 4) | q0);
-        }
-    }
+            for block_idx in 0..num_blocks {
+                let start = block_idx * block_size;
+                let end = start + block_size;
+                let block = &flat[start..end];
+
+                // Compute absmax scale
+                let absmax = block.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
+                let scale = if absmax > 0.0 { absmax } else { 1.0 };
+                scales.push(scale);
+
+                // Quantize each value in the block
+                for chunk in block.chunks(2) {
+                    let q0 = quantize_value_nf4(chunk[0] / scale);
+                    let q1 = if chunk.len() > 1 {
+                        quantize_value_nf4(chunk[1] / scale)
+                    } else {
+                        0
+                    };
+                    // Pack two 4-bit values into one byte
+                    quantized.push((q1 << 4) | q0);
+                }
+            }
+            (scales, quantized)
+        };
 
     // Apply double quantization if enabled
     let (scales_quantized, scales_scales) = if config.double_quant {
@@ -554,23 +603,60 @@ fn dequantize_nf4_cpu(quantized: &QuantizedTensor, device: &Device) -> Result<Te
     match quantized.strategy {
         QuantizationStrategy::PerTensor => {
             let num_blocks = scales.len();
+            let block_size = quantized.block_size;
+            let n_threads = std::thread::available_parallelism()
+                .map(std::num::NonZeroUsize::get)
+                .unwrap_or(1);
 
-            for block_idx in 0..num_blocks {
-                let scale = scales[block_idx];
-                let zero_point = quantized
-                    .zero_points
-                    .as_ref()
-                    .map_or(0.0, |zp| zp[block_idx]);
-                let start_byte = (block_idx * quantized.block_size) / 2;
+            if block_size >= 2
+                && block_size % 2 == 0
+                && num_blocks >= 1024
+                && n_threads > 1
+                && quantized.zero_points.is_none()
+            {
+                output.resize(numel, 0.0f32);
+                let bytes_per_block = block_size / 2;
+                let blocks_per_thread = num_blocks.div_ceil(n_threads);
+                std::thread::scope(|s| {
+                    for ((out_chunk, scales_chunk), q_chunk) in output
+                        .chunks_mut(blocks_per_thread * block_size)
+                        .zip(scales.chunks(blocks_per_thread))
+                        .zip(quantized.data.chunks(blocks_per_thread * bytes_per_block))
+                    {
+                        s.spawn(move || {
+                            for (b_idx, &scale) in scales_chunk.iter().enumerate() {
+                                let in_bytes = &q_chunk
+                                    [b_idx * bytes_per_block..(b_idx + 1) * bytes_per_block];
+                                let out_vals =
+                                    &mut out_chunk[b_idx * block_size..(b_idx + 1) * block_size];
+                                for (c_idx, &byte) in in_bytes.iter().enumerate() {
+                                    out_vals[c_idx * 2] =
+                                        NF4_LEVELS[(byte & 0x0F) as usize] * scale;
+                                    out_vals[c_idx * 2 + 1] =
+                                        NF4_LEVELS[(byte >> 4) as usize] * scale;
+                                }
+                            }
+                        });
+                    }
+                });
+            } else {
+                for block_idx in 0..num_blocks {
+                    let scale = scales[block_idx];
+                    let zero_point = quantized
+                        .zero_points
+                        .as_ref()
+                        .map_or(0.0, |zp| zp[block_idx]);
+                    let start_byte = (block_idx * block_size) / 2;
 
-                for i in 0..quantized.block_size {
-                    let byte_idx = start_byte + i / 2;
-                    let byte = quantized.data[byte_idx];
-                    let code = if i % 2 == 0 { byte & 0x0F } else { byte >> 4 };
-                    // Apply zero point for asymmetric quantization
-                    let nf4_value = NF4_LEVELS[code as usize] + zero_point;
-                    let value = nf4_value * scale;
-                    output.push(value);
+                    for i in 0..block_size {
+                        let byte_idx = start_byte + i / 2;
+                        let byte = quantized.data[byte_idx];
+                        let code = if i % 2 == 0 { byte & 0x0F } else { byte >> 4 };
+                        // Apply zero point for asymmetric quantization
+                        let nf4_value = NF4_LEVELS[code as usize] + zero_point;
+                        let value = nf4_value * scale;
+                        output.push(value);
+                    }
                 }
             }
         }

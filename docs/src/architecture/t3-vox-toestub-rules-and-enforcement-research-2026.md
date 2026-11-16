@@ -117,6 +117,14 @@ All four new detectors implement `crate::rules::DetectionRule` in `crates/vox-co
   4. **`vox/ui/raw-resize-observer`:** Flags `new ResizeObserver(` outside the shared frame-throttled `observeResize` utility.
   5. **`vox/ui/native-title-tooltip`:** Flags `title=` on intrinsic JSX HTML elements (`<button>`, `<div>`, `<span>`, `<a>`) in favor of accessible `Tooltip` primitives.
 
+### 3.5 Detector 5: `hardcoded_abs_dir.rs` (`vox/fs/hardcoded-abs-dir`) & `drift/hardcoded-abs-dir` (`Phase 403`)
+- **Supported Languages:** `[Language::Rust, Language::TypeScript, Language::Python, Language::GDScript, Language::Vox]` (`vox-code-audit` / `toestub`), plus incremental AST/token analysis across Rust & TypeScript (`vox-drift-check`)
+- **Severity:** `Severity::Error` for Tier 1 machine-local home/scratch directories; `Severity::Warning` for Tier 2 unanchored OS root paths in non-test, non-const production code
+- **Detection & Performance Rules:**
+  1. **Zero-Extra-Pass Single-Walker Execution:** Runs inside existing `vox-code-audit` (`toestub`) and `vox-drift-check` passes, gated in `lefthook.yml` `pre-commit` (`tdd-guard`: `toestub {staged_files} --rules skeleton,vox/fs/hardcoded-abs-dir`).
+  2. **O(1) File & Line Byte Pre-Filters:** `HardcodedAbsDirDetector` short-circuits clean files before line splitting or pattern allocation; `MagicValueDetector` replaces 3 per-line regexes (`comment_re`, `const_def_re`, `test_attr_re`) with `trim_start()` prefix checks and byte pre-gates (`:`, `.`, `/`, `\`).
+  3. **Context-Aware AST Extraction (`vox-drift-check`):** `HardcodedAbsDirRule` (`drift/hardcoded-abs-dir`) consumes cached `LiteralContext` (`CACHE_VERSION = 3`) from `RustExtractor`, which skips `#[doc]` attributes and marks `#[cfg(test)]` / `#[test]` scopes as `LiteralContext::Test` so synthetic cross-OS test fixtures (`/home/alice`, `/Users/bob`, `C:\Users\bob`) and `// vox-arch-check: allow abs-path` / `drift-allow(hardcoded-abs-dir)` opt-outs produce zero false positives.
+
 ---
 
 ## 4. Wire Transfer & SQL Statement Regression Gate (`crates/vox-orchestrator-mcp/tests/transfer_budget.rs`)

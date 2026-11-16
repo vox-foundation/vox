@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../transport';
+import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Glass } from '../ui/Glass';
-import { Icon } from '../ui/Icons';
+import { Icon, KeycapIcon } from '../ui/Icons';
+import { VoxIcon } from '../ui/VoxIcon';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
@@ -86,15 +88,15 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
   const effectiveAriaLabel = ariaLabel ?? (collapsed ? label : undefined);
   const btn = (
     <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={effectiveAriaLabel}
-      className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-2 px-2"} py-1.5 rounded-xl border transition-all duration-150 ${
+      className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0 py-0.5" : "gap-1.5 px-1.5 py-1"} rounded-xl border transition-all duration-150 ${
         active
           ? "vox-sidebar-item-active border-[#9E7B2F] bg-linear-to-r from-[#DFD0B5] via-[#EBE0C9] to-[#F7F1E5] text-[#1C140C] font-bold shadow-[0_3px_10px_rgba(68,50,20,0.22),inset_0_1px_0_rgba(255,255,255,0.92)]"
           : "border-transparent text-[#2B2013] hover:border-[#C59B27]/55 hover:bg-[#EFE6D4]/85 hover:text-[#1C140C]"
       }`}>
-      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3.5px] rounded-r bg-[#B8860B] shadow-[0_0_8px_rgba(184,134,11,0.65)]" />}
-      <RomanMedallion active={active} size="md">{icon}</RomanMedallion>
-      {!collapsed && <span className="flex-1 min-w-0 text-left font-display text-[10.5px] font-bold tracking-[0.09em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
-      {!collapsed && badge != null && <span className={`rounded-full border border-[#9A7014] px-1.5 py-0.5 font-mono text-[9px] font-bold ${badgeClass ?? 'bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C]'}`}>{badge}</span>}
+      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4.5 w-[3.5px] rounded-r bg-[#B8860B] shadow-[0_0_8px_rgba(184,134,11,0.65)]" />}
+      <RomanMedallion active={active} size="sm">{icon}</RomanMedallion>
+      {!collapsed && <span className="flex-1 min-w-0 text-left font-display text-[10px] font-bold tracking-[0.04em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
+      {!collapsed && badge != null && <span className={`rounded-full border border-[#9A7014] px-1.5 py-0.5 font-mono text-[8.5px] font-bold ${badgeClass ?? 'bg-linear-to-b from-[#F3E5AB] to-[#DFC878] text-[#1C140C]'}`}>{badge}</span>}
       {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'border border-[#785312] bg-[#D4AF37] text-[#1C140C] font-bold'}`}>{badge}</span>}
     </button>
   );
@@ -116,7 +118,7 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
   return btn;
 }
 
-const SIDEBAR_WIDTHS: Record<SidebarMode, number> = { hidden: 0, rail: 64, default: 184, wide: 248 };
+const SIDEBAR_WIDTHS: Record<SidebarMode, number> = { hidden: 0, rail: 64, default: 208, wide: 252 };
 const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
 
 // Curated nav icons & 5-domain consolidation headers (Concept-Art v4.0: Operate/Chat, Agents & Runs, Workspace, Knowledge, Compute & System).
@@ -231,7 +233,7 @@ export function Sidebar({
     tone === 'live' ? 'bg-(--color-status-pass)' : tone === 'poll' ? 'bg-brass' : 'bg-text-muted';
 
   useEffect(() => {
-    invoke<{ display_name: string }>('get_identity_summary')
+    invokeCmd<{ display_name: string }>('get_identity_summary')
       .then(i => setIdentity(i.display_name))
       .catch(() => {});
   }, []);
@@ -329,7 +331,7 @@ export function Sidebar({
           title="Restore Navigation Sidebar"
           purpose="Re-opens the Vox Axis navigation rail to switch between Chat, Agents, Workspace, Knowledge, and Compute surfaces."
           actionHint="Click to expand the Sidebar"
-          placement="bottom"
+          placement="right"
         >
           <button
             type="button"
@@ -380,19 +382,21 @@ export function Sidebar({
                 <AxisMark size={14} />
               </RomanMedallion>
               <div className="leading-tight min-w-0">
-                <div className="font-display text-[10.5px] font-bold tracking-[0.16em] text-[#1C140C] truncate">AXIS</div>
-                <div className="font-display text-[7.5px] font-semibold uppercase tracking-wider text-[#5C441E] truncate">Control Studio</div>
+                <div className="font-display text-[10.5px] font-bold tracking-[0.14em] text-[#1C140C]">AXIS</div>
+                <div className="font-display text-[7px] font-semibold uppercase tracking-[0.04em] text-[#5C441E]">
+                  {effectiveMode === 'wide' ? 'Control Studio' : 'Studio'}
+                </div>
               </div>
             </div>
           )}
-          <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
+          <div className={`flex items-center shrink-0 ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
             <button type="button" onClick={() => cycle(-1)} disabled={effectiveMode === "rail"} title="Collapse to icon rail" aria-label="Collapse sidebar"
-              className={`vox-sidebar-ctrl-btn flex size-5.5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${effectiveMode === "rail" ? "opacity-35 cursor-not-allowed" : "hover:border-[#8C6825] hover:bg-[#F3E5AB]"}`}>
-              <Icon.chevL className="size-3" aria-hidden="true"/>
+              className={`vox-sidebar-ctrl-btn flex size-5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${effectiveMode === "rail" ? "opacity-35 cursor-not-allowed" : "hover:border-[#8C6825] hover:bg-[#F3E5AB]"}`}>
+              <VoxIcon icon={ChevronsLeft} className="size-3" />
             </button>
             <button type="button" onClick={() => cycle(1)} disabled={effectiveMode === "wide"} title="Expand sidebar width" aria-label="Expand sidebar"
-              className={`vox-sidebar-ctrl-btn flex size-5.5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${effectiveMode === "wide" ? "opacity-35 cursor-not-allowed" : "hover:border-[#8C6825] hover:bg-[#F3E5AB]"}`}>
-              <Icon.chevR className="size-3" aria-hidden="true"/>
+              className={`vox-sidebar-ctrl-btn flex size-5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${effectiveMode === "wide" ? "opacity-35 cursor-not-allowed" : "hover:border-[#8C6825] hover:bg-[#F3E5AB]"}`}>
+              <VoxIcon icon={ChevronsRight} className="size-3" />
             </button>
             <button
               type="button"
@@ -401,9 +405,9 @@ export function Sidebar({
               title="Hide sidebar"
               aria-label="Hide sidebar"
               aria-expanded={true}
-              className="vox-sidebar-ctrl-btn flex size-5.5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition hover:border-[#8C6825] hover:bg-[#F3E5AB]"
+              className="vox-sidebar-ctrl-btn flex size-5 items-center justify-center rounded-md border border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EAE0CC] text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition hover:border-[#8C6825] hover:bg-[#F3E5AB]"
             >
-              <Icon.x className="size-3" aria-hidden="true" />
+              <Icon.close className="size-2.5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -412,8 +416,8 @@ export function Sidebar({
           <RomanTooltip
             title="Command & Surface Search"
             purpose="Instantly jump to any of the 32 Vox Axis surfaces, run a CLI command, or search indexed documentation."
-            actionHint="Click or press ⌘K to open OmniSearch"
-            shortcut="⌘K"
+            actionHint="Click or press Mod+K to open OmniSearch"
+            shortcut="Mod+K"
             placement="right"
             className="flex w-full shrink-0"
           >
@@ -433,7 +437,10 @@ export function Sidebar({
                   <span className="flex-1 min-w-0 text-left font-display text-[10.5px] font-bold tracking-[0.1em] uppercase whitespace-nowrap overflow-hidden text-ellipsis text-[#1C140C]">
                     Search
                   </span>
-                  <span className="rounded border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] px-1.5 py-0.5 font-mono text-[8.5px] font-bold tracking-widest text-[#1C140C]">⌘K</span>
+                  <span className="inline-flex items-center gap-0.5 rounded border border-[#9A7014] bg-linear-to-b from-[#F3E5AB] to-[#DFC878] px-1.5 py-0.5 font-mono text-[8.5px] font-bold tracking-widest text-[#1C140C]">
+                    <KeycapIcon keyName="Mod" className="size-2.5" />
+                    <span>K</span>
+                  </span>
                 </>
               )}
             </button>
@@ -565,7 +572,7 @@ export function Sidebar({
                   )}
                 </div>
                 {isExpanded && key === 'chat' && chatSessions && (
-                  <div className="vox-sidebar-sessions ml-3 border-l-2 border-[#C59B27]/75 pl-1.5 max-h-[50vh] overflow-y-auto custom-scrollbar rounded-r bg-linear-to-b from-[#FAF6EE]/95 to-[#EFE6D5]/95 py-1 pr-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+                  <div className="vox-sidebar-sessions ml-2.5 border-l-2 border-[#C59B27]/75 pl-1.5 max-h-[24vh] overflow-y-auto custom-scrollbar rounded-r bg-linear-to-b from-[#FAF6EE]/95 to-[#EFE6D5]/95 py-1 pr-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
                     <SessionSidebarSection
                       sessions={chatSessions}
                       activeSessionId={activeSessionId ?? null}

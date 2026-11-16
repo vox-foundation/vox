@@ -30,9 +30,9 @@ pub async fn open_project_db_at_root(repo_root: &Path) -> Result<VoxDb, StoreErr
 /// Discovers the repository root, ensures `.vox/` exists, and opens Turso.
 pub async fn open_project_db() -> Result<VoxDb, StoreError> {
     let cwd = std::env::current_dir().map_err(StoreError::Io)?;
-    let repo = vox_repository::discover_repository_or_fallback(&cwd);
+    let (root, _) = crate::workspace_journey_store::discover_repo_root_and_flag(&cwd);
 
-    open_project_db_at_root(&repo.root).await
+    open_project_db_at_root(&root).await
 }
 
 #[deprecated(note = "renamed to open_project_db")]

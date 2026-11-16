@@ -1,12 +1,19 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": "v6.7 — Monorepo Defactoring, Build-Time & Crate-Edge Disentanglement, Standalone `crates.io` Ecosystem, Zero-Split-Brain Cross-Repo LLM Federation & End-to-End CI/Nightly Remediation (`Phases 387–392`)",
-  "phases": [],
+  "milestone": "v7.0 — Native GSD Suite Integration (Skills, Orchestrator, Stored Documents, Axis GUI & MENS Pipeline)",
+  "phases": [
+    { "number": 407, "name": "Base GSD Skill Suite & Superpowers Supersession", "status": "in_progress" },
+    { "number": 408, "name": "GSD Domain Types, VoxDb Schema & Stored Document Sync", "status": "pending" },
+    { "number": 409, "name": "Orchestrator Native GSD Engine, Wave DAG & Prompt Migration", "status": "pending" },
+    { "number": 410, "name": "CLI (vox gsd / vox plan) & MCP (vox_gsd_*) Automation Surface", "status": "pending" },
+    { "number": 411, "name": "Vox Axis GUI GSD Studio Surface, Slash Routing & Playwright E2E", "status": "pending" },
+    { "number": 412, "name": "MENS Training Pipeline GSD Corpus Extractor, Mixes & Spoke Validation", "status": "pending" }
+  ],
   "next": {
-    "command": "/gsd-progress",
-    "label": "Show progress",
-    "reason": "Unsure of state — showing progress"
+    "command": "/gsd-execute-phase 407",
+    "label": "Execute Phase 407",
+    "reason": "Milestone v7.0 initialized cleanly across PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md, and state.json"
   },
-  "updated_at": "2026-11-10T02:14:14.850Z"
+  "updated_at": "2026-11-13T16:00:00Z"
 }

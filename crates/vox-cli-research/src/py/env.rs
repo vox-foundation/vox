@@ -255,6 +255,106 @@ fn python_version(bin: &Path) -> Option<String> {
     text.split_whitespace().nth(1).map(str::to_string)
 }
 
+/// Generate `.vox/python/bindings/<module>.vox.pyi` pinned to the current `uv.lock` BLAKE3 hash.
+pub fn bind_module(start: &Path, module: &str) -> Result<PathBuf> {
+    if let Some(hint) = vox_compiler::python_escape_support::is_denied_python_target(module, None) {
+        bail!("py-bind: module `{module}` is in the Denied tier: {hint}");
+    }
+    let filename = vox_compiler::python_escape_support::sanitize_sidecar_filename(module)
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let root = discover_python(start)?
+        .map(|c| c.root)
+        .unwrap_or_else(|| start.to_path_buf());
+    let uv_lock = root.join(".vox").join("python").join("uv.lock");
+    let lock_hash = if uv_lock.is_file() {
+        let bytes =
+            std::fs::read(&uv_lock).with_context(|| format!("read {}", uv_lock.display()))?;
+        blake3_hex(&bytes)
+    } else {
+        blake3_hex(b"")
+    };
+
+    let bindings_dir = root.join(".vox").join("python").join("bindings");
+    std::fs::create_dir_all(&bindings_dir)
+        .with_context(|| format!("create {}", bindings_dir.display()))?;
+    let dest = bindings_dir.join(&filename);
+
+    let mut body_lines = vec![
+        format!("# vox-module: {module}"),
+        format!("# vox-lock-blake3: {lock_hash}"),
+    ];
+    if let Ok(Some(curated)) =
+        vox_compiler::python_escape_support::load_curated_sidecar(module, Some(&root))
+    {
+        for sig in curated.fns {
+            let params = sig
+                .params
+                .iter()
+                .map(|(n, ty)| format!("{n}: {}", ty.signature()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            body_lines.push(format!(
+                "fn {}({}) -> {}",
+                sig.name,
+                params,
+                sig.ret.signature()
+            ));
+        }
+    } else if let Some(py_lines) = inspect_python_callables(&root, module) {
+        body_lines.extend(py_lines);
+    } else {
+        body_lines.push(format!(
+            "# Add typed `fn <name>(...) -> <Type>` bindings for `{module}` below."
+        ));
+    }
+
+    let content = format!("{}\n", body_lines.join("\n"));
+    std::fs::write(&dest, content).with_context(|| format!("write {}", dest.display()))?;
+    Ok(dest)
+}
+
+fn inspect_python_callables(root: &Path, module: &str) -> Option<Vec<String>> {
+    let py = venv_python(root).or_else(|| which::which("python3").ok())?;
+    let script = concat!(
+        "import importlib, inspect, sys\n",
+        "mod = importlib.import_module(sys.argv[1])\n",
+        "for name in sorted(dir(mod)):\n",
+        "    if name.startswith('_'): continue\n",
+        "    obj = getattr(mod, name, None)\n",
+        "    if inspect.isroutine(obj) or inspect.isfunction(obj):\n",
+        "        try:\n",
+        "            sig = inspect.signature(obj)\n",
+        "            params = []\n",
+        "            ok = True\n",
+        "            for pname, p in sig.parameters.items():\n",
+        "                if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):\n",
+        "                    ok = False\n",
+        "                    break\n",
+        "                params.append(f'{pname}: PyObject')\n",
+        "            if ok:\n",
+        "                print(f'fn {name}(' + ', '.join(params) + ') -> PyObject')\n",
+        "        except Exception:\n",
+        "            pass\n",
+    );
+    let output = Command::new(py)
+        .arg("-c")
+        .arg(script)
+        .arg(module)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let lines: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|l| l.starts_with("fn "))
+        .take(64)
+        .map(str::to_string)
+        .collect();
+    if lines.is_empty() { None } else { Some(lines) }
+}
+
 /// Status text for `vox py doctor`, including the unsandboxed-worker warning.
 pub fn doctor_report(start: &Path) -> Result<String> {
     let Some(config) = discover_python(start)? else {
@@ -388,5 +488,48 @@ mod tests {
         let py = venv_python(dir.path());
         assert!(py.is_some(), "uv sync should create a venv");
         assert!(report.contains("python: 3."), "{report}");
+    }
+
+    #[test]
+    fn bind_module_rejects_denied_and_writes_lock_stamped_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let denied = bind_module(dir.path(), "pickle").unwrap_err().to_string();
+        assert!(denied.contains("Denied tier"), "{denied}");
+
+        std::fs::create_dir_all(dir.path().join(".vox/python")).unwrap();
+        std::fs::write(dir.path().join(".vox/python/uv.lock"), b"version = 1\n").unwrap();
+        let expected_hash = blake3_hex(b"version = 1\n");
+
+        let out_path = bind_module(dir.path(), "math").unwrap();
+        assert!(out_path.ends_with(".vox/python/bindings/math.vox.pyi"));
+        let text = std::fs::read_to_string(&out_path).unwrap();
+        assert!(
+            text.contains(&format!("# vox-lock-blake3: {expected_hash}")),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn bind_module_refreshes_existing_stale_local_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".vox/python/bindings")).unwrap();
+        std::fs::write(dir.path().join(".vox/python/uv.lock"), b"lock-v2\n").unwrap();
+        std::fs::write(
+            dir.path().join(".vox/python/bindings/scipy.signal.vox.pyi"),
+            format!(
+                "# vox-module: scipy.signal\n# vox-lock-blake3: {}\nfn custom(x: float) -> float\n",
+                "0".repeat(64)
+            ),
+        )
+        .unwrap();
+
+        let out_path = bind_module(dir.path(), "scipy.signal").unwrap();
+        let expected_hash = blake3_hex(b"lock-v2\n");
+        let refreshed = std::fs::read_to_string(&out_path).unwrap();
+        assert!(
+            refreshed.contains(&format!("# vox-lock-blake3: {expected_hash}")),
+            "{refreshed}"
+        );
+        assert!(refreshed.contains("fn welch("), "{refreshed}");
     }
 }

@@ -29,7 +29,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::chat_socrates_meta::socrates_system_rider;
 use crate::server_state::ServerState;
-use sha2::{Digest, Sha256};
 use vox_telemetry::{SkillActivationEvent, TelemetryEvent};
 
 pub(crate) fn now_ts() -> u64 {
@@ -190,9 +189,9 @@ fn read_utf8_path_cached_by_mtime(path: &std::path::Path) -> Result<String, Stri
 /// When `model_key` is `Some`, a cache-stable `## Model guidance` segment is
 /// appended after the skill catalog if a `Confirmed` prompt profile exists for
 /// that key (see `ModelPromptRegistry`).
-pub(crate) async fn build_system_prompt_with_skill(
+pub async fn build_system_prompt_with_skill(
     state: &ServerState,
-    session_id: Option<&str>,
+    _session_id: Option<&str>,
     pinned_skill: Option<&str>,
     model_key: Option<&str>,
     excluded_skills: &[String],
@@ -279,14 +278,9 @@ pub(crate) async fn build_system_prompt_with_skill(
                 tracing::info!(skill = %m.id, source = "pinned", "skill_activated");
                 // Track E — skill_activation: hash the id with install-salt (never upload raw id).
                 let salt = vox_telemetry::config::install_salt();
-                let mut hasher = Sha256::new();
-                hasher.update(salt);
-                hasher.update(m.id.as_bytes());
-                let hash = hasher
-                    .finalize()
-                    .iter()
-                    .map(|b| format!("{b:02x}"))
-                    .collect::<String>();
+                let mut hash_input = Vec::from(salt.as_ref());
+                hash_input.extend_from_slice(m.id.as_bytes());
+                let hash = vox_crypto::hex_encode(&vox_crypto::interop_sha256(&hash_input));
                 vox_telemetry::record_event!(&TelemetryEvent::SkillActivation(
                     SkillActivationEvent {
                         skill_id_hash: hash,
@@ -338,44 +332,21 @@ pub(crate) async fn build_system_prompt_with_skill(
     let ts = now_ts();
     let date_str = ts_to_date_str(ts);
 
-    let bm = state.orchestrator.budget_manager_handle();
-    let attention_budget = vox_orchestrator::sync_lock::rw_read(&*bm).attention_signal(0.7);
-
-    // NOTE: Keep this section day-stable to preserve DeepSeek/Anthropic prompt-prefix caching.
-    // Do NOT embed per-second Unix timestamps or server-idle counters here — they bust the
-    // prefix cache on every call. Per-request volatile data belongs in the user prompt.
+    // NOTE: Keep this section day-stable to preserve DeepSeek/Anthropic prompt-prefix caching (`CONT-04`).
+    // Do NOT embed per-second Unix timestamps, attention_budget, operating_mode, or active_file here —
+    // they bust the prefix cache on every call. Per-turn volatile data belongs in
+    // `chat::system_prompt_vars::build_volatile_turn_system_rider`.
     prompt.push_str(&format!(
         "\n\n## Temporal Context\nCurrent date: {date_str}.\n\
          **Enforcement**: Before triggering any compilation, re-reindexing, or full file walk, \
          check if things are fresh (< 30s since last run).\n"
     ));
 
-    prompt.push_str(&format!(
-        "\n\n## Budget Status\nAttention Budget Signal: {:?}\nIf the budget is 'HighLoad' or 'Critical', you MUST summarize and abort your workflow immediately to defer to the operator.\n",
-        attention_budget
-    ));
-
     let pol = state.orchestrator_config.effective_socrates_policy();
     prompt.push_str(&socrates_system_rider(&pol));
 
-    // Attempt to pull Operating Mode from the session's active ContextEnvelope
-    if let Some(session_id) = session_id {
-        let env_key = vox_orchestrator::socrates::session_context_envelope_key(session_id);
-        let store = state.orchestrator.context_store();
-        if let Some(env_raw) = crate::sync_poison::poison_rw_read(store.read(), "context_store")
-            .ok()
-            .and_then(|g| g.get(&env_key).clone())
-        {
-            if let Ok(env) = serde_json::from_str::<vox_orchestrator::ContextEnvelope>(&env_raw) {
-                if let Some(mode) = env.operating_mode {
-                    prompt.push_str(&mode.system_rider());
-                }
-            }
-        }
-    }
-
     let runtime_vars = chat::system_prompt_vars::build_live_runtime_vars(ws_root, &date_str, None);
-    chat::system_prompt_vars::interpolate_system_prompt_variables(&prompt, &runtime_vars)
+    chat::system_prompt_vars::interpolate_static_system_prompt_variables(&prompt, &runtime_vars)
 }
 
 #[cfg(test)]
@@ -507,7 +478,9 @@ mod routing_tests {
             priority: None,
             dry_run: None,
             force_research: None,
+            research_mode: None,
             research_scope: None,
+            waves: None,
             domain_mode: None,
             site_scope: None,
             oversight_level: None,
@@ -543,7 +516,9 @@ mod routing_tests {
             priority: None,
             dry_run: None,
             force_research: None,
+            research_mode: None,
             research_scope: None,
+            waves: None,
             domain_mode: None,
             site_scope: None,
             oversight_level: None,
@@ -607,5 +582,147 @@ mod routing_tests {
         let prefix = t.split("\n...[truncated]...").next().unwrap_or("");
         assert!(s.starts_with(prefix));
         assert!(!prefix.contains('\u{FFFD}'));
+    }
+
+    #[tokio::test]
+    async fn kv_cache_prefix_stability_across_varying_turns() {
+        use std::path::PathBuf;
+        use std::sync::Arc;
+        use tokio::sync::Mutex;
+        use vox_orchestrator::context_envelope::OperatingMode;
+        use vox_orchestrator::{
+            AffinityGroupRegistry, ContextEnvelope, Orchestrator, OrchestratorConfig,
+            SessionConfig, SessionManager,
+        };
+        use vox_repository::{RepoCapabilities, RepositoryContext};
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut cfg = OrchestratorConfig::default();
+        cfg.memory.memory_md_path = PathBuf::from("__vox_hermetic_kv_test_no_memory__.md");
+        let orch = Arc::new(Orchestrator::with_groups(
+            cfg.clone(),
+            AffinityGroupRegistry::new(vec![]),
+        ));
+        let session_cfg = SessionConfig {
+            persist: false,
+            sessions_dir: tmp.path().join("sessions"),
+            ..SessionConfig::default()
+        };
+        let sm = SessionManager::new(session_cfg).expect("session manager");
+        let repository = RepositoryContext {
+            root: tmp.path().to_path_buf(),
+            git_root: None,
+            repository_id: "kv-cache-test".into(),
+            origin_url: None,
+            capabilities: RepoCapabilities {
+                vox_project: false,
+                cargo_workspace: false,
+                cargo_package: false,
+                node_workspace: false,
+                python_project: false,
+                go_module: false,
+                git: false,
+            },
+            has_vox_agents_dir: false,
+            vox_toml: None,
+        };
+        let mut state = crate::server_state::ServerState::hermetic_stub(
+            cfg,
+            repository,
+            orch,
+            Arc::new(Mutex::new(sm)),
+            vox_skills::new_registry_arc(),
+        );
+        state.workspace_root = Some(tmp.path().to_path_buf());
+
+        let sid = "kv-cache-test-session";
+        let env_key = vox_orchestrator::socrates::session_context_envelope_key(sid);
+        let retrieval: vox_orchestrator::socrates::SessionRetrievalEnvelope =
+            serde_json::from_str("{}").expect("empty retrieval envelope");
+
+        let turns = [
+            (
+                0u64,
+                OperatingMode::Generation,
+                "crates/vox-scientia/src/lib.rs",
+            ),
+            (
+                25_000,
+                OperatingMode::PlanExecution { execution_depth: 1 },
+                "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
+            ),
+            (
+                85_000,
+                OperatingMode::Verification {
+                    reason: Some("verify citation grounding".into()),
+                },
+                "crates/vox-cli-research/src/eval.rs",
+            ),
+            (
+                40_000,
+                OperatingMode::PlanExecution { execution_depth: 2 },
+                "crates/vox-db/src/research_session_pages.rs",
+            ),
+            (
+                10_000,
+                OperatingMode::Generation,
+                "crates/vox-gui/ui/src/App.tsx",
+            ),
+        ];
+
+        let mut prompts = Vec::with_capacity(turns.len());
+        for (debit_ms, mode, active_file) in turns {
+            let bm = state.orchestrator.budget_manager_handle();
+            vox_orchestrator::sync_lock::rw_read(&*bm).add_questioning_attention_debit_ms(debit_ms);
+            let mut env = ContextEnvelope::from_session_retrieval("kv-cache-test", sid, &retrieval);
+            env.created_at_unix_ms = 1_700_000_000_000;
+            env.expires_at_unix_ms = Some(1_700_003_600_000);
+            env.envelope_id = "env-fixed-kv-test".into();
+            env.operating_mode = Some(mode.clone());
+            if let Ok(g) = state.orchestrator.context_store().read() {
+                g.set(
+                    vox_orchestrator::AgentId(0),
+                    env_key.clone(),
+                    serde_json::to_string(&env).expect("serialize env"),
+                    3600,
+                );
+            }
+            let raw =
+                super::build_system_prompt_with_skill(&state, Some(sid), None, None, &[]).await;
+            let vars = super::chat::system_prompt_vars::SystemPromptRuntimeVars {
+                current_datetime: "2026-11-15T00:00:00Z".into(),
+                user_platform: "linux".into(),
+                active_spoke: "vox-scientia".into(),
+                session_id: sid.into(),
+                active_file: active_file.into(),
+                ..super::chat::system_prompt_vars::SystemPromptRuntimeVars::default()
+            };
+            prompts.push(
+                super::chat::system_prompt_vars::interpolate_system_prompt_variables(&raw, &vars),
+            );
+            let signal = vox_orchestrator::sync_lock::rw_read(&*bm).attention_signal(0.7);
+            let rider = super::chat::system_prompt_vars::build_volatile_turn_system_rider(
+                signal,
+                Some(&mode),
+                &vars,
+            );
+            assert!(rider.contains("Attention Budget Signal:"));
+            assert!(rider.contains(active_file));
+            assert!(rider.contains(&mode.system_rider()));
+        }
+
+        let sum: f64 = prompts
+            .windows(2)
+            .map(|w| {
+                let (a, b) = (w[0].as_bytes(), w[1].as_bytes());
+                let common = a.iter().zip(b.iter()).take_while(|(x, y)| x == y).count();
+                common as f64 / a.len().max(b.len()).max(1) as f64
+            })
+            .sum();
+        let ratio = sum / (prompts.len() - 1) as f64;
+        assert!(
+            ratio >= 0.99,
+            "expected KV-cache prefix stability >= 0.99, got {ratio:.6}"
+        );
     }
 }

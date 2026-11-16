@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isAppSlashCommand,
+  isGsdSlashCommand,
   parseResearchSlashCommand,
   resolveInternalModeSlash,
   slashCommandBase,
@@ -25,6 +26,10 @@ describe('slashRouter', () => {
     expect(isAppSlashCommand('/memory')).toBe(true);
     expect(isAppSlashCommand('/rollback now')).toBe(true);
     expect(isAppSlashCommand('/plan')).toBe(true);
+    expect(isAppSlashCommand('/gsd')).toBe(true);
+    expect(isAppSlashCommand('/gsd-new-milestone v7.1')).toBe(true);
+    expect(isGsdSlashCommand('/gsd-execute-phase 411')).toBe(true);
+    expect(isGsdSlashCommand('/plan')).toBe(false);
   });
 
   it('parses research slash commands with typed flags', () => {

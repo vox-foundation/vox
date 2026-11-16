@@ -141,6 +141,39 @@ describe('buildChatTurn', () => {
   it('emits a stable key set', () => {
     const out = buildChatTurn(full, { sessionId: 's1' });
     expect(Object.keys(out).sort()).toEqual([...CHAT_TURN_KEYS].sort());
+    expect(CHAT_TURN_KEYS).toContain('research_mode');
+    expect(CHAT_TURN_KEYS).toContain('waves');
+    expect(CHAT_TURN_KEYS).toContain('research_scope');
+    expect(CHAT_TURN_KEYS).toContain('domain_mode');
+    expect(CHAT_TURN_KEYS).toContain('site_scope');
+  });
+
+  it('forwards orthogonal research_mode, waves, research_scope, domain_mode, and site_scope without overloading research_scope', () => {
+    const out = buildChatTurn(
+      {
+        ...full,
+        force_research: true,
+        research_mode: 'deep',
+        research_scope: 'both',
+        domain_mode: 'scholarly',
+        site_scope: 'arxiv.org',
+        waves: 4,
+      },
+      { sessionId: 's1' },
+    );
+    expect(out.force_research).toBe(true);
+    expect(out.research_mode).toBe('deep');
+    expect(out.research_scope).toBe('both');
+    expect(out.domain_mode).toBe('scholarly');
+    expect(out.site_scope).toBe('arxiv.org');
+    expect(out.waves).toBe(4);
+  });
+
+  it('defaults research_mode and waves to null when omitted', () => {
+    const out = buildChatTurn(full, { sessionId: 's1' });
+    expect(out.research_mode).toBeNull();
+    expect(out.waves).toBeNull();
+    expect(out.research_scope).toBeNull();
   });
 
   it('has no intent field', () => {

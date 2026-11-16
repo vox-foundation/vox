@@ -12,13 +12,20 @@ Usage:
       --bin-dir target/llvm-cov-target/debug --out target/llvm-cov-lcov.info [--chunk 60]
 """
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 LLVM_COV = Path(
-    "C:/Users/Owner/.rustup/toolchains/1.96.0-x86_64-pc-windows-msvc"
-    "/lib/rustlib/x86_64-pc-windows-msvc/bin/llvm-cov.exe"
+    os.environ.get(
+        "LLVM_COV",
+        str(
+            Path.home()
+            / ".rustup/toolchains/1.96.0-x86_64-pc-windows-msvc"
+            / "lib/rustlib/x86_64-pc-windows-msvc/bin/llvm-cov.exe"
+        ),
+    )
 )
 NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW — no flashing consoles on Windows
 

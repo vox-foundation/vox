@@ -104,6 +104,132 @@ fn telemetry_peak_bytes(dir: &Path, started_ms: i64) -> Option<u64> {
     peak
 }
 
+#[derive(Default)]
+struct TelemRunStats {
+    ema: Option<f64>,
+    complete_ema: Option<f64>,
+    complete_wall: Option<f64>,
+    min_ts: Option<i64>,
+    max_ts: Option<i64>,
+}
+
+impl TelemRunStats {
+    fn record_ts(&mut self, ts: Option<i64>) {
+        if let Some(t) = ts {
+            self.min_ts = Some(self.min_ts.map_or(t, |m| m.min(t)));
+            self.max_ts = Some(self.max_ts.map_or(t, |m| m.max(t)));
+        }
+    }
+
+    fn ingest(&mut self, row: &Value) {
+        let ts = row["ts_ms"].as_i64();
+        let event = row["event"].as_str();
+        let payload = &row["payload"];
+        if matches!(event, Some("train_step" | "step")) {
+            self.record_ts(ts);
+            if let Some(loss) = payload["loss"].as_f64().filter(|l| l.is_finite()) {
+                self.ema = Some(match self.ema {
+                    None => loss,
+                    Some(prev) => 0.1 * loss + 0.9 * prev,
+                });
+            }
+        } else if event == Some("train_complete") {
+            self.record_ts(ts);
+            if let Some(ema) = payload["final_loss_ema"].as_f64().filter(|l| l.is_finite()) {
+                self.complete_ema = Some(ema);
+            }
+            if let Some(w) = payload["wall_secs"]
+                .as_f64()
+                .filter(|w| w.is_finite() && *w > 0.0)
+            {
+                self.complete_wall = Some(w);
+            }
+        } else if matches!(event, Some("train_start" | "epoch_complete")) {
+            self.record_ts(ts);
+        }
+    }
+
+    fn finish(self) -> (Option<f64>, Option<f64>) {
+        let wall = self
+            .complete_wall
+            .or_else(|| match (self.min_ts, self.max_ts) {
+                (Some(a), Some(b)) if b > a => Some((b - a) as f64 / 1000.0),
+                _ => None,
+            });
+        (self.complete_ema.or(self.ema), wall)
+    }
+}
+
+/// Extract `(final_loss_ema, wall_secs)` from `telemetry.jsonl` scoped to `run_id`
+/// when a matching `train_start` is present, or else to rows at/after `started_ms`.
+fn telemetry_loss_and_wall(
+    dir: &Path,
+    run_id: Option<&str>,
+    started_ms: i64,
+) -> (Option<f64>, Option<f64>) {
+    let Ok(text) = std::fs::read_to_string(dir.join("telemetry.jsonl")) else {
+        return (None, None);
+    };
+    let rows: Vec<Value> = text
+        .lines()
+        .flat_map(serde_json::from_str::<Value>)
+        .collect();
+    if let Some(want) = run_id {
+        let mut active = false;
+        let mut found = false;
+        let mut stats = TelemRunStats::default();
+        for row in &rows {
+            if row["event"].as_str() == Some("train_start") {
+                if row["payload"]["run_id"].as_str() == Some(want) {
+                    active = true;
+                    found = true;
+                    stats = TelemRunStats::default();
+                    stats.record_ts(row["ts_ms"].as_i64());
+                } else {
+                    active = false;
+                }
+                continue;
+            }
+            if active {
+                stats.ingest(row);
+            }
+        }
+        if found {
+            return stats.finish();
+        }
+    }
+    let mut stats = TelemRunStats::default();
+    for row in &rows {
+        let ts = row["ts_ms"].as_i64().unwrap_or(i64::MIN);
+        if ts < started_ms {
+            continue;
+        }
+        if row["event"].as_str() == Some("train_start") {
+            stats = TelemRunStats::default();
+        }
+        stats.ingest(row);
+    }
+    stats.finish()
+}
+
+fn rel_adapter_path(adapter: &Path) -> String {
+    let normalize = |p: &Path| p.to_string_lossy().replace('\\', "/");
+    if !adapter.is_absolute() {
+        return normalize(adapter);
+    }
+    if let Some(ws) = vox_corpus::training::contract::find_workspace_root()
+        && let Ok(rel) = adapter.strip_prefix(&ws)
+    {
+        return normalize(rel);
+    }
+    if let Ok(cwd) = std::env::current_dir()
+        && let Ok(rel) = adapter.strip_prefix(&cwd)
+    {
+        return normalize(rel);
+    }
+    normalize(adapter)
+}
+
 const NO_SUMMARY: &str = "no run_summary.json from this run (paused or interrupted)";
 
 fn record_status(train_ok: bool, summary: Option<&Value>) -> &'static str {
@@ -131,9 +257,29 @@ pub(crate) fn build_train_record(input: &RecordInput, train_ok: bool) -> Value {
             (t, t.map(|_| "telemetry"))
         }
     };
+    let (telem_ema, telem_wall) = if status != "not_trained"
+        && (s["final_loss_ema"].as_f64().is_none() || s["wall_secs"].as_f64().is_none())
+    {
+        telemetry_loss_and_wall(dir, s["run_id"].as_str(), unix_ms(input.started))
+    } else {
+        (None, None)
+    };
+    let final_loss_ema = if status != "not_trained" {
+        s["final_loss_ema"].as_f64().or(telem_ema)
+    } else {
+        s["final_loss_ema"].as_f64()
+    };
+    let train_wall_secs = if status != "not_trained" {
+        s["wall_secs"]
+            .as_f64()
+            .or(telem_wall)
+            .or_else(|| (input.total_wall_secs > 0.0).then_some(input.total_wall_secs))
+    } else {
+        s["wall_secs"].as_f64()
+    };
     let adapter = dir.join("candle_qlora_adapter.safetensors");
     let adapter =
-        (status != "not_trained" && adapter.is_file()).then(|| adapter.display().to_string());
+        (status != "not_trained" && adapter.is_file()).then(|| rel_adapter_path(&adapter));
     serde_json::json!({
         "schema": "vox_mens_train_record_v1",
         "status": status,
@@ -148,11 +294,11 @@ pub(crate) fn build_train_record(input: &RecordInput, train_ok: bool) -> Value {
         "max_runtime_secs": input.max_runtime_secs,
         "optimizer_steps": s["optimizer_step_count"],
         "micro_steps": s["global_step"],
-        "final_loss_ema": s["final_loss_ema"],
+        "final_loss_ema": final_loss_ema,
         "avg_train_loss": s["avg_train_loss"],
         "peak_mb": peak.map(|b| b.div_ceil(1 << 20)),
         "peak_source": source,
-        "train_wall_secs": s["wall_secs"],
+        "train_wall_secs": train_wall_secs,
         "total_wall_secs": input.total_wall_secs,
         "truncated_rows": s["truncated_rows"],
         "prompt_trimmed_rows": s["prompt_trimmed_rows"],
@@ -186,6 +332,9 @@ mod tests {
     use serde_json::json;
     use std::time::Duration;
 
+    const STARTED_AGO: Duration = Duration::from_secs(5);
+    const STALE_FUTURE_OFFSET: Duration = Duration::from_secs(10);
+
     fn input(dir: &Path, started: SystemTime, error: Option<&str>) -> RecordInput {
         let mut i = RecordInput::start(None, None, None);
         (i.output_dir, i.started, i.error) = (dir.to_path_buf(), started, error.map(Into::into));
@@ -212,7 +361,7 @@ mod tests {
     #[test]
     fn fresh_summary_marks_trained_with_steps_loss_and_peak() {
         let dir = tempfile::tempdir().unwrap();
-        let started = SystemTime::now() - Duration::from_secs(5);
+        let started = SystemTime::now() - STARTED_AGO;
         write_summary(dir.path(), false);
         let r = build_train_record(&input(dir.path(), started, None), true);
         assert_eq!(r["schema"], "vox_mens_train_record_v1");
@@ -229,7 +378,7 @@ mod tests {
     #[test]
     fn capped_summary_marks_capped() {
         let dir = tempfile::tempdir().unwrap();
-        let started = SystemTime::now() - Duration::from_secs(5);
+        let started = SystemTime::now() - STARTED_AGO;
         write_summary(dir.path(), true);
         let r = build_train_record(&input(dir.path(), started, None), true);
         assert_eq!(r["status"], "capped");
@@ -238,7 +387,7 @@ mod tests {
     #[test]
     fn failed_run_is_not_trained_with_error_and_telemetry_peak() {
         let dir = tempfile::tempdir().unwrap();
-        let started = SystemTime::now() - Duration::from_secs(5);
+        let started = SystemTime::now() - STARTED_AGO;
         let ts = unix_ms(started) + 1000;
         telemetry(dir.path(), ts, "peak_metal_allocated_bytes", 2);
         telemetry(dir.path(), ts + 1, "observed_bytes", 3);
@@ -253,7 +402,7 @@ mod tests {
     #[test]
     fn ok_without_summary_is_not_trained() {
         let dir = tempfile::tempdir().unwrap();
-        let started = SystemTime::now() - Duration::from_secs(5);
+        let started = SystemTime::now() - STARTED_AGO;
         let r = build_train_record(&input(dir.path(), started, None), true);
         assert_eq!(r["status"], "not_trained");
         assert!(r["reason"].as_str().unwrap().contains("run_summary.json"));
@@ -263,7 +412,7 @@ mod tests {
     fn stale_summary_from_an_earlier_run_is_ignored() {
         let dir = tempfile::tempdir().unwrap();
         write_summary(dir.path(), false);
-        let started = SystemTime::now() + Duration::from_secs(10);
+        let started = SystemTime::now() + STALE_FUTURE_OFFSET;
         let r = build_train_record(&input(dir.path(), started, None), true);
         assert_eq!(r["status"], "not_trained");
         assert!(r["optimizer_steps"].is_null());
@@ -288,5 +437,57 @@ mod tests {
         assert_eq!(path, out.join("train-record.json"));
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         assert_eq!(v["status"], "not_trained");
+    }
+
+    #[test]
+    fn summary_missing_ema_and_wall_falls_back_to_telemetry() {
+        let dir = tempfile::tempdir().unwrap();
+        let started = SystemTime::now() - STARTED_AGO;
+        std::fs::write(
+            dir.path().join("run_summary.json"),
+            json!({
+                "run_id": "run-b",
+                "optimizer_step_count": 4,
+                "global_step": 32,
+                "avg_train_loss": 0.9,
+                "peak_metal_allocated_bytes": 2_147_483_648u64,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let rows = [
+            json!({"ts_ms": 1_000_i64, "event": "train_start", "payload": {"run_id": "run-a"}}),
+            json!({"ts_ms": 2_000_i64, "event": "step", "payload": {"loss": 9.9}}),
+            json!({"ts_ms": 10_000_i64, "event": "train_start", "payload": {"run_id": "run-b"}}),
+            json!({"ts_ms": 11_000_i64, "event": "step", "payload": {"loss": 2.0}}),
+            json!({"ts_ms": 25_000_i64, "event": "step", "payload": {"loss": 1.0}}),
+            json!({"ts_ms": 35_000_i64, "event": "train_complete", "payload": {"run_id": "run-b"}}),
+        ];
+        let body = rows
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(dir.path().join("telemetry.jsonl"), format!("{body}\n")).unwrap();
+
+        let r = build_train_record(&input(dir.path(), started, None), true);
+        assert_eq!(r["status"], "trained");
+        let ema = r["final_loss_ema"].as_f64().unwrap();
+        // step 1 = 2.0, step 2 = 0.1 * 1.0 + 0.9 * 2.0 = 1.9
+        assert!((ema - 1.9).abs() < 1e-9, "got ema {ema}");
+        let wall = r["train_wall_secs"].as_f64().unwrap();
+        // 35_000 - 10_000 = 25s
+        assert!((wall - 25.0).abs() < 1e-9, "got wall {wall}");
+    }
+
+    #[test]
+    fn adapter_path_is_workspace_relative_when_inside_workspace() {
+        let ws = vox_corpus::training::contract::find_workspace_root()
+            .expect("workspace root must be discoverable");
+        let abs = ws.join("mens/runs/qwen3-8b/candle_qlora_adapter.safetensors");
+        assert_eq!(
+            rel_adapter_path(&abs),
+            "mens/runs/qwen3-8b/candle_qlora_adapter.safetensors"
+        );
     }
 }

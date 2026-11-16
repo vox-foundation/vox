@@ -48,7 +48,9 @@ describe('Viaduct Contract Inspector & Quarantine Lock (Phases 273 & 274)', () =
     );
 
     const panel = screen.getByTestId('urbs-viaduct-contract-panel');
-    expect(panel.textContent).toContain('core-compiler (L1) → studio-gui (L3)');
+    expect(panel.textContent).toContain('core-compiler (L1)');
+    expect(panel.textContent).toContain('studio-gui (L3)');
+    expect(panel.querySelector('[data-icon="arrowRight"]')).toBeTruthy();
     expect(screen.getByTestId('urbs-viaduct-layer-violation-banner').textContent).toContain(
       'LAYER VIOLATION',
     );
@@ -73,7 +75,8 @@ describe('Viaduct Contract Inspector & Quarantine Lock (Phases 273 & 274)', () =
     );
 
     const btn = screen.getByTestId('urbs-district-quarantine-btn');
-    expect(btn.textContent).toContain('🔒 Lock');
+    expect(btn.textContent).toContain('Lock');
+    expect(btn.querySelector('[data-icon="lockKeyhole"]')).toBeTruthy();
     fireEvent.click(btn);
     expect(onToggleQuarantine).toHaveBeenCalledWith('core-compiler', false);
   });

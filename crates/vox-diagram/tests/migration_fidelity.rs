@@ -136,7 +136,7 @@ fn verify_migrated(stem: &str, body: &str, fixtures: &Path) -> Result<Ir, String
 }
 
 #[test]
-#[ignore = "one-shot report: reads docs/src; set FIDELITY_OUT"]
+#[ignore = "owner:diagram sunset:never one-shot: report reads docs/src; set FIDELITY_OUT"]
 fn migration_fidelity() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let fixtures = root.join("crates/vox-diagram/tests/fixtures");

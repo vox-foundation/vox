@@ -11,6 +11,8 @@ use vox_orchestrator_mcp::server_state::ServerState;
 use super::DaemonBootCtx;
 use crate::boot_plan::StepFuture;
 
+const DB_CONNECT_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(120);
+
 pub(super) fn step_db(ctx: &mut DaemonBootCtx) -> StepFuture<'_> {
     Box::pin(async move {
         let mut connected = None;
@@ -26,7 +28,7 @@ pub(super) fn step_db(ctx: &mut DaemonBootCtx) -> StepFuture<'_> {
                 break;
             }
             if attempt < 4 {
-                tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+                tokio::time::sleep(DB_CONNECT_RETRY_DELAY).await;
             }
         }
         let db = match connected {

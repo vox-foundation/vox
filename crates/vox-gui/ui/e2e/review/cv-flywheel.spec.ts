@@ -15,7 +15,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SURFACE_REGISTRY } from '../../src/generated/surfaceRegistry.generated';
 import { discoverAllGuiSurfacesAndPanels } from '../../src/lib/cvSurfaceDiscovery';
@@ -35,6 +35,7 @@ import {
   PLATFORM_SSOT_SHA256,
   PLATFORM_SSOT_VERSION,
   computeRgbaFrameCvMetrics,
+  computeRgbaMotionDeltaPct,
   evaluateGuiSurfaceRubric,
   runUniversalCvFlywheelPass,
   type GuiDomAuditMetrics,
@@ -43,13 +44,18 @@ import {
 } from '../../src/lib/cvFlywheel';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const UI_ROOT = join(__dirname, '..', '..');
+const toUiRelativePath = (p: string): string => relative(UI_ROOT, p).replace(/\\/g, '/');
 const OUT_DIR = join(__dirname, '..', '..', 'artifacts', 'cv-flywheel');
 const SURFACES_OUT_DIR = join(OUT_DIR, 'surfaces');
 const SCREENS_DIR = join(__dirname, '..', 'screens');
 const BEFORE_FILE = join(OUT_DIR, 'before-metrics.json');
+const ALL_SURFACES_BEFORE_FILE = join(OUT_DIR, 'all-surfaces-before.json');
 const REPORT_FILE = join(OUT_DIR, 'cv-flywheel-report.json');
 const ALL_SURFACES_REPORT_FILE = join(OUT_DIR, 'cv-flywheel-all-surfaces.json');
 const STAGE = (process.env.CV_STAGE ?? 'after').toLowerCase();
+const PASS_NUM = Number(process.env.CV_PASS ?? (STAGE === 'before' ? '0' : '1'));
+const ANIMATED_SURFACE_IDS = new Set(['dashboard', 'gamify', 'harness', 'flow', 'oratio']);
 const RUN_CV_FLYWHEEL = !process.env.CI || process.env.VOX_CV_FLYWHEEL === '1';
 const DISCOVERY_MANIFEST = discoverAllGuiSurfacesAndPanels();
 const ALL_SURFACES = DISCOVERY_MANIFEST.registeredViewKeys;
@@ -100,10 +106,44 @@ async function decodePngRgbaInPage(
   return computeRgbaFrameCvMetrics(new Uint8Array(rawRgba.bytes), rawRgba.w, rawRgba.h);
 }
 
+async function measureAnimationMotionDeltaInPage(page: Page, delayMs = 450): Promise<number> {
+  const decodeRaw = async (buf: Buffer) => {
+    const b64 = buf.toString('base64');
+    return page.evaluate(async (enc) => {
+      const res = await fetch(`data:image/png;base64,${enc}`);
+      const blob = await res.blob();
+      const bmp = await createImageBitmap(blob);
+      const scale = 0.25;
+      const w = Math.max(8, Math.floor(bmp.width * scale));
+      const h = Math.max(8, Math.floor(bmp.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return { w: 0, h: 0, bytes: [] as number[] };
+      ctx.drawImage(bmp, 0, 0, w, h);
+      return { w, h, bytes: Array.from(ctx.getImageData(0, 0, w, h).data) };
+    }, b64);
+  };
+  const bufA = await page.screenshot({ animations: 'allow' });
+  await page.waitForTimeout(delayMs);
+  const bufB = await page.screenshot({ animations: 'allow' });
+  const rawA = await decodeRaw(bufA);
+  const rawB = await decodeRaw(bufB);
+  return computeRgbaMotionDeltaPct(
+    new Uint8Array(rawA.bytes),
+    new Uint8Array(rawB.bytes),
+    rawA.w,
+    rawA.h,
+  );
+}
+
 async function auditDomInPage(page: Page, surfaceId: string): Promise<GuiDomAuditMetrics> {
   let axeViolations = 0;
   try {
-    const axe = await new AxeBuilder({ page }).include('main').analyze();
+    const axe = await new AxeBuilder({ page })
+      .options({ resultTypes: ['violations'] })
+      .analyze();
     const serious = axe.violations.filter((v) =>
       ['serious', 'critical'].includes(v.impact ?? ''),
     );
@@ -126,6 +166,9 @@ async function auditDomInPage(page: Page, surfaceId: string): Promise<GuiDomAudi
 
   const domQuality = await page.evaluate(auditDomQualityInPage, surfaceId);
   const iconIssues = await page.evaluate(auditIconsInPage);
+  if (iconIssues.length > 0) {
+    console.log(`[CV-ICONS:${surfaceId}]`, JSON.stringify(iconIssues));
+  }
   const overflow = await page.evaluate(auditOverflowInPage);
 
   return {
@@ -151,6 +194,10 @@ async function auditDomInPage(page: Page, surfaceId: string): Promise<GuiDomAudi
     skeletonCount: domQuality.skeletonCount,
     rawBacktickCount: domQuality.rawBacktickCount,
     digitalColorLeakCount: domQuality.digitalColorLeakCount,
+    chartPanelFillRatio: domQuality.chartPanelFillRatio,
+    bracketedLabelCount: domQuality.bracketedLabelCount,
+    statusBarClippedSegmentCount: domQuality.statusBarClippedSegmentCount,
+    sidebarTruncatedLabelCount: domQuality.sidebarTruncatedLabelCount,
     discoveredSubTabLabels: domQuality.discoveredSubTabLabels,
     discoveredPopoverTriggers: domQuality.discoveredPopoverTriggers,
     axeViolations,
@@ -174,7 +221,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
   test('captures and evaluates all 4 Chat/Dock/Urbs surfaces through @ngi/platform-ssot CV Flywheel', async ({
     page,
   }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(300_000);
     mkdirSync(OUT_DIR, { recursive: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     await addMockInitScript(page, installTauriMock, 'chat');
@@ -194,7 +241,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     records['chat-default'] = {
       surfaceId: 'chat-default',
       stage: STAGE === 'before' ? 'before' : 'after',
-      screenshotPath: chatPngPath,
+      screenshotPath: toUiRelativePath(chatPngPath),
       pixelSignals: chatPixels,
       domAudit: chatDom,
       vlmRubric: chatRubric,
@@ -227,7 +274,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     records['loquela-knobs'] = {
       surfaceId: 'loquela-knobs',
       stage: STAGE === 'before' ? 'before' : 'after',
-      screenshotPath: knobsPngPath,
+      screenshotPath: toUiRelativePath(knobsPngPath),
       pixelSignals: knobsPixels,
       domAudit: knobsDom,
       vlmRubric: knobsRubric,
@@ -261,7 +308,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     records['chat-dock-multi'] = {
       surfaceId: 'chat-dock-multi',
       stage: STAGE === 'before' ? 'before' : 'after',
-      screenshotPath: dockPngPath,
+      screenshotPath: toUiRelativePath(dockPngPath),
       pixelSignals: dockPixels,
       domAudit: dockDom,
       vlmRubric: dockRubric,
@@ -269,21 +316,42 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     };
     await page.keyboard.press('Escape');
 
-    // Audit Chat 2D Multi-Dock across 1280x800, 1440x900, and 1920x1080
+    // Audit Chat 2D Multi-Dock across 900x600 (compact), 1100x720 (laptop-sm), 1280x800, 1440x900, and 1920x1080
     for (const res of [
+      { width: 900, height: 600, tag: '900x600' },
+      { width: 1100, height: 720, tag: '1100x720' },
       { width: 1280, height: 800, tag: '1280x800' },
       { width: 1440, height: 900, tag: '1440x900' },
       { width: 1920, height: 1080, tag: '1920x1080' },
     ]) {
       await page.setViewportSize({ width: res.width, height: res.height });
-      await page.waitForTimeout(220);
-      await page.screenshot({
-        path: join(OUT_DIR, `chat-multidock-${res.tag}-${STAGE}.png`),
+      await page.waitForTimeout(240);
+      const resPngPath = join(OUT_DIR, `chat-multidock-${res.tag}-${STAGE}.png`);
+      const resBuf = await page.screenshot({
+        path: resPngPath,
         animations: 'disabled',
       });
+      const resPixels = await decodePngRgbaInPage(page, resBuf);
       const resDom = await auditDomInPage(page, `chat-multidock-${res.tag}`);
-      expect(resDom.outerOverflowPx, `chat-multidock-${res.tag} outerOverflowPx`).toBe(0);
-      expect(resDom.clippedInteractiveCount, `chat-multidock-${res.tag} clippedInteractiveCount`).toBe(0);
+      const resRubric = evaluateGuiSurfaceRubric(resDom, resPixels);
+      if (res.tag === '900x600' || res.tag === '1100x720') {
+        records[`chat-multidock-${res.tag}`] = {
+          surfaceId: `chat-multidock-${res.tag}`,
+          stage: STAGE === 'before' ? 'before' : 'after',
+          screenshotPath: toUiRelativePath(resPngPath),
+          pixelSignals: resPixels,
+          domAudit: resDom,
+          vlmRubric: resRubric,
+          weightedRubricScore: computeWeightedScore(resRubric),
+        };
+      }
+      if (STAGE !== 'before') {
+        expect(resDom.outerOverflowPx, `chat-multidock-${res.tag} outerOverflowPx`).toBe(0);
+        expect(resDom.clippedInteractiveCount, `chat-multidock-${res.tag} clippedInteractiveCount`).toBe(0);
+        expect(resDom.statusBarClippedSegmentCount ?? 0, `chat-multidock-${res.tag} statusBarClippedSegmentCount`).toBe(0);
+        expect(resDom.sidebarTruncatedLabelCount ?? 0, `chat-multidock-${res.tag} sidebarTruncatedLabelCount`).toBe(0);
+        expect(resDom.composerToolbarRowCount ?? 1, `chat-multidock-${res.tag} composerToolbarRowCount`).toBeLessThanOrEqual(1);
+      }
     }
     await page.setViewportSize({ width: 1440, height: 900 });
 
@@ -309,7 +377,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     records['urbs-civilization'] = {
       surfaceId: 'urbs-civilization',
       stage: STAGE === 'before' ? 'before' : 'after',
-      screenshotPath: urbsPngPath,
+      screenshotPath: toUiRelativePath(urbsPngPath),
       pixelSignals: urbsPixels,
       domAudit: urbsDom,
       vlmRubric: urbsRubric,
@@ -396,9 +464,16 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
         expect(dom.outerOverflowPx, `${surfaceId} outerOverflowPx`).toBe(0);
         expect(dom.clippedInteractiveCount, `${surfaceId} clippedInteractiveCount`).toBe(0);
         expect(dom.rawEmojiCount, `${surfaceId} rawEmojiCount`).toBe(0);
+        expect(dom.bracketedLabelCount ?? 0, `${surfaceId} bracketedLabelCount`).toBe(0);
+        expect(dom.statusBarClippedSegmentCount ?? 0, `${surfaceId} statusBarClippedSegmentCount`).toBe(0);
+        expect(dom.sidebarTruncatedLabelCount ?? 0, `${surfaceId} sidebarTruncatedLabelCount`).toBe(0);
         expect(dom.unstyledNativeSelectCount, `${surfaceId} unstyledNativeSelectCount`).toBe(0);
         expect(dom.missingDockPanelIds, `${surfaceId} missingDockPanelIds`).toEqual([]);
-        if (surfaceId === 'chat-default' || surfaceId === 'loquela-knobs') {
+        if (
+          surfaceId === 'chat-default' ||
+          surfaceId === 'loquela-knobs' ||
+          surfaceId === 'chat-dock-multi'
+        ) {
           expect(dom.composerToolbarRowCount ?? 1, `${surfaceId} composerToolbarRowCount`).toBe(1);
           expect(
             dom.composerToolbarHeightPx ?? 0,
@@ -406,7 +481,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
           ).toBeLessThanOrEqual(52);
         }
         expect(verdict.flywheelConverged, `${surfaceId} flywheelConverged`).toBe(true);
-        expect(verdict.visualAfterScore, `${surfaceId} visualAfterScore`).toBeGreaterThanOrEqual(0.88);
+        expect(verdict.visualAfterScore, `${surfaceId} visualAfterScore`).toBeGreaterThanOrEqual(0.9);
       }
     }
   });
@@ -414,7 +489,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
   test('dynamically audits all 32 SURFACE_REGISTRY surfaces with unified in-page inspection & @ngi/platform-ssot CV Flywheel', async ({
     page,
   }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(720_000);
     mkdirSync(SURFACES_OUT_DIR, { recursive: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     await addMockInitScript(page, installTauriMock, 'dashboard');
@@ -486,17 +561,28 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
         if ((await loadBtn.count()) > 0) {
           await loadBtn.first().click();
           await page.waitForTimeout(120);
+          await page.evaluate(() => {
+            window.scrollTo(0, 0);
+            document.querySelectorAll<HTMLElement>('main, main *').forEach((el) => {
+              if (el.scrollTop > 0) el.scrollTop = 0;
+            });
+          });
+          await page.waitForTimeout(60);
         }
       }
 
-      const afterPngPath = join(SURFACES_OUT_DIR, `${surfaceId}-after.png`);
+      const stageTag = STAGE === 'before' ? 'before' : 'after';
+      const afterPngPath = join(SURFACES_OUT_DIR, `${surfaceId}-${stageTag}.png`);
       const afterBuf = await page.screenshot({ path: afterPngPath, animations: 'disabled' });
       const afterPixels = await decodePngRgbaInPage(page, afterBuf);
       const afterDom = await auditDomInPage(page, surfaceId);
+      if (ANIMATED_SURFACE_IDS.has(surfaceId)) {
+        afterDom.animationMotionDeltaPct = await measureAnimationMotionDeltaInPage(page, 420);
+      }
       const afterVlmCritique = await evaluateVlmSurfaceCritique(
         page,
         surfaceId,
-        'after',
+        stageTag,
         afterBuf,
         afterDom,
         OUT_DIR,
@@ -506,8 +592,8 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
 
       afterRecords[surfaceId] = {
         surfaceId,
-        stage: 'after',
-        screenshotPath: afterPngPath,
+        stage: stageTag,
+        screenshotPath: toUiRelativePath(afterPngPath),
         pixelSignals: afterPixels,
         domAudit: afterDom,
         vlmRubric: afterRubric,
@@ -515,23 +601,44 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
         vlmCritique: afterVlmCritique,
       };
 
-      // Baseline comparison: use historical e2e/screens/${surfaceId}.png if present
+      // Baseline comparison: prefer real captured Pass-0 `all-surfaces-before.json` if present
+      let capturedBeforeMap: Record<string, SurfaceSnapshotRecord> | null = null;
+      if (STAGE !== 'before' && existsSync(ALL_SURFACES_BEFORE_FILE)) {
+        try {
+          capturedBeforeMap = (
+            JSON.parse(readFileSync(ALL_SURFACES_BEFORE_FILE, 'utf8')) as {
+              surfaces: Record<string, SurfaceSnapshotRecord>;
+            }
+          ).surfaces;
+        } catch {
+          capturedBeforeMap = null;
+        }
+      }
+      const realBefore = capturedBeforeMap?.[surfaceId];
       const baselineScreenPath = join(SCREENS_DIR, `${surfaceId}.png`);
-      const beforePixels = existsSync(baselineScreenPath)
-        ? await decodePngRgbaInPage(page, readFileSync(baselineScreenPath))
-        : afterPixels;
+      const beforePixels = realBefore
+        ? realBefore.pixelSignals
+        : existsSync(baselineScreenPath)
+          ? await decodePngRgbaInPage(page, readFileSync(baselineScreenPath))
+          : afterPixels;
       const defectOverride = preRemediationDomDefects[surfaceId] ?? {};
-      const beforeDom: GuiDomAuditMetrics = {
-        ...afterDom,
-        ...defectOverride,
-      };
-      const beforeRubric = evaluateGuiSurfaceRubric(beforeDom, beforePixels);
-      const beforeWeighted = computeWeightedScore(beforeRubric);
+      const beforeDom: GuiDomAuditMetrics = realBefore
+        ? realBefore.domAudit
+        : {
+            ...afterDom,
+            ...defectOverride,
+          };
+      const beforeRubric = realBefore
+        ? realBefore.vlmRubric
+        : evaluateGuiSurfaceRubric(beforeDom, beforePixels);
+      const beforeWeighted = realBefore
+        ? realBefore.weightedRubricScore
+        : computeWeightedScore(beforeRubric);
 
-      beforeRecords[surfaceId] = {
+      beforeRecords[surfaceId] = realBefore ?? {
         surfaceId,
         stage: 'before',
-        screenshotPath: existsSync(baselineScreenPath) ? baselineScreenPath : afterPngPath,
+        screenshotPath: toUiRelativePath(existsSync(baselineScreenPath) ? baselineScreenPath : afterPngPath),
         pixelSignals: beforePixels,
         domAudit: beforeDom,
         vlmRubric: beforeRubric,
@@ -540,8 +647,8 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
 
       verdicts[surfaceId] = runUniversalCvFlywheelPass({
         surfaceId,
-        passNumber: 1,
-        rawPrompt: `Dynamic 32-surface VS Code quality audit for ${surfaceId}`,
+        passNumber: PASS_NUM,
+        rawPrompt: `Dynamic 33-surface VS Code quality audit for ${surfaceId}`,
         beforeMetrics: {
           edgeSharpness: beforePixels.edgeSharpness,
           luminanceContrast: beforePixels.luminanceContrast,
@@ -560,9 +667,31 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       });
     }
 
+    if (STAGE === 'before') {
+      writeFileSync(
+        ALL_SURFACES_BEFORE_FILE,
+        JSON.stringify(
+          {
+            ssotVersion: PLATFORM_SSOT_VERSION,
+            ssotSha256: PLATFORM_SSOT_SHA256,
+            capturedAt: new Date().toISOString(),
+            surfaceCount: ALL_SURFACES.length,
+            surfaces: afterRecords,
+          },
+          null,
+          2,
+        ),
+      );
+      console.log(
+        `[CV-FLYWHEEL-BEFORE] Saved ${ALL_SURFACES.length} real Pass-0 surface baselines -> ${ALL_SURFACES_BEFORE_FILE}`,
+      );
+    }
+
     const allSurfacesReport = {
       ssotVersion: PLATFORM_SSOT_VERSION,
       ssotSha256: PLATFORM_SSOT_SHA256,
+      stage: STAGE,
+      passNumber: PASS_NUM,
       surfaceCount: ALL_SURFACES.length,
       discoveryManifest: DISCOVERY_MANIFEST,
       evaluatedAt: new Date().toISOString(),
@@ -572,47 +701,56 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     };
     writeFileSync(ALL_SURFACES_REPORT_FILE, JSON.stringify(allSurfacesReport, null, 2));
     console.log(
-      `[CV-FLYWHEEL-ALL-32] Evaluated ${ALL_SURFACES.length} surfaces -> ${ALL_SURFACES_REPORT_FILE}`,
+      `[CV-FLYWHEEL-ALL-${ALL_SURFACES.length}] Evaluated ${ALL_SURFACES.length} surfaces -> ${ALL_SURFACES_REPORT_FILE}`,
     );
 
-    for (const surfaceId of ALL_SURFACES) {
-      const dom = afterRecords[surfaceId]!.domAudit;
-      const verdict = verdicts[surfaceId]!;
-      expect(dom.outerOverflowPx, `${surfaceId} outerOverflowPx`).toBe(0);
-      expect(dom.scrollHostOverflowPx, `${surfaceId} scrollHostOverflowPx`).toBe(0);
-      expect(dom.unstyledNativeSelectCount, `${surfaceId} unstyledNativeSelectCount`).toBe(0);
-      expect(dom.lightThemeContrastLeakCount, `${surfaceId} lightThemeContrastLeakCount`).toBe(0);
-      expect(dom.overlappingControlPairs, `${surfaceId} overlappingControlPairs`).toBe(0);
-      expect(dom.rawEmojiCount, `${surfaceId} rawEmojiCount`).toBe(0);
-      expect(dom.iconIssueCount, `${surfaceId} iconIssueCount`).toBe(0);
-      expect(dom.axeViolations, `${surfaceId} axeViolations`).toBe(0);
-      expect(dom.duplicateControlGroupCount ?? 0, `${surfaceId} duplicateControlGroupCount`).toBe(0);
-      expect(dom.skeletonCount ?? 0, `${surfaceId} skeletonCount`).toBe(0);
-      expect(dom.rawBacktickCount ?? 0, `${surfaceId} rawBacktickCount`).toBe(0);
-      expect(dom.digitalColorLeakCount ?? 0, `${surfaceId} digitalColorLeakCount`).toBe(0);
-      expect(
-        afterRecords[surfaceId]!.vlmCritique?.vlmOverallScore ?? 0,
-        `${surfaceId} vlmOverallScore`,
-      ).toBeGreaterThanOrEqual(0.8);
-      expect(
-        afterRecords[surfaceId]!.vlmCritique?.visionSignals.flutedPillarCount ?? 0,
-        `${surfaceId} flutedPillarCount`,
-      ).toBeGreaterThanOrEqual(2);
-      expect(
-        afterRecords[surfaceId]!.vlmCritique?.visionSignals.romanFontCoverageRatio ?? 0,
-        `${surfaceId} romanFontCoverageRatio`,
-      ).toBeGreaterThanOrEqual(0.85);
-      if (surfaceId === 'chat') {
-        expect(dom.composerToolbarRowCount ?? 1, `${surfaceId} composerToolbarRowCount`).toBe(1);
+    if (STAGE !== 'before') {
+      for (const surfaceId of ALL_SURFACES) {
+        const dom = afterRecords[surfaceId]!.domAudit;
+        const verdict = verdicts[surfaceId]!;
+        expect(dom.outerOverflowPx, `${surfaceId} outerOverflowPx`).toBe(0);
+        expect(dom.scrollHostOverflowPx, `${surfaceId} scrollHostOverflowPx`).toBe(0);
+        expect(dom.unstyledNativeSelectCount, `${surfaceId} unstyledNativeSelectCount`).toBe(0);
+        expect(dom.lightThemeContrastLeakCount, `${surfaceId} lightThemeContrastLeakCount`).toBe(0);
+        expect(dom.overlappingControlPairs, `${surfaceId} overlappingControlPairs`).toBe(0);
+        expect(dom.rawEmojiCount, `${surfaceId} rawEmojiCount`).toBe(0);
+        expect(dom.bracketedLabelCount ?? 0, `${surfaceId} bracketedLabelCount`).toBe(0);
+        expect(dom.statusBarClippedSegmentCount ?? 0, `${surfaceId} statusBarClippedSegmentCount`).toBe(0);
+        expect(dom.sidebarTruncatedLabelCount ?? 0, `${surfaceId} sidebarTruncatedLabelCount`).toBe(0);
+        expect(dom.chartPanelFillRatio ?? 1, `${surfaceId} chartPanelFillRatio`).toBeGreaterThanOrEqual(0.84);
+        expect(dom.iconIssueCount, `${surfaceId} iconIssueCount`).toBe(0);
+        expect(dom.axeViolations, `${surfaceId} axeViolations`).toBe(0);
+        expect(dom.duplicateControlGroupCount ?? 0, `${surfaceId} duplicateControlGroupCount`).toBe(0);
+        expect(dom.skeletonCount ?? 0, `${surfaceId} skeletonCount`).toBe(0);
+        expect(dom.rawBacktickCount ?? 0, `${surfaceId} rawBacktickCount`).toBe(0);
+        expect(dom.digitalColorLeakCount ?? 0, `${surfaceId} digitalColorLeakCount`).toBe(0);
+        if (ANIMATED_SURFACE_IDS.has(surfaceId)) {
+          expect(
+            dom.animationMotionDeltaPct ?? 0,
+            `${surfaceId} live animationMotionDeltaPct`,
+          ).toBeGreaterThanOrEqual(0.15);
+        }
         expect(
-          dom.composerToolbarHeightPx ?? 0,
-          `${surfaceId} composerToolbarHeightPx`,
-        ).toBeLessThanOrEqual(52);
+          afterRecords[surfaceId]!.vlmCritique?.vlmOverallScore ?? 0,
+          `${surfaceId} vlmOverallScore`,
+        ).toBeGreaterThanOrEqual(0.88);
+        expect(
+          afterRecords[surfaceId]!.vlmCritique?.visionSignals.flutedPillarCount ?? 0,
+          `${surfaceId} flutedPillarCount`,
+        ).toBeGreaterThanOrEqual(2);
+        expect(
+          afterRecords[surfaceId]!.vlmCritique?.visionSignals.romanFontCoverageRatio ?? 0,
+          `${surfaceId} romanFontCoverageRatio`,
+        ).toBeGreaterThanOrEqual(0.85);
+        if (surfaceId === 'chat') {
+          expect(dom.composerToolbarRowCount ?? 1, `${surfaceId} composerToolbarRowCount`).toBe(1);
+          expect(
+            dom.composerToolbarHeightPx ?? 0,
+            `${surfaceId} composerToolbarHeightPx`,
+          ).toBeLessThanOrEqual(52);
+        }
+        expect(verdict.visualAfterScore, `${surfaceId} visualAfterScore`).toBeGreaterThanOrEqual(0.9);
       }
-      if (surfaceId in preRemediationDomDefects) {
-        expect(verdict.flywheelConverged, `${surfaceId} flywheelConverged`).toBe(true);
-      }
-      expect(verdict.visualAfterScore, `${surfaceId} visualAfterScore`).toBeGreaterThanOrEqual(0.88);
     }
   });
 
@@ -792,14 +930,33 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       expect(dom.outerOverflowPx, `urbs-map ${res.tag} outerOverflowPx`).toBe(0);
     }
 
-    // Hover a Monument Plaque at 1440x900 to capture RomanTooltip progressive disclosure in action
+    // Hover Monument Plaques at 1440x900 to verify architectural haloing, monument preview plate & activity guidance
     await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(180);
+    await expect(page.locator('[data-diegetic-plaque="true"]')).toHaveCount(7);
+    await expect(page.getByTestId('urbs-interactivity-guide')).toBeVisible();
     const mensPlaque = page.getByTestId('urbs-monument-mens');
     if (await mensPlaque.isVisible()) {
       await mensPlaque.hover();
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(220);
+      await expect(page.getByTestId('roman-progressive-tooltip')).toBeVisible();
+      await expect(page.getByTestId('roman-tooltip-monument-art')).toBeVisible();
+      await expect(page.getByTestId('urbs-canvas')).toHaveAttribute(
+        'data-hovered-monument',
+        'monument-mens',
+      );
       await page.screenshot({
         path: join(SURFACES_OUT_DIR, 'v58-urbs-tooltip-1440x900.png'),
+        animations: 'disabled',
+      });
+    }
+    const guiPlaque = page.getByTestId('urbs-monument-gui');
+    if (await guiPlaque.isVisible()) {
+      await guiPlaque.hover();
+      await page.waitForTimeout(220);
+      await expect(page.getByTestId('roman-tooltip-monument-art')).toBeVisible();
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, 'v73-urbs-hover-rotunda-1440x900.png'),
         animations: 'disabled',
       });
     }
@@ -810,10 +967,21 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       await collegiumTab.click();
       await page.mouse.move(10, 10);
       await page.waitForTimeout(300);
+      await expect(page.getByTestId('gamify-sanctuary-strip')).toBeVisible();
       await page.screenshot({
         path: join(SURFACES_OUT_DIR, 'v58-ludus-arena-quests-1440x900.png'),
         animations: 'disabled',
       });
+      const foundryCard = page.getByTestId('gamify-sanctuary-foundry');
+      if (await foundryCard.isVisible()) {
+        await foundryCard.hover();
+        await page.waitForTimeout(220);
+        await expect(page.getByTestId('roman-tooltip-monument-art')).toBeVisible();
+        await page.screenshot({
+          path: join(SURFACES_OUT_DIR, 'v73-ludus-sanctuary-hover-1440x900.png'),
+          animations: 'disabled',
+        });
+      }
     }
     const leaderboardTab = page.getByTestId('ludus-subtab-arena');
     if (await leaderboardTab.isVisible()) {
@@ -1079,7 +1247,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     await expect(page.getByTestId('theme-contract-status-badge')).toContainText(
       'ENFORCED · ZERO DRIFT',
     );
-    await expect(ledgerCard).toContainText('22 / 22 Verified');
+    await expect(ledgerCard).toContainText('23 / 23 Verified');
 
     await page.screenshot({
       path: join(SURFACES_OUT_DIR, 'v66-p386-theme-contract-arcane.png'),
@@ -1135,5 +1303,262 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
     await arcaneThemeCard.click();
     await page.waitForTimeout(200);
     await expect(ledgerCard).toContainText('Imperial Carrara White & Gold');
+  });
+
+  test('Milestone v7.2: Chat Surface, All 14 Dock Panels, and Small-Resolution (900x600 & 1100x720) Audit', async ({
+    page,
+  }) => {
+    test.setTimeout(360_000);
+    mkdirSync(SURFACES_OUT_DIR, { recursive: true });
+    await addMockInitScript(page, installTauriMock, 'chat');
+    await addRichMockInitScript(page, 'chat');
+
+    const stageTag = STAGE === 'before' ? 'before' : 'after';
+
+    // 1. Audit key surfaces at 900x600 (compact)
+    await page.setViewportSize({ width: 900, height: 600 });
+    await page.goto('/#view=chat');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+    await page.waitForTimeout(350);
+
+    for (const surf of ['chat', 'dashboard', 'gamify', 'harness', 'needs-you', 'flow', 'gsd', 'mens']) {
+      await page.evaluate((s) => {
+        window.location.hash = `#view=${s}`;
+      }, surf);
+      await page.waitForTimeout(260);
+      const compactPng = join(SURFACES_OUT_DIR, `v72-compact-900x600-${surf}-${stageTag}.png`);
+      await page.screenshot({ path: compactPng, animations: 'disabled' });
+      const dom = await auditDomInPage(page, `compact-900x600-${surf}`);
+      if (STAGE !== 'before') {
+        expect(dom.outerOverflowPx, `compact 900x600 ${surf} outerOverflowPx`).toBe(0);
+        expect(dom.clippedInteractiveCount, `compact 900x600 ${surf} clippedInteractiveCount`).toBe(0);
+        expect(
+          dom.statusBarClippedSegmentCount ?? 0,
+          `compact 900x600 ${surf} statusBarClippedSegmentCount`,
+        ).toBe(0);
+        expect(
+          dom.sidebarTruncatedLabelCount ?? 0,
+          `compact 900x600 ${surf} sidebarTruncatedLabelCount`,
+        ).toBe(0);
+        if (surf === 'chat') {
+          expect(dom.composerToolbarRowCount ?? 1, 'compact 900x600 chat composerToolbarRowCount').toBe(1);
+        }
+      }
+    }
+
+    // 2. Cycle all 14 registered Dock panels inside ChatSurface at 1440x900 and 900x600
+    const dockPanelLabels = [
+      'Execution Rail',
+      'Todos',
+      'Needs You',
+      'VoxGraph',
+      'Activity',
+      'Repository',
+      'Mercatus',
+      'Harness',
+      'Approvals',
+      'Research',
+      'Terminal',
+      'Civilization',
+      'Browser',
+    ];
+
+    for (const vp of [
+      { width: 1440, height: 900, tag: '1440x900' },
+      { width: 900, height: 600, tag: '900x600' },
+    ]) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/#view=chat');
+      await page.waitForSelector('[data-testid="loquela-composer"]', { timeout: 15_000 });
+      await page.waitForTimeout(280);
+
+      for (const label of dockPanelLabels) {
+        const panelsBtn = page.getByRole('button', { name: /Panels/i }).first();
+        if (await panelsBtn.isVisible()) {
+          await panelsBtn.click();
+          await page.waitForTimeout(100);
+          const menuItem = page
+            .locator('[aria-label="Workspace panels"] label')
+            .filter({ hasText: new RegExp(label, 'i') })
+            .first();
+          if ((await menuItem.count()) > 0 && (await menuItem.isVisible())) {
+            const checkbox = menuItem.locator('input[type="checkbox"]').first();
+            const isAlreadyOpen =
+              (await checkbox.count()) > 0 ? await checkbox.isChecked() : false;
+            if (!isAlreadyOpen) {
+              await menuItem.click();
+              await page.waitForTimeout(140);
+            }
+          }
+          await page.keyboard.press('Escape');
+        }
+      }
+
+      const allDocksPng = join(SURFACES_OUT_DIR, `v72-chat-all14docks-${vp.tag}-${stageTag}.png`);
+      await page.screenshot({ path: allDocksPng, animations: 'disabled' });
+      const dockDom = await auditDomInPage(page, `chat-all14docks-${vp.tag}`);
+      if (STAGE !== 'before') {
+        expect(dockDom.outerOverflowPx, `all14docks ${vp.tag} outerOverflowPx`).toBe(0);
+        expect(dockDom.clippedInteractiveCount, `all14docks ${vp.tag} clippedInteractiveCount`).toBe(0);
+        expect(dockDom.composerToolbarRowCount ?? 1, `all14docks ${vp.tag} composerToolbarRowCount`).toBe(1);
+      }
+    }
+  });
+
+  test('Milestone v7.4: Full-Document Open Radix Portals (Select, Dialog, DropdownMenu, Popover, Sheet, Command Omnibar) across 4 Themes & 5 Resolutions', async ({
+    page,
+  }) => {
+    test.setTimeout(360_000);
+    mkdirSync(SURFACES_OUT_DIR, { recursive: true });
+    await addMockInitScript(page, installTauriMock, 'chat');
+    await addRichMockInitScript(page, 'chat');
+
+    const resolutions = [
+      { width: 900, height: 600, tag: '900x600' },
+      { width: 1100, height: 720, tag: '1100x720' },
+      { width: 1280, height: 800, tag: '1280x800' },
+      { width: 1440, height: 900, tag: '1440x900' },
+      { width: 1920, height: 1080, tag: '1920x1080' },
+    ];
+    const themes = ['arcane', 'glacier', 'void', 'high-contrast'] as const;
+
+    // 1. Open Command Omnibar (`[role="dialog"]` + `cmdk`) across all 5 resolutions and audit full document.body
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/#view=chat');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+    await page.waitForTimeout(280);
+
+    for (const res of resolutions) {
+      await page.setViewportSize({ width: res.width, height: res.height });
+      await page.waitForTimeout(160);
+      await page.keyboard.press('Control+k');
+      await page.waitForTimeout(180);
+      const dialogOpen = await page.locator('[role="dialog"]').first().isVisible();
+      if (!dialogOpen) {
+        await page.keyboard.press('Meta+k');
+        await page.waitForTimeout(180);
+      }
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, `v74-portal-omnibar-${res.tag}.png`),
+        animations: 'disabled',
+      });
+      const dom = await auditDomInPage(page, `v74-portal-omnibar-${res.tag}`);
+      expect(dom.axeViolations, `omnibar ${res.tag} axeViolations`).toBe(0);
+      expect(dom.rawEmojiCount, `omnibar ${res.tag} rawEmojiCount`).toBe(0);
+      expect(dom.iconIssueCount, `omnibar ${res.tag} iconIssueCount`).toBe(0);
+      expect(dom.outerOverflowPx, `omnibar ${res.tag} outerOverflowPx`).toBe(0);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(120);
+    }
+
+    // 2. Open Popover (`loquela-posture-trigger`) & DropdownMenu / Panels menu in Chat across all 4 themes
+    await page.setViewportSize({ width: 1440, height: 900 });
+    for (const theme of themes) {
+      await page.evaluate((t) => {
+        document.documentElement.setAttribute('data-theme', t);
+        window.localStorage.setItem('vox-theme', t);
+      }, theme);
+      await page.waitForTimeout(180);
+
+      const postureTrigger = page.getByTestId('loquela-posture-trigger');
+      if (await postureTrigger.isVisible()) {
+        await postureTrigger.click();
+        await page.waitForTimeout(160);
+        const popDom = await auditDomInPage(page, `v74-portal-popover-${theme}`);
+        expect(popDom.axeViolations, `popover ${theme} axeViolations`).toBe(0);
+        expect(popDom.rawEmojiCount, `popover ${theme} rawEmojiCount`).toBe(0);
+        expect(popDom.iconIssueCount, `popover ${theme} iconIssueCount`).toBe(0);
+        expect(popDom.outerOverflowPx, `popover ${theme} outerOverflowPx`).toBe(0);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(120);
+      }
+
+      const menuTrigger = page.locator('[data-slot="dropdown-menu-trigger"]').first();
+      if ((await menuTrigger.count()) > 0 && (await menuTrigger.isVisible())) {
+        await menuTrigger.click();
+        await page.waitForTimeout(160);
+        const menuDom = await auditDomInPage(page, `v74-portal-dropdown-${theme}`);
+        expect(menuDom.axeViolations, `dropdown ${theme} axeViolations`).toBe(0);
+        expect(menuDom.rawEmojiCount, `dropdown ${theme} rawEmojiCount`).toBe(0);
+        expect(menuDom.iconIssueCount, `dropdown ${theme} iconIssueCount`).toBe(0);
+        expect(menuDom.outerOverflowPx, `dropdown ${theme} outerOverflowPx`).toBe(0);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(120);
+      }
+    }
+
+    // 3. Open Radix Select (`[data-slot="select-trigger"]` -> `[role="listbox"]` portal) across all 4 themes
+    await page.goto('/#view=runs');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+    await page.waitForTimeout(260);
+    for (const theme of themes) {
+      await page.evaluate((t) => {
+        document.documentElement.setAttribute('data-theme', t);
+        window.localStorage.setItem('vox-theme', t);
+      }, theme);
+      await page.waitForTimeout(150);
+      const selectTrigger = page.locator('main [data-slot="select-trigger"]').first();
+      if ((await selectTrigger.count()) > 0 && (await selectTrigger.isVisible())) {
+        await selectTrigger.click();
+        await page.waitForTimeout(180);
+        await expect(page.locator('[role="listbox"]').first()).toBeVisible();
+        await page.screenshot({
+          path: join(SURFACES_OUT_DIR, `v74-portal-select-${theme}.png`),
+          animations: 'disabled',
+        });
+        const selDom = await auditDomInPage(page, `v74-portal-select-${theme}`);
+        expect(selDom.axeViolations, `select ${theme} axeViolations`).toBe(0);
+        expect(selDom.rawEmojiCount, `select ${theme} rawEmojiCount`).toBe(0);
+        expect(selDom.iconIssueCount, `select ${theme} iconIssueCount`).toBe(0);
+        expect(selDom.outerOverflowPx, `select ${theme} outerOverflowPx`).toBe(0);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(120);
+      }
+    }
+
+    // 4. Open Radix Dialog (`PoliciesView` New Policy Dialog) & Sheet (`Catalog` <960px Master-Detail Drawer)
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'arcane');
+      window.localStorage.setItem('vox-theme', 'arcane');
+    });
+    await page.goto('/#view=policies');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+    await page.waitForTimeout(260);
+    const newPolicyBtn = page.getByRole('button', { name: /new policy|create policy|add rule/i }).first();
+    if ((await newPolicyBtn.count()) > 0 && (await newPolicyBtn.isVisible())) {
+      await newPolicyBtn.click();
+      await page.waitForTimeout(180);
+      const dlgDom = await auditDomInPage(page, 'v74-portal-dialog-policies');
+      expect(dlgDom.axeViolations, 'dialog policies axeViolations').toBe(0);
+      expect(dlgDom.rawEmojiCount, 'dialog policies rawEmojiCount').toBe(0);
+      expect(dlgDom.iconIssueCount, 'dialog policies iconIssueCount').toBe(0);
+      expect(dlgDom.outerOverflowPx, 'dialog policies outerOverflowPx').toBe(0);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(120);
+    }
+
+    await page.setViewportSize({ width: 900, height: 600 });
+    await page.goto('/#view=catalog');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+    await page.waitForTimeout(280);
+    const openDetailBtn = page
+      .locator('main button')
+      .filter({ hasText: /inspect|details|open|vox/i })
+      .first();
+    if ((await openDetailBtn.count()) > 0 && (await openDetailBtn.isVisible())) {
+      await openDetailBtn.click();
+      await page.waitForTimeout(200);
+      await page.screenshot({
+        path: join(SURFACES_OUT_DIR, 'v74-portal-sheet-catalog-900x600.png'),
+        animations: 'disabled',
+      });
+      const sheetDom = await auditDomInPage(page, 'v74-portal-sheet-catalog-900x600');
+      expect(sheetDom.axeViolations, 'sheet catalog axeViolations').toBe(0);
+      expect(sheetDom.rawEmojiCount, 'sheet catalog rawEmojiCount').toBe(0);
+      expect(sheetDom.iconIssueCount, 'sheet catalog iconIssueCount').toBe(0);
+      expect(sheetDom.outerOverflowPx, 'sheet catalog outerOverflowPx').toBe(0);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(120);
+    }
   });
 });

@@ -125,12 +125,15 @@ async fn best_non_ollama_model_except(
     state: &ServerState,
     exclude_model_id: &str,
 ) -> Option<ModelSpec> {
+    if vox_orchestrator::route_policy::inference_privacy_local_only_from_env() {
+        return None;
+    }
     let orch = &state.orchestrator;
     let mut v: Vec<ModelSpec> = vox_orchestrator::sync_lock::rw_read(&*orch.models_handle())
         .list_models()
         .into_iter()
         .filter(|m| {
-            !matches!(m.provider_type, ProviderType::Ollama)
+            !vox_orchestrator::route_policy::is_local_http_provider(&m.provider_type)
                 && m.id != exclude_model_id
                 && !matches!(m.provider_type, ProviderType::Custom(_))
                 && model_has_available_credentials(m)
@@ -803,7 +806,9 @@ pub async fn mcp_infer_tool_completion(
                         continue;
                     }
                 }
-                if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud {
+                if vox_orchestrator::route_policy::is_local_http_provider(&model.provider_type)
+                    && !tried_secondary_cloud
+                {
                     if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
                         emit_llm_error_event(
                             error_class,
@@ -907,6 +912,7 @@ fn fallback_resolution_for_tier(
         Some("cloud") => McpChatModelResolution {
             allow_cheapest_fallback: false,
             enforce_free_tier_only: false,
+            exclude_local_http: true,
             complexity: base.complexity.max(8),
             ..base
         },

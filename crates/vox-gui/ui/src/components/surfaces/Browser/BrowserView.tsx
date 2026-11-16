@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { backendAvailable, sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
 import { useLabel } from '../../../hooks/useLanguage';
 import {
+  invokeCmd,
   listenAgentEvents,
   listenBrowserFrames,
   listenPreviewAvailable,
@@ -16,6 +16,7 @@ import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
 import { BrowserToolbar, type ControlMode } from './BrowserToolbar';
 import { mapClickToViewport } from './clickMap';
 import type { LaunchMode } from './launchMode';
@@ -95,7 +96,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
   const refreshPreviewStatus = useCallback(async () => {
     try {
-      const status = await invoke<PreviewStatus>('preview_status');
+      const status = await invokeCmd<PreviewStatus>('preview_status');
       setPreview(status);
       if (status.url) setPreviewUrl(status.url);
       if (status.app_dir) setAppDir(status.app_dir);
@@ -106,7 +107,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
   const refreshSessionStatus = useCallback(async () => {
     try {
-      const status = await invoke<{
+      const status = await invokeCmd<{
         page_id: string | null;
         headless: boolean;
         control_mode?: string;
@@ -129,7 +130,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
   const refreshPages = useCallback(async () => {
     try {
-      const list = await invoke<BrowserPageSummary[] | null>('browser_list_pages');
+      const list = await invokeCmd<BrowserPageSummary[] | null>('browser_list_pages');
       const safeList = Array.isArray(list) ? list : [];
       setPages(safeList);
       if (safeList.length === 0) {
@@ -146,7 +147,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       return;
     }
     try {
-      const info = await invoke<BrowserPageInfo>('browser_page_info', {
+      const info = await invokeCmd<BrowserPageInfo>('browser_page_info', {
         input: { page_id: currentPage },
       });
       setPageInfo(info);
@@ -292,7 +293,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     setBusy(true);
     try {
       const status = await Promise.race([
-        invoke<PreviewStatus>('preview_start', {
+        invokeCmd<PreviewStatus>('preview_start', {
           input: {
             url,
             app_dir: appDir.trim() || null,
@@ -332,7 +333,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     }
     setBusy(true);
     try {
-      const status = await invoke<PreviewStatus>('preview_stop');
+      const status = await invokeCmd<PreviewStatus>('preview_stop');
       setPreview(status);
       pushToast({ tone: 'info', title: 'Preview stopped', cause: 'backend-ok' });
     } catch (err) {
@@ -345,7 +346,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const openAgentSession = async () => {
     setBusy(true);
     try {
-      const result = await invoke<{
+      const result = await invokeCmd<{
         page_id: string | null;
         needs_human?: boolean;
         reason?: string | null;
@@ -380,7 +381,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const closeAgentSession = async () => {
     setBusy(true);
     try {
-      await invoke('browser_close_session');
+      await invokeCmd('browser_close_session');
       setPageId(null);
       setFrame(null);
       setPageInfo(null);
@@ -410,7 +411,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
   const captureSnapshot = async () => {
     try {
-      const snap = await invoke<SnapshotPayload>('browser_snapshot');
+      const snap = await invokeCmd<SnapshotPayload>('browser_snapshot');
       setSnapshotRefs(snap.refs ?? {});
     } catch (err) {
       setSnapshotRefs({});
@@ -429,7 +430,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
   const captureFrame = async () => {
     try {
-      const payload = await invoke<BrowserFramePayload>('browser_screenshot_frame');
+      const payload = await invokeCmd<BrowserFramePayload>('browser_screenshot_frame');
       setFrame(payload);
       if (payload.action_log?.length) setActionLog(payload.action_log);
       if (payload.page_id) {
@@ -444,7 +445,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const attachPage = async (selectedPageId: string) => {
     setBusy(true);
     try {
-      await invoke('browser_attach_session', { input: { page_id: selectedPageId } });
+      await invokeCmd('browser_attach_session', { input: { page_id: selectedPageId } });
       setPageId(selectedPageId);
       await refreshSessionStatus();
       await refreshPageInfo(selectedPageId);
@@ -460,7 +461,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const closePage = async (selectedPageId: string) => {
     setBusy(true);
     try {
-      await invoke('browser_close_page', { input: { page_id: selectedPageId } });
+      await invokeCmd('browser_close_page', { input: { page_id: selectedPageId } });
       if (pageId === selectedPageId) {
         setPageId(null);
         setPageInfo(null);
@@ -479,7 +480,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const setControlModeRemote = async (nextMode: ControlMode) => {
     setControlMode(nextMode);
     try {
-      await invoke('browser_set_control_mode', { input: { mode: nextMode } });
+      await invokeCmd('browser_set_control_mode', { input: { mode: nextMode } });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Failed to set control mode', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       await refreshSessionStatus();
@@ -490,7 +491,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     if (!pageId) return;
     setBusy(true);
     try {
-      await invoke('browser_navigate', { input: { action } });
+      await invokeCmd('browser_navigate', { input: { action } });
       await refreshPageInfo(pageId);
       if (showRefs) await captureSnapshot();
     } catch (err) {
@@ -504,7 +505,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     if (!pageId || !agentNavUrl.trim()) return;
     setBusy(true);
     try {
-      await invoke('browser_goto_url', { input: { url: agentNavUrl.trim() } });
+      await invokeCmd('browser_goto_url', { input: { url: agentNavUrl.trim() } });
       await refreshPageInfo(pageId);
       if (showRefs) await captureSnapshot();
     } catch (err) {
@@ -528,7 +529,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     );
     if (!mapped) return;
     try {
-      await invoke('browser_click_xy', { input: mapped });
+      await invokeCmd('browser_click_xy', { input: mapped });
       await captureFrame();
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Click failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -539,7 +540,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     if (!pageId || controlMode !== 'you') return;
     event.preventDefault();
     try {
-      await invoke('browser_scroll', {
+      await invokeCmd('browser_scroll', {
         input: { dx: Math.round(event.deltaX), dy: Math.round(event.deltaY) },
       });
       await captureFrame();
@@ -552,7 +553,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     if (!pageId || controlMode !== 'you') return;
     if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
       event.preventDefault();
-      await invoke('browser_type_text', { input: { text: event.key } });
+      await invokeCmd('browser_type_text', { input: { text: event.key } });
       await captureFrame();
       return;
     }
@@ -572,7 +573,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     ]);
     if (!handledKeys.has(event.key)) return;
     event.preventDefault();
-    await invoke('browser_input_key', { input: { key: event.key } });
+    await invokeCmd('browser_input_key', { input: { key: event.key } });
     await captureFrame();
   };
 
@@ -580,7 +581,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     setBusy(true);
     setValidateOut('');
     try {
-      const result = await invoke<PlaywrightValidateResult>('browser_validate_playwright', {
+      const result = await invokeCmd<PlaywrightValidateResult>('browser_validate_playwright', {
         input: { preview_url: (preview?.url ?? previewUrl.trim()) || null },
       });
       const text = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
@@ -614,15 +615,15 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       let res: unknown = null;
       if (songhandOp === 'act') {
-        res = await invoke('browser_act', {
+        res = await invokeCmd('browser_act', {
           input: { instruction, page_id: pageId },
         });
       } else if (songhandOp === 'extract') {
-        res = await invoke('browser_extract', {
+        res = await invokeCmd('browser_extract', {
           input: { instruction, page_id: pageId },
         });
       } else if (songhandOp === 'extract_json') {
-        res = await invoke('browser_extract_json', {
+        res = await invokeCmd('browser_extract_json', {
           input: {
             instruction,
             schema_json: songhandSchema.trim() || '{"type":"object"}',
@@ -630,11 +631,11 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
           },
         });
       } else if (songhandOp === 'wait_for') {
-        res = await invoke('browser_wait_for', {
+        res = await invokeCmd('browser_wait_for', {
           input: { target: instruction, timeout_secs: 15, page_id: pageId },
         });
       } else {
-        res = await invoke('browser_read_dom', {
+        res = await invokeCmd('browser_read_dom', {
           input: { target: instruction || 'body', html: false, page_id: pageId },
         });
       }
@@ -665,7 +666,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const clickSnapshotRef = async (refId: string) => {
     setBusy(true);
     try {
-      const res = await invoke<{ needs_human?: boolean; reason?: string }>('browser_click_ref', {
+      const res = await invokeCmd<{ needs_human?: boolean; reason?: string }>('browser_click_ref', {
         input: { ref_id: refId, page_id: pageId },
       });
       setActionLog((prev) => [...prev.slice(-(MAX_ACTION_LOG - 1)), `click_ref [${refId}]`]);
@@ -687,7 +688,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     if (!val) return;
     setBusy(true);
     try {
-      const res = await invoke<{ needs_human?: boolean; reason?: string }>('browser_fill_ref', {
+      const res = await invokeCmd<{ needs_human?: boolean; reason?: string }>('browser_fill_ref', {
         input: { ref_id: refId, value: val, page_id: pageId },
       });
       setActionLog((prev) => [...prev.slice(-(MAX_ACTION_LOG - 1)), `fill_ref [${refId}]`]);
@@ -747,27 +748,43 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const candidatePlaywrightUrl =
     activePreviewUrl ?? (isLoopbackPreviewUrl(previewUrl.trim()) ? previewUrl.trim() : null);
 
+  const snapshotRefCount = Object.keys(snapshotRefs).length;
   const browserGauges = [
     {
       label: 'Pages',
       valueText: `${pages.length} Open`,
-      ratio: Math.min(1, pages.length / 5),
+      ratio: Math.max(0, Math.min(1, pages.length / 5)),
       tone: 'gold' as const,
       purpose: 'Active Chrome CDP browser tabs and pages',
+      actionHint: 'Switch to Agent live view',
+      active: tab === 'agent',
+      onClick: () => setTab('agent'),
     },
     {
       label: 'Snapshot',
-      valueText: `${Object.keys(snapshotRefs).length} Refs`,
-      ratio: Math.min(1, Object.keys(snapshotRefs).length / 20),
+      valueText: `${snapshotRefCount} Refs`,
+      ratio: Math.max(0, Math.min(1, snapshotRefCount / 20)),
       tone: 'gold' as const,
       purpose: 'Captured [eN] accessibility element reference nodes',
+      actionHint: 'Inspect [eN] accessibility snapshot refs',
+      active: showRefs,
+      onClick: () => {
+        setTab('agent');
+        if (pageId) void onShowRefsChange(!showRefs);
+      },
     },
     {
       label: 'Control',
       valueText: controlMode.toUpperCase(),
-      ratio: controlMode === 'you' ? 0.35 : 0.85,
+      ratio: controlMode === 'agent' ? 1 : 0,
       tone: controlMode === 'you' ? ('gold' as const) : ('emerald' as const),
       purpose: 'Browser interaction mode (Human vs Autonomous Agent)',
+      actionHint: 'Toggle Human / Agent control lock',
+      active: controlMode === 'agent',
+      onClick: () => {
+        setTab('agent');
+        void setControlModeRemote(controlMode === 'you' ? 'agent' : 'you');
+      },
     },
   ];
 
@@ -967,7 +984,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                     </span>
                   </div>
                   <p className="text-xs text-text-secondary">
-                    Dock Browser side-by-side in Chat (<code className="font-mono text-[11px]">Panels ▾ → Browser</code>) and pipe extracted DOM/snapshots into <code className="font-mono text-[11px]">Loquela</code>.
+                    Dock Browser side-by-side in Chat (<code className="inline-flex items-center gap-0.5 font-mono text-[11px]"><span>Panels</span><Icon.chevronDown className="size-3 inline-block shrink-0" aria-hidden="true" /><span>→ Browser</span></code>) and pipe extracted DOM/snapshots into <code className="font-mono text-[11px]">Loquela</code>.
                   </p>
                 </div>
               </div>
@@ -1055,20 +1072,20 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               </span>
             </div>
             <div className="grid gap-2 md:grid-cols-[200px_1fr_auto]">
-              <select
+              <VoxSelect
                 aria-label="Songhand operation"
                 data-testid="browser-songhand-op"
-                data-unified-knob="true"
                 value={songhandOp}
-                onChange={(e) => setSonghandOp(e.target.value as SonghandOperation)}
-                className="h-9 rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 font-mono text-xs text-text-primary focus:border-brass focus:outline-none"
-              >
-                <option value="act">Songhand Act (LLM)</option>
-                <option value="extract">Extract (Natural Language)</option>
-                <option value="extract_json">Extract JSON (Schema)</option>
-                <option value="wait_for">Wait For Selector</option>
-                <option value="read_dom">Read DOM Text</option>
-              </select>
+                onValueChange={(v) => setSonghandOp(v as SonghandOperation)}
+                options={[
+                  { value: 'act', label: 'Songhand Act (LLM)' },
+                  { value: 'extract', label: 'Extract (Natural Language)' },
+                  { value: 'extract_json', label: 'Extract JSON (Schema)' },
+                  { value: 'wait_for', label: 'Wait For Selector' },
+                  { value: 'read_dom', label: 'Read DOM Text' },
+                ]}
+                className="h-9 rounded-lg border-border-subtle bg-overlay-subtle px-2.5 font-mono text-xs text-text-primary"
+              />
               <input
                 aria-label="Songhand instruction"
                 data-testid="browser-songhand-input"

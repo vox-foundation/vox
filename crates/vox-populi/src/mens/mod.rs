@@ -36,6 +36,12 @@ pub mod hub_card;
 #[cfg(feature = "mens-hf-hub")]
 pub mod hub_cards_push;
 
+#[cfg(feature = "mens-hf-hub")]
+pub mod hub_dataset;
+
+#[cfg(feature = "mens-hf-hub")]
+pub mod peft_export;
+
 #[cfg(feature = "mens-cloud")]
 pub mod cloud;
 
@@ -102,6 +108,7 @@ pub fn default_model_id() -> String {
     resolve_default_model_id(std::env::var("VOX_MENS_DEFAULT_MODEL").ok().as_deref())
 }
 
+pub use tensor::spoke_base_resolver::KNOWN_PRESETS;
 pub use tensor::{
     DeviceKind, GpuInfo, apply_backend_env, detect_gpu_vendor, estimate_training_vram_mb,
     estimate_training_vram_mb_qlora, normalize_device, print_gpu_summary, print_gpu_summary_for,
@@ -117,7 +124,7 @@ pub use tensor::artifact_bridge::MERGE_QLORA_REJECTS_BURN_BIN;
 pub use tensor::operator_messages;
 #[cfg(feature = "mens-train")]
 pub use tensor::{
-    CliOverrides, DEFAULT_PRESET, DatasetProfile, DeviceProfile, KNOWN_PRESETS, TrainPresetProfile,
+    CliOverrides, DEFAULT_PRESET, DatasetProfile, DeviceProfile, TrainPresetProfile,
     TrainPresetRegistry, load_registry, resolve_effective_profile,
 };
 #[cfg(feature = "mens-train")]

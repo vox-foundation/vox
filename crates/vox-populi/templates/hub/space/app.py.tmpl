@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import threading
@@ -15,6 +16,34 @@ NAMESPACE = os.environ.get("VOX_MENS_HF_NAMESPACE", "{{NAMESPACE}}")
 INDEX_REPO = f"{NAMESPACE}/vox-mens-index"
 PROMPT_PREFIX = "Write a Vox program that: "
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
+
+VOX_SYSTEM_PROMPT = """You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack language that compiles to native Rust and TypeScript.
+
+## Rules
+- Brace-delimited blocks, no semicolons, no significant indentation. Comments are `//` and `///`.
+- Return types use `to`: `fn name(p: T) to U { ... }`. Never `->` for returns (`->` appears only in `state_machine` transitions).
+- No null: use `Option[T]`, `Result[T]` (or `Result[T, E]` at API boundaries), and tagged unions.
+- `let x = expr`, `let mut x = expr`, `return expr`, `if c { } else { }`, `for x in xs { }`, `match e { Variant(f) => body }`.
+- Operators are `and`, `or`, `not`, `is`, `is not`.
+
+## Declarations (bare keywords)
+- `type Name { field: T }`, `type Name = | A | B(field: T)`
+- `table Name { field: T }`, `query name(p: T) to U { }`, `mutation name(p: T) to U { }`, `server name(p: T) to U { }`
+- `tool "name: description" name(p: T) to U { }`, `resource "uri" "description" name() to U { }`
+- `component Name() { view: column() { text() { "{x}" } } }`
+- `actor Name { on handler(p: T) to U { } }`, `spawn(Name)`
+- `workflow name(p: T) to Result[U] { }` calling `activity name(p: T) to Result[U] { }`
+- `routes { "/" to Home }`, `state_machine Name { state A state B on Ev() from A -> B }`, `import module.name`
+- Modifiers: `@test`, `@pure`, `@uses(net)`, `@scheduled("1h")`, `@auth(scheme: bearer)`, `@deprecated`, `@durable`."""
+
+ACTIVE_SIZES: List[str] = ["0.8B", "2B", "4B", "9B", "27B"]
+LADDER_DEFAULTS: Dict[str, Dict[str, Any]] = {
+    "0.8B": {"family": "qwen3.5", "base": "Qwen/Qwen3.5-0.8B", "slug": "vox-mens-qwen3.5-0.8b", "no_think_switch": False},
+    "2B": {"family": "qwen3.5", "base": "Qwen/Qwen3.5-2B", "slug": "vox-mens-qwen3.5-2b", "no_think_switch": False},
+    "4B": {"family": "qwen3.5", "base": "Qwen/Qwen3.5-4B", "slug": "vox-mens-qwen3.5-4b", "no_think_switch": False},
+    "9B": {"family": "qwen3.5", "base": "Qwen/Qwen3.5-9B", "slug": "vox-mens-qwen3.5-9b", "no_think_switch": False},
+    "27B": {"family": "qwen3.8", "base": "Qwen/Qwen3.8-27B", "slug": "vox-mens-qwen3.8-27b", "no_think_switch": False},
+}
 
 
 def fetch_hub_json(repo_id: str, filename: str) -> Optional[Dict[str, Any]]:
@@ -33,19 +62,49 @@ def load_live_ladder_index() -> List[Dict[str, Any]]:
     return data["sizes"]
 
 
-def resolve_target_linear_module(
-    model: torch.nn.Module, logical: str, weight_key: str
-) -> Optional[torch.nn.Module]:
-    # Per vox-plugin-mens-candle-metal/src/inference.rs (`lm_head_weight`):
-    # A tied model's head is backed by `model.embed_tokens.weight` in `base_key_map`,
-    # but only the output `lm_head` linear projection takes the LoRA delta; the token
-    # embedding lookup reads the unmodified base tensor.
-    if logical == "lm_head":
-        return getattr(model, "lm_head", None)
-    if not weight_key.endswith(".weight"):
-        return None
-    mod_path = weight_key[: -len(".weight")]
-    cur = model
+def infer_family(base_or_repo: str, size_label: str) -> str:
+    low = base_or_repo.lower()
+    if "qwen3.8" in low:
+        return "qwen3.8"
+    if "qwen3.5" in low:
+        return "qwen3.5"
+    if "qwen3-" in low:
+        return "qwen3"
+    return LADDER_DEFAULTS.get(size_label, {}).get("family", "qwen3")
+
+
+def resolve_ladder_meta(size_label: str) -> Dict[str, Any]:
+    default = LADDER_DEFAULTS.get(
+        size_label,
+        {
+            "family": "qwen3",
+            "base": f"Qwen/Qwen3-{size_label}",
+            "slug": f"vox-mens-qwen3-{size_label.lower()}",
+            "no_think_switch": True,
+        },
+    )
+    meta = {
+        "size": size_label,
+        "family": default["family"],
+        "base": default["base"],
+        "repo_id": f"{NAMESPACE}/{default['slug']}",
+        "no_think_switch": default["no_think_switch"],
+    }
+    for row in load_live_ladder_index():
+        if str(row.get("size", "")).upper() == size_label.upper():
+            if row.get("repo_id"):
+                meta["repo_id"] = str(row["repo_id"])
+            if row.get("base_pin"):
+                meta["base"] = str(row["base_pin"])
+            fam = str(row.get("family") or infer_family(meta["base"] + " " + meta["repo_id"], size_label))
+            meta["family"] = fam
+            meta["no_think_switch"] = fam == "qwen3"
+            break
+    return meta
+
+
+def _traverse_module_path(model: torch.nn.Module, mod_path: str) -> Optional[torch.nn.Module]:
+    cur: Any = model
     for part in mod_path.split("."):
         if not hasattr(cur, part):
             return None
@@ -53,22 +112,78 @@ def resolve_target_linear_module(
     return cur
 
 
-class CandleLoRAArm:
-    """Attaches `candle_qlora_adapter.safetensors` (`{logical}.lora_{a,b}.weight`) to a base CausalLM via `adapter_manifest.json`'s `base_key_map`."""
+def resolve_target_linear_module(
+    model: torch.nn.Module, logical: str, weight_key: str
+) -> Optional[torch.nn.Module]:
+    if logical == "lm_head" or weight_key in ("lm_head.weight", "model.lm_head.weight"):
+        return getattr(model, "lm_head", None)
+    if not weight_key.endswith(".weight"):
+        return None
+    mod_path = weight_key[: -len(".weight")]
+    candidates = [mod_path]
+    if mod_path.startswith("model.language_model."):
+        candidates.append("model." + mod_path[len("model.language_model.") :])
+    elif mod_path.startswith("model."):
+        candidates.append("model.language_model." + mod_path[len("model.") :])
+    for cand in candidates:
+        found = _traverse_module_path(model, cand)
+        if found is not None:
+            return found
+    return None
 
-    def __init__(self, model: torch.nn.Module, manifest: Dict[str, Any], tensors: Dict[str, torch.Tensor]):
+
+def resolve_use_rslora(
+    manifest: Optional[Dict[str, Any]],
+    training_manifest: Optional[Dict[str, Any]],
+    adapter_meta_v2: Optional[Dict[str, Any]],
+    peft_config: Optional[Dict[str, Any]],
+) -> bool:
+    for src in (peft_config, manifest, training_manifest, adapter_meta_v2):
+        if isinstance(src, dict) and isinstance(src.get("use_rslora"), bool):
+            return src["use_rslora"]
+    return False
+
+
+class CandleLoRAArm:
+    """Attaches Candle (`{logical}.lora_{a,b}.weight`) or PEFT (`lora_{A,B}.weight`) adapters with rsLoRA scaling."""
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        manifest: Dict[str, Any],
+        tensors: Dict[str, torch.Tensor],
+        use_rslora: bool = False,
+        peft_config: Optional[Dict[str, Any]] = None,
+    ):
         self.enabled = True
         self._handles = []
-        rank = max(int(manifest.get("rank", 16)), 1)
-        alpha = float(manifest.get("alpha", 32.0))
-        scale = alpha / float(rank)
+        rank = max(int((peft_config or {}).get("r") or manifest.get("rank", 16)), 1)
+        alpha = float((peft_config or {}).get("lora_alpha") or manifest.get("alpha", 32.0))
+        scale = alpha / math.sqrt(rank) if use_rslora else alpha / float(rank)
         base_key_map: Dict[str, str] = manifest.get("base_key_map", {})
 
-        for logical, base_key in base_key_map.items():
-            a_key = f"{logical}.lora_a.weight"
-            b_key = f"{logical}.lora_b.weight"
-            if a_key not in tensors or b_key not in tensors:
-                continue
+        pairs: List[Tuple[str, str, str, str]] = []
+        if base_key_map:
+            for logical, base_key in base_key_map.items():
+                a_key = f"{logical}.lora_a.weight"
+                b_key = f"{logical}.lora_b.weight"
+                if a_key in tensors and b_key in tensors:
+                    pairs.append((logical, base_key, a_key, b_key))
+        if not pairs:
+            for key in tensors:
+                m = re.match(r"^(.*)\.lora_([aA])(?:\.default)?\.weight$", key)
+                if not m:
+                    continue
+                prefix, letter = m.group(1), m.group(2)
+                b_letter = "B" if letter == "A" else "b"
+                for cand_b in (f"{prefix}.lora_{b_letter}.weight", f"{prefix}.lora_{b_letter}.default.weight"):
+                    if cand_b in tensors:
+                        stem = re.sub(r"^base_model\.model\.", "", prefix)
+                        logical = "lm_head" if stem == "lm_head" else stem
+                        pairs.append((logical, f"{stem}.weight", key, cand_b))
+                        break
+
+        for logical, base_key, a_key, b_key in pairs:
             mod = resolve_target_linear_module(model, logical, base_key)
             if mod is None:
                 continue
@@ -92,13 +207,16 @@ class CandleLoRAArm:
 
 @lru_cache(maxsize=2)
 def load_model_and_adapter(
-    repo_id: str, size_label: str = "0.6B"
-) -> Tuple[Any, Any, CandleLoRAArm, Dict[str, Any], threading.Lock]:
-    manifest_path = hf_hub_download(repo_id=repo_id, filename="adapter_manifest.json")
-    with open(manifest_path, "r", encoding="utf-8") as f:
-        manifest = json.load(f)
+    repo_id: str, size_label: str = "0.8B"
+) -> Tuple[Any, Any, CandleLoRAArm, Dict[str, Any], threading.Lock, bool]:
+    manifest = fetch_hub_json(repo_id, "adapter_manifest.json") or {}
+    training_manifest = fetch_hub_json(repo_id, "training_manifest.json")
+    adapter_meta_v2 = fetch_hub_json(repo_id, "adapter_meta_v2.json")
+    peft_config = fetch_hub_json(repo_id, "peft/adapter_config.json") or fetch_hub_json(repo_id, "adapter_config.json")
+    use_rslora = resolve_use_rslora(manifest, training_manifest, adapter_meta_v2, peft_config)
 
-    default_base_repo = f"Qwen/Qwen3-{size_label}"
+    meta = resolve_ladder_meta(size_label)
+    default_base_repo = meta["base"].split("@", 1)[0]
     adapter_card = fetch_hub_json(repo_id, "adapter_card.json") or {}
     sync_manifest = fetch_hub_json(repo_id, "hf_sync_manifest.json") or {}
     base_pin = str(
@@ -106,7 +224,7 @@ def load_model_and_adapter(
         or adapter_card.get("base_model")
         or sync_manifest.get("base_pin")
         or manifest.get("base_model")
-        or default_base_repo
+        or meta["base"]
     ).strip()
     if "@" in base_pin:
         base_repo, base_rev = base_pin.split("@", 1)
@@ -128,18 +246,33 @@ def load_model_and_adapter(
     )
     model.eval()
 
-    st_path = hf_hub_download(repo_id=repo_id, filename="candle_qlora_adapter.safetensors")
+    st_path = None
+    for candidate in ("candle_qlora_adapter.safetensors", "peft/adapter_model.safetensors", "adapter_model.safetensors"):
+        try:
+            st_path = hf_hub_download(repo_id=repo_id, filename=candidate)
+            break
+        except Exception:
+            continue
+    if st_path is None:
+        raise FileNotFoundError(f"No Candle or PEFT adapter weights found in {repo_id}")
     tensors = load_file(st_path, device="cpu")
-    arm = CandleLoRAArm(model, manifest, tensors)
+    arm = CandleLoRAArm(model, manifest, tensors, use_rslora=use_rslora, peft_config=peft_config)
+    uses_no_think_switch = infer_family(base_repo + " " + repo_id, size_label) == "qwen3"
     lock = threading.Lock()
-    return tokenizer, model, arm, manifest, lock
+    return tokenizer, model, arm, {**manifest, "use_rslora": use_rslora}, lock, uses_no_think_switch
 
 
-def format_qwen_nothink_prompt(description: str) -> str:
-    text = description.strip()
+def format_qwen_nothink_prompt(description: str, uses_no_think_switch: bool = False) -> str:
+    text = re.sub(r"\s*/no_think\b", "", description).strip()
     if not text.startswith(PROMPT_PREFIX):
         text = f"{PROMPT_PREFIX}{text}"
-    return f"<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+    if uses_no_think_switch:
+        text = f"{text} /no_think"
+    return (
+        f"<|im_start|>system\n{VOX_SYSTEM_PROMPT}<|im_end|>\n"
+        f"<|im_start|>user\n{text}<|im_end|>\n"
+        f"<|im_start|>assistant\n<think>\n\n</think>\n\n"
+    )
 
 
 def decode_once(tokenizer: Any, model: Any, raw_prompt: str, max_new_tokens: int) -> str:
@@ -159,14 +292,15 @@ def decode_once(tokenizer: Any, model: Any, raw_prompt: str, max_new_tokens: int
 
 
 def run_side_by_side(size_label: str, description: str, max_new_tokens: int) -> Tuple[str, str, str]:
-    repo_id = f"{NAMESPACE}/vox-mens-qwen3-{size_label.lower()}"
+    meta_row = resolve_ladder_meta(size_label)
+    repo_id = meta_row["repo_id"]
     try:
-        tokenizer, model, arm, manifest, lock = load_model_and_adapter(repo_id, size_label)
+        tokenizer, model, arm, manifest, lock, uses_no_think_switch = load_model_and_adapter(repo_id, size_label)
     except Exception as exc:
         msg = f"Adapter weights not yet published in {repo_id}: {exc}"
         return msg, msg, msg
 
-    raw_prompt = format_qwen_nothink_prompt(description)
+    raw_prompt = format_qwen_nothink_prompt(description, uses_no_think_switch=uses_no_think_switch)
     with lock:
         arm.enabled = False
         base_out = decode_once(tokenizer, model, raw_prompt, max_new_tokens)
@@ -174,13 +308,13 @@ def run_side_by_side(size_label: str, description: str, max_new_tokens: int) -> 
         adapter_out = decode_once(tokenizer, model, raw_prompt, max_new_tokens)
     meta = (
         f"Loaded `{repo_id}` (`rank={manifest.get('rank')}`, `alpha={manifest.get('alpha')}`, "
-        f"`{len(arm._handles)}` LoRA projections attached)"
+        f"`use_rslora={manifest.get('use_rslora', False)}`, `{len(arm._handles)}` LoRA projections attached)"
     )
     return meta, base_out, adapter_out
 
 
 def load_heldout_items(size_label: str) -> Tuple[gr.Dropdown, str, str, str]:
-    repo_id = f"{NAMESPACE}/vox-mens-qwen3-{size_label.lower()}"
+    repo_id = resolve_ladder_meta(size_label)["repo_id"]
     base_rep = fetch_hub_json(repo_id, "evidence/heldout_base_nothink.json")
     adap_rep = fetch_hub_json(repo_id, "evidence/heldout_adapter_nothink.json")
     if not base_rep or not adap_rep:
@@ -211,7 +345,7 @@ def load_heldout_items(size_label: str) -> Tuple[gr.Dropdown, str, str, str]:
 def inspect_heldout_item(size_label: str, item_id: Optional[str]) -> Tuple[str, str, str]:
     if not item_id:
         return "", "", ""
-    repo_id = f"{NAMESPACE}/vox-mens-qwen3-{size_label.lower()}"
+    repo_id = resolve_ladder_meta(size_label)["repo_id"]
     base_rep = fetch_hub_json(repo_id, "evidence/heldout_base_nothink.json") or {}
     adap_rep = fetch_hub_json(repo_id, "evidence/heldout_adapter_nothink.json") or {}
     br = next((r for r in base_rep.get("results", []) if r.get("id") == item_id), {})
@@ -232,23 +366,24 @@ def build_ladder_markdown() -> str:
     if not rows:
         return f"Could not fetch `{INDEX_REPO}/ladder_index.json`."
     lines = [
-        "| Size | Gate Status | Hub Sync Status | Version | Repository |",
-        "| :--- | :--- | :--- | :--- | :--- |",
+        "| Size | Family | Gate Status | Hub Sync Status | Version | Repository |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- |",
     ]
     for r in rows:
         size = r.get("size", "")
+        family = r.get("family") or infer_family(str(r.get("base_pin") or r.get("repo_id") or ""), size)
         gate = r.get("gate_status") or "not evaluated"
         sync = r.get("sync_status", "")
         ver = r.get("latest_version") or "—"
         repo = r.get("repo_id", "")
-        lines.append(f"| **{size}** | `{gate}` | `{sync}` | `{ver}` | [{repo}](https://huggingface.co/{repo}) |")
+        lines.append(f"| **{size}** | `{family}` | `{gate}` | `{sync}` | `{ver}` | [{repo}](https://huggingface.co/{repo}) |")
     return "\n".join(lines)
 
 
-with gr.Blocks(title="Vox MENS Qwen3 Playground") as demo:
+with gr.Blocks(title="Vox MENS Coding Playground") as demo:
     gr.Markdown(
-        f"# ⚡ Vox MENS — Qwen3 QLoRA Adapter Playground\n"
-        f"Live Hub state from [`{INDEX_REPO}`](https://huggingface.co/{INDEX_REPO}) and [`voxlang.org/reference/mens-models/`](https://voxlang.org/reference/mens-models/)."
+        f"# ⚡ Vox MENS — AI Coding Playground for Vox\n"
+        f"Compare compiler-verified Vox coding models side by side against base Qwen models using live checkpoints from [`{INDEX_REPO}`](https://huggingface.co/{INDEX_REPO}) · [Vox & Python Guide](https://voxlang.org/reference/mens-models/#vox-and-python-bindings)."
     )
     ladder_md = gr.Markdown(value=build_ladder_markdown)
     refresh_btn = gr.Button("Refresh Live Hub Ladder State", size="sm")
@@ -258,8 +393,8 @@ with gr.Blocks(title="Vox MENS Qwen3 Playground") as demo:
         with gr.Tab("Live Model Inference (Base vs MENS Adapter)"):
             with gr.Row():
                 infer_size = gr.Dropdown(
-                    choices=["0.6B", "1.7B", "4B", "8B", "14B"],
-                    value="0.6B",
+                    choices=ACTIVE_SIZES,
+                    value="0.8B",
                     label="Ladder Size",
                 )
                 max_toks = gr.Slider(minimum=32, maximum=512, step=32, value=256, label="Max New Tokens")
@@ -271,8 +406,8 @@ with gr.Blocks(title="Vox MENS Qwen3 Playground") as demo:
             run_btn = gr.Button("Generate Side-by-Side (Greedy T=0)", variant="primary")
             status_md = gr.Markdown()
             with gr.Row():
-                base_code = gr.Code(label="Base Qwen3 Output", language="typescript")
-                adap_code = gr.Code(label="MENS QLoRA Adapter Output", language="typescript")
+                base_code = gr.Code(label="Base Qwen Output", language="typescript")
+                adap_code = gr.Code(label="Vox MENS Coding Assistant Output", language="typescript")
             run_btn.click(
                 fn=run_side_by_side,
                 inputs=[infer_size, prompt_box, max_toks],
@@ -281,8 +416,8 @@ with gr.Blocks(title="Vox MENS Qwen3 Playground") as demo:
 
         with gr.Tab("Live Hub Held-Out Evidence Explorer"):
             ev_size = gr.Dropdown(
-                choices=["0.6B", "1.7B", "4B", "8B", "14B"],
-                value="0.6B",
+                choices=ACTIVE_SIZES,
+                value="0.8B",
                 label="Ladder Size",
             )
             ev_item = gr.Dropdown(choices=[], label="Held-Out Benchmark Item (52 items)")

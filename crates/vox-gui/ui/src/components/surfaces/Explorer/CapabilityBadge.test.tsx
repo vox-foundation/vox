@@ -4,19 +4,24 @@ import { render } from '@testing-library/react';
 import { CapabilityBadge, CapabilityTag, type CapabilityStatus, type CapabilityTagKind } from './CapabilityBadge';
 
 describe('CapabilityBadge', () => {
-  const statuses: { status: CapabilityStatus; label: string; glyph: string }[] = [
-    { status: 'dedicated', label: 'Dedicated surface', glyph: '✓' },
+  const statuses: { status: CapabilityStatus; label: string; glyph?: string; icon?: string }[] = [
+    { status: 'dedicated', label: 'Dedicated surface', icon: 'check' },
     { status: 'generic_form', label: 'Generic form', glyph: '≡' },
     { status: 'cli_only', label: 'CLI-only', glyph: '>_' },
-    { status: 'mcp_only', label: 'MCP-only / orphan', glyph: '◇' },
+    { status: 'mcp_only', label: 'MCP-only / orphan', icon: 'crystalGem' },
   ];
 
-  for (const { status, label, glyph } of statuses) {
+  for (const { status, label, glyph, icon } of statuses) {
     it(`renders label and glyph for status '${status}'`, () => {
       const { container } = render(<CapabilityBadge status={status} />);
       const text = container.textContent ?? '';
       expect(text).toContain(label);
-      expect(text).toContain(glyph);
+      if (icon) {
+        expect(container.querySelector(`[data-icon="${icon}"]`)).not.toBeNull();
+      }
+      if (glyph) {
+        expect(text).toContain(glyph);
+      }
       const className = container.firstElementChild?.className ?? '';
       expect(className).not.toMatch(/\b(sky|zinc|cyan|emerald)-/);
     });

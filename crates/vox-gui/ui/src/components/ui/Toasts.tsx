@@ -36,11 +36,12 @@ export function Toasts({ items, onClose }: ToastsProps) {
       aria-live="polite"
       aria-atomic="false"
       role="status"
+      data-slot="toast-viewport"
       data-testid="toast-stack"
-      className="pointer-events-none fixed bottom-20 right-6 z-40 flex w-[320px] flex-col gap-2"
+      className="pointer-events-none fixed bottom-20 right-6 z-(--z-toast) flex w-[320px] flex-col gap-2"
     >
       {items.map(t => (
-        <div key={t.id} className="pointer-events-auto rounded-xl border border-border-subtle bg-bg-base/90 p-3 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] animate-vox-toast-in">
+        <div key={t.id} data-slot="toast" className="pointer-events-auto rounded-xl border border-border-subtle bg-popover/95 p-3 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] animate-vox-toast-in">
           <div className="flex items-start gap-2">
             <div className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm ${TONE_ICON_CLASS[t.tone]}`}>
               {t.tone === "ok" ? <Icon.check className="size-3.5" aria-hidden="true"/> : t.tone === "warn" || t.tone === "error" ? <Icon.alert className="size-3.5" aria-hidden="true"/> : <Icon.bolt className="size-3.5" aria-hidden="true"/>}
@@ -55,7 +56,12 @@ export function Toasts({ items, onClose }: ToastsProps) {
                 )}
               </div>
               {t.body && <div className="mt-0.5 text-[11px] text-text-muted">{t.body}</div>}
-              {t.cmd && <div className="mt-1 font-mono text-[11px] text-text-muted">▸ {t.cmd}</div>}
+              {t.cmd && (
+                <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-text-muted">
+                  <Icon.chevR className="size-3 shrink-0" aria-hidden="true" />
+                  <span>{t.cmd}</span>
+                </div>
+              )}
               {t.action && (
                 <button
                   type="button"
@@ -72,7 +78,7 @@ export function Toasts({ items, onClose }: ToastsProps) {
               aria-label="Dismiss notification"
               className="text-text-muted hover:text-text-primary"
             >
-              <Icon.x className="size-3.5" aria-hidden="true"/>
+              <Icon.close className="size-3.5" aria-hidden="true"/>
             </button>
           </div>
         </div>

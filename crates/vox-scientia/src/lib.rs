@@ -16,6 +16,7 @@
 
 // ── Pre-existing modules ──────────────────────────────────────────────────────
 pub mod claim_extractor;
+pub mod embedder;
 pub mod ingest;
 pub mod inspect_bridge;
 pub mod nanopub;
@@ -50,6 +51,18 @@ pub mod review_flow;
 
 // ── P3 Phase 4: LLM-assisted advisory evidence/conclusion suggestions ────────
 pub mod evidence_assist;
+
+/// Compute lowercase hex SHA3-256 compliance hash via `vox_crypto`.
+#[must_use]
+pub fn compliance_hash_hex(data: &[u8]) -> String {
+    vox_crypto::hex_encode(&vox_crypto::compliance_hash(data))
+}
+
+/// Compute lowercase hex SHA-256 interoperability hash via `vox_crypto`.
+#[must_use]
+pub fn interop_sha256_hex(data: &[u8]) -> String {
+    vox_crypto::hex_encode(&vox_crypto::interop_sha256(data))
+}
 
 #[cfg(test)]
 mod semcov_wave24_tests {

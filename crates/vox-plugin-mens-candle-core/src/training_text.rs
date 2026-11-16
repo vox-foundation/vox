@@ -16,7 +16,7 @@ pub fn chatml_prefix_open_assistant(
     cfg: &ChatmlConfig,
 ) -> String {
     let reasoning = qwen_reasoning::has_reasoning_trace(assistant);
-    let user = qwen_reasoning::user_for_mode(user, reasoning);
+    let user = qwen_reasoning::user_for_mode_with_switch(user, reasoning, cfg.user_no_think_switch);
     let tail = if reasoning { "" } else { QWEN_EMPTY_THINK };
     format!(
         "{start}{sys}\n{system}{end}\n\
@@ -43,7 +43,7 @@ pub fn chatml_prefix_for_lane(system: &str, user: &str, lane: Lane, cfg: &Chatml
     if lane == Lane::Codegen {
         return chatml_prefix_open_assistant(system, user, "", cfg);
     }
-    let user = qwen_reasoning::user_for_lane(user, lane);
+    let user = qwen_reasoning::user_for_lane_with_switch(user, lane, cfg.user_no_think_switch);
     let tail = qwen_reasoning::assistant_opener_for_lane(lane);
     format!(
         "{start}{sys}\n{system}{end}\n\
@@ -113,7 +113,7 @@ pub fn chatml_supervised_text(
     cfg: &ChatmlConfig,
 ) -> String {
     let reasoning = qwen_reasoning::has_reasoning_trace(assistant);
-    let user = qwen_reasoning::user_for_mode(user, reasoning);
+    let user = qwen_reasoning::user_for_mode_with_switch(user, reasoning, cfg.user_no_think_switch);
     let assistant = qwen_reasoning::assistant_body(assistant);
     format!(
         "{start}{sys}\n{system}{end}\n\
@@ -145,7 +145,11 @@ fn fuse_turns(
             out[i].content = format!("{QWEN_EMPTY_THINK}{}", out[i].content);
         }
         if let Some(u) = out[..i].iter().rposition(|t| t.role == cfg.role_user) {
-            out[u].content = qwen_reasoning::user_for_mode(&out[u].content, false);
+            out[u].content = qwen_reasoning::user_for_mode_with_switch(
+                &out[u].content,
+                false,
+                cfg.user_no_think_switch,
+            );
         }
     }
     out
@@ -358,5 +362,25 @@ mod tests {
         let prefix = chatml_prefix_open_assistant("S", "U /no_think", "code", &cfg);
         assert_eq!(prefix.matches("/no_think").count(), 1, "{prefix}");
         assert!(prefix.ends_with(QWEN_EMPTY_THINK));
+    }
+
+    #[test]
+    fn user_no_think_switch_false_omits_suffix_while_keeping_empty_think_prefill() {
+        let cfg = ChatmlConfig {
+            user_no_think_switch: false,
+            ..Default::default()
+        };
+        let full = chatml_supervised_text("S", "U", "code", &cfg);
+        let prefix = chatml_prefix_open_assistant("S", "U", "code", &cfg);
+        assert!(full.starts_with(&prefix));
+        assert!(!prefix.contains("/no_think"));
+        assert!(prefix.contains("<|im_start|>user\nU<|im_end|>\n"));
+        assert!(prefix.ends_with(QWEN_EMPTY_THINK));
+        assert_eq!(&full[prefix.len()..], format!("code{}", cfg.im_end));
+
+        let turns = vec![turn("user", "U"), turn("assistant", "code")];
+        let full_turns = chatml_turns_text(&turns, &cfg);
+        assert!(!full_turns.contains("/no_think"));
+        assert!(full_turns.contains(QWEN_EMPTY_THINK));
     }
 }

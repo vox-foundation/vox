@@ -121,6 +121,8 @@ describe('NoveltyEvidencePanel', () => {
     const { container, rerender } = render(<NoveltyEvidencePanel assessment={notNovel} />);
     expect(screen.getByRole('list')).toBeTruthy();
     rerender(<NoveltyEvidencePanel assessment={insufficient} />);
-    expect(container.querySelector('[aria-hidden="true"]')?.textContent).toBe('⚠');
+    const hiddenIcon = container.querySelector('svg[aria-hidden="true"]');
+    expect(hiddenIcon).toBeTruthy();
+    expect(hiddenIcon?.tagName.toLowerCase()).toBe('svg');
   });
 });

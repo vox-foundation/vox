@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import { Glass } from '../../ui/Glass';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { Toast } from '../../../types/tauri';
@@ -37,7 +37,7 @@ export function MensServePanel({ pushToast }: MensServePanelProps) {
 
   useEffect(() => {
     let cancelled = false;
-    invoke<MensServeStatus>('mens_serve_status')
+    invokeCmd<MensServeStatus>('mens_serve_status')
       .then((s) => {
         if (cancelled || !s) return;
         setRunning(s.running);
@@ -57,7 +57,7 @@ export function MensServePanel({ pushToast }: MensServePanelProps) {
   useEffect(() => {
     let cancelled = false;
     const poll = () => {
-      invoke<{ provider: string; local_reachable: boolean | null; local_models: string[] }[]>(
+      invokeCmd<{ provider: string; local_reachable: boolean | null; local_models: string[] }[]>(
         'inference_provider_status'
       )
         .then((statuses) => {
@@ -81,7 +81,7 @@ export function MensServePanel({ pushToast }: MensServePanelProps) {
   const start = async () => {
     setBusy(true);
     try {
-      const status = await invoke<MensServeStatus>('mens_serve_start', {
+      const status = await invokeCmd<MensServeStatus>('mens_serve_start', {
         model,
         port: port ?? null,
       });
@@ -98,7 +98,7 @@ export function MensServePanel({ pushToast }: MensServePanelProps) {
   const stop = async () => {
     setBusy(true);
     try {
-      const status = await invoke<MensServeStatus>('mens_serve_stop');
+      const status = await invokeCmd<MensServeStatus>('mens_serve_stop');
       setRunning(status.running);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'mens serve stop failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });

@@ -13,6 +13,6 @@ path = "src/lib.rs"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
-vox-orchestrator = { path = "../vox-orchestrator" }
-vox-orchestrator-types = { path = "../vox-orchestrator-types" }
+vox-orchestrator = { workspace = true }
+vox-orchestrator-types = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }

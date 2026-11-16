@@ -6,6 +6,10 @@ use std::time::Instant;
 use serde::Serialize;
 use serde_json::{Value, json};
 use vox_db::kb_text::{FindingOrigin, SanitizedText};
+use vox_orchestrator_types::socrates_policy::{
+    CragEscalationPolicy, EscalationReason, ResearchContinuumMode, ResearchContinuumTier,
+};
+use vox_research_shim::research::types::{ResearchDomainMode, ResearchHit, ResearchScope};
 use vox_search::memory_hybrid::HybridSearchHit;
 use vox_search::web_dispatcher::{ProviderStatus, WebSearchDispatcher};
 
@@ -60,6 +64,12 @@ pub struct RoleModel {
 #[derive(Debug)]
 pub struct ResearchTrace {
     pub intent: ResearchIntent,
+    pub continuum_tier: ResearchContinuumTier,
+    pub escalated_from: Option<ResearchContinuumTier>,
+    pub escalation_reason: Option<EscalationReason>,
+    pub domain_mode: ResearchDomainMode,
+    pub scope: ResearchScope,
+    pub waves: usize,
     pub stages: Vec<StageRecord>,
     pub sources: Vec<Source>,
     /// The headline model: the id that actually answered (see [`Self::set_model`]).
@@ -114,15 +124,33 @@ impl ResearchTrace {
         self.set_model(requested.unwrap_or(resolved), Some(resolved));
     }
     pub fn new(intent: ResearchIntent) -> Self {
+        let continuum_tier = intent.initial_tier;
+        let domain_mode = intent.domain_mode;
+        let scope = intent.scope.clone();
+        let waves = intent.waves;
         let detection = StageRecord::new(
             "detection",
             "ok",
             None,
             format!("{} — {}", mode_str(intent.mode), intent.reasons.join("; ")),
-            json!({ "explicit": intent.explicit, "reasons": intent.reasons }),
+            json!({
+                "explicit": intent.explicit,
+                "reasons": intent.reasons,
+                "continuum_mode": intent.continuum_mode.as_str(),
+                "initial_tier": continuum_tier.as_str(),
+                "scope": scope_str(&scope),
+                "domain_mode": domain_mode.as_str(),
+                "waves": waves,
+            }),
         );
         Self {
             intent,
+            continuum_tier,
+            escalated_from: None,
+            escalation_reason: None,
+            domain_mode,
+            scope,
+            waves,
             stages: vec![detection],
             sources: Vec::new(),
             model: None,
@@ -132,12 +160,34 @@ impl ResearchTrace {
         }
     }
 
+    pub fn record_escalation(
+        &mut self,
+        from: ResearchContinuumTier,
+        to: ResearchContinuumTier,
+        reason: EscalationReason,
+    ) {
+        self.escalated_from = Some(from);
+        self.continuum_tier = to;
+        self.escalation_reason = Some(reason);
+        self.push(StageRecord::new(
+            "continuum_escalation",
+            "ok",
+            None,
+            format!("{} -> {} ({})", from.as_str(), to.as_str(), reason.as_str()),
+            json!({
+                "from": from.as_str(),
+                "to": to.as_str(),
+                "reason": reason.as_str(),
+            }),
+        ));
+    }
+
     pub fn push(&mut self, s: StageRecord) {
         self.stages.push(s);
     }
 
     pub fn to_event(&self) -> Value {
-        let status = if self.intent.mode == ResearchMode::None {
+        let status = if self.intent.mode == ResearchMode::None && self.escalated_from.is_none() {
             "skipped"
         } else if self.stages.iter().any(|s| s.status == "failed") {
             "failed"
@@ -149,6 +199,13 @@ impl ResearchTrace {
         json!({
             "kind": "research_trace",
             "mode": mode_str(self.intent.mode),
+            "continuum_mode": self.intent.continuum_mode.as_str(),
+            "continuum_tier": self.continuum_tier.as_str(),
+            "escalated_from": self.escalated_from.map(|t| t.as_str()),
+            "escalation_reason": self.escalation_reason.map(|r| r.as_str()),
+            "scope": scope_str(&self.scope),
+            "domain_mode": self.domain_mode.as_str(),
+            "waves": self.waves,
             "explicit": self.intent.explicit,
             "reasons": self.intent.reasons,
             "query": self.intent.query,
@@ -161,6 +218,14 @@ impl ResearchTrace {
             "stages": self.stages,
             "sources": self.sources.iter().map(|s| json!({"n": s.n, "url": s.url, "title": s.title, "engine": s.engine})).collect::<Vec<_>>(),
         })
+    }
+}
+
+fn scope_str(s: &ResearchScope) -> &'static str {
+    match s {
+        ResearchScope::Web => "web",
+        ResearchScope::Local => "local",
+        ResearchScope::Both => "both",
     }
 }
 
@@ -454,6 +519,83 @@ fn quick_retrieval_stage(
     )
 }
 
+/// Signals produced by a quick-web wave to evaluate continuum CRAG escalation.
+#[derive(Debug, Clone, Default)]
+pub struct QuickEscalationSignals {
+    pub warm_seed_hits: Vec<ResearchHit>,
+    pub crag_quality: f64,
+    pub source_count: usize,
+}
+
+/// Converts quick-web `Source` entries into `ResearchHit`s so an escalated deep
+/// wave starts warm-seeded instead of re-searching from scratch.
+#[must_use]
+pub fn research_hits_from_sources(sources: &[Source]) -> Vec<ResearchHit> {
+    sources
+        .iter()
+        .map(|s| ResearchHit {
+            url: s.url.clone(),
+            title: s.title.clone(),
+            snippet: s.snippet.clone(),
+            score: 0.75,
+            http_status: 200,
+            trust_score: 0.70,
+            raw_content: String::new(),
+        })
+        .collect()
+}
+
+/// Evaluates whether the Socrates + CRAG escalation policy advances from `current_tier`
+/// given local confidence, contradiction ratio, CRAG quality, recency, and source count.
+#[must_use]
+pub fn evaluate_continuum_escalation(
+    policy: &CragEscalationPolicy,
+    mode: ResearchContinuumMode,
+    current_tier: ResearchContinuumTier,
+    local_confidence: f64,
+    contradiction_ratio: f64,
+    crag_quality: f64,
+    source_count: usize,
+    recency_required: bool,
+    explicit_deep_intent: bool,
+) -> Option<(ResearchContinuumTier, EscalationReason)> {
+    if let Some(escalated) = policy.evaluate_escalation(
+        mode,
+        current_tier,
+        local_confidence,
+        contradiction_ratio,
+        crag_quality,
+        recency_required,
+        explicit_deep_intent,
+    ) {
+        return Some(escalated);
+    }
+    if mode == ResearchContinuumMode::Auto
+        && policy.has_coverage_paradox(source_count, local_confidence)
+        && let Some(next) = current_tier.next_tier()
+    {
+        return Some((next, EscalationReason::CoverageParadox));
+    }
+    None
+}
+
+fn quick_search_query_for(
+    original: &str,
+    domain_mode: ResearchDomainMode,
+    site_scope: Option<&str>,
+) -> String {
+    let mut query = search_query_for(original);
+    if domain_mode == ResearchDomainMode::Scholarly && !query.to_ascii_lowercase().contains("doi") {
+        query.push_str(" paper arxiv doi");
+    }
+    if let Some(site) = site_scope.map(str::trim).filter(|s| !s.is_empty())
+        && !query.contains("site:")
+    {
+        query = format!("site:{site} {query}");
+    }
+    query
+}
+
 /// Quick research: one retrieval wave on the Deep-lane deadline, numbered sources.
 /// Returns the context block to inject into the chat prompt.
 pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) -> String {
@@ -468,15 +610,31 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
 pub async fn run_quick_with_policy(
     state: &crate::ServerState,
     trace: &mut ResearchTrace,
-    mut policy: vox_search::policy::SearchPolicy,
+    policy: vox_search::policy::SearchPolicy,
 ) -> String {
+    run_quick_with_policy_signals(state, trace, policy).await.0
+}
+
+/// [`run_quick_with_policy`] returning both the injected context block and CRAG warm-seed signals.
+pub async fn run_quick_with_policy_signals(
+    state: &crate::ServerState,
+    trace: &mut ResearchTrace,
+    mut policy: vox_search::policy::SearchPolicy,
+) -> (String, QuickEscalationSignals) {
     // Spec §4.3: quick research keeps top N=8 (Task 8c) — the dispatcher's
     // scrape-driven default (max(searxng_max_results, searxng_max_urls_to_scrape),
     // typically 5) truncated the pool before it ever reached `sources_from_hits`
     // below, which already caps at 8.
     policy.kept_limit = Some(8);
+    if trace.continuum_tier != ResearchContinuumTier::DeepMultiWave {
+        trace.continuum_tier = ResearchContinuumTier::QuickWeb;
+    }
     let original = trace.intent.query.clone();
-    let query = search_query_for(&original);
+    let query = quick_search_query_for(
+        &original,
+        trace.intent.domain_mode,
+        trace.intent.site_scope.as_deref(),
+    );
     trace.push(queries_stage(&original, &query));
 
     let t = Instant::now();
@@ -517,7 +675,17 @@ pub async fn run_quick_with_policy(
             trace.push(inbox_stage(count, &original));
         }
     }
-    quick_context_block(&report, &trace.sources)
+    let crag_quality = if trace.sources.is_empty() {
+        0.0
+    } else {
+        (trace.sources.len() as f64 / 4.0).clamp(0.25, 0.95)
+    };
+    let signals = QuickEscalationSignals {
+        warm_seed_hits: research_hits_from_sources(&trace.sources),
+        crag_quality,
+        source_count: trace.sources.len(),
+    };
+    (quick_context_block(&report, &trace.sources), signals)
 }
 
 fn inbox_stage(count: usize, query: &str) -> StageRecord {
@@ -591,17 +759,48 @@ pub async fn capture_research_synthesis(
     }
 }
 
+/// Constructs the `ResearchQuery` passed to the deep Scientia pipeline, preserving
+/// the caller's scope, domain mode, site restriction, and multi-wave budget.
+#[must_use]
+pub fn build_deep_research_query(
+    trace: &ResearchTrace,
+) -> vox_research_shim::research::ResearchQuery {
+    use vox_research_shim::research::ResearchQuery;
+    ResearchQuery {
+        query: trace.intent.query.clone(),
+        scope: trace.intent.scope.clone(),
+        max_sources: 10,
+        persist_to_docs: false,
+        verify_claims: true,
+        site_scope: trace.intent.site_scope.clone(),
+        domain_mode: trace.intent.domain_mode,
+        waves: trace.intent.waves.clamp(
+            super::research_intent::MIN_RESEARCH_WAVES,
+            super::research_intent::MAX_RESEARCH_WAVES,
+        ),
+        lane: vox_search::policy::ResearchLane::Deep,
+    }
+}
+
 /// Deep research: the Scientia pipeline inline on the Deep lane (spec §4.4).
 /// Ok = the pipeline's answer (LLM-synthesized; the template path no longer exists).
 pub async fn run_deep(
     state: &crate::ServerState,
     trace: &mut ResearchTrace,
 ) -> Result<String, String> {
+    run_deep_with_warm_seed(state, trace, Vec::new()).await
+}
+
+/// Deep research seeded with evidence already collected at a prior continuum tier.
+pub async fn run_deep_with_warm_seed(
+    state: &crate::ServerState,
+    trace: &mut ResearchTrace,
+    warm_seed_hits: Vec<ResearchHit>,
+) -> Result<String, String> {
     use std::sync::{Arc, Mutex};
-    use vox_research_shim::research::{
-        BroadcastEmitter, ResearchConfig, ResearchDomainMode, ResearchQuery, ResearchScope,
-        run_research_with_context,
-    };
+    use vox_research_shim::research::orchestrator::run_research_with_warm_seed;
+    use vox_research_shim::research::{BroadcastEmitter, ResearchConfig};
+    trace.continuum_tier = ResearchContinuumTier::DeepMultiWave;
     let progress: Arc<Mutex<Vec<(String, Option<f32>, u64)>>> = Arc::default();
     let sink = progress.clone();
     let t = Instant::now();
@@ -617,17 +816,7 @@ pub async fn run_deep(
         finding_capture: crate::kb_tools::findings::web_capture_for_state(state),
         ..ResearchConfig::default()
     };
-    let rq = ResearchQuery {
-        query: trace.intent.query.clone(),
-        scope: ResearchScope::Web,
-        max_sources: 10,
-        persist_to_docs: false,
-        verify_claims: true,
-        site_scope: None,
-        domain_mode: ResearchDomainMode::General,
-        waves: 1,
-        lane: vox_search::policy::ResearchLane::Deep,
-    };
+    let rq = build_deep_research_query(trace);
     let ctx = vox_search::SearchRuntimeContext::new(
         state.repository.root.clone(),
         state.db.clone(),
@@ -636,10 +825,16 @@ pub async fn run_deep(
     )
     .with_web_capture(config.finding_capture.clone());
     // Record each research role's requested vs resolved model (Task 13).
-    let (outcome, model_uses) = vox_actor_runtime::llm::cascade::record_research_model_uses(
-        run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config),
-    )
-    .await;
+    let (outcome, model_uses) =
+        vox_actor_runtime::llm::cascade::record_research_model_uses(run_research_with_warm_seed(
+            rq,
+            warm_seed_hits,
+            Some(&ctx),
+            state.db.as_deref(),
+            &config,
+            None,
+        ))
+        .await;
     trace.record_role_models(&model_uses);
     let timeline = progress.lock().map(|v| v.clone()).unwrap_or_default();
     trace.push(StageRecord::new(
@@ -656,6 +851,17 @@ pub async fn run_deep(
     ));
     match outcome {
         Ok(r) => {
+            if let Some(db) = state.db.as_deref()
+                && r.research_metadata.session_id > 0
+            {
+                let _ = db
+                    .update_session_continuum_metadata(
+                        r.research_metadata.session_id,
+                        trace.continuum_tier.as_str(),
+                        trace.escalated_from.map(|t| t.as_str()),
+                    )
+                    .await;
+            }
             for s in deep_stages(&r) {
                 trace.push(s);
             }
@@ -1898,5 +2104,118 @@ mod tests {
             0
         );
         assert_eq!(db.kb_findings_list(None, 100).await.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn deep_query_builder_preserves_scope_domain_site_and_multiwave() {
+        use super::super::research_intent::{
+            ResearchIntentParams, classify_research_intent_from_params,
+        };
+        let intent = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "compare crag papers",
+            research_mode: Some("deep"),
+            research_scope: Some("both"),
+            domain_mode: Some("scholarly"),
+            site_scope: Some("arxiv.org"),
+            waves: Some(4),
+            ..Default::default()
+        });
+        let trace = ResearchTrace::new(intent);
+        let rq = build_deep_research_query(&trace);
+        assert_eq!(rq.scope, ResearchScope::Both);
+        assert_eq!(rq.domain_mode, ResearchDomainMode::Scholarly);
+        assert_eq!(rq.site_scope.as_deref(), Some("arxiv.org"));
+        assert_eq!(rq.waves, 4);
+    }
+
+    #[test]
+    fn continuum_escalation_enforces_socrates_and_crag_thresholds() {
+        let policy = CragEscalationPolicy::default();
+        // Local confidence below 0.68 in Auto mode -> LocalRag -> QuickWeb.
+        let esc = evaluate_continuum_escalation(
+            &policy,
+            ResearchContinuumMode::Auto,
+            ResearchContinuumTier::LocalRag,
+            0.50,
+            0.05,
+            0.80,
+            2,
+            false,
+            false,
+        );
+        assert_eq!(
+            esc,
+            Some((
+                ResearchContinuumTier::QuickWeb,
+                EscalationReason::LowLocalConfidence
+            ))
+        );
+
+        // QuickWeb with low CRAG quality (< 0.55) -> DeepMultiWave.
+        let esc_deep = evaluate_continuum_escalation(
+            &policy,
+            ResearchContinuumMode::Auto,
+            ResearchContinuumTier::QuickWeb,
+            0.80,
+            0.05,
+            0.40,
+            1,
+            false,
+            false,
+        );
+        assert_eq!(
+            esc_deep,
+            Some((
+                ResearchContinuumTier::DeepMultiWave,
+                EscalationReason::LowCragQuality
+            ))
+        );
+
+        // Off/Fast explicit modes do not escalate automatically.
+        assert_eq!(
+            evaluate_continuum_escalation(
+                &policy,
+                ResearchContinuumMode::Fast,
+                ResearchContinuumTier::QuickWeb,
+                0.20,
+                0.60,
+                0.10,
+                1,
+                false,
+                false,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn trace_records_escalation_and_warm_seed_hits_in_event() {
+        use super::super::research_intent::{
+            ResearchIntentParams, classify_research_intent_from_params,
+        };
+        let intent = classify_research_intent_from_params(ResearchIntentParams {
+            prompt: "explain crag policy",
+            research_mode: Some("auto"),
+            domain_mode: Some("codegen"),
+            waves: Some(3),
+            ..Default::default()
+        });
+        let mut trace = ResearchTrace::new(intent);
+        trace.record_escalation(
+            ResearchContinuumTier::LocalRag,
+            ResearchContinuumTier::QuickWeb,
+            EscalationReason::LowLocalConfidence,
+        );
+        let ev = trace.to_event();
+        assert_eq!(ev["continuum_tier"], "quick_web");
+        assert_eq!(ev["escalated_from"], "local_rag");
+        assert_eq!(ev["escalation_reason"], "low_local_confidence");
+        assert_eq!(ev["domain_mode"], "code_gen");
+        assert_eq!(ev["waves"], 3);
+        assert_eq!(ev["status"], "ok");
+
+        let hits = research_hits_from_sources(&two_sources());
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].url, "https://example.test/p1");
     }
 }

@@ -26,7 +26,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. SSO
 - Hopper integration: this phase lands `Hp-T6` as `P4-T13`. See SSOT §3.5 and
   [unified-task-hopper-research-2026.md](unified-task-hopper-research-2026.md).
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
+**Working directory.** Worktree at `.claude/worktrees/zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
 
 ---
 

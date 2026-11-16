@@ -1,10 +1,8 @@
 //! Internal types for the QLoRA training loop shared by both device plugins.
 //!
-//! `MaskedCeForward` is deliberately NOT here: `vox-plugin-mens-candle-cuda`'s
-//! copy carries an extra `segments: Option<Vec<CheckpointSegment>>` field on its
-//! `Finite` variant (gradient-checkpointing support Metal does not have yet), so
-//! that one type stays per-plugin. These three were byte-identical between both
-//! plugins' `types.rs`.
+//! `QloraTrainingResume`, `EncodedTrainStep`, `TryEncodeOutcome`, and
+//! `MaskedCeForward<Seg>` live here so neither plugin duplicates `forward.rs`
+//! or the masked cross-entropy result enum.
 
 #[derive(Debug, Clone)]
 pub struct QloraTrainingResume {
@@ -12,6 +10,8 @@ pub struct QloraTrainingResume {
     pub global_step: u32,
     pub resume_pair_offset: usize,
     pub resume_shuffled_indices: Option<Vec<usize>>,
+    pub total_tokens: usize,
+    pub micro_steps_executed: u32,
 }
 
 pub struct EncodedTrainStep {
@@ -27,4 +27,20 @@ pub enum TryEncodeOutcome {
     Encoded(EncodedTrainStep),
     SkipCurriculum,
     SkipShortSeq,
+}
+
+pub enum MaskedCeForward<Seg> {
+    NoSupervision,
+    NonFinite {
+        kind: &'static str,
+        mask_sum: f32,
+    },
+    Finite {
+        loss: candle_core::Tensor,
+        loss_scalar: f32,
+        supervised_tokens: u64,
+        theoretical_tokens: u64,
+        syntax_weight_sum: f32,
+        segments: Option<Vec<Seg>>,
+    },
 }

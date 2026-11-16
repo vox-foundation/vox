@@ -1,6 +1,5 @@
 use crate::rule_pack_detector::pack_rule;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
-use regex::Regex;
 use vox_rule_pack::CompiledRule;
 
 /// Detects hardcoded magic values: ports, IPs, filesystem paths, connection strings.
@@ -15,12 +14,6 @@ pub struct MagicValueDetector {
     ip_rule: &'static CompiledRule,
     path_rule: &'static CompiledRule,
     db_conn_rule: &'static CompiledRule,
-    /// Lines that are clearly comments or docs (to skip).
-    comment_re: Regex,
-    /// Lines that define constants (acceptable).
-    const_def_re: Regex,
-    /// Lines inside test modules (acceptable).
-    test_attr_re: Regex,
 }
 
 impl Default for MagicValueDetector {
@@ -36,21 +29,31 @@ impl MagicValueDetector {
             ip_rule: pack_rule("magic-value/ip"),
             path_rule: pack_rule("magic-value/path"),
             db_conn_rule: pack_rule("magic-value/db-conn"),
-            comment_re: Regex::new(r"^\s*(?://|#|/\*|\*|--|\s*\*)").expect("valid"),
-            const_def_re: Regex::new(
-                r"(?:const |static |pub const |pub static |DEFAULT_|ENV_|CONFIG_)",
-            )
-            .expect("valid"),
-            test_attr_re: Regex::new(r"#\[(?:cfg\(test\)|test)\]").expect("valid"),
         }
     }
 
+    #[inline]
     fn should_skip_line(&self, line: &str) -> bool {
-        let trimmed = line.trim();
-        if self.comment_re.is_match(trimmed) {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("//")
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("/*")
+            || trimmed.starts_with('*')
+            || trimmed.starts_with("--")
+        {
             return true;
         }
-        if self.const_def_re.is_match(trimmed) {
+        if trimmed.starts_with("const ")
+            || trimmed.starts_with("pub const ")
+            || trimmed.starts_with("pub(crate) const ")
+            || trimmed.starts_with("static ")
+            || trimmed.starts_with("pub static ")
+            || trimmed.starts_with("pub(crate) static ")
+            || trimmed.starts_with("export const ")
+            || trimmed.contains("DEFAULT_")
+            || trimmed.contains("ENV_")
+            || trimmed.contains("CONFIG_")
+        {
             return true;
         }
         if trimmed.starts_with("use ") || trimmed.starts_with("import ") {
@@ -128,6 +131,14 @@ impl DetectionRule for MagicValueDetector {
         rust: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
+        // Fast O(1) file-level pre-check: all 4 magic-value patterns require `:`, `.`, `/`, or `\`.
+        if !file.content.contains(':')
+            && !file.content.contains('.')
+            && !file.content.contains('/')
+            && !file.content.contains('\\')
+        {
+            return findings;
+        }
         let path_str = file.path.to_string_lossy().replace('\\', "/");
         if path_str.contains("/tests/")
             || path_str.ends_with("/tests.rs")
@@ -140,19 +151,28 @@ impl DetectionRule for MagicValueDetector {
 
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
+            let trimmed = line.trim_start();
 
-            if self.test_attr_re.is_match(line) {
+            if trimmed.starts_with("#[cfg(test)]")
+                || trimmed.starts_with("#[test]")
+                || trimmed.starts_with("#[tokio::test]")
+            {
                 in_test_block = true;
             }
             // Rough heuristic: test blocks end at next non-indented `fn` or `mod`.
-            if in_test_block {
-                let trimmed = line.trim();
-                if (trimmed.starts_with("fn ") || trimmed.starts_with("mod "))
-                    && !trimmed.contains("test")
-                    && !line.starts_with(char::is_whitespace)
-                {
-                    in_test_block = false;
-                }
+            if in_test_block
+                && (trimmed.starts_with("fn ") || trimmed.starts_with("mod "))
+                && !trimmed.contains("test")
+                && !line.starts_with(char::is_whitespace)
+            {
+                in_test_block = false;
+            }
+
+            let has_colon = line.contains(':');
+            let has_dot = line.contains('.');
+            let has_slash = line.contains('/') || line.contains('\\');
+            if !has_colon && !has_dot && !has_slash {
+                continue;
             }
 
             if self.should_skip_line(line)
@@ -163,7 +183,8 @@ impl DetectionRule for MagicValueDetector {
                 continue;
             }
 
-            if self.port_rule.regex().is_match(line)
+            if has_colon
+                && self.port_rule.regex().is_match(line)
                 && !line.contains("127.0.0.1:0")
                 && !line.contains("0.0.0.0:0")
                 && !line.contains("localhost:0")
@@ -178,7 +199,8 @@ impl DetectionRule for MagicValueDetector {
                 ));
             }
 
-            if self.ip_rule.regex().is_match(line)
+            if has_dot
+                && self.ip_rule.regex().is_match(line)
                 && !(line.contains("host ==") || line.contains("host=="))
             {
                 findings.push(Self::make_finding(
@@ -191,7 +213,8 @@ impl DetectionRule for MagicValueDetector {
                 ));
             }
 
-            if self.path_rule.regex().is_match(line)
+            if has_slash
+                && self.path_rule.regex().is_match(line)
                 // vox-arch-check: allow abs-path
                 && !(line.contains("starts_with(\"/usr/")
                     || line.contains("starts_with(\"/bin/")
@@ -208,7 +231,8 @@ impl DetectionRule for MagicValueDetector {
                 ));
             }
 
-            if self.db_conn_rule.regex().is_match(line)
+            if has_colon
+                && self.db_conn_rule.regex().is_match(line)
                 && !line.contains("starts_with(")
                 && !line.contains("strip_prefix(")
                 && !line.contains("sqlite::memory:")

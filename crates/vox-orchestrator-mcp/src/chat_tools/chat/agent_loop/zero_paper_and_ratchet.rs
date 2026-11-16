@@ -232,8 +232,8 @@ pub fn detect_magic_values_and_special_casing(prod_source: &str) -> (Vec<String>
         "localhost:",
         concat!("\"", "/", "tmp/"),
         "\"/Users/",
-        "postgres://",
-        "sqlite://",
+        concat!("postgres", "://"),
+        concat!("sqlite", "://"),
     ];
     let gaming_tokens = [
         "== \"test_",

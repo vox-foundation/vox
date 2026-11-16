@@ -267,6 +267,8 @@ impl crate::VoxDb {
                     .await?;
             }
 
+            Self::ensure_v76_research_continuum_columns(conn).await?;
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(
@@ -291,6 +293,37 @@ impl crate::VoxDb {
             }
         }
 
+        Ok(())
+    }
+
+    /// Baseline 99 (SCIENTIA v7.6): add `continuum_tier` and `escalated_from` to pre-v99
+    /// `scientia_research_sessions` and `research_sessions`. Idempotent (PRAGMA-guarded).
+    async fn ensure_v76_research_continuum_columns(
+        conn: &turso::Connection,
+    ) -> Result<(), StoreError> {
+        const COLUMNS: [(&str, &str); 4] = [
+            ("scientia_research_sessions", "continuum_tier"),
+            ("scientia_research_sessions", "escalated_from"),
+            ("research_sessions", "continuum_tier"),
+            ("research_sessions", "escalated_from"),
+        ];
+        for (table, column) in COLUMNS {
+            let mut rows = conn
+                .query(&format!("PRAGMA table_info({table})"), ())
+                .await?;
+            let (mut table_exists, mut has_column) = (false, false);
+            while let Some(row) = rows.next().await? {
+                table_exists = true;
+                if row.get::<String>(1)? == column {
+                    has_column = true;
+                }
+            }
+            drop(rows);
+            if table_exists && !has_column {
+                conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} TEXT;"))
+                    .await?;
+            }
+        }
         Ok(())
     }
 

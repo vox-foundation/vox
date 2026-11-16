@@ -296,6 +296,9 @@ pub const HOST_RUNTIME_PROBE: &str = "vox/host/runtime-probe";
 /// Inline schema compile/parse inside hot function bodies.
 pub const INLINE_SCHEMA_COMPILE: &str = "vox/schema/inline-compile";
 
+/// Hardcoded absolute or machine-local directory path in source code.
+pub const FS_HARDCODED_ABS_DIR: &str = "vox/fs/hardcoded-abs-dir";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -389,7 +392,12 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     TEST_IN_LOOP,
     HOST_RUNTIME_PROBE,
     INLINE_SCHEMA_COMPILE,
+    FS_HARDCODED_ABS_DIR,
+    CARGO_DEP_HYGIENE,
 ];
+
+/// Violation in `Cargo.toml` dependency hygiene (bypassing leaf core, reintroducing dead/heavy deps, or breaking dev-profile tuning).
+pub const CARGO_DEP_HYGIENE: &str = "vox/cargo/dep-hygiene";
 
 /// Find the explain URL for a given diagnostic ID.
 pub fn explain_url(id: &str) -> String {

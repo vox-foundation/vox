@@ -37,6 +37,7 @@
 //!   code moved verbatim.
 
 pub mod adapter_schema_v3;
+pub mod attn_math;
 pub mod candle_qlora_train;
 pub mod checkpoint_state;
 pub mod config;

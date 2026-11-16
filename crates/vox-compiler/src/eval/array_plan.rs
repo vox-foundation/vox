@@ -13,14 +13,20 @@ pub fn plan_worker_calls() -> u32 {
     PLAN_WORKER_CALLS.load(Ordering::SeqCst)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanStep {
     pub op: &'static str,
     pub correction: Option<i64>,
     /// `sort` records `first` or `last`. Other ops leave this empty.
     pub nulls: Option<&'static str>,
+    /// Target dtype for `astype` (`f32` or `f64`).
+    pub dtype: Option<&'static str>,
     /// Host column `from_list` reads. Other ops leave this empty.
     pub column: Option<u32>,
+    /// Optional target shape for `reshape`.
+    pub shape: Option<Vec<i64>>,
+    /// Optional axis for `softmax`.
+    pub axis: Option<i64>,
 }
 
 /// Host numbers stored on a plan. Floats and ints stay in separate columns
@@ -57,10 +63,44 @@ impl ArrayPlan {
                 op: "from_list",
                 correction: None,
                 nulls: None,
+                dtype: None,
                 column: Some(0),
+                shape: None,
+                axis: None,
             }],
             hosts: vec![HostColumn::F64(values)],
             rank: 1,
+            worker_calls: plan_worker_calls(),
+        }
+    }
+
+    /// Store `values` and reshape to `dims` without leaving the worker.
+    #[must_use]
+    pub fn from_list_with_shape(values: Vec<f64>, dims: Vec<i64>) -> Self {
+        let rank = u8::try_from(dims.len()).unwrap_or(u8::MAX);
+        Self {
+            steps: vec![
+                PlanStep {
+                    op: "from_list",
+                    correction: None,
+                    nulls: None,
+                    dtype: None,
+                    column: Some(0),
+                    shape: None,
+                    axis: None,
+                },
+                PlanStep {
+                    op: "reshape",
+                    correction: None,
+                    nulls: None,
+                    dtype: None,
+                    column: None,
+                    shape: Some(dims),
+                    axis: None,
+                },
+            ],
+            hosts: vec![HostColumn::F64(values)],
+            rank,
             worker_calls: plan_worker_calls(),
         }
     }
@@ -74,7 +114,10 @@ impl ArrayPlan {
                 op: "from_list",
                 correction: None,
                 nulls: None,
+                dtype: None,
                 column: Some(0),
+                shape: None,
+                axis: None,
             }],
             hosts: vec![HostColumn::I64(values)],
             rank: 1,
@@ -82,10 +125,62 @@ impl ArrayPlan {
         }
     }
 
-    /// Append `astype`. This plan only records the op; it does not cast.
+    /// Reshape plan without leaving the worker.
     #[must_use]
-    pub fn astype(&self, _dtype: &str) -> Self {
-        self.push("astype", None, None, self.rank)
+    pub fn reshape(&self, dims: Vec<i64>) -> Self {
+        let mut next = self.clone();
+        next.steps.push(PlanStep {
+            op: "reshape",
+            correction: None,
+            nulls: None,
+            dtype: None,
+            column: None,
+            shape: Some(dims.clone()),
+            axis: None,
+        });
+        let rank = if dims == vec![-1] {
+            1
+        } else {
+            u8::try_from(dims.len()).unwrap_or(self.rank)
+        };
+        next.rank = rank;
+        next.worker_calls = plan_worker_calls();
+        next
+    }
+
+    /// Softmax plan along `axis`.
+    #[must_use]
+    pub fn softmax(&self, axis: i64) -> Self {
+        let mut next = self.clone();
+        next.steps.push(PlanStep {
+            op: "softmax",
+            correction: None,
+            nulls: None,
+            dtype: None,
+            column: None,
+            shape: None,
+            axis: Some(axis),
+        });
+        next.worker_calls = plan_worker_calls();
+        next
+    }
+
+    /// Append `astype`. Records `"f32"` or `"f64"`.
+    #[must_use]
+    pub fn astype(&self, dtype: &str) -> Self {
+        let dtype_static = if dtype == "f32" { "f32" } else { "f64" };
+        let mut next = self.clone();
+        next.steps.push(PlanStep {
+            op: "astype",
+            correction: None,
+            nulls: None,
+            dtype: Some(dtype_static),
+            column: None,
+            shape: None,
+            axis: None,
+        });
+        next.worker_calls = plan_worker_calls();
+        next
     }
 
     /// Elementwise add. A rank-0 right-hand side broadcasts.
@@ -238,7 +333,10 @@ impl ArrayPlan {
             op,
             correction,
             nulls,
+            dtype: None,
             column: None,
+            shape: None,
+            axis: None,
         });
         next.rank = rank;
         next.worker_calls = plan_worker_calls();
@@ -250,7 +348,7 @@ impl ArrayPlan {
         let offset = u32::try_from(next.hosts.len()).unwrap_or(u32::MAX);
         next.hosts.extend(other.hosts.iter().cloned());
         for step in &other.steps {
-            let mut copied = *step;
+            let mut copied = step.clone();
             if copied.op == "from_list" {
                 copied.column = Some(copied.column.unwrap_or(0).saturating_add(offset));
             }
@@ -260,7 +358,10 @@ impl ArrayPlan {
             op,
             correction: None,
             nulls: None,
+            dtype: None,
             column: None,
+            shape: None,
+            axis: None,
         });
         next.rank = if self.rank == 0 {
             other.rank

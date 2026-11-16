@@ -19,6 +19,7 @@ standalone = []
 [dependencies]
 hex = { workspace = true }
 vox-compiler = { workspace = true }
+vox-deploy-codegen = { workspace = true }
 vox-tauri-codegen = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 serde = { workspace = true, features = ["derive"] }
@@ -39,11 +40,8 @@ vox-secrets = { workspace = true }
 # is the in-tree precedent for this same override shape.
 vox-sql = { path = "../vox-sql", default-features = false, features = ["postgres", "mysql"] }
 vox-config = { workspace = true }
-vox-deploy-codegen = { workspace = true }
 prettyplease = { workspace = true }
 syn = { workspace = true, features = ["full"] }
-walkdir.workspace = true
-vox-repository.workspace = true
 anyhow.workspace = true
 
 [dev-dependencies]
@@ -53,7 +51,7 @@ tempfile = { workspace = true }
 vox-db = { workspace = true }
 criterion = { workspace = true }
 serial_test = { workspace = true }
-vox-jsonschema-util = { path = "../vox-jsonschema-util" }
+vox-jsonschema-util = { workspace = true }
 jsonschema = { workspace = true }
 
 [[bench]]

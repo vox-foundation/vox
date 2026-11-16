@@ -19,7 +19,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. Spe
 
 **Spec.** [`populi-mesh-probe-correctness-spec-2026.md`](populi-mesh-probe-correctness-spec-2026.md).
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\brave-tharp-b57e7b`. All paths below are relative to this worktree.
+**Working directory.** Worktree at `.claude/worktrees/brave-tharp-b57e7b`. All paths below are relative to this worktree.
 
 ---
 

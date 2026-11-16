@@ -9,7 +9,7 @@ impl Orchestrator {
         task_desc: &str,
         write_files: &[PathBuf],
     ) -> Result<(), OrchestratorError> {
-        #[cfg(feature = "runtime")]
+        #[cfg(all(feature = "runtime", feature = "toestub-gate"))]
         {
             let vox_files: Vec<PathBuf> = write_files
                 .iter()
@@ -74,6 +74,10 @@ impl Orchestrator {
                     }
                 }
             }
+        }
+        #[cfg(not(all(feature = "runtime", feature = "toestub-gate")))]
+        {
+            let _ = (agent_id, task_desc, write_files);
         }
         Ok(())
     }

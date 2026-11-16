@@ -23,6 +23,8 @@ mod core_and_tasks;
 mod mens_and_ops;
 #[path = "input_schemas/scientia_and_kb.rs"]
 mod scientia_and_kb;
+#[path = "input_schemas/terminal.rs"]
+mod terminal;
 #[path = "input_schemas/vcs_and_workspace.rs"]
 mod vcs_and_workspace;
 
@@ -35,12 +37,17 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         .or_else(|| scientia_and_kb::schema_for_tool(name))
         .or_else(|| mens_and_ops::schema_for_tool(name))
         .or_else(|| browser_and_gui::schema_for_tool(name))
+        .or_else(|| terminal::schema_for_tool(name))
     {
         return m;
     }
 
     #[cfg(any())]
     match name {
+        "vox_terminal_exec" => {}
+        "vox_terminal_read" => {}
+        "vox_terminal_send_input" => {}
+        "vox_terminal_sessions" => {}
         "vox_oratio_transcribe" => {}
         "vox_oratio_listen" => {}
         "vox_oratio_status" => {}
@@ -424,6 +431,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_checkpoint_restore" => {}
         "vox_muse_pool_spawn" => {}
         "vox_muse_pool_adopt" => {}
+        "vox_guest_share_list" => {}
         "vox_guest_share_mint" => {}
         "vox_guest_share_moderate" => {}
         "vox_session_import_external" => {}
@@ -449,6 +457,17 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_guest_share_redeem" => {}
         "vox_guest_share_submit" => {}
         "vox_pr_review_guide" => {}
+        "vox_gsd_status" => {}
+        "vox_gsd_progress" => {}
+        "vox_gsd_new_milestone" => {}
+        "vox_gsd_discuss_phase" => {}
+        "vox_gsd_plan_phase" => {}
+        "vox_gsd_execute_phase" => {}
+        "vox_gsd_verify_work" => {}
+        "vox_gsd_complete_milestone" => {}
+        "vox_gsd_list_documents" => {}
+        "vox_gsd_store_document" => {}
+        "vox_gsd_get_document" => {}
         _ => {}
     }
 

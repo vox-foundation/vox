@@ -45,7 +45,7 @@ pub struct AnchorRecord {
     pub source: AnchorSource,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PageLedgerRecord {
     pub title: String,
     pub category: String,
@@ -60,7 +60,7 @@ pub struct PageLedgerRecord {
     pub broken_mentions: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LedgerMetrics {
     pub total_pages: usize,
     pub verified_count: usize,
@@ -81,6 +81,17 @@ pub struct FreshnessLedger {
 }
 
 impl FreshnessLedger {
+    /// Compare semantic ledger content while ignoring run-specific `updated_at` and `head_commit`.
+    ///
+    /// Scheduled refreshes run on every commit to `main`; ignoring those two metadata fields keeps
+    /// ledger files byte-identical when no tracked documentation or anchored code has changed.
+    pub fn same_content(&self, other: &FreshnessLedger) -> bool {
+        self.schema_version == other.schema_version
+            && self.generated_by == other.generated_by
+            && self.pages == other.pages
+            && self.metrics == other.metrics
+    }
+
     pub fn load_from_file(path: &Path) -> Option<Self> {
         if path.exists() {
             let data = fs::read_to_string(path).ok()?;
@@ -125,6 +136,20 @@ impl FreshnessLedger {
             historical_count,
         };
     }
+}
+
+/// Write the freshness ledger to `path` only if it does not already match in semantic content.
+///
+/// Returns `Ok(true)` when a write occurred and `Ok(false)` when the on-disk ledger had
+/// identical content (`same_content`).
+pub fn write_ledger_if_changed(path: &Path, ledger: &FreshnessLedger) -> std::io::Result<bool> {
+    if let Some(existing) = FreshnessLedger::load_from_file(path)
+        && existing.same_content(ledger)
+    {
+        return Ok(false);
+    }
+    ledger.save_to_file(path)?;
+    Ok(true)
 }
 
 /// Parse optional frontmatter code_anchors, owner, review_cadence, mounted_from.
@@ -481,5 +506,133 @@ code_anchors:
         assert_eq!(deserialized.schema_version, 1);
         assert_eq!(deserialized.metrics.verified_count, 1);
         assert_eq!(deserialized.pages.len(), 1);
+    }
+
+    struct ScopedTempDir(std::path::PathBuf);
+
+    impl ScopedTempDir {
+        fn new(name: &str) -> Self {
+            let unique = format!(
+                "vox-ledger-test-{}-{}-{}",
+                name,
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
+            let path = std::env::temp_dir().join(unique);
+            fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for ScopedTempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn sample_ledger(
+        updated_at: &str,
+        head_commit: &str,
+        state: DocState,
+        hash: &str,
+    ) -> FreshnessLedger {
+        let mut pages = BTreeMap::new();
+        pages.insert(
+            "docs/src/sample.md".to_string(),
+            PageLedgerRecord {
+                title: "Sample".to_string(),
+                category: "architecture".to_string(),
+                status: "current".to_string(),
+                owner: None,
+                review_cadence: None,
+                state: state.clone(),
+                last_verified_commit: Some("verified0".to_string()),
+                anchors: vec![AnchorRecord {
+                    id: "fm:src/lib.rs".to_string(),
+                    kind: AnchorKind::Path,
+                    target: "src/lib.rs".to_string(),
+                    content_hash: hash.to_string(),
+                    verified_hash: "old".to_string(),
+                    source: AnchorSource::Frontmatter,
+                }],
+                broken_mentions: Vec::new(),
+            },
+        );
+        let mut ledger = FreshnessLedger {
+            schema_version: 1,
+            generated_by: "test".to_string(),
+            updated_at: updated_at.to_string(),
+            head_commit: head_commit.to_string(),
+            pages,
+            metrics: LedgerMetrics::default(),
+        };
+        ledger.recompute_metrics();
+        ledger
+    }
+
+    #[test]
+    fn same_content_ignores_updated_at_and_head_commit() {
+        let a = sample_ledger("2026-11-01T00:00:00Z", "aaa111", DocState::Verified, "h1");
+        let b = sample_ledger("2026-11-12T00:00:00Z", "bbb222", DocState::Verified, "h1");
+        assert!(a.same_content(&b));
+
+        let c = sample_ledger("2026-11-12T00:00:00Z", "bbb222", DocState::Drifting, "h1");
+        assert!(!a.same_content(&c));
+
+        let d = sample_ledger("2026-11-12T00:00:00Z", "bbb222", DocState::Verified, "h2");
+        assert!(!a.same_content(&d));
+    }
+
+    #[test]
+    fn write_ledger_if_changed_skips_same_content_and_writes_diff() {
+        let dir = ScopedTempDir::new("write-if-changed");
+        let path = dir.0.join("ledger.v1.json");
+
+        let l1 = sample_ledger("2026-11-01T00:00:00Z", "aaa111", DocState::Verified, "h1");
+        assert!(write_ledger_if_changed(&path, &l1).unwrap());
+        let bytes1 = fs::read(&path).unwrap();
+
+        let l2 = sample_ledger("2026-11-12T00:00:00Z", "bbb222", DocState::Verified, "h1");
+        assert!(!write_ledger_if_changed(&path, &l2).unwrap());
+        assert_eq!(fs::read(&path).unwrap(), bytes1);
+
+        let l3 = sample_ledger("2026-11-12T00:00:00Z", "bbb222", DocState::Drifting, "h2");
+        assert!(write_ledger_if_changed(&path, &l3).unwrap());
+        assert_ne!(fs::read(&path).unwrap(), bytes1);
+    }
+
+    #[test]
+    fn generate_freshness_ledger_twice_is_idempotent_and_preserves_verified_hash() {
+        let dir = ScopedTempDir::new("generate-twice");
+        let root = &dir.0;
+        fs::create_dir_all(root.join("docs/src/architecture")).unwrap();
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("src/sample.rs"), "pub fn demo() {}\n").unwrap();
+        fs::write(
+            root.join("docs/src/architecture/sample.md"),
+            "---\ntitle: \"Sample\"\ncategory: \"architecture\"\nstatus: \"current\"\ncode_anchors:\n  - \"src/sample.rs\"\n---\n# Sample\n",
+        )
+        .unwrap();
+
+        let first = generate_freshness_ledger(root, "head1", None);
+        let second = generate_freshness_ledger(root, "head2", Some(&first));
+        assert!(first.same_content(&second));
+
+        // Carry verified_hash "old" when target content changes
+        let mut stale = second.clone();
+        if let Some(page) = stale.pages.get_mut("docs/src/architecture/sample.md")
+            && let Some(anchor) = page.anchors.first_mut()
+        {
+            anchor.verified_hash = "old".to_string();
+        }
+        fs::write(root.join("src/sample.rs"), "pub fn demo() { let _ = 1; }\n").unwrap();
+        let drifted = generate_freshness_ledger(root, "head3", Some(&stale));
+        let drifted_page = &drifted.pages["docs/src/architecture/sample.md"];
+        assert_eq!(drifted_page.state, DocState::Drifting);
+        assert_eq!(drifted_page.anchors[0].verified_hash, "old");
+        assert_ne!(drifted_page.anchors[0].content_hash, "old");
     }
 }

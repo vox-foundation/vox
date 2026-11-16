@@ -36,6 +36,17 @@ fn adapter_provenance_from_config(config: &LoraTrainingConfig) -> Option<Adapter
     })
 }
 
+/// Effective LoRA scaling numerator recorded in manifests and downstream loaders.
+/// Standard LoRA scales by `alpha / rank`; rsLoRA (`alpha / sqrt(rank)`) corresponds to an
+/// equivalent effective alpha of `round(alpha * sqrt(rank))`.
+pub(crate) fn effective_lora_alpha(alpha: f32, rank: usize, use_rslora: bool) -> usize {
+    if use_rslora {
+        (alpha * (rank.max(1) as f32).sqrt()).round().max(1.0) as usize
+    } else {
+        alpha.round().max(1.0) as usize
+    }
+}
+
 fn build_adapter_manifest_v3(
     vocab: usize,
     d_model: usize,
@@ -60,6 +71,7 @@ fn build_adapter_manifest_v3(
         resolved_base_path.or_else(|| resolved_serve_base_model(config)),
         adapter_provenance_from_config(config),
     )
+    .with_rslora(config.use_rslora)
 }
 
 /// Prefer a local snapshot directory for serve. HF ids like `Qwen/Qwen3-0.6B`
@@ -97,6 +109,36 @@ fn stage_serve_sidecars(out: &Path, config: &LoraTrainingConfig) -> Result<()> {
     Ok(())
 }
 
+fn rel_display(path: &Path) -> String {
+    let normalize = |p: &Path| p.to_string_lossy().replace('\\', "/");
+    if !path.is_absolute() {
+        return normalize(path);
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        let mut dir = cwd.as_path();
+        loop {
+            let manifest = dir.join("Cargo.toml");
+            if manifest.is_file()
+                && let Ok(contents) = std::fs::read_to_string(&manifest)
+                && contents.lines().any(|l| l.trim() == "[workspace]")
+            {
+                if let Ok(rel) = path.strip_prefix(dir) {
+                    return normalize(rel);
+                }
+                break;
+            }
+            let Some(parent) = dir.parent() else {
+                break;
+            };
+            dir = parent;
+        }
+        if let Ok(rel) = path.strip_prefix(&cwd) {
+            return normalize(rel);
+        }
+    }
+    normalize(path)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn finalize_training_run(
     trainer: &mut QLoraTrainer,
@@ -113,9 +155,11 @@ pub(super) fn finalize_training_run(
     total_tokens: usize,
     total_step_count: u32,
     total_loss_sum: f64,
+    final_loss_ema: Option<f64>,
     last_avg_val_loss: Option<f64>,
     stats: TrainingLoopStats,
     run_start_inst: Instant,
+    capped: bool,
 ) -> Result<TrainingSummary> {
     let final_path = out.join("candle_qlora_adapter.safetensors");
     trainer
@@ -148,7 +192,24 @@ pub(super) fn finalize_training_run(
             out.display()
         ));
     }
+    if let Some(base_dir) = bundle.config_path.parent() {
+        for extra_file in ["generation_config.json", "tokenizer_config.json"] {
+            let src = base_dir.join(extra_file);
+            let dst = out.join(extra_file);
+            if !dst.exists()
+                && src.is_file()
+                && let Err(e) = std::fs::copy(&src, &dst)
+            {
+                train_log::warn(&format!(
+                    "failed to copy {extra_file} to {}: {e}",
+                    out.display()
+                ));
+            }
+        }
+    }
 
+    let raw_alpha = config.alpha.round().max(1.0) as usize;
+    let eff_alpha = effective_lora_alpha(config.alpha, config.rank, config.use_rslora);
     let final_avg_loss = if total_step_count > 0 {
         total_loss_sum / total_step_count as f64
     } else {
@@ -170,9 +231,10 @@ pub(super) fn finalize_training_run(
         n_layers: bundle.layout.num_hidden_layers,
         n_heads: bundle.layout.num_attention_heads,
         notes: format!(
-            "rank={rank} α={alpha} epochs={epochs} steps={global_step} avg_loss={avg:.4}\nDevice: {device}\nCheckpoint: {ckpt}",
+            "rank={rank} α={alpha} effective_alpha={eff_alpha} rslora={rslora} epochs={epochs} steps={global_step} avg_loss={avg:.4}\nDevice: {device}\nCheckpoint: {ckpt}",
             rank = config.rank,
             alpha = config.alpha,
+            rslora = config.use_rslora,
             epochs = config.epochs,
             avg = final_avg_loss,
             device = device_label,
@@ -195,11 +257,15 @@ pub(super) fn finalize_training_run(
         .parent()
         .map(|p| p.to_string_lossy().to_string());
 
+    train_log::info(&format!(
+        "Finalizing QLoRA adapter manifest v3 (rank={}, raw_alpha={}, effective_alpha={}, use_rslora={})",
+        config.rank, raw_alpha, eff_alpha, config.use_rslora
+    ));
     let adapter_manifest_v3 = build_adapter_manifest_v3(
         bundle.vocab,
         bundle.d_model,
         config.rank,
-        config.alpha as usize,
+        raw_alpha,
         config,
         adapter_layer_order,
         base_key_map,
@@ -220,10 +286,13 @@ pub(super) fn finalize_training_run(
         }
     }
 
+    let final_rel = rel_display(&final_path);
+    let wall_secs = run_start_inst.elapsed().as_secs_f64();
+
     let _ = db_tx.send(TrainingDbEvent::Complete {
         run_id: run_id.to_string(),
         global_step,
-        adapter_path: final_path.display().to_string(),
+        adapter_path: final_rel.clone(),
     });
 
     telemetry::append(
@@ -236,8 +305,11 @@ pub(super) fn finalize_training_run(
             "skip_short_seq": stats.skip_short_seq,
             "skip_curriculum": stats.skip_curriculum,
             "skip_token_id_oob": stats.skip_token_id_oob,
-            "final_adapter": final_path.display().to_string(),
+            "final_adapter": final_rel,
             "run_id": run_id,
+            "final_loss_ema": final_loss_ema,
+            "wall_secs": wall_secs,
+            "capped": capped,
         }),
     )?;
 
@@ -278,14 +350,17 @@ pub(super) fn finalize_training_run(
             "adapter_tag": config.adapter_tag,
             "global_step": global_step,
             "optimizer_step_count": optimizer_step_count,
+            "final_loss_ema": final_loss_ema,
             "avg_train_loss": final_avg_loss,
             "avg_val_loss_last_epoch": last_avg_val_loss,
             "total_tokens": total_tokens,
+            "wall_secs": wall_secs,
+            "capped": capped,
             "artifacts": {
-                "final_adapter": final_path.display().to_string(),
-                "training_skip_stats": out.join("training_skip_stats.json").display().to_string(),
-                "telemetry_jsonl": out.join("telemetry.jsonl").display().to_string(),
-                "model_card": out.join("MODEL_CARD.md").display().to_string()
+                "final_adapter": rel_display(&final_path),
+                "training_skip_stats": rel_display(&out.join("training_skip_stats.json")),
+                "telemetry_jsonl": rel_display(&out.join("telemetry.jsonl")),
+                "model_card": rel_display(&out.join("MODEL_CARD.md"))
             }
         }))?,
     )?;
@@ -317,7 +392,6 @@ pub(super) fn finalize_training_run(
         final_path.display(),
     ));
 
-    let wall_secs = run_start_inst.elapsed().as_secs_f64();
     let ms_per_step = if global_step > 0 {
         (wall_secs * 1000.0) / global_step as f64
     } else {
@@ -334,7 +408,10 @@ pub(super) fn finalize_training_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_adapter_manifest_v3, resolved_serve_base_model, stage_serve_sidecars};
+    use super::{
+        build_adapter_manifest_v3, effective_lora_alpha, resolved_serve_base_model,
+        stage_serve_sidecars,
+    };
     use crate::config::LoraTrainingConfig;
     use std::fs;
 
@@ -406,5 +483,12 @@ mod tests {
             fs::read_to_string(out.path().join("config.json")).unwrap(),
             "{}"
         );
+    }
+
+    #[test]
+    fn effective_lora_alpha_scales_by_sqrt_rank_when_rslora_enabled() {
+        assert_eq!(effective_lora_alpha(16.0, 16, false), 16);
+        assert_eq!(effective_lora_alpha(16.0, 16, true), 64);
+        assert_eq!(effective_lora_alpha(32.0, 4, true), 64);
     }
 }

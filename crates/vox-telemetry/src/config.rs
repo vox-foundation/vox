@@ -323,7 +323,7 @@ fn vox_config_dir() -> std::path::PathBuf {
         if let Some(appdata) = std::env::var_os("APPDATA") {
             return std::path::PathBuf::from(appdata).join("vox");
         }
-        // vox-arch-check: allow abs-path
+        // vox-arch-check: allow abs-path — drift-allow(hardcoded-abs-dir): Windows APPDATA unset fallback
         std::path::PathBuf::from(r"C:\Users\Default\AppData\Roaming\vox")
     }
     #[cfg(not(windows))]
@@ -411,7 +411,7 @@ fn user_config_path() -> std::path::PathBuf {
                 .join("vox")
                 .join("config.toml");
         }
-        // vox-arch-check: allow abs-path
+        // vox-arch-check: allow abs-path — drift-allow(hardcoded-abs-dir): Windows APPDATA unset fallback
         std::path::PathBuf::from(r"C:\Users\Default\AppData\Roaming\vox\config.toml")
     }
     #[cfg(not(windows))]

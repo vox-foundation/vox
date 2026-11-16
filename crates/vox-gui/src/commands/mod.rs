@@ -22,6 +22,7 @@ pub mod execute;
 pub mod gamify;
 pub mod gamify_settings;
 pub mod graphify;
+pub mod gsd;
 pub mod gui_db_pool;
 pub mod harness;
 pub mod harness_eval;

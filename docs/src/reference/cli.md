@@ -305,6 +305,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `secrets-parity` | Verifies Secrets SSOT parity between managed secret specs and [`secrets-ssot.md`](secrets-ssot.md). Visible alias: **`clavis-parity`**. |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|mens\|all]` | Build and package allowlisted release artifacts (`cargo build --locked --profile dist`): `vox`, `vox-ml-cli`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, script duals, and **`contracts/operations/completion-policy.v1.yaml`** (JSON Schema) — blocks orphan CLI drift |
+| `cli-synonyms [--write]` | Generate or verify `contracts/cli/semantic-aliases.v1.json` (`CLI-TOL-04`) |
 | `completion-audit [--scan-extra <DIR>]…` | Scans **`crates/`** (always) plus optional extra directories under the repo (generated apps, codegen trees). Same detectors; paths must exist and resolve under the repository root. Writes **`contracts/reports/completion-audit.v1.json`**. CI uses **`--features completion-toestub`** to merge TOESTUB `victory-claim` (Tier C). |
 | `completion-gates [--mode warn\|enforce]` | Applies Tier A hard blocks and Tier B regression limits from **`contracts/reports/completion-baseline.v1.json`** to the last audit report (CI uses **`enforce`**) |
 | `completion-ingest [--report <path>] [--workflow …] [--run-kind …]` | Inserts the audit report into VoxDB **`ci_completion_*`** tables (optional telemetry; requires a working local/default DB) |
@@ -380,6 +381,7 @@ Creates and inspects the project Python environment declared by `[python]` in `V
 |------------|------|
 | `vox py sync` | Install `[python]` packages into `.vox/python` and store `python_uv_lock_hash` in `vox.lock`. |
 | `vox py doctor` | Print uv, Python, packages, lock-hash status, and `sandbox: unsandboxed`. |
+| `vox py bind <module>` | Generate `.vox/python/bindings/<module>.vox.pyi` pinned to `.vox/python/uv.lock`. |
 
 ### `vox repo`
 

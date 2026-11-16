@@ -32,7 +32,9 @@ export function clampCamera(cam: Camera, b: WorldBounds, vw: number, vh: number)
 export function fitBounds(b: WorldBounds, vw: number, vh: number, pad: number): Camera {
   const w = Math.max(1, b.maxX - b.minX);
   const h = Math.max(1, b.maxY - b.minY);
-  const zoom = Math.min((vw - 2 * pad) / w, (vh - 2 * pad) / h);
+  const availW = Math.max(1, vw - 2 * pad);
+  const availH = Math.max(1, vh - 2 * pad);
+  const zoom = Math.max(1e-6, Math.min(availW / w, availH / h));
   return {
     zoom,
     x: (vw - w * zoom) / 2 - b.minX * zoom,

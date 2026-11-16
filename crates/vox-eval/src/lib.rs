@@ -11,6 +11,8 @@ pub mod compare;
 pub mod corpus_score;
 pub mod corpus_stats;
 pub mod decode_protocol;
+pub mod episode;
+pub mod episode_controls;
 pub mod gate_state;
 pub mod ladder_before_after;
 pub mod mens;
@@ -21,6 +23,7 @@ pub mod reasoning_bench;
 pub mod reasoning_slice;
 pub mod report;
 pub mod sequential_mcnemar;
+pub mod suite_report;
 pub mod trial_flywheel;
 
 pub use collateral_evidence::{CollateralRefusal, CollateralRequirement, check_collateral_report};

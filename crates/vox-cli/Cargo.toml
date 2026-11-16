@@ -50,7 +50,6 @@ oratio = []
 mcp-server = [
     "vox-orchestrator/populi-transport",
     "vox-orchestrator-mcp/populi-transport",
-    "dep:rmcp",
 ]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
@@ -74,7 +73,7 @@ script-execution = [
     "dep:win32job",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "dep:tokio-stream"]
+execution-api = ["script-execution"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 # Implies `completion-toestub`: stub_check::mod unconditionally calls
 # status_writer::code_audit_results, which is gated behind that feature.
@@ -100,7 +99,7 @@ completion-toestub = ["dep:vox-code-audit", "vox-cli-ci/completion-toestub"]
 # Native Tauri 2 GUI (replaces dashboard SPA)
 gui = []
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
-ars = ["dep:vox-openclaw-runtime", "dep:vox-skill-discovery"]
+ars = []
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
 extras-ludus = ["vox-gamify", "dep:vox-code-audit"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
@@ -112,7 +111,7 @@ dei = []
 # DEI training and AI operations (mens).
 mens-dei = ["dei", "database"]
 # Interpreted workflow journal + activities.
-workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime"]
+workflow-runtime = ["mens-dei"]
 # BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
 codex = []
 
@@ -125,6 +124,7 @@ coderabbit = [
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [
+    "dep:vox-publisher",
     "vox-publisher/scientia-reddit",
     "vox-publisher/scientia-twitter",
     "vox-publisher/scientia-linkedin",
@@ -148,7 +148,6 @@ miette = { workspace = true }
 anyhow = { workspace = true }
 cargo_metadata = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 reqwest = { workspace = true, features = ["multipart"] }
 vox-http-client = { workspace = true }
 serde = { workspace = true }
@@ -156,8 +155,6 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 strsim = { workspace = true }
 sha2.workspace = true
-sha3 = { workspace = true }
-data-encoding = { workspace = true }
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
 vox-cli-ci = { workspace = true }
@@ -166,31 +163,16 @@ vox-cli-research = { workspace = true }
 vox-cli-review = { workspace = true, optional = true }
 vox-cli-contracts = { workspace = true }
 base64 = { workspace = true }
-futures = { workspace = true }
 vox-package = { workspace = true }
 
 vox-eval = { workspace = true }
 vox-container = { workspace = true }
 vox-deploy-codegen = { workspace = true }
-# Non-optional: `harness::live_eval::build_eval_server_state` (Task 5, `--live` golden corpus)
-# needs `vox_skills::new_registry_arc`/`SkillRegistry` directly, and vox-orchestrator-mcp already
-# pulls this crate in unconditionally (its own `vox-skills.workspace = true` is not optional), so
-# making it non-optional here adds no new build weight.
-vox-skills = { workspace = true }
-vox-openclaw-runtime = { workspace = true, optional = true }
-vox-skill-discovery = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
-dialoguer = { workspace = true }
-vox-oauth-pkce = { workspace = true }
 vox-db = { workspace = true, features = ["host-integration", "legacy-import"] }
-vox-sql = { workspace = true, features = ["postgres", "mysql"] }
-vox-research-events = { workspace = true }
-vox-term             = { path = "../vox-term" }
-# `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
-# handler; not pulled in via the producers crate.
-vox-scientia = { workspace = true }
+vox-term             = { workspace = true }
 # Lean by default (qdrant-vector + tavily). The web-scrape stack (and the KB Library
 # tantivy index, already a vox-search default) is gated behind `heavy-retrieval`
 # (off by default; shipped release binaries enable it). See WS2-T3.
@@ -200,29 +182,19 @@ vox-search = { workspace = true }
 # (the `Publication` extension point on `VoxPlugin`) to keep the heavy
 # `feed-rs` / `vox-publisher` transitive deps out of the default CLI build.
 # Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
-vox-publisher = { workspace = true, features = ["scholarly-external-jobs"] }
+vox-publisher = { workspace = true, optional = true, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
 vox-code-audit = { workspace = true, optional = true }
 vox-drift-check = { workspace = true }
-# vox-drift-check uses vox-code-audit types; make it available for drift_check.rs
-# (also already pulled in by optional features above; this avoids feature-gate conditional)
 
 toml = { workspace = true }
-vox-doc-pipeline = { path = "../vox-doc-pipeline" }
-vox-research-shim = { workspace = true, features = ["runtime", "gamify"] }
+vox-doc-pipeline = { workspace = true }
 vox-orchestrator = { workspace = true }
-vox-orchestrator-driver = { workspace = true }
 # Shipping MCP server: keep the full default tool surface (news/scientia/visus/browser).
 # The crate's own default drops these for fast standalone iteration; binaries opt back in.
 vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "eval-gate"] }
-vox-plugin-api = { workspace = true }
-vox-plugin-types = { workspace = true }
 vox-plugin-catalog = { workspace = true }
-toml_edit = { workspace = true }
 vox-plugin-host = { workspace = true }
-# Needed to construct ROption / RString when dispatching into plugin extension
-# trait methods (e.g. the Publication.ingest_tick signature).
-abi_stable = { workspace = true }
 # `mens`, NOT `mens-train`. vox-cli's only use of this is `vox ci spoke-check`
 # (run_body_helpers/guards.rs), which reads domain_profiles + spoke_validate —
 # both pure serde. `mens-train` additionally pulls mens-candle-qlora and
@@ -231,21 +203,12 @@ abi_stable = { workspace = true }
 # passthrough that execs the separate vox-ml-cli binary (see main.rs), so
 # vox-cli gains zero command surface from the training stack.
 vox-populi = { workspace = true, features = ["mens"] }
-vox-mesh-types = { workspace = true }
-vox-workflow-runtime = { workspace = true, optional = true }
 
 vox-repository = { workspace = true }
-# F1: `vox audit effort` subcommand handler composes the effort-audit pipeline
-# (range → walk → judge → emit) + orchestrator model selection.
-vox-effort-audit = { workspace = true }
-# D3: `vox audit effort-route` subcommand handler composes the effort-route
-# pipeline (load → bucket → cluster → route → emit) + orchestrator model selection.
-vox-effort-route = { workspace = true }
 vox-project-scaffold = { workspace = true }
 vox-tauri-codegen = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
-comfy-table = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }
@@ -260,31 +223,25 @@ vox-actor-runtime = { workspace = true }
 # needs the type directly to classify it into a doctor `Check`.
 vox-llm-egress = { workspace = true }
 vox-foundation = { workspace = true }
-vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
-vox-constrained-gen = { workspace = true }
 rand = { workspace = true }
 
 uuid = { workspace = true, features = ["v4"] }
-vox-mcp-registry = { path = "../vox-mcp-registry" }
-vox-capability-registry = { path = "../vox-capability-registry" }
-rmcp = { workspace = true, optional = true, features = ["server", "client", "transport-io"] }
+vox-mcp-registry = { workspace = true }
+vox-capability-registry = { workspace = true }
 axum = { workspace = true, features = ["http1", "json", "tokio", "ws"] }
 vox-grammar-export = { workspace = true }
-axum-extra = { workspace = true, features = ["typed-header"] }
 notify = { workspace = true }
-tokio-stream = { workspace = true, optional = true }
 dirs = { workspace = true }
 walkdir = { workspace = true }
-sysinfo = { workspace = true }
 
 vox-git = { workspace = true }
 xxhash-rust = { workspace = true, optional = true }
 which = { workspace = true }
 flate2.workspace = true
 tar.workspace = true
-zip = { features = ["deflate"], version = "2" }
+zip = { workspace = true, features = ["deflate"] }
 self_update = { workspace = true, features = [
     "reqwest",
     "rustls",
@@ -296,7 +253,6 @@ self_update = { workspace = true, features = [
 semver = { workspace = true }
 keyring = { workspace = true, optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
-vox-rule-pack = { workspace = true }
 vox-telemetry      = { workspace = true }
 vox-telemetry-otlp = { workspace = true }
 vox-audit = { workspace = true }
@@ -305,10 +261,6 @@ vox-crypto.workspace = true
 hex.workspace = true
 nucleo = { workspace = true, optional = true }
 tempfile = { workspace = true }
-hyper-util.workspace = true
-async-trait.workspace = true
-thiserror.workspace = true
-form_urlencoded = "1.2.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { workspace = true, optional = true }
@@ -344,8 +296,12 @@ wiremock = { workspace = true }
 # `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
 vox-db = { workspace = true, features = ["test-support"] }
-vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-orchestrator = { workspace = true }
+sha3 = { workspace = true }
+vox-publisher = { workspace = true, features = ["scholarly-external-jobs"] }
+vox-workflow-runtime = { workspace = true }
+vox-effort-audit = { workspace = true }
+vox-effort-route = { workspace = true }
 
 [[test]]
 name = "live_feature_wiring"

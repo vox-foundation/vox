@@ -101,7 +101,19 @@
         "feature_gate": { "type": ["string", "null"] },
         "catalog_group": { "type": ["string", "null"] },
         "ref_cli_required": { "type": ["boolean", "null"] },
-        "reachability_required": { "type": ["boolean", "null"] }
+        "reachability_required": { "type": ["boolean", "null"] },
+        "verb_aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "noun_aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "foreign_idioms": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
       },
       "additionalProperties": false
     },

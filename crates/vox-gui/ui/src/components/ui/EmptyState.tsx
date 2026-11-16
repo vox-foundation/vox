@@ -1,6 +1,8 @@
 import React from 'react';
+import { AlertTriangle, ShieldAlert, WifiOff } from 'lucide-react';
 import { Button } from './Button';
-import { Icon } from './Icons';
+import { RomanCrestPlate } from './RomanCrestPlate';
+import { VoxIcon } from './VoxIcon';
 
 export interface EmptyStateProps {
   variant?: 'no-data' | 'no-permission' | 'no-connection' | 'error' | 'welcome';
@@ -15,12 +17,12 @@ export interface EmptyStateProps {
   headingLevel?: 2 | 3;
 }
 
-const DEFAULT_ICONS = {
-  'no-data': <Icon.alert className="size-8 text-text-muted" />,
-  'no-permission': <Icon.x className="size-8 text-red-400" />,
-  'no-connection': <Icon.bolt className="size-8 text-amber-400" />,
-  'error': <Icon.alert className="size-8 text-red-500" />,
-  'welcome': <Icon.check className="size-8 text-brass animate-pulse" />,
+const DEFAULT_ICONS: Record<NonNullable<EmptyStateProps['variant']>, React.ReactNode> = {
+  'no-data': <RomanCrestPlate variant="empty" size="md" />,
+  'no-permission': <VoxIcon icon={ShieldAlert} className="size-8 text-red-400" />,
+  'no-connection': <VoxIcon icon={WifiOff} className="size-8 text-amber-400" />,
+  'error': <VoxIcon icon={AlertTriangle} className="size-8 text-red-500" />,
+  'welcome': <RomanCrestPlate variant="empty" size="md" />,
 };
 
 export function EmptyState({ 

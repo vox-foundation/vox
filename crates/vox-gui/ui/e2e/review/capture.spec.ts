@@ -56,6 +56,11 @@ async function captureOne(
   const t0 = Date.now();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await installMock(page, state.mock ?? 'rich', surface);
+  if (state.initFlags && Object.keys(state.initFlags).length > 0) {
+    await page.addInitScript((flags) => {
+      for (const [k, v] of Object.entries(flags)) (window as unknown as Record<string, unknown>)[k] = v;
+    }, state.initFlags);
+  }
   await page.goto('/');
   await page.waitForSelector('nav', { timeout: 20_000 });
   await page.evaluate(() => (document as any).fonts?.ready);

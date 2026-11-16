@@ -3,8 +3,8 @@
 use serde_json::Value;
 
 use super::super::support::{
-    Case, FAILED, LEGACY_CKPT, NEEDS_RE_GATE, NO_EXAMPLES, NOT_EVALUATED, PASSED, fixture_root,
-    render_case, vox_block_ok,
+    Case, FAILED, LEGACY_CKPT, NEEDS_RE_GATE, NO_EXAMPLES, NOT_EVALUATED, PASSED, case_run_dir,
+    cx_for, fixture_root, render_case, vox_block_ok,
 };
 use super::examples::{
     Piece, blocks, ckpt_texts, facts, passes, prose, render_edited, section, set_pass,
@@ -60,26 +60,31 @@ fn passed_card_ends_use_it_with_recorded_output() {
     let card = render_case(&PASSED);
     let sec = section(&card, "Use it");
     let bl = blocks(&sec);
-    assert_eq!(bl.len(), 4, "{bl:?}");
-    assert!(
-        bl[0].1.starts_with("vox mens hub pull --size 1.7B"),
-        "{bl:?}"
-    );
+    assert_eq!(bl.len(), 5, "{bl:?}");
+    assert!(bl[0].1.starts_with("vox mens hub pull --size 2B"), "{bl:?}");
     assert_eq!(
         bl[1],
         (
             "bash",
-            "vox mens serve --model mens/runs/qwen3-1.7b --port 11435"
+            "vox mens serve --model mens/runs/qwen3.5-2b --port 11435"
         )
     );
-    let req = f.request_json.as_ref().unwrap();
-    assert_eq!(bl[2].0, "bash");
+    assert_eq!(bl[2].0, "python");
     assert!(
-        bl[2].1.ends_with(&format!("<<'JSON'\n{req}\nJSON")),
-        "{}",
-        bl[2].1
+        bl[2]
+            .1
+            .contains("PeftModel.from_pretrained(base, \"ns/vox-mens-qwen3.5-2b\")"),
+        "{:?}",
+        bl[2]
     );
-    assert_eq!(bl[3], ("vox", code));
+    let req = f.request_json.as_ref().unwrap();
+    assert_eq!(bl[3].0, "bash");
+    assert!(
+        bl[3].1.ends_with(&format!("<<'JSON'\n{req}\nJSON")),
+        "{}",
+        bl[3].1
+    );
+    assert_eq!(bl[4], ("vox", code));
     // The block order ends on the recorded code, after one label sentence.
     let last = sec
         .iter()
@@ -92,7 +97,7 @@ fn passed_card_ends_use_it_with_recorded_output() {
         .find(|l| l.starts_with("The code below"))
         .unwrap();
     for part in [
-        "1.7B",
+        "2B",
         "evidence/heldout_adapter_nothink.ckpt.jsonl",
         u.id.as_str(),
         "not a transcript",
@@ -115,7 +120,7 @@ fn passed_card_ends_use_it_with_recorded_output() {
         r.as_object_mut().unwrap().remove("temperature");
     });
     let sec = section(&card, "Use it");
-    let req = blocks(&sec)[2].1;
+    let req = blocks(&sec)[3].1;
     assert!(
         !req.contains("max_tokens") && !req.contains("temperature"),
         "{req}"
@@ -123,7 +128,7 @@ fn passed_card_ends_use_it_with_recorded_output() {
     assert!(
         prose(&sec)
             .iter()
-            .any(|l| l.contains("1.7B report does not record the evaluation's decode settings"))
+            .any(|l| l.contains("2B report does not record the evaluation's decode settings"))
     );
 }
 
@@ -135,9 +140,26 @@ fn non_passed_card_shows_no_live_request() {
         let sec = section(&card, "Use it");
         let bl = blocks(&sec);
         assert_eq!(bl.len(), 1, "{}: {bl:?}", case.size);
-        assert!(bl[0].1.ends_with(" --allow-ungated"), "{bl:?}");
+        assert!(
+            bl[0].1.starts_with("vox mens hub download --repo "),
+            "{bl:?}"
+        );
+        assert!(!card.to_lowercase().contains("ungated"), "{card}");
         assert!(!card.contains("curl") && !card.contains("mens serve --model"));
-        let serve = prose(&sec)
+        let prose_lines = prose(&sec);
+        assert!(
+            prose_lines.iter().any(|l| l.contains("trained add-on")),
+            "{}: missing trained add-on notice: {prose_lines:?}",
+            case.size
+        );
+        assert!(
+            prose_lines
+                .iter()
+                .any(|l| l.contains("release review is unfinished")),
+            "{}: missing unfinished review notice: {prose_lines:?}",
+            case.size
+        );
+        let serve = prose_lines
             .into_iter()
             .find(|l| l.contains("`vox mens serve`"))
             .unwrap_or_else(|| panic!("{}: no serve sentence", case.size));
@@ -162,14 +184,15 @@ fn passed_stale_serving_shows_no_recorded_output() {
     let card = render_case(&stale);
     let sec = section(&card, "Use it");
     let bl = blocks(&sec);
-    assert_eq!(bl.len(), 3, "{bl:?}");
+    assert_eq!(bl.len(), 4, "{bl:?}");
     assert!(bl[0].1.starts_with("vox mens hub pull") && bl[1].1.starts_with("vox mens serve"));
-    assert_eq!(bl[2], ("text", "no recorded output"));
+    assert_eq!(bl[2].0, "python");
+    assert_eq!(bl[3], ("text", "no recorded output"));
     let reason = prose(&sec)
         .into_iter()
         .find(|l| l.contains("has no serving field"))
         .unwrap();
-    assert!(reason.contains("1.7B"), "{reason}");
+    assert!(reason.contains("2B"), "{reason}");
     assert!(!card.contains("curl"));
     for t in ckpt_texts(LEGACY_CKPT)
         .iter()
@@ -197,10 +220,74 @@ fn passed_stale_serving_shows_no_recorded_output() {
         set_pass(&mut rec.heldout_adapter, |id, _| id == only);
     });
     let sec = section(&card, "Use it");
-    assert_eq!(blocks(&sec).len(), 2, "pull and serve only");
+    assert_eq!(blocks(&sec).len(), 3, "pull, serve, and peft only");
     assert!(
         prose(&sec)
             .iter()
-            .any(|l| l.starts_with("No recorded passing 1.7B output"))
+            .any(|l| l.starts_with("No recorded passing 2B output"))
     );
+}
+
+#[test]
+fn complete_merged_model_card_shows_download_and_merged_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let run = case_run_dir(&PASSED, tmp.path());
+    std::fs::write(run.join("merged_model.safetensors"), b"merged").unwrap();
+    let rec = crate::mens::hub_card::RunRecords::load(&run, PASSED.size, PASSED.pin);
+    let card = crate::mens::hub_card::render_model_card(&cx_for(&PASSED), &rec);
+    assert!(card.contains("base_model_relation: finetune"), "{card}");
+    assert!(card.contains("library_name: transformers"), "{card}");
+    assert!(
+        card.contains("# Vox MENS — Qwen3.5-2B complete model"),
+        "{card}"
+    );
+    assert!(card.contains("assets/banner.jpg"), "{card}");
+    assert!(!card.contains(".svg"), "{card}");
+    let sec = section(&card, "Use it");
+    let bl = blocks(&sec);
+    assert_eq!(bl.len(), 8, "{bl:?}");
+    assert!(
+        bl[0].1.starts_with("vox mens hub download --repo "),
+        "{bl:?}"
+    );
+    assert!(bl[1].1.starts_with("vox mens serve --model "), "{bl:?}");
+    assert!(
+        bl[2].1.contains("https://router.huggingface.co/v1")
+            && bl[2].1.contains(":auto")
+            && bl[2].1.contains(":featherless-ai"),
+        "{:?}",
+        bl[2]
+    );
+    assert!(
+        bl[3].1.contains("AutoModelForCausalLM.from_pretrained")
+            && bl[3].1.contains("enable_thinking=False"),
+        "{:?}",
+        bl[3]
+    );
+    assert!(
+        bl[4].1.contains("vllm serve") && bl[4].1.contains("ollama run hf.co/"),
+        "{:?}",
+        bl[4]
+    );
+    assert!(
+        bl[5].1.contains("PeftModel.from_pretrained") && bl[5].1.contains("subfolder=\"peft\""),
+        "{:?}",
+        bl[5]
+    );
+    assert!(bl[6].1.starts_with("curl "), "{bl:?}");
+    assert_eq!(bl[7].0, "vox");
+    assert!(card.contains("complete merged checkpoint"), "{card}");
+    assert!(card.contains("Files tab"), "{card}");
+    assert!(!card.to_lowercase().contains("ungated"), "{card}");
+
+    // Legacy Qwen3 fallback family uses `/no_think` suffix instead of `enable_thinking=False`.
+    let q3_card = crate::mens::hub_card::render_model_card(
+        &crate::mens::hub_card::CardContext {
+            size: "4B",
+            base_pin: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c", // gitleaks:allow
+            namespace: "ns",
+        },
+        &rec,
+    );
+    assert!(q3_card.contains("/no_think"), "{q3_card}");
 }

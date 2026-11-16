@@ -17,9 +17,7 @@ turso = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 sha3 = { workspace = true }
-bincode = { workspace = true }
 vox-secrets = { workspace = true, optional = true }
-vox-repository = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strsim = { workspace = true }
@@ -38,7 +36,7 @@ semver = { workspace = true }
 default = ["local"]
 local = []
 replication = []
-host-integration = ["dep:keyring", "dep:vox-config", "dep:vox-repository", "dep:vox-secrets"]
+host-integration = ["dep:keyring", "dep:vox-config", "dep:vox-secrets"]
 # Implies `quarantine`: the legacy JSONL export/import path
 # (`codex_legacy::LEGACY_EXPORT_TABLES`) still lists the DORMANT/DEAD tables that
 # `quarantine` gates into the schema baseline — a legacy DB predating the
@@ -61,8 +59,8 @@ quarantine = []
 [dev-dependencies]
 regex = { workspace = true }
 tempfile = { workspace = true }
-vox-test-harness = { path = "../vox-test-harness" }
-rusqlite = { version = "0.32", default-features = false, features = ["bundled"] }
+vox-test-harness = { workspace = true }
+rusqlite = { workspace = true }
 criterion = { workspace = true }
 
 [[test]]

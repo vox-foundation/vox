@@ -31,11 +31,21 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             scientia_ledger_contract::validate_novelty_bundle_file(&root, &path)?;
             Ok(())
         }
+        ScientiaCmd::V76Audit {
+            stage,
+            out,
+            compare,
+            jsonl_out,
+        } => {
+            crate::scientia_v76_audit::run_v76_audit(stage.into(), out, compare, jsonl_out).await?;
+            Ok(())
+        }
         cmd => {
             let db_cmd = match cmd {
                 ScientiaCmd::FindingCandidateValidate { .. }
-                | ScientiaCmd::NoveltyEvidenceBundleValidate { .. } => unreachable!(
-                    "finding-candidate-validate and novelty-evidence-bundle-validate handled above"
+                | ScientiaCmd::NoveltyEvidenceBundleValidate { .. }
+                | ScientiaCmd::V76Audit { .. } => unreachable!(
+                    "finding-candidate-validate, novelty-evidence-bundle-validate, and v76-audit handled above"
                 ),
                 ScientiaCmd::CapabilityList => DbCli::Core(DbCliCore::CapabilityList),
                 ScientiaCmd::ResearchList {

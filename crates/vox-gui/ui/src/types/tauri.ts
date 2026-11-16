@@ -120,6 +120,8 @@ export interface SessionChatPostureDto {
   kb_scope?: KbScopeMode | string | null;
   grounding_check_enabled?: boolean | null;
   compaction_strategy?: 'balanced' | 'aggressive' | 'conservative' | string | null;
+  research_mode?: 'off' | 'auto' | 'fast' | 'deep' | string | null;
+  domain_mode?: string | null;
 }
 
 /** Turn-level BPE compaction audit receipt emitted by `vox_chat_message`. */
@@ -142,6 +144,8 @@ export interface PostureAuditDto {
   oversight_level?: string | null;
   kb_scope?: string | null;
   grounding_check_enabled?: boolean | null;
+  research_mode?: string | null;
+  domain_mode?: string | null;
   hydrated_from_session_posture: boolean;
 }
 
@@ -198,8 +202,16 @@ export interface ChatPayload {
   trace_id?: string | null;
   /** Explicit research override (true to force, false to bypass, null/undefined for auto). */
   force_research?: boolean | null;
-  /** Research scope mode ('auto', 'quick', 'deep', 'none'). */
+  /** Orthogonal research continuum mode ('off' | 'auto' | 'fast' | 'deep'). */
+  research_mode?: 'off' | 'auto' | 'fast' | 'deep' | null;
+  /** Orthogonal research corpus scope ('web' | 'local' | 'both', or legacy fallback). */
   research_scope?: string | null;
+  /** Research domain mode ('general' | 'codegen' | 'shopping' | 'scholarly'). */
+  domain_mode?: string | null;
+  /** Optional site scope to restrict search (e.g. 'github.com', 'docs.rs'). */
+  site_scope?: string | null;
+  /** Multi-wave deep research iteration count (1..=5). */
+  waves?: number | null;
 }
 
 /** What `handleLoquelaSubmit` returns so Drive send can parse last_error. */

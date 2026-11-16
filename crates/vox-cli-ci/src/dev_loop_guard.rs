@@ -13,6 +13,7 @@ const BUILD_COMMANDS: [&str; 5] = [
     "cargo test",
     "cargo nextest",
 ];
+const MAX_AGENT_TARGET_SLUG_LEN: usize = 48;
 
 /// `run:` values in a lefthook file that invoke a cargo build.
 pub fn hook_build_offenders(lefthook: &str) -> Vec<String> {
@@ -53,7 +54,32 @@ pub fn unregistered_hook_commands(lefthook: &str, registry: &HashSet<String>) ->
     out
 }
 
-/// True when the `[build]` table of a cargo config sets `jobs`.
+/// True when `[target.aarch64-apple-darwin]` defines `-Wl,-dead_strip` without global `panic=abort`.
+pub fn macos_linker_strip_missing(cargo_config: &str) -> bool {
+    let mut in_darwin = false;
+    let mut has_dead_strip = false;
+    let mut has_panic_abort = false;
+    for line in cargo_config.lines().map(str::trim) {
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if line.starts_with('[') {
+            in_darwin = line == "[target.aarch64-apple-darwin]";
+        } else if in_darwin && line.contains("-Wl,-dead_strip") {
+            has_dead_strip = true;
+        }
+        let cleaned: String = line
+            .chars()
+            .filter(|c| !c.is_whitespace() && *c != '"' && *c != '\'')
+            .collect();
+        if cleaned.contains("panic=abort") {
+            has_panic_abort = true;
+        }
+    }
+    !has_dead_strip || has_panic_abort
+}
+
+/// True when `.cargo/config.toml` sets `build.jobs = N` explicitly instead of letting the broker/host size workers.
 pub fn hardcoded_build_jobs(cargo_config: &str) -> bool {
     let mut in_build = false;
     for line in cargo_config.lines().map(str::trim) {
@@ -64,6 +90,131 @@ pub fn hardcoded_build_jobs(cargo_config: &str) -> bool {
         }
     }
     false
+}
+
+fn toml_key(line: &str) -> &str {
+    line.split('=')
+        .next()
+        .map(str::trim)
+        .unwrap_or("")
+        .trim_matches(['"', '\''])
+}
+
+/// True when `.cargo/config.toml` commits `[build] rustc-wrapper` or `[env] RUSTC_WRAPPER`.
+pub fn hardcoded_rustc_wrapper(cargo_config: &str) -> bool {
+    let mut section = "";
+    for line in cargo_config.lines().map(str::trim) {
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if line.starts_with('[') {
+            section = line.split('#').next().map(str::trim).unwrap_or("");
+        } else {
+            let key = toml_key(line);
+            if (section == "[build]" && key == "rustc-wrapper")
+                || (section == "[env]" && key == "RUSTC_WRAPPER")
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// True when `[env]` in `.cargo/config.toml` omits `SCCACHE_DIR` or `CARGO_TARGET_DIR`.
+pub fn shared_sccache_or_target_missing(cargo_config: &str) -> bool {
+    let (mut in_env, mut has_sccache, mut has_target) = (false, false, false);
+    for line in cargo_config.lines().map(str::trim) {
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if line.starts_with('[') {
+            in_env = line.split('#').next().map(str::trim) == Some("[env]");
+        } else if in_env {
+            let key = toml_key(line);
+            has_sccache |= key == "SCCACHE_DIR";
+            has_target |= key == "CARGO_TARGET_DIR";
+        }
+    }
+    !has_sccache || !has_target
+}
+
+/// Returns a reason when an optional `<worktree>/.vox/agent-target` slug violates `[A-Za-z0-9_-]{1,48}`.
+pub fn invalid_agent_target_slug(raw: &str) -> Option<&'static str> {
+    let slug = raw.trim();
+    if slug.is_empty() {
+        return Some("empty slug");
+    }
+    if slug.len() > MAX_AGENT_TARGET_SLUG_LEN {
+        return Some("slug exceeds 48 characters");
+    }
+    if !slug
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Some("slug must match ASCII [A-Za-z0-9_-]");
+    }
+    None
+}
+
+/// Missing broker contention/timeout guidance across `.agents/cargo-safety.md` and `build-broker-usage.md`.
+pub fn broker_safety_docs_missing_guidance(
+    safety_doc: &str,
+    broker_doc: &str,
+) -> Vec<&'static str> {
+    const SAFETY: [(&str, &str); 4] = [
+        (
+            "VOX_BROKER_RUN_TIMEOUT_SECS",
+            "cargo-safety.md missing VOX_BROKER_RUN_TIMEOUT_SECS",
+        ),
+        ("VOX_WORKSTREAM", "cargo-safety.md missing VOX_WORKSTREAM"),
+        (
+            "VOX_ISOLATED_TARGET",
+            "cargo-safety.md missing VOX_ISOLATED_TARGET",
+        ),
+        (
+            "cargo test -p",
+            "cargo-safety.md missing batched cargo test -p guidance",
+        ),
+    ];
+    const BROKER: [(&str, &str); 6] = [
+        (
+            "VOX_BROKER_RUN_TIMEOUT_SECS",
+            "build-broker-usage.md missing VOX_BROKER_RUN_TIMEOUT_SECS",
+        ),
+        (
+            "VOX_WORKSTREAM",
+            "build-broker-usage.md missing VOX_WORKSTREAM",
+        ),
+        (
+            "VOX_BROKER_NO_SCCACHE",
+            "build-broker-usage.md missing VOX_BROKER_NO_SCCACHE",
+        ),
+        (
+            "VOX_BROKER_MAX_CONCURRENT",
+            "build-broker-usage.md missing VOX_BROKER_MAX_CONCURRENT",
+        ),
+        ("target_p95", "build-broker-usage.md missing target_p95"),
+        ("target_wait", "build-broker-usage.md missing target_wait"),
+    ];
+    SAFETY
+        .into_iter()
+        .filter(|(k, _)| !safety_doc.contains(k))
+        .chain(BROKER.into_iter().filter(|(k, _)| !broker_doc.contains(k)))
+        .map(|(_, msg)| msg)
+        .collect()
+}
+
+fn sccache_on_path(path_var: Option<&std::ffi::OsStr>) -> bool {
+    let bin = if cfg!(windows) {
+        "sccache.exe"
+    } else {
+        "sccache"
+    };
+    path_var
+        .into_iter()
+        .flat_map(std::env::split_paths)
+        .any(|dir| dir.join(bin).is_file())
 }
 
 /// Fast-tier source that `cargo run`s a workspace tool: an args array beginning
@@ -101,6 +252,7 @@ fn registry_paths(root: &Path) -> Result<HashSet<String>> {
         .collect())
 }
 
+#[inline(never)]
 pub fn run(root: &Path) -> Result<()> {
     let hooks = std::fs::read_to_string(root.join("lefthook.yml"))?;
     let cargo = std::fs::read_to_string(root.join(".cargo/config.toml"))?;
@@ -123,6 +275,42 @@ pub fn run(root: &Path) -> Result<()> {
     if hardcoded_build_jobs(&cargo) {
         errors.push(
             ".cargo/config.toml sets [build] jobs — let cargo use the machine's parallelism".into(),
+        );
+    }
+    if macos_linker_strip_missing(&cargo) {
+        errors.push(
+            ".cargo/config.toml [target.aarch64-apple-darwin] must enable -Wl,-dead_strip (and omit global panic=abort)".into(),
+        );
+    }
+    if hardcoded_rustc_wrapper(&cargo) {
+        errors.push(
+            ".cargo/config.toml sets hardcoded rustc-wrapper / RUSTC_WRAPPER — let vox-cargo-shim inject sccache dynamically".into(),
+        );
+    }
+    if shared_sccache_or_target_missing(&cargo) {
+        errors.push(
+            ".cargo/config.toml [env] must define both SCCACHE_DIR and CARGO_TARGET_DIR".into(),
+        );
+    }
+    let agent_target = root.join(".vox").join("agent-target");
+    if agent_target.is_file() {
+        let raw = std::fs::read_to_string(&agent_target)?;
+        if let Some(reason) = invalid_agent_target_slug(&raw) {
+            errors.push(format!(
+                "invalid agent-target slug in {}: {reason}",
+                agent_target.display()
+            ));
+        }
+    }
+    let safety_doc = std::fs::read_to_string(root.join(".agents").join("cargo-safety.md"))?;
+    let broker_doc =
+        std::fs::read_to_string(root.join("docs/src/contributors/build-broker-usage.md"))?;
+    for missing in broker_safety_docs_missing_guidance(&safety_doc, &broker_doc) {
+        errors.push(format!("broker docs parity: {missing}"));
+    }
+    if !sccache_on_path(std::env::var_os("PATH").as_deref()) && std::env::var_os("CI").is_none() {
+        eprintln!(
+            "dev-loop-guard: advisory: sccache not found on PATH (install sccache so vox-cargo-shim can cache rustc artifacts across worktrees)"
         );
     }
     if errors.is_empty() {
@@ -191,6 +379,19 @@ mod tests {
         );
     }
 
+    #[test]
+    fn flags_missing_macos_dead_strip_or_global_panic_abort() {
+        assert!(macos_linker_strip_missing(
+            "[build]\ntarget-dir = \"target\"\n"
+        ));
+        assert!(!macos_linker_strip_missing(
+            "[target.aarch64-apple-darwin]\nrustflags = [\"-C\", \"link-arg=-Wl,-dead_strip\"]\n"
+        ));
+        assert!(macos_linker_strip_missing(
+            "[target.aarch64-apple-darwin]\nrustflags = [\"-C\", \"link-arg=-Wl,-dead_strip\"]\n[profile.release]\npanic = \"abort\"\n"
+        ));
+    }
+
     /// The checked-in lefthook.yml, cargo config and command registry pass, so a hook that builds
     /// or calls an unregistered command fails the test suite as well as the fast tier.
     #[test]
@@ -200,5 +401,44 @@ mod tests {
             .and_then(|p| p.parent())
             .expect("workspace root");
         run(root).expect("dev-loop-guard on the repository");
+    }
+
+    #[test]
+    fn flags_hardcoded_rustc_wrapper_and_missing_env_keys() {
+        assert!(hardcoded_rustc_wrapper(
+            "[build]\nrustc-wrapper = \"sccache\"\n"
+        ));
+        assert!(hardcoded_rustc_wrapper(
+            "[env]\nRUSTC_WRAPPER = \"sccache\"\n"
+        ));
+        assert!(!hardcoded_rustc_wrapper(
+            "# rustc-wrapper = \"sccache\"\n[build]\nrustdocflags = []\n"
+        ));
+        assert!(shared_sccache_or_target_missing(
+            "[env]\nSCCACHE_DIR = \".sccache\"\n"
+        ));
+        assert!(shared_sccache_or_target_missing(
+            "[env]\nCARGO_TARGET_DIR = \"target\"\n"
+        ));
+        assert!(!shared_sccache_or_target_missing(
+            "[env]\nSCCACHE_DIR = { value = \".sccache\", relative = true }\nCARGO_TARGET_DIR = { value = \"target\", relative = true }\n"
+        ));
+    }
+
+    #[test]
+    fn validates_agent_target_slug_and_broker_docs_parity() {
+        assert_eq!(invalid_agent_target_slug("  axis-warp_v75\n"), None);
+        assert!(invalid_agent_target_slug("   ").is_some());
+        assert!(invalid_agent_target_slug("../escape").is_some());
+        assert!(invalid_agent_target_slug("a/b").is_some());
+        assert!(invalid_agent_target_slug(&"x".repeat(49)).is_some());
+        assert!(!broker_safety_docs_missing_guidance("old safety", "old broker").is_empty());
+        assert!(
+            broker_safety_docs_missing_guidance(
+                "VOX_BROKER_RUN_TIMEOUT_SECS VOX_WORKSTREAM VOX_ISOLATED_TARGET cargo test -p a -p b",
+                "VOX_BROKER_RUN_TIMEOUT_SECS VOX_WORKSTREAM VOX_BROKER_NO_SCCACHE VOX_BROKER_MAX_CONCURRENT target_p95 target_wait",
+            )
+            .is_empty()
+        );
     }
 }

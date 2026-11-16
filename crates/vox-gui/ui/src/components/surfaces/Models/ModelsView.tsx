@@ -1,18 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 import { Glass } from '../../ui/Glass';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { BackendAvailability, type ProviderStatus } from './BackendAvailability';
+import { MensServePanel } from './MensServePanel';
 import { ModelLeaderboardPanel } from './ModelLeaderboard';
 import type { Toast } from '../../../types/tauri';
 import { RoutingExplainer } from './RoutingExplainer';
 import { useRoutingExplanation } from '../../../hooks/useRoutingExplanation';
 import { modeLabel } from '../../../lib/turnEvents';
 import { priceLabel } from '../../../lib/routingLabels';
+import { BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
 
 interface ModelCard {
   id: string;
@@ -66,13 +69,14 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
   const [loading, setLoading] = useState(true);
   const [providerStatuses, setProviderStatuses] = useState<ProviderStatus[]>([]);
   const [freeOnly, setFreeOnly] = useState(false);
+  const [tierFilter, setTierFilter] = useState<'all' | 'hosted' | 'local'>('all');
 
   const ModelIcon = (Icon as unknown as Record<string, React.FC<React.SVGProps<SVGSVGElement>>>).models ?? Icon.cpu;
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await invoke<ModelsSnapshot | null>('get_models_snapshot', { limit: 120 });
+      const snap = await invokeCmd<ModelsSnapshot | null>('get_models_snapshot', { limit: 120 });
       const cards = Array.isArray(snap?.cards) ? snap.cards : [];
       const routing = snap?.routing ?? null;
       const active = snap?.active_model ?? null;
@@ -101,7 +105,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
 
   const setDefault = async (id: string) => {
     try {
-      await invoke('set_active_model', { modelId: id });
+      await invokeCmd('set_active_model', { modelId: id });
       setActiveModel(id);
       void recordGamifyGuiEvent('model_activated', { model_id: id }, { enabled: gamifyEnabled });
       pushToast({ tone: 'ok', title: 'Active model set', body: id, cause: 'backend-ok' });
@@ -110,6 +114,13 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
     }
   };
 
+  const allHostedCount = models.filter(
+    m => !m.id.includes('ollama') && !m.id.startsWith('mesh/') && !m.id.startsWith('mens/')
+  ).length;
+  const allLocalCount = models.filter(
+    m => m.id.includes('ollama') || m.id.startsWith('mesh/') || m.id.startsWith('mens/')
+  ).length;
+  const freeModelCount = models.filter(m => m.is_free).length;
   const hosted = models
     .filter(m => !m.id.includes('ollama') && !m.id.startsWith('mesh/') && !m.id.startsWith('mens/'))
     .filter(m => !freeOnly || m.is_free);
@@ -118,7 +129,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
     .filter(m => !freeOnly || m.is_free);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="@container/surface flex min-w-0 flex-col gap-4">
       <RomanSurfaceHeader
         domainTag="COMPUTE · MODELS"
         title="Model Registry, Leaderboard & Routing Posture"
@@ -126,9 +137,36 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
         waxSealBadge="ROUTER LIVE"
         icon={<ModelIcon className="size-5 text-[#F3E5AB]" />}
         gauges={[
-          { label: 'Active Tier', valueText: 'Hybrid', ratio: 0.78, tone: 'gold' },
-          { label: 'Local MENS', valueText: 'Ready', ratio: 1, tone: 'emerald' },
-          { label: 'Routing', valueText: 'Calibrated', ratio: 0.9, tone: 'gold' },
+          {
+            label: 'Hosted',
+            valueText: `${hosted.length}/${models.length}`,
+            ratio: models.length > 0 ? Math.max(0, Math.min(1, allHostedCount / models.length)) : 0,
+            tone: 'gold',
+            purpose: 'Hosted frontier models in catalog',
+            actionHint: tierFilter === 'hosted' ? 'Show all model tiers' : 'Filter to hosted frontier models',
+            active: tierFilter === 'hosted',
+            onClick: () => setTierFilter(prev => (prev === 'hosted' ? 'all' : 'hosted')),
+          },
+          {
+            label: 'Local MENS',
+            valueText: `${local.length} Local`,
+            ratio: models.length > 0 ? Math.max(0, Math.min(1, allLocalCount / models.length)) : 0,
+            tone: local.length > 0 ? 'emerald' : 'gold',
+            purpose: 'Local Ollama, Mesh, and MENS models',
+            actionHint: tierFilter === 'local' ? 'Show all model tiers' : 'Filter to local / Mesh / MENS models',
+            active: tierFilter === 'local',
+            onClick: () => setTierFilter(prev => (prev === 'local' ? 'all' : 'local')),
+          },
+          {
+            label: 'Free Tier',
+            valueText: `${freeModelCount} Free`,
+            ratio: models.length > 0 ? Math.max(0, Math.min(1, freeModelCount / models.length)) : 0,
+            tone: freeOnly ? 'emerald' : 'gold',
+            purpose: 'Zero-cost catalog models eligible for free routing',
+            actionHint: 'Toggle free-only model filter',
+            active: freeOnly,
+            onClick: () => setFreeOnly(prev => !prev),
+          },
         ]}
       />
       <Glass
@@ -147,7 +185,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
               {summary ? routingSummaryLine(summary) : 'Loading routing summary…'}
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-[11px] font-semibold text-[#2B2013]">
               <input
                 type="checkbox"
@@ -166,17 +204,28 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
           </div>
         </div>
       </Glass>
-      <RoutingPanel />
-      <BackendAvailability statuses={providerStatuses} />
-      <ModelLeaderboardPanel />
+      <BentoGrid preset="hero" className="items-start">
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 @3xl/surface:col-span-7 @5xl/surface:col-span-8">
+          <RoutingPanel />
+          <ModelLeaderboardPanel />
+        </div>
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 @3xl/surface:col-span-5 @5xl/surface:col-span-4">
+          <BackendAvailability statuses={providerStatuses} />
+          <MensServePanel pushToast={pushToast} />
+        </div>
+      </BentoGrid>
       {loading && models.length === 0 ? (
         <Glass className="p-8 text-center text-text-secondary text-sm border-[#D4AF37]/35 bg-bg-surface">
           Loading model catalog…
         </Glass>
       ) : (
         <>
-          <ModelGrid title="Hosted" items={hosted} activeModel={activeModel} onSetDefault={setDefault} />
-          <ModelGrid title="Local / Mesh / MENS" items={local} activeModel={activeModel} onSetDefault={setDefault} />
+          {tierFilter !== 'local' && (
+            <ModelGrid title="Hosted" items={hosted} activeModel={activeModel} onSetDefault={setDefault} />
+          )}
+          {tierFilter !== 'hosted' && (
+            <ModelGrid title="Local / Mesh / MENS" items={local} activeModel={activeModel} onSetDefault={setDefault} />
+          )}
         </>
       )}
     </div>
@@ -195,28 +244,30 @@ function RoutingPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="font-display text-[11px] tracking-[0.2em] uppercase text-brass">Routing</div>
-          <label className="flex items-center gap-1.5 text-text-secondary">
-            Routing mode
-            <select
+          <div className="flex items-center gap-1.5 text-text-secondary">
+            <label htmlFor="models-routing-mode">Routing mode</label>
+            <VoxSelect
+              id="models-routing-mode"
+              size="xs"
               aria-label="Routing mode"
               value={mode}
-              onChange={e => setMode(e.target.value)}
-              className="h-7 rounded-md border border-[#D4AF37]/30 bg-bg-elevated px-2.5 pr-7 font-mono text-[11px] text-text-primary focus:border-[#D4AF37] focus:outline-hidden"
-            >
-              {MODES.map(m => <option key={m} value={m}>{modeLabel(m)}</option>)}
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5 text-text-secondary">
-            Task
-            <select
+              onValueChange={setMode}
+              options={MODES.map(m => ({ value: m, label: modeLabel(m) }))}
+              className="h-7 w-auto border-[#D4AF37]/30 bg-bg-elevated font-mono text-[11px] text-text-primary"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 text-text-secondary">
+            <label htmlFor="models-routing-task">Task</label>
+            <VoxSelect
+              id="models-routing-task"
+              size="xs"
               aria-label="Task"
               value={task}
-              onChange={e => setTask(e.target.value)}
-              className="h-7 rounded-md border border-[#D4AF37]/30 bg-bg-elevated px-2.5 pr-7 font-mono text-[11px] text-text-primary focus:border-[#D4AF37] focus:outline-hidden"
-            >
-              {TASKS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
+              onValueChange={setTask}
+              options={TASKS.map(t => ({ value: t, label: t }))}
+              className="h-7 w-auto border-[#D4AF37]/30 bg-bg-elevated font-mono text-[11px] text-text-primary"
+            />
+          </div>
         </div>
         <RomanWaxSealBadge label="ACTIVE DISPATCH" tone="gold" />
       </div>
@@ -230,53 +281,55 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
 }) {
   if (items.length === 0) return null;
   return (
-    <section>
-      <div className="mb-2 flex items-center justify-between">
+    <section className="min-w-0">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="font-display text-[11px] tracking-[0.2em] uppercase text-brass">{title}</div>
         <span className="font-mono text-[10px] text-text-muted">{items.length} models</span>
       </div>
-      <div role="list" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {items.slice(0, 48).map(m => {
-          const isActive = activeModel === m.id;
-          return (
-            <Glass
-              key={m.id}
-              role="listitem"
-              className={`p-4 flex flex-col gap-3 border-[#D4AF37]/35 bg-bg-surface shadow-[0_4px_16px_rgba(0,0,0,0.2)] ${
-                isActive ? 'ring-1 ring-[#D4AF37] border-[#D4AF37]' : ''
-              }`}
-            >
-              <div className="flex justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-mono text-xs text-text-primary truncate font-medium" title={m.id}>{m.id}</div>
-                  <div className="text-[10px] text-text-secondary">{m.provider} · {m.tier}</div>
-                </div>
-                {m.is_free && <RomanWaxSealBadge label="FREE" tone="emerald" />}
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-[10px] font-mono text-[#D6CEBF]">
-                <div><span className="text-[#8C806B]">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
-                <div>{priceLabel(m.is_free ? 0 : m.cost_per_1k > 0 ? m.cost_per_1k * 1000 : null, m.is_free)}</div>
-                <div><span className="text-[#8C806B]">p50</span> {m.latency_p50_ms ?? '—'}</div>
-                <div><span className="text-[#8C806B]">qual</span> {m.quality_score != null ? m.quality_score.toFixed(2) : '—'}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onSetDefault(m.id)}
-                aria-pressed={isActive}
-                aria-current={isActive ? 'true' : undefined}
-                aria-label={`Set ${m.id} as active model${isActive ? ' (currently active)' : ''}`}
-                className={`mt-auto rounded-lg border px-3 py-1.5 text-[10px] uppercase tracking-widest transition-colors ${
-                  isActive
-                    ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-[#F3E5AB] font-semibold shadow-[0_0_12px_rgba(212,175,55,0.3)]'
-                    : 'border-[#D4AF37]/30 text-[#D6CEBF] hover:bg-[#D4AF37]/10 hover:text-[#F3E5AB]'
+      <BentoScrollRegion ariaLabel={`${title} model catalog`} className="max-h-[36rem] pr-1">
+        <div role="list" className="grid grid-cols-1 gap-3 @xl/surface:grid-cols-2 @4xl/surface:grid-cols-3 @6xl/surface:grid-cols-4">
+          {items.slice(0, 48).map(m => {
+            const isActive = activeModel === m.id;
+            return (
+              <Glass
+                key={m.id}
+                role="listitem"
+                className={`p-4 flex min-w-0 flex-col gap-3 border-[#D4AF37]/35 bg-bg-surface shadow-[0_4px_16px_rgba(0,0,0,0.2)] ${
+                  isActive ? 'ring-1 ring-[#D4AF37] border-[#D4AF37]' : ''
                 }`}
               >
-                {isActive ? 'Active' : 'Set active'}
-              </button>
-            </Glass>
-          );
-        })}
-      </div>
+                <div className="flex flex-wrap justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono text-xs text-text-primary truncate font-medium" title={m.id}>{m.id}</div>
+                    <div className="text-[10px] text-text-secondary">{m.provider} · {m.tier}</div>
+                  </div>
+                  {m.is_free && <RomanWaxSealBadge label="FREE" tone="emerald" />}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-[#D6CEBF] @xs/surface:grid-cols-4">
+                  <div><span className="text-[#8C806B]">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
+                  <div>{priceLabel(m.is_free ? 0 : m.cost_per_1k > 0 ? m.cost_per_1k * 1000 : null, m.is_free)}</div>
+                  <div><span className="text-[#8C806B]">p50</span> {m.latency_p50_ms ?? '—'}</div>
+                  <div><span className="text-[#8C806B]">qual</span> {m.quality_score != null ? m.quality_score.toFixed(2) : '—'}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onSetDefault(m.id)}
+                  aria-pressed={isActive}
+                  aria-current={isActive ? 'true' : undefined}
+                  aria-label={`Set ${m.id} as active model${isActive ? ' (currently active)' : ''}`}
+                  className={`mt-auto rounded-lg border px-3 py-1.5 text-[10px] uppercase tracking-widest transition-colors ${
+                    isActive
+                      ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-[#F3E5AB] font-semibold shadow-[0_0_12px_rgba(212,175,55,0.3)]'
+                      : 'border-[#D4AF37]/30 text-[#D6CEBF] hover:bg-[#D4AF37]/10 hover:text-[#F3E5AB]'
+                  }`}
+                >
+                  {isActive ? 'Active' : 'Set active'}
+                </button>
+              </Glass>
+            );
+          })}
+        </div>
+      </BentoScrollRegion>
     </section>
   );
 }

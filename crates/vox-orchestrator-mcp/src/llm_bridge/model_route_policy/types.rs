@@ -58,6 +58,9 @@ pub struct McpChatModelResolution {
     /// today's routing. Patches only `task_category`/`complexity` left at their
     /// defaults; never overrides clutch or emits model ids.
     pub turn_decision_pack: Option<super::turn_decision_pack::TurnDecisionPack>,
+    /// Exclude local HTTP providers (`Ollama`, `VoxLocal`, `PopuliMesh`) — set when
+    /// `tier == "cloud"` or after an unpinned local endpoint fails its health probe.
+    pub exclude_local_http: bool,
 }
 
 impl Default for McpChatModelResolution {
@@ -76,6 +79,7 @@ impl Default for McpChatModelResolution {
             web_evidence_supplied: false,
             capability_prompt: None,
             turn_decision_pack: None,
+            exclude_local_http: false,
         }
     }
 }

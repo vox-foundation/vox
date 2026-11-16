@@ -27,7 +27,7 @@ vox-repository = { workspace = true }
 vox-package-types = { workspace = true }
 vox-config = { workspace = true }
 vox-db = { workspace = true }
-vox-gamify = { path = "../vox-gamify" }
+vox-gamify = { workspace = true }
 vox-secrets = { workspace = true }
 vox-oauth-pkce = { workspace = true }
 vox-http-client = { workspace = true }
@@ -54,12 +54,12 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
 tauri = { workspace = true }
-tauri-plugin-shell = { version = "2" }
-tauri-plugin-dialog = { version = "2" }
+tauri-plugin-shell = { workspace = true }
+tauri-plugin-dialog = { workspace = true }
 rmp-serde = "1.1"
 serde_bytes = "0.11"
 portable-pty = { workspace = true }
-vox-terminal-core = { path = "../vox-terminal-core" }
+vox-terminal-core = { workspace = true, features = ["vox-lang"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -79,5 +79,5 @@ wiremock = { workspace = true }
 
 [build-dependencies]
 vox-build-meta = { workspace = true }
-tauri-build = { version = "2", features = [] }
+tauri-build = { workspace = true }
 serde_json = { workspace = true }

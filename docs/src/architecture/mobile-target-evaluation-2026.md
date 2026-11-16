@@ -156,7 +156,7 @@ Phases 1-4 (desktop GUI on Tauri 2) stay. Phase 5 (mental-tracker Capacitor → 
 During the bake-off I discovered that `cargo run -p vox-cli -- build <any-component-source.vox>` panics in `crates/vox-codegen/src/codegen_rust/emit/main_boot.rs:276` with `HirModule serializes to JSON ... key must be a string`. The frontend ("Frontend passed with 0 warning(s)") completes; the panic is in the Rust-backend codegen path. The snapshot tests bypass this path so it isn't caught in CI. Repro:
 
 ```
-cargo run -p vox-cli -- build C:/Users/Owner/vox/examples/golden-ts/component_state.vox -o /tmp/dist
+cargo run -p vox-cli -- build examples/golden-ts/component_state.vox -o /tmp/dist
 ```
 
 This is independent of the mobile decision but blocks anyone from building a real Vox app on Windows today. Spawned as a separate task.

@@ -1,0 +1,19 @@
+{
+  "input": "mens/data/validated.jsonl",
+  "output": "mens/data/validated.clean.jsonl",
+  "recheck": true,
+  "strict_env": false,
+  "total_input_lines": 232,
+  "accepted_after_dedup": 229,
+  "rejected_malformed_json": 0,
+  "rejected_compiler": 1,
+  "rejected_reward": 0,
+  "rejected_total": 1,
+  "failure_samples": [
+    {
+      "reason": "type_or_hir_errors",
+      "errors": 5,
+      "source_preview": "// harvest_small.vox — minimal mens-corpus harvester demonstrating\n// intra-project Vox-file imports (RFC 2026-05-23). Walks docs + sources\n// for the current repo and writes a JSONL index of file pat"
+    }
+  ]
+}

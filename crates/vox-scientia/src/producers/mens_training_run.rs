@@ -5,7 +5,6 @@
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Sha3_256};
 use vox_research_events::ResearchEvent;
 
 use super::heuristics::date_slug;
@@ -60,12 +59,11 @@ pub fn candidates_from_training_run_snapshots(
             .unwrap_or(0.0);
         let worthiness_score = (0.65 * progress + loss_bonus).clamp(0.0, 1.0);
 
-        let mut h = Sha3_256::new();
-        h.update(PRODUCER_NAME.as_bytes());
-        h.update(b"::");
-        h.update(run.run_id.as_bytes());
-        let digest = h.finalize();
-        let sha7: String = digest.iter().take(4).map(|b| format!("{b:02x}")).collect();
+        let payload = format!("{PRODUCER_NAME}::{}", run.run_id);
+        let sha7: String = crate::compliance_hash_hex(payload.as_bytes())
+            .chars()
+            .take(8)
+            .collect();
         let finding_id = format!("mens-{slug}-train-{sha7}");
         out.push(ResearchEvent::FindingCandidateProposed {
             finding_id,
@@ -173,7 +171,7 @@ mod tests {
             global_step: 10,
             planned_steps: Some(100),
             last_loss: Some(1.2),
-            last_checkpoint_path: Some("/tmp/ckpt.safetensors".into()),
+            last_checkpoint_path: Some("checkpoints/ckpt.safetensors".into()),
         }];
         let ctx = ProducerContext::for_test();
         assert!(candidates_from_training_run_snapshots(&runs, &ctx).is_empty());

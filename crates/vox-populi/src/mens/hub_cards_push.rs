@@ -30,10 +30,17 @@ use crate::mens::hub_sync::{
 /// The only files a card-only push uploads besides the rewritten manifest.
 pub const CARD_FILES: [&str; 2] = ["README.md", "MODEL_CARD.md"];
 
-/// True when `rel_path` is a card or card-visual asset (e.g. SVG dashboard) that participates in card-only sync.
+/// True when `rel_path` is a card, raster card banner asset, HF eval metric YAML,
+/// or external serving handoff JSON that participates in card-only sync without re-tagging weights.
 pub fn is_card_collateral(rel_path: &str) -> bool {
     CARD_FILES.contains(&rel_path)
-        || (rel_path.starts_with("assets/") && rel_path.ends_with(".svg"))
+        || rel_path == "external_serving_handoff_v1.json"
+        || (rel_path.starts_with("assets/")
+            && [".jpg", ".jpeg", ".png", ".webp"]
+                .iter()
+                .any(|ext| rel_path.ends_with(ext)))
+        || (rel_path.starts_with(".eval_results/")
+            && (rel_path.ends_with(".yaml") || rel_path.ends_with(".yml")))
 }
 
 /// True when `entry` is a card/visual asset OR a non-weight metadata file (`!*.safetensors`)
@@ -140,7 +147,7 @@ pub fn plan_card_push(
             return CardPushPlan::Unchanged;
         }
     }
-    if gate_current {
+    if gate_current && !remote_weights_match(remote, local) {
         return CardPushPlan::GatedWeights;
     }
     CardPushPlan::CardOnly {
@@ -165,6 +172,8 @@ pub fn card_only_manifest(remote: &HfSyncManifest, local: &HfSyncManifest) -> Hf
     });
     m.files.sort_by(|a, b| a.path.cmp(&b.path));
     m.gate_status = local.gate_status.clone();
+    m.final_loss = local.final_loss.or(remote.final_loss);
+    m.measured_peak_mb = local.measured_peak_mb.or(remote.measured_peak_mb);
     m
 }
 
@@ -254,8 +263,8 @@ async fn push_one(
         out.path(),
         private,
         Some(&format!(
-            "Update VoxMens Qwen3-{} model card (no weights)",
-            row.size
+            "Update VoxMens {} model card (no weights)",
+            hub_repo::model_label_for(&row.base_pin)
         )),
     )
     .await

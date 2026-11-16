@@ -19,6 +19,28 @@ pub struct EvalGatePolicy {
     pub anti_stub: AntiStubGate,
     #[serde(default)]
     pub collateral_damage: CollateralDamageGate,
+    #[serde(default)]
+    pub suites: BTreeMap<String, SuiteGate>,
+}
+
+/// Per-suite behavioral/functional evaluation gate (`338-07`, `338-08`).
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SuiteGate {
+    #[serde(default)]
+    pub report_file: Option<String>,
+    #[serde(default)]
+    pub min_problem_count: Option<usize>,
+    #[serde(default)]
+    pub min_pass_rate: Option<f64>,
+    #[serde(default)]
+    pub min_group_pass_rate: Option<f64>,
+    #[serde(default)]
+    pub max_mcnemar_p: Option<f64>,
+    #[serde(default)]
+    pub block: bool,
+    #[serde(default)]
+    pub require_report: Option<bool>,
 }
 
 /// Stopping rule for collateral damage evaluation.

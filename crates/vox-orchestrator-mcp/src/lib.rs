@@ -91,6 +91,8 @@ pub mod git_tools;
 pub mod grammar_tools;
 /// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
 pub mod graph_tools;
+/// GSD (Get Shit Done) workflow suite tools (`vox_gsd_*`).
+pub mod gsd_tools;
 /// GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`).
 pub mod gui_ops;
 pub mod gui_registry_tools;
@@ -148,6 +150,7 @@ pub(crate) mod text_normalization;
 #[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
+pub mod tool_catalog;
 pub mod tool_envelope;
 /// Strip `image_base64` from MCP tool JSON and build image parts for chat.
 pub mod tool_images;

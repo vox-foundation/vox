@@ -63,7 +63,14 @@ pub(crate) struct RegateEta {
 }
 
 fn sentence_count(s: &str) -> usize {
-    s.split(['.', '!', '?'])
+    let mut names = SIZES.to_vec();
+    names.sort_by_key(|n| std::cmp::Reverse(n.len())); // `27B` and `0.6B` before `2B`
+    let mut clean = s.to_string();
+    for n in names {
+        clean = clean.replace(n, "SIZE");
+    }
+    clean
+        .split(['.', '!', '?'])
         .filter(|p| !p.trim().is_empty())
         .count()
 }
@@ -71,7 +78,7 @@ fn sentence_count(s: &str) -> usize {
 /// True when `s` has an ASCII digit outside a ladder size name such as `4B`.
 fn has_stray_digit(s: &str) -> bool {
     let mut names = SIZES.to_vec();
-    names.sort_by_key(|n| std::cmp::Reverse(n.len())); // `14B` before `4B`
+    names.sort_by_key(|n| std::cmp::Reverse(n.len())); // `27B` and `0.6B` before `2B`
     let mut rest = s.to_string();
     for n in names {
         rest = rest.replace(n, "");
@@ -243,7 +250,7 @@ mod tests {
             assert!(!has_stray_digit(&sp.purpose), "{}", sp.id);
         }
         // A size name is allowed, a bare number is not.
-        assert!(!has_stray_digit("Compare with 14B and 4B."));
+        assert!(!has_stray_digit("Compare with 27B and 4B."));
         assert!(has_stray_digit("It needs 12 GB."));
         let e = err_of(|v| {
             v["sizes"][SIZES[2]]["why"][0] = Value::String("About 12 GB of memory.".into());

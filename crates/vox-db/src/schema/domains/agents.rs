@@ -338,7 +338,9 @@ CREATE TABLE IF NOT EXISTS research_sessions (
     config_json TEXT,
     summary_json TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    continuum_tier TEXT,
+    escalated_from TEXT
 );
 
 CREATE TABLE IF NOT EXISTS endpoint_reliability (

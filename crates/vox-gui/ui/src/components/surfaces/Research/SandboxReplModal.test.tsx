@@ -48,7 +48,7 @@ describe('SandboxReplModal', () => {
     );
 
     const select = screen.getByRole('combobox', { name: /language/i });
-    expect(select).toHaveValue('python');
+    expect(select).toHaveTextContent('Python');
 
     const runBtn = screen.getByRole('button', { name: /run compiler probe/i });
     fireEvent.click(runBtn);

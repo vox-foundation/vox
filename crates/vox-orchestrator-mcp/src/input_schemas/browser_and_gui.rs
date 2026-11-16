@@ -107,13 +107,16 @@ pub(super) fn schema_for_tool(name: &str) -> Option<Map<String, Value>> {
             r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"variant_count":{"type":"integer","minimum":2,"maximum":4}},"required":["session_id"],"additionalProperties":false}"#,
         ),
         "vox_muse_pool_adopt" => parse_obj(
-            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"winning_slot_index":{"type":"integer","minimum":0,"maximum":3}},"required":["session_id","winning_slot_index"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"run_id":{"type":"string","minLength":1},"session_id":{"type":"string","minLength":1},"winning_variant_id":{"type":"string","minLength":1},"variant_index":{"type":"integer","minimum":1,"maximum":4},"winning_slot_index":{"type":"integer","minimum":0,"maximum":3},"model_ids":{"type":"array","items":{"type":"string","minLength":1}}},"additionalProperties":false}"#,
+        ),
+        "vox_guest_share_list" => parse_obj(
+            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1},"thread_id":{"type":"string","minLength":1}},"additionalProperties":false}"#,
         ),
         "vox_guest_share_mint" => parse_obj(
-            r#"{"type":"object","properties":{"thread_id":{"type":"string","minLength":1},"owner_id":{"type":"string","minLength":1},"policy":{"type":"string","enum":["view_only","comment_with_approval","interactive_fork"]}},"required":["thread_id","owner_id"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"thread_id":{"type":"string","minLength":1},"session_id":{"type":"string","minLength":1},"invite_id":{"type":"string","minLength":1},"owner_id":{"type":"string","minLength":1},"permission":{"type":"string","enum":["read_only","suggest_prompt"]},"scope":{"type":"string","minLength":1},"policy":{"type":"string","enum":["view_only","comment_with_approval","interactive_fork"]},"ttl_ms":{"type":"integer","minimum":1},"now_ms":{"type":"integer","minimum":0}},"additionalProperties":false}"#,
         ),
         "vox_guest_share_moderate" => parse_obj(
-            r#"{"type":"object","properties":{"token_id":{"type":"string","minLength":1},"submission_id":{"type":"string","minLength":1},"approve":{"type":"boolean"},"guest_author":{"type":"string"},"prompt":{"type":"string"}},"required":["token_id"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"token_id":{"type":"string","minLength":1},"thread_id":{"type":"string","minLength":1},"session_id":{"type":"string","minLength":1},"message_id":{"type":"string","minLength":1},"submission_id":{"type":"string","minLength":1},"action":{"type":"string","enum":["approve","dismiss"]},"approve":{"type":"boolean"},"guest_author":{"type":"string"},"guest_name":{"type":"string"},"prompt":{"type":"string"}},"additionalProperties":false}"#,
         ),
         "vox_session_import_external" => parse_obj(
             r#"{"type":"object","properties":{"source_harness":{"type":"string","enum":["claude","codex","cursor"]},"external_session_id":{"type":"string","minLength":1},"raw_jsonl":{"type":"string","minLength":1}},"required":["source_harness","external_session_id","raw_jsonl"],"additionalProperties":false}"#,
@@ -176,10 +179,10 @@ pub(super) fn schema_for_tool(name: &str) -> Option<Map<String, Value>> {
             r#"{"type":"object","properties":{"source_harness":{"type":"string","enum":["claude","codex","cursor"]},"root_dir":{"type":"string"}},"additionalProperties":false}"#,
         ),
         "vox_guest_share_redeem" => parse_obj(
-            r#"{"type":"object","properties":{"invite_id":{"type":"string","minLength":1},"signature_hex":{"type":"string","minLength":1},"guest_session_id":{"type":"string"},"now_ms":{"type":"integer","minimum":0}},"required":["invite_id","signature_hex"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"token":{"type":"string","minLength":1},"invite_id":{"type":"string","minLength":1},"token_id":{"type":"string","minLength":1},"signature_hex":{"type":"string","minLength":1},"guest_session_id":{"type":"string"},"now_ms":{"type":"integer","minimum":0}},"additionalProperties":false}"#,
         ),
         "vox_guest_share_submit" => parse_obj(
-            r#"{"type":"object","properties":{"message_id":{"type":"string","minLength":1},"thread_id":{"type":"string","minLength":1},"guest_session_id":{"type":"string"},"guest_author":{"type":"string"},"prompt":{"type":"string","minLength":1}},"required":["thread_id","prompt"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"token":{"type":"string","minLength":1},"message_id":{"type":"string","minLength":1},"submission_id":{"type":"string","minLength":1},"thread_id":{"type":"string","minLength":1},"session_id":{"type":"string","minLength":1},"guest_session_id":{"type":"string"},"guest_author":{"type":"string"},"guest_name":{"type":"string"},"guest_display_name":{"type":"string"},"prompt":{"type":"string","minLength":1},"now_ms":{"type":"integer","minimum":0}},"required":["prompt"],"additionalProperties":false}"#,
         ),
         "vox_pr_review_guide" => parse_obj(
             r#"{"type":"object","properties":{"pr_number":{"type":"integer","minimum":1},"head_sha":{"type":"string","minLength":1},"changed_files":{"type":"array","items":{"type":"string"}}},"required":["pr_number","head_sha"],"additionalProperties":false}"#,

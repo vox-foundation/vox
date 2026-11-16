@@ -58,8 +58,6 @@ Pure-types L0 leaf for the populi/mesh subsystem (a2a envelopes, donation policy
 graph {
     direction: right
     node vox_mesh_types: "vox-mesh-types"
-    node vox_cli: "vox-cli"
-    vox_cli -> vox_mesh_types
     node vox_cli_research: "vox-cli-research"
     vox_cli_research -> vox_mesh_types
     node vox_db: "vox-db"
@@ -74,14 +72,14 @@ graph {
     vox_ml_cli -> vox_mesh_types
     node vox_orchestrator: "vox-orchestrator"
     vox_orchestrator -> vox_mesh_types
-    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
-    vox_orchestrator_mcp -> vox_mesh_types
     node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
     vox_plugin_populi_mesh -> vox_mesh_types
     node vox_populi: "vox-populi"
     vox_populi -> vox_mesh_types
     node vox_populi_types: "vox-populi-types"
     vox_populi_types -> vox_mesh_types
+    node vox_scaling_policy: "vox-scaling-policy"
+    vox_scaling_policy -> vox_mesh_types
 }
 ```
 
@@ -89,7 +87,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
 | [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
@@ -97,7 +94,6 @@ graph {
 | [`vox-mesh-transport`](./vox-mesh-transport.generated.md) | Direct workspace dependent |
 | [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
-| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 | [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
 | [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
 | [`vox-populi-types`](./vox-populi-types.generated.md) | Direct workspace dependent |

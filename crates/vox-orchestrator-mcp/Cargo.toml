@@ -54,7 +54,6 @@ vox-cli-core = { workspace = true, features = ["orchestrator"] }
 
 # MCP-stack deps (always compiled when this crate is in the build)
 axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
-axum-extra = { workspace = true, features = ["typed-header"] }
 rmcp = { workspace = true, features = [
     "server",
     "client",
@@ -100,7 +99,6 @@ vox-telemetry.workspace = true
 vox-bounded-fs.workspace = true
 vox-jsonschema-util.workspace = true
 vox-foundation.workspace = true
-vox-mesh-types.workspace = true
 vox-research-events.workspace = true
 vox-crypto.workspace = true
 vox-actor-runtime.workspace = true
@@ -140,18 +138,14 @@ walkdir.workspace = true
 sha2 = { workspace = true }
 sha3 = { workspace = true }
 hex = { workspace = true }
-hmac = { workspace = true }
 blake3.workspace = true
 base64.workspace = true
 rand.workspace = true
 governor = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 tempfile.workspace = true
-xxhash-rust = { workspace = true }
-tiktoken-rs = { workspace = true }
 dirs = { workspace = true }
 which = { workspace = true }
-crossbeam-queue = { workspace = true }
 globset = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 # Optional, gated by the `eval-gate` feature (default OFF): the eval-gate
@@ -184,11 +178,12 @@ jsonschema.workspace = true
 # reachable from non-test code (the eval-gate check functions).
 wiremock.workspace = true
 # Self-signed certs for gateway TLS tests; same pin/features as vox-populi's tls_smoke test.
-rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+rcgen = { workspace = true }
 # Task 8e: pre-main hermetic-test-env init (see src/lib.rs `hermetic_test_env`).
 ctor.workspace = true
 # Task 8e: process-exit cleanup of the temp VOX_HOME dir the ctor above creates.
 dtor.workspace = true
+tiktoken-rs = { workspace = true }
 
 [lints.rust]
 unsafe_code = "warn"

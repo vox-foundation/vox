@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../../ui/Icons';
 
 export interface ShoppingCriterion {
   name: string;
@@ -58,8 +59,9 @@ export function ShoppingDecisionCard({
           </span>
         </div>
         {rec && (
-          <span className="font-mono text-xs text-emerald-300">
-            ★ Pick: {rec}
+          <span className="inline-flex items-center gap-1 font-mono text-xs text-emerald-300">
+            <Icon.star className="size-3.5 shrink-0" aria-hidden="true" />
+            <span>Pick: {rec}</span>
           </span>
         )}
       </div>
@@ -94,13 +96,15 @@ export function ShoppingDecisionCard({
               key={opt.name}
               className={`rounded-lg border p-3 ${
                 idx === 0
-                  ? 'border-emerald-500/40 bg-emerald-500/[0.06]'
-                  : 'border-border-subtle bg-black/30'
+                  ? 'border-emerald-600/40 bg-emerald-500/[0.06]'
+                  : 'border-border-subtle bg-bg-elevated'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-medium text-xs text-text-primary">
-                  {idx === 0 ? '🏆 ' : ''}
+                <span className="inline-flex items-center gap-1 font-medium text-xs text-text-primary">
+                  {idx === 0 && (
+                    <Icon.star className="size-3 shrink-0 text-brass" aria-hidden="true" />
+                  )}
                   {opt.name}
                 </span>
                 <span className="font-mono text-xs text-brass">

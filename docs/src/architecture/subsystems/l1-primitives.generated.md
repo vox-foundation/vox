@@ -86,5 +86,5 @@ graph {
 | [`vox-research-events`](../../api/vox-research-events.generated.md) | `library` | — | — |
 | [`vox-rule-pack`](../../api/vox-rule-pack.generated.md) | `library` | — | — |
 | [`vox-scaling-policy`](../../api/vox-scaling-policy.generated.md) | `library` | — | — |
-| [`vox-secrets`](../../api/vox-secrets.generated.md) | `library` | 34 | — |
+| [`vox-secrets`](../../api/vox-secrets.generated.md) | `library` | 35 | — |
 | [`vox-telemetry`](../../api/vox-telemetry.generated.md) | `library` | — | — |

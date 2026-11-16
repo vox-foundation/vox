@@ -20,15 +20,15 @@ paths = [
   '''^target/''',
   # Documentation: example payloads, RFC nonces, fake hex, metric names.
   '''^docs/''',
-  # GSD intel: summaries generated from docs/ (same prose; e.g. 'design tokens,
-  # contrast/occlusion/a11y' tripped generic-api-key at .planning/intel/context.md:58).
-  '''^\.planning/intel/''',
+  # GSD planning artifacts (roadmap/plans/research/phase logs — schemas and test specs, never live secrets).
+  '''^\.planning/''',
   # Security-detector positive fixtures (intentional fake secrets the detector must catch).
   '''^contracts/.*/fixtures/''',
-  # Test code (directories and inline `tests.rs` / `*_test(s).rs` modules).
+  # Test code (directories, inline `tests.rs` / `*_test(s).rs` modules, and TS `.test`/`.spec` suites).
   '''(^|/)tests?/''',
   '''(^|/)tests\.rs$''',
   '''_tests?\.rs$''',
+  '''\.(test|spec)\.[jt]sx?$''',
   # Secret-handling source whose inline test modules carry `sk-test-…` vectors.
   '''/sources/auth_json\.rs$''',
   # Pre-registration signing-key round-trip vectors (repeated-hex placeholders).
@@ -40,6 +40,7 @@ paths = [
   # Redaction module test fixtures — fake GitHub PAT strings used to prove the
   # redactor actually masks tokens. These are not real credentials.
   '''/vox-db/src/redact\.rs$''',
+  '''/vox-redact/src/lib\.rs$''',
 ]
 # Exact public model-revision commit SHAs quoted in the frozen KB eval corpus
 # (contracts/kb/eval/corpus.jsonl line 219, a doc table). Any bare 40-hex string trips

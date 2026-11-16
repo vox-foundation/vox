@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml).
 
-**Total tools:** 408
+**Total tools:** 424
 
 | Tool | Product Lane | Tier | HTTP Read Eligible | Description |
 |---|---|---|---|---|
@@ -191,6 +191,18 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_git_diff` | app |  | Yes | Show uncommitted git diff for a file or the whole tree. |
 | `vox_git_log` | app |  | No | Show recent git commits (default: last 10). |
 | `vox_git_status` | app |  | Yes | Get current git working tree status. |
+| `vox_gsd_complete_milestone` | ai |  | No | Archive and complete a verified GSD milestone cleanly across `.planning/` and VoxDb. |
+| `vox_gsd_discuss_phase` | ai |  | No | Record GSD phase design decisions and implementation context (`CONTEXT.md`). |
+| `vox_gsd_execute_phase` | ai |  | No | Prepare and dispatch wave-ordered GSD phase tasks via the native orchestrator DAG scheduler. |
+| `vox_gsd_get_document` | ai |  | Yes | Fetch a stored GSD document and its CAS-backed UTF-8 content from VoxDb or `.planning/`. |
+| `vox_gsd_list_documents` | ai |  | Yes | List GSD documents stored under `.planning/` and indexed in VoxDb CAS. |
+| `vox_gsd_new_milestone` | ai |  | No | Initialize a new GSD milestone (`PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `STATE.md`) and sync VoxDb. |
+| `vox_gsd_plan_phase` | ai |  | No | Generate or load wave-ordered `PLAN.md` and translate into validated orchestrator `PlanNode` DAG tasks. |
+| `vox_gsd_progress` | ai |  | Yes | Compute GSD milestone progress, phase states, requirements completion, and recommended next skill. |
+| `vox_gsd_status` | ai |  | Yes | Return workspace `.planning/` health diagnostics and live GSD snapshot. |
+| `vox_gsd_store_document` | ai |  | No | Write a `.planning/` GSD markdown/JSON document and persist its Arca CAS hash in VoxDb. |
+| `vox_gsd_verify_work` | ai |  | No | Record verification evidence (`VERIFICATION.md`) and update phase completion in VoxDb. |
+| `vox_guest_share_list` | ai |  | No | List guest share invites and pending moderation submissions, optionally filtered by thread. |
 | `vox_guest_share_mint` | ai |  | No | Mint a signed guest share invite for a chat thread. |
 | `vox_guest_share_moderate` | ai |  | No | Approve or dismiss a pending guest message; approved messages are appended to the thread's chat history. |
 | `vox_guest_share_redeem` | ai |  | No | Redeem a signed guest share invite and bind it to a guest session. |
@@ -414,6 +426,10 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_submit_task` | ai |  | No | Submit a new task to the orchestrator. Routes to the best agent by file affinity. |
 | `vox_suggest_model` | ai |  | No | Suggest the best model for a task category string (codegen, review, etc.). |
 | `vox_task_status` | ai |  | Yes | Get the current status of a specific task by ID. |
+| `vox_terminal_exec` | ai |  | No | Execute a shell command inside a stateful Axis PTY terminal session with AST/tier governance and bounded stall detection. |
+| `vox_terminal_read` | ai |  | Yes | Read scrubbed terminal blocks, incremental output, or line slices from a stateful Axis PTY terminal session. |
+| `vox_terminal_send_input` | ai |  | No | Send non-secret stdin text to an interactive terminal block awaiting input, failing closed on credential prompts. |
+| `vox_terminal_sessions` | ai |  | Yes | List active Axis PTY terminal sessions with scrubbed working directory, security tier, and control mode metadata. |
 | `vox_test_all` | app |  | No | Run cargo test for the entire workspace. |
 | `vox_test_decision` | ai |  | Yes | Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID. |
 | `vox_tool_search` | ai |  | Yes | Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure. |

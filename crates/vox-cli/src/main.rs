@@ -46,7 +46,6 @@
 //!
 //! End-user docs: repository file `docs/src/reference/cli.md`. `@v0` integration during `build`: module `v0`.
 
-use clap::Parser;
 use std::process::Command;
 
 #[tokio::main]
@@ -55,114 +54,56 @@ async fn main() -> anyhow::Result<()> {
     // (this process) and the spawned native binary (shared console code page).
     ::vox_actor_runtime::builtins::vox_console_init_utf8();
 
-    // Intercept ML commands and delegate to vox-ml-cli
+    // Intercept ML commands and delegate to vox-ml-cli, preserving leading global flags
     let args: Vec<String> = std::env::args().collect();
-    // Skip leading global flags (`--quiet`/`-q`, `--json`, `--verbose`/`-v`,
-    // `--color <WHEN>`) so `vox --quiet mens ...` is detected the same as
-    // `vox mens ...` instead of falling through to the internal dispatch,
-    // where `Cli::Mens`/`Populi`/`Oratio` are `unreachable!()` by design.
-    let sub_idx = args
-        .iter()
-        .enumerate()
-        .skip(1)
-        .find(|(i, a)| {
-            if a.as_str() == "--color" {
-                return false;
-            }
-            if args.get(i.wrapping_sub(1)).map(String::as_str) == Some("--color") {
-                return false;
-            }
-            !a.starts_with('-')
-        })
-        .map(|(i, _)| i);
-    if let Some(idx) = sub_idx {
-        let cmd = args[idx].as_str();
-        let is_ml = matches!(
-            cmd,
-            "mens" | "oratio" | "speech" | "populi" | "mesh" | "train" | "quantize"
+    if let Some((primary_cmd, forward_args)) =
+        vox_cli::argv_normalize::build_ml_delegation_args(&args)
+    {
+        let ml_cli_binary =
+            vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path(
+                "vox-ml-cli",
+            );
+        let mut command = Command::new(ml_cli_binary);
+        // Build-id handshake: vox-ml-cli warns when it was built from a
+        // different commit than this `vox` (see `ml_cli_handshake`).
+        command.env(
+            vox_cli_core::ml_cli_handshake::PARENT_BUILD_ID_ENV,
+            vox_cli::freshness::EMBEDDED_GIT_HASH,
         );
-        let is_ext_ml = cmd == "ext"
-            && args.len() > idx + 1
-            && matches!(
-                args[idx + 1].as_str(),
-                "mens" | "oratio" | "speech" | "populi" | "mesh" | "train" | "quantize"
-            );
+        command.args(&forward_args);
 
-        if is_ml || is_ext_ml {
-            let sub_start = if is_ext_ml { idx + 1 } else { idx };
-            let primary_cmd = args[sub_start].as_str();
-            // All ML/AI domains delegate to vox-ml-cli. (The retired `vox schola`
-            // top-level command + its phantom `vox-schola` binary were removed;
-            // training lives under `vox mens train`, which uses the internal
-            // `vox-ml-cli` `commands::schola` module.)
-            //
-            // Resolve the sibling binary next to this executable first (a
-            // packaged GUI bundles `vox-ml-cli` as a second Tauri `externalBin`
-            // right next to `vox`, but a packaged app's inherited PATH never
-            // includes its own `Contents/MacOS/`, so a bare `Command::new`
-            // lookup would never find it there) before falling back to
-            // `~/.vox/bin` and finally a bare PATH lookup — the same resolution
-            // order `resolve_managed_binary_path` already uses for the
-            // `vox-orchestrator-d` sidecar (see `vox-gui/src/commands/daemon.rs`).
-            let ml_cli_binary =
-                vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path(
-                    "vox-ml-cli",
-                );
-            let mut command = Command::new(ml_cli_binary);
-            // Build-id handshake: vox-ml-cli warns when it was built from a
-            // different commit than this `vox` (see `ml_cli_handshake`).
-            command.env(
-                vox_cli_core::ml_cli_handshake::PARENT_BUILD_ID_ENV,
-                vox_cli::freshness::EMBEDDED_GIT_HASH,
-            );
-            if primary_cmd == "train" {
-                // `vox train` -> `vox-ml-cli mens train`
-                command.arg("mens");
+        // Wait for completion and exit with same status
+        match command.status() {
+            Ok(status) => {
+                std::process::exit(status.code().unwrap_or(1));
             }
-
-            let forward_args = &args[sub_start..];
-            command.args(forward_args);
-
-            // Wait for completion and exit with same status
-            match command.status() {
-                Ok(status) => {
-                    std::process::exit(status.code().unwrap_or(1));
-                }
-                Err(e) => {
-                    eprintln!("Error: vox-ml-cli is not installed or not in PATH.");
-                    eprintln!(
-                        "The '{}' subsystem has been extracted to a separate crate.",
-                        primary_cmd
-                    );
-                    if vox_cli::contributor_mode::is_contributor_mode() {
-                        if primary_cmd != "quantize" {
-                            // `populi` is not in vox-ml-cli's default features, so a bare
-                            // install produces a binary whose `populi` subcommand is
-                            // cfg'd out — and the user retries the same failing command.
-                            eprintln!(
-                                "Please run: cargo install --path crates/vox-ml-cli --features populi"
-                            );
-                        } else {
-                            // `quantize` is likewise not in vox-ml-cli's default features.
-                            eprintln!(
-                                "Please run: cargo install --path crates/vox-ml-cli --features quantize"
-                            );
-                        }
-                    } else {
-                        // Installed-user remedy: no cargo, no repo-relative path. The
-                        // ML subsystem ships as the `vox-ml-cli` binary in the `full`
-                        // install tier (see contracts/distribution/profiles.v1.yaml).
+            Err(e) => {
+                eprintln!("Error: vox-ml-cli is not installed or not in PATH.");
+                eprintln!(
+                    "The '{}' subsystem has been extracted to a separate crate.",
+                    primary_cmd
+                );
+                if vox_cli::contributor_mode::is_contributor_mode() {
+                    if primary_cmd != "quantize" {
                         eprintln!(
-                            "Install the Vox 'full' tier to get the vox-ml-cli binary, then retry this command."
+                            "Please run: cargo install --path crates/vox-ml-cli --features populi"
+                        );
+                    } else {
+                        eprintln!(
+                            "Please run: cargo install --path crates/vox-ml-cli --features quantize"
                         );
                     }
-                    eprintln!("Underlying error: {}", e);
-                    std::process::exit(1);
+                } else {
+                    eprintln!(
+                        "Install the Vox 'full' tier to get the vox-ml-cli binary, then retry this command."
+                    );
                 }
+                eprintln!("Underlying error: {}", e);
+                std::process::exit(1);
             }
         }
     }
 
-    let root = vox_cli::VoxCliRoot::parse();
+    let root = vox_cli::argv_normalize::parse_cli_with_tolerance();
     vox_cli::run_vox_cli_from_parsed(root).await
 }

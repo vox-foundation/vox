@@ -36,6 +36,7 @@ pub mod registry;
 pub mod socrates_telemetry;
 pub mod test_corpus;
 pub mod worthiness;
+pub mod worthiness_v2;
 
 pub use producer::{Producer, ProducerContext};
 pub use registry::ProducerRegistry;
@@ -49,3 +50,7 @@ pub use doc_corpus::DocCorpusProducer;
 pub use mens_training_run::MensTrainingRunProducer;
 pub use socrates_telemetry::SocratesTelemetryProducer;
 pub use test_corpus::TestCorpusProducer;
+pub use worthiness_v2::{
+    MIN_CLAIM_GROUNDING, MIN_UTILITY_SCORE, WorthinessEvaluationV2, WorthinessSignalsV2,
+    WorthinessTierV2, evaluate_worthiness_v2,
+};

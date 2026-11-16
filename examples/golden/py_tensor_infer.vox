@@ -1,0 +1,23 @@
+// ---
+// title: "Exported PyTorch CPU inference"
+// description: "Load a .pt2 exported model, run reshaped tensor inputs on CPU, apply softmax, and verify determinism."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, import, std.array, std.tensor, Result, assert]
+// training_eligible: true
+// difficulty: intermediate
+// ---
+
+import std.array
+import std.tensor
+
+@uses(python, fs)
+fn main() {
+    let model = tensor.load_exported("fixtures/tiny_linear.pt2").unwrap()
+    assert(model.device() is "cpu")
+    let x = array.from_list([1.0, 2.0]).astype(f32).reshape([1, 2])
+    let logits = model.run(x).unwrap()
+    let probs = logits.softmax(-1).to_list().unwrap()
+    assert(len(probs) is 2)
+}

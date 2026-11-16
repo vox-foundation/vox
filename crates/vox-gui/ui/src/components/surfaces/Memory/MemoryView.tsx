@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useVirtualList } from '../../../hooks/useVirtualList';
 import { shardSparkColor } from '../../../lib/visualTokens';
-import { invoke } from '@tauri-apps/api/core';
-import { voxTransport } from '../../../transport';
+import { invokeCmd, voxTransport } from '../../../transport';
 import { useLabel } from '../../../hooks/useLanguage';
-import { Glass } from '../../ui/Glass';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
 import { Sparkline } from '../../ui/Sparkline';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
@@ -208,7 +208,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     setLoadingNodes(true);
     try {
       const typeArg = selectedType === 'all' ? null : selectedType;
-      const res = await invoke<KnowledgeNodeRow[]>('list_knowledge_nodes', {
+      const res = await invokeCmd<KnowledgeNodeRow[]>('list_knowledge_nodes', {
         nodeType: typeArg,
         page: selectedPage,
         limit: 50,
@@ -223,7 +223,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
 
   const deleteNode = async (id: string) => {
     try {
-      await invoke('delete_knowledge_node', { id });
+      await invokeCmd('delete_knowledge_node', { id });
       pushToast({ tone: 'ok', title: 'Node deleted', body: `Node ${id} deleted`, cause: 'backend-ok' });
       void fetchNodes(nodeTypeFilter, page);
     } catch (err) {
@@ -234,7 +234,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const fetchHealth = useCallback(async () => {
     setLoadingHealth(true);
     try {
-      const res = await invoke<KbHealthDto>('get_kb_health');
+      const res = await invokeCmd<KbHealthDto>('get_kb_health');
       setHealth(res);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Failed to fetch KB health', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -256,7 +256,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     if (!ingestUrl.trim()) return;
     setIngestingUrl(true);
     try {
-      const res = await invoke<FindingFiled>('ingest_url', { url: ingestUrl.trim() });
+      const res = await invokeCmd<FindingFiled>('ingest_url', { url: ingestUrl.trim() });
       toastFiled(res, 'The page');
       setIngestUrl('');
     } catch (err) {
@@ -270,7 +270,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     if (!ingestContent.trim()) return;
     setIngestingText(true);
     try {
-      const res = await invoke<FindingFiled>('ingest_text', {
+      const res = await invokeCmd<FindingFiled>('ingest_text', {
         title: ingestTitle.trim(),
         content: ingestContent.trim(),
         sourceUrl: ingestSourceUrl.trim() || null,
@@ -322,7 +322,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   });
 
   useEffect(() => {
-    invoke<MemoryStatusPayload>('get_memory_status')
+    invokeCmd<MemoryStatusPayload>('get_memory_status')
       .then(setMemStatus)
       .catch((err) => pushToast({ tone: 'error', title: 'Memory status unavailable', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   }, [pushToast]);
@@ -372,7 +372,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
 
     try {
       // Repointed from mnemosyne_recall to vox_search_query scoped to memory corpora.
-      const res = await invoke<SearchResponse>('vox_search_query', {
+      const res = await invokeCmd<SearchResponse>('vox_search_query', {
         query: qq,
         scope: scope.length > 0 ? scope : null,
         limit: topK,
@@ -389,7 +389,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       pushToast({ tone: 'error', title: 'Recall backend error', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setRecalling(false);
-      invoke<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
+      invokeCmd<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
     }
   };
 
@@ -441,10 +441,9 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   };
 
   return (
-    <div className="grid grid-cols-12 gap-5">
+    <div className="@container/surface flex min-h-0 min-w-0 flex-col gap-4">
       {/* Roman Surface Header Frieze */}
       <RomanSurfaceHeader
-        className="col-span-12"
         domainTag="KNOWLEDGE · MEMORY"
         title="Codex Vector Shards & Context Ledger"
         subtitle="Inspect persistent vector index shards, embedding density, and context retrieval telemetry."
@@ -454,9 +453,17 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           {
             label: 'SHARDS',
             valueText: `${(memStatus?.shards ?? []).length}`,
-            ratio: Math.min(1, ((memStatus?.shards ?? []).length || 1) / 16),
+            ratio: Math.max(0, Math.min(1, (memStatus?.shards ?? []).length / 16)),
             tone: 'gold',
             purpose: 'Active HNSW vector partitions in local database',
+            actionHint: 'Jump to live HNSW vector shards',
+            active: activeTab === 'search',
+            onClick: () => {
+              setActiveTab('search');
+              requestAnimationFrame(() => {
+                shardsRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+              });
+            },
           },
           {
             label: 'ENTRIES',
@@ -464,20 +471,29 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               (totalEntries ?? 0) > 1000
                 ? `${((totalEntries ?? 0) / 1000).toFixed(1)}k`
                 : `${totalEntries ?? 0}`,
-            ratio: Math.min(1, (totalEntries ?? 0) / 10000),
+            ratio: Math.max(0, Math.min(1, (totalEntries ?? 0) / 10000)),
             tone: 'emerald',
             purpose: 'Total indexed vector and symbolic memory entries',
+            actionHint: 'Browse indexed knowledge graph nodes',
+            active: activeTab === 'browse',
+            onClick: () => setActiveTab('browse'),
           },
           {
             label: 'CORPORA',
-            valueText: `${scope.length}/3`,
-            ratio: scope.length / 3,
+            valueText: `${scope.length}/${MEM_CORPORA.length}`,
+            ratio: Math.max(0, Math.min(1, scope.length / MEM_CORPORA.length)),
             tone: 'gold',
             purpose: 'Active recall search corpora',
+            actionHint: 'Focus and enable all recall corpora',
+            active: activeTab === 'search' && scope.length === MEM_CORPORA.length,
+            onClick: () => {
+              setActiveTab('search');
+              setScope(MEM_CORPORA.map((c) => c.id));
+            },
           },
         ]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={toggleAutoRecall}
@@ -494,7 +510,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             <button
               type="button"
               onClick={() =>
-                invoke('mnemosyne_reindex')
+                invokeCmd('mnemosyne_reindex')
                   .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex', cause: 'backend-ok' }))
                   .catch((err) => pushToast({ tone: 'error', title: 'Reindex failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
               }
@@ -507,9 +523,9 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       />
 
       {/* Navigation Tabs + Search Query Container */}
-      <Glass className="col-span-12 p-5 border-[#D4AF37]/25 bg-bg-surface/90">
+      <BentoCard className="border-[#D4AF37]/25 bg-bg-surface/90 p-4 @2xl/surface:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4AF37]/20 pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-[#F3E5AB]">
               Mnemosyne
             </h2>
@@ -527,7 +543,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
-          className="vox-marble-tablet mt-3 flex items-center gap-1.5 rounded-xl border-2 border-[#C59B27]/85 p-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+          className="vox-marble-tablet mt-3 flex flex-wrap items-center gap-1.5 rounded-xl border-2 border-[#C59B27]/85 p-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
         >
           {(['search', 'browse', 'ingest', 'health'] as const).map((tab) => (
             <button
@@ -556,16 +572,16 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
-              className="vox-marble-tablet mt-4 flex items-center gap-2 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+              className="vox-marble-tablet mt-4 flex flex-wrap items-center gap-2 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
             >
-              <Icon.search aria-hidden="true" className="size-3.5 text-[#6B5125]" />
+              <Icon.search aria-hidden="true" className="size-3.5 shrink-0 text-[#6B5125]" />
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && recall()}
                 aria-label="Recall query"
                 placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
-                className="flex-1 bg-transparent text-[13px] font-medium text-[#1C140C] placeholder:text-[#7A6136] outline-hidden"
+                className="min-w-[140px] flex-1 bg-transparent text-[13px] font-medium text-[#1C140C] placeholder:text-[#7A6136] outline-hidden"
               />
               <span className="font-mono text-[10px] font-semibold text-[#5C441E]">top</span>
               <input
@@ -602,206 +618,220 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             </div>
           </>
         )}
-      </Glass>
+      </BentoCard>
 
       {/* Search Tab Content */}
       {activeTab === 'search' && (
-        <>
+        <BentoGrid preset="hero">
           {/* Recent recalls */}
-      <Glass className="col-span-12 xl:col-span-4 p-5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Recent recalls</h3>
-          <Icon.clock className="size-3.5 text-text-muted" />
-        </div>
-        {recentRecalls.length === 0 ? (
-          <div className="mt-3 rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-[11px] text-text-muted">
-            No recall queries recorded in this session.
-          </div>
-        ) : (
-          <div
-            ref={recallsRef}
-            style={{
-              height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
-              overflow: 'auto',
-              marginTop: '0.75rem',
-            }}
-            className="custom-scrollbar"
-          >
-            <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
-              {recallsVL.virtualItems.map(vItem => {
-                const r = recentRecalls[vItem.index];
-                return (
-                  <div
-                    key={String(vItem.key)}
-                    ref={recallsVL.virtualizer.measureElement}
-                    data-index={vItem.index}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      transform: `translateY(${vItem.start}px)`,
-                      width: '100%',
-                      paddingBottom: RECALL_GAP,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => { setQuery(r.q); recall(r.q); }}
-                      aria-label={`Re-run recall: ${r.q}`}
-                      className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
-                        <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
-                      </div>
-                      <Icon.chevR className="size-3 text-text-muted shrink-0" />
-                    </button>
-                  </div>
-                );
-              })}
+          <BentoCard span="hero-rail" className="gap-3 p-4 @2xl/surface:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Recent recalls</h3>
+              <Icon.clock className="size-3.5 shrink-0 text-text-muted" />
             </div>
-          </div>
-        )}
-      </Glass>
-
-      {/* Hits */}
-      <Glass className="col-span-12 xl:col-span-8 p-5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">
-            Citations {hits.length > 0 && <span className="text-text-muted">· {hits.length}</span>}
-          </h3>
-          {hits.length > 0 && (
-            <button
-              type="button"
-              onClick={() => pinHits(hits)}
-              className="inline-flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-[#78350F]/20 px-2 py-1 font-mono text-[10px] text-[#F3E5AB] hover:bg-[#78350F]/40"
-            >
-              <Icon.pin aria-hidden="true" className="size-3" /> Pin all to context
-            </button>
-          )}
-        </div>
-        <div className="mt-3 space-y-2" aria-label="Recall citations" aria-live="polite" aria-busy={recalling}>
-          {recalling &&
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-12 rounded-md border border-border-subtle bg-overlay-subtle relative overflow-hidden">
-                <span className="absolute inset-0 -translate-x-full animate-vox-shimmer bg-linear-to-r from-transparent via-white/5 to-transparent" />
+            {recentRecalls.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-[11px] text-text-muted">
+                No recall queries recorded in this session.
               </div>
-            ))}
-          {!recalling && hits.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-subtle bg-overlay-subtle py-12 text-center">
-              <Icon.memory className="size-6 text-text-muted mb-2" />
-              <div className="font-display text-[12px] tracking-wider text-text-muted">No recall yet</div>
-              <div className="font-mono text-[10px] text-text-muted">Type a query or click a recent recall</div>
-            </div>
-          )}
-          {!recalling &&
-            hits.map((h, i) => (
-              <HitCard
-                key={i}
-                hit={h}
-                query={query}
-                onOpen={() => openHit(h)}
-                onPin={() => pinHits([h])}
-              />
-            ))}
-        </div>
-      </Glass>
-
-      {/* Memory shards */}
-      <Glass className="col-span-12 p-5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">{useLabel('mem-shards')}</h3>
-          <span className="font-mono text-[10px] text-text-muted">
-            {(memStatus?.shards ?? []).length} live · HNSW
-            {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}
-          </span>
-        </div>
-        <div
-          ref={shardsRef}
-          className="mt-3 max-h-[700px] overflow-y-auto custom-scrollbar"
-        >
-          <div style={{ height: shardsVL.totalSize, position: 'relative' }}>
-            {shardsVL.virtualItems.map(vItem => {
-              const rowStart = vItem.index * SHARD_COLS;
-              const rowShards = shards.slice(rowStart, rowStart + SHARD_COLS);
-              return (
-                <div
-                  key={String(vItem.key)}
-                  ref={shardsVL.virtualizer.measureElement}
-                  data-index={vItem.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    transform: `translateY(${vItem.start}px)`,
-                    width: '100%',
-                    paddingBottom: SHARD_ROW_GAP,
-                  }}
-                >
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                    {rowShards.map(s => (
+            ) : (
+              <BentoScrollRegion
+                ref={recallsRef}
+                ariaLabel="Recent recall queries"
+                style={{
+                  height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
+                }}
+              >
+                <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
+                  {recallsVL.virtualItems.map(vItem => {
+                    const r = recentRecalls[vItem.index];
+                    return (
                       <div
-                        key={s.id}
-                        className={`rounded-xl border p-3 transition hover:border-white/15 ${
-                          s.hot   ? 'border-brass/30 bg-brass/4' :
-                          s.dirty ? 'border-amber-400/30 bg-amber-400/4' :
-                                    'border-border-subtle bg-overlay-subtle'
-                        }`}
+                        key={String(vItem.key)}
+                        ref={recallsVL.virtualizer.measureElement}
+                        data-index={vItem.index}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          transform: `translateY(${vItem.start}px)`,
+                          width: '100%',
+                          paddingBottom: RECALL_GAP,
+                        }}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-[11px] text-text-secondary">shard-{s.id}</span>
-                          {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
-                          {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
-                          <div className="rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
-                            <div className="uppercase tracking-widest text-text-muted">Depth</div>
-                            <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{s.depth}</div>
+                        <button
+                          type="button"
+                          onClick={() => { setQuery(r.q); recall(r.q); }}
+                          aria-label={`Re-run recall: ${r.q}`}
+                          className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
+                            <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
                           </div>
-                          <div className="rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
-                            <div className="uppercase tracking-widest text-text-muted">Entries</div>
-                            <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{(s.entries ?? 0).toLocaleString()}</div>
-                          </div>
-                        </div>
-                        <div className="mt-2 h-8">
-                          <Sparkline
-                            data={s.spark}
-                            color={shardSparkColor(s)}
-                            width={160}
-                            height={28}
-                          />
+                          <Icon.chevR className="size-3 text-text-muted shrink-0" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </BentoScrollRegion>
+            )}
+          </BentoCard>
+
+          {/* Hits */}
+          <BentoCard span="hero-main" className="gap-3 p-4 @2xl/surface:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">
+                Citations {hits.length > 0 && <span className="text-text-muted">· {hits.length}</span>}
+              </h3>
+              {hits.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => pinHits(hits)}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-[#78350F]/20 px-2 py-1 font-mono text-[10px] text-[#F3E5AB] hover:bg-[#78350F]/40"
+                >
+                  <Icon.pin aria-hidden="true" className="size-3" /> Pin all to context
+                </button>
+              )}
+            </div>
+            <BentoScrollRegion
+              ariaLabel="Recall citations"
+              aria-live="polite"
+              aria-busy={recalling}
+              className="max-h-[360px] space-y-2 pr-1"
+            >
+              {recalling &&
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-12 rounded-md border border-border-subtle bg-overlay-subtle relative overflow-hidden">
+                    <span className="absolute inset-0 -translate-x-full animate-vox-shimmer bg-linear-to-r from-transparent via-white/5 to-transparent" />
+                  </div>
+                ))}
+              {!recalling && hits.length === 0 && (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-subtle bg-overlay-subtle py-10 text-center">
+                  <Icon.memory className="size-6 text-text-muted mb-2" />
+                  <div className="font-display text-[12px] tracking-wider text-text-muted">No recall yet</div>
+                  <div className="font-mono text-[10px] text-text-muted">Type a query or click a recent recall</div>
+                </div>
+              )}
+              {!recalling &&
+                hits.map((h, i) => (
+                  <HitCard
+                    key={i}
+                    hit={h}
+                    query={query}
+                    onOpen={() => openHit(h)}
+                    onPin={() => pinHits([h])}
+                  />
+                ))}
+            </BentoScrollRegion>
+          </BentoCard>
+
+          {/* Memory shards */}
+          <BentoCard span="full" className="gap-3 p-4 @2xl/surface:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">{useLabel('mem-shards')}</h3>
+              <span className="font-mono text-[10px] text-text-muted">
+                {(memStatus?.shards ?? []).length} live · HNSW
+                {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}
+              </span>
+            </div>
+            {shards.length === 0 ? (
+              <div
+                ref={shardsRef}
+                className="rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-[11px] text-text-muted"
+              >
+                No active HNSW vector shards mounted in this workspace session.
+              </div>
+            ) : (
+              <BentoScrollRegion
+                ref={shardsRef}
+                ariaLabel="Memory vector shards"
+                className="max-h-[600px]"
+              >
+                <div style={{ height: shardsVL.totalSize, position: 'relative' }}>
+                  {shardsVL.virtualItems.map(vItem => {
+                    const rowStart = vItem.index * SHARD_COLS;
+                    const rowShards = shards.slice(rowStart, rowStart + SHARD_COLS);
+                    return (
+                      <div
+                        key={String(vItem.key)}
+                        ref={shardsVL.virtualizer.measureElement}
+                        data-index={vItem.index}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          transform: `translateY(${vItem.start}px)`,
+                          width: '100%',
+                          paddingBottom: SHARD_ROW_GAP,
+                        }}
+                      >
+                        <div className="grid grid-cols-1 gap-3 @sm/surface:grid-cols-2 @2xl/surface:grid-cols-3 @5xl/surface:grid-cols-6">
+                          {rowShards.map(s => (
+                            <div
+                              key={s.id}
+                              className={`min-w-0 overflow-hidden rounded-xl border p-3 transition hover:border-white/15 ${
+                                s.hot   ? 'border-brass/30 bg-brass/4' :
+                                s.dirty ? 'border-amber-400/30 bg-amber-400/4' :
+                                          'border-border-subtle bg-overlay-subtle'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-1">
+                                <span className="truncate font-mono text-[11px] text-text-secondary">shard-{s.id}</span>
+                                {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
+                                {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
+                              </div>
+                              <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
+                                <div className="min-w-0 rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
+                                  <div className="uppercase tracking-widest text-text-muted">Depth</div>
+                                  <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{s.depth}</div>
+                                </div>
+                                <div className="min-w-0 rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
+                                  <div className="uppercase tracking-widest text-text-muted">Entries</div>
+                                  <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{(s.entries ?? 0).toLocaleString()}</div>
+                                </div>
+                              </div>
+                              <div className="mt-2 h-8 min-w-0 overflow-hidden">
+                                <Sparkline
+                                  data={s.spark}
+                                  color={shardSparkColor(s)}
+                                  width={160}
+                                  height={28}
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </Glass>
-        </>
+              </BentoScrollRegion>
+            )}
+          </BentoCard>
+        </BentoGrid>
       )}
 
       {/* Browse Tab */}
       {activeTab === 'browse' && (
-        <Glass className="col-span-12 p-5">
+        <BentoCard className="gap-4 p-4 @2xl/surface:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
               <h3 className="font-display text-[14px] font-semibold text-text-primary">Knowledge Graph Nodes</h3>
-              <select
+              <VoxSelect
                 aria-label="Filter by node type"
                 value={nodeTypeFilter}
-                onChange={(e) => {
-                  setNodeTypeFilter(e.target.value);
+                onValueChange={(v) => {
+                  setNodeTypeFilter(v);
                   setPage(0);
                 }}
-                className="rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary outline-hidden"
-              >
-                <option value="all">All Node Types</option>
-                <option value="research_synthesis">Research Synthesis</option>
-                <option value="web_research_source">Web Source</option>
-                <option value="document">Document</option>
-                <option value="web_scrape">Web Scrape</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'All Node Types' },
+                  { value: 'research_synthesis', label: 'Research Synthesis' },
+                  { value: 'web_research_source', label: 'Web Source' },
+                  { value: 'document', label: 'Document' },
+                  { value: 'web_scrape', label: 'Web Scrape' },
+                ]}
+                className="w-full @sm/surface:w-44 border-border-subtle bg-overlay-subtle text-xs text-text-secondary"
+              />
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -816,7 +846,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             </div>
           </div>
 
-          <div className="mt-4 overflow-x-auto">
+          <BentoScrollRegion ariaLabel="Knowledge graph nodes table" className="max-h-[520px]">
             {loadingNodes ? (
               <div className="py-8 text-center text-xs text-text-muted">Loading knowledge nodes…</div>
             ) : nodes.length === 0 ? (
@@ -867,9 +897,9 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 </tbody>
               </table>
             )}
-          </div>
+          </BentoScrollRegion>
 
-          <div className="mt-4 flex items-center justify-between border-t border-border-subtle pt-3 text-xs text-text-muted">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-3 text-xs text-text-muted">
             <button
               type="button"
               disabled={page === 0}
@@ -888,16 +918,16 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               Next
             </button>
           </div>
-        </Glass>
+        </BentoCard>
       )}
 
       {/* Ingest Tab */}
       {activeTab === 'ingest' && (
-        <>
-          <Glass className="col-span-12 xl:col-span-6 p-5">
+        <BentoGrid preset="balanced" className="@3xl/surface:grid-cols-2 @5xl/surface:grid-cols-2">
+          <BentoCard className="p-4 @2xl/surface:p-5">
             <h3 className="font-display text-[14px] font-semibold text-text-primary flex items-center gap-2">
-              <Icon.globe className="size-4 text-brass" />
-              Scrape & Ingest URL
+              <Icon.globe className="size-4 shrink-0 text-brass" />
+              Scrape &amp; Ingest URL
             </h3>
             <p className="mt-1 text-xs text-text-muted">
               Extract and clean webpage markdown using the native Vox search scraper (respecting robots.txt) and file it in the review inbox. It is not searchable until reviewed.
@@ -923,11 +953,11 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 {ingestingUrl ? 'Scraping & Ingesting…' : 'Fetch & Store into KB'}
               </button>
             </div>
-          </Glass>
+          </BentoCard>
 
-          <Glass className="col-span-12 xl:col-span-6 p-5">
+          <BentoCard className="p-4 @2xl/surface:p-5">
             <h3 className="font-display text-[14px] font-semibold text-text-primary flex items-center gap-2">
-              <Icon.edit className="size-4 text-brass" />
+              <Icon.edit className="size-4 shrink-0 text-brass" />
               Direct Text / Markdown Ingest
             </h3>
             <p className="mt-1 text-xs text-text-muted">
@@ -974,16 +1004,16 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 {ingestingText ? 'Filing…' : 'File for Review'}
               </button>
             </div>
-          </Glass>
-        </>
+          </BentoCard>
+        </BentoGrid>
       )}
 
       {/* Health Tab */}
       {activeTab === 'health' && (
-        <Glass className="col-span-12 p-5">
+        <BentoCard className="gap-4 p-4 @2xl/surface:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4">
-            <div>
-              <h3 className="font-display text-[14px] font-semibold text-text-primary">Knowledge Graph Health & Topology</h3>
+            <div className="min-w-0">
+              <h3 className="font-display text-[14px] font-semibold text-text-primary">Knowledge Graph Health &amp; Topology</h3>
               <p className="mt-0.5 text-xs text-text-muted">
                 Runtime database metrics, SQLite FTS5 search index status, and node type breakdown.
               </p>
@@ -1004,51 +1034,51 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           ) : !health ? (
             <div className="py-8 text-center text-xs text-text-muted">No health data available. Click Refresh to probe.</div>
           ) : (
-            <div className="mt-5 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+            <div className="space-y-5">
+              <BentoGrid preset="triad">
+                <div className="min-w-0 rounded-xl border border-border-subtle bg-overlay-subtle p-4">
                   <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">Total Nodes</div>
                   <div className="mt-1 text-2xl font-bold font-mono text-text-primary">
                     {health.node_count.toLocaleString()}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+                <div className="min-w-0 rounded-xl border border-border-subtle bg-overlay-subtle p-4">
                   <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">Total Edges</div>
                   <div className="mt-1 text-2xl font-bold font-mono text-text-primary">
                     {health.edge_count.toLocaleString()}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+                <div className="min-w-0 rounded-xl border border-border-subtle bg-overlay-subtle p-4">
                   <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">FTS5 Search Index</div>
                   <div className="mt-1 flex items-center gap-2">
-                    <span className={`size-2.5 rounded-full ${health.fts_available ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                    <span className={`size-2.5 shrink-0 rounded-full ${health.fts_available ? 'bg-emerald-400' : 'bg-rose-400'}`} />
                     <span className="font-semibold text-sm text-text-primary">
                       {health.fts_available ? 'Ready & Available' : 'Offline / Degraded'}
                     </span>
                   </div>
                 </div>
-              </div>
+              </BentoGrid>
 
               <div>
                 <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Corpus Distribution by Node Type</h4>
                 {Object.keys(health.corpus_counts).length === 0 ? (
                   <p className="text-xs text-text-muted">No classified node types yet.</p>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <BentoGrid preset="dense">
                     {Object.entries(health.corpus_counts).map(([type, count]) => (
-                      <div key={type} className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
+                      <div key={type} className="min-w-0 rounded-lg border border-border-subtle bg-overlay-subtle p-3">
                         <div className="font-mono text-xs text-brass font-medium truncate">{type}</div>
                         <div className="mt-1 text-lg font-bold text-text-primary font-mono">{count.toLocaleString()}</div>
                       </div>
                     ))}
-                  </div>
+                  </BentoGrid>
                 )}
               </div>
             </div>
           )}
-        </Glass>
+        </BentoCard>
       )}
     </div>
   );

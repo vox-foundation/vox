@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokeCmd } from '../../../transport';
 
 /**
  * Typed wrappers over the Task-19 Archive-panel Tauri commands. Every invoke
@@ -54,7 +54,7 @@ export interface ArchiveStatus {
 
 /** Metadata-completeness report for one publication (read-only). */
 export function getCompletionReport(publicationId: string): Promise<CompletionReport> {
-  return invoke<CompletionReport>('get_completion_report', { publicationId });
+  return invokeCmd<CompletionReport>('get_completion_report', { publicationId });
 }
 
 /**
@@ -63,12 +63,12 @@ export function getCompletionReport(publicationId: string): Promise<CompletionRe
  * raised after-completeness.
  */
 export function runAutofill(publicationId: string, apply: boolean): Promise<AutofillResult> {
-  return invoke<AutofillResult>('run_autofill', { publicationId, apply });
+  return invokeCmd<AutofillResult>('run_autofill', { publicationId, apply });
 }
 
 /** Deposit status (Zenodo DOI/state, SWHID/task) for one publication (read-only). */
 export function getArchiveStatus(publicationId: string): Promise<ArchiveStatus> {
-  return invoke<ArchiveStatus>('get_archive_status', { publicationId });
+  return invokeCmd<ArchiveStatus>('get_archive_status', { publicationId });
 }
 
 /** Recent scientia publication manifests for dashboard rollups (read-only). */
@@ -78,5 +78,5 @@ export interface PublicationManifest {
 }
 
 export function listPublicationManifests(limit: number): Promise<PublicationManifest[]> {
-  return invoke<PublicationManifest[]>('list_publication_manifests', { limit });
+  return invokeCmd<PublicationManifest[]>('list_publication_manifests', { limit });
 }

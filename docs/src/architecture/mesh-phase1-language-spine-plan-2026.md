@@ -38,7 +38,7 @@ dispatching. Until `P0-T3` is wired, `@remote` falls back to local execution beh
 The full Phase 1 acceptance bound (`@remote` failing to compile when called with non-serializable
 args; `vox workflow preview` projecting routing decisions) requires Phase 0 complete.
 
-**Working directory.** Worktree at `C:\Users\Owner\vox\.claude\worktrees\zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
+**Working directory.** Worktree at `.claude/worktrees/zealous-ardinghelli-b01e11`. All paths below are relative to this worktree.
 
 ---
 

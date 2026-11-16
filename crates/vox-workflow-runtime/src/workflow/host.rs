@@ -44,6 +44,8 @@ pub enum HostRequest {
         result: Value,
         /// Whether activity execution failed.
         failed: bool,
+        /// Optional Python worker package versions & `uv.lock` BLAKE3 digest.
+        python_env: Option<Value>,
     },
     /// Checks a version patch.
     Patch {
@@ -102,6 +104,27 @@ pub struct WorkflowHost {
 impl WorkflowHost {
     /// Spawns a workflow interpreter on a dedicated OS thread.
     pub fn spawn(hir: HirModule, workflow_name: &str, args: Vec<Value>) -> anyhow::Result<Self> {
+        Self::spawn_inner(hir, workflow_name, args, None, None)
+    }
+
+    /// Spawns a workflow interpreter configured with explicit capabilities and Python project.
+    pub fn spawn_with_python(
+        hir: HirModule,
+        workflow_name: &str,
+        args: Vec<Value>,
+        caps: vox_compiler::eval::caps::CapabilitySet,
+        python_project: Option<vox_compiler::eval::python::PythonProject>,
+    ) -> anyhow::Result<Self> {
+        Self::spawn_inner(hir, workflow_name, args, Some(caps), python_project)
+    }
+
+    fn spawn_inner(
+        hir: HirModule,
+        workflow_name: &str,
+        args: Vec<Value>,
+        caps: Option<vox_compiler::eval::caps::CapabilitySet>,
+        python_project: Option<vox_compiler::eval::python::PythonProject>,
+    ) -> anyhow::Result<Self> {
         let activity_names: std::collections::HashSet<String> = hir
             .functions
             .iter()
@@ -137,6 +160,8 @@ impl WorkflowHost {
                     args,
                     activity_names,
                     workflow_names,
+                    caps,
+                    python_project,
                     req_tx,
                     resp_rx,
                 );
@@ -204,10 +229,18 @@ fn run_on_thread(
     args: Vec<Value>,
     activity_names: std::collections::HashSet<String>,
     workflow_names: std::collections::HashSet<String>,
+    caps: Option<vox_compiler::eval::caps::CapabilitySet>,
+    python_project: Option<vox_compiler::eval::python::PythonProject>,
     req_tx: UnboundedSender<HostRequest>,
     mut resp_rx: UnboundedReceiver<HostDecision>,
 ) -> HostOutcome {
     let mut interp = Interpreter::new(WORKFLOW_STEP_LIMIT);
+    if let Some(c) = caps {
+        interp.caps = c;
+    }
+    if let Some(proj) = python_project {
+        vox_compiler::eval::python::set_python_project(&mut interp, proj);
+    }
     let stamped = stamp_call_sites(&hir);
     interp.call_ordinals = stamped.ordinals;
     interp.call_keys = stamped.keys;
@@ -242,10 +275,12 @@ fn run_on_thread(
                 name,
                 result,
                 failed,
+                python_env,
             } => HostRequest::End {
                 name: name.clone(),
                 result: result.to_journal_json(),
                 failed: *failed,
+                python_env: python_env.clone(),
             },
             HostCall::Patch {
                 change_id,

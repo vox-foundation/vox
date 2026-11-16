@@ -13,6 +13,7 @@
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
 mod backend;
+mod batch_decode;
 pub mod candle_qlora_train;
 mod checkpoint;
 pub mod device;

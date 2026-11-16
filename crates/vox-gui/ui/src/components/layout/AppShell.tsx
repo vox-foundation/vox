@@ -1,5 +1,6 @@
 import React from 'react';
 import { Backdrop } from '../ui/Backdrop';
+import { TooltipProvider } from '../ui/Tooltip';
 import { Sidebar, type SidebarMode } from './Sidebar';
 import { SurfaceScrollHost } from './SurfaceScrollHost';
 import { BreadcrumbBar } from './BreadcrumbBar';
@@ -124,13 +125,14 @@ export function AppShell({
   onToggleArchivedSessions,
   onTaskBadgeClick,
 }: AppShellProps) {
-  // Below 640px the 212px/280px sidebar leaves the status bar no room: show the rail, keep the stored mode.
-  const narrow = useNarrowViewport(640);
+  // Below 960px (e.g. 900x600 compact desktop/split-screen) collapse to the 64px icon rail while keeping stored mode.
+  const narrow = useNarrowViewport(960);
   const mainPaddingBottom = chatDocked ? 'pb-[180px]' : 'pb-5';
 
   return (
-    <div className="flex flex-1 min-h-0 w-screen flex-col bg-bg-base text-text-muted font-sans selection:bg-brass/30 selection:text-text-primary overflow-hidden">
-      <Backdrop />
+    <TooltipProvider delayDuration={150}>
+      <div className="flex flex-1 min-h-0 h-dvh w-full max-w-full flex-col bg-bg-base text-text-muted font-sans selection:bg-brass/30 selection:text-text-primary overflow-hidden">
+        <Backdrop />
 
       <div className="flex flex-1 min-h-0">
         <Sidebar
@@ -210,6 +212,7 @@ export function AppShell({
         notices={notices}
         onMarkAllNoticesRead={onMarkAllNoticesRead}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

@@ -99,6 +99,15 @@ events:
       stage, model_call, tool_call). Enforced at write time by
       vox_telemetry::research_trial::validate_research_trial_metadata; content keys are rejected.
 
+  - id: python.escape_call
+    schema_path: contracts/telemetry/python-escape-call.v1.schema.json
+    owner_crate: vox-compiler
+    tier: "B"
+    retention_days: 90
+    description: >-
+      Hashed Tier 2 Python escape-hatch invocation (`module_hash`, `symbol_hash`,
+      `tier`); raw module and symbol strings are never logged.
+
 # ─────────────────────────────────────────────────────────────────────────────
 # metric_types — every `METRIC_TYPE_*` constant from
 # `crates/vox-telemetry/src/types.rs`. Schema-less events use the generic

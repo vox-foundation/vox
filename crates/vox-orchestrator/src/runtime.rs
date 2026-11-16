@@ -15,7 +15,7 @@ use vox_actor_runtime::{
 use crate::events::AgentEventKind;
 use crate::models::{ModelRouteBackend, route_backend_for_model};
 use crate::orchestrator::Orchestrator;
-use crate::planning::prompts::SUPERPOWERS_PROMPT;
+use crate::planning::prompts::GSD_FRAMEWORK_PROMPT;
 use crate::services::{ScalingAction, ScalingService};
 use crate::types::AgentId;
 use crate::types::TaskId;
@@ -391,9 +391,9 @@ impl AiTaskProcessor {
 
         let mut skill_block = String::new();
         if let Some(ref skill) = task.active_skill {
-            skill_block.push_str("\n### Procedural Skill (Active Methodology)\n");
+            skill_block.push_str("\n### Workflow Skill (Active GSD / Brainstorming Methodology)\n");
             skill_block.push_str(&format!("ACTIVE_SKILL: {}\n", skill));
-            skill_block.push_str(SUPERPOWERS_PROMPT);
+            skill_block.push_str(GSD_FRAMEWORK_PROMPT);
             skill_block.push_str("\n\n");
         }
 

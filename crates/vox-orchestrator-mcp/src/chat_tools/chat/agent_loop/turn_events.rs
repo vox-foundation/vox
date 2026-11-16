@@ -80,10 +80,7 @@ pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
             })
         }
         ProviderType::VoxLocal => {
-            let base = vox_config::inference::vox_local_endpoint_probe_candidates()
-                .into_iter()
-                .next()
-                .unwrap_or_else(|| vox_config::inference::VOX_LOCAL_ENDPOINT_DEFAULT.to_string());
+            let base = crate::llm_bridge::providers::vox_local_generate_base_url();
             let base_url = format!("{}/v1/chat/completions", base.trim_end_matches('/'));
             Some(LlmConfig {
                 provider: "voxlocal".to_string(),

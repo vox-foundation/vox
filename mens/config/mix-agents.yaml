@@ -1,4 +1,5 @@
 # Mix configuration for agents domain
+include_lanes: [vox_tooling, vox_tool_selection, vox_argument_generation, vox_codegen]
 output: mens/data/train_mixed_agents.jsonl
 sources:
   - path: mens/data/mix_sources/dogfood_converted.jsonl
@@ -22,4 +23,9 @@ sources:
     optional: true
   - path: mens/data/mix_sources/agent_traces.jsonl
     weight: 4.0
+    record_format: tool_trace
     optional: true
+  - path: mens/data/mix_sources/gsd_workflows.jsonl
+    weight: 4.0
+    optional: true
+    record_format: gsd_workflow

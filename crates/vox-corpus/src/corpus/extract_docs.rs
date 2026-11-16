@@ -207,6 +207,59 @@ pub fn extract_from_md_file(
     Ok(pairs)
 }
 
+fn prepend_doc_context(
+    title: Option<&str>,
+    h1: &str,
+    h2: &str,
+    current: &str,
+    level: usize,
+) -> String {
+    let mut parts: Vec<&str> = Vec::new();
+    let root_label = title.map(str::trim).filter(|s| !s.is_empty()).or_else(|| {
+        let trimmed = h1.trim();
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
+    if let Some(root) = root_label
+        && !root.eq_ignore_ascii_case(current.trim())
+    {
+        parts.push(root);
+    }
+    if level >= 3 {
+        let h2_trimmed = h2.trim();
+        if !h2_trimmed.is_empty()
+            && !h2_trimmed.eq_ignore_ascii_case(current.trim())
+            && !parts.iter().any(|p| p.eq_ignore_ascii_case(h2_trimmed))
+        {
+            parts.push(h2_trimmed);
+        }
+    }
+    parts.join(" / ")
+}
+
+fn format_qa_prompt(
+    title: Option<&str>,
+    h1: &str,
+    h2: &str,
+    current: &str,
+    level: usize,
+) -> String {
+    let breadcrumb = prepend_doc_context(title, h1, h2, current, level);
+    if breadcrumb.is_empty() {
+        format!("Explain the Vox concept: {}", current.trim())
+    } else {
+        format!("Explain the Vox concept ({breadcrumb}): {}", current.trim())
+    }
+}
+
+fn frontend_check_passes(source: &str, path: &Path) -> bool {
+    let path_str = path.to_string_lossy();
+    vox_compiler::pipeline::run_frontend_str(source, &path_str).is_ok_and(|res| {
+        !res.diagnostics
+            .iter()
+            .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
+    })
+}
+
 /// Extract fenced code blocks tagged with `vox` language.
 fn extract_code_blocks(
     source: &str,
@@ -217,21 +270,60 @@ fn extract_code_blocks(
 ) {
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
+    let mut h1_heading = String::new();
+    let mut h2_heading = String::new();
     let mut preceding_context = String::new();
+    let mut in_other_fence = false;
 
     while i < lines.len() {
         let trimmed = lines[i].trim();
 
+        if in_other_fence {
+            if trimmed == "```" {
+                in_other_fence = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        let is_vox_open = trimmed == "```vox" || trimmed.starts_with("```vox ");
+        if trimmed.starts_with("```") && !is_vox_open {
+            in_other_fence = true;
+            i += 1;
+            continue;
+        }
+
         // Track headings and paragraphs for context
         if trimmed.starts_with('#') {
-            preceding_context = trimmed.trim_start_matches('#').trim().to_string();
+            let current_level = trimmed.chars().take_while(|&c| c == '#').count();
+            let current_heading = trimmed.trim_start_matches('#').trim().to_string();
+            if current_level == 1 {
+                h1_heading = current_heading.clone();
+                h2_heading.clear();
+            } else if current_level == 2 {
+                h2_heading = current_heading.clone();
+            }
+            let breadcrumb = prepend_doc_context(
+                frontmatter.title.as_deref(),
+                &h1_heading,
+                &h2_heading,
+                &current_heading,
+                current_level,
+            );
+            preceding_context = if breadcrumb.is_empty() {
+                current_heading.clone()
+            } else if current_heading.is_empty() {
+                breadcrumb
+            } else {
+                format!("{breadcrumb} / {current_heading}")
+            };
         } else if !trimmed.is_empty()
             && !trimmed.starts_with("```")
             && !trimmed.starts_with("---")
             && !trimmed.starts_with('>')
         {
             // Accumulate paragraph text (last paragraph before code block)
-            if preceding_context.len() < 200 {
+            if preceding_context.len() < 300 {
                 if !preceding_context.is_empty() {
                     preceding_context.push(' ');
                 }
@@ -240,7 +332,7 @@ fn extract_code_blocks(
         }
 
         // Detect ```vox code blocks
-        if trimmed.starts_with("```vox") || trimmed == "```vox" {
+        if is_vox_open {
             let mut code_lines = Vec::new();
             i += 1;
             while i < lines.len() {
@@ -252,40 +344,49 @@ fn extract_code_blocks(
             }
 
             let code = code_lines.join("\n");
-            if code.contains("{{#include") || code.contains("// vox:skip") {
+            if code.contains("{{#include")
+                || code.contains("// vox:skip")
+                || !crate::corpus::corpus_readiness::check_vox_retired_and_enforcement_rules(&code)
+                    .is_empty()
+            {
                 preceding_context.clear();
                 i += 1;
                 continue;
             }
             if code.len() >= 20 {
+                let vox_check_passed = frontend_check_passes(&code, path);
+                let base_rating = if vox_check_passed { 5u8 } else { 3u8 };
                 let suffix =
-                    " Use valid Vox only: annotate `fn` with `->` return types and 4-space indent.";
+                    " Use valid Vox only: annotate `fn` with `to` return types and 4-space indent.";
                 let prompt = if !preceding_context.is_empty() {
                     format!(
                         "Show me Vox code for: {}{}",
-                        preceding_context.chars().take(200).collect::<String>(),
+                        preceding_context.chars().take(300).collect::<String>(),
                         suffix
                     )
+                } else if let Some(title) = frontmatter.title.as_deref().filter(|s| !s.is_empty()) {
+                    format!("Show me a complete Vox example for `{title}`.{suffix}")
                 } else {
                     format!("Write an example Vox program.{suffix}")
                 };
+
+                let mut metadata =
+                    build_metadata(path, frontmatter, Some(&preceding_context), "code_block");
+                if let Some(obj) = metadata.as_object_mut() {
+                    obj.insert("vox_check_passed".to_string(), json!(vox_check_passed));
+                }
 
                 out.push(DocTrainingPair {
                     source_path: path.to_path_buf(),
                     category: "documentation".to_string(),
                     prompt,
                     response: code,
-                    rating: 4u8.saturating_sub(staleness_penalty).max(1),
+                    rating: base_rating.saturating_sub(staleness_penalty).max(1),
                     difficulty: 7, // Code blocks are higher difficulty than prose
                     lane: "vox_codegen".to_string(),
                     response_mode: "code_only".to_string(),
                     task_family: "docs_code".to_string(),
-                    metadata: build_metadata(
-                        path,
-                        frontmatter,
-                        Some(&preceding_context),
-                        "code_block",
-                    ),
+                    metadata,
                 });
             }
             preceding_context.clear();
@@ -293,6 +394,109 @@ fn extract_code_blocks(
 
         i += 1;
     }
+}
+
+fn resolve_doc_confine_root(config_root: &Path) -> Option<PathBuf> {
+    let canon = std::fs::canonicalize(config_root).ok()?;
+    for ancestor in canon.ancestors().take(3) {
+        if ancestor.join("Cargo.toml").is_file() {
+            return Some(ancestor.to_path_buf());
+        }
+    }
+    Some(canon)
+}
+
+fn flush_qa_section(
+    current_heading: &str,
+    current_body: &str,
+    heading_level: usize,
+    h1_heading: &str,
+    h2_heading: &str,
+    path: &Path,
+    frontmatter: &Frontmatter,
+    staleness_penalty: u8,
+    config: &ExtractDocsConfig,
+    out: &mut Vec<DocTrainingPair>,
+) {
+    if current_heading.is_empty()
+        || current_body.len() < config.min_section_chars
+        || heading_level < 2
+        || is_link_list(current_body)
+    {
+        return;
+    }
+
+    let prompt = format_qa_prompt(
+        frontmatter.title.as_deref(),
+        h1_heading,
+        h2_heading,
+        current_heading,
+        heading_level,
+    );
+    let mut response = current_body.trim().to_string();
+
+    // Relational Chunking: Inject linked .vox examples directly into the training response
+    {
+        let confine_root = resolve_doc_confine_root(&config.root);
+        let mut extra_context = String::new();
+        for cap in VOX_DOC_LINK_RE.captures_iter(&response) {
+            let target_path_str = &cap[1];
+            let abs_target = path.parent().unwrap_or(Path::new("")).join(target_path_str);
+            if let Ok(can) = std::fs::canonicalize(&abs_target)
+                && confine_root
+                    .as_ref()
+                    .is_some_and(|root| can.starts_with(root))
+                && let Ok(vox_code) = read_utf8_path_capped(&can)
+                && !vox_code.contains("// vox:skip")
+                && crate::corpus::corpus_readiness::check_vox_retired_and_enforcement_rules(
+                    &vox_code,
+                )
+                .is_empty()
+            {
+                extra_context.push_str("\n\n```vox\n");
+                extra_context.push_str(vox_code.trim());
+                extra_context.push_str("\n```\n");
+            }
+        }
+        response.push_str(&extra_context);
+    }
+
+    let has_code_fences = response.contains("```");
+    let response_mode = if has_code_fences {
+        "mixed"
+    } else {
+        "prose_only"
+    };
+    let base_rating = if frontmatter.status.as_deref() == Some("current") {
+        4u8
+    } else {
+        3u8
+    };
+    let breadcrumb = prepend_doc_context(
+        frontmatter.title.as_deref(),
+        h1_heading,
+        h2_heading,
+        current_heading,
+        heading_level,
+    );
+    let mut metadata = build_metadata(path, frontmatter, Some(current_heading), "qa_section");
+    if let Some(obj) = metadata.as_object_mut() {
+        obj.insert("doc_breadcrumb".to_string(), json!(breadcrumb));
+        obj.insert("has_code_fences".to_string(), json!(has_code_fences));
+    }
+
+    out.push(DocTrainingPair {
+        source_path: path.to_path_buf(),
+        category: "documentation".to_string(),
+        prompt,
+        response,
+        rating: base_rating.saturating_sub(staleness_penalty).max(1),
+        difficulty: 5, // Q&A prose is mid-difficulty
+        lane: "vox_docs_qa".to_string(),
+        response_mode: response_mode.to_string(),
+        task_family: "docs_qa".to_string(),
+        metadata,
+    });
 }
 
 /// Extract Q&A pairs from markdown section headings.
@@ -305,6 +509,8 @@ fn extract_qa_sections(
     out: &mut Vec<DocTrainingPair>,
 ) {
     let lines: Vec<&str> = source.lines().collect();
+    let mut h1_heading = String::new();
+    let mut h2_heading = String::new();
     let mut current_heading = String::new();
     let mut current_body = String::new();
     let mut heading_level = 0usize;
@@ -327,7 +533,14 @@ fn extract_qa_sections(
         if trimmed.starts_with("```") {
             if in_fence {
                 let body = fence_buf.join("\n");
-                if !(body.contains("// vox:skip") || body.contains("{{#include")) {
+                let fence_tag = fence_open.trim_start_matches('`').trim();
+                let is_vox_fence = fence_tag == "vox" || fence_tag.starts_with("vox ");
+                let retired_hit = is_vox_fence
+                    && !crate::corpus::corpus_readiness::check_vox_retired_and_enforcement_rules(
+                        &body,
+                    )
+                    .is_empty();
+                if !(body.contains("// vox:skip") || body.contains("{{#include") || retired_hit) {
                     current_body.push_str(fence_open);
                     current_body.push('\n');
                     current_body.push_str(&body);
@@ -348,54 +561,27 @@ fn extract_qa_sections(
 
         // New heading
         if trimmed.starts_with('#') {
-            // Flush previous section
-            if !current_heading.is_empty()
-                && current_body.len() >= config.min_section_chars
-                && heading_level >= 2
-                && !is_link_list(&current_body)
-            {
-                let prompt = format!("Explain the Vox concept: {}", current_heading);
-                let mut response = current_body.trim().to_string();
-
-                // Relational Chunking: Inject linked .vox examples directly into the training response
-                {
-                    let mut extra_context = String::new();
-                    for cap in VOX_DOC_LINK_RE.captures_iter(&response) {
-                        let target_path_str = &cap[1];
-                        let abs_target =
-                            path.parent().unwrap_or(Path::new("")).join(target_path_str);
-                        if let Ok(can) = std::fs::canonicalize(&abs_target)
-                            && let Ok(vox_code) = read_utf8_path_capped(&can)
-                        {
-                            extra_context.push_str("\n\n```vox\n");
-                            extra_context.push_str(vox_code.trim());
-                            extra_context.push_str("\n```\n");
-                        }
-                    }
-                    response.push_str(&extra_context);
-                }
-
-                out.push(DocTrainingPair {
-                    source_path: path.to_path_buf(),
-                    category: "documentation".to_string(),
-                    prompt,
-                    response,
-                    rating: 3u8.saturating_sub(staleness_penalty).max(1),
-                    difficulty: 5, // Q&A prose is mid-difficulty
-                    lane: "vox_docs_qa".to_string(),
-                    response_mode: "prose_only".to_string(),
-                    task_family: "docs_qa".to_string(),
-                    metadata: build_metadata(
-                        path,
-                        frontmatter,
-                        Some(&current_heading),
-                        "qa_section",
-                    ),
-                });
-            }
+            flush_qa_section(
+                &current_heading,
+                &current_body,
+                heading_level,
+                &h1_heading,
+                &h2_heading,
+                path,
+                frontmatter,
+                staleness_penalty,
+                config,
+                out,
+            );
 
             heading_level = trimmed.chars().take_while(|&c| c == '#').count();
             current_heading = trimmed.trim_start_matches('#').trim().to_string();
+            if heading_level == 1 {
+                h1_heading = current_heading.clone();
+                h2_heading.clear();
+            } else if heading_level == 2 {
+                h2_heading = current_heading.clone();
+            }
             current_body.clear();
         } else if !trimmed.is_empty() {
             current_body.push_str(trimmed);
@@ -403,45 +589,18 @@ fn extract_qa_sections(
         }
     }
 
-    // Flush last section
-    if !current_heading.is_empty()
-        && current_body.len() >= config.min_section_chars
-        && heading_level >= 2
-        && !is_link_list(&current_body)
-    {
-        let prompt = format!("Explain the Vox concept: {}", current_heading);
-        let mut response = current_body.trim().to_string();
-
-        // Relational Chunking: Inject linked .vox examples directly into the training response
-        if let Ok(link_re) = Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)") {
-            let mut extra_context = String::new();
-            for cap in link_re.captures_iter(&response.clone()) {
-                let target_path_str = &cap[1];
-                let abs_target = path.parent().unwrap_or(Path::new("")).join(target_path_str);
-                if let Ok(can) = std::fs::canonicalize(&abs_target)
-                    && let Ok(vox_code) = read_utf8_path_capped(&can)
-                {
-                    extra_context.push_str("\n\n```vox\n");
-                    extra_context.push_str(vox_code.trim());
-                    extra_context.push_str("\n```\n");
-                }
-            }
-            response.push_str(&extra_context);
-        }
-
-        out.push(DocTrainingPair {
-            source_path: path.to_path_buf(),
-            category: "documentation".to_string(),
-            prompt,
-            response,
-            rating: 3u8.saturating_sub(staleness_penalty).max(1),
-            difficulty: 5,
-            lane: "vox_docs_qa".to_string(),
-            response_mode: "prose_only".to_string(),
-            task_family: "docs_qa".to_string(),
-            metadata: build_metadata(path, frontmatter, Some(&current_heading), "qa_section"),
-        });
-    }
+    flush_qa_section(
+        &current_heading,
+        &current_body,
+        heading_level,
+        &h1_heading,
+        &h2_heading,
+        path,
+        frontmatter,
+        staleness_penalty,
+        config,
+        out,
+    );
 }
 
 fn build_metadata(
@@ -665,8 +824,84 @@ adds two integers returns an int. This section is long enough to be emitted.
             &mut out,
         );
         assert_eq!(out.len(), 1, "only the prose section should be emitted");
-        assert_eq!(out[0].prompt, "Explain the Vox concept: Returns");
+        assert_eq!(out[0].prompt, "Explain the Vox concept (Doc): Returns");
+        assert_eq!(out[0].response_mode, "prose_only");
         assert!(!out.iter().any(|p| p.prompt.contains("->")));
+    }
+
+    #[test]
+    fn qa_prompt_tracks_frontmatter_title_breadcrumbs_and_mixed_mode() {
+        const MD: &str = r#"# Ignored H1
+
+## Architecture Overview
+
+### Context
+
+This section contains both prose explanation and an inline code fence so the extractor tags it as mixed rather than prose_only.
+
+```vox
+fn helper(x: int) to int {
+    return x + 1
+}
+```
+"#;
+        let mut out = Vec::new();
+        let config = ExtractDocsConfig {
+            min_section_chars: 40,
+            ..ExtractDocsConfig::default()
+        };
+        let fm = Frontmatter {
+            title: Some("Scheduler Spec".to_string()),
+            status: Some("current".to_string()),
+            ..Frontmatter::default()
+        };
+        extract_qa_sections(MD, Path::new("spec.md"), &fm, 0, &config, &mut out);
+        assert_eq!(out.len(), 1);
+        assert_eq!(
+            out[0].prompt,
+            "Explain the Vox concept (Scheduler Spec / Architecture Overview): Context"
+        );
+        assert_eq!(out[0].response_mode, "mixed");
+        assert_eq!(out[0].rating, 4);
+        assert_eq!(
+            out[0].metadata["doc_breadcrumb"],
+            "Scheduler Spec / Architecture Overview"
+        );
+    }
+
+    #[test]
+    fn code_blocks_skip_retired_syntax_and_annotate_compiler_check() {
+        const MD: &str = r#"# Guide
+
+## Retired Block
+
+```vox
+@component fn OldWidget() -> Element {
+    return <div>hi</div>
+}
+```
+
+## Valid Function
+
+A minimal pure helper that adds two integers cleanly in Vox.
+
+```vox
+fn add_two(a: int, b: int) to int {
+    return a + b
+}
+```
+"#;
+        let mut out = Vec::new();
+        let fm = Frontmatter {
+            title: Some("Functions".to_string()),
+            ..Frontmatter::default()
+        };
+        extract_code_blocks(MD, Path::new("fn.md"), &fm, 0, &mut out);
+        assert_eq!(out.len(), 1, "retired @component fence must be dropped");
+        assert!(out[0].prompt.contains("Functions / Valid Function"));
+        assert!(out[0].prompt.contains("with `to` return types"));
+        assert_eq!(out[0].metadata["vox_check_passed"], json!(true));
+        assert_eq!(out[0].rating, 5);
     }
 
     #[test]
@@ -871,6 +1106,108 @@ fn compute_total(a: int, b: int) to int {
             assert!(!p.response.contains("<Steps>"));
             assert!(!p.response.contains("@astrojs/starlight/components"));
         }
+    }
+
+    #[test]
+    fn relational_chunking_skips_retired_linked_vox_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let examples_dir = dir.path().join("examples");
+        std::fs::create_dir_all(&examples_dir).unwrap();
+        std::fs::write(
+            examples_dir.join("retired.vox"),
+            "@component fn LegacyPage() to Element {\n    return <div></div>\n}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            examples_dir.join("clean.vox"),
+            "fn healthy_add(a: int, b: int) to int {\n    return a + b\n}\n",
+        )
+        .unwrap();
+
+        let doc_path = dir.path().join("guide.md");
+        let md = "---\ntitle: \"Guide\"\nstatus: \"current\"\ntraining_eligible: true\n---\n\n# Guide\n\n## Examples\n\nCompare [retired](examples/retired.vox) and [clean](examples/clean.vox) while keeping at least sixty characters of explanation.\n";
+        std::fs::write(&doc_path, md).unwrap();
+
+        let config = ExtractDocsConfig {
+            root: dir.path().to_path_buf(),
+            min_section_chars: 40,
+            ..Default::default()
+        };
+        let pairs = walk_and_extract_docs(&config).unwrap();
+        let qa_pair = pairs
+            .iter()
+            .find(|p| p.task_family == "docs_qa")
+            .expect("expected docs_qa pair");
+        assert!(
+            qa_pair.response.contains("fn healthy_add"),
+            "clean linked .vox file should be injected"
+        );
+        assert!(
+            !qa_pair.response.contains("LegacyPage"),
+            "retired linked .vox file must NOT be injected"
+        );
+    }
+
+    #[test]
+    fn code_blocks_ignore_hash_comments_inside_other_fences() {
+        const MD: &str = r#"# Guide
+
+## Real Section
+
+```bash
+# not a markdown heading
+echo hi
+```
+
+```vox
+fn ok_func(x: int) to int {
+    return x + 1
+}
+```
+"#;
+        let mut out = Vec::new();
+        extract_code_blocks(
+            MD,
+            Path::new("guide.md"),
+            &Frontmatter::default(),
+            0,
+            &mut out,
+        );
+        assert_eq!(out.len(), 1);
+        assert!(!out[0].prompt.contains("not a markdown heading"));
+        assert!(out[0].prompt.contains("Real Section"));
+    }
+
+    #[test]
+    fn qa_sections_drop_retired_inline_vox_fence_and_reject_traversal_link() {
+        let outer = tempfile::tempdir().unwrap();
+        let docs_root = outer.path().join("docs");
+        std::fs::create_dir_all(&docs_root).unwrap();
+        std::fs::write(
+            outer.path().join("outside.vox"),
+            "fn outside_secret(x: int) to int {\n    return x\n}\n",
+        )
+        .unwrap();
+
+        let md = "---\ntitle: \"Security\"\nstatus: \"current\"\n---\n\n# Security\n\n## Traversal And Legacy\n\nExplanation exceeding minimum section characters with [outside](../outside.vox) link.\n\n```vox\n@component fn LegacyInline() to Element {\n    return <div></div>\n}\n```\n";
+        std::fs::write(docs_root.join("sec.md"), md).unwrap();
+
+        let config = ExtractDocsConfig {
+            root: docs_root,
+            extract_code_blocks: false,
+            min_section_chars: 20,
+            ..Default::default()
+        };
+        let pairs = walk_and_extract_docs(&config).unwrap();
+        assert_eq!(pairs.len(), 1);
+        assert!(
+            !pairs[0].response.contains("LegacyInline"),
+            "retired inline ```vox fence must be dropped from QA section"
+        );
+        assert!(
+            !pairs[0].response.contains("outside_secret"),
+            "traversal link outside confine root must not be injected"
+        );
     }
 }
 

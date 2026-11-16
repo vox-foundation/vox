@@ -50,8 +50,8 @@ impl DetectionRule for WorkspaceDriftDetector {
     }
 
     fn languages(&self) -> &[Language] {
-        // We evaluate Cargo.toml layout files in the context of TOESTUB
-        &[Language::Rust, Language::Vox, Language::TypeScript]
+        // Cargo.toml maps to Language::Unknown, so Unknown must be included to reach detect().
+        &[Language::Unknown]
     }
 
     fn detect(
@@ -63,6 +63,17 @@ impl DetectionRule for WorkspaceDriftDetector {
         let file_name = file.path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         if file_name != "Cargo.toml" {
+            return findings;
+        }
+
+        let path_norm = file.path.to_string_lossy().replace('\\', "/");
+        if path_norm.ends_with("crates/workspace-hack/Cargo.toml")
+            || path_norm.contains("/tests/fixtures/")
+            || path_norm.contains("/fuzz/Cargo.toml")
+            || path_norm.starts_with("patches/")
+            || path_norm.contains("/patches/")
+            || file.content.contains("cargo-fuzz = true")
+        {
             return findings;
         }
 
@@ -83,8 +94,13 @@ impl DetectionRule for WorkspaceDriftDetector {
                     continue;
                 }
 
-                // 1. Detect path = ... sprawl
-                if trimmed.contains("path =") && trimmed.contains('{') && trimmed.contains('}') {
+                // 1. Detect path = ... sprawl (except `default-features = false` overrides, which Cargo
+                // forbids on workspace-inherited dependencies whose root entry leaves default-features true).
+                if trimmed.contains("path =")
+                    && trimmed.contains('{')
+                    && trimmed.contains('}')
+                    && !trimmed.contains("default-features = false")
+                {
                     findings.push(Finding {
                         rule_id: self.id().to_string(),
                         diagnostic_id: None,
@@ -105,7 +121,9 @@ impl DetectionRule for WorkspaceDriftDetector {
 
                 // 2. Detect version = "..." sprawl
                 // This catches `uuid = { version = "1.0" }` or `version = "0.1.0"` (if not .workspace)
-                if trimmed.contains("version = \"") || (trimmed.contains("version = '")) {
+                if !trimmed.starts_with("rust-version")
+                    && (trimmed.contains("version = \"") || trimmed.contains("version = '"))
+                {
                     // Allow [package] version if it's not marked .workspace?
                     // No, AGENTS.md implies we use version.workspace = true everywhere.
                     findings.push(Finding {
@@ -147,8 +165,11 @@ impl DetectionRule for WorkspaceDriftDetector {
                 }
             }
         } else {
-            // It's the root Cargo.toml. Check for orphan crates in the `crates/` directory.
-            if let Some(parent) = file.path.parent() {
+            // It's the root Cargo.toml. Check for orphan crates in the `crates/` directory
+            // when workspace membership does not already glob `crates/*`.
+            let has_crates_glob =
+                file.content.contains("\"crates/*\"") || file.content.contains("'crates/*'");
+            if !has_crates_glob && let Some(parent) = file.path.parent() {
                 let crates_dir = parent.join("crates");
                 if crates_dir.is_dir()
                     && let Ok(entries) = fs::read_dir(crates_dir)

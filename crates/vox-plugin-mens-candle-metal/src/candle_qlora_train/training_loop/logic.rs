@@ -23,12 +23,14 @@ use qlora_rs::training::QLoraTrainer;
 pub fn checkpointed_backward_step(
     trainer: &mut QLoraTrainer,
     model: &crate::candle_qlora_train::TrainGraphModel,
-    loss: &Tensor,
-    segments: Vec<CheckpointSegment>,
+    loss: Tensor,
+    mut segments: Vec<CheckpointSegment>,
 ) -> anyhow::Result<()> {
     if segments.is_empty() {
         anyhow::bail!("checkpointed_backward_step: no segments");
     }
+
+    let device = loss.device().clone();
 
     // Mirror backward_step's grad-accumulation loss scaling so numerics match.
     let accum_steps = trainer
@@ -37,48 +39,52 @@ pub fn checkpointed_backward_step(
         .gradient_accumulation_steps
         .max(1);
     let scaled_loss = if accum_steps > 1 {
-        let scale = Tensor::new(1.0f32 / accum_steps as f32, loss.device())?;
+        let scale = Tensor::new(1.0f32 / accum_steps as f32, &device)?;
         loss.broadcast_mul(&scale)?
     } else {
-        loss.clone()
+        loss
     };
 
     let all_vars = trainer.trainable_vars();
 
-    // Step 1: backward over the final segment + head. This store becomes our
-    // accumulator (we own it); it already holds the last segment's Var grads.
+    // Step 1: backward over the final segment + head, then immediately drop the final
+    // segment's forward graph (`scaled_loss` / `last_seg`) and prune non-Var grads so
+    // earlier segment recomputes never stack on top of the final segment's tensors.
     let mut grads = scaled_loss.backward()?;
+    drop(scaled_loss);
 
-    // Upstream cotangent for the previous segment = dL/d(last segment input).
-    let last = segments.last().expect("non-empty");
-    let mut upstream = grads.get(&last.input).cloned().ok_or_else(|| {
+    let last_seg = segments.pop().expect("non-empty");
+    let mut upstream = grads.remove(&last_seg.input).ok_or_else(|| {
         anyhow::anyhow!("checkpointed backward: missing boundary grad for final segment input")
     })?;
+    drop(last_seg);
+    grads.retain_vars(&all_vars);
+    device.synchronize()?;
 
-    // Step 2: recompute-and-backward each earlier segment in reverse.
-    for seg in segments.iter().rev().skip(1) {
-        let (input_var, seg_out) = model.recompute_segment(seg)?;
-        let seg_grads = qlora_rs::backward_from_cotangent(&seg_out, &upstream)?;
-        // Fold this segment's LoRA Var grads into the accumulator. Each segment's
-        // recompute only touches its own layers' Vars, so this is auto-scoped.
+    // Step 2: recompute-and-backward each earlier segment in reverse, dropping the
+    // segment forward graph and temporary GradStore BEFORE `device.synchronize()` so
+    // all transient buffers have strong_count == 1 when the Metal pool prunes.
+    for seg in segments.into_iter().rev() {
+        let (input_var, seg_out) = model.recompute_segment(&seg)?;
+        drop(seg);
+        let mut seg_grads = qlora_rs::backward_from_cotangent(&seg_out, &upstream)?;
+        drop(seg_out);
         qlora_rs::accumulate_grads_for_vars(&mut grads, &seg_grads, &all_vars)?;
-        // Next upstream cotangent = dL/d(this segment's input boundary).
-        upstream = seg_grads
-            .get(input_var.as_tensor())
-            .cloned()
-            .ok_or_else(|| {
-                anyhow::anyhow!("checkpointed backward: missing boundary grad for segment input")
-            })?;
+        upstream = seg_grads.remove(input_var.as_tensor()).ok_or_else(|| {
+            anyhow::anyhow!("checkpointed backward: missing boundary grad for segment input")
+        })?;
+        drop(input_var);
         drop(seg_grads);
-        loss.device().synchronize()?;
+        device.synchronize()?;
     }
-    // `upstream` now holds dL/d(embedding); embeddings are frozen so it is unused.
+    drop(upstream);
+    device.synchronize()?;
 
     // Step 3: clip + optimizer step from the combined grads.
     trainer
         .optimizer_step_with_grads(grads)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    loss.device().synchronize()?;
+    device.synchronize()?;
     Ok(())
 }
 
@@ -154,7 +160,7 @@ mod tests {
         };
 
         let loss = Tensor::new(1.0f32, &dev).unwrap();
-        let err = checkpointed_backward_step(&mut trainer, &model, &loss, Vec::new()).unwrap_err();
+        let err = checkpointed_backward_step(&mut trainer, &model, loss, Vec::new()).unwrap_err();
         assert!(err.to_string().contains("no segments"));
     }
 }

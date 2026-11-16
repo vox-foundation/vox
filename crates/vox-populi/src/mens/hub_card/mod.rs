@@ -23,14 +23,16 @@ pub mod svg;
 mod tests;
 
 pub use facts::CURRENT_ADAPTER_SERVING;
-pub(crate) use facts::{GateState, gate_of};
+pub(crate) use facts::{GateState, detect_merged_checkpoint_files, gate_of};
 pub use facts::{PROMPT_PROTOCOL, RunRecords, Score, compare_json_path, heldout_scores};
 pub use render::{render_index_readme, render_model_card};
 pub use svg::{RenderedAsset, render_index_assets, render_model_assets};
 
-/// `vox-mens-qwen3-<size>`: the repo name, also the local cards subdirectory.
-pub fn repo_name(size: &str) -> String {
-    format!("vox-mens-qwen3-{}", size.to_ascii_lowercase())
+/// Canonical Hub repository slug (`vox-mens-qwen3.5-4b`, `vox-mens-qwen3-0.6b`, etc.),
+/// falling back to `vox-mens-qwen3-<size>` for unknown synthetic test sizes.
+pub fn repo_name(size_or_pin: &str) -> String {
+    crate::mens::hub_repo::repo_slug_for_model(size_or_pin)
+        .unwrap_or_else(|_| format!("vox-mens-qwen3-{}", size_or_pin.to_ascii_lowercase()))
 }
 
 /// Everything a size card needs besides its records.

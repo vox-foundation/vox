@@ -235,6 +235,8 @@ pub mod socrates;
 pub mod state;
 /// Rolling summarization of agent interactions.
 pub mod summary;
+/// Orchestrator-layer terminal session bridge (`TerminalBridge`) and fallback adapters.
+pub mod terminal_bridge;
 /// Cryptographic receipts for tool execution grounding.
 pub mod tool_receipt;
 pub mod topology;

@@ -91,7 +91,7 @@ fn imported_source_is_canonical_dsl() {
 /// Writes the light/dark contact sheet of the corpus sequence and the four `svg/cases/3x-seq-*`
 /// goldens to `$CONTACT_SHEET_OUT` (panes differ only in the `--sl-*` token values).
 #[test]
-#[ignore = "one-shot generator: set CONTACT_SHEET_OUT"]
+#[ignore = "owner:diagram sunset:never one-shot: generator requires CONTACT_SHEET_OUT"]
 fn contact_sheet() {
     let Ok(out) = std::env::var("CONTACT_SHEET_OUT") else {
         panic!("set CONTACT_SHEET_OUT=<path>.html and run with --run-ignored only");

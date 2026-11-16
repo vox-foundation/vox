@@ -28,6 +28,122 @@ use qlora_rs::qlora::QuantizedLinear;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/// Projection wrapper that keeps low-fan-in Gated DeltaNet gate weights
+/// (`in_proj_b` / `in_proj_a`) in unquantized FP32 while leaving all large
+/// matrix multiplies quantized.
+#[allow(clippy::large_enum_variant)]
+pub enum LinearProj {
+    Quantized(QuantizedLinear),
+    F32WeightT(Tensor),
+}
+
+impl LinearProj {
+    /// Construct an unquantized FP32 projection from an `[out_features, in_features]` weight tensor.
+    pub fn from_tensor(weight: Tensor) -> Result<Self> {
+        let w_f32 = if weight.dtype() == DType::F32 {
+            weight
+        } else {
+            weight.to_dtype(DType::F32)?
+        };
+        Ok(Self::F32WeightT(w_f32.t()?.contiguous()?))
+    }
+
+    /// Project `x` (`[..., in_features]`) into `[..., out_features]`.
+    pub fn forward(&self, x: &Tensor) -> Result<Tensor> {
+        match self {
+            Self::Quantized(ql) => ql
+                .forward(x)
+                .map_err(|e| candle_core::Error::Msg(e.to_string())),
+            Self::F32WeightT(w_t) => {
+                let x_f32 = if x.dtype() == DType::F32 {
+                    x.clone()
+                } else {
+                    x.to_dtype(DType::F32)?
+                };
+                x_f32.broadcast_matmul(w_t)
+            }
+        }
+    }
+}
+
+/// Per-token local positions within packed documents, resetting to `0` at each
+/// document boundary.
+pub fn packed_local_positions(doc_ids: &[u32]) -> Vec<u32> {
+    let mut positions = Vec::with_capacity(doc_ids.len());
+    let mut prev_doc: Option<u32> = None;
+    let mut local = 0u32;
+    for &doc_id in doc_ids {
+        if prev_doc == Some(doc_id) {
+            local = local.saturating_add(1);
+        } else {
+            local = 0;
+            prev_doc = Some(doc_id);
+        }
+        positions.push(local);
+    }
+    positions
+}
+
+/// Block-diagonal causal mask (`(1, 1, seq_len, seq_len)`, `F32`) allowing attention
+/// strictly when `doc_ids[row] == doc_ids[col]` and `col <= row`.
+pub fn block_diagonal_causal_mask(doc_ids: &[u32], device: &Device) -> Result<Tensor> {
+    let seq_len = doc_ids.len();
+    let mut data = vec![f32::NEG_INFINITY; seq_len * seq_len];
+    for row in 0..seq_len {
+        let d_row = doc_ids[row];
+        for col in 0..=row {
+            if doc_ids[col] == d_row {
+                data[row * seq_len + col] = 0.0f32;
+            }
+        }
+    }
+    Tensor::from_vec(data, (1, 1, seq_len, seq_len), device)
+}
+
+/// Precomputed packed-sequence RoPE positions and block-diagonal mask shared across
+/// all layers in a single packed forward pass.
+pub struct PackedAttnContext {
+    pub doc_ids: Vec<u32>,
+    /// Per-token local positions `(seq_len, 1)` in `F32`.
+    pub local_pos_f32: Tensor,
+    /// Block-diagonal causal mask `(1, 1, seq_len, seq_len)` (`F32`) or `None` when `seq_len <= 1`.
+    pub mask: Option<Tensor>,
+}
+
+impl PackedAttnContext {
+    /// Validate contiguous document runs and precompute RoPE positions and causal mask once.
+    pub fn new(doc_ids: &[u32], device: &Device) -> Result<Self> {
+        let mut seen = std::collections::HashSet::with_capacity(doc_ids.len());
+        let mut prev: Option<u32> = None;
+        for &d in doc_ids {
+            if prev != Some(d) {
+                if !seen.insert(d) {
+                    return Err(candle_core::Error::Msg(format!(
+                        "PackedAttnContext requires contiguous document runs; doc_id {d} reappeared"
+                    )));
+                }
+                prev = Some(d);
+            }
+        }
+        let seq_len = doc_ids.len();
+        let pos_f32: Vec<f32> = packed_local_positions(doc_ids)
+            .into_iter()
+            .map(|p| p as f32)
+            .collect();
+        let local_pos_f32 = Tensor::from_vec(pos_f32, (seq_len, 1), device)?;
+        let mask = if seq_len > 1 {
+            Some(block_diagonal_causal_mask(doc_ids, device)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            doc_ids: doc_ids.to_vec(),
+            local_pos_f32,
+            mask,
+        })
+    }
+}
+
 fn causal_mask(seq_len: usize, device: &Device) -> Result<Tensor> {
     let mut data = vec![0.0f32; seq_len * seq_len];
     for row in 0..seq_len {
@@ -101,16 +217,12 @@ pub struct Qwen2Attention {
 }
 
 impl Qwen2Attention {
-    pub fn forward(
+    fn project_qkv_heads(
         &self,
         x: &Tensor,
-        pos: usize,
-        inv_freq: Option<&Tensor>,
-        kv_cache: Option<&mut Option<(Tensor, Tensor)>>,
-    ) -> Result<Tensor> {
-        let (b, seq_len, _d_model) = x.dims3()?;
-        let device = x.device();
-
+        b: usize,
+        seq_len: usize,
+    ) -> Result<(Tensor, Tensor, Tensor, Option<Tensor>, DType)> {
         let q = self
             .q_proj
             .forward(x)
@@ -142,6 +254,13 @@ impl Qwen2Attention {
             None => v,
         };
 
+        let (q, gate) = vox_plugin_mens_candle_core::attn_math::split_q_and_gate(
+            q,
+            b,
+            seq_len,
+            self.n_heads,
+            self.head_dim,
+        )?;
         let q = q.reshape((b, seq_len, self.n_heads, self.head_dim))?;
         let q = match &self.q_norm {
             Some(norm) => rms_norm_f32(norm, &q)?,
@@ -159,6 +278,60 @@ impl Qwen2Attention {
         let v = v
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
+
+        Ok((q, k, v, gate, act_dtype))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn attend_and_project(
+        &self,
+        q: &Tensor,
+        k: &Tensor,
+        v: &Tensor,
+        gate: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        b: usize,
+        seq_len: usize,
+        act_dtype: DType,
+    ) -> Result<Tensor> {
+        let n_rep = self.n_heads / self.n_kv_heads;
+        let k = repeat_kv(k, n_rep)?;
+        let v = repeat_kv(v, n_rep)?;
+
+        let scale = 1.0 / (self.head_dim as f64).sqrt();
+        let att = (q.contiguous()?.matmul(&k.transpose(2, 3)?.contiguous()?)? * scale)?;
+
+        // Softmax (and the surrounding max-subtraction / mask add) accumulate in F32
+        // for numerical stability regardless of the activation dtype, then cast back to
+        // the activation dtype for the att @ v matmul. On the all-F32 path these casts
+        // are no-ops; on the BF16 path they keep the attention probabilities stable.
+        let att = att.to_dtype(DType::F32)?;
+        let att = match mask {
+            Some(m) => att.broadcast_add(m)?,
+            None => att,
+        };
+        let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?.to_dtype(act_dtype)?;
+        let y = att.matmul(&v.contiguous()?)?;
+        let y =
+            y.transpose(1, 2)?
+                .contiguous()?
+                .reshape((b, seq_len, self.n_heads * self.head_dim))?;
+        let y = vox_plugin_mens_candle_core::attn_math::apply_attn_output_gate(y, gate)?;
+        self.o_proj
+            .forward(&y)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))
+    }
+
+    pub fn forward(
+        &self,
+        x: &Tensor,
+        pos: usize,
+        inv_freq: Option<&Tensor>,
+        kv_cache: Option<&mut Option<(Tensor, Tensor)>>,
+    ) -> Result<Tensor> {
+        let (b, seq_len, _d_model) = x.dims3()?;
+        let device = x.device();
+        let (q, k, v, gate, act_dtype) = self.project_qkv_heads(x, b, seq_len)?;
 
         let (q, k) = if let Some(inv_freq) = inv_freq {
             self.apply_rotary_emb(&q, &k, inv_freq, pos)?
@@ -189,48 +362,53 @@ impl Qwen2Attention {
             )));
         }
 
-        let n_rep = self.n_heads / self.n_kv_heads;
-        let k = repeat_kv(&k, n_rep)?;
-        let v = repeat_kv(&v, n_rep)?;
-        let v = v.clamp(-256f64, 256f64)?;
-
-        let scale = 1.0 / (self.head_dim as f64).sqrt();
-        let mut att = (q.contiguous()?.matmul(&k.transpose(2, 3)?.contiguous()?)? * scale)?;
-        att = att.clamp(-120f64, 120f64)?;
-
-        // Softmax (and the surrounding max-subtraction / mask add) accumulate in F32
-        // for numerical stability regardless of the activation dtype, then cast back to
-        // the activation dtype for the att @ v matmul. On the all-F32 path these casts
-        // are no-ops; on the BF16 path they keep the attention probabilities stable.
-        let act_dtype = q.dtype();
-        if seq_len > 1 {
-            let att = att.to_dtype(DType::F32)?;
-            let mask = causal_mask(seq_len, device)?;
-            let att = att.broadcast_add(&mask)?;
-            let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?;
-            let att = att.to_dtype(act_dtype)?;
-            let y = att.matmul(&v.contiguous()?)?;
-            let y = y.transpose(1, 2)?.contiguous()?.reshape((
-                b,
-                seq_len,
-                self.n_heads * self.head_dim,
-            ))?;
-            self.o_proj
-                .forward(&y)
-                .map_err(|e| candle_core::Error::Msg(e.to_string()))
+        let mask = if seq_len > 1 {
+            Some(causal_mask(seq_len, device)?)
         } else {
-            let att = candle_nn::ops::softmax(&att.to_dtype(DType::F32)?, candle_core::D::Minus1)?
-                .to_dtype(act_dtype)?;
-            let y = att.matmul(&v.contiguous()?)?;
-            let y = y.transpose(1, 2)?.contiguous()?.reshape((
-                b,
-                seq_len,
-                self.n_heads * self.head_dim,
-            ))?;
-            self.o_proj
-                .forward(&y)
-                .map_err(|e| candle_core::Error::Msg(e.to_string()))
+            None
+        };
+        self.attend_and_project(
+            &q,
+            &k,
+            &v,
+            gate.as_ref(),
+            mask.as_ref(),
+            b,
+            seq_len,
+            act_dtype,
+        )
+    }
+
+    /// Forward pass for packed multi-document sequences (`b == 1`, `ctx.doc_ids.len() == seq_len`).
+    pub fn forward_packed_ctx(
+        &self,
+        x: &Tensor,
+        ctx: &PackedAttnContext,
+        inv_freq: Option<&Tensor>,
+    ) -> Result<Tensor> {
+        let (b, seq_len, _d_model) = x.dims3()?;
+        if b != 1 || ctx.doc_ids.len() != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "forward_packed expects b=1 and doc_ids.len()==seq_len (got b={b}, seq_len={seq_len}, doc_ids={})",
+                ctx.doc_ids.len()
+            )));
         }
+        let (q, k, v, gate, act_dtype) = self.project_qkv_heads(x, b, seq_len)?;
+        let (q, k) = if let Some(inv_freq) = inv_freq {
+            self.apply_rotary_emb_with_t(&q, &k, inv_freq, ctx.local_pos_f32.clone())?
+        } else {
+            (q, k)
+        };
+        self.attend_and_project(
+            &q,
+            &k,
+            &v,
+            gate.as_ref(),
+            ctx.mask.as_ref(),
+            b,
+            seq_len,
+            act_dtype,
+        )
     }
 
     fn apply_rotary_emb(
@@ -240,6 +418,20 @@ impl Qwen2Attention {
         inv_freq: &Tensor,
         pos: usize,
     ) -> Result<(Tensor, Tensor)> {
+        let (_b, _n_heads, seq_len, _head_dim) = q.dims4()?;
+        let t = Tensor::arange(pos as u32, (pos + seq_len) as u32, q.device())?
+            .to_dtype(DType::F32)?
+            .reshape((seq_len, 1))?;
+        self.apply_rotary_emb_with_t(q, k, inv_freq, t)
+    }
+
+    fn apply_rotary_emb_with_t(
+        &self,
+        q: &Tensor,
+        k: &Tensor,
+        inv_freq: &Tensor,
+        t: Tensor,
+    ) -> Result<(Tensor, Tensor)> {
         let (_b, _n_heads, seq_len, head_dim) = q.dims4()?;
         let rope_dim = inv_freq.elem_count().saturating_mul(2);
         if rope_dim == 0 || rope_dim > head_dim {
@@ -248,10 +440,6 @@ impl Qwen2Attention {
                 inv_freq.elem_count()
             )));
         }
-        let device = q.device();
-        let t = Tensor::arange(pos as u32, (pos + seq_len) as u32, device)?
-            .to_dtype(DType::F32)?
-            .reshape((seq_len, 1))?;
         let freqs = t.matmul(&inv_freq.reshape((1, inv_freq.elem_count()))?)?;
         let freqs = Tensor::cat(&[&freqs, &freqs], 1)?;
         // cos/sin are computed in F32 for precision, then cast to the activation dtype
@@ -314,8 +502,8 @@ impl Qwen2MLP {
 pub struct Qwen35LinearAttention {
     pub qkv_proj: QuantizedLinear,
     pub z_proj: QuantizedLinear,
-    pub b_proj: QuantizedLinear,
-    pub a_proj: QuantizedLinear,
+    pub b_proj: LinearProj,
+    pub a_proj: LinearProj,
     pub out_proj: QuantizedLinear,
     pub conv_weight: Tensor,
     pub dt_bias: Tensor,
@@ -328,6 +516,8 @@ pub struct Qwen35LinearAttention {
 }
 
 impl Qwen35LinearAttention {
+    const DELTANET_CHUNK_SIZE: usize = 64;
+
     fn repeat_heads_bshd(x: &Tensor, n_rep: usize) -> Result<Tensor> {
         if n_rep == 1 {
             return Ok(x.clone());
@@ -338,55 +528,232 @@ impl Qwen35LinearAttention {
             .reshape((b, s, h * n_rep, d))
     }
 
-    fn l2norm_last(x: &Tensor, eps: f64) -> Result<Tensor> {
-        let d = x.dim(candle_core::D::Minus1)?;
-        let sq = x.broadcast_mul(x)?;
-        let sq = sq.sum_keepdim(candle_core::D::Minus1)?;
-        let inv = (sq / (d as f64))?.broadcast_add(&Tensor::new(eps as f32, x.device())?)?;
-        let inv = inv.sqrt()?.recip()?;
-        x.broadcast_mul(&inv)
-    }
-
-    fn causal_depthwise_conv_silu(x: &Tensor, conv_weight: &Tensor) -> Result<Tensor> {
+    fn causal_depthwise_conv_silu_inner(
+        x: &Tensor,
+        conv_weight: &Tensor,
+        conv_state: Option<&mut Option<Tensor>>,
+        doc_ids: Option<&[u32]>,
+    ) -> Result<Tensor> {
         let (b, s, c) = x.dims3()?;
         let k = conv_weight.dim(1)?;
         let dev = x.device();
+        if s == 0 {
+            return Tensor::zeros((b, 0, c), DType::F32, dev);
+        }
         // The depthwise conv accumulates in F32 for stability and returns F32; the caller
         // (linear-attention) runs its recurrence in F32 anyway. Cast inputs to F32 so the
         // BF16-activation path doesn't mix dtypes (no-op on the all-F32 path).
         let x = x.to_dtype(DType::F32)?;
         let conv_weight = conv_weight.to_dtype(DType::F32)?;
-        let mut steps = Vec::with_capacity(s);
-        for t in 0..s {
-            let mut acc = Tensor::zeros((b, c), DType::F32, dev)?;
-            for j in 0..k {
-                if t < j {
+
+        let (full_x, offset) = if let Some(cs) = conv_state.as_deref().and_then(|opt| opt.as_ref())
+        {
+            let cs = cs.to_dtype(DType::F32)?;
+            let full = Tensor::cat(&[&cs, &x], 1)?;
+            let p = cs.dim(1)?;
+            (full, p)
+        } else {
+            (x.clone(), 0)
+        };
+
+        let total_s = full_x.dim(1)?;
+        let mut acc: Option<Tensor> = None;
+        for j in 0..k {
+            let mut x_lag = if offset >= j {
+                full_x.narrow(1, offset - j, s)?
+            } else {
+                let pad_len = (j - offset).min(s);
+                let valid_len = s - pad_len;
+                if valid_len == 0 {
                     continue;
                 }
-                let x_t = x.narrow(1, t - j, 1)?.squeeze(1)?;
-                let w = conv_weight.narrow(1, j, 1)?.squeeze(1)?;
-                let prod = x_t.broadcast_mul(&w.unsqueeze(0)?)?;
-                acc = (acc + prod)?;
+                let zeros = Tensor::zeros((b, pad_len, c), DType::F32, dev)?;
+                let valid = full_x.narrow(1, 0, valid_len)?;
+                Tensor::cat(&[&zeros, &valid], 1)?
+            };
+
+            if let Some(ids) = doc_ids
+                && j > 0
+            {
+                let mask_vec: Vec<f32> = (0..s)
+                    .map(|t| {
+                        if t >= j && (1..=j).all(|r| ids[t - r] == ids[t]) {
+                            1.0
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect();
+                if mask_vec.iter().all(|&m| m == 0.0) {
+                    continue;
+                }
+                let mask = Tensor::from_vec(mask_vec, (1, s, 1), dev)?;
+                x_lag = x_lag.broadcast_mul(&mask)?;
             }
-            steps.push(candle_nn::ops::silu(&acc)?);
+
+            let w_j = conv_weight.narrow(1, k - 1 - j, 1)?.reshape((1, 1, c))?;
+            let prod = x_lag.broadcast_mul(&w_j)?;
+            acc = Some(match acc {
+                None => prod,
+                Some(prev) => (prev + prod)?,
+            });
         }
-        Tensor::stack(&steps, 1)
+
+        if let Some(cs_ref) = conv_state {
+            let keep = k.saturating_sub(1).min(total_s);
+            *cs_ref = if keep > 0 {
+                Some(full_x.narrow(1, total_s - keep, keep)?)
+            } else {
+                None
+            };
+        }
+
+        let acc = match acc {
+            Some(t) => t,
+            None => Tensor::zeros((b, s, c), DType::F32, dev)?,
+        };
+        candle_nn::ops::silu(&acc)
     }
 
-    pub fn forward(
+    pub fn causal_depthwise_conv_silu(
+        x: &Tensor,
+        conv_weight: &Tensor,
+        conv_state: Option<&mut Option<Tensor>>,
+    ) -> Result<Tensor> {
+        Self::causal_depthwise_conv_silu_inner(x, conv_weight, conv_state, None)
+    }
+
+    pub fn causal_depthwise_conv_silu_packed(
+        x: &Tensor,
+        conv_weight: &Tensor,
+        doc_ids: &[u32],
+    ) -> Result<Tensor> {
+        Self::causal_depthwise_conv_silu_inner(x, conv_weight, None, Some(doc_ids))
+    }
+
+    fn compute_doc_spans(seq_len: usize, doc_ids: Option<&[u32]>) -> Vec<(usize, usize, bool)> {
+        if seq_len == 0 {
+            return Vec::new();
+        }
+        let Some(ids) = doc_ids else {
+            return vec![(0, seq_len, false)];
+        };
+        let mut spans = Vec::new();
+        let mut start = 0usize;
+        for t in 1..seq_len {
+            if ids[t] != ids[t - 1] {
+                spans.push((start, t, start > 0));
+                start = t;
+            }
+        }
+        spans.push((start, seq_len, start > 0));
+        spans
+    }
+
+    fn invert_unit_lower_tri_pow2(a_strict: &Tensor, p: usize) -> Result<Tensor> {
+        let (b, h, rows, cols) = a_strict.dims4()?;
+        if rows != p || cols != p || !p.is_power_of_two() || p < 2 {
+            return Err(candle_core::Error::Msg(format!(
+                "invert_unit_lower_tri_pow2 expected square pow2 >= 2, got ({b}, {h}, {rows}, {cols}) p={p}"
+            )));
+        }
+        let dev = a_strict.device();
+        let b2 = b * h;
+        let mut eye_p_vec = vec![0.0f32; p * p];
+        for i in 0..p {
+            eye_p_vec[i * p + i] = 1.0;
+        }
+        let eye_p = Tensor::from_vec(eye_p_vec, (1, 1, p, p), dev)?;
+        let m_unit = a_strict.broadcast_add(&eye_p)?.reshape((b2, p, p))?;
+
+        let mut inv = Tensor::ones((b2 * p, 1, 1), DType::F32, dev)?;
+        let mut m = 1usize;
+        while m < p {
+            let q = p / (2 * m);
+            let inv_pair = inv.reshape((b2 * q, 2, m, m))?;
+            let inv11 = inv_pair.narrow(1, 0, 1)?.squeeze(1)?.contiguous()?;
+            let inv22 = inv_pair.narrow(1, 1, 1)?.squeeze(1)?.contiguous()?;
+            let m21 = if q == 1 {
+                m_unit.narrow(1, m, m)?.narrow(2, 0, m)?.contiguous()?
+            } else {
+                let mut eye_q_vec = vec![0.0f32; q * q];
+                for i in 0..q {
+                    eye_q_vec[i * q + i] = 1.0;
+                }
+                let eye_q = Tensor::from_vec(eye_q_vec, (1, q, q, 1, 1), dev)?;
+                m_unit
+                    .reshape((b2, q, 2 * m, q, 2 * m))?
+                    .narrow(2, m, m)?
+                    .narrow(4, 0, m)?
+                    .transpose(2, 3)?
+                    .broadcast_mul(&eye_q)?
+                    .sum(2)?
+                    .reshape((b2 * q, m, m))?
+                    .contiguous()?
+            };
+            let inv21 = inv22.matmul(&m21)?.matmul(&inv11)?.neg()?;
+            let zeros = Tensor::zeros((b2 * q, m, m), DType::F32, dev)?;
+            let top = Tensor::cat(&[&inv11, &zeros], 2)?;
+            let bot = Tensor::cat(&[&inv21, &inv22], 2)?;
+            inv = Tensor::cat(&[&top, &bot], 1)?;
+            m *= 2;
+        }
+        inv.reshape((b, h, p, p))
+    }
+
+    fn build_chunk_masks(l: usize, device: &Device) -> Result<(Tensor, Tensor, Tensor)> {
+        let mut triu_vec = vec![0.0f32; l * l];
+        let mut strict_vec = vec![0.0f32; l * l];
+        let mut eye_vec = vec![0.0f32; l * l];
+        for row in 0..l {
+            eye_vec[row * l + row] = 1.0;
+            for col in 0..l {
+                if row <= col {
+                    triu_vec[row * l + col] = 1.0;
+                }
+                if row > col {
+                    strict_vec[row * l + col] = 1.0;
+                }
+            }
+        }
+        Ok((
+            Tensor::from_vec(triu_vec, (l, l), device)?,
+            Tensor::from_vec(strict_vec, (1, 1, l, l), device)?,
+            Tensor::from_vec(eye_vec, (1, 1, l, l), device)?,
+        ))
+    }
+
+    fn forward_inner(
         &self,
         x: &Tensor,
-        pos: usize,
-        inv_freq: Option<&Tensor>,
-        state_cache: Option<&mut Option<Tensor>>,
+        mut state_cache: Option<&mut Option<LinearStateCache>>,
+        doc_ids: Option<&[u32]>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
         let device = x.device();
+        let act_dtype = x.dtype();
         let qkv = self
             .qkv_proj
             .forward(x)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
-        let mixed_qkv = Self::causal_depthwise_conv_silu(&qkv, &self.conv_weight)?;
+
+        let mut conv_state = state_cache
+            .as_ref()
+            .and_then(|sc| sc.as_ref().and_then(|s| s.conv_state.clone()));
+
+        let mixed_qkv = if let Some(ids) = doc_ids {
+            Self::causal_depthwise_conv_silu_packed(&qkv, &self.conv_weight, ids)?
+        } else {
+            Self::causal_depthwise_conv_silu(
+                &qkv,
+                &self.conv_weight,
+                if state_cache.is_some() {
+                    Some(&mut conv_state)
+                } else {
+                    None
+                },
+            )?
+        };
 
         let key_dim = self.num_k_heads * self.head_k_dim;
         let value_dim = self.num_v_heads * self.head_v_dim;
@@ -403,8 +770,7 @@ impl Qwen35LinearAttention {
         // numerical stability regardless of the activation dtype, then cast the gated
         // output back to the activation dtype before out_proj. On the all-F32 path these
         // casts are no-ops; on the BF16 path they avoid mixing BF16 activations with the
-        // F32 recurrence state (and keep the sequential state-decay numerically sound).
-        let act_dtype = x.dtype();
+        // F32 recurrence state (and keep the state-decay numerically sound).
         let query = mixed_qkv
             .narrow(candle_core::D::Minus1, 0, key_dim)?
             .reshape((b, seq_len, self.num_k_heads, self.head_k_dim))?
@@ -424,18 +790,11 @@ impl Qwen35LinearAttention {
             .map_err(|e| candle_core::Error::Msg(e.to_string()))?
             .reshape((b, seq_len, self.num_v_heads, self.head_v_dim))?
             .to_dtype(DType::F32)?;
-        let beta = candle_nn::ops::sigmoid(
-            &self
-                .b_proj
-                .forward(x)
-                .map_err(|e| candle_core::Error::Msg(e.to_string()))?,
-        )?
-        .reshape((b, seq_len, self.num_v_heads))?
-        .to_dtype(DType::F32)?;
+        let beta = candle_nn::ops::sigmoid(&self.b_proj.forward(x)?.to_dtype(DType::F32)?)?
+            .reshape((b, seq_len, self.num_v_heads))?;
         let a = self
             .a_proj
-            .forward(x)
-            .map_err(|e| candle_core::Error::Msg(e.to_string()))?
+            .forward(x)?
             .reshape((b, seq_len, self.num_v_heads))?
             .to_dtype(DType::F32)?;
 
@@ -443,22 +802,25 @@ impl Qwen35LinearAttention {
         let dt_bias = self.dt_bias.to_dtype(DType::F32)?;
         let g_pre =
             (a.broadcast_add(&dt_bias.reshape((1, 1, self.num_v_heads))?)?).to_dtype(DType::F32)?;
-        let g_soft = (g_pre.exp()?.broadcast_add(&Tensor::new(1f32, device)?)?).log()?;
-        let a_log_scale = a_log.exp()?.clamp(1e-6f64, 1e4f64)?;
+        let g_soft = vox_plugin_mens_candle_core::attn_math::stable_softplus(&g_pre)?;
+        let a_log_scale = a_log.exp()?;
         let g = g_soft
             .broadcast_mul(&a_log_scale.reshape((1, 1, self.num_v_heads))?)?
             .neg()?;
-        let g = g.clamp(-80f64, 20f64)?;
 
-        let mut query = Self::l2norm_last(&query, 1e-6)?;
-        let mut key = Self::l2norm_last(&key, 1e-6)?;
+        let mut query = vox_plugin_mens_candle_core::attn_math::l2norm_last_no_div(&query, 1e-6)?;
+        let mut key = vox_plugin_mens_candle_core::attn_math::l2norm_last_no_div(&key, 1e-6)?;
         if self.num_v_heads > self.num_k_heads {
             let rep = self.num_v_heads / self.num_k_heads;
             query = Self::repeat_heads_bshd(&query, rep)?;
             key = Self::repeat_heads_bshd(&key, rep)?;
         }
+        let query = (query * (1.0 / (self.head_k_dim as f64).sqrt()))?;
 
-        let mut state = match state_cache.as_ref().and_then(|s| s.as_ref()) {
+        let mut state = match state_cache
+            .as_ref()
+            .and_then(|s| s.as_ref().map(|sc| &sc.recurrent_state))
+        {
             Some(state_prev) => state_prev.clone(),
             None => Tensor::zeros(
                 (b, self.num_v_heads, self.head_k_dim, self.head_v_dim),
@@ -466,46 +828,128 @@ impl Qwen35LinearAttention {
                 device,
             )?,
         };
-        let mut outs = Vec::with_capacity(seq_len);
-        for t in 0..seq_len {
-            let q_t = query.narrow(1, t, 1)?.squeeze(1)?;
-            let k_t = key.narrow(1, t, 1)?.squeeze(1)?;
-            let v_t = value.narrow(1, t, 1)?.squeeze(1)?;
-            let g_t = g.narrow(1, t, 1)?.squeeze(1)?;
-            let beta_t = beta.narrow(1, t, 1)?.squeeze(1)?;
 
-            let g_scale = g_t.exp()?.reshape((b, self.num_v_heads, 1, 1))?;
-            state = state.broadcast_mul(&g_scale)?;
+        let mut y = if seq_len == 0 {
+            Tensor::zeros(
+                (b, 0, self.num_v_heads, self.head_v_dim),
+                DType::F32,
+                device,
+            )?
+        } else {
+            let q_all = query.transpose(1, 2)?.contiguous()?;
+            let k_all = key.transpose(1, 2)?.contiguous()?;
+            let v_all = value.transpose(1, 2)?.contiguous()?;
+            let g_all = g.transpose(1, 2)?.contiguous()?;
+            let beta_all = beta.transpose(1, 2)?.contiguous()?;
 
-            let k_col = k_t.unsqueeze(candle_core::D::Minus1)?;
-            let kv_mem = state
-                .transpose(2, 3)?
-                .contiguous()?
-                .matmul(&k_col)?
-                .squeeze(candle_core::D::Minus1)?;
-            let delta = v_t
-                .broadcast_sub(&kv_mem)?
-                .broadcast_mul(&beta_t.unsqueeze(candle_core::D::Minus1)?)?;
-            let delta_row = delta.unsqueeze(2)?;
-            let upd = k_col.matmul(&delta_row)?;
-            state = (state + upd)?;
+            let spans = Self::compute_doc_spans(seq_len, doc_ids);
+            let mut chunk_outs = Vec::new();
+            let mut mask_cache: std::collections::HashMap<usize, (Tensor, Tensor, Tensor)> =
+                std::collections::HashMap::new();
 
-            let out_t = state
-                .transpose(2, 3)?
-                .contiguous()?
-                .matmul(&q_t.unsqueeze(candle_core::D::Minus1)?)?
-                .squeeze(candle_core::D::Minus1)?;
-            outs.push(out_t);
+            for (s0, s1, reset_state) in spans {
+                if reset_state {
+                    state = Tensor::zeros(
+                        (b, self.num_v_heads, self.head_k_dim, self.head_v_dim),
+                        DType::F32,
+                        device,
+                    )?;
+                }
+                for chunk_start in (s0..s1).step_by(Self::DELTANET_CHUNK_SIZE) {
+                    let l = (s1 - chunk_start).min(Self::DELTANET_CHUNK_SIZE);
+                    let q_c = q_all.narrow(2, chunk_start, l)?.contiguous()?;
+                    let k_c = k_all.narrow(2, chunk_start, l)?.contiguous()?;
+                    let v_c = v_all.narrow(2, chunk_start, l)?.contiguous()?;
+                    let g_c = g_all.narrow(2, chunk_start, l)?.contiguous()?;
+                    let beta_c = beta_all.narrow(2, chunk_start, l)?.contiguous()?;
+
+                    if l == 1 {
+                        let g_scale = g_c.exp()?.reshape((b, self.num_v_heads, 1, 1))?;
+                        let state_decayed = state.broadcast_mul(&g_scale)?;
+                        let kv_mem = k_c.matmul(&state_decayed)?;
+                        let delta = v_c
+                            .broadcast_sub(&kv_mem)?
+                            .broadcast_mul(&beta_c.reshape((b, self.num_v_heads, 1, 1))?)?;
+                        let upd = k_c.transpose(2, 3)?.contiguous()?.matmul(&delta)?;
+                        state = (state_decayed + upd)?;
+                        chunk_outs.push(q_c.matmul(&state)?);
+                        continue;
+                    }
+
+                    let (triu_ones_2d, strict_mask, eye_l) = match mask_cache.entry(l) {
+                        std::collections::hash_map::Entry::Occupied(e) => e.into_mut().clone(),
+                        std::collections::hash_map::Entry::Vacant(e) => {
+                            e.insert(Self::build_chunk_masks(l, device)?).clone()
+                        }
+                    };
+
+                    let gamma = g_c
+                        .reshape((b * self.num_v_heads, 1, l))?
+                        .broadcast_matmul(&triu_ones_2d)?
+                        .reshape((b, self.num_v_heads, l))?;
+                    let gamma_exp = gamma.exp()?.unsqueeze(3)?;
+                    let beta_col = beta_c.unsqueeze(3)?;
+                    let b_rhs = v_c
+                        .broadcast_sub(&k_c.matmul(&state)?.broadcast_mul(&gamma_exp)?)?
+                        .broadcast_mul(&beta_col)?;
+
+                    let diff = gamma.unsqueeze(3)?.broadcast_sub(&gamma.unsqueeze(2)?)?;
+                    let gamma_strict = diff
+                        .broadcast_mul(&strict_mask)?
+                        .exp()?
+                        .broadcast_mul(&strict_mask)?;
+                    let k_c_t = k_c.transpose(2, 3)?.contiguous()?;
+                    let a_mat = k_c
+                        .matmul(&k_c_t)?
+                        .broadcast_mul(&gamma_strict)?
+                        .broadcast_mul(&beta_col)?;
+
+                    let inv_i_plus_a = {
+                        let p = l.next_power_of_two();
+                        if p == l {
+                            Self::invert_unit_lower_tri_pow2(&a_mat, p)?
+                        } else {
+                            let pad = p - l;
+                            let right_zero =
+                                Tensor::zeros((b, self.num_v_heads, l, pad), DType::F32, device)?;
+                            let a_wide = Tensor::cat(&[&a_mat, &right_zero], 3)?;
+                            let bot_zero =
+                                Tensor::zeros((b, self.num_v_heads, pad, p), DType::F32, device)?;
+                            let a_padded = Tensor::cat(&[&a_wide, &bot_zero], 2)?;
+                            Self::invert_unit_lower_tri_pow2(&a_padded, p)?
+                                .narrow(2, 0, l)?
+                                .narrow(3, 0, l)?
+                                .contiguous()?
+                        }
+                    };
+
+                    let u_chunk = inv_i_plus_a.matmul(&b_rhs)?;
+                    let gamma_causal = gamma_strict.broadcast_add(&eye_l)?;
+                    let inter = q_c.matmul(&state)?.broadcast_mul(&gamma_exp)?;
+                    let intra = q_c
+                        .matmul(&k_c_t)?
+                        .broadcast_mul(&gamma_causal)?
+                        .matmul(&u_chunk)?;
+                    chunk_outs.push((inter + intra)?);
+
+                    let gamma_last = gamma.narrow(2, l - 1, 1)?;
+                    let state_decay = gamma_last.exp()?.unsqueeze(3)?;
+                    let tail_decay = gamma_last.broadcast_sub(&gamma)?.exp()?.unsqueeze(3)?;
+                    let state_upd = k_c_t.matmul(&u_chunk.broadcast_mul(&tail_decay)?)?;
+                    state = (state.broadcast_mul(&state_decay)? + state_upd)?;
+                }
+            }
+
+            Tensor::cat(&chunk_outs, 2)?.transpose(1, 2)?.contiguous()?
+        };
+
+        if let Some(ref mut sc) = state_cache {
+            **sc = Some(LinearStateCache {
+                recurrent_state: state,
+                conv_state,
+            });
         }
 
-        if let Some(slot) = state_cache {
-            *slot = Some(state);
-        }
-
-        let mut y = Tensor::stack(&outs, 1)?;
-        if let Some(inv_freq) = inv_freq {
-            let _ = (inv_freq, pos);
-        }
         let y_flat = y.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
         let z_flat = z.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
         // forward_diff = differentiable (composed) RMSNorm; the Module `forward` uses a
@@ -521,6 +965,28 @@ impl Qwen35LinearAttention {
         self.out_proj
             .forward(&y)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))
+    }
+
+    pub fn forward(
+        &self,
+        x: &Tensor,
+        pos: usize,
+        inv_freq: Option<&Tensor>,
+        state_cache: Option<&mut Option<LinearStateCache>>,
+    ) -> Result<Tensor> {
+        let _ = (pos, inv_freq);
+        self.forward_inner(x, state_cache, None)
+    }
+
+    pub fn forward_packed_ctx(&self, x: &Tensor, ctx: &PackedAttnContext) -> Result<Tensor> {
+        let (b, seq_len, _d_model) = x.dims3()?;
+        if b != 1 || ctx.doc_ids.len() != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "qwen3_5 linear_attention forward_packed expects b=1 and doc_ids.len()==seq_len (got b={b}, seq_len={seq_len}, doc_ids={})",
+                ctx.doc_ids.len()
+            )));
+        }
+        self.forward_inner(x, None, Some(&ctx.doc_ids))
     }
 }
 
@@ -582,6 +1048,27 @@ impl Qwen35Layer {
         let h = self.mlp.forward(&h)?;
         residual + h
     }
+
+    pub fn forward_packed_ctx(&self, x: &Tensor, ctx: &PackedAttnContext) -> Result<Tensor> {
+        let residual = x;
+        let h = rms_norm_f32(&self.input_layernorm, x)?;
+        let h = match &self.attention {
+            Qwen35AttentionBlock::Full(a) => {
+                a.forward_packed_ctx(&h, ctx, self.inv_freq.as_ref())?
+            }
+            Qwen35AttentionBlock::Linear(a) => a.forward_packed_ctx(&h, ctx)?,
+        };
+        let x = (residual + h)?;
+        let residual = &x;
+        let h = rms_norm_f32(&self.post_attention_layernorm, &x)?;
+        let h = self.mlp.forward(&h)?;
+        residual + h
+    }
+
+    pub fn forward_packed(&self, x: &Tensor, doc_ids: &[u32]) -> Result<Tensor> {
+        let ctx = PackedAttnContext::new(doc_ids, x.device())?;
+        self.forward_packed_ctx(x, &ctx)
+    }
 }
 
 pub struct Qwen35Model {
@@ -612,6 +1099,8 @@ pub struct CheckpointSegment {
     pub start_layer: usize,
     /// One-past-last layer index (exclusive) in this segment.
     pub end_layer: usize,
+    /// Precomputed packed-attention context when built from `forward_checkpointed_packed`.
+    pub packed_ctx: Option<std::sync::Arc<PackedAttnContext>>,
 }
 
 /// Materialize `x`'s values into a fresh, storage-independent detached leaf.
@@ -668,6 +1157,31 @@ impl Qwen35Model {
             .any(|l| matches!(l.attention, Qwen35AttentionBlock::Linear(_)))
     }
 
+    /// Packed multi-document forward pass (`b == 1`, `doc_ids.len() == seq_len`).
+    ///
+    /// Resets RoPE positions and linear-attention recurrent/conv state per document
+    /// and prevents cross-document full-attention leakage via block-diagonal causal masking.
+    pub fn forward_packed(&self, input_ids: &Tensor, doc_ids: &[u32]) -> Result<Tensor> {
+        let (b, seq_len) = input_ids.dims2()?;
+        if b != 1 || doc_ids.len() != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "forward_packed expects batch=1 and doc_ids.len()==seq_len (got b={b}, seq_len={seq_len}, doc_ids={})",
+                doc_ids.len()
+            )));
+        }
+        let ctx = PackedAttnContext::new(doc_ids, self.embed_tokens.device())?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+        for layer in &self.layers {
+            x = layer.forward_packed_ctx(&x, &ctx)?;
+        }
+        self.head_forward(&x)
+    }
+
     pub fn empty_cache(&self) -> Vec<Qwen35LayerCache> {
         self.layers
             .iter()
@@ -684,22 +1198,32 @@ impl Qwen35Model {
         pos: usize,
         cache: &mut [Qwen35LayerCache],
     ) -> Result<Tensor> {
+        self.forward_cached_inner(input_ids, pos, cache, false)
+    }
+
+    /// Cached forward returning only the final sequence position `[b, 1, vocab]`
+    /// when `seq_len > 1`, avoiding a full-prompt `lm_head` matmul during prefill.
+    pub fn forward_cached_last_token(
+        &self,
+        input_ids: &Tensor,
+        pos: usize,
+        cache: &mut [Qwen35LayerCache],
+    ) -> Result<Tensor> {
+        self.forward_cached_inner(input_ids, pos, cache, true)
+    }
+
+    fn forward_cached_inner(
+        &self,
+        input_ids: &Tensor,
+        pos: usize,
+        cache: &mut [Qwen35LayerCache],
+        only_last_token: bool,
+    ) -> Result<Tensor> {
         if cache.len() != self.layers.len() {
             return Err(candle_core::Error::Msg(format!(
                 "KV cache has {} slots but the model has {} layers",
                 cache.len(),
                 self.layers.len()
-            )));
-        }
-        if let Some(i) = cache
-            .iter()
-            .position(|c| matches!(c, Qwen35LayerCache::Linear(Some(_))))
-        {
-            return Err(candle_core::Error::Msg(format!(
-                "incremental decode over a linear-attention layer is unsupported \
-                 (layer {i}): short-conv state caching is unimplemented, so the \
-                 depthwise conv would see zeros where the previous tokens should be. \
-                 Re-forward the full context for hybrid models instead."
             )));
         }
         let (b, seq_len) = input_ids.dims2()?;
@@ -713,14 +1237,18 @@ impl Qwen35Model {
         for (layer, slot) in self.layers.iter().zip(cache.iter_mut()) {
             x = layer.forward(&x, pos, Some(slot))?;
         }
-        self.head_forward(&x)
+        let x_out = if only_last_token && seq_len > 1 {
+            x.narrow(1, seq_len - 1, 1)?
+        } else {
+            x
+        };
+        self.head_forward(&x_out)
     }
 
-    /// Final norm + clamp + lm_head + F32 cast, shared by the eager and
+    /// Final norm + lm_head + F32 cast, shared by the eager and
     /// checkpointed forward so logits are byte-identical for the same input.
     fn head_forward(&self, x: &Tensor) -> Result<Tensor> {
         let x = rms_norm_f32(&self.norm, x)?;
-        let x = x.clamp(-64f64, 64f64)?;
         let logits = self
             .lm_head
             .forward(&x)
@@ -734,24 +1262,28 @@ impl Qwen35Model {
     /// Run the transformer layers in `[start, end)` over `x`. Identical op
     /// sequence to [`Self::forward`]'s layer loop, so recompute reproduces the
     /// original numerics exactly (training has no KV cache / `pos` is always 0).
-    fn run_layers(&self, x: &Tensor, start: usize, end: usize) -> Result<Tensor> {
+    fn run_layers_with(
+        &self,
+        x: &Tensor,
+        start: usize,
+        end: usize,
+        packed_ctx: Option<&PackedAttnContext>,
+    ) -> Result<Tensor> {
         let mut h = x.clone();
         for layer in &self.layers[start..end] {
-            h = layer.forward(&h, 0, None)?;
+            h = match packed_ctx {
+                Some(ctx) => layer.forward_packed_ctx(&h, ctx)?,
+                None => layer.forward(&h, 0, None)?,
+            };
         }
         Ok(h)
     }
 
-    /// Checkpointed forward: split the `num_layers` transformer layers into
-    /// `n_segments` roughly-equal contiguous segments, detaching the activation
-    /// at each boundary so the autograd tape never spans more than one segment +
-    /// the head. This bounds the single-backward VRAM peak that OOMs 3B on 16GB.
-    ///
-    /// `n_segments` is clamped to `[1, num_layers]`.
-    pub fn forward_checkpointed(
+    fn forward_checkpointed_inner(
         &self,
         input_ids: &Tensor,
         n_segments: usize,
+        packed_ctx: Option<std::sync::Arc<PackedAttnContext>>,
     ) -> Result<CheckpointedForward> {
         let num_layers = self.layers.len();
         let n_segments = n_segments.clamp(1, num_layers.max(1));
@@ -783,11 +1315,12 @@ impl Qwen35Model {
         for s in 0..n_segments {
             let start = bounds[s];
             let end = bounds[s + 1];
-            let seg_out = self.run_layers(&seg_input, start, end)?;
+            let seg_out = self.run_layers_with(&seg_input, start, end, packed_ctx.as_deref())?;
             segments.push(CheckpointSegment {
                 input: seg_input.clone(),
                 start_layer: start,
                 end_layer: end,
+                packed_ctx: packed_ctx.clone(),
             });
             if s + 1 == n_segments {
                 // Last segment flows into the head WITHOUT severing.
@@ -805,21 +1338,81 @@ impl Qwen35Model {
         })
     }
 
+    /// Checkpointed forward: split the `num_layers` transformer layers into
+    /// `n_segments` roughly-equal contiguous segments, detaching the activation
+    /// at each boundary so the autograd tape never spans more than one segment +
+    /// the head. This bounds the single-backward VRAM peak that OOMs 3B on 16GB.
+    ///
+    /// `n_segments` is clamped to `[1, num_layers]`.
+    pub fn forward_checkpointed(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> Result<CheckpointedForward> {
+        self.forward_checkpointed_inner(input_ids, n_segments, None)
+    }
+
+    /// Checkpointed packed multi-document forward pass (`b == 1`, `doc_ids.len() == seq_len`).
+    pub fn forward_checkpointed_packed(
+        &self,
+        input_ids: &Tensor,
+        doc_ids: &[u32],
+        n_segments: usize,
+    ) -> Result<CheckpointedForward> {
+        let (b, seq_len) = input_ids.dims2()?;
+        if b != 1 || doc_ids.len() != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "forward_checkpointed_packed expects batch=1 and doc_ids.len()==seq_len (got b={b}, seq_len={seq_len}, doc_ids={})",
+                doc_ids.len()
+            )));
+        }
+        let packed_ctx =
+            std::sync::Arc::new(PackedAttnContext::new(doc_ids, self.embed_tokens.device())?);
+        self.forward_checkpointed_inner(input_ids, n_segments, Some(packed_ctx))
+    }
+
     /// Recompute one checkpoint segment's forward from its detached boundary
     /// `input` with the tape live, returning `(input_var, seg_output)`. After
     /// backprop, `input_var`'s gradient is `dL/d(input)` — the cotangent to
     /// thread to the previous segment.
     pub fn recompute_segment(&self, seg: &CheckpointSegment) -> Result<(candle_core::Var, Tensor)> {
         let input_var = candle_core::Var::from_tensor(&seg.input)?;
-        let out = self.run_layers(input_var.as_tensor(), seg.start_layer, seg.end_layer)?;
+        let out = self.run_layers_with(
+            input_var.as_tensor(),
+            seg.start_layer,
+            seg.end_layer,
+            seg.packed_ctx.as_deref(),
+        )?;
+        Ok((input_var, out))
+    }
+
+    /// Explicitly recompute one checkpoint segment under a caller-provided [`PackedAttnContext`].
+    pub fn recompute_segment_packed(
+        &self,
+        seg: &CheckpointSegment,
+        ctx: &PackedAttnContext,
+    ) -> Result<(candle_core::Var, Tensor)> {
+        let input_var = candle_core::Var::from_tensor(&seg.input)?;
+        let out = self.run_layers_with(
+            input_var.as_tensor(),
+            seg.start_layer,
+            seg.end_layer,
+            Some(ctx),
+        )?;
         Ok((input_var, out))
     }
 }
 
 #[derive(Debug, Clone)]
+pub struct LinearStateCache {
+    pub recurrent_state: Tensor,
+    pub conv_state: Option<Tensor>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Qwen35LayerCache {
     Full(Option<(Tensor, Tensor)>),
-    Linear(Option<Tensor>),
+    Linear(Option<LinearStateCache>),
 }
 
 // ── CandleModel: the opaque handle stored across plugin calls ─────────────────
@@ -862,19 +1455,24 @@ mod gradient_checkpoint_tests {
     use candle_nn::{VarBuilder, VarMap};
     use qlora_rs::QLoraConfig;
 
-    fn qcfg() -> QLoraConfig {
+    pub(super) fn qcfg() -> QLoraConfig {
         let mut c = QLoraConfig::preset_all_bf16(4, 8);
         c.quantization.compute_dtype = qlora_rs::quantization::ComputeDType::F32;
         c.cache_dequantized = true;
         c
     }
 
-    fn qlin(vb: VarBuilder, d_out: usize, d_in: usize, dev: &Device) -> QuantizedLinear {
+    pub(super) fn qlin(vb: VarBuilder, d_out: usize, d_in: usize, dev: &Device) -> QuantizedLinear {
         let w = Tensor::randn(0f32, 0.02f32, (d_out, d_in), dev).unwrap();
         QuantizedLinear::from_weight_with_varbuilder(&w, None, &qcfg(), vb).unwrap()
     }
 
-    fn build_layer(vb: VarBuilder, d: usize, n_heads: usize, dev: &Device) -> Qwen35Layer {
+    pub(super) fn build_layer(
+        vb: VarBuilder,
+        d: usize,
+        n_heads: usize,
+        dev: &Device,
+    ) -> Qwen35Layer {
         let head_dim = d / n_heads;
         let attn = Qwen2Attention {
             q_proj: qlin(vb.pp("q"), d, d, dev),
@@ -1034,7 +1632,9 @@ mod bf16_activation_tests {
     //! produces a BF16 output (no silent cast back to F32 by the qlora base matmul) AND
     //! stays numerically finite, while the F32 path is byte-for-byte preserved.
 
+    use super::gradient_checkpoint_tests::{build_layer, qcfg, qlin};
     use super::*;
+    use candle_nn::{VarBuilder, VarMap};
     use qlora_rs::QLoraConfig;
     use qlora_rs::qlora::QuantizedLinear;
     use qlora_rs::quantization::ComputeDType;
@@ -1408,6 +2008,220 @@ mod bf16_activation_tests {
                 (av - ev).abs() < 1e-4,
                 "element {i}: forward={av} reference={ev} — Q/K norm is not applied exactly once"
             );
+        }
+    }
+
+    fn build_hybrid_layer(vb: VarBuilder, d: usize, n_heads: usize, dev: &Device) -> Qwen35Layer {
+        let head_dim = d / n_heads;
+        let qkv_dim = d * 3;
+        let conv_k = 3;
+        let linear = Qwen35LinearAttention {
+            qkv_proj: qlin(vb.pp("qkv"), qkv_dim, d, dev),
+            z_proj: qlin(vb.pp("z"), d, d, dev),
+            b_proj: LinearProj::from_tensor(
+                Tensor::randn(0f32, 0.2f32, (n_heads, d), dev).unwrap(),
+            )
+            .unwrap(),
+            a_proj: LinearProj::from_tensor(
+                Tensor::randn(0f32, 0.2f32, (n_heads, d), dev).unwrap(),
+            )
+            .unwrap(),
+            out_proj: qlin(vb.pp("out"), d, d, dev),
+            conv_weight: Tensor::randn(0f32, 0.2f32, (qkv_dim, conv_k), dev).unwrap(),
+            a_log: Tensor::zeros(n_heads, DType::F32, dev).unwrap(),
+            dt_bias: Tensor::zeros(n_heads, DType::F32, dev).unwrap(),
+            norm: RmsNorm::new(Tensor::ones(head_dim, DType::F32, dev).unwrap(), 1e-6),
+            num_k_heads: n_heads,
+            num_v_heads: n_heads,
+            head_k_dim: head_dim,
+            head_v_dim: head_dim,
+        };
+        let mlp = Qwen2MLP {
+            gate_proj: qlin(vb.pp("g"), d * 2, d, dev),
+            up_proj: qlin(vb.pp("u"), d * 2, d, dev),
+            down_proj: qlin(vb.pp("dn"), d, d * 2, dev),
+        };
+        Qwen35Layer {
+            input_layernorm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            attention: Qwen35AttentionBlock::Linear(linear),
+            post_attention_layernorm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            mlp,
+            inv_freq: None,
+        }
+    }
+
+    fn build_hybrid_model(vb: VarBuilder, d: usize, vocab: usize, dev: &Device) -> Qwen35Model {
+        let embed = Tensor::randn(0f32, 0.2f32, (vocab, d), dev).unwrap();
+        let mut full_layer = build_layer(vb.pp("layer0"), d, 2, dev);
+        let head_dim = d / 2;
+        full_layer.inv_freq = Some(
+            vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq(head_dim, None, dev)
+                .unwrap(),
+        );
+        let lin_layer = build_hybrid_layer(vb.pp("layer1"), d, 2, dev);
+        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+            &embed.clone(),
+            None,
+            &qcfg(),
+            vb.pp("lm_head"),
+        )
+        .unwrap();
+        Qwen35Model {
+            embed_tokens: embed,
+            layers: vec![lin_layer, full_layer],
+            norm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            lm_head,
+        }
+    }
+
+    #[test]
+    fn linear_proj_f32_weight_t_matches_matmul_and_handles_bf16() {
+        let dev = Device::Cpu;
+        let w = Tensor::new(&[[1.0f32, 2.0, -1.0], [0.5, -1.5, 3.0]], &dev).unwrap();
+        let proj = LinearProj::from_tensor(w.clone()).unwrap();
+        let x = Tensor::new(&[2.0f32, -1.0, 4.0, 0.5, 1.0, -2.0], &dev)
+            .unwrap()
+            .reshape((1, 2, 3))
+            .unwrap();
+        let y_f32 = proj.forward(&x).unwrap();
+        let y_bf16 = proj.forward(&x.to_dtype(DType::BF16).unwrap()).unwrap();
+        let expected = x.broadcast_matmul(&w.t().unwrap()).unwrap();
+        let got_f32 = y_f32.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let got_bf16 = y_bf16.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let exp_v = expected.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        for (i, (a, b)) in got_f32.iter().zip(exp_v.iter()).enumerate() {
+            assert!((a - b).abs() < 1e-5, "f32 idx {i}: {a} vs {b}");
+        }
+        for (i, (a, b)) in got_bf16.iter().zip(exp_v.iter()).enumerate() {
+            assert!((a - b).abs() < 2e-2, "bf16 idx {i}: {a} vs {b}");
+        }
+    }
+
+    #[test]
+    fn incremental_decode_on_hybrid_model_matches_full_forward() {
+        let dev = Device::Cpu;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let model = build_hybrid_model(vb, 8, 16, &dev);
+
+        let full_tokens: Vec<u32> = vec![1, 4, 2, 7, 5, 9];
+        let full_ids = Tensor::new(&full_tokens[..], &dev)
+            .unwrap()
+            .unsqueeze(0)
+            .unwrap();
+        let full_logits = model.forward(&full_ids).unwrap();
+        let full_last = full_logits
+            .narrow(1, full_tokens.len() - 1, 1)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+
+        let mut cache = model.empty_cache();
+        let prefill_len = 3;
+        let prefill = Tensor::new(&full_tokens[..prefill_len], &dev)
+            .unwrap()
+            .unsqueeze(0)
+            .unwrap();
+        let prefill_logits = model
+            .forward_cached_last_token(&prefill, 0, &mut cache)
+            .unwrap();
+        assert_eq!(prefill_logits.dims(), &[1, 1, 16]);
+        assert!(matches!(cache[0], Qwen35LayerCache::Linear(Some(_))));
+
+        let mut last_logits = Vec::new();
+        for (step, &tok) in full_tokens[prefill_len..].iter().enumerate() {
+            let t_in = Tensor::new(&[tok], &dev).unwrap().unsqueeze(0).unwrap();
+            let step_logits = model
+                .forward_cached_last_token(&t_in, prefill_len + step, &mut cache)
+                .unwrap();
+            last_logits = step_logits.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        }
+
+        assert_eq!(last_logits.len(), full_last.len());
+        for (i, (a, b)) in last_logits.iter().zip(full_last.iter()).enumerate() {
+            assert!(
+                (a - b).abs() < 1e-4,
+                "vocab idx {i}: cached={a} full={b} mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn packed_forward_on_hybrid_model_isolates_documents_and_matches_single_doc() {
+        let dev = Device::Cpu;
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let model = build_hybrid_model(vb, 8, 16, &dev);
+
+        let doc_a = [1u32, 3, 5, 2];
+        let doc_b = [6u32, 4, 8];
+        let mut packed = Vec::new();
+        packed.extend_from_slice(&doc_a);
+        packed.extend_from_slice(&doc_b);
+        let doc_ids = vec![0u32, 0, 0, 0, 1, 1, 1];
+
+        let t_a = Tensor::new(&doc_a[..], &dev).unwrap().unsqueeze(0).unwrap();
+        let t_b = Tensor::new(&doc_b[..], &dev).unwrap().unsqueeze(0).unwrap();
+        let t_p = Tensor::new(&packed[..], &dev)
+            .unwrap()
+            .unsqueeze(0)
+            .unwrap();
+
+        let ref_a = model
+            .forward(&t_a)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+        let ref_b = model
+            .forward(&t_b)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+        let packed_logits = model.forward_packed(&t_p, &doc_ids).unwrap();
+        let ckpt_packed = model
+            .forward_checkpointed_packed(&t_p, &doc_ids, 2)
+            .unwrap();
+
+        let out_a = packed_logits
+            .narrow(1, 0, doc_a.len())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+        let out_b = packed_logits
+            .narrow(1, doc_a.len(), doc_b.len())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+        let ckpt_v = ckpt_packed
+            .logits
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+        let packed_v = packed_logits
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+
+        for (i, (a, b)) in out_a.iter().zip(ref_a.iter()).enumerate() {
+            assert!((a - b).abs() < 1e-4, "docA[{i}]: packed={a} ref={b}");
+        }
+        for (i, (a, b)) in out_b.iter().zip(ref_b.iter()).enumerate() {
+            assert!((a - b).abs() < 1e-4, "docB[{i}]: packed={a} ref={b}");
+        }
+        for (i, (a, b)) in ckpt_v.iter().zip(packed_v.iter()).enumerate() {
+            assert!((a - b).abs() < 1e-4, "ckpt_packed[{i}]: ckpt={a} ref={b}");
         }
     }
 }

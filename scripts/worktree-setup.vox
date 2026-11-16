@@ -4,6 +4,7 @@
 
 fn main() {
     let marker_dir = ".vox";
+    // drift-allow(vox-path-literal): .vox script cannot import Rust vox_config::paths
     let marker_path = ".vox/worktree-setup.marker";
     let _ = process.run("mkdir", ["-p", marker_dir]);
     let stamp = "worktree-setup ok\n";

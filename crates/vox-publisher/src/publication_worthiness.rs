@@ -340,7 +340,7 @@ pub fn apply_prior_art_to_worthiness_inputs(
     let Some(bundle) = bundle else {
         return vec![];
     };
-    if bundle.normalized_hits.is_empty() && bundle.query_traces.is_empty() {
+    if bundle.normalized_hits.is_empty() && bundle.traces().is_empty() {
         return vec![];
     }
 

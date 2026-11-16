@@ -6,13 +6,53 @@ use std::path::PathBuf;
 
 use super::check_run::check_run;
 
+const DEFAULT_LADDER_POLICY_REL: &str = "mens/config/eval-gates-ladder.yaml";
+const DEFAULT_VOX_LANG_POLICY_REL: &str = "mens/config/eval-gates.yaml";
+
+fn resolve_default_policy_path(workspace_root: Option<&std::path::Path>) -> PathBuf {
+    let cwd_ladder = PathBuf::from(DEFAULT_LADDER_POLICY_REL);
+    if cwd_ladder.is_file() {
+        return cwd_ladder;
+    }
+    if let Some(root) = workspace_root {
+        let ws_ladder = root.join(DEFAULT_LADDER_POLICY_REL);
+        if ws_ladder.is_file() {
+            return ws_ladder;
+        }
+        let ws_vox_lang = root.join(DEFAULT_VOX_LANG_POLICY_REL);
+        if ws_vox_lang.is_file() {
+            return ws_vox_lang;
+        }
+    }
+    let cwd_vox_lang = PathBuf::from(DEFAULT_VOX_LANG_POLICY_REL);
+    if cwd_vox_lang.is_file() {
+        return cwd_vox_lang;
+    }
+    cwd_ladder
+}
+
+fn normalize_policy_label(
+    policy_path: &std::path::Path,
+    workspace_root: Option<&std::path::Path>,
+) -> String {
+    if let Some(root) = workspace_root
+        && let Ok(rel) = policy_path.strip_prefix(root)
+    {
+        return rel.to_string_lossy().replace('\\', "/");
+    }
+    policy_path.display().to_string()
+}
+
 /// Run eval-gate and return exit code (0 = pass, 1 = fail).
 ///
 /// Always writes `gate_receipt.json` to `run_dir` so orchestrators and A2A
 /// consumers have a machine-readable record of the most recent gate run —
 /// whether it passed or failed.
 pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i32> {
-    let policy_path = policy_path.unwrap_or_else(|| PathBuf::from("mens/config/eval-gates.yaml"));
+    let workspace_root = vox_corpus::training::contract::find_workspace_root();
+    let policy_path =
+        policy_path.unwrap_or_else(|| resolve_default_policy_path(workspace_root.as_deref()));
+    let policy_label = normalize_policy_label(&policy_path, workspace_root.as_deref());
     if !policy_path.exists() {
         // Hard-fail: a missing policy file must never silently pass all gates.
         // Callers that intentionally want to skip gating should use VOX_MENS_SKIP_EVAL
@@ -20,7 +60,7 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
         eprintln!(
             "  {} Policy file not found: {} — gate aborted (fix --policy path)",
             "✗".red(),
-            policy_path.display()
+            policy_label
         );
         return Ok(1);
     }
@@ -29,7 +69,7 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
     eprintln!("{}", "║   Vox Mens — Eval Gate Check           ║".cyan());
     eprintln!("{}", "╚══════════════════════════════════════════╝".cyan());
     eprintln!("  Run dir: {}", run_dir.display());
-    eprintln!("  Policy: {}", policy_path.display());
+    eprintln!("  Policy: {}", policy_label);
     eprintln!();
 
     let results = check_run(&run_dir, &policy_path)?;
@@ -134,7 +174,7 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
         // The commit this binary was built from; only meaningful from a clean tree.
         "source_commit": env!("VOX_GIT_HASH"),
         "run_dir": run_dir.display().to_string(),
-        "policy": policy_path.display().to_string(),
+        "policy": policy_label,
         "policy_blake3": policy_blake3,
         "spoke": serde_json::Value::Null,
         "overall_passed": overall_passed,
@@ -164,7 +204,7 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
 
     #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
     {
-        let root = vox_corpus::training::contract::find_workspace_root();
+        let root = workspace_root;
         if let Some(ref root_dir) = root {
             let vox_lang_policy = root_dir.join("mens/config/eval-gates.yaml");
             if vox_lang_policy.is_file()
@@ -209,7 +249,13 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
                 }
             }
         }
-        let rows = vox_populi::mens::gate_policy::spoke_gate_rows(&run_dir, root.as_deref());
+        let mut rows = vox_populi::mens::gate_policy::spoke_gate_rows(&run_dir, root.as_deref());
+        if let Ok(profiles) =
+            vox_populi::mens::tensor::domain_profiles::DomainProfilesFile::load(root.as_deref())
+        {
+            let (claimed, _) = super::spokes_of_run(&run_dir, &profiles);
+            rows = vox_populi::mens::gate_policy::applying_rows(&rows, &claimed);
+        }
         let spoke_gates = vox_eval::gate_state::spoke_gates_json(
             adapter_sha256.as_deref(),
             base_pin.as_deref(),
@@ -219,59 +265,66 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
         if let Ok(json) = serde_json::to_string_pretty(&spoke_gates) {
             let _ = std::fs::write(&spoke_gates_path, &json);
         }
-        let sync_env = std::env::var(vox_populi::mens::hub_sync::HF_SYNC_ENV).ok();
-        let ns_env = std::env::var(vox_populi::mens::hub_repo::NAMESPACE_ENV).ok();
-        let skip = vox_populi::mens::hub_sync::explain_auto_publish_skip(
-            false,
-            sync_env.as_deref(),
-            ns_env.as_deref(),
-        );
-        if let Some(why) = skip {
-            if overall_passed {
-                eprintln!("  {} {why}", "⚠".yellow());
-            }
-        } else if !overall_passed {
-            eprintln!(
-                "  {} HF auto-publish skipped: blocking gates failed",
-                "⚠".yellow()
+        #[cfg(not(test))]
+        {
+            let sync_env = std::env::var(vox_populi::mens::hub_sync::HF_SYNC_ENV).ok();
+            let ns_env = std::env::var(vox_populi::mens::hub_repo::NAMESPACE_ENV).ok();
+            let skip = vox_populi::mens::hub_sync::explain_auto_publish_skip(
+                false,
+                sync_env.as_deref(),
+                ns_env.as_deref(),
             );
-            if let Err(e) =
-                vox_populi::mens::hub_sync::refresh_ladder_index_blocking(None, None, false)
-            {
-                eprintln!("  {} HF index refresh failed: {e}", "⚠".yellow());
-            }
-        } else {
-            match vox_populi::mens::hub_sync::publish_adapter_run_dir_blocking(
-                &run_dir, None, false, false,
-            ) {
-                Ok(vox_populi::mens::hub_sync::PublishOutcome::Uploaded {
-                    repo_id,
-                    commit_oid,
-                    version,
-                    ..
-                }) => {
-                    eprintln!(
-                        "  {} Auto-published adapter to Hugging Face Hub `{repo_id}` as {version} ({commit_oid})",
-                        "✓".green()
-                    );
+            if let Some(why) = skip {
+                if overall_passed {
+                    eprintln!("  {} {why}", "⚠".yellow());
                 }
-                Ok(vox_populi::mens::hub_sync::PublishOutcome::SkippedUnchanged {
-                    repo_id,
-                    ..
-                }) => {
-                    eprintln!(
-                        "  {} HF Hub `{repo_id}` already up-to-date (hash match; skipped upload)",
-                        "ℹ".cyan()
-                    );
+            } else if !overall_passed {
+                eprintln!(
+                    "  {} HF auto-publish skipped: blocking gates failed",
+                    "⚠".yellow()
+                );
+                if let Err(e) = vox_populi::mens::hub_sync::refresh_ladder_index_blocking(
+                    root.as_deref(),
+                    None,
+                    false,
+                ) {
+                    eprintln!("  {} HF index refresh failed: {e}", "⚠".yellow());
                 }
-                Err(e) => {
-                    eprintln!("  {} HF auto-publish skipped: {e}", "⚠".yellow());
+            } else {
+                match vox_populi::mens::hub_sync::publish_adapter_run_dir_blocking(
+                    &run_dir, None, false, false,
+                ) {
+                    Ok(vox_populi::mens::hub_sync::PublishOutcome::Uploaded {
+                        repo_id,
+                        commit_oid,
+                        version,
+                        ..
+                    }) => {
+                        eprintln!(
+                            "  {} Auto-published adapter to Hugging Face Hub `{repo_id}` as {version} ({commit_oid})",
+                            "✓".green()
+                        );
+                    }
+                    Ok(vox_populi::mens::hub_sync::PublishOutcome::SkippedUnchanged {
+                        repo_id,
+                        ..
+                    }) => {
+                        eprintln!(
+                            "  {} HF Hub `{repo_id}` already up-to-date (hash match; skipped upload)",
+                            "ℹ".cyan()
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!("  {} HF auto-publish skipped: {e}", "⚠".yellow());
+                    }
                 }
-            }
-            if let Err(e) =
-                vox_populi::mens::hub_sync::refresh_ladder_index_blocking(None, None, false)
-            {
-                eprintln!("  {} HF index refresh failed: {e}", "⚠".yellow());
+                if let Err(e) = vox_populi::mens::hub_sync::refresh_ladder_index_blocking(
+                    root.as_deref(),
+                    None,
+                    false,
+                ) {
+                    eprintln!("  {} HF index refresh failed: {e}", "⚠".yellow());
+                }
             }
         }
     }
@@ -401,5 +454,38 @@ mod tests {
             bad_res.is_err(),
             "receipt without policy_blake3 must be rejected"
         );
+    }
+
+    #[test]
+    fn default_policy_resolves_to_ladder_yaml() {
+        let root = vox_corpus::training::contract::find_workspace_root().unwrap();
+        let resolved = super::resolve_default_policy_path(Some(&root));
+        assert!(
+            resolved.ends_with("mens/config/eval-gates-ladder.yaml"),
+            "expected default policy to resolve to ladder yaml, got {}",
+            resolved.display()
+        );
+        assert_eq!(
+            super::normalize_policy_label(&resolved, Some(&root)),
+            "mens/config/eval-gates-ladder.yaml"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn default_policy_hash_matches_ladder_ssot() {
+        let dir = tempfile::tempdir().unwrap();
+        let code = run_eval_gate(dir.path().to_path_buf(), None).unwrap();
+        assert_eq!(code, 1, "empty run_dir must fail blocking ladder gates");
+        let receipt_raw = std::fs::read_to_string(dir.path().join("gate_receipt.json")).unwrap();
+        let receipt: serde_json::Value = serde_json::from_str(&receipt_raw).unwrap();
+        assert_eq!(receipt["policy"], "mens/config/eval-gates-ladder.yaml");
+        let root = vox_corpus::training::contract::find_workspace_root().unwrap();
+        let expected_hash = vox_populi::mens::gate_policy::policy_blake3(
+            Some(&root),
+            "mens/config/eval-gates-ladder.yaml",
+        )
+        .unwrap();
+        assert_eq!(receipt["policy_blake3"], expected_hash);
     }
 }

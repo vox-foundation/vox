@@ -95,7 +95,8 @@ test.describe('Routing explainer', () => {
   test('switching mode asks routing again', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openModels(page);
-    await page.getByRole('combobox', { name: 'Routing mode' }).selectOption('genius');
+    await page.getByRole('combobox', { name: 'Routing mode' }).click();
+    await page.getByRole('option', { name: 'Genius' }).click();
     await expect
       .poll(() => page.evaluate(() => (window as any).__explainCalls.some((a: any) => a?.mode === 'genius')))
       .toBe(true);

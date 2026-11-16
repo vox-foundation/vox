@@ -28,9 +28,12 @@ pub enum HubAction {
         /// Hugging Face repository ID (e.g. `Qwen/Qwen3-8B`).
         #[arg(long, required = true)]
         repo: String,
-        /// Destination directory for downloaded artifacts.
-        #[arg(long, required = true)]
-        output_dir: PathBuf,
+        /// Destination directory for downloaded artifacts (required unless `--cache-only` is set).
+        #[arg(long, required_unless_present = "cache_only")]
+        output_dir: Option<PathBuf>,
+        /// Fetch and verify snapshot inside the HF cache only without copying or linking to `--output-dir`.
+        #[arg(long, default_value_t = false)]
+        cache_only: bool,
     },
     /// Download one ladder adapter from its Hub repo into `mens/runs/qwen3-<size>`, pinned to a version.
     Pull {
@@ -46,6 +49,9 @@ pub enum HubAction {
         /// Accept an adapter published without passing gate receipts (`ungated`).
         #[arg(long, default_value_t = false)]
         allow_ungated: bool,
+        /// Optional spoke subfolder (`vox-lang`, `rust`, `tool-selection`, `argument-generation`, `harness`, etc.).
+        #[arg(long)]
+        spoke: Option<String>,
     },
     /// Report Hub versus local ladder state, including version tags. Never uploads.
     Verify {
@@ -88,6 +94,33 @@ pub enum HubAction {
         /// listed for `vox mens hub sync --push --size <S>`. Without `--push` it prints the plan.
         #[arg(long, default_value_t = false)]
         cards_only: bool,
+        /// Optional spoke subfolder (`vox-lang`, `rust`, `tool-selection`, `argument-generation`, `harness`, etc.).
+        #[arg(long)]
+        spoke: Option<String>,
+    },
+    /// Stage (and optionally `--push`) an eval or curated data dataset bundle to Hugging Face Hub.
+    Dataset {
+        /// Dataset kind: `eval` or `data`.
+        #[arg(long, default_value = "eval")]
+        kind: String,
+        /// Suite or spoke slug (e.g. `agent_episodes`, `rust_bench`, `vox-lang`).
+        #[arg(long, required = true)]
+        slug: String,
+        /// Source file to bundle into the dataset repo.
+        #[arg(long = "source", required = true)]
+        sources: Vec<PathBuf>,
+        /// Output staging directory (`mens/runs/hub_datasets/<slug>` by default).
+        #[arg(long)]
+        stage_dir: Option<PathBuf>,
+        /// Hugging Face namespace (`VOX_MENS_HF_NAMESPACE` fallback).
+        #[arg(long)]
+        namespace: Option<String>,
+        /// Create repo as private when pushing.
+        #[arg(long, default_value_t = false)]
+        private: bool,
+        /// Upload the staged bundle to HF Hub (default: stage locally only).
+        #[arg(long, default_value_t = false)]
+        push: bool,
     },
 }
 
@@ -165,22 +198,63 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
             println!("==> Hub URL: https://huggingface.co/{repo}");
             Ok(())
         }
-        HubAction::Download { repo, output_dir } => {
-            println!(
-                "==> Downloading model {repo} from Hugging Face Hub to {}...",
-                output_dir.display()
-            );
+        HubAction::Download {
+            repo,
+            output_dir,
+            cache_only,
+        } => {
+            if cache_only {
+                println!("==> Downloading model {repo} from Hugging Face Hub (cache-only)...");
+            } else if let Some(ref dest) = output_dir {
+                println!(
+                    "==> Downloading model {repo} from Hugging Face Hub to {}...",
+                    dest.display()
+                );
+            } else {
+                println!("==> Downloading model {repo} from Hugging Face Hub...");
+            }
             let files = vox_populi::mens::hub::download_model(&repo).await?;
             println!(
                 "==> Snapshot fetched to cache: {}",
                 files.cache_dir.display()
             );
+            if !vox_populi::mens::hub::is_snapshot_complete(&files.cache_dir) {
+                anyhow::bail!(
+                    "downloaded snapshot at {} failed completeness check",
+                    files.cache_dir.display()
+                );
+            }
 
+            if cache_only || output_dir.is_none() {
+                if cache_only && output_dir.is_some() {
+                    println!("==> --cache-only is set; skipping staging into --output-dir");
+                }
+                let has_generation_config = files
+                    .generation_config
+                    .as_ref()
+                    .is_some_and(|p| p.is_file())
+                    || files.cache_dir.join("generation_config.json").is_file();
+                let has_tokenizer_json = files.cache_dir.join("tokenizer.json").is_file()
+                    || files.tokenizer.as_ref().is_some_and(|p| {
+                        p.file_name().is_some_and(|n| n == "tokenizer.json") && p.is_file()
+                    });
+                println!(
+                    "==> Cache verified: dir={}, weights={} shard(s), generation_config.json={}, tokenizer.json={}",
+                    files.cache_dir.display(),
+                    files.weights.len(),
+                    has_generation_config,
+                    has_tokenizer_json,
+                );
+                return Ok(());
+            }
+
+            let output_dir =
+                output_dir.context("--output-dir is required unless --cache-only is set")?;
             std::fs::create_dir_all(&output_dir)
                 .with_context(|| format!("failed creating output dir {}", output_dir.display()))?;
 
             let stage_one = |src: &std::path::Path, dest: &std::path::Path| -> anyhow::Result<()> {
-                if dest.exists() {
+                if dest.exists() || std::fs::symlink_metadata(dest).is_ok() {
                     let _ = std::fs::remove_file(dest);
                 }
                 if std::fs::hard_link(src, dest).is_err() {
@@ -190,25 +264,34 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
                 }
                 Ok(())
             };
+            let stage_if_present = |src: &std::path::Path| -> anyhow::Result<()> {
+                if src.is_file()
+                    && let Some(name) = src.file_name()
+                {
+                    stage_one(src, &output_dir.join(name))?;
+                }
+                Ok(())
+            };
 
-            if files.config.exists() {
-                if let Some(name) = files.config.file_name() {
-                    stage_one(&files.config, &output_dir.join(name))?;
-                }
+            stage_if_present(&files.config)?;
+            for opt in [
+                files.tokenizer.as_deref(),
+                files.tokenizer_config.as_deref(),
+                files.chat_template.as_deref(),
+                files.generation_config.as_deref(),
+                files.special_tokens_map.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                stage_if_present(opt)?;
             }
-            if let Some(ref tok) = files.tokenizer {
-                if tok.exists() {
-                    if let Some(name) = tok.file_name() {
-                        stage_one(tok, &output_dir.join(name))?;
-                    }
-                }
+            let index_path = files.cache_dir.join("model.safetensors.index.json");
+            if index_path.is_file() {
+                stage_if_present(&index_path)?;
             }
             for w in &files.weights {
-                if w.exists() {
-                    if let Some(name) = w.file_name() {
-                        stage_one(w, &output_dir.join(name))?;
-                    }
-                }
+                stage_if_present(w)?;
             }
             println!("==> Model artifacts staged into {}", output_dir.display());
             Ok(())
@@ -218,14 +301,19 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
             revision,
             namespace,
             allow_ungated,
+            spoke,
         } => {
+            if let Some(sp) = spoke.as_deref() {
+                vox_populi::mens::hub_repo::spoke_rel_dir(sp)?;
+            }
             let workspace_root = vox_corpus::training::contract::find_workspace_root();
-            let dir = vox_populi::mens::hub_sync::pull_adapter_revision(
+            let dir = vox_populi::mens::hub_sync::pull_adapter_revision_with_spoke(
                 std::path::Path::new(&size),
                 workspace_root.as_deref(),
                 namespace.as_deref(),
                 !allow_ungated,
                 revision.as_deref(),
+                spoke.as_deref(),
             )
             .await?;
             println!("==> Adapter ready in {}", dir.display());
@@ -241,6 +329,7 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
                 json,
                 size: None,
                 cards_only: false,
+                spoke: None,
             }))
             .await
         }
@@ -253,10 +342,19 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
             json,
             size,
             cards_only,
+            spoke,
         } => {
+            if let Some(sp) = spoke.as_deref() {
+                vox_populi::mens::hub_repo::spoke_rel_dir(sp)?;
+            }
             let workspace_root = vox_corpus::training::contract::find_workspace_root();
             let rows = if cards_only {
                 check_cards_only_flags(pull, force_ungated)?;
+                if let Some(sp) = spoke.as_deref() {
+                    eprintln!(
+                        "  ⚠ `--spoke {sp}` is ignored with `--cards-only` (cards cover all spokes)"
+                    );
+                }
                 vox_populi::mens::hub_cards_push::sync_cards_only(
                     workspace_root.as_deref(),
                     namespace.as_deref(),
@@ -266,7 +364,7 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
                 )
                 .await?
             } else {
-                vox_populi::mens::hub_sync::sync_all_sizes(
+                vox_populi::mens::hub_sync::sync_all_sizes_with_spoke(
                     workspace_root.as_deref(),
                     namespace.as_deref(),
                     push,
@@ -274,6 +372,7 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
                     force_ungated,
                     private,
                     size.as_deref(),
+                    spoke.as_deref(),
                 )
                 .await?
             };
@@ -286,6 +385,72 @@ pub async fn run_hub(action: HubAction) -> Result<()> {
                     .display()
             );
             print_sync_rows(&rows, json)
+        }
+        HubAction::Dataset {
+            kind,
+            slug,
+            sources,
+            stage_dir,
+            namespace,
+            private,
+            push,
+        } => {
+            let ds_kind = match kind.trim().to_ascii_lowercase().as_str() {
+                "eval" => vox_populi::mens::hub_dataset::DatasetKind::Eval,
+                "data" => vox_populi::mens::hub_dataset::DatasetKind::Data,
+                other => anyhow::bail!("unknown --kind `{other}` (expected `eval` or `data`)"),
+            };
+            let ns_env = std::env::var(vox_populi::mens::hub_repo::NAMESPACE_ENV).ok();
+            let ns = vox_populi::mens::hub_repo::resolve_namespace(
+                namespace.as_deref().or(ns_env.as_deref()),
+            )?;
+            let out_dir = match stage_dir {
+                Some(p) => {
+                    vox_corpus::training::contract::normalize_workspace_relative_path(p, None)
+                }
+                None => vox_corpus::training::contract::resolve_from_workspace(
+                    std::path::Path::new("mens/runs/hub_datasets"),
+                )
+                .join(slug.trim()),
+            };
+            let mapped_sources = sources
+                .into_iter()
+                .map(|p| {
+                    let rel = p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("data.jsonl")
+                        .to_string();
+                    vox_populi::mens::hub_dataset::DatasetSource {
+                        local_path: p,
+                        repo_rel_path: rel,
+                        license: Some("apache-2.0".to_string()),
+                    }
+                })
+                .collect();
+            let spec = vox_populi::mens::hub_dataset::DatasetBundleSpec {
+                kind: ds_kind,
+                slug: slug.clone(),
+                namespace: ns,
+                description: format!("Vox MENS dataset bundle `{slug}` ({kind})."),
+                sources: mapped_sources,
+            };
+            let staged = vox_populi::mens::hub_dataset::publish_dataset_bundle(
+                &spec, &out_dir, push, private,
+            )
+            .await?;
+            println!(
+                "==> {} `{}` ({} files) staged at {}",
+                if push {
+                    "Published"
+                } else {
+                    "Staged (dry run)"
+                },
+                staged.repo_id,
+                staged.files.len(),
+                staged.stage_dir.display()
+            );
+            Ok(())
         }
     }
 }
@@ -327,9 +492,60 @@ mod tests {
     fn hub_action_download_variant() {
         let action = HubAction::Download {
             repo: "Qwen/Qwen3-8B".to_string(),
-            output_dir: PathBuf::from("target/qwen"),
+            output_dir: Some(PathBuf::from("target/qwen")),
+            cache_only: false,
         };
         assert!(format!("{action:?}").contains("Qwen3-8B"));
+    }
+
+    #[test]
+    fn hub_download_parses_cache_only_and_output_dir() {
+        use clap::Parser;
+        #[derive(Parser)]
+        struct Wrap {
+            #[command(subcommand)]
+            action: HubAction,
+        }
+
+        let cache_only = Wrap::try_parse_from([
+            "hub",
+            "download",
+            "--repo",
+            "Qwen/Qwen3.5-2B",
+            "--cache-only",
+        ])
+        .expect("download --cache-only must parse");
+        assert!(matches!(
+            cache_only.action,
+            HubAction::Download {
+                ref repo,
+                output_dir: None,
+                cache_only: true,
+            } if repo == "Qwen/Qwen3.5-2B"
+        ));
+
+        let with_out = Wrap::try_parse_from([
+            "hub",
+            "download",
+            "--repo",
+            "Qwen/Qwen3.5-2B",
+            "--output-dir",
+            "/tmp/out",
+        ])
+        .expect("download --output-dir must parse");
+        assert!(matches!(
+            with_out.action,
+            HubAction::Download {
+                ref repo,
+                output_dir: Some(ref p),
+                cache_only: false,
+            } if repo == "Qwen/Qwen3.5-2B" && p == std::path::Path::new("/tmp/out")
+        ));
+
+        assert!(
+            Wrap::try_parse_from(["hub", "download", "--repo", "Qwen/Qwen3.5-2B"]).is_err(),
+            "download without --output-dir or --cache-only must fail clap validation"
+        );
     }
 
     #[test]
@@ -352,6 +568,7 @@ mod tests {
             json: true,
             size: Some("4B".to_string()),
             cards_only: false,
+            spoke: None,
         };
         assert!(format!("{action:?}").contains("Sync"));
     }
@@ -379,8 +596,26 @@ mod tests {
             w.action,
             HubAction::Sync {
                 cards_only: false,
+                spoke: None,
                 ..
             }
+        ));
+        let w_spoke = Wrap::try_parse_from(["hub", "sync", "--spoke", "rust"]).unwrap();
+        assert!(matches!(
+            w_spoke.action,
+            HubAction::Sync {
+                spoke: Some(ref s),
+                ..
+            } if s == "rust"
+        ));
+        let w_pull_spoke =
+            Wrap::try_parse_from(["hub", "pull", "--size", "4B", "--spoke", "rust"]).unwrap();
+        assert!(matches!(
+            w_pull_spoke.action,
+            HubAction::Pull {
+                spoke: Some(ref s),
+                ..
+            } if s == "rust"
         ));
     }
 

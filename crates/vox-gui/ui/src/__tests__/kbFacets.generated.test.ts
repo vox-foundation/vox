@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import {
   AUTHORSHIP_VALUES,
   KB_FACET_KEYS,
@@ -12,13 +12,13 @@ import {
   type KbFacets,
 } from '../generated/kbFacets.generated';
 
-// src/__tests__ -> src -> ui -> vox-gui -> crates -> repo root
-const schema = JSON.parse(
-  readFileSync(
-    join(__dirname, '..', '..', '..', '..', '..', 'contracts', 'documentation', 'kb-facets.v1.schema.json'),
-    'utf8',
-  ),
-);
+// src/__tests__ -> src -> ui -> vox-gui -> crates -> repo root (or sibling VOX_ROOT in vox-axis)
+const localSchemaPath = join(__dirname, '..', '..', '..', '..', '..', 'contracts', 'documentation', 'kb-facets.v1.schema.json');
+const voxRoot = process.env.VOX_ROOT ?? resolve(__dirname, '..', '..', '..', '..', '..', '..', 'vox');
+const schemaPath = existsSync(localSchemaPath)
+  ? localSchemaPath
+  : join(voxRoot, 'contracts', 'documentation', 'kb-facets.v1.schema.json');
+const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
 
 describe('kbFacets.generated.ts vs committed kb-facets.v1.schema.json', () => {
   const enums: Record<string, readonly string[]> = {

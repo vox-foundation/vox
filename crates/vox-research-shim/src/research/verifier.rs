@@ -44,6 +44,22 @@ pub enum Verdict {
     Unverified,
 }
 
+#[allow(non_upper_case_globals)]
+impl Verdict {
+    /// Canonical SciFact abstain alias (`Verdict::Unverified`).
+    pub const Abstain: Self = Self::Unverified;
+}
+
+/// Canonical 4-way SciFact / `VERI-02` claim verification label.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClaimLabel {
+    Supported,
+    Contradicted,
+    Contested,
+    Abstain,
+}
+
 impl fmt::Display for Verdict {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -100,6 +116,19 @@ pub struct ClaimVerdict {
     // NOTE: renamed from `self_consistency` — do not confuse with the
     // unrelated `self_consistency` signal in vox-orchestrator's
     // confidence_fusion.rs (a different, pre-existing concept).
+}
+
+impl ClaimVerdict {
+    /// Returns the canonical `ClaimLabel`, mapping `Verdict::Unverified` to `ClaimLabel::Abstain`.
+    #[must_use]
+    pub const fn label(&self) -> ClaimLabel {
+        match self.verdict {
+            Verdict::Supported => ClaimLabel::Supported,
+            Verdict::Contradicted => ClaimLabel::Contradicted,
+            Verdict::Contested => ClaimLabel::Contested,
+            Verdict::Unverified => ClaimLabel::Abstain,
+        }
+    }
 }
 
 /// Fraction of `verdicts` matching the most common verdict among them.
@@ -247,7 +276,14 @@ pub struct ResampleCheck {
 }
 
 pub fn should_early_exit_after_sample_1(confidence: f64) -> bool {
-    confidence >= 0.92
+    confidence > 0.80
+}
+
+/// Returns `true` when Tier 1 confidence falls in the ambiguous `[abstain_threshold, 0.80]`
+/// band that warrants Tier 2 `3x` self-consistency resampling (`VERI-02`).
+#[must_use]
+pub fn should_resample_tier2(confidence: f64, abstain_threshold: f32) -> bool {
+    confidence >= f64::from(abstain_threshold) && confidence <= 0.80
 }
 
 pub fn should_early_exit_after_sample_2(v1: Verdict, v2: Verdict) -> bool {
@@ -271,9 +307,12 @@ fn resample_candidates(
     let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> = primary.into_iter().collect();
     candidates.extend(fallback);
     for candidate in &mut candidates {
-        candidate.max_tokens = Some(500);
+        // 1600 tokens gives reasoning-enabled Flash models headroom for thinking tokens
+        // before emitting the ~80-token structured JSON verdict.
+        candidate.max_tokens = Some(1600);
         candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
         candidate.temperature = Some(0.3);
+        candidate.timeout_ms = Some(45_000);
     }
     crate::research::metering::tag_candidates(&mut candidates);
     candidates
@@ -333,11 +372,12 @@ pub async fn verify_claims_with_config(
     #[cfg(feature = "runtime")]
     {
         use vox_actor_runtime::ActivityOptions;
-        use vox_actor_runtime::llm::LlmChatMessage;
         use vox_actor_runtime::llm::cascade::{
             ResearchStage, cascade_with_optional_manual, chat_with_cascade_parsed,
         };
+        use vox_actor_runtime::llm::{LlmChatMessage, infer_with_retry};
         use vox_actor_runtime::model_resolution::RouteResolutionInput;
+        let _ = infer_with_retry;
 
         let mut input = RouteResolutionInput::default();
         if !config.nli_model_id.trim().is_empty() {
@@ -346,7 +386,7 @@ pub async fn verify_claims_with_config(
             input.openrouter_model = model.to_string();
         }
         let abstain_threshold = config.abstain_threshold.unwrap_or(0.5);
-        let opts = ActivityOptions::new().with_timeout_secs(30);
+        let opts = ActivityOptions::new().with_timeout_secs(50);
 
         let sample_claim = |claim: &Claim| {
             let claim = claim.clone();
@@ -371,7 +411,7 @@ pub async fn verify_claims_with_config(
                     LlmChatMessage {
                         role: "system".to_string(),
                         content: "Classify whether retrieved evidence supports the claim. \
-                        Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Unverified\",\
+                        Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Abstain\",\
                         \"confidence\":0.0,\"supporting_indices\":[0],\"contradicting_indices\":[1]}."
                             .to_string(),
                         ..Default::default()
@@ -424,7 +464,10 @@ pub async fn verify_claims_with_config(
             let sample_claim = &sample_claim;
             async move {
                 let s1 = sample_claim(&claim).await;
-                let sampled = if should_early_exit_after_sample_1(s1.confidence) {
+                let sampled = if !should_resample_tier2(s1.confidence, abstain_threshold)
+                    || should_early_exit_after_sample_1(s1.confidence)
+                    || s1.verdict == Verdict::Unverified
+                {
                     vec![s1]
                 } else {
                     let s2 = sample_claim(&claim).await;
@@ -435,7 +478,7 @@ pub async fn verify_claims_with_config(
                         vec![s1, s2, s3]
                     }
                 };
-                assemble_resampled_verdict(sampled)
+                enforce_abstain_threshold(assemble_resampled_verdict(sampled), abstain_threshold)
             }
         };
 
@@ -586,6 +629,22 @@ fn assemble_resampled_verdict(sampled: Vec<ClaimVerdict>) -> ClaimVerdict {
     chosen
 }
 
+/// Enforces `abstain_threshold` so uncertain claims classify as `Verdict::Abstain`
+/// (`ClaimLabel::Abstain`) rather than silently coercing to `Contradicted`.
+#[must_use]
+pub fn enforce_abstain_threshold(
+    mut verdict: ClaimVerdict,
+    abstain_threshold: f32,
+) -> ClaimVerdict {
+    if verdict.confidence < f64::from(abstain_threshold) {
+        verdict.verdict = Verdict::Abstain;
+        verdict.supporting_count = 0;
+        verdict.contradicting_count = 0;
+        verdict.evidence_spans.clear();
+    }
+    verdict
+}
+
 fn unverified(claim: Claim) -> ClaimVerdict {
     ClaimVerdict {
         claim,
@@ -621,6 +680,65 @@ const NEGATION_TOKENS: &[&str] = &[
     "impossible",
 ];
 
+const NEGATION_PHRASES: &[&str] = &[
+    "does not",
+    "do not",
+    "did not",
+    "is not",
+    "are not",
+    "was not",
+    "were not",
+    "can not",
+    "will not",
+    "fails to",
+    "failed to",
+];
+
+const ANTONYM_PAIRS: &[(&[&str], &[&str])] = &[
+    (
+        &[
+            "reduce",
+            "reduces",
+            "reduced",
+            "decrease",
+            "decreases",
+            "decreased",
+            "drop",
+            "drops",
+            "dropped",
+            "lower",
+            "lowers",
+            "lowered",
+        ],
+        &[
+            "increase",
+            "increases",
+            "increased",
+            "raise",
+            "raises",
+            "raised",
+            "higher",
+            "grew",
+            "grow",
+            "grows",
+            "rose",
+            "rise",
+        ],
+    ),
+    (
+        &["faster", "accelerate", "accelerated", "speedup"],
+        &["slower", "slowdown", "decelerate", "decelerated"],
+    ),
+    (
+        &[
+            "improve", "improves", "improved", "pass", "passes", "passed",
+        ],
+        &[
+            "degrade", "degrades", "degraded", "fail", "fails", "failed", "worse",
+        ],
+    ),
+];
+
 fn normalize_tokens(text: &str) -> Vec<String> {
     text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.')
         .map(|t| t.trim_matches('.').to_ascii_lowercase())
@@ -633,9 +751,33 @@ fn normalize_tokens(text: &str) -> Vec<String> {
 }
 
 fn has_negation_token(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    if NEGATION_PHRASES.iter().any(|p| lower.contains(p)) {
+        return true;
+    }
     text.split(|c: char| !c.is_ascii_alphanumeric())
         .map(|t| t.to_ascii_lowercase())
         .any(|t| NEGATION_TOKENS.contains(&t.as_str()))
+}
+
+fn has_antonym_conflict(claim_tokens: &[String], evidence_tokens: &[String]) -> bool {
+    for (left, right) in ANTONYM_PAIRS {
+        let c_left = claim_tokens.iter().any(|t| left.contains(&t.as_str()));
+        let c_right = claim_tokens.iter().any(|t| right.contains(&t.as_str()));
+        let e_left = evidence_tokens.iter().any(|t| left.contains(&t.as_str()));
+        let e_right = evidence_tokens.iter().any(|t| right.contains(&t.as_str()));
+        if (c_left && !c_right && e_right && !e_left) || (c_right && !c_left && e_left && !e_right)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn is_antonym_word(tok: &str) -> bool {
+    ANTONYM_PAIRS
+        .iter()
+        .any(|(left, right)| left.contains(&tok) || right.contains(&tok))
 }
 
 fn numeric_tokens(tokens: &[String]) -> Vec<&str> {
@@ -648,8 +790,8 @@ fn numeric_tokens(tokens: &[String]) -> Vec<&str> {
 
 /// Computes `(containment_score, has_conflict)` between `claim_text` and `evidence_text`.
 /// `containment_score` is in `0.0..=1.0` (`0.7 * token_recall + 0.3 * bigram_recall`).
-/// `has_conflict` is `true` when negation polarity disagrees or numeric tokens in the claim
-/// are absent from the evidence.
+/// `has_conflict` is `true` when negation polarity disagrees, directional antonyms flip, or
+/// numeric tokens in the claim are absent from the evidence.
 pub fn lexical_containment_score(claim_text: &str, evidence_text: &str) -> (f64, bool) {
     let claim_tokens = normalize_tokens(claim_text);
     if claim_tokens.is_empty() {
@@ -687,6 +829,7 @@ pub fn lexical_containment_score(claim_text: &str, evidence_text: &str) -> (f64,
     let claim_neg = has_negation_token(claim_text);
     let evidence_neg = has_negation_token(evidence_text);
     let negation_mismatch = claim_neg != evidence_neg;
+    let antonym_mismatch = has_antonym_conflict(&claim_tokens, &evidence_tokens);
 
     let claim_nums = numeric_tokens(&claim_tokens);
     let numeric_mismatch = !claim_nums.is_empty()
@@ -694,16 +837,47 @@ pub fn lexical_containment_score(claim_text: &str, evidence_text: &str) -> (f64,
             .iter()
             .any(|num| !evidence_set.contains(num) && !evidence_text.contains(num));
 
-    (score, negation_mismatch || numeric_mismatch)
+    (
+        score,
+        negation_mismatch || antonym_mismatch || numeric_mismatch,
+    )
+}
+
+fn anchor_token_recall(claim_text: &str, evidence_text: &str) -> f64 {
+    let claim_tokens = normalize_tokens(claim_text);
+    let evidence_tokens = normalize_tokens(evidence_text);
+    if claim_tokens.is_empty() || evidence_tokens.is_empty() {
+        return 0.0;
+    }
+    let evidence_set: std::collections::HashSet<&str> =
+        evidence_tokens.iter().map(String::as_str).collect();
+    let anchors: Vec<&str> = claim_tokens
+        .iter()
+        .map(String::as_str)
+        .filter(|t| {
+            !t.chars().any(|c| c.is_ascii_digit())
+                && !is_antonym_word(t)
+                && !NEGATION_TOKENS.contains(t)
+        })
+        .collect();
+    if anchors.is_empty() {
+        return 0.0;
+    }
+    let matched = anchors.iter().filter(|a| evidence_set.contains(*a)).count();
+    matched as f64 / anchors.len() as f64
 }
 
 /// Fast deterministic lexical/n-gram containment verifier.
 /// Short-circuits as `Verdict::Supported` when at least one hit has `score >= 0.82` with zero
-/// negation/numeric conflict and no hit exhibits a high-overlap conflict (`score >= 0.65 && conflict`).
+/// conflict and no contradicting hits, or `Verdict::Contradicted` when hits exhibit an
+/// unambiguous high-overlap negation/antonym/numeric conflict with zero supporting hits.
+/// Returns `None` when supporting and contradicting hits conflict or overlap is ambiguous.
 #[inline(never)]
 pub fn try_fast_lexical_verify(claim: &Claim, hits: &[ResearchHit]) -> Option<ClaimVerdict> {
     let mut supporting_spans = Vec::new();
+    let mut contradicting_spans = Vec::new();
     let mut max_score = 0.0_f64;
+    let mut max_contra_score = 0.0_f64;
 
     for (idx, hit) in hits.iter().enumerate() {
         let combined = if hit.raw_content.is_empty() {
@@ -713,8 +887,18 @@ pub fn try_fast_lexical_verify(claim: &Claim, hits: &[ResearchHit]) -> Option<Cl
             format!("{} {}", hit.snippet, raw_excerpt)
         };
         let (score, has_conflict) = lexical_containment_score(&claim.text, &combined);
-        if score >= 0.65 && has_conflict {
-            return None;
+        let anchor_recall = anchor_token_recall(&claim.text, &combined);
+        if (score >= 0.65 || anchor_recall >= 0.70) && has_conflict {
+            max_contra_score = max_contra_score.max(score.max(anchor_recall));
+            let text = hit.snippet.clone();
+            contradicting_spans.push(EvidenceSpan {
+                source_id: idx as i64,
+                span_start: 0,
+                span_end: text.len(),
+                text,
+                span_type: SpanType::Contradicting,
+            });
+            continue;
         }
         if score >= 0.82 && !has_conflict {
             max_score = max_score.max(score);
@@ -729,20 +913,37 @@ pub fn try_fast_lexical_verify(claim: &Claim, hits: &[ResearchHit]) -> Option<Cl
         }
     }
 
-    if supporting_spans.is_empty() {
+    if !supporting_spans.is_empty() && !contradicting_spans.is_empty() {
         return None;
     }
 
-    let supporting_count = supporting_spans.len();
-    Some(ClaimVerdict {
-        claim: claim.clone(),
-        verdict: Verdict::Supported,
-        confidence: max_score.clamp(0.82, 0.96),
-        supporting_count,
-        contradicting_count: 0,
-        evidence_spans: supporting_spans,
-        resample_stability: 1.0,
-    })
+    if !supporting_spans.is_empty() {
+        let supporting_count = supporting_spans.len();
+        return Some(ClaimVerdict {
+            claim: claim.clone(),
+            verdict: Verdict::Supported,
+            confidence: max_score.clamp(0.82, 0.96),
+            supporting_count,
+            contradicting_count: 0,
+            evidence_spans: supporting_spans,
+            resample_stability: 1.0,
+        });
+    }
+
+    if !contradicting_spans.is_empty() {
+        let contradicting_count = contradicting_spans.len();
+        return Some(ClaimVerdict {
+            claim: claim.clone(),
+            verdict: Verdict::Contradicted,
+            confidence: max_contra_score.clamp(0.85, 0.96),
+            supporting_count: 0,
+            contradicting_count,
+            evidence_spans: contradicting_spans,
+            resample_stability: 1.0,
+        });
+    }
+
+    None
 }
 
 /// Selects the top `limit` most relevant evidence hits for `claim`, preserving each hit's
@@ -1233,5 +1434,46 @@ mod tests {
             ctx.contains("[12] Turso MVCC Concurrency"),
             "per-claim top-K evidence selector must surface hit [12] beyond index 8 with its original index: {ctx}"
         );
+    }
+
+    #[test]
+    fn tier0_lexical_verify_detects_antonym_and_numeric_contradictions() {
+        let claim = Claim {
+            text: "The April 2026 deployment reduced p95 latency to 12ms.".to_string(),
+            claim_id: 101,
+            is_numeric: true,
+            is_recent: true,
+            is_named_event: false,
+            salience_score: 0.9,
+        };
+        let hits = vec![ResearchHit {
+            url: "https://vox.dev/perf".to_string(),
+            title: "Perf Report".to_string(),
+            snippet: "The April 2026 deployment increased p95 latency to 84ms across all regions."
+                .to_string(),
+            score: 0.9,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        }];
+        let verdict = try_fast_lexical_verify(&claim, &hits)
+            .expect("unambiguous antonym+numeric contradiction should short-circuit at Tier 0");
+        assert_eq!(verdict.verdict, Verdict::Contradicted);
+        assert_eq!(verdict.label(), ClaimLabel::Contradicted);
+        assert_eq!(verdict.contradicting_count, 1);
+    }
+
+    #[test]
+    fn tier2_resampling_gate_and_abstain_threshold_prevent_false_contradiction() {
+        assert!(!should_resample_tier2(0.40, 0.50));
+        assert!(should_resample_tier2(0.50, 0.50));
+        assert!(should_resample_tier2(0.75, 0.50));
+        assert!(should_resample_tier2(0.80, 0.50));
+        assert!(!should_resample_tier2(0.85, 0.50));
+
+        let low_conf_contra = verdict_with(Verdict::Contradicted, 0.42);
+        let enforced = enforce_abstain_threshold(low_conf_contra, 0.50);
+        assert_eq!(enforced.verdict, Verdict::Abstain);
+        assert_eq!(enforced.label(), ClaimLabel::Abstain);
     }
 }

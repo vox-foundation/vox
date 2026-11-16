@@ -36,7 +36,7 @@ tar = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-vox-forge = { path = "../vox-forge", features = ["github", "gitlab"] }
+vox-forge = { workspace = true, features = ["github", "gitlab"] }
 quick-xml = { workspace = true, features = ["serialize"] }
 reqwest = { workspace = true, features = ["multipart"] }
 vox-http-client = { workspace = true }
@@ -50,11 +50,11 @@ regex = { workspace = true }
 pulldown-cmark = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-foundation = { workspace = true }
-vox-secrets = { path = "../vox-secrets" }
-vox-config = { path = "../vox-config" }
+vox-secrets = { workspace = true }
+vox-config = { workspace = true }
 vox-jsonschema-util.workspace = true
 unicode-segmentation = { workspace = true }
-vox-db = { path = "../vox-db", optional = true }
+vox-db = { workspace = true, optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]

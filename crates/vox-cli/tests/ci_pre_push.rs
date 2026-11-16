@@ -277,7 +277,7 @@ fn pre_push_dry_run_act_lists_workflows() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     for workflow in [
         ".github/workflows/docs-quality.yml",
-        ".github/workflows/link_checker.yml",
+        ".github/workflows/docs-drift-refresh.yml",
         ".github/workflows/ts-emit-noemit.yml",
     ] {
         assert!(

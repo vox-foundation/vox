@@ -230,6 +230,7 @@ async fn dispatch_tool_call(
         &state.repository.root,
         crate::permission_modes::PermissionMode::from_wire(permission_mode),
     );
+    let mut outer_hitl_approved = false;
     if gate.gated {
         let mode_auto_approved = gate.mode_auto_approved;
         let allowlisted = if mode_auto_approved {
@@ -334,6 +335,7 @@ async fn dispatch_tool_call(
                 ))
                 .to_json_compact());
             }
+            outer_hitl_approved = true;
             // Approved / Modified: fall through and execute the tool.
         }
         // mode_auto_approved || allowlisted: skip the park entirely, fall
@@ -410,7 +412,8 @@ async fn dispatch_tool_call(
                 match tokio::time::timeout(
                     call_timeout,
                     vox_telemetry::TRACE_CTX.scope(trace_ctx, async move {
-                        handle_tool_call_inner(state, name_canonical, args).await
+                        handle_tool_call_inner(state, name_canonical, args, outer_hitl_approved)
+                            .await
                     }),
                 )
                 .await
@@ -648,6 +651,7 @@ fn handle_tool_call_inner<'a>(
     state: &'a ServerState,
     name: &'a str,
     args: serde_json::Value,
+    outer_hitl_approved: bool,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, anyhow::Error>> + Send + 'a>>
 {
     Box::pin(async move {
@@ -729,6 +733,16 @@ fn handle_tool_call_inner<'a>(
         if crate::dispatch_domains::compiler_analysis::handles(name) {
             return crate::dispatch_domains::compiler_analysis::dispatch(state, name, args).await;
         }
+        if let Some(res) = crate::dispatch_domains::terminal_tools::dispatch(
+            state,
+            name,
+            args.clone(),
+            outer_hitl_approved,
+        )
+        .await?
+        {
+            return Ok(res);
+        }
 
         // Check skill macro tools
         let skills = state.skill_registry.list(None);
@@ -750,7 +764,10 @@ fn handle_tool_call_inner<'a>(
 // ── Track E telemetry helpers ──────────────────────────────────────────────
 
 fn tool_call_kind_for(name: &str) -> &'static str {
-    if name.starts_with("vox_run") || name.starts_with("vox_exec") || name.starts_with("vox_shell")
+    if name.starts_with("vox_run")
+        || name.starts_with("vox_exec")
+        || name.starts_with("vox_shell")
+        || matches!(name, "vox_terminal_exec" | "vox_terminal_send_input")
     {
         "exec"
     } else if name.starts_with("vox_write")
@@ -764,6 +781,7 @@ fn tool_call_kind_for(name: &str) -> &'static str {
     } else if name.starts_with("vox_read")
         || name.starts_with("vox_list")
         || name.starts_with("vox_search")
+        || matches!(name, "vox_terminal_read" | "vox_terminal_sessions")
     {
         "read"
     } else if name.starts_with("vox_agent")
@@ -937,6 +955,8 @@ mod registry_dispatch_tests {
         // nextest's slow-timeout profile this test gets killed and retried
         // long before that, wasting several minutes of CI time per run.
         "vox_add_approval_allowlist_entry",
+        "vox_terminal_exec",
+        "vox_terminal_send_input",
     ];
 
     #[tokio::test]
@@ -964,6 +984,8 @@ mod registry_dispatch_tests {
             include_str!("dispatch_domains/scientia_kb.rs"),
             "\n",
             include_str!("dispatch_domains/tasks_core.rs"),
+            "\n",
+            include_str!("dispatch_domains/terminal_tools.rs"),
             "\n",
             include_str!("dispatch_domains/vcs_jj.rs"),
         );

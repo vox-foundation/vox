@@ -2,3 +2,12 @@
 supervised_ratio:
   min_pct: 10.0
   block: true
+
+suites:
+  agent_episodes:
+    report_file: suite_report.agent_episodes.json
+    min_problem_count: 72
+    min_pass_rate: 0.50
+    min_group_pass_rate: 0.35
+    block: false
+    require_report: false

@@ -189,9 +189,12 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
               data-testid="urbs-scrubber-rollback-btn"
               disabled={busyRestore}
               onClick={() => onRollbackToTurn?.(currentTurn)}
-              className="rounded border border-(--color-status-fail)/60 bg-(--color-status-fail)/15 px-2 py-0.5 font-display text-[9px] font-bold text-(--color-status-fail) hover:border-(--color-status-fail) transition whitespace-nowrap disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded border border-(--color-status-fail)/60 bg-(--color-status-fail)/15 px-2 py-0.5 font-display text-[9px] font-bold text-(--color-status-fail) hover:border-(--color-status-fail) transition-colors whitespace-nowrap disabled:opacity-50"
             >
-              Restore Step {currentTurn} ({toRomanNumeral(currentTurn)})
+              <Icon.rotateCcw className="size-3 shrink-0" aria-hidden="true" />
+              <span>
+                Restore Step {currentTurn} ({toRomanNumeral(currentTurn)})
+              </span>
             </button>
           </RomanTooltip>
 
@@ -206,9 +209,9 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
                 data-testid="urbs-scrubber-close-btn"
                 onClick={onClose}
                 aria-label="Collapse Git Timeline"
-                className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:border-border-strong hover:text-text-primary transition"
+                className="inline-flex items-center justify-center rounded border border-border-subtle bg-bg-elevated p-1 font-mono text-[9px] text-text-secondary hover:border-border-strong hover:text-text-primary transition-colors"
               >
-                ✕
+                <Icon.close className="size-3 shrink-0" aria-hidden="true" />
               </button>
             </RomanTooltip>
           )}
@@ -219,7 +222,7 @@ export const ViaTemporisScrubber: React.FC<ViaTemporisScrubberProps> = ({
       <div className="h-1 w-full overflow-hidden rounded-full bg-bg-elevated border border-border-subtle">
         <div
           data-testid="urbs-scrubber-progress-bar"
-          className="h-full bg-(--color-accent-default) transition-all duration-300 shadow-[0_0_6px_rgba(212,175,55,0.6)]"
+          className="h-full bg-(--color-accent-default) transition-[width] duration-300 shadow-[0_0_6px_rgba(212,175,55,0.6)]"
           style={{ width: `${progressPct}%` }}
         />
       </div>

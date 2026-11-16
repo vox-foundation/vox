@@ -6,6 +6,7 @@
 pub mod attention;
 pub mod chat;
 pub mod dto;
+pub mod frame_stream;
 pub mod gamify;
 pub mod harness;
 pub mod inproc;
@@ -15,7 +16,9 @@ pub mod models;
 pub mod orchestrator;
 pub mod prefs;
 pub mod research;
+pub mod research_stream;
 pub mod scientia;
+pub mod scientia_studio;
 pub mod search;
 
 use std::sync::Arc;

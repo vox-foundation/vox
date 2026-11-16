@@ -1,0 +1,924 @@
+{
+  "schema": "vox_tool_catalog_v1",
+  "tools": [
+    {
+      "description": "Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).",
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Validate a `.vox` source file through the compiler pipeline.",
+        "properties": {
+          "path": {
+            "description": "Path to the `.vox` file.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "ValidateFileParams",
+        "type": "object"
+      },
+      "name": "vox_validate_file",
+      "product_lane": "app",
+      "side_effect_class": "read_only"
+    },
+    {
+      "description": "Run cargo test for a specific crate, optionally filtered by test name.",
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Run `cargo test` for one crate with an optional name filter.",
+        "properties": {
+          "crate_name": {
+            "description": "Cargo package name (`-p` target).",
+            "type": "string"
+          },
+          "test_filter": {
+            "description": "Optional substring filter passed after `--`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "crate_name"
+        ],
+        "title": "RunTestsParams",
+        "type": "object"
+      },
+      "name": "vox_run_tests",
+      "product_lane": "app",
+      "side_effect_class": "spawns_process"
+    },
+    {
+      "description": "Run cargo build for a crate or the whole workspace.",
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Optional Cargo `-p` target for workspace-level build / lint / coverage tools.",
+        "properties": {
+          "crate_name": {
+            "description": "Cargo package name or omit for entire workspace.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "title": "OptionalCrateNameParams",
+        "type": "object"
+      },
+      "name": "vox_build_crate",
+      "product_lane": "app",
+      "side_effect_class": "spawns_process"
+    },
+    {
+      "description": "Run cargo clippy for a crate or whole workspace.",
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Optional Cargo `-p` target for workspace-level build / lint / coverage tools.",
+        "properties": {
+          "crate_name": {
+            "description": "Cargo package name or omit for entire workspace.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "title": "OptionalCrateNameParams",
+        "type": "object"
+      },
+      "name": "vox_lint_crate",
+      "product_lane": "app",
+      "side_effect_class": "spawns_process"
+    },
+    {
+      "description": "Get current git working tree status.",
+      "input_schema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "vox_git_status",
+      "product_lane": "app",
+      "side_effect_class": "read_only"
+    },
+    {
+      "description": "Show uncommitted git diff for a file or the whole tree.",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "vox_git_diff",
+      "product_lane": "app",
+      "side_effect_class": "read_only"
+    },
+    {
+      "description": "Submit a new task to the orchestrator. Routes to the best agent by file affinity.",
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Arguments for submitting a new orchestrator task.",
+        "properties": {
+          "active_skill": {
+            "default": null,
+            "description": "Optional procedural skill to guide the agent (e.g. `superpowers:tdd`).",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agent_name": {
+            "description": "Optional named agent; enforces scope when configured.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "benchmark_tier": {
+            "default": null,
+            "description": "Optional reconstruction benchmark tier (`issue_repair`, `subsystem_regen`, `crate_regen`, `repo_regen`).",
+            "maxLength": 64,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "budget": {
+            "additionalProperties": false,
+            "description": "Optional budget constraints for the task (USD cost and/or latency).",
+            "properties": {
+              "max_cost_usd": {
+                "description": "Maximum allowed cost for the task in USD.",
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "max_latency_ms": {
+                "description": "Maximum allowed wall-clock latency for the task in milliseconds.",
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "campaign_id": {
+            "default": null,
+            "description": "Optional explicit reconstruction campaign id (preferred over description tags).",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capabilities": {
+            "default": null,
+            "description": "Optional GPU / hardware routing hints.",
+            "properties": {
+              "arch": {
+                "description": "Target architecture string (e.g. `x86_64`, `aarch64`).",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cpu_cores": {
+                "description": "Logical CPU count observed on the host (or operator override via config).",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "device_class": {
+                "description": "Optional host class label (`server`, `desktop`, `mobile`, `browser`, …).",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "force_socrates_research": {
+                "default": false,
+                "description": "When true, force a Socratic research pass even if confidence is moderate.",
+                "type": "boolean"
+              },
+              "gpu_cuda": {
+                "default": false,
+                "description": "Task requires CUDA-capable execution; agent provides CUDA when true.",
+                "type": "boolean"
+              },
+              "gpu_metal": {
+                "default": false,
+                "description": "Task requires Metal; agent provides Metal when true.",
+                "type": "boolean"
+              },
+              "gpu_vulkan": {
+                "default": false,
+                "description": "Agent advertises Vulkan-class GPU (typical Android / Linux).",
+                "type": "boolean"
+              },
+              "gpu_webgpu": {
+                "default": false,
+                "description": "Agent advertises WebGPU-capable browser or host (soft; policy may disable WebGPU).",
+                "type": "boolean"
+              },
+              "hostname": {
+                "description": "Host name when known (mens / placement visibility).",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "is_low_confidence_bypass_blocked": {
+                "default": false,
+                "description": "When true, Socrates low-confidence warnings cannot be bypassed by the agent.",
+                "type": "boolean"
+              },
+              "labels": {
+                "description": "Optional scheduler labels (mens, region, pool, …).",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "min_cpu_cores": {
+                "description": "Task requires at least this many logical cores (soft routing penalty when unmet).",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "min_vram_mb": {
+                "description": "Minimum VRAM in MiB when GPU is required (soft hint for routing).",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "multi_modal": {
+                "default": false,
+                "description": "Agent/Task supports multi-modal payloads (image + text + audio).",
+                "type": "boolean"
+              },
+              "npu": {
+                "default": false,
+                "description": "Agent advertises an on-device NPU / neural accelerator.",
+                "type": "boolean"
+              },
+              "prefer_gpu_compute": {
+                "default": false,
+                "description": "Soft routing hint: deprioritize agents without any GPU capability (Mens-style training intent).",
+                "type": "boolean"
+              },
+              "routing_tier": {
+                "description": "Hardware/inference tier (e.g., \"local\").",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "visus_eligible": {
+                "default": false,
+                "description": "Agent/Task supports visual intelligence (VLM, OCR, layout audit).",
+                "type": "boolean"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "chat_session_id": {
+            "default": null,
+            "description": "Chat session that issued this submit call (Phase D Task D1 durable\nlineage). Injected server-side by `run_agent_turn` for calls dispatched\ninside a chat turn; distinct from `session_id` above (Mens telemetry\ngrouping). Not intended to be hand-supplied by the model.",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clutch": {
+            "default": null,
+            "description": "Optional clutch (\"how much gas\") override for this task: `free`|`efficiency`|`balanced`|`genius`.\nUnrecognized values are silently ignored (no override is applied) — no error is returned.",
+            "maxLength": 32,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "complexity": {
+            "default": null,
+            "description": "Optional complexity 1–10 (clamped when applied to the task).",
+            "format": "uint8",
+            "maximum": 10,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "context_envelope_json": {
+            "default": null,
+            "description": "Optional canonical context envelope JSON to seed Socrates context and session state.",
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "correlation_id": {
+            "default": null,
+            "description": "Optional correlation id (e.g. client thread); stored alongside `trace_id` on envelope provenance.",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "description": "Natural-language task description.",
+            "maxLength": 131072,
+            "minLength": 1,
+            "type": "string"
+          },
+          "files": {
+            "description": "Files this task may touch (drives locking and routing).",
+            "items": {
+              "additionalProperties": false,
+              "description": "File path and access mode for task affinity.",
+              "properties": {
+                "access": {
+                  "description": "Access mode (`read` or `write`).",
+                  "oneOf": [
+                    {
+                      "const": "read",
+                      "description": "Read-only affinity hint.",
+                      "type": "string"
+                    },
+                    {
+                      "const": "write",
+                      "description": "Read/write affinity hint.",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "path": {
+                  "description": "Workspace-relative or absolute file path.",
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "access"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "goal_scope": {
+            "description": "Optional scope hint for planning.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "goal_type": {
+            "description": "Optional semantic goal type hint for planning.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grounding_check_enabled": {
+            "default": null,
+            "description": "Optional Socrates grounding check toggle (`true` | `false`).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "harness_spec_json": {
+            "default": null,
+            "description": "Optional portable harness contract JSON aligned with `contracts/orchestration/agent-harness.schema.json`.",
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_detached": {
+            "default": null,
+            "description": "Optional flag for async detached mesh task execution.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "kb_scope": {
+            "default": null,
+            "description": "Optional `@kb` context scope (`auto|docs|code|memory|verified|off`).",
+            "maxLength": 32,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "max_plan_depth": {
+            "description": "Optional cap on planner depth.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "mode": {
+            "default": null,
+            "description": "Optional interaction mode (`plan` | `act` | `verify`).",
+            "maxLength": 32,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model_override": {
+            "default": null,
+            "description": "Optional model override id for labeling and routing hints.",
+            "maxLength": 512,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model_preference": {
+            "default": null,
+            "description": "Optional model preference string (non-binding hint on the task).",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "oversight_level": {
+            "default": null,
+            "description": "Optional oversight level (`1..5` or `relaxed|guided|balanced|cautious|strict`).",
+            "maxLength": 32,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planning_mode": {
+            "description": "Optional planning mode (`auto`, `direct`, `force_plan`, `workflow_only`).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "description": "Optional queue priority hint (`\"urgent\"`, `\"normal\"`, `\"background\"`).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required_labels": {
+            "default": null,
+            "description": "Optional mesh routing labels for agent-driven capability dispatch.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "research_hints": {
+            "default": [],
+            "description": "Optional research intent hints (e.g. `[[research:vector]]`).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "retrieval": {
+            "default": null,
+            "description": "Optional retrieval envelope to seed Socrates task context.",
+            "properties": {
+              "backend_mix": {
+                "default": [],
+                "description": "Backends that contributed evidence during execution.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "chunk_hit_count": {
+                "default": 0,
+                "description": "Ingested `search_document_chunks` hits (RAG corpus).",
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "citation_coverage": {
+                "default": 0.0,
+                "description": "Citation coverage proxy in `[0, 1]`.",
+                "format": "double",
+                "type": "number"
+              },
+              "contradiction_count": {
+                "description": "Contradiction hints detected in merged retrieval output.",
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "evidence_quality": {
+                "default": 0.0,
+                "description": "Coarse evidence quality estimate in `[0, 1]`.",
+                "format": "double",
+                "type": "number"
+              },
+              "knowledge_hit_count": {
+                "description": "Number of knowledge graph rows returned from VoxDb.",
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "memory_hit_count": {
+                "description": "Number of memory hits returned by the selected retrieval tier.",
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "min_trust_tier": {
+                "default": null,
+                "description": "Least-trusted tier among the hits behind this envelope; `None` when there were none, which\nthe context envelope reads as `Untrusted` (TRUST-01, fail closed).",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "recommended_next_action": {
+                "default": null,
+                "description": "Recommended next action for Socrates / callers when evidence is still weak.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "repo_hit_count": {
+                "default": 0,
+                "description": "Repository path or inventory hits returned for repo-oriented queries.",
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "retrieval_tier": {
+                "description": "Effective execution tier: `hybrid`, `bm25`, `lexical_fallback`, or `none`.",
+                "type": "string"
+              },
+              "rrf_fused_hit_count": {
+                "default": 0,
+                "description": "Cross-corpus RRF fused hits (non-zero when policy `prefer_rrf_merge` and ≥2 corpora).",
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "search_diagnostics": {
+                "default": null,
+                "description": "Execution diagnostics preserved for telemetry/debugging."
+              },
+              "search_intent": {
+                "default": "",
+                "description": "Planner-selected intent for this search.",
+                "type": "string"
+              },
+              "search_plan": {
+                "default": null,
+                "description": "Planner JSON preserved for telemetry/debugging."
+              },
+              "selected_mode": {
+                "default": "",
+                "description": "Planner-selected retrieval mode.",
+                "type": "string"
+              },
+              "source_diversity": {
+                "default": 0,
+                "description": "Distinct corpora that returned evidence.",
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sqlite_foreign_keys_on": {
+                "default": null,
+                "description": "Whether `PRAGMA foreign_keys` reported enforcement.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "sqlite_fts5_reported": {
+                "default": null,
+                "description": "Whether compile options suggested FTS5 (see [`vox_db::capabilities::SqliteProbeSnapshot`]).",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "sqlite_journal_mode": {
+                "default": null,
+                "description": "Observed `PRAGMA journal_mode` when a DB was available (telemetry / routing hints).",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "top_score": {
+                "description": "Highest fused score in returned memory hits.",
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "trigger": {
+                "description": "Trigger mode that initiated this retrieval pass.",
+                "oneOf": [
+                  {
+                    "const": "auto_chat_preamble",
+                    "description": "Silent preamble enrichment for chat turns.",
+                    "type": "string"
+                  },
+                  {
+                    "const": "explicit_tool_query",
+                    "description": "Explicit user call through a retrieval/search tool.",
+                    "type": "string"
+                  },
+                  {
+                    "const": "verification_pass",
+                    "description": "Additional retrieval pass used for contradiction/risk verification.",
+                    "type": "string"
+                  }
+                ]
+              },
+              "used_bm25": {
+                "description": "Whether BM25/keyword ranking contributed evidence.",
+                "type": "boolean"
+              },
+              "used_lexical_fallback": {
+                "description": "Whether lexical fallback (substring scan) was used.",
+                "type": "boolean"
+              },
+              "used_vector": {
+                "description": "Whether the vector leg contributed evidence.",
+                "type": "boolean"
+              },
+              "verification_performed": {
+                "default": false,
+                "description": "Whether an automatic verification/refinement pass was executed.",
+                "type": "boolean"
+              },
+              "verification_query": {
+                "default": null,
+                "description": "Query used for the verification/refinement pass.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "verification_reason": {
+                "default": null,
+                "description": "Why a verification/refinement pass ran.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "trigger",
+              "retrieval_tier",
+              "memory_hit_count",
+              "knowledge_hit_count",
+              "used_vector",
+              "used_bm25",
+              "used_lexical_fallback",
+              "contradiction_count"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "risk": {
+            "default": null,
+            "description": "Optional risk-posture override for this task: `high`|`moderate`|`low`.\nUnrecognized values are silently ignored (no override is applied) — no error is returned.",
+            "maxLength": 32,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "session_id": {
+            "description": "Optional session identifier for Mens telemetry grouping.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task_category": {
+            "default": null,
+            "description": "Optional task category for model routing (`parsing`, `type_checking`, `debugging`, `research`, `testing`, `codegen`, `review`).",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tenant_id": {
+            "default": null,
+            "description": "Optional tenant identifier for budget attribution.",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thread_id": {
+            "default": null,
+            "description": "Optional logical thread id for branch continuity within a session.",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tier": {
+            "default": null,
+            "description": "Optional runtime destination tier (`auto` | `local` | `mesh` | `cloud`).",
+            "maxLength": 32,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool_hints": {
+            "default": [],
+            "description": "Optional tool declaration hints (e.g. `[[tool:vox_run_tests]]`).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "trace_id": {
+            "default": null,
+            "description": "Optional end-to-end trace id; copied into merged context envelope provenance for cross-plane correlation.",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trigger_source": {
+            "default": null,
+            "description": "Optional trigger-source override: `interactive`|`automated`|`subagent`|`mesh`.\nSet this from CI/scheduled callers so their tasks get the `Automated`\ncost/model policy instead of the default `Interactive` one.\nUnrecognized values are silently ignored (no override is applied) — no error is returned.",
+            "maxLength": 32,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "turn_id": {
+            "default": null,
+            "description": "Optional ChatHop / Drive turn id; forwarded via enqueue hints onto `AgentTask::turn_id`.",
+            "maxLength": 256,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "description",
+          "files"
+        ],
+        "title": "SubmitTaskParams",
+        "type": "object"
+      },
+      "name": "vox_submit_task",
+      "product_lane": "ai",
+      "side_effect_class": "spawns_process"
+    },
+    {
+      "description": "Get the current status of a specific task by ID.",
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Query the status of a single task by id.",
+        "properties": {
+          "task_id": {
+            "description": "Task id to look up.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "TaskStatusParams",
+        "type": "object"
+      },
+      "name": "vox_task_status",
+      "product_lane": "ai",
+      "side_effect_class": "read_only"
+    },
+    {
+      "description": "Cancels an active or queued task.",
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Query the status of a single task by id.",
+        "properties": {
+          "task_id": {
+            "description": "Task id to look up.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "TaskStatusParams",
+        "type": "object"
+      },
+      "name": "vox_cancel_task",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files"
+    },
+    {
+      "description": "Apply a structured file edit with validation (.vox AST/HIR, .rs shadow cargo check) and bounded LLM repair on failure.",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "end_line": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "replacement_code": {
+            "type": "string"
+          },
+          "start_line": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "target_content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_path",
+          "target_content",
+          "replacement_code"
+        ],
+        "type": "object"
+      },
+      "name": "vox_apply_structured_edit",
+      "product_lane": "ai",
+      "side_effect_class": "spawns_process"
+    },
+    {
+      "description": "Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).",
+      "input_schema": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "name": "vox_config_get",
+      "product_lane": "platform",
+      "side_effect_class": "read_only"
+    }
+  ]
+}

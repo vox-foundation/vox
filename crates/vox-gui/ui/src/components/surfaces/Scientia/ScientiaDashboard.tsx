@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
-import { listenScientiaQueue } from '../../../transport';
+import { invokeCmd, listenScientiaQueue } from '../../../transport';
 import { fetchCostRollup, providerRows, quarterlyRows } from './costRollup';
 import type { CostRollup } from './costRollup';
 import { ArchiveStatusSummary } from './ArchiveStatusSummary';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
 
@@ -41,10 +41,10 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
-      className="vox-marble-tablet rounded-lg border-2 border-[#C59B27] px-2.5 py-2 shadow-[0_3px_10px_rgba(28,20,12,0.16),inset_0_1px_0_rgba(255,255,255,0.9)]"
+      className="vox-marble-tablet min-w-0 rounded-lg border-2 border-[#C59B27] px-2.5 py-2 shadow-[0_3px_10px_rgba(28,20,12,0.16),inset_0_1px_0_rgba(255,255,255,0.9)]"
     >
       <div className={`font-display text-xl font-bold leading-none ${tone ?? 'text-[#1C140C]'}`}>{value}</div>
-      <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-wider text-[#4A3718]">{label}</div>
+      <div className="mt-1 break-words font-mono text-[9px] font-bold uppercase tracking-wider text-[#4A3718]">{label}</div>
     </div>
   );
 }
@@ -60,6 +60,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   const [snap, setSnap] = useState<QueueSnapshot | null>(null);
   const [cost, setCost] = useState<CostRollup | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sectionFilter, setSectionFilter] = useState<'all' | 'candidates' | 'claims' | 'stalls'>('all');
   // Guard against interval-triggered overlapping fetches while one is in flight.
   const fetchingRef = React.useRef(false);
 
@@ -68,7 +69,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
     fetchingRef.current = true;
     setLoading(true);
     try {
-      const nextSnap = await invoke<QueueSnapshot | null>('scientia_dashboard_snapshot');
+      const nextSnap = await invokeCmd<QueueSnapshot | null>('scientia_dashboard_snapshot');
       setSnap(nextSnap && typeof nextSnap === 'object' && 'candidates' in nextSnap ? nextSnap : null);
       // Cost rollup is an independent producer (`vox scientia cost`); a failure
       // here must not blank the queue snapshot above.
@@ -116,9 +117,17 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   }, [refresh, embedded]);
 
   const ScientiaIcon = (Icon as any).scientia ?? Icon.beaker;
+  const totalCandidates = snap?.candidates.total ?? 0;
+  const stallCount = snap?.stalls.length ?? 0;
+  const verifiableClaims = snap?.claims_pending.verifiable ?? 0;
+  const totalPendingClaims = snap
+    ? snap.claims_pending.verifiable +
+      snap.claims_pending.abstained +
+      snap.claims_pending.extraction_running
+    : 0;
 
   return (
-    <section className="space-y-4">
+    <section className="@container/surface flex min-h-0 min-w-0 flex-col gap-3.5">
       <RomanSurfaceHeader
         domainTag="KNOWLEDGE · SCIENTIA"
         title="Scientia Epistemic Discovery & Verification Ledger"
@@ -130,24 +139,54 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             ? [
                 {
                   label: 'CANDIDATES',
-                  valueText: `${snap.candidates.total}`,
-                  ratio: Math.min(1, snap.candidates.total / 10),
+                  valueText: `${totalCandidates}`,
+                  ratio:
+                    totalCandidates > 0
+                      ? Math.max(0, totalCandidates - stallCount) / totalCandidates
+                      : 0,
                   tone: 'gold',
-                  purpose: 'Total publication candidates',
+                  purpose: 'Non-stalled publication candidates out of total queue',
+                  actionHint:
+                    sectionFilter === 'candidates'
+                      ? 'Click to show all Scientia panels'
+                      : 'Click to focus candidate classes and top confidence list',
+                  active: sectionFilter === 'candidates',
+                  onClick: () =>
+                    setSectionFilter((f) => (f === 'candidates' ? 'all' : 'candidates')),
                 },
                 {
                   label: 'VERIFIABLE',
-                  valueText: `${snap.claims_pending.verifiable}`,
-                  ratio: Math.min(1, snap.claims_pending.verifiable / 10),
+                  valueText: `${verifiableClaims}`,
+                  ratio:
+                    totalPendingClaims > 0 ? verifiableClaims / totalPendingClaims : 0,
                   tone: 'emerald',
-                  purpose: 'Claims pending verification',
+                  purpose: 'Verifiable claims share of pending claim extraction queue',
+                  actionHint:
+                    sectionFilter === 'claims'
+                      ? 'Click to show all Scientia panels'
+                      : 'Click to focus claims KPIs',
+                  active: sectionFilter === 'claims',
+                  onClick: () =>
+                    setSectionFilter((f) => (f === 'claims' ? 'all' : 'claims')),
                 },
                 {
                   label: 'STALLS',
-                  valueText: `${snap.stalls.length}`,
-                  ratio: Math.min(1, snap.stalls.length / 5),
-                  tone: snap.stalls.length > 0 ? 'crimson' : 'emerald',
-                  purpose: 'Pipeline candidate stalls',
+                  valueText: `${stallCount}`,
+                  ratio:
+                    totalCandidates > 0
+                      ? Math.min(1, stallCount / totalCandidates)
+                      : stallCount > 0
+                        ? 1
+                        : 0,
+                  tone: stallCount > 0 ? 'crimson' : 'emerald',
+                  purpose: 'Stalled pipeline candidates relative to total candidates',
+                  actionHint:
+                    sectionFilter === 'stalls'
+                      ? 'Click to show all Scientia panels'
+                      : 'Click to isolate stalled candidates',
+                  active: sectionFilter === 'stalls',
+                  onClick: () =>
+                    setSectionFilter((f) => (f === 'stalls' ? 'all' : 'stalls')),
                 },
               ]
             : undefined
@@ -176,7 +215,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
 
         {snap && (
           <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+            <div className="grid grid-cols-1 gap-2 @xs/surface:grid-cols-2 @xl/surface:grid-cols-4 @5xl/surface:grid-cols-7">
               <Kpi label="Candidates" value={snap.candidates.total} tone="text-[#785312]" />
               <Kpi label="Verifiable claims" value={snap.claims_pending.verifiable} tone="text-[#3E4A16]" />
               <Kpi label="Abstained claims" value={snap.claims_pending.abstained} tone="text-[#3B2E1E]" />
@@ -186,66 +225,118 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
               <Kpi label="Stalls" value={snap.stalls.length} tone="text-[#881B1B]" />
             </div>
 
-            {Object.keys(snap.candidates.by_class).length > 0 && (
-              <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3">
-                <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-brass">Candidates by class</div>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(snap.candidates.by_class).map(([cls, n]) => (
-                    <span key={cls} className="rounded border border-[#D4AF37]/25 bg-bg-elevated px-2.5 py-1 font-mono text-[11px] text-text-secondary">
-                      {cls} <span className="ml-1 font-bold text-text-primary">{n}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {snap.candidates.top_5_by_confidence.length > 0 && (
-              <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3">
-                <div className="mb-2 font-display text-[10px] uppercase tracking-wider text-brass">Top candidates</div>
-                <div className="space-y-2">
-                  {snap.candidates.top_5_by_confidence.map((c) => (
-                    <div
-                      key={c.candidate_id}
-                      className="flex flex-wrap items-center gap-2.5 rounded-lg border border-[#D4AF37]/30 bg-bg-elevated px-3 py-2 font-mono text-[11px]"
-                    >
-                      <RomanWaxSealBadge
-                        label={`${c.confidence.toFixed(2)} CONF`}
-                        tone={c.confidence >= 0.8 ? 'emerald' : c.confidence >= 0.5 ? 'gold' : 'crimson'}
-                      />
-                      <span className="font-medium text-text-primary">{c.candidate_id}</span>
-                      <span className="rounded border border-[#D4AF37]/25 bg-bg-surface px-1.5 py-0.5 text-[10px] text-text-secondary">
-                        {c.candidate_class}
-                      </span>
-                      <span className="ml-auto rounded border border-[#D4AF37]/35 bg-[#78350F]/20 px-2 py-0.5 text-[10px] font-semibold text-brass">
-                        {c.state}
-                      </span>
+            <BentoGrid preset="balanced">
+              {(sectionFilter === 'all' || sectionFilter === 'candidates') && (
+                <BentoCard
+                  span={sectionFilter === 'candidates' ? 'full' : 'default'}
+                  className="gap-2.5 border-[#D4AF37]/35"
+                >
+                  <div className="font-display text-[10px] uppercase tracking-wider text-brass">
+                    Candidate queue &amp; classes
+                  </div>
+                  {Object.keys(snap.candidates.by_class).length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(snap.candidates.by_class).map(([cls, n]) => (
+                        <span key={cls} className="rounded border border-[#D4AF37]/25 bg-bg-elevated px-2.5 py-1 font-mono text-[11px] text-text-secondary">
+                          {cls} <span className="ml-1 font-bold text-text-primary">{n}</span>
+                        </span>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  ) : (
+                    <div className="font-mono text-[11px] text-text-muted">No candidate classes queued.</div>
+                  )}
+                  {snap.candidates.top_5_by_confidence.length > 0 && (
+                    <BentoScrollRegion ariaLabel="Top candidates by confidence" className="max-h-56 space-y-2">
+                      {snap.candidates.top_5_by_confidence.map((c) => (
+                        <div
+                          key={c.candidate_id}
+                          className="flex flex-wrap items-center gap-2 rounded-lg border border-[#D4AF37]/30 bg-bg-elevated px-2.5 py-1.5 font-mono text-[11px]"
+                        >
+                          <RomanWaxSealBadge
+                            label={`${c.confidence.toFixed(2)} CONF`}
+                            tone={c.confidence >= 0.8 ? 'emerald' : c.confidence >= 0.5 ? 'gold' : 'crimson'}
+                          />
+                          <span className="truncate font-medium text-text-primary">{c.candidate_id}</span>
+                          <span className="rounded border border-[#D4AF37]/25 bg-bg-surface px-1.5 py-0.5 text-[10px] text-text-secondary">
+                            {c.candidate_class}
+                          </span>
+                          <span className="ml-auto rounded border border-[#D4AF37]/35 bg-[#78350F]/20 px-2 py-0.5 text-[10px] font-semibold text-brass">
+                            {c.state}
+                          </span>
+                        </div>
+                      ))}
+                    </BentoScrollRegion>
+                  )}
+                </BentoCard>
+              )}
 
-            {snap.stalls.length > 0 && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5">
-                <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">Stalled candidates</div>
-                <div className="space-y-1">
-                  {snap.stalls.map((s) => (
-                    <div key={s.candidate_id} className="flex items-center gap-2 rounded border border-amber-500/20 bg-bg-base/60 px-2.5 py-1 font-mono text-[11px]">
-                      <span className="font-medium text-text-primary">{s.candidate_id}</span>
-                      <span className="text-text-secondary">{s.class}</span>
-                      <span className="ml-auto rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-700">
-                        {Math.round(s.stuck_for_ms / 86_400_000)}d stuck
-                      </span>
+              {(sectionFilter === 'all' || sectionFilter === 'claims') && (
+                <BentoCard
+                  span={sectionFilter === 'claims' ? 'full' : 'default'}
+                  className="gap-2 border-[#D4AF37]/35"
+                >
+                  <div className="font-display text-[10px] uppercase tracking-wider text-brass">
+                    Verifiability &amp; reply gates
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 font-mono text-[11px] @xs/surface:grid-cols-3">
+                    <div className="rounded border border-[#D4AF37]/20 bg-bg-elevated px-2 py-1.5">
+                      <div className="text-[9px] uppercase text-text-muted">Verifiable</div>
+                      <div className="font-bold text-text-primary">{snap.claims_pending.verifiable}</div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <div className="rounded border border-[#D4AF37]/20 bg-bg-elevated px-2 py-1.5">
+                      <div className="text-[9px] uppercase text-text-muted">Abstained</div>
+                      <div className="font-bold text-text-primary">{snap.claims_pending.abstained}</div>
+                    </div>
+                    <div className="rounded border border-[#D4AF37]/20 bg-bg-elevated px-2 py-1.5">
+                      <div className="text-[9px] uppercase text-text-muted">Extracting</div>
+                      <div className="font-bold text-text-primary">{snap.claims_pending.extraction_running}</div>
+                    </div>
+                  </div>
+                  {snap.manifests_in_reply_window.length > 0 && (
+                    <BentoScrollRegion ariaLabel="Manifests in reply window" className="max-h-40 space-y-1">
+                      {snap.manifests_in_reply_window.map((m) => (
+                        <div key={m} className="truncate rounded border border-[#D4AF37]/20 bg-bg-elevated px-2 py-1 font-mono text-[10px] text-text-secondary">
+                          {m}
+                        </div>
+                      ))}
+                    </BentoScrollRegion>
+                  )}
+                </BentoCard>
+              )}
+
+              {(sectionFilter === 'all' || sectionFilter === 'stalls') && (
+                <BentoCard
+                  span={sectionFilter === 'stalls' ? 'full' : 'default'}
+                  className={snap.stalls.length > 0 ? 'gap-2 border-amber-500/30 bg-amber-500/5' : 'gap-2 border-[#D4AF37]/35'}
+                >
+                  <div className="font-display text-[10px] uppercase tracking-wider text-brass">
+                    Stall &amp; retraction diagnostics
+                  </div>
+                  {snap.stalls.length === 0 && snap.retraction_queue.length === 0 ? (
+                    <div className="rounded border border-emerald-500/25 bg-emerald-500/5 px-2.5 py-2 font-mono text-[11px] text-text-secondary">
+                      0 stalled candidates · pipeline healthy
+                    </div>
+                  ) : (
+                    <BentoScrollRegion ariaLabel="Stalled pipeline candidates" className="max-h-52 space-y-1">
+                      {snap.stalls.map((s) => (
+                        <div key={s.candidate_id} className="flex flex-wrap items-center gap-2 rounded border border-amber-500/20 bg-bg-base/60 px-2.5 py-1 font-mono text-[11px]">
+                          <span className="truncate font-medium text-text-primary">{s.candidate_id}</span>
+                          <span className="text-text-secondary">{s.class}</span>
+                          <span className="ml-auto rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-700">
+                            {Math.round(s.stuck_for_ms / 86_400_000)}d stuck
+                          </span>
+                        </div>
+                      ))}
+                    </BentoScrollRegion>
+                  )}
+                </BentoCard>
+              )}
+            </BentoGrid>
           </>
         )}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className={cost ? 'grid grid-cols-1 gap-3 @3xl/surface:grid-cols-2' : 'grid grid-cols-1 gap-3'}>
         <ArchiveStatusSummary
           onFetchError={(message) =>
             pushToast({ tone: 'warn', title: 'Archive rollup', body: message, cause: 'backend-error' })
@@ -253,8 +344,8 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         />
 
         {cost && (
-          <div className="rounded-xl border border-[#D4AF37]/35 bg-bg-surface p-3">
-            <div className="mb-2 flex items-center justify-between">
+          <BentoCard className="gap-2 border-[#D4AF37]/35">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="font-display text-[10px] uppercase tracking-wider text-brass">
                 Cost this quarter
               </div>
@@ -269,7 +360,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
                 No cost recorded this quarter.
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 @lg/surface:grid-cols-2">
                 <div className="space-y-1">
                   {quarterlyRows(cost).map((r) => (
                     <div
@@ -306,7 +397,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
                 </div>
               </div>
             )}
-          </div>
+          </BentoCard>
         )}
       </div>
     </section>

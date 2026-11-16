@@ -321,6 +321,30 @@ impl ModelRegistry {
     }
 }
 
+/// Pinned Qwen3-Embedding-0.6B bi-encoder embedder used for B3 retrieval-only lanes (`340-02`).
+pub const B3_RETRIEVAL_EMBEDDER_PIN: &str =
+    "Qwen/Qwen3-Embedding-0.6B@97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3";
+
+/// Map B3 retrieval-only lane tokens to the pinned `B3_RETRIEVAL_EMBEDDER_PIN` (`340-02`).
+#[must_use]
+pub fn route_retrieval_lane_to_embedder(lane: &str) -> Option<&'static str> {
+    match lane.trim() {
+        "lane:vox_populi_meta" | "lane:vox_research" | "lane:vox_rocks" => {
+            Some(B3_RETRIEVAL_EMBEDDER_PIN)
+        }
+        _ => None,
+    }
+}
+
+/// Return the reward hook identifier for `research-expert` (`lane:vox_research_expert`) (`340-02`).
+#[must_use]
+pub fn research_expert_reward_hook(lane: &str) -> Option<&'static str> {
+    match lane.trim() {
+        "research-expert" | "lane:vox_research_expert" => Some("research_synthesis_eval"),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -372,5 +396,31 @@ mod tests {
             ),
             OrganicSpokeKind::RustWorkspace
         );
+    }
+
+    #[test]
+    fn retrieval_lanes_and_research_expert_hooks_resolve_deterministically() {
+        for lane in [
+            "lane:vox_populi_meta",
+            "lane:vox_research",
+            "lane:vox_rocks",
+        ] {
+            assert_eq!(
+                route_retrieval_lane_to_embedder(lane),
+                Some(B3_RETRIEVAL_EMBEDDER_PIN),
+                "expected embedder pin for {lane}"
+            );
+        }
+        assert_eq!(route_retrieval_lane_to_embedder("lane:vox_rust"), None);
+        assert!(B3_RETRIEVAL_EMBEDDER_PIN.starts_with("Qwen/Qwen3-Embedding-0.6B@97b0c614"));
+        assert_eq!(
+            research_expert_reward_hook("research-expert"),
+            Some("research_synthesis_eval")
+        );
+        assert_eq!(
+            research_expert_reward_hook("lane:vox_research_expert"),
+            Some("research_synthesis_eval")
+        );
+        assert_eq!(research_expert_reward_hook("rust"), None);
     }
 }

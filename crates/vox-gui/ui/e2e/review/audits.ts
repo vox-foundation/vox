@@ -22,12 +22,21 @@ export function auditIconsInPage(): IconIssue[] {
     ) {
       continue;
     }
+    let hiddenByCss = false;
+    let cur: Element | null = svg;
+    while (cur) {
+      if (window.getComputedStyle(cur).display === 'none') {
+        hiddenByCss = true;
+        break;
+      }
+      cur = cur.parentElement;
+    }
     const r = svg.getBoundingClientRect();
     const drawable = svg.querySelector('path, circle, ellipse, rect, line, polyline, polygon, use, text');
-    if (r.width === 0 || r.height === 0) {
-      issues.push({ kind: 'zero-size-svg', id: svg.id, testid: svg.getAttribute('data-testid') ?? '', selectorHint: hint(svg) });
-    } else if (!drawable) {
+    if (!drawable) {
       issues.push({ kind: 'empty-svg', id: svg.id, testid: svg.getAttribute('data-testid') ?? '', selectorHint: hint(svg) });
+    } else if (!hiddenByCss && (r.width === 0 || r.height === 0)) {
+      issues.push({ kind: 'zero-size-svg', id: svg.id, testid: svg.getAttribute('data-testid') ?? '', selectorHint: hint(svg) });
     }
   }
   for (const img of Array.from(document.querySelectorAll('img'))) {
@@ -72,6 +81,10 @@ export interface DomQualityReport {
   skeletonCount: number;
   rawBacktickCount: number;
   digitalColorLeakCount: number;
+  chartPanelFillRatio: number;
+  bracketedLabelCount: number;
+  statusBarClippedSegmentCount: number;
+  sidebarTruncatedLabelCount: number;
   discoveredSubTabLabels: string[];
   discoveredPopoverTriggers: string[];
 }
@@ -82,26 +95,23 @@ export interface DomQualityReport {
  */
 export function auditDomQualityInPage(surfId: string): DomQualityReport {
   const docEl = document.documentElement;
+  const isXtermHelper = (el: Element): boolean => el.classList.contains('xterm-helper-textarea');
+  const isTerminalWellEl = (el: Element): boolean =>
+    isXtermHelper(el) || Boolean(el.closest('.xterm, [data-terminal-well="true"]'));
   const outerOverflowPx = Math.max(0, Math.round(docEl.scrollWidth - window.innerWidth));
   const scrollHost =
     (document.querySelector('[data-testid="surface-scroll-host"]') as HTMLElement | null) ??
     (document.querySelector('main') as HTMLElement | null);
-  const scrollHostOverflowPx = scrollHost
-    ? Math.max(0, Math.round(scrollHost.scrollWidth - scrollHost.clientWidth))
-    : 0;
+  const scrollHostOverflowPx = scrollHost ? Math.max(0, Math.round(scrollHost.scrollWidth - scrollHost.clientWidth)) : 0;
 
   const visibleButtons = Array.from(
     document.querySelectorAll<HTMLElement>('button, select, [role="button"], [role="radio"]'),
   ).filter((el) => {
+    if (isXtermHelper(el)) return false;
     const style = window.getComputedStyle(el);
     const r = el.getBoundingClientRect();
-    return (
-      style.display !== 'none' &&
-      style.visibility !== 'hidden' &&
-      Number(style.opacity) > 0 &&
-      r.width > 2 &&
-      r.height > 2
-    );
+    const opacity = style.opacity === '' ? 1 : Number(style.opacity);
+    return style.display !== 'none' && style.visibility !== 'hidden' && opacity > 0 && r.width > 2 && r.height > 2;
   });
 
   let clippedInteractiveCount = 0;
@@ -113,65 +123,59 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     const railRect = railAncestor ? railAncestor.getBoundingClientRect() : null;
     const overflowsRailRight = railRect != null && r.right > railRect.right + 2;
     const isTruncatedCompactButton =
-      el.tagName === 'BUTTON' &&
-      r.width < 120 &&
-      el.scrollWidth > el.clientWidth + 4 &&
-      !el.hasAttribute('data-allow-ellipsis') &&
-      !el.closest('nav');
+      el.tagName === 'BUTTON' && r.width < 120 && el.scrollWidth > el.clientWidth + 4 && !el.hasAttribute('data-allow-ellipsis') && !el.closest('nav');
+    let overflowsHiddenAncestor = false;
+    if (!el.closest('nav')) {
+      let anc: HTMLElement | null = el.parentElement;
+      while (anc && anc !== document.body && anc !== document.documentElement) {
+        const ancStyle = window.getComputedStyle(anc);
+        const ovX = ancStyle.overflowX || ancStyle.overflow;
+        if (ovX === 'hidden' || ovX === 'clip' || ancStyle.overflow === 'hidden' || ancStyle.overflow === 'clip') {
+          const ancRect = anc.getBoundingClientRect();
+          if (ancRect.width > 4 && (r.left < ancRect.left - 2 || r.right > ancRect.right + 2)) {
+            overflowsHiddenAncestor = true;
+            break;
+          }
+        }
+        anc = anc.parentElement;
+      }
+    }
     if (
-      ((style.overflowX === 'hidden' || style.overflowX === 'clip') &&
-        el.scrollWidth > el.clientWidth + 4 &&
-        style.textOverflow !== 'ellipsis') ||
+      ((style.overflowX === 'hidden' || style.overflowX === 'clip') && el.scrollWidth > el.clientWidth + 4 && style.textOverflow !== 'ellipsis') ||
       (inDialog && el.scrollWidth > el.clientWidth + 4) ||
       overflowsRailRight ||
+      overflowsHiddenAncestor ||
       isTruncatedCompactButton
     ) {
       clippedInteractiveCount++;
     }
   }
 
-  // Page-wide unstyled native <select> check
   const allSelects = Array.from(document.querySelectorAll('select')).filter((s) => {
+    if (isXtermHelper(s)) return false;
     const st = window.getComputedStyle(s);
     const r = s.getBoundingClientRect();
     return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 4 && r.height > 4;
   });
   let unstyledNativeSelectCount = 0;
   for (const s of allSelects) {
-    const st = window.getComputedStyle(s);
-    if (st.appearance !== 'none' && !s.dataset.unifiedKnob) {
-      unstyledNativeSelectCount++;
-    }
+    if (window.getComputedStyle(s).appearance !== 'none' && !s.dataset.unifiedKnob) unstyledNativeSelectCount++;
   }
 
-  // Light-theme pastel contrast leak check on dark theme
   let lightThemeContrastLeakCount = 0;
-  if (document.documentElement.dataset.theme !== 'travertine') {
-    const mainEls = Array.from(document.querySelectorAll<HTMLElement>('main span, main div, main button'));
-    for (const el of mainEls) {
+  if (docEl.dataset.theme !== 'travertine') {
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('main span, main div, main button'))) {
+      if (isTerminalWellEl(el)) continue;
       const r = el.getBoundingClientRect();
-      if (r.width < 20 || r.height < 14) continue;
-      if ((el.textContent || '').trim().length === 0) continue;
-      if (
-        el.closest(
-          '.react-flow__controls, [data-theme-preview], [data-roman-frieze="true"], [data-roman-gauge="true"], .vox-marble-tablet',
-        )
-      )
-        continue;
+      if (r.width < 20 || r.height < 14 || (el.textContent || '').trim().length === 0) continue;
+      if (el.closest('.react-flow__controls, [data-theme-preview], [data-roman-frieze="true"], [data-roman-gauge="true"], .vox-marble-tablet')) continue;
       const style = window.getComputedStyle(el);
-      const bg = style.backgroundColor;
-      const fg = style.color;
-      const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-      const fgMatch = fg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      const m = style.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      const fgMatch = style.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
       if (m) {
-        const red = Number(m[1]);
-        const green = Number(m[2]);
-        const blue = Number(m[3]);
+        const red = Number(m[1]), green = Number(m[2]), blue = Number(m[3]);
         const alpha = m[4] !== undefined ? Number(m[4]) : 1;
-        // Flag light cool-gray/pastel card backgrounds (>215 RGB) that aren't warm ivory/travertine marble with dark text
-        const fgLuma = fgMatch
-          ? 0.2126 * Number(fgMatch[1]) + 0.7152 * Number(fgMatch[2]) + 0.0722 * Number(fgMatch[3])
-          : 255;
+        const fgLuma = fgMatch ? 0.2126 * Number(fgMatch[1]) + 0.7152 * Number(fgMatch[2]) + 0.0722 * Number(fgMatch[3]) : 255;
         const isWarmMarble = red >= green && green >= blue && red - blue >= 10;
         if (alpha > 0.65 && red > 215 && green > 215 && blue > 215 && !isWarmMarble && fgLuma > 110) {
           lightThemeContrastLeakCount++;
@@ -180,51 +184,28 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     }
   }
 
-  // Measure composer toolbar control height consistency, row wrapping & button overlap
   const composerRoot = document.querySelector('[data-testid="loquela-composer"]');
-  let controlHeightSpreadPx = 0;
-  let overlappingControlPairs = 0;
-  let composerToolbarRowCount = 0;
-  let composerToolbarHeightPx = 0;
-
+  let controlHeightSpreadPx = 0, overlappingControlPairs = 0, composerToolbarRowCount = 0, composerToolbarHeightPx = 0;
   if (composerRoot) {
-    const barControls = Array.from(
-      composerRoot.querySelectorAll<HTMLElement>('[data-loquela-toolbar-item="true"]'),
-    ).filter((el) => {
+    const barControls = Array.from(composerRoot.querySelectorAll<HTMLElement>('[data-loquela-toolbar-item="true"]')).filter((el) => {
       const r = el.getBoundingClientRect();
       return r.width > 8 && r.height > 8 && !el.closest('[role="dialog"]');
     });
-
     if (barControls.length > 0) {
       const rects = barControls.map((c) => c.getBoundingClientRect());
-      const minTop = Math.min(...rects.map((r) => r.top));
-      const maxBottom = Math.max(...rects.map((r) => r.bottom));
-      composerToolbarHeightPx = Math.round(maxBottom - minTop);
-
-      // Cluster distinct Y row bands (tolerance 12px)
+      composerToolbarHeightPx = Math.round(Math.max(...rects.map((r) => r.bottom)) - Math.min(...rects.map((r) => r.top)));
       const rowTops: number[] = [];
-      for (const r of rects) {
-        if (!rowTops.some((t) => Math.abs(t - r.top) <= 12)) {
-          rowTops.push(r.top);
-        }
-      }
+      for (const r of rects) if (!rowTops.some((t) => Math.abs(t - r.top) <= 12)) rowTops.push(r.top);
       composerToolbarRowCount = rowTops.length;
     }
-
     if (barControls.length >= 2) {
       const heights = barControls.map((c) => Math.round(c.getBoundingClientRect().height));
       controlHeightSpreadPx = Math.max(...heights) - Math.min(...heights);
-
       for (let i = 0; i < barControls.length; i++) {
         for (let j = i + 1; j < barControls.length; j++) {
-          const a = barControls[i]!.getBoundingClientRect();
-          const b = barControls[j]!.getBoundingClientRect();
-          if (barControls[i]!.contains(barControls[j]!) || barControls[j]!.contains(barControls[i]!)) {
-            continue;
-          }
-          const ix = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
-          const iy = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-          if (ix > 2 && iy > 2) {
+          if (barControls[i]!.contains(barControls[j]!) || barControls[j]!.contains(barControls[i]!)) continue;
+          const a = barControls[i]!.getBoundingClientRect(), b = barControls[j]!.getBoundingClientRect();
+          if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2) {
             overlappingControlPairs++;
           }
         }
@@ -232,168 +213,225 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     }
   }
 
-  // Check for overlapping interactive CTAs in main surface area (e.g. floating Customize vs Open Chat)
-  const mainCtas = Array.from(
-    document.querySelectorAll<HTMLElement>(
-      'main [data-testid="open-chat-cta"], main button[aria-expanded]',
-    ),
-  ).filter((el) => {
+  const visibleClippedRect = (el: HTMLElement) => {
     const r = el.getBoundingClientRect();
-    return r.width > 8 && r.height > 8;
-  });
+    let left = r.left;
+    let top = r.top;
+    let right = r.right;
+    let bottom = r.bottom;
+    if (window.innerWidth > 0 && window.innerHeight > 0) {
+      left = Math.max(left, 0);
+      top = Math.max(top, 0);
+      right = Math.min(right, window.innerWidth);
+      bottom = Math.min(bottom, window.innerHeight);
+    }
+    for (let anc = el.parentElement; anc && anc !== document.body; anc = anc.parentElement) {
+      const st = window.getComputedStyle(anc);
+      const clipX = st.overflowX === 'auto' || st.overflowX === 'scroll' || st.overflowX === 'hidden' || st.overflowX === 'clip';
+      const clipY = st.overflowY === 'auto' || st.overflowY === 'scroll' || st.overflowY === 'hidden' || st.overflowY === 'clip';
+      if (!clipX && !clipY) continue;
+      const ar = anc.getBoundingClientRect();
+      if (ar.width <= 0 || ar.height <= 0) continue;
+      if (clipX) {
+        left = Math.max(left, ar.left);
+        right = Math.min(right, ar.right);
+      }
+      if (clipY) {
+        top = Math.max(top, ar.top);
+        bottom = Math.min(bottom, ar.bottom);
+      }
+    }
+    return { left, top, right, bottom, width: right - left, height: bottom - top };
+  };
+
+  const mainCtas = Array.from(document.querySelectorAll<HTMLElement>('main [data-testid="open-chat-cta"], main button[aria-expanded]'))
+    .filter((el) => !isXtermHelper(el))
+    .map((el) => ({ el, rect: visibleClippedRect(el) }))
+    .filter(({ rect }) => rect.width > 8 && rect.height > 8);
   for (let i = 0; i < mainCtas.length; i++) {
     for (let j = i + 1; j < mainCtas.length; j++) {
-      const a = mainCtas[i]!.getBoundingClientRect();
-      const b = mainCtas[j]!.getBoundingClientRect();
-      if (mainCtas[i]!.contains(mainCtas[j]!) || mainCtas[j]!.contains(mainCtas[i]!)) continue;
-      const ix = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
-      const iy = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-      if (ix > 2 && iy > 2) {
+      const { el: elA, rect: a } = mainCtas[i]!;
+      const { el: elB, rect: b } = mainCtas[j]!;
+      if (elA.contains(elB) || elB.contains(elA)) continue;
+      if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2) {
         overlappingControlPairs++;
       }
     }
   }
 
-  // Raw emoji audit (`🧍` inside Urbs/Chat HUD)
-  const bodyText = document.body.innerText || '';
-  const rawEmojiCount = (bodyText.match(/🧍/g) ?? []).length;
-
-  // Urbs unlit landmark count
-  const landmarkBadges = Array.from(document.querySelectorAll('[data-urbs-landmark-state]'));
-  let unlitLandmarkCount = landmarkBadges.filter(
-    (el) => el.getAttribute('data-urbs-landmark-state') === 'unlit',
-  ).length;
-  if (
-    (surfId === 'urbs-civilization' || surfId === 'gamify') &&
-    landmarkBadges.length === 0
-  ) {
-    const hasCitizenSprites = document.querySelectorAll('[data-testid="urbs-citizen-sprite"]').length > 0;
-    if (!hasCitizenSprites) {
-      unlitLandmarkCount = 2;
+  const bannedGlyphRe =
+    /[\p{Extended_Pictographic}\u{2600}-\u{27BF}\u{23F0}-\u{23FE}\u{25A0}-\u{25FF}\u{2197}\u{21BA}-\u{21C4}\u{21E2}\u{2B06}\u{2302}\u{2442}\u{2295}\u{21B5}\u{23CE}\u{21E5}]/gu;
+  const glyphScanRoots = Array.from(
+    document.querySelectorAll<HTMLElement>('main, header, footer, [data-radix-popper-content-wrapper], [role="dialog"], [role="listbox"], [role="menu"]'),
+  );
+  const isVisibleForGlyphScan = (el: HTMLElement): boolean => {
+    if (el.classList.contains('sr-only') || isXtermHelper(el)) return false;
+    const st = window.getComputedStyle(el);
+    if (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity) === 0) return false;
+    if (st.display === 'contents') return el.parentElement ? isVisibleForGlyphScan(el.parentElement) : false;
+    const r = el.getBoundingClientRect();
+    return r.width >= 4 && r.height >= 4;
+  };
+  let rawEmojiCount = 0;
+  const scannedTextNodes = new Set<Node>();
+  for (const root of glyphScanRoots) {
+    for (const el of [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))]) {
+      if (!isVisibleForGlyphScan(el)) continue;
+      for (const child of Array.from(el.childNodes)) {
+        if (child.nodeType !== Node.TEXT_NODE || scannedTextNodes.has(child)) continue;
+        scannedTextNodes.add(child);
+        const matches = (child.nodeValue || '').match(bannedGlyphRe);
+        if (matches) rawEmojiCount += matches.length;
+      }
     }
   }
 
-  // Check missing dock panel IDs when Panels menu is open
+  let bracketedLabelCount = 0;
+  for (const btn of visibleButtons) {
+    if (btn.tagName === 'BUTTON' && /^\[\s*[^\]]{2,}\s*\]$/.test((btn.textContent || '').trim())) bracketedLabelCount++;
+  }
+
+  let statusBarClippedSegmentCount = 0;
+  const statusBarRoot = document.querySelector<HTMLElement>('[data-testid="bottom-status-bar"]') ?? document.querySelector<HTMLElement>('footer');
+  if (statusBarRoot) {
+    const scrollStrips = Array.from(statusBarRoot.querySelectorAll<HTMLElement>('div')).filter((d) => {
+      const st = window.getComputedStyle(d);
+      return st.overflowX === 'auto' || st.overflowX === 'scroll' || st.overflowX === 'hidden';
+    });
+    for (const strip of scrollStrips) {
+      if (strip.clientWidth > 40 && strip.scrollWidth > strip.clientWidth + 4) statusBarClippedSegmentCount++;
+      const sr = strip.getBoundingClientRect();
+      if (sr.width <= 40) continue;
+      for (const child of Array.from(strip.querySelectorAll<HTMLElement>('button'))) {
+        const cr = child.getBoundingClientRect();
+        if (cr.width > 2 && (cr.right > sr.right + 2 || cr.left < sr.left - 2)) statusBarClippedSegmentCount++;
+      }
+    }
+  }
+
+  let sidebarTruncatedLabelCount = 0;
+  const navEl = document.querySelector<HTMLElement>('nav');
+  if (navEl && navEl.getBoundingClientRect().width >= 120) {
+    for (const lbl of Array.from(navEl.querySelectorAll<HTMLElement>('span, div, p'))) {
+      if (lbl.children.length > 0 || (lbl.textContent || '').trim().length === 0) continue;
+      if (lbl.hasAttribute('data-allow-ellipsis') || lbl.closest('[data-allow-ellipsis="true"]')) continue;
+      if (lbl.getBoundingClientRect().width > 4 && lbl.scrollWidth > lbl.clientWidth + 3) sidebarTruncatedLabelCount++;
+    }
+  }
+
+  const chartRatios: number[] = [];
+  const braidSvg = document.querySelector<HTMLElement>('[data-testid="harness-agent-braid"]')?.querySelector('svg');
+  if (braidSvg && braidSvg.getBoundingClientRect().width > 60) {
+    const sr = braidSvg.getBoundingClientRect();
+    const prs = Array.from(braidSvg.querySelectorAll('path')).map((p) => p.getBoundingClientRect()).filter((r) => r.width > 2);
+    if (prs.length > 0) {
+      chartRatios.push(Math.min(1, Math.max(0, (Math.max(...prs.map((r) => r.right)) - Math.min(...prs.map((r) => r.left))) / sr.width)));
+    }
+  }
+  for (const card of Array.from(document.querySelectorAll<HTMLElement>('main .vox-marble-tablet, main [data-cv-kpi-card="true"]'))) {
+    const cr = card.getBoundingClientRect();
+    if (cr.width < 120 || cr.height < 36) continue;
+    const sparkSvg = card.querySelector<SVGSVGElement>('svg[data-cv-sparkline="true"], svg[viewBox="0 0 60 18"]');
+    if (sparkSvg && sparkSvg.getBoundingClientRect().width > 4) {
+      chartRatios.push(Math.min(1, Math.max(0, sparkSvg.getBoundingClientRect().width / Math.max(1, cr.width - 16))));
+    }
+  }
+  for (const ch of Array.from(document.querySelectorAll<HTMLElement>('main [data-cv-chart="true"]'))) {
+    const cr = ch.getBoundingClientRect(), pr = ch.parentElement?.getBoundingClientRect();
+    if (cr.width > 20 && pr && pr.width > 60) chartRatios.push(Math.min(1, Math.max(0, cr.width / Math.max(1, pr.width - 24))));
+  }
+  const chartPanelFillRatio = chartRatios.length > 0 ? Number((chartRatios.reduce((a, v) => a + v, 0) / chartRatios.length).toFixed(3)) : 1;
+
+  const landmarkBadges = Array.from(document.querySelectorAll('[data-urbs-landmark-state]'));
+  let unlitLandmarkCount = landmarkBadges.filter((el) => el.getAttribute('data-urbs-landmark-state') === 'unlit').length;
+  if ((surfId === 'urbs-civilization' || surfId === 'gamify') && landmarkBadges.length === 0) {
+    if (document.querySelectorAll('[data-testid="urbs-citizen-sprite"]').length === 0) unlitLandmarkCount = 2;
+  }
+
   const missingDockPanelIds: string[] = [];
   const panelsMenu = document.querySelector('[aria-label="Workspace panels"]');
   if (panelsMenu) {
     const menuText = (panelsMenu.textContent || '').toLowerCase();
     if (!menuText.includes('terminal')) missingDockPanelIds.push('terminal');
-    if (!menuText.includes('civilization') && !menuText.includes('urbs')) {
-      missingDockPanelIds.push('urbs');
-    }
+    if (!menuText.includes('civilization') && !menuText.includes('urbs')) missingDockPanelIds.push('urbs');
   }
 
   const mainRect = document.querySelector('main')?.getBoundingClientRect();
   const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
-  const coveredArea = mainRect ? mainRect.width * mainRect.height : viewportArea * 0.75;
-  const viewportCoverageRatio = Number(Math.min(1, coveredArea / viewportArea).toFixed(3));
+  const viewportCoverageRatio = Number(Math.min(1, (mainRect ? mainRect.width * mainRect.height : viewportArea * 0.75) / viewportArea).toFixed(3));
 
-  // Detect simultaneous visible duplicate control groups (e.g., separate visible bottom @kb pin toggle/drawer + visible rail @kb pin list,
-  // or simultaneous visible vertical sidebar child sub-list + top horizontal breadcrumb child tab strip)
   let duplicateControlGroupCount = 0;
-  const bottomKbToggleEl = document.querySelector<HTMLElement>('[data-testid="kb-context-inspector-toggle"]');
-  const railKbPinsEl = document.querySelector<HTMLElement>('[data-testid="execution-rail-context-pins"]');
-  if (bottomKbToggleEl && railKbPinsEl) {
-    const r1 = bottomKbToggleEl.getBoundingClientRect();
-    const r2 = railKbPinsEl.getBoundingClientRect();
-    if (r1.width > 4 && r1.height > 4 && r2.width > 4 && r2.height > 4) {
-      duplicateControlGroupCount++;
-    }
-  }
-  const sidebarChildNav = document.querySelector<HTMLElement>('nav [data-testid="sidebar-child-list"]');
-  const breadcrumbTabStrip = document.querySelector<HTMLElement>('[data-testid="breadcrumb-child-tabs"]');
-  if (sidebarChildNav && breadcrumbTabStrip) {
-    const r1 = sidebarChildNav.getBoundingClientRect();
-    const r2 = breadcrumbTabStrip.getBoundingClientRect();
-    if (r1.width > 4 && r1.height > 4 && r2.width > 4 && r2.height > 4) {
-      duplicateControlGroupCount++;
-    }
-  }
+  const checkDupPair = (selA: string, selB: string) => {
+    const a = document.querySelector<HTMLElement>(selA), b = document.querySelector<HTMLElement>(selB);
+    if (!a || !b) return;
+    const r1 = a.getBoundingClientRect(), r2 = b.getBoundingClientRect();
+    if (r1.width > 4 && r1.height > 4 && r2.width > 4 && r2.height > 4) duplicateControlGroupCount++;
+  };
+  checkDupPair('[data-testid="kb-context-inspector-toggle"]', '[data-testid="execution-rail-context-pins"]');
+  checkDupPair('nav [data-testid="sidebar-child-list"]', '[data-testid="breadcrumb-child-tabs"]');
 
-  // Dynamically discover visible sub-tabs ([role="tab"], [data-cv-subsurface]) and popover triggers
-  const discoveredSubTabLabels = Array.from(
-    document.querySelectorAll<HTMLElement>('main [role="tab"], main [data-cv-subsurface]'),
-  )
-    .filter((el) => {
-      const r = el.getBoundingClientRect();
-      return r.width > 4 && r.height > 4;
-    })
+  const discoveredSubTabLabels = Array.from(document.querySelectorAll<HTMLElement>('main [role="tab"], main [data-cv-subsurface]'))
+    .filter((el) => el.getBoundingClientRect().width > 4 && el.getBoundingClientRect().height > 4)
     .map((el) => (el.textContent || el.getAttribute('aria-label') || '').trim())
-    .filter((label) => label.length > 0);
+    .filter((l) => l.length > 0);
 
   const discoveredPopoverTriggers = Array.from(
-    document.querySelectorAll<HTMLElement>(
-      'main [data-cv-popover-trigger], main button[aria-haspopup], [data-testid="loquela-composer"] button[aria-expanded]',
-    ),
+    document.querySelectorAll<HTMLElement>('main [data-cv-popover-trigger], main button[aria-haspopup], [data-testid="loquela-composer"] button[aria-expanded]'),
   )
-    .filter((el) => {
-      const r = el.getBoundingClientRect();
-      return r.width > 4 && r.height > 4;
-    })
+    .filter((el) => el.getBoundingClientRect().width > 4 && el.getBoundingClientRect().height > 4)
     .map((el) => (el.getAttribute('data-testid') || el.getAttribute('aria-label') || el.textContent || '').trim())
-    .filter((label) => label.length > 0);
+    .filter((l) => l.length > 0);
 
-  // Phase 358 (`ROMA-CV-STRUCT-01..03`): Detect loading skeletons, raw markdown backticks, and cold digital slate/cyan leaks
   let skeletonCount = 0;
   for (const el of Array.from(document.querySelectorAll<HTMLElement>('main [aria-busy="true"], main .animate-pulse'))) {
     const r = el.getBoundingClientRect();
-    if (r.width > 24 && r.height >= 10 && (el.textContent || '').trim().length === 0) {
-      skeletonCount++;
-    }
+    if (r.width > 24 && r.height >= 10 && (el.textContent || '').trim().length === 0) skeletonCount++;
   }
-  if ((document.querySelector('main')?.innerText || '').includes('Loading the capability index')) {
-    skeletonCount += 1;
-  }
+  if ((document.querySelector('main')?.innerText || '').includes('Loading the capability index')) skeletonCount += 1;
 
   let rawBacktickCount = 0;
-  for (const el of Array.from(document.querySelectorAll<HTMLElement>('main button, main h1, main h2, main h3, main label'))) {
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>('main button, main h1, main h2, main h3, main label, main td, aside button'))) {
+    if (isXtermHelper(el) || el.closest('code, pre, [data-code-literal="true"], .xterm')) continue;
     const r = el.getBoundingClientRect();
-    if (r.width > 4 && r.height > 4 && (el.textContent || '').includes('`')) {
-      rawBacktickCount++;
-    }
+    if (r.width > 4 && r.height > 4 && (el.textContent || '').includes('`')) rawBacktickCount++;
   }
+
+  const isSlateTheme = docEl.dataset.theme === 'slate' || docEl.dataset.theme === 'void';
+  const isNeonDigitalOklch = (val: string): boolean => {
+    if (!val || !val.includes('oklch(')) return false;
+    const m = val.match(/oklch\(\s*([\d.]+%?)\s+([\d.]+%?)\s+([\d.]+)(?:deg)?(?:\s*\/\s*([\d.]+%?))?\s*\)/i);
+    if (!m) return false;
+    const chroma = m[2]!.endsWith('%') ? (parseFloat(m[2]!) / 100) * 0.4 : parseFloat(m[2]!);
+    const hue = ((parseFloat(m[3]!) % 360) + 360) % 360;
+    const alpha = m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+    if (!Number.isFinite(chroma) || !Number.isFinite(hue) || alpha <= 0.2) return false;
+    return chroma >= 0.14 && ((hue >= 192 && hue <= 212) || (hue >= 158 && hue <= 168));
+  };
 
   let digitalColorLeakCount = 0;
   for (const el of Array.from(document.querySelectorAll<HTMLElement>('main section, main article, main div, main button, main span'))) {
+    if (isTerminalWellEl(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 16 || r.height < 12) continue;
     const st = window.getComputedStyle(el);
-    const bg = st.backgroundColor;
-    const fg = st.color;
-    // Flag cold navy/slate cards (#0c121b = rgb(12, 18, 27), #0e131a = rgb(14, 19, 26)), raw neon cyan text (rgb(34, 211, 238)), or neon digital green/emerald (rgb(16, 185, 129), rgb(52, 211, 153), rgb(110, 231, 183))
+    const bg = st.backgroundColor, fg = st.color;
     if (
-      bg === 'rgb(12, 18, 27)' ||
-      bg === 'rgb(14, 19, 26)' ||
-      fg === 'rgb(34, 211, 238)' ||
-      fg === 'rgb(6, 182, 212)' ||
-      fg === 'rgb(16, 185, 129)' ||
-      fg === 'rgb(52, 211, 153)' ||
-      fg === 'rgb(110, 231, 183)'
+      bg === 'rgb(12, 18, 27)' || bg === 'rgb(14, 19, 26)' ||
+      fg === 'rgb(34, 211, 238)' || fg === 'rgb(6, 182, 212)' ||
+      (!isSlateTheme && fg === 'rgb(16, 185, 129)') ||
+      fg === 'rgb(52, 211, 153)' || fg === 'rgb(110, 231, 183)' ||
+      isNeonDigitalOklch(fg) || isNeonDigitalOklch(bg)
     ) {
       digitalColorLeakCount++;
     }
   }
 
   return {
-    outerOverflowPx,
-    scrollHostOverflowPx,
-    clippedInteractiveCount,
-    overlappingControlPairs,
-    unstyledNativeSelectCount,
-    lightThemeContrastLeakCount,
-    controlHeightSpreadPx,
-    rawEmojiCount,
-    unlitLandmarkCount,
-    missingDockPanelIds,
-    viewportCoverageRatio,
-    composerToolbarRowCount,
-    composerToolbarHeightPx,
-    duplicateControlGroupCount,
-    skeletonCount,
-    rawBacktickCount,
-    digitalColorLeakCount,
-    discoveredSubTabLabels,
-    discoveredPopoverTriggers,
+    outerOverflowPx, scrollHostOverflowPx, clippedInteractiveCount, overlappingControlPairs,
+    unstyledNativeSelectCount, lightThemeContrastLeakCount, controlHeightSpreadPx, rawEmojiCount,
+    unlitLandmarkCount, missingDockPanelIds, viewportCoverageRatio, composerToolbarRowCount,
+    composerToolbarHeightPx, duplicateControlGroupCount, skeletonCount, rawBacktickCount,
+    digitalColorLeakCount, chartPanelFillRatio, bracketedLabelCount, statusBarClippedSegmentCount,
+    sidebarTruncatedLabelCount, discoveredSubTabLabels, discoveredPopoverTriggers,
   };
 }

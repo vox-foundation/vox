@@ -129,7 +129,7 @@ fn examples_section_renders_wins_and_loss() {
     let sec = section(&card, "Examples");
     let lines = prose(&sec);
     let first = lines[0];
-    assert!(first.starts_with("For 1.7B, the examples are"), "{first}");
+    assert!(first.starts_with("For 2B, the examples are"), "{first}");
     let totals = format!(
         "of {} items it fixes {} and breaks {}.",
         ex.total, ex.fixes, ex.breaks
@@ -273,7 +273,7 @@ fn stale_serving_card_shows_no_adapter_output() {
     let lines = prose(&sec);
     assert_eq!(lines.len(), 1, "{lines:?}");
     assert!(
-        lines[0].starts_with("No 1.7B example is shown"),
+        lines[0].starts_with("No 2B example is shown"),
         "{}",
         lines[0]
     );
@@ -399,7 +399,8 @@ fn verdict_lines_name_size_and_item() {
         "rejected by",
     ];
     for (name, case) in trained_cases() {
-        let Some(ex) = facts(&case).examples else {
+        let f = facts(&case);
+        let Some(ex) = f.examples else {
             continue;
         };
         let card = render_case(&case);
@@ -408,7 +409,7 @@ fn verdict_lines_name_size_and_item() {
         for (_, e) in ex.blocks() {
             for (is_base, side) in e.sides() {
                 let who = if is_base {
-                    format!("Qwen3-{} base on `{}`: ", case.size, e.id)
+                    format!("{} base on `{}`: ", f.model_label, e.id)
                 } else {
                     format!("{} adapter on `{}`: ", case.size, e.id)
                 };

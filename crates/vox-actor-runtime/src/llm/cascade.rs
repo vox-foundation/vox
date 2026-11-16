@@ -266,6 +266,25 @@ fn research_openrouter_model_ids(configured: &str, prefer_free: bool) -> Vec<Str
     ordered
 }
 
+fn openrouter_fallback_for_stage(stage: ResearchStage) -> &'static str {
+    match stage {
+        ResearchStage::Planner | ResearchStage::Synthesis => vox_config::RESEARCH_FLASH_FALLBACK,
+        ResearchStage::ClaimExtraction
+        | ResearchStage::Verification
+        | ResearchStage::SelfVerification => vox_config::NLI_FALLBACK,
+        ResearchStage::Judge => vox_config::REVIEW_PREMIUM_FALLBACK,
+    }
+}
+
+fn is_local_only_model_slug(model: &str) -> bool {
+    let trimmed = model.trim();
+    trimmed.is_empty()
+        || trimmed == "default-model"
+        || trimmed.starts_with("mens/")
+        || trimmed.starts_with("voxlocal/")
+        || !trimmed.contains('/')
+}
+
 /// Build the default research cascade: local Mens/Ollama first, then OpenRouter.
 #[must_use]
 pub fn cascade_for_research_stage(
@@ -294,7 +313,12 @@ pub fn cascade_for_research_stage(
 
     if vox_config::inference::openrouter_api_key().is_some() {
         let prefer_free = vox_config::inference::research_prefer_free_tier();
-        for model_id in research_openrouter_model_ids(&input.openrouter_model, prefer_free) {
+        let effective_openrouter_model = if is_local_only_model_slug(&input.openrouter_model) {
+            openrouter_fallback_for_stage(stage)
+        } else {
+            input.openrouter_model.as_str()
+        };
+        for model_id in research_openrouter_model_ids(effective_openrouter_model, prefer_free) {
             let mut openrouter = LlmConfig::openrouter(model_id);
             apply_stage_defaults(stage, &mut openrouter);
             candidates.push(openrouter);
@@ -646,6 +670,18 @@ mod tests {
             )
             .await
             .is_ok()
+        );
+    }
+
+    #[test]
+    fn local_only_slug_maps_to_stage_openrouter_fallback() {
+        assert!(is_local_only_model_slug("mens/qwen3-8b"));
+        assert!(is_local_only_model_slug("voxlocal/qwen3"));
+        assert!(is_local_only_model_slug("default-model"));
+        assert!(!is_local_only_model_slug(vox_config::NLI_FALLBACK));
+        assert_eq!(
+            openrouter_fallback_for_stage(ResearchStage::Verification),
+            vox_config::NLI_FALLBACK
         );
     }
 

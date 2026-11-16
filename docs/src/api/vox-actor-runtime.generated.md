@@ -73,6 +73,7 @@ module; blanket Rustdoc on every `pub use` alias would add noise without semanti
 | `credential_broker` | Zero-trust capability-scoped credential broker for agents and MCP tools (`CLAVIS-05`). |
 | `db` | Optional Codex / Turso database handle when the `database` feature is enabled. |
 | `durable_scheduler` | Durable / cron scheduler primitives for `@scheduled` + `@durable` (GA-11). |
+| `feedback` | LLM interaction and RLHF user feedback collector backed by [`vox_db::VoxDb`]. |
 | `gc` | Garbage collection arena and !Send pointers for actor memory isolation. |
 | `inference_env` | Hugging Face router, Hub listings, and Mens/Ollama capability probes. |
 | `llm` | OpenAI-compatible chat/embed clients, registry entries, and usage metrics. |

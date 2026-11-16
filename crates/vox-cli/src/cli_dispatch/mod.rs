@@ -64,6 +64,7 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         Cli::Container { .. } => Some("container"),
         Cli::Plan { .. } => Some("plan"),
         Cli::Doctor { .. } => Some("doctor"),
+        Cli::Term { .. } => Some("term"),
         _ => Some("command"),
     }
 }
@@ -148,6 +149,7 @@ fn command_verb(cli: &Cli) -> &'static str {
         Cli::Container { .. } => "container",
         Cli::Plan { .. } => "plan",
         Cli::Doctor { .. } => "doctor",
+        Cli::Term { .. } => "term",
         _ => "unknown",
     }
 }
@@ -622,8 +624,12 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Dispatch { cmd } => {
             crate::commands::dispatch::run(cmd).await?;
         }
-        Cli::Term => {
-            vox_term::app::run()?;
+        Cli::Term { attach, local } => {
+            vox_term::app::run_with_args(vox_term::app::TermCliArgs {
+                attach,
+                force_local: local,
+            })
+            .await?;
         }
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);

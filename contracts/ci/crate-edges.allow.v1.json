@@ -50,10 +50,6 @@
       "vox-telemetry"
     ],
     [
-      "vox-arch-check",
-      "vox-build-meta"
-    ],
-    [
       "vox-audit",
       "vox-code-audit"
     ],
@@ -147,10 +143,6 @@
     ],
     [
       "vox-cli",
-      "vox-constrained-gen"
-    ],
-    [
-      "vox-cli",
       "vox-container"
     ],
     [
@@ -180,14 +172,6 @@
     [
       "vox-cli",
       "vox-drift-check"
-    ],
-    [
-      "vox-cli",
-      "vox-effort-audit"
-    ],
-    [
-      "vox-cli",
-      "vox-effort-route"
     ],
     [
       "vox-cli",
@@ -231,19 +215,7 @@
     ],
     [
       "vox-cli",
-      "vox-mesh-types"
-    ],
-    [
-      "vox-cli",
-      "vox-openclaw-runtime"
-    ],
-    [
-      "vox-cli",
       "vox-orchestrator"
-    ],
-    [
-      "vox-cli",
-      "vox-orchestrator-driver"
     ],
     [
       "vox-cli",
@@ -255,19 +227,11 @@
     ],
     [
       "vox-cli",
-      "vox-plugin-api"
-    ],
-    [
-      "vox-cli",
       "vox-plugin-catalog"
     ],
     [
       "vox-cli",
       "vox-plugin-host"
-    ],
-    [
-      "vox-cli",
-      "vox-plugin-types"
     ],
     [
       "vox-cli",
@@ -287,27 +251,7 @@
     ],
     [
       "vox-cli",
-      "vox-research-events"
-    ],
-    [
-      "vox-cli",
-      "vox-research-shim"
-    ],
-    [
-      "vox-cli",
       "vox-rn-codegen"
-    ],
-    [
-      "vox-cli",
-      "vox-rule-pack"
-    ],
-    [
-      "vox-cli",
-      "vox-scaling-policy"
-    ],
-    [
-      "vox-cli",
-      "vox-scientia"
     ],
     [
       "vox-cli",
@@ -316,18 +260,6 @@
     [
       "vox-cli",
       "vox-secrets"
-    ],
-    [
-      "vox-cli",
-      "vox-skill-discovery"
-    ],
-    [
-      "vox-cli",
-      "vox-skills"
-    ],
-    [
-      "vox-cli",
-      "vox-sql"
     ],
     [
       "vox-cli",
@@ -346,12 +278,12 @@
       "vox-term"
     ],
     [
-      "vox-cli",
-      "vox-workflow-runtime"
+      "vox-cli-ci",
+      "vox-bounded-fs"
     ],
     [
       "vox-cli-ci",
-      "vox-bounded-fs"
+      "vox-capability-registry"
     ],
     [
       "vox-cli-ci",
@@ -371,7 +303,15 @@
     ],
     [
       "vox-cli-ci",
+      "vox-crypto"
+    ],
+    [
+      "vox-cli-ci",
       "vox-db"
+    ],
+    [
+      "vox-cli-ci",
+      "vox-doc-inventory"
     ],
     [
       "vox-cli-ci",
@@ -395,6 +335,10 @@
     ],
     [
       "vox-cli-ci",
+      "vox-mcp-registry"
+    ],
+    [
+      "vox-cli-ci",
       "vox-orchestrator"
     ],
     [
@@ -467,7 +411,79 @@
     ],
     [
       "vox-cli-research",
+      "vox-actor-runtime"
+    ],
+    [
+      "vox-cli-research",
+      "vox-audit"
+    ],
+    [
+      "vox-cli-research",
+      "vox-bounded-fs"
+    ],
+    [
+      "vox-cli-research",
+      "vox-capability-registry"
+    ],
+    [
+      "vox-cli-research",
+      "vox-cli-ci"
+    ],
+    [
+      "vox-cli-research",
+      "vox-cli-contracts"
+    ],
+    [
+      "vox-cli-research",
+      "vox-cli-core"
+    ],
+    [
+      "vox-cli-research",
+      "vox-code-audit"
+    ],
+    [
+      "vox-cli-research",
+      "vox-codegen"
+    ],
+    [
+      "vox-cli-research",
+      "vox-compiler"
+    ],
+    [
+      "vox-cli-research",
+      "vox-config"
+    ],
+    [
+      "vox-cli-research",
+      "vox-container"
+    ],
+    [
+      "vox-cli-research",
+      "vox-corpus"
+    ],
+    [
+      "vox-cli-research",
+      "vox-crypto"
+    ],
+    [
+      "vox-cli-research",
       "vox-db"
+    ],
+    [
+      "vox-cli-research",
+      "vox-doc-pipeline"
+    ],
+    [
+      "vox-cli-research",
+      "vox-effort-audit"
+    ],
+    [
+      "vox-cli-research",
+      "vox-effort-route"
+    ],
+    [
+      "vox-cli-research",
+      "vox-eval"
     ],
     [
       "vox-cli-research",
@@ -475,7 +491,91 @@
     ],
     [
       "vox-cli-research",
+      "vox-gamify"
+    ],
+    [
+      "vox-cli-research",
+      "vox-git"
+    ],
+    [
+      "vox-cli-research",
+      "vox-grammar-export"
+    ],
+    [
+      "vox-cli-research",
+      "vox-graph-reader"
+    ],
+    [
+      "vox-cli-research",
+      "vox-http-client"
+    ],
+    [
+      "vox-cli-research",
+      "vox-identity"
+    ],
+    [
+      "vox-cli-research",
+      "vox-jsonschema-util"
+    ],
+    [
+      "vox-cli-research",
+      "vox-kb-facets"
+    ],
+    [
+      "vox-cli-research",
+      "vox-mcp-registry"
+    ],
+    [
+      "vox-cli-research",
+      "vox-mesh-types"
+    ],
+    [
+      "vox-cli-research",
+      "vox-oauth-pkce"
+    ],
+    [
+      "vox-cli-research",
+      "vox-openclaw-runtime"
+    ],
+    [
+      "vox-cli-research",
       "vox-orchestrator"
+    ],
+    [
+      "vox-cli-research",
+      "vox-orchestrator-driver"
+    ],
+    [
+      "vox-cli-research",
+      "vox-orchestrator-mcp"
+    ],
+    [
+      "vox-cli-research",
+      "vox-package"
+    ],
+    [
+      "vox-cli-research",
+      "vox-plugin-api"
+    ],
+    [
+      "vox-cli-research",
+      "vox-plugin-catalog"
+    ],
+    [
+      "vox-cli-research",
+      "vox-plugin-host"
+    ],
+    [
+      "vox-cli-research",
+      "vox-plugin-sdk"
+    ],
+    [
+      "vox-cli-research",
+      "vox-plugin-types"
+    ],
+    [
+      "vox-cli-research",
+      "vox-populi"
     ],
     [
       "vox-cli-research",
@@ -487,7 +587,19 @@
     ],
     [
       "vox-cli-research",
+      "vox-research-events"
+    ],
+    [
+      "vox-cli-research",
       "vox-research-shim"
+    ],
+    [
+      "vox-cli-research",
+      "vox-scaling-policy"
+    ],
+    [
+      "vox-cli-research",
+      "vox-scientia"
     ],
     [
       "vox-cli-research",
@@ -496,6 +608,22 @@
     [
       "vox-cli-research",
       "vox-secrets"
+    ],
+    [
+      "vox-cli-research",
+      "vox-skill-discovery"
+    ],
+    [
+      "vox-cli-research",
+      "vox-skills"
+    ],
+    [
+      "vox-cli-research",
+      "vox-sql"
+    ],
+    [
+      "vox-cli-research",
+      "vox-telemetry"
     ],
     [
       "vox-cli-review",
@@ -543,26 +671,6 @@
     ],
     [
       "vox-code-audit",
-      "vox-config"
-    ],
-    [
-      "vox-code-audit",
-      "vox-http-client"
-    ],
-    [
-      "vox-code-audit",
-      "vox-jsonschema-util"
-    ],
-    [
-      "vox-code-audit",
-      "vox-llm-egress"
-    ],
-    [
-      "vox-code-audit",
-      "vox-orchestrator-types"
-    ],
-    [
-      "vox-code-audit",
       "vox-rule-pack"
     ],
     [
@@ -584,10 +692,6 @@
     [
       "vox-codegen",
       "vox-config"
-    ],
-    [
-      "vox-codegen",
-      "vox-repository"
     ],
     [
       "vox-codegen",
@@ -648,10 +752,6 @@
     [
       "vox-compiler",
       "vox-python-bridge"
-    ],
-    [
-      "vox-compiler",
-      "vox-repository"
     ],
     [
       "vox-compiler",
@@ -718,10 +818,6 @@
       "vox-mcp-registry"
     ],
     [
-      "vox-corpus",
-      "vox-repository"
-    ],
-    [
       "vox-db",
       "vox-ast"
     ],
@@ -747,10 +843,6 @@
     ],
     [
       "vox-db",
-      "vox-repository"
-    ],
-    [
-      "vox-db",
       "vox-secrets"
     ],
     [
@@ -770,10 +862,6 @@
       "vox-bounded-fs"
     ],
     [
-      "vox-doc-inventory",
-      "vox-repository"
-    ],
-    [
       "vox-doc-pipeline",
       "vox-bounded-fs"
     ],
@@ -784,14 +872,6 @@
     [
       "vox-drift-check",
       "vox-code-audit"
-    ],
-    [
-      "vox-drift-check",
-      "vox-compiler"
-    ],
-    [
-      "vox-drift-check",
-      "vox-config"
     ],
     [
       "vox-effort-audit",
@@ -1011,10 +1091,6 @@
     ],
     [
       "vox-lsp",
-      "vox-db"
-    ],
-    [
-      "vox-lsp",
       "vox-foundation"
     ],
     [
@@ -1040,10 +1116,6 @@
     [
       "vox-ml-cli",
       "vox-bounded-fs"
-    ],
-    [
-      "vox-ml-cli",
-      "vox-cli"
     ],
     [
       "vox-ml-cli",
@@ -1282,10 +1354,6 @@
       "vox-orchestrator"
     ],
     [
-      "vox-orchestrator-driver",
-      "vox-repository"
-    ],
-    [
       "vox-orchestrator-mcp",
       "vox-actor-runtime"
     ],
@@ -1364,10 +1432,6 @@
     [
       "vox-orchestrator-mcp",
       "vox-mcp-registry"
-    ],
-    [
-      "vox-orchestrator-mcp",
-      "vox-mesh-types"
     ],
     [
       "vox-orchestrator-mcp",
@@ -1479,7 +1543,15 @@
     ],
     [
       "vox-orchestrator-models",
+      "vox-orchestrator-types"
+    ],
+    [
+      "vox-orchestrator-models",
       "vox-secrets"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-telemetry"
     ],
     [
       "vox-orchestrator-queue",
@@ -1512,6 +1584,10 @@
     [
       "vox-package",
       "vox-db"
+    ],
+    [
+      "vox-package",
+      "vox-db-types"
     ],
     [
       "vox-package",
@@ -1548,6 +1624,10 @@
     [
       "vox-plugin-mens-candle-core",
       "vox-db"
+    ],
+    [
+      "vox-plugin-mens-candle-core",
+      "vox-eval"
     ],
     [
       "vox-plugin-mens-candle-core",
@@ -1768,10 +1848,6 @@
     [
       "vox-populi",
       "vox-config"
-    ],
-    [
-      "vox-populi",
-      "vox-constrained-gen"
     ],
     [
       "vox-populi",
@@ -2123,7 +2199,7 @@
     ],
     [
       "vox-test-harness",
-      "vox-compiler"
+      "vox-ast"
     ],
     [
       "vox-test-harness",
@@ -2201,13 +2277,6 @@
       "reason": "ToolReceiptLedger::issue_intent fails closed on tool names absent from vox_mcp_registry::TOOL_REGISTRY, dead-crate wire-up plan (phase 2, REQ-dead-crate-wire-up)",
       "date": "2026-09-25",
       "authorized_by": "user (explicit chat approval, 2026-09-25)"
-    },
-    {
-      "from": "vox-cli",
-      "to": "vox-oauth-pkce",
-      "reason": "vox secrets login --oauth --provider openrouter (RFC 8252 loopback PKCE flow), free-tier onboarding plan",
-      "date": "2026-08-02",
-      "authorized_by": "user (explicit chat approval, 2026-08-02)"
     },
     {
       "from": "vox-cli",
@@ -2372,13 +2441,6 @@
     },
     {
       "from": "vox-orchestrator",
-      "to": "vox-speech",
-      "reason": "grandfathered at 2026-07-03 bootstrap (pre-existing upward edge; Phase 2 decoupling target)",
-      "date": "2026-07-03",
-      "authorized_by": "brbrainerd (bootstrap grandfather, plan-approved)"
-    },
-    {
-      "from": "vox-orchestrator",
       "to": "vox-vcs",
       "reason": "grandfathered at 2026-07-03 bootstrap (pre-existing upward edge; Phase 2 decoupling target)",
       "date": "2026-07-03",
@@ -2446,13 +2508,6 @@
       "reason": "OpenRouterPanelClient::complete now builds its Authorization header via vox_http_client::bearer_auth_header instead of a hand-rolled format!, which also marks the header sensitive",
       "date": "2026-09-27",
       "authorized_by": "user (explicit chat approval, 2026-09-27)"
-    },
-    {
-      "from": "vox-gui",
-      "to": "vox-db-types",
-      "reason": "GUI citation-misguidance flagging IPC (commands/research.rs) takes vox_db_types::RecordMisguidanceParams / ResearchDefectClass; added 0d999cbeb. L4 -> L0 types crate, the narrowest dependency available.",
-      "date": "2026-09-22",
-      "authorized_by": "user (explicit chat approval, 2026-09-22)"
     },
     {
       "from": "vox-gui",

@@ -47,11 +47,12 @@ describe('InputEditor', () => {
     const onSubmit = vi.fn();
     render(<InputEditor onSubmit={onSubmit} onActiveSuggestion={vi.fn()} />);
 
-    const select = screen.getByTestId('term-shell-mode-select') as HTMLSelectElement;
-    expect(select.value).toBe('default');
+    const select = screen.getByTestId('term-shell-mode-select');
+    expect(select).toHaveTextContent('default');
 
-    fireEvent.change(select, { target: { value: 'nu' } });
-    expect(select.value).toBe('nu');
+    fireEvent.click(select);
+    fireEvent.click(screen.getByRole('option', { name: 'nu' }));
+    expect(select).toHaveTextContent('nu');
 
     const input = screen.getByRole('textbox') as HTMLInputElement;
 
@@ -87,6 +88,20 @@ describe('InputEditor', () => {
 
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(screen.queryByTestId('intellisense-popover')).toBeNull();
+  });
+
+  it('supports @macro suggestions and /cl Tab completion through InputEditor wrapper (444-02)', async () => {
+    render(<InputEditor onSubmit={vi.fn()} onActiveSuggestion={vi.fn()} />);
+    const input = screen.getByRole('textbox') as HTMLTextAreaElement;
+
+    fireEvent.change(input, { target: { value: '@' } });
+    await waitFor(() => expect(screen.getByTestId('intellisense-popover')).toBeTruthy());
+    expect(screen.getByTestId('intellisense-popover').textContent).toContain('@file:');
+    expect(screen.getByTestId('intellisense-popover').textContent).toContain('@term:last');
+
+    fireEvent.change(input, { target: { value: '/cl' } });
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(input.value).toBe('/clear ');
   });
 });
 

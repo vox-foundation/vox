@@ -11,7 +11,8 @@ use std::path::{Component, Path, PathBuf};
 /// `array`/`frame` only build lazy plans; materializing one (`to_list`/`collect`)
 /// calls the worker and is gated by `py`.
 pub const PURE: &[&str] = &[
-    "path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo", "array", "frame",
+    "path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo", "array", "frame", "plot",
+    "tensor",
 ];
 /// Gated. `io` is here for classification only — its authority comes from `fs:`.
 /// `crypto` is gated by the `random` axis.

@@ -15,7 +15,7 @@ use std::path::Path;
 use vox_cli::commands::model::eval_diagram::live::{LiveConfig, run_live};
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "live LLM run: spends up to the $25 cap; run only as 91-05 describes"]
+#[ignore = "owner:cli sunset:never live-llm: spends up to the $25 cap; run only as 91-05 describes"]
 async fn live_run() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
     let max_spend_usd = match std::env::var("EVAL_DIAGRAM_MAX_SPEND_USD") {

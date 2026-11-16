@@ -19,7 +19,7 @@ const NO_READING: &str = "no live free-memory reading (Metal working set or nvid
 
 /// Size (repo id without the `Qwen3-` prefix) to training preset (D-03).
 const SIZE_PRESETS: [(&str, &str); 6] = [
-    ("0.6B", "qwen3_dev_cpu"),
+    ("0.6B", "qwen3_0_6b"),
     ("1.7B", "qwen3_6g"),
     ("4B", "qwen3_12g"),
     ("8B", "qwen3_16g"),
@@ -136,15 +136,17 @@ pub enum Selection {
     PassThrough(String),
 }
 
-/// Pick a size. `explicit` is `--model`, `--base` or `VOX_MENS_DEFAULT_MODEL`.
+/// Pick a size from the `tag` ladder in `train_bases`. `explicit` is `--model`,
+/// `--base` or `VOX_MENS_DEFAULT_MODEL`.
 #[inline(never)]
-pub fn select_size(
+pub fn select_size_for_tag(
     overlay: &HashMap<String, Vec<TrainBase>>,
+    tag: &str,
     free: Option<&FreeMemory>,
     explicit: Option<&str>,
     force: bool,
 ) -> anyhow::Result<Selection> {
-    let ladder = size_ladder(overlay)?;
+    let ladder = size_ladder_for_tag(overlay, tag)?;
     if let Some(req) = explicit {
         return match resolve_base_pin(req, overlay) {
             // Matched by repo id: another revision of a size keeps its revision
@@ -173,7 +175,7 @@ pub fn select_size(
     let Some(free) = free else {
         bail!("{NO_READING}")
     };
-    let rung = largest_fit(&ladder, free)?;
+    let rung = largest_fit(&ladder, free, tag)?;
     let note = format!(
         "picked {}: largest size whose floor {} MB fits {} MB free ({})",
         rung.size, rung.floor_mb, free.mb, free.source
@@ -185,13 +187,26 @@ pub fn select_size(
     }))
 }
 
-/// Re-check a pick right before download or load (D-05). An automatic pick that
-/// still fits is kept (never stepped up); one that no longer fits steps down to
-/// the largest size that does, with a note saying why. An explicit size is
-/// re-judged as explicit: refused (never stepped down) when it no longer fits.
-pub fn recheck_before_load(
+/// Pick a size from `qwen3_code`. `explicit` is `--model`, `--base` or `VOX_MENS_DEFAULT_MODEL`.
+#[inline(never)]
+pub fn select_size(
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    free: Option<&FreeMemory>,
+    explicit: Option<&str>,
+    force: bool,
+) -> anyhow::Result<Selection> {
+    select_size_for_tag(overlay, "qwen3_code", free, explicit, force)
+}
+
+/// Re-check a pick right before download or load (D-05) against `tag`'s ladder.
+/// An automatic pick that still fits is kept (never stepped up); one that no
+/// longer fits steps down to the largest size that does, with a note saying why.
+/// An explicit size is re-judged as explicit: refused (never stepped down) when
+/// it no longer fits.
+pub fn recheck_before_load_for_tag(
     pick: SizePick,
     overlay: &HashMap<String, Vec<TrainBase>>,
+    tag: &str,
     free_now: Option<&FreeMemory>,
     force: bool,
 ) -> anyhow::Result<SizePick> {
@@ -209,8 +224,8 @@ pub fn recheck_before_load(
         );
         return Ok(SizePick { note, ..pick });
     }
-    let ladder = size_ladder(overlay)?;
-    let rung = largest_fit(&ladder, free)?;
+    let ladder = size_ladder_for_tag(overlay, tag)?;
+    let rung = largest_fit(&ladder, free, tag)?;
     let old = &pick.rung;
     let note = format!(
         "stepped down from {} to {}: free memory fell to {} MB ({}); {} needs {} MB",
@@ -221,6 +236,19 @@ pub fn recheck_before_load(
         explicit: false,
         note,
     })
+}
+
+/// Re-check a pick right before download or load (D-05). An automatic pick that
+/// still fits is kept (never stepped up); one that no longer fits steps down to
+/// the largest size that does, with a note saying why. An explicit size is
+/// re-judged as explicit: refused (never stepped down) when it no longer fits.
+pub fn recheck_before_load(
+    pick: SizePick,
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    free_now: Option<&FreeMemory>,
+    force: bool,
+) -> anyhow::Result<SizePick> {
+    recheck_before_load_for_tag(pick, overlay, "qwen3_code", free_now, force)
 }
 
 /// The pin for a requested base. A `repo@<40 hex>` pin passes through; a size name (`Qwen3-8B`) or bare repo id
@@ -274,11 +302,36 @@ pub fn load_ladder_overlay(
     }
 }
 
-/// The `qwen3_code` QLoRA rungs in floor order, each with its preset. A size
-/// without a preset fails closed.
-fn size_ladder(overlay: &HashMap<String, Vec<TrainBase>>) -> anyhow::Result<Vec<SizeRung>> {
-    let Some(rungs) = overlay.get("qwen3_code") else {
-        bail!("gpu-specs.yaml train_bases has no qwen3_code ladder");
+fn preset_for_ladder_repo_name(name: &str) -> Option<(&'static str, &'static str)> {
+    if let Some(size) = name.strip_prefix("Qwen3.8-") {
+        return match size {
+            "27B" => Some(("27B", "qwen38_27b")),
+            _ => None,
+        };
+    }
+    if let Some(size) = name.strip_prefix("Qwen3.5-") {
+        return match size {
+            "0.8B" => Some(("0.8B", "qwen35_0_8b")),
+            "2B" => Some(("2B", "qwen35_2b")),
+            "4B" => Some(("4B", "qwen35_4b")),
+            "9B" => Some(("9B", "qwen35_9b")),
+            _ => None,
+        };
+    }
+    if let Some(size) = name.strip_prefix("Qwen3-") {
+        return SIZE_PRESETS.iter().copied().find(|(s, _)| *s == size);
+    }
+    None
+}
+
+/// The `tag` QLoRA rungs in floor order, each with its preset. A size without a
+/// preset fails closed.
+pub fn size_ladder_for_tag(
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    tag: &str,
+) -> anyhow::Result<Vec<SizeRung>> {
+    let Some(rungs) = overlay.get(tag) else {
+        bail!("gpu-specs.yaml train_bases has no {tag} ladder");
     };
     let mut ladder = Vec::new();
     for b in rungs
@@ -287,9 +340,13 @@ fn size_ladder(overlay: &HashMap<String, Vec<TrainBase>>) -> anyhow::Result<Vec<
     {
         let repo = split_pin(&b.hf_id).0;
         let name = repo.rsplit('/').next().unwrap_or(repo);
-        let size = name.strip_prefix("Qwen3-").unwrap_or(name);
-        let Some(&(_, preset)) = SIZE_PRESETS.iter().find(|(s, _)| *s == size) else {
-            bail!("qwen3_code rung {} has no preset for size {size}", b.hf_id);
+        let Some((size, preset)) = preset_for_ladder_repo_name(name) else {
+            let size = name
+                .strip_prefix("Qwen3.8-")
+                .or_else(|| name.strip_prefix("Qwen3.5-"))
+                .or_else(|| name.strip_prefix("Qwen3-"))
+                .unwrap_or(name);
+            bail!("{tag} rung {} has no preset for size {size}", b.hf_id);
         };
         ladder.push(SizeRung {
             size: size.to_string(),
@@ -300,6 +357,13 @@ fn size_ladder(overlay: &HashMap<String, Vec<TrainBase>>) -> anyhow::Result<Vec<
     }
     ladder.sort_by_key(|r| r.floor_mb);
     Ok(ladder)
+}
+
+/// The `qwen3_code` QLoRA rungs in floor order, each with its preset. A size
+/// without a preset fails closed.
+#[cfg(test)]
+fn size_ladder(overlay: &HashMap<String, Vec<TrainBase>>) -> anyhow::Result<Vec<SizeRung>> {
+    size_ladder_for_tag(overlay, "qwen3_code")
 }
 
 fn fits(rung: &SizeRung, free: &FreeMemory) -> bool {
@@ -360,25 +424,32 @@ fn split_pin(pin: &str) -> (&str, Option<&str>) {
     (repo, rev.filter(hex))
 }
 
-/// Shaped like a ladder size: `Qwen3-<n>B`, optionally `owner/` and `@rev`.
+/// Shaped like a ladder size: `Qwen3-<n>B`, `Qwen3.5-<n>B`, or `Qwen3.8-<n>B`, optionally `owner/` and `@rev`.
 fn names_a_ladder_size(req: &str) -> bool {
     let repo = req.split('@').next().unwrap_or(req);
     let name = repo.rsplit(['/', '\\']).next().unwrap_or(repo);
-    name.strip_prefix("Qwen3-")
+    name.strip_prefix("Qwen3.8-")
+        .or_else(|| name.strip_prefix("Qwen3.5-"))
+        .or_else(|| name.strip_prefix("Qwen3-"))
         .and_then(|s| s.strip_suffix(['B', 'b']))
         .is_some_and(|n| n.parse::<f64>().is_ok())
 }
 
 /// The largest rung that fits, or an error naming the smallest floor.
-fn largest_fit<'a>(ladder: &'a [SizeRung], free: &FreeMemory) -> anyhow::Result<&'a SizeRung> {
+fn largest_fit<'a>(
+    ladder: &'a [SizeRung],
+    free: &FreeMemory,
+    tag: &str,
+) -> anyhow::Result<&'a SizeRung> {
     if let Some(rung) = ladder.iter().rev().find(|r| fits(r, free)) {
         return Ok(rung);
     }
     let Some(smallest) = ladder.first() else {
-        bail!("gpu-specs.yaml qwen3_code has no QLoRA rung");
+        bail!("gpu-specs.yaml {tag} has no QLoRA rung");
     };
+    let family = if tag == "qwen3_code" { "Qwen3" } else { tag };
     bail!(
-        "no Qwen3 size fits: the smallest ({}) needs {} MB, {} MB free ({})",
+        "no {family} size fits: the smallest ({}) needs {} MB, {} MB free ({})",
         smallest.size,
         smallest.floor_mb,
         free.mb,
@@ -520,7 +591,7 @@ mod tests {
         assert_eq!(
             presets,
             [
-                "qwen3_dev_cpu",
+                "qwen3_0_6b",
                 "qwen3_6g",
                 "qwen3_12g",
                 "qwen3_16g",
@@ -898,5 +969,243 @@ mod tests {
         let forced = recheck(pick, Some(13_000), true).expect("forced");
         assert_eq!(forced.rung.size, "14B");
         assert!(forced.explicit);
+    }
+
+    #[test]
+    fn qwen35_and_qwen38_rungs_map_to_dedicated_presets() {
+        let mut overlay = HashMap::new();
+        overlay.insert(
+            "qwen3_code".to_string(),
+            vec![
+                rung(
+                    "Qwen/Qwen3.5-2B@0123456789abcdef0123456789abcdef01234567",
+                    6_000,
+                ),
+                rung(
+                    "Qwen/Qwen3.5-4B@1123456789abcdef0123456789abcdef01234567",
+                    10_000,
+                ),
+                rung(
+                    "Qwen/Qwen3.5-9B@2123456789abcdef0123456789abcdef01234567",
+                    18_000,
+                ),
+                rung(
+                    "Qwen/Qwen3.8-27B@3123456789abcdef0123456789abcdef01234567",
+                    48_000,
+                ),
+            ],
+        );
+        let ladder = size_ladder(&overlay).expect("qwen3.5/3.8 overlay maps cleanly");
+        let presets: Vec<&str> = ladder.iter().map(|r| r.preset).collect();
+        assert_eq!(
+            presets,
+            ["qwen35_2b", "qwen35_4b", "qwen35_9b", "qwen38_27b"]
+        );
+        for p in presets {
+            assert!(
+                crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS.contains(&p),
+                "{p} must be in KNOWN_PRESETS"
+            );
+        }
+        assert!(names_a_ladder_size("Qwen/Qwen3.5-9B"));
+        assert!(names_a_ladder_size("Qwen3.8-27B"));
+    }
+
+    #[test]
+    fn qwen35_code_ladder_returns_rungs_in_floor_order() {
+        let overlay = repo_overlay();
+        let ladder = size_ladder_for_tag(&overlay, "qwen3_5_code").expect("qwen3_5_code ladder");
+        let sizes: Vec<&str> = ladder.iter().map(|r| r.size.as_str()).collect();
+        assert_eq!(sizes, ["0.8B", "2B", "4B", "9B", "27B"]);
+        let presets: Vec<&str> = ladder.iter().map(|r| r.preset).collect();
+        assert_eq!(
+            presets,
+            [
+                "qwen35_0_8b",
+                "qwen35_2b",
+                "qwen35_4b",
+                "qwen35_9b",
+                "qwen38_27b"
+            ]
+        );
+        assert!(
+            ladder.windows(2).all(|w| w[0].floor_mb <= w[1].floor_mb),
+            "floors must be ascending: {ladder:?}"
+        );
+        let pins: Vec<&str> = ladder.iter().map(|r| r.hf_id.as_str()).collect();
+        assert_eq!(
+            pins,
+            [
+                "Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17",
+                "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
+                "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+                "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+                "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+            ]
+        );
+        for preset in presets {
+            assert!(
+                crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS.contains(&preset),
+                "{preset}"
+            );
+        }
+        let missing = format!(
+            "{:#}",
+            size_ladder_for_tag(&overlay, "missing_tag").expect_err("unknown tag")
+        );
+        assert!(missing.contains("missing_tag"), "{missing}");
+    }
+
+    #[test]
+    fn select_size_for_tag_qwen35_code_auto_picks_by_vram() {
+        let overlay = repo_overlay();
+        let ladder = size_ladder_for_tag(&overlay, "qwen3_5_code").expect("ladder");
+        let floor_of = |sz: &str| {
+            ladder
+                .iter()
+                .find(|r| r.size == sz)
+                .unwrap_or_else(|| panic!("missing rung {sz}"))
+                .floor_mb
+        };
+
+        let pick_100g = sized(
+            select_size_for_tag(&overlay, "qwen3_5_code", Some(&free(100_000)), None, false)
+                .expect("100_000 MB fits 27B"),
+        );
+        assert_eq!(pick_100g.rung.size, "27B");
+        assert_eq!(pick_100g.rung.preset, "qwen38_27b");
+        assert!(!pick_100g.explicit);
+
+        for (mb, expected_size, expected_preset) in [
+            (u64::from(floor_of("9B")), "9B", "qwen35_9b"),
+            (u64::from(floor_of("4B")), "4B", "qwen35_4b"),
+            (u64::from(floor_of("2B")), "2B", "qwen35_2b"),
+        ] {
+            let pick = sized(
+                select_size_for_tag(&overlay, "qwen3_5_code", Some(&free(mb)), None, false)
+                    .expect("fitting rung"),
+            );
+            assert_eq!(pick.rung.size, expected_size, "{mb} MB");
+            assert_eq!(pick.rung.preset, expected_preset, "{mb} MB");
+            assert!(!pick.explicit);
+        }
+
+        // Current uncalibrated 2B floor in mens/config/gpu-specs.yaml is 24_000 MB, so
+        // 20_000 MB refuses cleanly; if calibrated <= 20_000 MB, it must pick a smaller rung.
+        if u64::from(floor_of("2B")) > 20_000 {
+            let msg = format!(
+                "{:#}",
+                select_size_for_tag(&overlay, "qwen3_5_code", Some(&free(20_000)), None, false)
+                    .expect_err("20_000 MB is below current 2B floor")
+            );
+            assert!(msg.contains("qwen3_5_code") && msg.contains("2B"), "{msg}");
+        } else {
+            let pick_20g = sized(
+                select_size_for_tag(&overlay, "qwen3_5_code", Some(&free(20_000)), None, false)
+                    .expect("20_000 MB fits a smaller rung"),
+            );
+            assert!(
+                matches!(pick_20g.rung.size.as_str(), "2B" | "4B" | "9B"),
+                "{pick_20g:?}"
+            );
+        }
+
+        // Recheck against qwen3_5_code steps down cleanly when free memory falls.
+        let down = recheck_before_load_for_tag(
+            pick_100g,
+            &overlay,
+            "qwen3_5_code",
+            Some(&free(u64::from(floor_of("4B")))),
+            false,
+        )
+        .expect("4B still fits");
+        assert_eq!(down.rung.size, "4B");
+        assert_eq!(down.rung.preset, "qwen35_4b");
+    }
+
+    #[test]
+    fn select_size_for_tag_qwen35_code_resolves_explicit_models() {
+        let overlay = repo_overlay();
+        for req in ["Qwen3.5-4B", "Qwen/Qwen3.5-4B"] {
+            let pick = sized(
+                select_size_for_tag(
+                    &overlay,
+                    "qwen3_5_code",
+                    Some(&free(100_000)),
+                    Some(req),
+                    false,
+                )
+                .expect(req),
+            );
+            assert!(pick.explicit, "{req}");
+            assert_eq!(pick.rung.size, "4B", "{req}");
+            assert_eq!(pick.rung.preset, "qwen35_4b", "{req}");
+            assert_eq!(
+                pick.rung.hf_id, "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+                "{req}"
+            );
+        }
+
+        for req in ["Qwen3.8-27B", "Qwen/Qwen3.8-27B"] {
+            let pick = sized(
+                select_size_for_tag(
+                    &overlay,
+                    "qwen3_5_code",
+                    Some(&free(100_000)),
+                    Some(req),
+                    false,
+                )
+                .expect(req),
+            );
+            assert!(pick.explicit, "{req}");
+            assert_eq!(pick.rung.size, "27B", "{req}");
+            assert_eq!(pick.rung.preset, "qwen38_27b", "{req}");
+            assert_eq!(
+                pick.rung.hf_id, "Qwen/Qwen3.8-27B@37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+                "{req}"
+            );
+        }
+
+        let refused = format!(
+            "{:#}",
+            select_size_for_tag(
+                &overlay,
+                "qwen3_5_code",
+                Some(&free(20_000)),
+                Some("Qwen3.8-27B"),
+                false,
+            )
+            .expect_err("27B does not fit 20_000 MB")
+        );
+        assert!(
+            refused.contains("27B") && refused.contains("refusing"),
+            "{refused}"
+        );
+
+        let forced = sized(
+            select_size_for_tag(
+                &overlay,
+                "qwen3_5_code",
+                Some(&free(20_000)),
+                Some("Qwen3.8-27B"),
+                true,
+            )
+            .expect("forced 27B"),
+        );
+        assert_eq!(forced.rung.size, "27B");
+        assert_eq!(forced.rung.preset, "qwen38_27b");
+
+        // Confirm Qwen3-4B (qwen3_code) does not collide with Qwen3.5-4B (qwen3_5_code).
+        let q3_4b = sized(
+            select_size(
+                &overlay,
+                Some(&free(u64::from(floor("4B")))),
+                Some("Qwen3-4B"),
+                false,
+            )
+            .expect("Qwen3-4B resolves cleanly"),
+        );
+        assert_eq!(q3_4b.rung.hf_id, PIN_4B);
+        assert_eq!(q3_4b.rung.preset, "qwen3_12g");
     }
 }

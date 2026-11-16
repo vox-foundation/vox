@@ -147,7 +147,8 @@ describe('ModelsView routing panel', () => {
   it('changing the mode asks routing again for that mode', async () => {
     render(<ModelsView pushToast={vi.fn()} />);
     await screen.findByTestId('routing-explainer');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Routing mode' }), { target: { value: 'genius' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Routing mode' }));
+    fireEvent.click(screen.getByRole('option', { name: /genius/i }));
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith('explain_routing', { mode: 'genius', task: 'codegen', complexity: 7 }),
     );

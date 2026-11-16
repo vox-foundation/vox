@@ -73,7 +73,8 @@ const CACHE_MAGIC: &[u8; 8] = b"VOXDRIFT";
 /// Bump on any change to the on-disk shape of `ExtractedFeatures`:
 /// - 1: initial format
 /// - 2 (2026-05-28): NumericLoc.in_const + ExtractedFeatures.allowed_lines
-const CACHE_VERSION: u8 = 2;
+/// - 3 (2026-11-12): RustExtractor skips #[doc] attrs and tags #[cfg(test)] / #[test] as LiteralContext::Test
+const CACHE_VERSION: u8 = 3;
 
 #[cfg(test)]
 mod tests {

@@ -59,6 +59,7 @@ pub mod ops_exec_time;
 mod ops_external_intelligence;
 mod ops_external_review;
 mod ops_finding_candidates;
+mod ops_gsd;
 mod ops_harness_decisions;
 mod ops_harness_fix_proposals;
 mod ops_harness_issues;

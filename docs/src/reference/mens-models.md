@@ -17,13 +17,13 @@ This page holds every explanation that the MENS model cards on Hugging Face shar
 
 ## What MENS is
 
-MENS is the Vox project's own adapter ladder. Each rung is one size of a pinned Qwen3 base model plus a small LoRA adapter trained on Vox source.
+MENS is the Vox project's own multi-family adapter ladder. The active Nov 2026 ladder spans five rungs across `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`, and `Qwen3.8-27B` (with earlier `Qwen3` 3.0 models retained strictly as legacy fallback if needed), sized up to 128 GB Apple Silicon unified-memory workstations, with each rung adding a small QLoRA adapter trained on Vox source.
 
-The base weights are never changed. An adapter is a separate file that is applied on top of the pinned base at load time.
+The base weights are never changed. An adapter is a separate file that is applied on top of the pinned base at load time, or merged into a standalone BF16 CausalLM checkpoint once all release gates pass.
 
 The ladder exists to answer one question per size: does the adapter write better Vox than the base model it sits on? Every adapter is therefore scored against its own base on the same held-out items, with the same prompt and the same decode settings.
 
-Each size has its own repository on the Hugging Face Hub. A separate index repository, `vox-mens-index`, lists the sizes and is the only place that shows all of them together. The Hub namespace is set by the `VOX_MENS_HF_NAMESPACE` environment variable.
+Each rung has its own repository on the Hugging Face Hub (`vox-mens-qwen3.5-0.8b`, `vox-mens-qwen3.5-2b`, `vox-mens-qwen3.5-4b`, `vox-mens-qwen3.5-9b`, `vox-mens-qwen3.8-27b`). A separate index repository, `vox-mens-index`, lists every rung together, and `vox-mens-playground` provides the live Space. The Hub namespace is set by the `VOX_MENS_HF_NAMESPACE` environment variable.
 
 ## Hub and spoke
 
@@ -33,7 +33,7 @@ The hub is the pinned base model of one size. A spoke is an adapter trained for 
 graph {
     direction: right
 
-    node base: "Pinned Qwen3 base model, one repo per size"
+    node base: "Pinned Qwen3 / Qwen3.5 / Qwen3.8 base model, one repo per rung"
     node harness: "Harness: gates, eval and prompt protocol"
 
     container spokes: "Spoke adapters" {
@@ -155,13 +155,13 @@ The serving-path rule from [Held-out pass rate](#held-out-pass-rate) applies her
 
 ## Prompt protocol and training method
 
-The held-out evaluation uses the prompt protocol `qwen3_non_thinking_codegen_v1`. It is the Qwen3 non-thinking prefix that training supervises: a `/no_think` marker on the user turn and a prefilled empty think block. The checkpoint header and the report both record the protocol name.
+The held-out evaluation uses the prompt protocol `qwen3_non_thinking_codegen_v1`. On `Qwen3` bases (`0.6B` and legacy rungs), training and evaluation use the `/no_think` marker on the user turn and a prefilled empty think block; on `Qwen3.5` (`2B`, `4B`, `9B`) and `Qwen3.8` (`27B`), Hugging Face tokenizers also support `enable_thinking=False` in `apply_chat_template`. The checkpoint header and the report both record the protocol name.
 
 The user turn is `Write a Vox program that: <description>`, where the description comes from the bench item. Decoding is greedy: temperature 0, one sample per item.
 
 ### Shared training settings
 
-All trained sizes use the same method: QLoRA through the `candle_qlora` kernel. They share the training data file, whose hash is recorded as `train_data_sha256` in `adapter_card.json`. They share the seed, the sequence length and the epoch count, recorded in `adapter_card.json` (`seed`), `train-record.json` (`seq_len`, `epochs`) and `training_manifest.json`.
+All trained sizes use the same method: QLoRA through the `candle_qlora` kernel (including native BF16 `Qwen3_5ForCausalLM` and Qwen3.8 support). They share the training data file, whose hash is recorded as `train_data_sha256` in `adapter_card.json`. They share the seed, the sequence length and the epoch count, recorded in `adapter_card.json` (`seed`), `train-record.json` (`seq_len`, `epochs`) and `training_manifest.json`.
 
 The LoRA rank and alpha are recorded per run in `adapter_card.json` (`lora_rank`, `lora_alpha`) and in `training_manifest.json` (`rank`, `alpha`). The preset is recorded in `train-record.json` as `preset` and differs by size, as the preset follows the memory tier the size trains on. Fields that differ between sizes are stated on that size's card, not here.
 
@@ -169,13 +169,13 @@ The data contract is in [Mens training data contract](mens-training-data-contrac
 
 ### Why PEFT cannot load the adapters
 
-The adapter file `candle_qlora_adapter.safetensors` uses Candle key names. For each of the `q`, `k`, `v`, `o`, `gate`, `up` and `down` projections in every layer, it holds a pair of tensors named like `l{n}.q.lora_a.weight` and `l{n}.q.lora_b.weight`, plus one `lm_head` pair.
+The raw Candle adapter file `candle_qlora_adapter.safetensors` uses Candle key names (`l{n}.q.lora_a.weight` and `l{n}.q.lora_b.weight`, plus `lm_head`). `PeftModel.from_pretrained` cannot load that raw file directly because it expects HF PEFT keys and `adapter_config.json`.
 
-The repository ships no `adapter_config.json`. `PeftModel.from_pretrained` needs that file and PEFT's own key names, so it cannot load these adapters. The `transformers` library cannot load them either. Use the Vox CLI, which serves them as described in [Mens local serving SSOT](mens-serving-ssot.md).
+To bridge both ecosystems cleanly, `vox mens hub sync` performs a zero-allocation header rewrite of the Candle weights into standard HF PEFT files (`adapter_model.safetensors` + `adapter_config.json`) under `peft/` alongside complete merged CausalLM checkpoints (`model.safetensors` / shards, tokenizer, `chat_template.jinja`) or at repo root for adapter-only pushes. Complete gated checkpoints set `library_name: transformers` and serve via Hugging Face Inference Router (`:auto` / `:featherless-ai`), `transformers`, `vLLM`, `PEFT`, `Ollama`, and `vox mens serve` (see [Mens local serving SSOT](mens-serving-ssot.md)).
 
 ## How the cards are made
 
-Cards are generated from the run records by `vox mens hub sync`. The renderer reads the records, builds one facts object per size, and fills one template. All wording is in the templates and in `mens/config/hub-cards.yaml`. The 32B card is the exception: it is hand-written, and the generator does not touch it.
+Cards are generated from the run records by `vox mens hub sync`. The renderer reads the records, builds one facts object per rung, and fills one Askama template (for example "assets/banner.jpg" per rung and "assets/overview.jpg" on `vox-mens-index`). All wording is in the templates and in `mens/config/hub-cards.yaml`. Every ladder card, from 0.6B through 27B, is generated from that size's run records by the same template, alongside `.eval_results/vox_mens_eval.yaml` and `external_serving_handoff_v1.json`.
 
 Each fact is stated once. A model card states its own state and never another size's. The index grid is the only place that lists every size's state.
 
@@ -198,6 +198,51 @@ A lint enforces that no sentence is repeated across cards. This is the rule it i
 **The failure.** Any sentence of four or more words that occurs twice in the set fails the build. It fails whether the two occurrences are on two cards or twice on one card.
 
 Two consequences follow. A sentence that a template repeats for each size must name that size, because numbers alone can coincide. The per-size blurbs in `hub-cards.yaml` must differ sentence by sentence. Section headings on model cards are at most three words, so they never count as sentences, and the title names the size.
+
+## Vox and Python bindings
+
+Every published Vox MENS model card includes copy-pasteable starter examples for both Vox/Rust developers and Python developers.
+
+**First Vox program.** Vox lets you define data models, database queries, mutations, and helper functions in one compiler-checked `.vox` file:
+
+```vox
+table Note {
+    title: str
+    done: bool
+}
+
+query list_notes() to Result[list[Note], str] {
+    return db.Note.all()
+}
+
+mutation add_note(title: str) to Result[int, str] {
+    return db.Note.insert({ title: title, done: false })
+}
+
+fn format_status(done: bool) to str {
+    if done { return "done" }
+    return "open"
+}
+```
+
+Check and execute your file locally while iterating with a MENS model:
+
+```bash
+vox check main.vox
+vox run --interp main.vox
+vox llm prompt "Add a query to count open Note records"
+```
+
+**Vox and Rust runtime routing.** All workspace and runtime LLM calls go through the model-agnostic `vox_actor_runtime::llm::llm_chat` boundary rather than hardcoding vendor hostnames:
+
+- **Cloud Inference (Hugging Face Router):** Set `HF_TOKEN` and `HF_CHAT_MODEL` (for example `vox-foundation/vox-mens-qwen3.5-4b:auto`), or resolve a route with `vox_actor_runtime::inference_env::resolve_huggingface_router`.
+- **Local MENS serving:** Start `vox mens serve` locally (`http://127.0.0.1:11435`) and point `VOX_POPULI_LOCAL_OLLAMA_URL` (`POPULI_URL` / `OLLAMA_URL`) at it via `resolve_chat_provider_route` and `chat_route_to_llm_config`.
+
+**Python bindings and OpenAPI SDK generation.** Use MENS models from Python in three standard ways:
+
+1. **OpenAI-compatible Python SDK** pointing either at Hugging Face Inference Providers (`https://router.huggingface.co/v1` with `HF_TOKEN` and `:auto` / `:featherless-ai`) or your local `vox mens serve` endpoint (`http://127.0.0.1:11435/v1`).
+2. **Direct Hugging Face `transformers` + `peft`** loading either merged model weights or exported PEFT LoRA adapters under the `peft/` bundle directory.
+3. **Vox-managed Python environments (`[python]` in `Vox.toml`)**: declare `version` and `packages` in `Vox.toml` and run `vox py sync`, `vox py doctor`, and `vox py bind <module>` (legacy Python decorator imports are retired). For typed Python API clients, run `vox emit openapi src/main.vox --out dist/openapi.json` followed by `openapi-python-client generate --path dist/openapi.json`.
 
 ## Links
 

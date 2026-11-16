@@ -192,9 +192,11 @@ fn sections_in_spec_order() {
         assert_eq!(
             h2,
             [
+                "What it does",
                 "Why this size",
                 "Examples",
                 "Use it",
+                "Vox and Python",
                 "Results",
                 "Training",
                 "Files"
@@ -218,11 +220,16 @@ fn removed_sections_are_gone() {
             "## What this is",
             "## Other sizes",
             "## Links",
-            "PeftModel",
-            "transformers / PEFT",
+            ".svg",
+            "scorecard.svg",
+            "overview.svg",
         ] {
             assert!(!card.contains(gone), "{name}: still has `{gone}`");
         }
+        assert!(
+            card.contains("assets/banner.jpg"),
+            "{name}: missing assets/banner.jpg"
+        );
     }
 }
 
@@ -260,13 +267,13 @@ fn trained_and_spoke_stated_once() {
 #[test]
 fn not_trained_card_states_only_the_trained_fact() {
     let card = render_case(&NOT_TRAINED);
-    let reason = read_json("cases/states.json")["not_trained_32b"]["train-record.json"]["reason"]
+    let reason = read_json("cases/states.json")["not_trained_27b"]["train-record.json"]["reason"]
         .as_str()
         .unwrap()
         .to_string();
     let status = status_line(&card);
     assert_eq!(count_word(&status, "not trained"), 1, "{status}");
-    assert!(status.starts_with("32B is "), "{status}");
+    assert!(status.starts_with("27B is "), "{status}");
     assert!(status.contains(&format!("“{reason}”")), "{status}");
     for label in all_labels() {
         assert_eq!(count_word(&card, label), 0, "{label}: {card}");
@@ -286,8 +293,9 @@ fn not_trained_card_states_only_the_trained_fact() {
         .into_iter()
         .filter_map(|l| l.strip_prefix("## "))
         .collect();
-    assert_eq!(h2, ["Why this size"], "{card}");
+    assert_eq!(h2, ["What it does", "Why this size"], "{card}");
     assert!(!frontmatter(&card).contains("model-index"));
+    assert!(frontmatter(&card).contains("library_name: vox"), "{card}");
 }
 
 #[test]
@@ -301,7 +309,7 @@ fn failed_card_quotes_the_refusal() {
     let card = render_case(&FAILED);
     let status = status_line(&card);
     assert!(
-        status.contains(&format!("refused 0.6B: “{refusal}”")),
+        status.contains(&format!("refused 0.8B: “{refusal}”")),
         "{status}"
     );
     assert_eq!(card.matches(&refusal).count(), 1, "{card}");
@@ -323,7 +331,7 @@ fn not_evaluated_card_names_the_missing_records() {
     );
     let status = status_line(&render_case(&NOT_EVALUATED));
     assert!(
-        status.contains("the records that decide 14B are missing"),
+        status.contains("the records that decide 9B are missing"),
         "{status}"
     );
     for n in names {
@@ -394,7 +402,7 @@ fn stale_serving_card_omits_adapter_score() {
     assert!(stale.contains(&base_cell));
     assert_eq!(
         stale
-            .matches("The adapter score for 1.7B is not shown")
+            .matches("The adapter score for 2B is not shown")
             .count(),
         1
     );
@@ -447,6 +455,7 @@ fn frontmatter_is_valid_hub_metadata() {
             "license",
             "library_name",
             "pipeline_tag",
+            "spaces",
             "tags",
             "language",
         ] {
@@ -454,6 +463,7 @@ fn frontmatter_is_valid_hub_metadata() {
         }
         assert!(!fm["base_model"].as_str().unwrap().contains('@'), "{name}");
         assert_eq!(fm["base_model_relation"].as_str(), Some("adapter"));
+        assert_eq!(fm["library_name"].as_str(), Some("peft"), "{name}");
         assert_eq!(fm["base_model_revision"].as_str().map(str::len), Some(40));
         let tags: Vec<&str> = fm["tags"]
             .as_sequence()
@@ -492,7 +502,7 @@ fn passed_card_shows_slice_rows() {
             .lines()
             .find(|l| l.starts_with(&format!("| {name}, ")))
             .unwrap_or_else(|| panic!("no Results row for {name}\n{card}"));
-        assert!(row.contains("1.7B"), "{row}");
+        assert!(row.contains("2B"), "{row}");
         for part in [
             format!("{} items", m["n"].as_u64().unwrap()),
             format!(
@@ -529,8 +539,8 @@ fn no_stale_numbers_without_current_rule() {
     );
     let card = crate::mens::hub_card::render_model_card(&cx_for(&PASSED), &rec);
 
-    // The retired-rule report of the 1.7B fixture: its slice names and accuracies stay off the card.
-    let old = &read_json("cases/1_7b.json")["needs_re_gate_1_7b"]["collateral_damage_report.json"];
+    // The retired-rule report of the 2B fixture: its slice names and accuracies stay off the card.
+    let old = &read_json("cases/states.json")["needs_re_gate_2b"]["collateral_damage_report.json"];
     let mut forbidden: Vec<String> = SLICE_NAMES.iter().map(|s| s.to_string()).collect();
     for r in old["reports"].as_array().unwrap() {
         forbidden.push(r["benchmark"].as_str().unwrap().to_string());
@@ -577,7 +587,7 @@ fn invalid_protocol_report_shows_no_heldout_numbers() {
     assert!(facts.heldout.is_none());
     let card = crate::mens::hub_card::render_model_card(&cx_for(&case), &rec);
     assert!(
-        card.contains("No held-out report under the current prompt protocol `qwen3_non_thinking_codegen_v1` exists for 1.7B"),
+        card.contains("No held-out report under the current prompt protocol `qwen3_non_thinking_codegen_v1` exists for 2B"),
         "{card}"
     );
     for number in ["87.5%", "7/8", "0.8750", "type: pass@1"] {
@@ -585,4 +595,43 @@ fn invalid_protocol_report_shows_no_heldout_numbers() {
     }
     // A current report: no such sentence.
     assert!(!render_case(&NEEDS_RE_GATE).contains("No held-out report"));
+}
+
+#[test]
+fn missing_ema_wall_or_peak_renders_clean_english_without_not_recorded_stubs() {
+    let rec = load(&PASSED, |run| {
+        for name in ["train-record.json", "run_summary.json"] {
+            let p = run.join(name);
+            let mut v: Value = serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
+            if let Some(obj) = v.as_object_mut() {
+                for key in [
+                    "final_loss_ema",
+                    "train_wall_secs",
+                    "total_wall_secs",
+                    "wall_secs",
+                    "peak_mb",
+                    "peak_metal_allocated_bytes",
+                ] {
+                    obj.remove(key);
+                }
+            }
+            std::fs::write(&p, serde_json::to_string_pretty(&v).unwrap()).unwrap();
+        }
+    });
+    let card = crate::mens::hub_card::render_model_card(&cx_for(&PASSED), &rec);
+    for bad in [
+        "of not recorded",
+        "took not recorded",
+        "peaked at not recorded",
+    ] {
+        assert!(!card.contains(bad), "found broken stub `{bad}` in:\n{card}");
+    }
+    assert!(
+        card.contains("ended with a mean train loss of"),
+        "expected clean mean-train-loss fallback:\n{card}"
+    );
+    assert!(
+        card.contains("had wall time and peak memory unrecorded"),
+        "expected clean wall/peak fallback:\n{card}"
+    );
 }

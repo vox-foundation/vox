@@ -1,4 +1,5 @@
 #![allow(missing_docs)]
+#![cfg(feature = "runtime")]
 //! T4.2 acceptance test: context management = recover + wire, not build.
 //!
 //! Drives a session's conversation history over the `CompactionEngine`

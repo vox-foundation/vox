@@ -258,6 +258,18 @@ pub enum PopuliAction {
         /// Disable automatic Hugging Face Hub adapter publish after gated training (`VOX_MENS_HF_SYNC=0` equivalent).
         #[arg(long, default_value_t = false)]
         no_hf_sync: bool,
+        /// Exclude `lm_head` from trainable LoRA adapters (protects tied-embedding representations).
+        #[arg(long, default_value_t = false)]
+        lora_exclude_lm_head: bool,
+        /// Enable rank-stabilized LoRA (`rsLoRA`: `alpha / sqrt(rank)` scaling).
+        #[arg(long, default_value_t = false)]
+        use_rslora: bool,
+        /// Normalize backward loss by supervised token count across each `grad_accum` window.
+        #[arg(long, default_value_t = false)]
+        token_normalized_grad_accum: bool,
+        /// Enable document-masked sequence packing with per-document RoPE position reset.
+        #[arg(long, default_value_t = false)]
+        sequence_packing: bool,
     },
 
     #[cfg(not(feature = "gpu"))]

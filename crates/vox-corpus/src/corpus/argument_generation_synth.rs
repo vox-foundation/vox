@@ -4,6 +4,7 @@
 //! given a task description and the tool's JSON Schema. Schema validation is
 //! performed inline (draft-07 subset: required fields, type checks).
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ArgGenRow {
     pub task: String,
     pub tool_name: String,
@@ -228,6 +229,14 @@ pub fn generate_argument_generation_rows(n: usize) -> Vec<ArgGenRow> {
     rows
 }
 
+/// Write synthesized argument-generation rows to a JSONL file, creating parent directories if needed.
+pub fn write_argument_generation_jsonl(
+    rows: &[ArgGenRow],
+    output_path: &std::path::Path,
+) -> anyhow::Result<usize> {
+    crate::corpus::tool_selection_synth::write_jsonl_rows(rows, output_path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,5 +267,35 @@ mod tests {
             })
             .count();
         assert!(complex > 0, "need rows with multi-field schemas");
+    }
+
+    #[test]
+    fn zero_leakage_against_agent_episodes_eval() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let eval_path = root.join("mens/data/agent_episodes/episodes.v1.jsonl");
+        let raw = std::fs::read_to_string(&eval_path).expect("read episodes.v1.jsonl");
+        let held_out: std::collections::HashSet<String> = raw
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .filter_map(|l| {
+                let v: serde_json::Value = serde_json::from_str(l).ok()?;
+                v.get("user_request")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.trim().to_ascii_lowercase())
+            })
+            .collect();
+        assert!(!held_out.is_empty());
+        let rows = generate_argument_generation_rows(TOOL_ENTRIES.len() * 2);
+        for r in &rows {
+            let norm = r.task.trim().to_ascii_lowercase();
+            assert!(
+                !held_out.contains(&norm),
+                "argument-generation synthetic task leaked held-out agent episode prompt: {}",
+                r.task
+            );
+        }
     }
 }

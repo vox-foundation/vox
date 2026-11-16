@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { voxTransport } from '../../transport';
-import { Icon } from '../ui/Icons';
+import { Icon, KeycapIcon } from '../ui/Icons';
+import { CommandShortcut } from '../ui/Command';
 import { CommandCatalogEntry } from '../../types/catalog';
 import { Agent } from '../../types/dashboard';
 import { UnifiedHit } from '../surfaces/Search/searchHelpers';
@@ -24,6 +25,7 @@ import {
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 import { unwrapMcpEnvelope } from '../../lib/mcpToolResult';
 import { decideCliActivation, type CliActivation } from '../../lib/capabilityRun';
+import { OmnibarRunbookParamsSheet, OmnibarRunbooksSection, useOmnibarRunbooks } from './OmnibarRunbookSheet';
 
 const SETTINGS_SEED_KEY = 'vox_settings_seed';
 
@@ -55,9 +57,9 @@ const KIND_ICON: Partial<Record<RowKind, keyof typeof Icon>> = {
 
 /** D-01: the trailing hint on a cli row, from the same decision Enter uses. */
 const CLI_HINT: Record<CliActivation['kind'], string> = {
-  run: '↵ runs',
-  form: '↵ opens form',
-  explain: '↵ explains',
+  run: 'runs',
+  form: 'opens form',
+  explain: 'explains',
 };
 
 /** D-08a / D-12: shown under a capped Commands / Tools facet; paired with the Explorer link when onOpenExplorer is provided. */
@@ -186,6 +188,8 @@ export function Omnibar({
   const [q, setQ] = useState('');
   const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
   const [graph, setGraph] = useState<OmnibarGraphResult>({ rows: [], error: null });
+  const { matchingRunbooks, pendingRunbook, setPendingRunbook, selectOmnibarRunbook } =
+    useOmnibarRunbooks(open, q, { onNavigate, onClose });
 
   const { mode: prefixMode, query: effectiveQ } = parsePaletteQuery(q);
   const backendSearchEnabled = open && prefixMode === 'default';
@@ -488,8 +492,10 @@ export function Omnibar({
   }, [open]);
 
   const rowsRef = useRef(rows);
+  const runbooksRef = useRef(matchingRunbooks);
   const idxRef = useRef(selectedRowIdx);
   rowsRef.current = rows;
+  runbooksRef.current = matchingRunbooks;
   idxRef.current = selectedRowIdx;
 
   useEffect(() => {
@@ -500,7 +506,7 @@ export function Omnibar({
     }
   }, [open, setSearchQuery]);
 
-  useEffect(() => setSelectedRowIdx(-1), [rows.length, q]);
+  useEffect(() => setSelectedRowIdx(-1), [rows.length, matchingRunbooks.length, q]);
 
   // WR-04: aria-modal needs a real trap. Tab wraps inside the dialog; focus that lands outside
   // (programmatic, or a click that slipped past the overlay) is pulled back to the first control.
@@ -514,10 +520,16 @@ export function Omnibar({
       // WR-03: the Enter / arrow that drives an IME composition belongs to the IME (keyCode 229 on WebKit).
       if (e.isComposing || e.keyCode === 229) return;
       const list = rowsRef.current;
+      const rbs = runbooksRef.current;
+      const totalLen = list.length + rbs.length;
       let idx = idxRef.current;
       if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'Tab') {
+        if (pendingRunbook) setPendingRunbook(null);
+        else onClose();
+        return;
+      }
+      if (pendingRunbook && e.key !== 'Tab') return;
+      if (e.key === 'Tab') {
         const items = focusables();
         if (items.length > 0) {
           const first = items[0];
@@ -534,14 +546,14 @@ export function Omnibar({
         e.preventDefault();
         if (q.trim()) onSendToChat(q.trim());
         onClose();
-      } else if (e.key === 'ArrowDown' && list.length > 0) {
+      } else if (e.key === 'ArrowDown' && totalLen > 0) {
         e.preventDefault();
-        idx = idx < 0 ? 0 : Math.min(idx + 1, list.length - 1);
+        idx = idx < 0 ? 0 : Math.min(idx + 1, totalLen - 1);
         idxRef.current = idx;
         setSelectedRowIdx(idx);
-      } else if (e.key === 'ArrowUp' && list.length > 0) {
+      } else if (e.key === 'ArrowUp' && totalLen > 0) {
         e.preventDefault();
-        idx = idx < 0 ? list.length - 1 : Math.max(idx - 1, 0);
+        idx = idx < 0 ? totalLen - 1 : Math.max(idx - 1, 0);
         idxRef.current = idx;
         setSelectedRowIdx(idx);
       } else if (e.key === 'ArrowRight' && e.altKey) {
@@ -555,13 +567,14 @@ export function Omnibar({
           return;
         }
         e.preventDefault();
-        const target = idx >= 0 && idx < list.length ? list[idx] : list[0];
-        if (target) activateRow(target);
+        const targetIdx = idx >= 0 && idx < totalLen ? idx : 0;
+        if (targetIdx < list.length) activateRow(list[targetIdx]);
+        else if (rbs[targetIdx - list.length]) selectOmnibarRunbook(rbs[targetIdx - list.length]);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose, onSendToChat, activateRow, expandGraphNeighbors, q]);
+  }, [open, onClose, onSendToChat, activateRow, selectOmnibarRunbook, expandGraphNeighbors, q, pendingRunbook, setPendingRunbook]);
 
   useEffect(() => {
     if (!open) return;
@@ -604,18 +617,19 @@ export function Omnibar({
   let rowCursor = 0;
 
   const loadingLine = q.trim().length > 0 && indexLoading;
-  const noMatches = q.length > 0 && rows.length === 0 && !indexLoading && !facets.some((f) => f.error);
+  const noMatches = q.length > 0 && rows.length === 0 && matchingRunbooks.length === 0 && !indexLoading && !facets.some((f) => f.error);
   const statusText = loadingLine
     ? 'Loading capability index…'
     : noMatches
-      ? `No matches for "${q}" — press ⇧⏎ to ask chat`
+      ? `No matches for "${q}" — press Shift+Enter to ask chat`
       : rows.length > 0
         ? `${rows.length} result${rows.length === 1 ? '' : 's'}`
         : '';
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-xs pt-[14vh]"
+      data-slot="omnibar-overlay"
+      className="fixed inset-0 z-(--z-dialog) flex items-start justify-center bg-black/55 backdrop-blur-[2px] pt-[14vh]"
       onClick={onClose}
     >
       <div
@@ -623,8 +637,9 @@ export function Omnibar({
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
+        data-slot="omnibar-dialog"
         onKeyDown={onDialogKeyDown}
-        className="w-[680px] max-w-[92vw] rounded-2xl border border-border-subtle bg-bg-base/90 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl"
+        className="w-[680px] max-w-[92vw] rounded-2xl border border-border-strong bg-popover text-popover-foreground shadow-[0_40px_120px_-30px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
@@ -632,19 +647,29 @@ export function Omnibar({
           <input
             autoFocus
             aria-label="Search Vox"
+            data-slot="omnibar-input"
             value={q}
             onChange={(e) => {
               const v = e.target.value;
               setQ(v);
               setSearchQuery(v);
             }}
-            placeholder="Search surfaces, commands, on-screen text, graph, docs…  ⇧⏎ to ask chat"
+            placeholder="Search surfaces, commands, on-screen text, graph, docs…  Shift+Enter to ask chat"
             className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted outline-hidden"
           />
-          <kbd className="rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-muted">esc</kbd>
+          <CommandShortcut className="rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5">esc</CommandShortcut>
         </div>
 
         <div className="max-h-[480px] overflow-auto p-2 custom-scrollbar">
+          {pendingRunbook ? (
+            <OmnibarRunbookParamsSheet
+              runbook={pendingRunbook}
+              onNavigate={onNavigate}
+              onClose={onClose}
+              onBack={() => setPendingRunbook(null)}
+            />
+          ) : (
+            <>
           {facets.map((facet) => {
             if (facet.rows.length === 0 && !facet.error) return null;
             const capped = facet.total > facet.rows.length;
@@ -716,8 +741,9 @@ export function Omnibar({
                         </div>
                         <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted shrink-0 ml-2">
                           {row.activate.type === 'cli' ? (
-                            <span className="mr-2 normal-case tracking-normal">
-                              {CLI_HINT[cliDecision(row.activate.rowId, row.activate.path).kind]}
+                            <span className="mr-2 inline-flex items-center gap-0.5 normal-case tracking-normal">
+                              <KeycapIcon keyName="Enter" className="size-2.5 inline-block shrink-0" />
+                              <span>{CLI_HINT[cliDecision(row.activate.rowId, row.activate.path).kind]}</span>
                             </span>
                           ) : null}
                           {row.provenance}
@@ -750,6 +776,13 @@ export function Omnibar({
               </React.Fragment>
             );
           })}
+          <OmnibarRunbooksSection
+            runbooks={matchingRunbooks}
+            onSelectRunbook={selectOmnibarRunbook}
+            startIndex={rows.length}
+            selectedIdx={selectedRowIdx}
+            onFocusIndex={(i) => { idxRef.current = i; setSelectedRowIdx(i); }}
+          />
 
           {indexError && (
             <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-text-muted italic">
@@ -775,8 +808,19 @@ export function Omnibar({
                   : 'sr-only'
             }
           >
-            {statusText}
+            {noMatches ? (
+              <span className="inline-flex items-center justify-center gap-1">
+                <span>No matches for &ldquo;{q}&rdquo; — press</span>
+                <KeycapIcon keyName="Shift" className="size-3 inline-block shrink-0" />
+                <KeycapIcon keyName="Enter" className="size-3 inline-block shrink-0" />
+                <span>to ask chat</span>
+              </span>
+            ) : (
+              statusText
+            )}
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

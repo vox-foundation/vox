@@ -66,6 +66,7 @@ fn should_enforce_freshness(cmd: &CiCmd) -> bool {
 }
 
 /// Run `vox ci` subcommand.
+#[inline(never)]
 pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
     // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
@@ -174,6 +175,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ExecPolicyContract => exec_policy_contract::run(&root),
         CiCmd::OpenClawContract => vox_cli_ci::openclaw_contract::run(&root),
         CiCmd::OperationsVerify => super::operations_catalog::verify(&root),
+        CiCmd::CliSynonyms { write } => super::cli_synonyms::run(&root, write),
         CiCmd::OperationsSync { target, write } => {
             let target = match target {
                 OperationsSyncTarget::Catalog => "catalog",
@@ -951,12 +953,32 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             );
             Ok(())
         }
-        CiCmd::CrossRepoParity => {
+        CiCmd::CrossRepoParity { sync } => {
+            if sync {
+                let sync_summary = vox_repository::sync_federated_satellites(&root)
+                    .map_err(|e| anyhow::anyhow!(e))?;
+                println!(
+                    "cross-repo-parity --sync: synchronized {} file(s) across {:?} ({} checked)",
+                    sync_summary.files_copied,
+                    sync_summary.present_repositories,
+                    sync_summary.files_checked
+                );
+            }
             let report = vox_repository::verify_cross_repo_contract_parity(&root)
                 .map_err(|e| anyhow::anyhow!(e))?;
             if !report.in_parity {
+                for drift in &report.drifts {
+                    eprintln!(
+                        "  DRIFT: {} ({}={} vs {}={})",
+                        drift.relative_contract_path,
+                        drift.repo_a,
+                        drift.repo_a_blake3.get(..8).unwrap_or(&drift.repo_a_blake3),
+                        drift.repo_b,
+                        drift.repo_b_blake3.get(..8).unwrap_or(&drift.repo_b_blake3)
+                    );
+                }
                 anyhow::bail!(
-                    "cross-repo-parity failed: {} drift(s) detected",
+                    "cross-repo-parity failed: {} drift(s) detected (run `vox ci cross-repo-parity --sync` to synchronize satellites)",
                     report.drifts.len()
                 );
             }

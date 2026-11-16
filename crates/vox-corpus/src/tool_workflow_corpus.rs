@@ -163,16 +163,9 @@ impl ToolTraceRecord {
 
         let (clean_prompt, _) = redact_trajectory_secrets(&self.task_prompt);
         let (clean_args, _) = redact_trajectory_secrets(&self.arguments_json);
-        let (clean_res, _) = redact_trajectory_secrets(&self.result_json);
 
         let args_val: serde_json::Value = serde_json::from_str(&clean_args).ok()?;
-        let response_payload = serde_json::json!({
-            "tool_name": self.tool_name,
-            "arguments": args_val,
-            "result": clean_res,
-            "success": self.success,
-        })
-        .to_string();
+        let response_payload = format_tool_call_envelope(&self.tool_name, args_val);
 
         let receipt = OracleReceipt {
             spoke,
@@ -203,6 +196,16 @@ impl ToolTraceRecord {
             prov,
         ))
     }
+}
+
+/// Format a Qwen3/Qwen3.5/Qwen3.8 Hermes-style `<tool_call>` JSON envelope without fabricating
+/// execution `result` or `success` fields.
+pub(crate) fn format_tool_call_envelope(name: &str, arguments: serde_json::Value) -> String {
+    let call = serde_json::json!({
+        "name": name,
+        "arguments": arguments,
+    });
+    format!("<tool_call>\n{call}\n</tool_call>")
 }
 
 impl WorkflowTraceRecord {
@@ -286,6 +289,11 @@ mod tests {
         let shell_rec = shell_trace.to_training_record_v2().expect("shell record");
         assert_eq!(shell_rec.spoke, crate::training::SpokeKind::StructuredShell);
         assert!(shell_rec.verify_integrity());
+        assert!(shell_rec.response.starts_with("<tool_call>\n"));
+        assert!(shell_rec.response.ends_with("\n</tool_call>"));
+        assert!(shell_rec.response.contains("\"name\":\"term_run\""));
+        assert!(!shell_rec.response.contains("\"result\""));
+        assert!(!shell_rec.response.contains("\"success\""));
 
         let unsafe_shell = ToolTraceRecord {
             arguments_json: r#"{"cmd":"rm -rf /"}"#.to_string(),
@@ -317,5 +325,35 @@ mod tests {
         let wf_rec = wf_trace.to_training_record_v2().expect("workflow record");
         assert_eq!(wf_rec.spoke, crate::training::SpokeKind::AgentHarness);
         assert!(wf_rec.verify_integrity());
+
+        let gsd_cli = ToolTraceRecord {
+            task_prompt: "Check active GSD milestone status".to_string(),
+            tool_name: "vox gsd status".to_string(),
+            arguments_json: r#"{"cmd":"vox gsd status"}"#.to_string(),
+            result_json: r#"{"milestone":"v7.0"}"#.to_string(),
+            success: true,
+            followup_text: None,
+            session_id: Some("sess-gsd-cli".to_string()),
+        };
+        let gsd_cli_rec = gsd_cli.to_training_record_v2().expect("gsd cli record");
+        assert_eq!(
+            gsd_cli_rec.spoke,
+            crate::training::SpokeKind::StructuredShell
+        );
+        assert!(gsd_cli_rec.verify_integrity());
+
+        let gsd_mcp = ToolTraceRecord {
+            task_prompt: "Create new GSD milestone".to_string(),
+            tool_name: "vox_gsd_new_milestone".to_string(),
+            arguments_json: r#"{"version":"v7.0","title":"GSD"}"#.to_string(),
+            result_json: r#"{"ok":true}"#.to_string(),
+            success: true,
+            followup_text: None,
+            session_id: Some("sess-gsd-mcp".to_string()),
+        };
+        if let Some(gsd_mcp_rec) = gsd_mcp.to_training_record_v2() {
+            assert_eq!(gsd_mcp_rec.spoke, crate::training::SpokeKind::McpToolChain);
+            assert!(gsd_mcp_rec.verify_integrity());
+        }
     }
 }

@@ -6,11 +6,11 @@ license.workspace = true
 description = "Routes effort-audit findings to verified, drafted enforcement artifacts"
 
 [dependencies]
-vox-effort-audit  = { path = "../vox-effort-audit" }
-vox-actor-runtime = { path = "../vox-actor-runtime" }
-vox-config        = { path = "../vox-config" }
-vox-telemetry     = { path = "../vox-telemetry" }
-vox-git           = { path = "../vox-git" }
+vox-effort-audit  = { workspace = true }
+vox-actor-runtime = { workspace = true }
+vox-config        = { workspace = true }
+vox-telemetry     = { workspace = true }
+vox-git           = { workspace = true }
 anyhow            = { workspace = true }
 gix               = { workspace = true }
 serde             = { workspace = true, features = ["derive"] }

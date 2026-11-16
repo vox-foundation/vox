@@ -13,7 +13,7 @@ Source-of-truth spec for the companion implementation plan: [2026-08-01-voxdb-au
 
 ## 1. Scope
 
-Audit target: `C:\Users\Owner\vox\.vox\store.db` (the main checkout's local embedded VoxDB — 5.9MB), chosen as the representative sample of real day-to-day usage. Out of scope for this pass: the ~19 other `.vox/store.db` copies scattered across worktrees/crates (addressed briefly in §2.7/§3.8 as a housekeeping note, folded into existing worktree-cleanup practice, not a new mechanism), and `vox-server`'s separate Postgres-backed service (different stack, different migration system, not part of `vox-db`).
+Audit target: `.vox/store.db` (the main checkout's local embedded VoxDB — 5.9MB), chosen as the representative sample of real day-to-day usage. Out of scope for this pass: the ~19 other `.vox/store.db` copies scattered across worktrees/crates (addressed briefly in §2.7/§3.8 as a housekeeping note, folded into existing worktree-cleanup practice, not a new mechanism), and `vox-server`'s separate Postgres-backed service (different stack, different migration system, not part of `vox-db`).
 
 ## 2. Audit findings
 

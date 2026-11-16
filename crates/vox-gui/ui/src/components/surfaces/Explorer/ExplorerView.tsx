@@ -2,13 +2,15 @@ import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'r
 import { useCapabilityIndex } from '../../../hooks/useCapabilityIndex';
 import { SURFACE_REGISTRY, type RepresentationTier } from '../../../generated/surfaceRegistry.generated';
 import type { CommandCatalogEntry } from '../../../types/catalog';
+import { BentoCard, BentoScrollRegion } from '../../ui/BentoGrid';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Skeleton } from '../../ui/Skeleton';
-import { RomanTooltip, RomanMedallion, RomanBrassGauge } from '../../ui/RomanTooltip';
-import { RomanSurfaceHeader, RomanWaxSealBadge } from '../../ui/RomanSurfaceHeader';
+import { RomanTooltip } from '../../ui/RomanTooltip';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { cn } from '../../../lib/cn';
 import type { CapabilityGroup, CapabilityIndexEntry } from '../../../generated/capabilityIndex.generated';
 import { CapabilityBadge, type CapabilityStatus } from './CapabilityBadge';
@@ -343,11 +345,15 @@ export function ExplorerView({
   const [showExempt, setShowExempt] = useState<boolean>(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [collapsedDomains, setCollapsedDomains] = useState<Set<string>>(() => new Set());
+  const embedded = useIsEmbeddedSurface();
+  const hostRef = useRef<HTMLElement | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [narrow, setNarrow] = useState<boolean>(() => {
+  const [viewportNarrow, setViewportNarrow] = useState<boolean>(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-    return window.matchMedia('(max-width: 1023px)').matches;
+    return window.matchMedia('(max-width: 767px)').matches;
   });
+  const [containerNarrow, setContainerNarrow] = useState<boolean | null>(null);
+  const narrow = embedded || (containerNarrow !== null ? containerNarrow : viewportNarrow);
 
   const lastSeedNonceRef = useRef<number | null>(seed?.nonce ?? null);
   useEffect(() => {
@@ -359,11 +365,29 @@ export function ExplorerView({
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mql = window.matchMedia('(max-width: 1023px)');
-    const onChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
-    setNarrow(mql.matches);
+    const mql = window.matchMedia('(max-width: 767px)');
+    const onChange = (e: MediaQueryListEvent) => setViewportNarrow(e.matches);
+    setViewportNarrow(mql.matches);
     mql.addEventListener?.('change', onChange);
     return () => mql.removeEventListener?.('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    const node = hostRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    let rafId = 0;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      if (width > 0) {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => setContainerNarrow(width < 768));
+      }
+    });
+    observer.observe(node);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
   }, []);
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -442,7 +466,11 @@ export function ExplorerView({
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-5 p-4" aria-labelledby="explorer-title">
+    <section
+      ref={hostRef}
+      className="@container/surface flex h-full min-h-0 min-w-0 flex-col gap-3.5 p-3 @2xl/surface:gap-5 @2xl/surface:p-4"
+      aria-labelledby="explorer-title"
+    >
       <RomanSurfaceHeader
         domainTag="EXPLORER · MCP & CLI REGISTRY"
         title="Capability Explorer"
@@ -460,31 +488,73 @@ export function ExplorerView({
           {
             label: 'Domains',
             valueText: `${effectiveDomains.length}`,
-            ratio: Math.min(1, effectiveDomains.length / 8),
+            ratio:
+              effectiveLoading || effectiveDomains.length === 0
+                ? 0
+                : selectedDomain !== null
+                  ? 1 / effectiveDomains.length
+                  : railCounts.domains.filter((d) => d.mix.total > 0).length / effectiveDomains.length,
             tone: 'gold',
+            purpose: 'Domains with matching capabilities in the SSOT index',
+            actionHint:
+              selectedDomain !== null
+                ? 'Click to reset to all capability domains'
+                : 'Click to scope to the first capability domain',
+            active: selectedDomain !== null,
+            onClick: () => {
+              if (effectiveLoading) return;
+              if (selectedDomain !== null) {
+                setSelectedDomain(null);
+              } else if (effectiveDomains[0]) {
+                setSelectedDomain(effectiveDomains[0].id);
+              }
+              setActiveKey(null);
+            },
           },
           {
             label: 'Groups',
             valueText: `${filtered.groupCount}`,
-            ratio: Math.min(1, filtered.groupCount / 20),
+            ratio:
+              effectiveLoading || effectiveGroups.length === 0
+                ? 0
+                : Math.min(1, filtered.groupCount / effectiveGroups.length),
             tone: 'emerald',
+            purpose: 'Capability groups matching active domain, status, and search filters',
+            actionHint: showExempt
+              ? 'Click to hide exempt capability groups'
+              : 'Click to include exempt capability groups',
+            active: showExempt,
+            onClick: () => {
+              if (!effectiveLoading) setShowExempt((prev) => !prev);
+            },
           },
           {
             label: 'Capabilities',
             valueText: `${filtered.leafCount}`,
-            ratio: Math.min(1, filtered.leafCount / 60),
+            ratio:
+              effectiveLoading || effectiveRows.length === 0
+                ? 0
+                : Math.min(1, filtered.leafCount / effectiveRows.length),
             tone: 'gold',
+            purpose: 'Visible capability leaves out of total indexed SSOT capabilities',
+            actionHint: statuses.has('dedicated')
+              ? 'Click to clear Dedicated surface status filter'
+              : 'Click to filter to Dedicated surface capabilities',
+            active: statuses.has('dedicated'),
+            onClick: () => {
+              if (!effectiveLoading) toggleStatusChip('dedicated');
+            },
           },
         ]}
       />
 
       {error ? (
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div
             role="alert"
-            className="flex items-center justify-between gap-4 rounded-lg border border-(--color-status-warn)/30 bg-overlay-subtle p-4 text-[13px] text-(--color-status-warn)"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-(--color-status-warn)/30 bg-overlay-subtle p-4 text-[13px] text-(--color-status-warn)"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <Icon.alert className="size-4 shrink-0" aria-hidden="true" />
               <span>
                 Capability index unavailable — {error}. Showing registered surfaces only.
@@ -503,40 +573,50 @@ export function ExplorerView({
             </Button>
           </div>
 
-          <Glass inset={false} className="divide-y divide-border-subtle rounded-xl">
-            {SURFACE_REGISTRY.map((s, i) => {
-              const name = s.cliGroup ?? s.viewKey ?? `surface-${i}`;
-              const badgeStatus = mapTierToStatus(s.tier);
-              return (
-                <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-4">
-                    <span className="font-mono text-[13px] text-text-primary">{name}</span>
-                    <CapabilityBadge status={badgeStatus} />
+          <BentoCard className="overflow-hidden p-0">
+            <BentoScrollRegion
+              ariaLabel="Registered surfaces fallback"
+              className="max-h-[60vh] divide-y divide-border-subtle"
+            >
+              {SURFACE_REGISTRY.map((s, i) => {
+                const name = s.cliGroup ?? s.viewKey ?? `surface-${i}`;
+                const badgeStatus = mapTierToStatus(s.tier);
+                return (
+                  <div key={i} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                    <div className="flex flex-wrap items-center gap-3 min-w-0">
+                      <span className="font-mono text-[13px] text-text-primary">{name}</span>
+                      <CapabilityBadge status={badgeStatus} />
+                    </div>
+                    {s.viewKey && onNavigate && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-text-primary"
+                        onClick={() => onNavigate(s.viewKey!)}
+                      >
+                        Open surface
+                      </Button>
+                    )}
                   </div>
-                  {s.viewKey && onNavigate && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-text-primary"
-                      onClick={() => onNavigate(s.viewKey!)}
-                    >
-                      Open surface
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </Glass>
+                );
+              })}
+            </BentoScrollRegion>
+          </BentoCard>
         </div>
       ) : (
-        <div className={cn('flex min-h-0 flex-1 gap-6', narrow ? 'flex-col' : 'flex-row')}>
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col gap-3.5 @3xl/surface:gap-5',
+            !narrow && '@3xl/surface:flex-row',
+          )}
+        >
           {effectiveLoading ? (
-            <Glass inset={false} className="w-[240px] shrink-0 space-y-2 rounded-xl p-2">
+            <Glass inset={false} className="w-full shrink-0 space-y-2 rounded-xl p-2 @3xl/surface:w-[228px]">
               {Array.from({ length: 8 }, (_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </Glass>
-          ) : (
+          ) : narrow ? (
             <ExplorerRail
               domains={railCounts.domains}
               allMix={railCounts.all}
@@ -547,9 +627,25 @@ export function ExplorerView({
               }}
               narrow={narrow}
             />
+          ) : (
+            <BentoScrollRegion
+              ariaLabel="Capability domains rail"
+              className="shrink-0 rounded-xl"
+            >
+              <ExplorerRail
+                domains={railCounts.domains}
+                allMix={railCounts.all}
+                selected={selectedDomain}
+                onSelect={(d) => {
+                  setSelectedDomain(d);
+                  setActiveKey(null);
+                }}
+                narrow={narrow}
+              />
+            </BentoScrollRegion>
           )}
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3.5">
             <div
               style={{
                 backgroundImage:
@@ -557,9 +653,9 @@ export function ExplorerView({
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
-              className="vox-marble-tablet sticky top-0 z-10 flex flex-wrap items-center gap-4 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_18px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+              className="vox-marble-tablet sticky top-0 z-10 flex flex-wrap items-center gap-2.5 @2xl/surface:gap-4 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_18px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
             >
-              <div className="relative min-w-[240px] flex-1">
+              <div className="relative min-w-0 basis-full @xl/surface:min-w-[220px] @xl/surface:basis-auto @xl/surface:flex-1">
                 <label htmlFor="explorer-search-input" className="sr-only">
                   Search capabilities
                 </label>
@@ -617,9 +713,7 @@ export function ExplorerView({
                         )}
                       >
                         {pressed && (
-                          <span aria-hidden="true" className="font-mono">
-                            ✓
-                          </span>
+                          <Icon.check data-icon="check" className="size-3 shrink-0" aria-hidden="true" />
                         )}
                         <span>{label}</span>
                         <span className="font-mono opacity-80">{count}</span>
@@ -721,19 +815,24 @@ export function ExplorerView({
                 )}
               </Glass>
             ) : (
-              <ExplorerTree
-                treeId={TREE_ID}
-                rows={flattened.rows}
-                onToggle={handleToggleRow}
-                activeKey={activeKey}
-                onActivate={setActiveKey}
-                narrow={narrow}
-                onNavigate={onNavigate}
-                onOpenForm={onOpenForm}
-                onExplain={onExplain}
-                onOpenDoc={onOpenDoc}
-                commandCatalog={commandCatalog}
-              />
+              <BentoScrollRegion
+                ariaLabel="Capability explorer tree region"
+                className="flex flex-1 flex-col rounded-xl"
+              >
+                <ExplorerTree
+                  treeId={TREE_ID}
+                  rows={flattened.rows}
+                  onToggle={handleToggleRow}
+                  activeKey={activeKey}
+                  onActivate={setActiveKey}
+                  narrow={narrow}
+                  onNavigate={onNavigate}
+                  onOpenForm={onOpenForm}
+                  onExplain={onExplain}
+                  onOpenDoc={onOpenDoc}
+                  commandCatalog={commandCatalog}
+                />
+              </BentoScrollRegion>
             )}
           </div>
         </div>

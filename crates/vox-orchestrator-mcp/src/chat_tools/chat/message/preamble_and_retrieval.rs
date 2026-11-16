@@ -290,15 +290,127 @@ pub(super) async fn prepare_turn_context_and_retrieval(
         }
     }
 
-    // Research (spec §4): intent was classified above (before the preamble);
-    // run quick/deep now — every turn already has a trace.
+    // Research (spec §4 + continuum CRAG escalation): intent was classified above
+    // (before the preamble); execute Direct/LocalRag/QuickWeb/DeepMultiWave and
+    // auto-escalate with warm seeding when `continuum_mode == Auto`.
     let mut deep_answer: Option<Result<String, String>> = None;
     if explicit_search_result.is_none() && vox_orchestrator::is_chat_research_enabled() {
+        use vox_orchestrator_types::socrates_policy::{
+            CragEscalationPolicy, ResearchContinuumMode, ResearchContinuumTier,
+        };
+        let policy = CragEscalationPolicy::default();
+        let (local_conf, contradiction_ratio, local_crag_q, local_count) =
+            local_signals_from_evidence(retrieval_evidence.as_ref());
+        let search_policy = {
+            let cfg = state.orchestrator.config_handle();
+            vox_orchestrator::sync_lock::rw_read(&*cfg).effective_search_policy()
+        };
         match intent.mode {
-            super::super::research_intent::ResearchMode::None => {}
+            super::super::research_intent::ResearchMode::None => {
+                if intent.continuum_mode == ResearchContinuumMode::Auto
+                    && intent.initial_tier == ResearchContinuumTier::LocalRag
+                    && retrieval_evidence.is_some()
+                    && let Some((next_tier, reason)) =
+                        super::super::research_turn::evaluate_continuum_escalation(
+                            &policy,
+                            intent.continuum_mode,
+                            ResearchContinuumTier::LocalRag,
+                            local_conf,
+                            contradiction_ratio,
+                            local_crag_q,
+                            local_count,
+                            false,
+                            false,
+                        )
+                {
+                    research_trace.record_escalation(
+                        ResearchContinuumTier::LocalRag,
+                        next_tier,
+                        reason,
+                    );
+                    match next_tier {
+                        ResearchContinuumTier::QuickWeb => {
+                            let (block, signals) =
+                                super::super::research_turn::run_quick_with_policy_signals(
+                                    state,
+                                    research_trace,
+                                    search_policy,
+                                )
+                                .await;
+                            context_parts.push(block);
+                            if let Some((ResearchContinuumTier::DeepMultiWave, deep_reason)) =
+                                super::super::research_turn::evaluate_continuum_escalation(
+                                    &policy,
+                                    intent.continuum_mode,
+                                    ResearchContinuumTier::QuickWeb,
+                                    local_conf,
+                                    contradiction_ratio,
+                                    signals.crag_quality,
+                                    signals.source_count,
+                                    false,
+                                    false,
+                                )
+                            {
+                                research_trace.record_escalation(
+                                    ResearchContinuumTier::QuickWeb,
+                                    ResearchContinuumTier::DeepMultiWave,
+                                    deep_reason,
+                                );
+                                deep_answer = Some(
+                                    super::super::research_turn::run_deep_with_warm_seed(
+                                        state,
+                                        research_trace,
+                                        signals.warm_seed_hits,
+                                    )
+                                    .await,
+                                );
+                            }
+                        }
+                        ResearchContinuumTier::DeepMultiWave => {
+                            deep_answer = Some(
+                                super::super::research_turn::run_deep(state, research_trace).await,
+                            );
+                        }
+                        ResearchContinuumTier::Direct | ResearchContinuumTier::LocalRag => {}
+                    }
+                }
+            }
             super::super::research_intent::ResearchMode::Quick => {
-                let block = super::super::research_turn::run_quick(state, research_trace).await;
+                let (block, signals) = super::super::research_turn::run_quick_with_policy_signals(
+                    state,
+                    research_trace,
+                    search_policy,
+                )
+                .await;
                 context_parts.push(block);
+                if intent.continuum_mode == ResearchContinuumMode::Auto
+                    && let Some((ResearchContinuumTier::DeepMultiWave, reason)) =
+                        super::super::research_turn::evaluate_continuum_escalation(
+                            &policy,
+                            intent.continuum_mode,
+                            ResearchContinuumTier::QuickWeb,
+                            local_conf,
+                            contradiction_ratio,
+                            signals.crag_quality,
+                            signals.source_count,
+                            false,
+                            false,
+                        )
+                {
+                    research_trace.record_escalation(
+                        ResearchContinuumTier::QuickWeb,
+                        ResearchContinuumTier::DeepMultiWave,
+                        reason,
+                    );
+                    deep_answer = Some(
+                        super::super::research_turn::run_deep_with_warm_seed(
+                            state,
+                            research_trace,
+                            signals.warm_seed_hits,
+                        )
+                        .await,
+                    );
+                }
             }
             super::super::research_intent::ResearchMode::Deep => {
                 deep_answer =
@@ -428,5 +540,95 @@ pub(super) async fn prepare_turn_context_and_retrieval(
         retrieval_evidence,
         preamble_skipped_reason,
         all_context_files,
+    }
+}
+
+fn local_signals_from_evidence(
+    evidence: Option<&crate::memory::RetrievalEvidenceEnvelope>,
+) -> (f64, f64, f64, usize) {
+    let Some(ev) = evidence else {
+        return (1.0, 0.0, 1.0, 0);
+    };
+    let source_count =
+        ev.memory_hit_count + ev.knowledge_hit_count + ev.chunk_hit_count + ev.repo_hit_count;
+    let local_confidence = ev.top_score.unwrap_or(ev.evidence_quality).clamp(0.0, 1.0);
+    let contradiction_ratio = if source_count > 0 {
+        (ev.contradiction_count as f64 / source_count as f64).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let crag_quality = ev.evidence_quality.clamp(0.0, 1.0);
+    (
+        local_confidence,
+        contradiction_ratio,
+        crag_quality,
+        source_count,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_orchestrator_types::socrates_policy::{
+        CragEscalationPolicy, EscalationReason, ResearchContinuumMode, ResearchContinuumTier,
+    };
+
+    #[test]
+    fn weak_local_rag_evidence_triggers_quick_web_escalation() {
+        let ev = crate::memory::RetrievalEvidenceEnvelope {
+            memory_hit_count: 1,
+            top_score: Some(0.42),
+            evidence_quality: 0.40,
+            ..Default::default()
+        };
+        let (conf, contra, q, count) = local_signals_from_evidence(Some(&ev));
+        let esc = crate::chat_tools::chat::research_turn::evaluate_continuum_escalation(
+            &CragEscalationPolicy::default(),
+            ResearchContinuumMode::Auto,
+            ResearchContinuumTier::LocalRag,
+            conf,
+            contra,
+            q,
+            count,
+            false,
+            false,
+        );
+        assert_eq!(
+            esc,
+            Some((
+                ResearchContinuumTier::QuickWeb,
+                EscalationReason::LowLocalConfidence
+            ))
+        );
+    }
+
+    #[test]
+    fn high_contradiction_ratio_escalates_from_local_rag() {
+        let ev = crate::memory::RetrievalEvidenceEnvelope {
+            memory_hit_count: 2,
+            contradiction_count: 1,
+            top_score: Some(0.85),
+            evidence_quality: 0.85,
+            ..Default::default()
+        };
+        let (conf, contra, q, count) = local_signals_from_evidence(Some(&ev));
+        let esc = crate::chat_tools::chat::research_turn::evaluate_continuum_escalation(
+            &CragEscalationPolicy::default(),
+            ResearchContinuumMode::Auto,
+            ResearchContinuumTier::LocalRag,
+            conf,
+            contra,
+            q,
+            count,
+            false,
+            false,
+        );
+        assert_eq!(
+            esc,
+            Some((
+                ResearchContinuumTier::QuickWeb,
+                EscalationReason::HighContradiction
+            ))
+        );
     }
 }

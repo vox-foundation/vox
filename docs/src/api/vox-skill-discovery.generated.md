@@ -64,8 +64,6 @@ graph {
     vox_skill_discovery -> vox_plugin_types
     node vox_similarity: "vox-similarity"
     vox_skill_discovery -> vox_similarity
-    node vox_cli: "vox-cli"
-    vox_cli -> vox_skill_discovery
     node vox_cli_research: "vox-cli-research"
     vox_cli_research -> vox_skill_discovery
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
@@ -77,7 +75,6 @@ graph {
 
 | Consumer Crate | Role |
 |---|---|
-| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 
