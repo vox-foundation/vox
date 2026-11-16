@@ -5852,6 +5852,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.cli-synonyms",
+      "cli_path": [
+        "ci",
+        "cli-synonyms"
+      ],
+      "implicit": false,
+      "title": "Ci Cli-synonyms",
+      "description_model": "CLI operation `vox ci cli-synonyms`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.command-compliance",
       "cli_path": [
         "ci",
@@ -13851,6 +13863,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.plan.health",
+      "cli_path": [
+        "plan",
+        "health"
+      ],
+      "implicit": false,
+      "title": "Plan Health",
+      "description_model": "CLI operation `vox plan health`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.plan.new-milestone",
       "cli_path": [
         "plan",
@@ -14316,6 +14340,18 @@
       "implicit": false,
       "title": "Py",
       "description_model": "CLI operation `vox py`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.py.bind",
+      "cli_path": [
+        "py",
+        "bind"
+      ],
+      "implicit": false,
+      "title": "Py Bind",
+      "description_model": "CLI operation `vox py bind`",
       "side_effect_class": "writes_files",
       "curated": true
     },
@@ -15752,6 +15788,18 @@
       "implicit": false,
       "title": "Scientia Scout",
       "description_model": "CLI operation `vox scientia scout`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.scientia.v76-audit",
+      "cli_path": [
+        "scientia",
+        "v76-audit"
+      ],
+      "implicit": false,
+      "title": "Scientia V76-audit",
+      "description_model": "CLI operation `vox scientia v76-audit`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {

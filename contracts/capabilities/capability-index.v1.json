@@ -7405,6 +7405,54 @@
       }
     },
     {
+      "id": "cli.ci.cli-synonyms",
+      "kind": "cli",
+      "title": "Ci Cli-synonyms",
+      "summary": "CLI operation `vox ci cli-synonyms`",
+      "op_id": "ci.cli-synonyms",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "cli-synonyms"
+        ],
+        "invocation": "vox ci cli-synonyms",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.ci.command-compliance",
       "kind": "cli",
       "title": "Ci Command-compliance",
@@ -39631,6 +39679,54 @@
       }
     },
     {
+      "id": "cli.plan.health",
+      "kind": "cli",
+      "title": "Plan Health",
+      "summary": "CLI operation `vox plan health`",
+      "op_id": "plan.health",
+      "status": "active",
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "plan",
+          "health"
+        ],
+        "invocation": "vox plan health",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "gsd",
+        "nav_label": "GSD",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.plan.new-milestone",
       "kind": "cli",
       "title": "GSD New Milestone",
@@ -41514,6 +41610,54 @@
         "basis": "none",
         "ambiguous": false,
         "reason": "top-level commands are cli-group nodes; the graph has no per-command coverage"
+      }
+    },
+    {
+      "id": "cli.py.bind",
+      "kind": "cli",
+      "title": "Py Bind",
+      "summary": "CLI operation `vox py bind`",
+      "op_id": "py.bind",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "py",
+          "bind"
+        ],
+        "invocation": "vox py bind",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/src/commands/py/mod.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
       }
     },
     {
@@ -47553,6 +47697,54 @@
         "basis": "graph-key",
         "ambiguous": false,
         "reason": null
+      }
+    },
+    {
+      "id": "cli.scientia.v76-audit",
+      "kind": "cli",
+      "title": "Scientia V76-audit",
+      "summary": "CLI operation `vox scientia v76-audit`",
+      "op_id": "scientia.v76-audit",
+      "status": "active",
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "scientia",
+          "v76-audit"
+        ],
+        "invocation": "vox scientia v76-audit",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "scientia",
+        "nav_label": "Findings",
+        "representation_tier": "curated_decorator",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-scientia",
+        "layer": 3,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-scientia/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
       }
     },
     {
@@ -68766,6 +68958,7 @@
         "cli.plan.discuss-phase",
         "cli.plan.docs",
         "cli.plan.execute-phase",
+        "cli.plan.health",
         "cli.plan.new-milestone",
         "cli.plan.plan-phase",
         "cli.plan.progress",
@@ -69652,6 +69845,7 @@
         "cli.scientia.research-refresh",
         "cli.scientia.retrieval-status",
         "cli.scientia.scout",
+        "cli.scientia.v76-audit",
         "mcp.vox_scientia_assist_suggestions",
         "mcp.vox_scientia_discovery_ack",
         "mcp.vox_scientia_publication_approve",

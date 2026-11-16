@@ -606,6 +606,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci cli-synonyms",
+      "feature_gate": null
+    },
+    {
       "path": "ci command-compliance",
       "feature_gate": null
     },
@@ -3262,6 +3266,10 @@
       "feature_gate": null
     },
     {
+      "path": "plan health",
+      "feature_gate": null
+    },
+    {
       "path": "plan new-milestone",
       "feature_gate": null
     },
@@ -3415,6 +3423,10 @@
     },
     {
       "path": "py",
+      "feature_gate": null
+    },
+    {
+      "path": "py bind",
       "feature_gate": null
     },
     {
@@ -3915,6 +3927,10 @@
     },
     {
       "path": "scientia scout",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia v76-audit",
       "feature_gate": null
     },
     {
@@ -4431,6 +4447,7 @@
     "ci.check-links",
     "ci.check-summary-drift",
     "ci.ci-changes",
+    "ci.cli-synonyms",
     "ci.command-compliance",
     "ci.command-sync",
     "ci.commit-lint",
@@ -5246,6 +5263,7 @@
     "pipeline.status",
     "plan",
     "plan.create",
+    "plan.health",
     "plan.list.sessions",
     "plan.node.upsert",
     "plan.nodes.approve",
@@ -5295,6 +5313,7 @@
     "propose.skill",
     "publish.message",
     "py",
+    "py.bind",
     "py.doctor",
     "py.sync",
     "quarantine.list",
@@ -5480,6 +5499,7 @@
     "scientia.research-refresh",
     "scientia.retrieval-status",
     "scientia.scout",
+    "scientia.v76-audit",
     "scientia.worthiness.evaluate",
     "script",
     "search.atlas",

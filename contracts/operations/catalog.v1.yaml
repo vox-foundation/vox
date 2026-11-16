@@ -6041,6 +6041,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.cli-synonyms
+  title: Ci Cli-synonyms
+  description: CLI operation `vox ci cli-synonyms`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - cli-synonyms
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.command-compliance
   title: Ci Command-compliance
   description: CLI operation `vox ci command-compliance`
@@ -27477,6 +27504,33 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: plan.health
+  title: Plan Health
+  description: CLI operation `vox plan health`
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - plan
+    - health
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: plan.list.sessions
   title: Plan List Sessions
   description: List active and recent plan sessions.
@@ -29410,6 +29464,33 @@ operations:
   cli:
     path:
     - py
+    status: active
+    latin_ns: codex
+    handler_rust: commands::py
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: py.bind
+  title: Py Bind
+  description: CLI operation `vox py bind`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - py
+    - bind
     status: active
     latin_ns: codex
     handler_rust: commands::py
@@ -33407,6 +33488,33 @@ operations:
     path:
     - scientia
     - scout
+    status: active
+    latin_ns: codex
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: scientia.v76-audit
+  title: Scientia V76-audit
+  description: CLI operation `vox scientia v76-audit`
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - scientia
+    - v76-audit
     status: active
     latin_ns: codex
     handler_rust: null

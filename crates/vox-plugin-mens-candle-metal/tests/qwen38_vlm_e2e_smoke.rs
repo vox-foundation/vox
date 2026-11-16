@@ -314,11 +314,16 @@ fn qwen38_vlm_metal_train_merge_load_and_cached_decode_smoke() {
         ..LoraTrainingConfig::default()
     };
 
+    let dev_kind = if cfg!(feature = "metal") {
+        DeviceKind::Metal
+    } else {
+        DeviceKind::Cpu
+    };
     let summary = run_candle_qlora_train(
         data_dir.as_path(),
         Some(run_dir.as_path()),
         &cfg,
-        DeviceKind::Metal,
+        dev_kind,
         "You are Vox.",
     )
     .expect("synthetic Qwen3.8 VLM QLoRA train");
@@ -350,8 +355,8 @@ fn qwen38_vlm_metal_train_merge_load_and_cached_decode_smoke() {
         "finalize_training_run must copy generation_config.json into run_dir"
     );
 
-    let engine = InferenceEngine::load(run_dir.as_path(), &DeviceKind::Metal)
-        .expect("load merged Qwen3.8 engine");
+    let engine =
+        InferenceEngine::load(run_dir.as_path(), &dev_kind).expect("load merged Qwen3.8 engine");
     assert_eq!(engine.eos_token_ids, vec![2, 3]);
     assert!(!engine.user_no_think_switch);
 

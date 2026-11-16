@@ -39,6 +39,7 @@ surface is added or removed without updating this table.
 | Explorer | expressible | capability-index treegrid with filter chips; generated index + one-shot load, request-response |
 | Flow | blocked:reactive-streams | live pipeline timeline events |
 | Gamify | blocked:reactive-streams | ludus notifications stream |
+| Gsd | expressible | GSD phase/milestone status rendering, request-response |
 | Harness | expressible | diff + repo file listing (request/response) |
 | HarnessHealth | expressible | harness health status, request-response |
 | Loquela | blocked:reactive-streams | live agent conversation stream |
@@ -49,7 +50,9 @@ surface is added or removed without updating this table.
 | Models | expressible | model cards + routing request-response |
 | NeedsYou | expressible | static feedback card rendering |
 | Onboarding | expressible | wizard flow, request-response |
+| Oratio | expressible | voice/speech transcription & synthesis requests, request-response |
 | Policies | expressible | policy list/show request-response |
+| Populi | expressible | mesh/training model control & status requests, request-response |
 | Publications | blocked:reactive-streams | scientia-queue / discovery-surfaced events |
 | Repository | expressible | repo file/branch listing |
 | Research | blocked:reactive-streams | async research start + live progress |
@@ -64,8 +67,8 @@ surface is added or removed without updating this table.
 
 ## Summary
 
-- Total surfaces: 35
-- `expressible` today: 22
+- Total surfaces: 38
+- `expressible` today: 25
 - `blocked:reactive-streams`: 11
 - `blocked:other`: 2 (Browser, Console)
 

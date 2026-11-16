@@ -708,8 +708,12 @@ mod tests {
 
         let cargo_cfg =
             std::fs::read_to_string(root.join(".cargo/config.toml")).unwrap_or_default();
+        let active_cargo_cfg: String = cargo_cfg
+            .lines()
+            .map(|l| l.split('#').next().unwrap_or(""))
+            .collect();
         assert!(
-            !cargo_cfg.replace(' ', "").contains("panic=abort"),
+            !active_cargo_cfg.replace(' ', "").contains("panic=abort"),
             ".cargo/config.toml sets panic=abort globally, bypassing the profile"
         );
     }

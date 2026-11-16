@@ -44,7 +44,7 @@ impl Default for SystemPromptRuntimeVars {
 }
 
 /// Structured per-turn volatile context appended after the day-stable system prompt prefix (`CONT-04`).
-#[allow(dead_code)]
+#[allow(dead_code)] // Retained for CONT-04 volatile turn context staging.
 #[derive(Debug, Clone)]
 pub(crate) struct VolatileTurnContext<'a> {
     pub attention_budget: String,
@@ -52,7 +52,7 @@ pub(crate) struct VolatileTurnContext<'a> {
     pub vars: &'a SystemPromptRuntimeVars,
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Retained for CONT-04 volatile turn context staging.
 impl<'a> VolatileTurnContext<'a> {
     #[must_use]
     pub(crate) fn render(&self) -> String {

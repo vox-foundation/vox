@@ -80,6 +80,7 @@ fn classify(field: &str) -> Option<Arm> {
 const IGNORED_KEYS: &[&str] = &[
     "imports",          // resolved import entries (resolution metadata, not a construct)
     "rust_imports",     // declared Rust crate imports (passthrough metadata)
+    "py_imports",       // declared Python package imports (passthrough metadata)
     "inferred_types",   // type-checker span→type map (codegen optimization metadata)
     "legacy_ast_nodes", // not-yet-typed decls (future/unknown kinds, no stable arm)
     "configs", // resolved from Vox.toml at runtime, never emitted (see HirConfig doc comment)

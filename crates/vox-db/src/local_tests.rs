@@ -173,8 +173,9 @@ async fn connect_default_errors_when_primary_legacy_schema_chain() {
     static DATA_DIR_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     let _g = DATA_DIR_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
 
+    let legacy_version = BASELINE_VERSION + 1;
     let dir = tempfile::tempdir().expect("tempdir");
-    seed_legacy_schema_version_only(&dir.path().join("vox.db"), 99).await;
+    seed_legacy_schema_version_only(&dir.path().join("vox.db"), legacy_version).await;
 
     let old = std::env::var("VOX_DATA_DIR").ok();
     // SAFETY: `DATA_DIR_LOCK` serializes tests that touch `VOX_DATA_DIR` for this module.
@@ -187,8 +188,8 @@ async fn connect_default_errors_when_primary_legacy_schema_chain() {
         Err(e) => e,
     };
     assert!(
-        matches!(err, StoreError::LegacySchemaChain { max_version: 99 }),
-        "expected LegacySchemaChain {{ max_version: 99 }}, got {err:?}"
+        matches!(err, StoreError::LegacySchemaChain { max_version } if max_version == legacy_version),
+        "expected LegacySchemaChain {{ max_version: {legacy_version} }}, got {err:?}"
     );
 
     unsafe {
@@ -654,9 +655,13 @@ mod legacy_tests {
         )
         .await
         .expect("schema_version ddl");
-        conn.execute("INSERT INTO schema_version (version) VALUES (99)", ())
-            .await
-            .expect("insert v99");
+        let legacy_version = BASELINE_VERSION + 1;
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            turso::params![legacy_version],
+        )
+        .await
+        .expect("insert legacy version");
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS objects (
                     hash TEXT PRIMARY KEY,
@@ -680,8 +685,8 @@ mod legacy_tests {
             Err(e) => e,
         };
         assert!(
-            matches!(err, StoreError::LegacySchemaChain { max_version: 99 }),
-            "expected LegacySchemaChain {{ max_version: 99 }}, got {err:?}"
+            matches!(err, StoreError::LegacySchemaChain { max_version } if max_version == legacy_version),
+            "expected LegacySchemaChain {{ max_version: {legacy_version} }}, got {err:?}"
         );
 
         let export_db = VoxDb::connect_legacy_export_only(DbConfig::local(&legacy_str))

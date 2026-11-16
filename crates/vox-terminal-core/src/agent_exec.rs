@@ -26,7 +26,7 @@ use crate::stall_detector::{DEFAULT_STALL_QUIESCENCE_MS, PromptKind, classify_st
 
 const POLL_STEP_MS: u64 = 20;
 const PROMPT_SETTLE_GRACE_MS: u64 = 60;
-const INITIAL_PROMPT_WAIT_MS: u64 = 2_500;
+const INITIAL_PROMPT_WAIT_MS: u64 = 10_000;
 const DEFAULT_AGENT_WAIT_MS: u64 = 10_000;
 const MIN_AGENT_WAIT_MS: u64 = 50;
 const MAX_AGENT_WAIT_MS: u64 = 120_000;

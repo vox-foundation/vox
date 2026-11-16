@@ -9,7 +9,6 @@ spaces:
 tags:
 - vox
 - vox-mens
-- qwen3
 - qwen3-5
 - qwen3-8
 - qlora
@@ -19,7 +18,7 @@ tags:
 ---
 # Vox MENS — AI coding models for the Vox language
 
-MENS is the Vox project's family of open-weights coding models (`0.6B` through `27B`), fine-tuned to write, check, and explain [Vox](https://voxlang.org) — a full-stack programming language where database tables, backend endpoints, reactive web UI components, and AI agents live in one compiler-checked `.vox` file. Pick a size that fits your machine, run locally or through Python and Hugging Face Inference Providers, and try live checkpoints in the [Vox MENS Playground Space](https://huggingface.co/spaces/ns/vox-mens-playground). The docs explain [what MENS is](https://voxlang.org/reference/mens-models/#what-mens-is), how [models are organized](https://voxlang.org/reference/mens-models/#hub-and-spoke), and how automated [quality gates](https://voxlang.org/reference/mens-models/#gating) verify every release; this index lists every size side by side.
+MENS is the Vox project's family of open-weights coding models (`0.8B` through `27B`), fine-tuned to write, check, and explain [Vox](https://voxlang.org) — a full-stack programming language where database tables, backend endpoints, reactive web UI components, and AI agents live in one compiler-checked `.vox` file. Pick a size that fits your machine, run locally or through Python and Hugging Face Inference Providers, and try live checkpoints in the [Vox MENS Playground Space](https://huggingface.co/spaces/ns/vox-mens-playground). The docs explain [what MENS is](https://voxlang.org/reference/mens-models/#what-mens-is), how [models are organized](https://voxlang.org/reference/mens-models/#hub-and-spoke), and how automated [quality gates](https://voxlang.org/reference/mens-models/#gating) verify every release; this index lists every size side by side.
 
 ![Vox MENS overview](assets/overview.jpg)
 
@@ -27,7 +26,7 @@ MENS is the Vox project's family of open-weights coding models (`0.6B` through `
 
 | Size | vox-lang | harness: tool-selection | harness: argument-generation | rust | Hub | Repo |
 |---|---|---|---|---|---|---|
-| 0.6B | failed | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | `v5` on Hub; local run differs | [ns/vox-mens-qwen3-0.6b](https://huggingface.co/ns/vox-mens-qwen3-0.6b) |
+| 0.8B | failed | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | `v5` on Hub; local run differs | [ns/vox-mens-qwen3.5-0.8b](https://huggingface.co/ns/vox-mens-qwen3.5-0.8b) |
 | 2B | needs re-gate | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | not published | [ns/vox-mens-qwen3.5-2b](https://huggingface.co/ns/vox-mens-qwen3.5-2b) |
 | 4B | passed | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | published `v2` | [ns/vox-mens-qwen3.5-4b](https://huggingface.co/ns/vox-mens-qwen3.5-4b) |
 | 9B | not evaluated | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | not published | [ns/vox-mens-qwen3.5-9b](https://huggingface.co/ns/vox-mens-qwen3.5-9b) |
@@ -53,7 +52,7 @@ vox mens hub pull --size 4B --namespace ns
 
 ## What's next
 
-- **0.6B**: review the gate that stopped 0.6B, because the current evaluation measured its adapter and repeating that evaluation would measure the same adapter. There is no estimate for 0.6B.
+- **0.8B**: review the gate that stopped 0.8B, because the current evaluation measured its adapter and repeating that evaluation would measure the same adapter. There is no estimate for 0.8B.
 
 - **2B**: re-run `vox mens eval-collateral-damage` for 2B on the current 128-item slices. Re-evaluate the 2B adapter on the held-out bench under the current serving path with `vox mens eval-local`. This is an estimate, not a measurement: the 2B re-gate is projected at about 1.8 hours, or 2.8 hours if slower, with low confidence. Basis: Paired collateral evaluation for 2B runs 576 new generations (3 slices x 96 new items x 2 sides, assuming the 32-item prefix cache) at 11 s/item expected and 17 s/item conservative, giving 6336 s = 1.8 h and 9792 s = 2.8 h.
 
@@ -69,7 +68,7 @@ vox mens hub pull --size 4B --namespace ns
 
 | Size | Base pass@1 | Adapter pass@1 |
 |---|---|---|
-| 0.6B | 2/8 (25.0%) | 5/8 (62.5%) |
+| 0.8B | 2/8 (25.0%) | 5/8 (62.5%) |
 | 2B | 2/8 (25.0%) | — |
 | 4B | 2/8 (25.0%) | 5/8 (62.5%) |
 | 9B | 2/8 (25.0%) | 5/8 (62.5%) |

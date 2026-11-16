@@ -1,0 +1,12 @@
+{"id":"sc_01_bare_object","raw":"{\"name\":\"vox_git_status\",\"arguments\":{}}","expect":{"name":"vox_git_status","arguments":{}}}
+{"id":"sc_02_fenced_json","raw":"Let me check the file first.\n```json\n{\"name\":\"vox_validate_file\",\"arguments\":{\"path\":\"src/main.vox\"}}\n```","expect":{"name":"vox_validate_file","arguments":{"path":"src/main.vox"}}}
+{"id":"sc_03_xml_tool_call","raw":"<tool_call>\n{\"name\":\"vox_run_tests\",\"arguments\":{\"crate_name\":\"vox-eval\"}}\n</tool_call>","expect":{"name":"vox_run_tests","arguments":{"crate_name":"vox-eval"}}}
+{"id":"sc_04_xml_with_fence","raw":"<tool_call>```json\n{\"name\":\"vox_task_status\",\"arguments\":{\"task_id\":42}}\n```</tool_call>","expect":{"name":"vox_task_status","arguments":{"task_id":42}}}
+{"id":"sc_05_tool_colon_fence","raw":"Inspecting config.\n```tool:vox_config_get\n{}\n```","expect":{"name":"vox_config_get","arguments":{}}}
+{"id":"sc_06_openai_function","raw":"{\"function\":{\"name\":\"vox_git_diff\",\"arguments\":{\"path\":\"Cargo.toml\"}}}","expect":{"name":"vox_git_diff","arguments":{"path":"Cargo.toml"}}}
+{"id":"sc_07_openai_string_args","raw":"{\"function\":{\"name\":\"vox_build_crate\",\"arguments\":\"{\\\"crate_name\\\":\\\"vox-cli\\\"}\"}}","expect":{"name":"vox_build_crate","arguments":{"crate_name":"vox-cli"}}}
+{"id":"sc_08_array_wrapper","raw":"[{\"name\":\"vox_lint_crate\",\"arguments\":{\"crate_name\":\"vox-eval\"}}]","expect":{"name":"vox_lint_crate","arguments":{"crate_name":"vox-eval"}}}
+{"id":"sc_09_tool_calls_wrapper","raw":"{\"tool_calls\":[{\"name\":\"vox_cancel_task\",\"arguments\":{\"task_id\":9}}]}","expect":{"name":"vox_cancel_task","arguments":{"task_id":9}}}
+{"id":"sc_10_prose_embedded_json","raw":"I will apply that change cleanly now: {\"name\":\"vox_apply_structured_edit\",\"arguments\":{\"file_path\":\"src/lib.rs\",\"target_content\":\"old\",\"replacement_code\":\"new\"}} Thanks.","expect":{"name":"vox_apply_structured_edit","arguments":{"file_path":"src/lib.rs","target_content":"old","replacement_code":"new"}}}
+{"id":"sc_11_plain_prose_refusal","raw":"I cannot invoke any write tools while operating in read-only mode.","expect":null}
+{"id":"sc_12_incomplete_json_prose","raw":"Thinking through the failure before calling anything: {not valid json","expect":null}

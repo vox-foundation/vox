@@ -2800,6 +2800,24 @@ curated:
   - ci
   - ci-changes
   parameters: null
+- id: cli.ci.cli-synonyms
+  title: Ci Cli-synonyms
+  description_human: null
+  description_model: CLI operation `vox ci cli-synonyms`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - cli-synonyms
+  parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
   description_human: null
@@ -15033,6 +15051,24 @@ curated:
   - plan
   - execute-phase
   parameters: null
+- id: cli.plan.health
+  title: Plan Health
+  description_human: null
+  description_model: CLI operation `vox plan health`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - plan
+  - health
+  parameters: null
 - id: cli.plan.new-milestone
   title: GSD New Milestone
   description_human: Initialize a new GSD milestone (`PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `STATE.md`) and sync VoxDb.
@@ -15730,6 +15766,24 @@ curated:
   mcp_tool: null
   cli_path:
   - py
+  parameters: null
+- id: cli.py.bind
+  title: Py Bind
+  description_human: null
+  description_model: CLI operation `vox py bind`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  - bind
   parameters: null
 - id: cli.py.doctor
   title: Py Doctor
@@ -18007,6 +18061,24 @@ curated:
   cli_path:
   - scientia
   - scout
+  parameters: null
+- id: cli.scientia.v76-audit
+  title: Scientia V76-audit
+  description_human: null
+  description_model: CLI operation `vox scientia v76-audit`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - scientia
+  - v76-audit
   parameters: null
 - id: cli.script
   title: Script

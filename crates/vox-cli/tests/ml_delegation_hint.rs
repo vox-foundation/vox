@@ -15,7 +15,11 @@
 /// subcommand is.
 #[test]
 fn quantize_is_delegated_to_vox_ml_cli() {
-    let src = include_str!("../src/main.rs");
+    let src = concat!(
+        include_str!("../src/main.rs"),
+        "\n",
+        include_str!("../src/argv_normalize.rs")
+    );
     let is_ml_line = src
         .lines()
         .find(|l| l.trim_start().starts_with("let is_ml = matches!("))

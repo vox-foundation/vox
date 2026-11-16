@@ -1017,26 +1017,19 @@ pub(crate) mod tests {
         let id = host.open(OpenSpec::default()).await.unwrap();
         let mut attached = host.attach(&id, None).await.unwrap();
 
-        // Run inside a `( ...; exec sleep 30 )` subshell so `fork` + `setpgid` + `tcsetpgrp`
-        // and `SIG_DFL` on `SIGINT` are already established before `__sleep_ready__` flushes.
-        host.input(&id, b"(printf '__sleep_%s__\\n' 'ready'; exec sleep 30)\n")
-            .await
-            .unwrap();
-
-        // Wait until stdout proves `printf` completed and `sleep 30` is running in foreground.
-        // drift-allow(timeout-literal,duplicate-numeric-literal): local test foreground job readiness bound
-        tokio::time::timeout(Duration::from_secs(5), async {
-            let mut seen = String::new();
-            loop {
-                let frame = attached.output.recv().await.expect("output stream open");
-                seen.push_str(&String::from_utf8_lossy(&frame.bytes));
-                if seen.contains("__sleep_ready__") {
-                    break;
-                }
-            }
-        })
-        .await
-        .expect("foreground sleep command started");
+        // Submit `!sleep 30` through the stateful block host so bash's top-level DEBUG trap
+        // sets `__VOX_IN_EXEC=1` and opens a `Running` block deterministically. `submit()`
+        // waits 1500ms before returning an active long-running command, so `sleep 30` is
+        // guaranteed to be running in the foreground when we send `TermSignal::Interrupt`.
+        let sleep_bid = host.submit(&id, "!sleep 30").await.unwrap();
+        assert_eq!(
+            host.get_block(&id, sleep_bid)
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            BlockStatus::Running
+        );
 
         host.signal(&id, TermSignal::Interrupt).await.unwrap();
 
@@ -1046,7 +1039,7 @@ pub(crate) mod tests {
             loop {
                 if matches!(
                     attached.events.recv().await.expect("event stream open"),
-                    SessionEvent::BlockClosed { .. }
+                    SessionEvent::BlockClosed { id: closed_id, .. } if closed_id == sleep_bid
                 ) {
                     break;
                 }

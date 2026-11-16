@@ -199,6 +199,8 @@ docs/book/
 !contracts/kb/redteam/*.jsonl
 # Exception: the held-out reasoning slices (BENCH-02) are tracked contracts; mens/data/train.jsonl stays ignored.
 !mens/data/*_think/reasoning.jsonl
+!mens/data/agent_episodes/*.v1.jsonl
+!mens/data/rust_bench/*.v1.jsonl
 # Exception: the diagram-authoring eval set and its recorded runs are tracked contracts (EVAL-01).
 !contracts/eval/diagram-authoring/**/*.jsonl
 

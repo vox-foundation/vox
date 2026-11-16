@@ -73,7 +73,7 @@ Qwen3.5-2B (`2B`) is a specialized coding model for the [Vox programming languag
 
 ## Why this size
 
-The compact 2B hybrid model fits comfortably on everyday developer laptops and modest desktop GPUs with limited unified memory. Pick 2B for single-file Vox endpoints, quick schema drafts, beginner Q&A, and one-pass compiler error fixes. Move down to 0.6B for tighter latency on small hardware, or step up to 4B when changes span several files. The measured training peak for 2B is 27007 MiB (`peak_source`: run_summary), and no serving memory figure has been measured for it.
+The compact 2B hybrid model fits comfortably on everyday developer laptops and modest desktop GPUs with limited unified memory. Pick 2B for single-file Vox endpoints, quick schema drafts, beginner Q&A, and one-pass compiler error fixes. Move down to 0.8B for tighter latency on small hardware, or step up to 4B when changes span several files. The measured training peak for 2B is 27007 MiB (`peak_source`: run_summary), and no serving memory figure has been measured for it.
 
 ## Examples
 

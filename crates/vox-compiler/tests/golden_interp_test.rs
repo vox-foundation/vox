@@ -131,6 +131,10 @@ const KNOWN_INTERP_GAPS: &[(&str, &str)] = &[
     ("py_array_stats.vox", "needs the uv python worker"),
     // Frame golden materializes through the uv python worker.
     ("py_frame_report.vox", "needs the uv python worker"),
+    // Python environment / uv worker goldens require [python] in Vox.toml.
+    ("py_escape_psd.vox", "needs the uv python worker"),
+    ("py_plot_report.vox", "needs the uv python worker"),
+    ("py_tensor_infer.vox", "needs the uv python worker"),
 ];
 
 fn is_known_gap(path: &Path) -> Option<&'static str> {

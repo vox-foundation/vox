@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 1046
+**schema_version:** `1` · **vox-cli operations:** 1050
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -176,6 +176,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci check-links` | active | — | — | platform | — |
 | `vox ci check-summary-drift` | active | — | — | platform | — |
 | `vox ci ci-changes` | active | — | ci | platform | — |
+| `vox ci cli-synonyms` | active | — | — | platform | — |
 | `vox ci command-compliance` | active | — | — | platform | — |
 | `vox ci command-sync` | active | — | — | platform | — |
 | `vox ci commit-lint` | active | — | ci | platform | — |
@@ -841,6 +842,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox plan discuss-phase` | active | — | — | ai | — |
 | `vox plan docs` | active | — | — | ai | — |
 | `vox plan execute-phase` | active | — | — | ai | — |
+| `vox plan health` | active | — | — | ai | — |
 | `vox plan new-milestone` | active | — | — | ai | — |
 | `vox plan plan-phase` | active | — | — | ai | — |
 | `vox plan progress` | active | — | — | ai | — |
@@ -880,6 +882,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox populi status` | active | populi | — | workflow | — |
 | `vox populi up` | active | populi | — | workflow | — |
 | `vox py` | active | — | codex | platform | — |
+| `vox py bind` | active | — | codex | platform | — |
 | `vox py doctor` | active | — | codex | platform | — |
 | `vox py sync` | active | — | codex | platform | — |
 | `vox recensio` | active | coderabbit | recensio | ai | — |
@@ -1005,6 +1008,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox scientia research-refresh` | active | — | codex | data | — |
 | `vox scientia retrieval-status` | active | — | codex | data | — |
 | `vox scientia scout` | active | — | codex | data | — |
+| `vox scientia v76-audit` | active | — | codex | data | — |
 | `vox script` | active | script-execution | fabrica | workflow | — |
 | `vox secrets` | active | — | ars | platform | — |
 | `vox secrets backend-status` | active | — | ars | platform | — |

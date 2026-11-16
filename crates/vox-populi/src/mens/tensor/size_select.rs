@@ -1016,11 +1016,17 @@ mod tests {
         let overlay = repo_overlay();
         let ladder = size_ladder_for_tag(&overlay, "qwen3_5_code").expect("qwen3_5_code ladder");
         let sizes: Vec<&str> = ladder.iter().map(|r| r.size.as_str()).collect();
-        assert_eq!(sizes, ["2B", "4B", "9B", "27B"]);
+        assert_eq!(sizes, ["0.8B", "2B", "4B", "9B", "27B"]);
         let presets: Vec<&str> = ladder.iter().map(|r| r.preset).collect();
         assert_eq!(
             presets,
-            ["qwen35_2b", "qwen35_4b", "qwen35_9b", "qwen38_27b"]
+            [
+                "qwen35_0_8b",
+                "qwen35_2b",
+                "qwen35_4b",
+                "qwen35_9b",
+                "qwen38_27b"
+            ]
         );
         assert!(
             ladder.windows(2).all(|w| w[0].floor_mb <= w[1].floor_mb),
@@ -1030,6 +1036,7 @@ mod tests {
         assert_eq!(
             pins,
             [
+                "Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17",
                 "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",
                 "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
                 "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",

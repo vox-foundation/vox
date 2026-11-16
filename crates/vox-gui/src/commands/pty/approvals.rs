@@ -40,9 +40,11 @@ fn cloud_model<'a>(prov: &str, r_prov: &str, r_id: &'a str) -> &'a str {
         "openrouter" if r_id.is_empty() => "openrouter/auto",
         "openrouter" => r_id,
         _ if r_prov.eq_ignore_ascii_case(prov) && !r_id.is_empty() => r_id,
-        "anthropic" => "claude-sonnet-4-5",
-        "gemini" => "gemini-2.5-flash",
-        "openai" => "gpt-4o-mini",
+        "anthropic" => vox_config::model_defaults::CODE_REPAIR
+            .strip_prefix("~anthropic/")
+            .unwrap_or(vox_config::model_defaults::CODE_REPAIR),
+        "gemini" => vox_config::model_defaults::GEMINI_DIRECT,
+        "openai" => vox_config::model_defaults::OPENAI_DIRECT,
         "groq" => "llama-3.3-70b-versatile",
         _ => r_id,
     }

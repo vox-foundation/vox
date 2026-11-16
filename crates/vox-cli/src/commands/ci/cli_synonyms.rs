@@ -320,7 +320,7 @@ pub async fn mine_llm_synonym_candidates(
         "Propose safe verb/noun CLI synonyms as JSON array of {{\"path\": [...], \"alias\": \"...\"}} pairs:\n{}",
         summary_lines.join("\n")
     );
-    let cfg = LlmConfig::openrouter("gemini-3.5-flash-lite");
+    let cfg = LlmConfig::openrouter(vox_config::model_defaults::CLASSIFIER_FALLBACK);
     let opts = vox_actor_runtime::ActivityOptions::default();
     let messages = vec![LlmChatMessage {
         role: "user".to_string(),
