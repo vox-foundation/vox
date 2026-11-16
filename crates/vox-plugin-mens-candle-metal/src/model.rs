@@ -39,7 +39,7 @@ pub enum QuantizedLinear {
 }
 
 /// Target row count when padding decode rows up to `gemm_rows` for width-invariant GEMM.
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 #[must_use]
 pub fn padded_rows(rows: usize, gemm_rows: usize) -> usize {
     qlora_rs::qlora::QuantizedLinear::padded_rows(rows, gemm_rows)
