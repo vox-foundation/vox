@@ -37,7 +37,7 @@ pub(super) fn default_lane(id: &str, roster: &str) -> ConciliumAgentLane {
         status: SwarmWorkerStatus::Working,
         compute_tier: ComputeTier::CloudBandit,
         node_id: "cloud-bandit-router".into(),
-        model_id: "claude-sonnet-4-6".into(),
+        model_id: vox_config::model_defaults::PREMIUM_CODEGEN.into(),
         workspace_mode: SwarmWorkspaceMode::Inherit,
         file_lock_prefix: None,
         parked_since_seq: None,

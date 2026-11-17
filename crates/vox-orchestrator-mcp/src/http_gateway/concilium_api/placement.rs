@@ -52,7 +52,7 @@ pub(super) fn build_enriched_snapshot(gs: &GatewayState) -> ConciliumSnapshotDto
             status,
             compute_tier: ComputeTier::CloudBandit,
             node_id: "cloud-bandit-router".into(),
-            model_id: "claude-sonnet-4-6".into(),
+            model_id: vox_config::model_defaults::PREMIUM_CODEGEN.into(),
             workspace_mode: SwarmWorkspaceMode::Inherit,
             file_lock_prefix: lock_prefix,
             parked_since_seq: None,

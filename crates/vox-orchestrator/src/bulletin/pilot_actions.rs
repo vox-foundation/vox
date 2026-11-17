@@ -14,7 +14,7 @@ fn default_model_for_tier(tier: ComputeTier) -> &'static str {
         ComputeTier::LocalMensGpu => "vox-mens-local",
         ComputeTier::PopuliQuicPeer => "populi-quic-peer",
         ComputeTier::InlineCpu => "inline-cpu",
-        ComputeTier::CloudBandit => "claude-sonnet-4-6",
+        ComputeTier::CloudBandit => vox_config::model_defaults::PREMIUM_CODEGEN,
     }
 }
 
