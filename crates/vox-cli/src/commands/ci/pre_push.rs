@@ -2026,13 +2026,13 @@ fn step_nextest_slow(root: &Path) -> Result<()> {
         &[
             "nextest",
             "run",
-            "-p",
+            "--package",
             "vox-arch-check",
-            "-p",
+            "--package",
             "vox-scientia",
-            "-p",
+            "--package",
             "vox-codegen",
-            "-p",
+            "--package",
             "vox-mesh-transport",
             "-E",
             concat!(
