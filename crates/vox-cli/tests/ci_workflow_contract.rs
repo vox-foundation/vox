@@ -587,7 +587,7 @@ fn ci_tests_are_sharded_out_of_the_linux_leg() {
         "tests job must shard over the groups linux planned"
     );
     assert!(
-        yml.contains("--shards 3 --exclude vox-gui"),
+        yml.contains("--shards 5 --exclude vox-gui"),
         "linux must plan crate-level shards (each shard compiles only its own crates)"
     );
     assert!(
@@ -762,7 +762,10 @@ fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
         .unwrap_or(rest.len())];
 
     assert!(job.contains("    name: ML CUDA dependency health"));
-    assert!(job.contains("    runs-on: ubuntu-latest"));
+    assert!(
+        job.contains("    runs-on: ubuntu-24.04") || job.contains("    runs-on: ubuntu-latest"),
+        "ml-cuda-health must run on a pinned hosted Ubuntu runner"
+    );
     assert!(job.contains("    timeout-minutes: 180"));
     assert!(job.contains("uses: Jimver/cuda-toolkit@v0.2.36"));
     assert!(job.contains(r#"cuda: "12.6.3""#));

@@ -136,7 +136,7 @@ pub struct LoraTrainingConfig {
     pub tokenizer_mode: MensTokenizerMode,
     /// When false, sets qlora-rs `QuantizationConfig.double_quant` off (debug / ablation). Default: true.
     pub qlora_double_quant: bool,
-    /// Set by [`crate::mens::tensor::lora_train::run_mens_training`] from the execution plan.
+    /// Set by `crate::mens::tensor::lora_train::run_mens_training` from the execution plan.
     pub finetune_contract_digest: Option<String>,
     /// Candle QLoRA: fail preflight when middle projection keys are incomplete (`--qlora-require-full-proxy-stack`).
     pub qlora_require_full_proxy_stack: bool,

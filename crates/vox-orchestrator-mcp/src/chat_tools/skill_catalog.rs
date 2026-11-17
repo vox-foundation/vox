@@ -1,13 +1,13 @@
 //! Skill disclosure for the chat system prompt, following the agentskills.io
 //! three-tier progressive-disclosure model:
 //!
-//! * **Tier 1** ([`render_skill_catalog`]): name + description only (~100
+//! * **Tier 1** (`render_skill_catalog`): name + description only (~100
 //!   tokens/skill), injected for every chat turn so the model knows which
 //!   skills exist and when each applies. Works for prompt-only models (MENS)
 //!   that cannot call tools.
 //! * **Tier 2** (the `vox_skill_use` tool, separate): full SKILL.md body loaded
 //!   on demand by tool-calling models.
-//! * **Pinned** ([`render_pinned_skill`]): when the user explicitly selects a
+//! * **Pinned** (`render_pinned_skill`): when the user explicitly selects a
 //!   skill, its full body is injected directly — no tool round-trip — so even
 //!   the prompt-only MENS path honors it.
 //!

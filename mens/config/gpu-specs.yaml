@@ -338,7 +338,7 @@ train_bases:
   # Nov 2026 Qwen3.5/3.8 active ladder (measured on silicon-gpu-metal at seq_len=1024;
   # see docs/src/architecture/measurements/2026-11-13-candle-metal-qwen35-calibration.md).
   qwen3_5_code:
-    - { hf_id: "Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17", floor_mb: 12000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3.5-0.8B@2fc06364715b967f1860aea9cf38778875588b17", floor_mb: 17000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 16393 }
     - { hf_id: "Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc",   floor_mb: 19500, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 18740 }
     - { hf_id: "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",   floor_mb: 34000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 33090 }
     - { hf_id: "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",   floor_mb: 36000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 33648 }

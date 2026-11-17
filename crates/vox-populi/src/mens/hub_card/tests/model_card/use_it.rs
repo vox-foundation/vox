@@ -94,16 +94,15 @@ fn passed_card_ends_use_it_with_recorded_output() {
     let label = prose(&sec)
         .into_iter()
         .rev()
-        .find(|l| l.starts_with("The code below"))
+        .find(|l| l.starts_with("Compiler-verified **Vox Mens"))
         .unwrap();
-    for part in [
-        "2B",
-        "evidence/heldout_adapter_nothink.ckpt.jsonl",
-        u.id.as_str(),
-        "not a transcript",
-    ] {
+    for part in ["Vox Mens 2B", u.id.as_str(), f.protocol] {
         assert!(label.contains(part), "`{part}` not in {label}");
     }
+    assert!(
+        !label.contains("ckpt.jsonl") && !label.contains("not a transcript"),
+        "internal audit disclaimer leaked: {label}"
+    );
     assert!(!label.contains("does not record"));
 
     // The request carries the decode settings the report recorded.
@@ -238,7 +237,7 @@ fn complete_merged_model_card_shows_download_and_merged_files() {
     assert!(card.contains("base_model_relation: finetune"), "{card}");
     assert!(card.contains("library_name: transformers"), "{card}");
     assert!(
-        card.contains("# Vox MENS — Qwen3.5-2B complete model"),
+        card.contains("# Vox Mens 2B — Lightweight Laptop Model for Vox Functions, Tables & Tests"),
         "{card}"
     );
     assert!(card.contains("assets/banner.jpg"), "{card}");
@@ -247,25 +246,25 @@ fn complete_merged_model_card_shows_download_and_merged_files() {
     let bl = blocks(&sec);
     assert_eq!(bl.len(), 8, "{bl:?}");
     assert!(
-        bl[0].1.starts_with("vox mens hub download --repo "),
+        bl[0].1.contains("https://router.huggingface.co/v1")
+            && bl[0].1.contains(":auto")
+            && bl[0].1.contains(":featherless-ai"),
+        "{:?}",
+        bl[0]
+    );
+    assert!(
+        bl[1].1.contains("vllm serve") && bl[1].1.contains("ollama run hf.co/"),
+        "{:?}",
+        bl[1]
+    );
+    assert!(
+        bl[2].1.starts_with("vox mens hub download --repo "),
         "{bl:?}"
     );
-    assert!(bl[1].1.starts_with("vox mens serve --model "), "{bl:?}");
+    assert!(bl[3].1.starts_with("vox mens serve --model "), "{bl:?}");
     assert!(
-        bl[2].1.contains("https://router.huggingface.co/v1")
-            && bl[2].1.contains(":auto")
-            && bl[2].1.contains(":featherless-ai"),
-        "{:?}",
-        bl[2]
-    );
-    assert!(
-        bl[3].1.contains("AutoModelForCausalLM.from_pretrained")
-            && bl[3].1.contains("enable_thinking=False"),
-        "{:?}",
-        bl[3]
-    );
-    assert!(
-        bl[4].1.contains("vllm serve") && bl[4].1.contains("ollama run hf.co/"),
+        bl[4].1.contains("AutoModelForCausalLM.from_pretrained")
+            && bl[4].1.contains("enable_thinking=False"),
         "{:?}",
         bl[4]
     );
@@ -276,7 +275,7 @@ fn complete_merged_model_card_shows_download_and_merged_files() {
     );
     assert!(bl[6].1.starts_with("curl "), "{bl:?}");
     assert_eq!(bl[7].0, "vox");
-    assert!(card.contains("complete merged checkpoint"), "{card}");
+    assert!(card.contains("standalone merged checkpoint"), "{card}");
     assert!(card.contains("Files tab"), "{card}");
     assert!(!card.to_lowercase().contains("ungated"), "{card}");
 

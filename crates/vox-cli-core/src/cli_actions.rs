@@ -2,17 +2,20 @@
 
 use clap::Subcommand;
 
+/// Subcommands for `vox architect` (requires `--features codex` or `stub-check`).
 #[derive(Subcommand, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ArchitectAction {
-    /// Validate workspace architecture.
+    /// Validate workspace architecture against vox-schema.json
     Check,
-    /// Automatically move crates.
+    /// Automatically move crates to their schema-correct locations
     FixSprawl {
+        /// Actually move files (default: false, dry-run only)
         #[arg(long)]
         apply: bool,
     },
-    /// Analyze God Objects.
+    /// Analyze God Objects and suggest trait decomposition
     Analyze {
+        /// Path to source file or directory
         #[arg(default_value = ".")]
         path: std::path::PathBuf,
     },

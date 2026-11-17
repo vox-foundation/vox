@@ -104,7 +104,7 @@ pub struct TurnContext {
     pub pin_names: Vec<&'static str>,
     /// The user text for this turn. `None` keeps registry order inside the lanes
     /// (callers that are not a chat turn). `Some` ranks survivors with
-    /// [`turn_terms`] / [`score_entry`] and may pull in a few read-only tools
+    /// `turn_terms` / `score_entry` and may pull in a few read-only tools
     /// from outside `ctx.lanes`.
     pub query: Option<String>,
 }
@@ -151,7 +151,7 @@ impl TurnContext {
 /// 5. Pin hoist — moves any in-lane survivor named in `ctx.pin_names` to the
 ///    front, preserving registry order (no-op if empty).
 /// 6. Relevance — the remaining in-lane survivors are ordered by
-///    [`score_entry`] over [`turn_terms`] of `ctx.query`, best first. Ties and
+///    `score_entry` over `turn_terms` of `ctx.query`, best first. Ties and
 ///    a missing query keep registry order. Up to [`MAX_OFF_LANE_RELEVANT`]
 ///    read-only tools outside `ctx.lanes` whose name matches a turn term join
 ///    that ranking.

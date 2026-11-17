@@ -2,7 +2,7 @@
 //!
 //! Feeds structured routing priors (`task`, `complexity`, `prefer_local`, and
 //! conditional `allow_free_in_performance_mode`) upstream of
-//! [`super::resolve::build_selection_request`] without ever emitting or
+//! `super::resolve::build_selection_request` without ever emitting or
 //! accepting raw model IDs, and evaluates selective-prediction calibration
 //! metrics (`accuracy`, `ece`, `coverage_at_error`) with strict local-only
 //! privacy gating (`!vox_orchestrator::route_policy::inference_privacy_local_only_from_env()`).
@@ -113,7 +113,7 @@ pub struct CallerExplicitRouteFlags {
     pub caller_set_prefer_local: bool,
 }
 
-/// Patched inputs produced upstream of [`super::resolve::build_selection_request`] (`DEC-01`).
+/// Patched inputs produced upstream of `super::resolve::build_selection_request` (`DEC-01`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TurnDecisionPatchOutcome {
     pub task: TaskCategory,

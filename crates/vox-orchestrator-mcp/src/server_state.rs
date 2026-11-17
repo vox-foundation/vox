@@ -256,7 +256,7 @@ impl ServerState {
         None
     }
 
-    /// Install a live [`TerminalBridge`] (e.g. `LocalHostTerminalBridge` in `vox-orchestrator-d`),
+    /// Install a live `TerminalBridge` (e.g. `LocalHostTerminalBridge` in `vox-orchestrator-d`),
     /// propagating immediately to all pre-existing [`ServerState`] clones.
     pub fn set_terminal_bridge(
         &self,
@@ -265,8 +265,8 @@ impl ServerState {
         *self.terminal_bridge.write() = Some(bridge);
     }
 
-    /// Resolve the active [`TerminalBridge`]: in-process injected bridge first, running
-    /// `vox-orchestrator-d` over loopback second, cached [`EphemeralTerminalBridge`] third.
+    /// Resolve the active `TerminalBridge`: in-process injected bridge first, running
+    /// `vox-orchestrator-d` over loopback second, cached `EphemeralTerminalBridge` third.
     pub async fn resolve_terminal_bridge(
         &self,
     ) -> Arc<dyn vox_orchestrator::terminal_bridge::TerminalBridge> {

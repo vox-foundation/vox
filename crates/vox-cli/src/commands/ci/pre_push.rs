@@ -1239,6 +1239,7 @@ fn is_fmt_scoped_rs_candidate(rel: &str) -> bool {
     rel.ends_with(".rs")
         && !rel.starts_with("patches/")
         && !rel.starts_with(vox_config::paths::REPO_SALVAGE_DIR_PREFIX)
+        && rel != "crates/vox-gui/src/config/generated_fields.rs"
 }
 
 fn step_fmt_scoped(root: &Path, changed_rs: &[PathBuf], cargo_toml_changed: bool) -> Result<()> {
@@ -2025,6 +2026,14 @@ fn step_nextest_slow(root: &Path) -> Result<()> {
         &[
             "nextest",
             "run",
+            "--package",
+            "vox-arch-check",
+            "--package",
+            "vox-scientia",
+            "--package",
+            "vox-codegen",
+            "--package",
+            "vox-mesh-transport",
             "-E",
             concat!(
                 "test(arch_check_live_workspace_smoke_and_description_rule)",

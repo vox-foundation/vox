@@ -1,7 +1,7 @@
 use super::*;
 
 impl ModelRegistry {
-    /// Execute an extended 12-turn everyday human conversation through Axis + [`AgentHarness`],
+    /// Execute an extended 12-turn everyday human conversation through Axis + `AgentHarness`,
     /// testing colloquial natural-language prompts (with zero internal Rust struct jargon),
     /// multi-turn conversational context carryover ("in that .vox file", "what we just built"),
     /// and automatic `SelectionIntent::repair_loop` escalation when the user reports syntax,

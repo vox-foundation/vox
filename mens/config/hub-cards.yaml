@@ -12,37 +12,22 @@ schema: vox_mens_hub_cards_v1
 # this line with a derivation from the training mix.
 default_spoke: vox-lang
 default_spoke_source: >-
-  Each fine-tuned checkpoint specializes in writing, fixing, and explaining Vox programs, and
-  only publishes after automated compiler checks verify it improves Vox code without hurting
-  general coding.
+  Off-the-shelf models often guess Rust or TypeScript syntax when asked for Vox; Vox Mens models
+  specialize in valid Vox code so you can run locally on Windows, Linux, or Mac — or pair them
+  underneath a larger cloud model for big-picture planning.
 
 spokes:
   - id: vox-lang
     label: vox-lang
     status: trained
-    purpose: Helps developers write, fix, and understand Vox web apps, agents, and backend functions.
-  - id: tool-selection
-    label: "harness: tool-selection"
-    status: planned
-    purpose: Picks the right external tool or API action next inside automated coding workflows.
-    link: https://voxlang.org/reference/mens-models/#hub-and-spoke
-  - id: argument-generation
-    label: "harness: argument-generation"
-    status: planned
-    purpose: Fills in structured inputs and parameters cleanly when calling coding tools.
-    link: https://voxlang.org/reference/mens-models/#hub-and-spoke
-  - id: rust
-    label: rust
-    status: planned
-    purpose: Assists with lower-level Rust crates and runtime bindings alongside Vox apps.
-    link: https://voxlang.org/reference/mens-models/#hub-and-spoke
+    purpose: Writes, fixes, and explains Vox database tables, backend handlers, web views, and workflows.
 
 sizes:
   "0.8B":
     why:
-      - The ultra-lightweight 0.8B hybrid entry model runs fast on everyday laptops, edge devices, and modest unified memory.
-      - Use 0.8B when instant autocomplete, quick syntax questions, and fast continuous checks matter more than deep multi-file reasoning.
-      - Step up to 2B or 4B whenever you start editing multiple connected functions across a file.
+      - Vox Mens 0.8B is the smallest download in the family, built to run on almost any Windows, Linux, or Mac laptop — even without a dedicated GPU — or in the browser Playground.
+      - Use 0.8B to try Vox locally, generate short functions or simple queries, and check basic Vox syntax with minimal memory and disk use.
+      - Because 0.8B has very limited capacity for multi-step logic, step up to 2B or 4B for full handlers and use a larger cloud model for app design.
     regate_eta:
       hours_expected: 0.9
       hours_conservative: 1.5
@@ -53,9 +38,9 @@ sizes:
       confidence: low
   "2B":
     why:
-      - The compact 2B hybrid model fits comfortably on everyday developer laptops and modest desktop GPUs with limited unified memory.
-      - Pick 2B for single-file Vox endpoints, quick schema drafts, beginner Q&A, and one-pass compiler error fixes.
-      - Move down to 0.8B for tighter latency on small hardware, or step up to 4B when changes span several files.
+      - Vox Mens 2B fits everyday laptops and entry-level GPUs across Windows, Linux, and Mac while keeping memory use light alongside your editor and browser.
+      - Use 2B for writing single Vox functions, database table definitions, and small self-contained unit tests.
+      - Drop to 0.8B when disk or RAM is tight, or move up to 4B and 9B when a file combines tables, queries, mutations, and UI views.
     regate_eta:
       hours_expected: 1.8
       hours_conservative: 2.8
@@ -66,9 +51,9 @@ sizes:
       confidence: low
   "4B":
     why:
-      - The balanced 4B hybrid model is built for workstation laptops with comfortable unified memory and steady local decode speed.
-      - Choose 4B as your daily coding assistant for building full Vox routes, reactive components, and refactoring connected helpers together.
-      - Step up to 9B for complex cross-module tasks, or switch to 2B on lighter machines.
+      - Vox Mens 4B is the practical everyday choice for developer PCs and laptops with a modest GPU or comfortable system RAM.
+      - Use 4B to draft connected database tables, backend queries and mutations, reactive web components, and routine compiler fixes in one file.
+      - Step down to 2B on lighter hardware, step up to 9B or 27B when type errors get trickier, and use large cloud models for open-ended architecture.
     regate_eta:
       hours_expected: 3.6
       hours_conservative: 5.4
@@ -79,9 +64,9 @@ sizes:
       confidence: low
   "9B":
     why:
-      - The capable 9B hybrid model targets high-memory developer laptops and compact Apple Silicon studios running locally.
-      - Use 9B when planning multi-file features, wiring database schemas to actors, and reasoning carefully through compiler types.
-      - Step back to 4B on smaller machines, or step up to 27B for whole-repository architecture work.
+      - Vox Mens 9B targets desktop GPUs, higher-memory laptops, and hosted inference endpoints for stronger multi-function Vox accuracy.
+      - Use 9B when writing workflows, state machines, and multi-handler Vox files or fixing compiler errors that smaller local models miss.
+      - Choose 4B for faster local turnaround, step up to 27B on heavier GPUs or hosted routers, and keep broad cross-project planning on large cloud models.
     regate_eta:
       hours_expected: 6.2
       hours_conservative: 9.0
@@ -92,9 +77,9 @@ sizes:
       confidence: low
   "27B":
     why:
-      - The flagship 27B studio model is designed for high-memory Apple Silicon workstations without needing a remote server cluster.
-      - Pick 27B for deep cross-module architecture design, complex multi-file Vox synthesis, and challenging debugging in one pass.
-      - Drop down to 9B whenever workstation memory headroom or token speed runs tight.
+      - Vox Mens 27B offers the highest Vox accuracy in this open-weights lineup for high-VRAM GPUs, workstations, and hosted routers — though at 27B it is still a compact model compared to massive proprietary cloud APIs.
+      - Use 27B when code must stay private on your own hardware or when offloading day-to-day Vox generation and compiler fixes from metered cloud billing.
+      - Pair 27B underneath a large cloud model that handles open-ended product specs and research, or step down to 9B and 4B for lighter local runs.
     regate_eta:
       hours_expected: 11.5
       hours_conservative: 16.5

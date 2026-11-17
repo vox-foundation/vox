@@ -301,7 +301,7 @@ pub async fn rebalance() -> Result<()> {
 /// `vox orchestrator config` — show current orchestrator configuration.
 ///
 /// T2.3: kept local (not routed through the daemon). This reads static
-/// `Vox.toml`/defaults via [`load_config`] — it is not shared, mutable
+/// `Vox.toml`/defaults via `load_config` — it is not shared, mutable
 /// daemon state (no task queue, no approvals), so there is no split-brain
 /// risk in reading it locally, and the daemon's own `config.get` RPC
 /// (`orch_daemon_method::CONFIG_GET`/`ai.` `config.get`) exposes a narrower

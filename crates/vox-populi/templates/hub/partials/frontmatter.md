@@ -80,7 +80,7 @@ model-index:
 widget:
 {%- for w in ex.wins %}
 {%- if let Some(out) = w.widget_output() %}
-- example_title: {{ w.id }}
+- example_title: {{ w.widget_title() }}
   text: {{ w.widget_prompt() }}
   output:
     text: {{ out }}
@@ -88,7 +88,7 @@ widget:
 {%- endfor %}
 {%- if let Some(u) = f.use_it() %}
 {%- if let Some(out) = u.widget_output() %}
-- example_title: {{ u.id }}
+- example_title: {{ u.widget_title() }}
   text: {{ u.widget_prompt() }}
   output:
     text: {{ out }}

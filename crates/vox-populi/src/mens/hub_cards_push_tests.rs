@@ -216,7 +216,20 @@ fn plan_card_push_cases() {
         plan_card_push(S::InSync, true, l, l),
         CardPushPlan::Unchanged
     );
-    // When remote weights match local weights, card/collateral updates can push card-only even if gated.
+    // Ungated sizes are never pushed to Hugging Face, regardless of local/remote status.
+    assert_eq!(
+        plan_card_push(S::Diverged, false, r, l),
+        CardPushPlan::SkipUngated
+    );
+    assert_eq!(
+        plan_card_push(S::LocalOnly, false, None, l),
+        CardPushPlan::SkipUngated
+    );
+    assert_eq!(
+        plan_card_push(S::InSync, false, l, l),
+        CardPushPlan::SkipUngated
+    );
+    // When gated and remote weights match local weights, card/collateral updates push card-only.
     assert_eq!(
         plan_card_push(S::Diverged, true, r, l),
         CardPushPlan::CardOnly {
@@ -235,29 +248,22 @@ fn plan_card_push_cases() {
         plan_card_push(S::Diverged, true, Some(&r_diff_weights), l),
         CardPushPlan::GatedWeights
     );
+    // Gated local-only without remote weights goes through gated weights publish path.
     assert_eq!(
-        plan_card_push(S::Diverged, false, r, l),
-        CardPushPlan::CardOnly {
-            with_manifest: true
-        }
+        plan_card_push(S::LocalOnly, true, None, l),
+        CardPushPlan::GatedWeights
     );
-    assert_eq!(
-        plan_card_push(S::LocalOnly, false, None, l),
-        CardPushPlan::CardOnly {
-            with_manifest: false
-        }
-    );
-    // Same card bytes and label: unchanged even if the card entries differ elsewhere in the manifest.
+    // Same card bytes and label when gated: unchanged even if corpus_hash differs.
     let mut other = local.clone();
     other.corpus_hash = "other".to_string();
     assert_eq!(
-        plan_card_push(S::Diverged, false, Some(&other), l),
+        plan_card_push(S::Diverged, true, Some(&other), l),
         CardPushPlan::Unchanged
     );
-    // A different gate label alone is a change.
+    // A different gate label alone when gated with matching weights triggers card-only update.
     other.gate_status = "passed".to_string();
     assert_eq!(
-        plan_card_push(S::Diverged, false, Some(&other), l),
+        plan_card_push(S::Diverged, true, Some(&other), l),
         CardPushPlan::CardOnly {
             with_manifest: true
         }
@@ -268,8 +274,20 @@ fn plan_card_push_cases() {
 fn decide_rows_dry_run() {
     let tmp = tempfile::tempdir().unwrap();
     let (_, local, remote) = local_and_remote(tmp.path());
+    // Ungated row is skipped, never queued for upload.
+    let mut r_ungated = row(SizeSyncStatus::Diverged);
+    assert_eq!(
+        decide_row(&mut r_ungated, false, Some(&remote), Some(&local)),
+        CardPushPlan::SkipUngated
+    );
+    assert_eq!(
+        r_ungated.action_taken.as_deref(),
+        Some("skipped (gate not passed)")
+    );
+
+    // Gated row with matching weights previews card-only push without uploading.
     let mut r = row(SizeSyncStatus::Diverged);
-    let plan = decide_row(&mut r, false, Some(&remote), Some(&local));
+    let plan = decide_row(&mut r, true, Some(&remote), Some(&local));
     assert_eq!(
         plan,
         CardPushPlan::CardOnly {
@@ -281,7 +299,7 @@ fn decide_rows_dry_run() {
     assert!(!text.contains("pushed"), "{text}");
     let mut r = row(SizeSyncStatus::InSync);
     assert_eq!(
-        decide_row(&mut r, false, Some(&local), Some(&local)),
+        decide_row(&mut r, true, Some(&local), Some(&local)),
         CardPushPlan::Unchanged
     );
     assert_eq!(r.action_taken.as_deref(), Some("cards unchanged"));

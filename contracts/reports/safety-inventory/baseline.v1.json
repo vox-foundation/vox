@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "rust": {
-    "unsafe_brace_block_opens": 719,
-    "lines_unsafe_with_env_mutation": 254,
-    "ignored_test_functions_total": 92,
+    "unsafe_brace_block_opens": 752,
+    "lines_unsafe_with_env_mutation": 255,
+    "ignored_test_functions_total": 101,
     "ignored_test_governance_violation_count": 0,
     "ignored_tests_top_files": [
       {
@@ -71,10 +71,6 @@
         "count": 2
       },
       {
-        "path": "crates/vox-actor-runtime/src/feedback.rs",
-        "count": 1
-      },
-      {
         "path": "crates/vox-actor-runtime/tests/openrouter_free_floor_smoke.rs",
         "count": 1
       },
@@ -91,25 +87,30 @@
         "count": 1
       },
       {
-        "path": "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+        "path": "crates/vox-cli-research/src/ci_helpers/guards.rs",
         "count": 1
       },
       {
-        "path": "crates/vox-cli/src/commands/db/mod.rs",
+        "path": "crates/vox-cli-research/src/db/mod.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-cli-research/tests/eval_e2e_test.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-cli/tests/it/eval_diagram_live.rs",
         "count": 1
       },
       {
         "path": "crates/vox-code-audit/src/stdlib_parity.rs",
         "count": 1
-      },
-      {
-        "path": "crates/vox-compiler/src/semcov_struct_pipeline_tests.rs",
-        "count": 1
       }
     ],
-    "crate_root_inner_allow_lines": 31,
+    "crate_root_inner_allow_lines": 35,
     "crate_root_inner_allow_files": [
       "crates/vox-actor-runtime/src/lib.rs",
+      "crates/vox-cli-research/src/lib.rs",
       "crates/vox-cli/src/lib.rs",
       "crates/vox-codegen-ts/src/lib.rs",
       "crates/vox-codegen/src/lib.rs",

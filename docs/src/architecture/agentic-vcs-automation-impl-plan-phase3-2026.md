@@ -1,6 +1,6 @@
 ---
 title: "Agentic VCS Automation — Phase 3 Implementation Plan (2026-05-09)"
-description: "Step-by-step TDD plan that lands the dashboard surface for agentic VCS state: API routes under /api/v2/vcs/, five panels (workspace branch board, oplog viewer, push queue, capability ledger, leaked-secret diff scanner), WebSocket telemetry tap on vox.vcs.* events, and the React/HTMX-side wiring. Builds on Phases 1 and 2."
+description: "Step-by-step TDD plan that lands the dashboard surface for agentic VCS state: API routes under /api/v2/vcs/, five panels (workspace branch board, oplog viewer, push queue, capability ledger, leaked-secret diff scanner), WebSocket telemetry tap on vox.vcs.* events, and the React/WebSocket-side wiring. Builds on Phases 1 and 2."
 category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
@@ -21,9 +21,9 @@ vox_relevance:
 
 **Goal:** Make the agentic VCS state visible. After Phase 3, an operator can answer at a glance: which agents are on which branches, what they're committing, which capabilities have been minted to whom and why, what's queued for push, and which staged hunks contain secrets that would block the push. The dashboard is a *thin renderer* over already-persistent data: oplog entries, capability ledger, and `vox.vcs.*` telemetry.
 
-**Architecture:** Five panels live under `crates/vox-dashboard/src/api/v2/vcs/`. Each panel is a route + an HTML/HTMX template; the data comes from read-only orchestrator queries that return JSON. A WebSocket route at `/api/v2/vcs/events` taps the `vox.vcs.*` `tracing` namespace via a `tracing-subscriber` layer that forwards events to a broadcast channel. The dashboard is presentational — no destructive ops are performed from it without surfacing the operation back through the existing MCP tool path with appropriate capabilities.
+**Architecture:** Five panels live under `crates/vox-dashboard/src/api/v2/vcs/`. Each panel is a route + a dashboard template; the data comes from read-only orchestrator queries that return JSON. A WebSocket route at `/api/v2/vcs/events` taps the `vox.vcs.*` `tracing` namespace via a `tracing-subscriber` layer that forwards events to a broadcast channel. The dashboard is presentational — no destructive ops are performed from it without surfacing the operation back through the existing MCP tool path with appropriate capabilities.
 
-**Tech stack:** `axum` 0.8 (already a dep), `askama` for templates if not already present, `tokio::sync::broadcast` for the telemetry channel, `tracing-subscriber` 0.3 (likely already used somewhere — check), no new client-side framework — HTMX over the existing dashboard's HTML surface.
+**Tech stack:** `axum` 0.8 (already a dep), `askama` for templates if not already present, `tokio::sync::broadcast` for the telemetry channel, `tracing-subscriber` 0.3 (likely already used somewhere — check), WebSocket streams over the existing dashboard's React surface.
 
 **Out of scope for Phase 3:**
 - The Vox-language `@vcs.*` decorator UI (Phase 4).
@@ -526,7 +526,7 @@ git commit -m "feat(orchestrator): add VcsBroadcastLayer + /api/v2/vcs/events We
 
 ## Tasks 3–7: Five dashboard panels
 
-Each panel is a pair of files: an HTML template + a handler that renders it. Phase 3 uses HTMX for live updates so the WebSocket from Task 2 can swap fragments into the page without a full reload.
+Each panel is a pair of files: an HTML template + a handler that renders it. Phase 3 uses WebSocket updates from Task 2 to refresh fragments cleanly without a full reload.
 
 The panels share a common skeleton; this plan documents Panel 1 in full and lists the diffs for Panels 2–5.
 
@@ -639,7 +639,7 @@ Commit message: `feat(dashboard): add Oplog viewer panel with kind/workspace/tim
 
 ### Task 5: Panel 3 — Push queue
 
-Adds `push_queue.rs` + `push_queue.html`. Renders pending PR opens with state column (awaiting_ci / ready / blocked_secret_scan). Each row links to the corresponding workspace in Panel 1. Live updates via the WebSocket from Task 2 — when a `vox.vcs.commit` or `vox.vcs.pr_open` event fires, HTMX swaps the row.
+Adds `push_queue.rs` + `push_queue.html`. Renders pending PR opens with state column (awaiting_ci / ready / blocked_secret_scan). Each row links to the corresponding workspace in Panel 1. Live updates via the WebSocket from Task 2 — when a `vox.vcs.commit` or `vox.vcs.pr_open` event fires, the WebSocket stream updates the row.
 
 Commit message: `feat(dashboard): add Push queue panel with WebSocket live updates`
 

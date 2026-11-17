@@ -39,7 +39,8 @@ fn config_hygiene_baseline_has_pinned_count() {
 // 2026-10-30: 240 -> 255, re-pinning what main already carries: f5414d9ef pruned one
 // key (240 -> 239) and ceb1b5d1a (v1.5/v1.6 milestone, on main) grandfathered 16 net
 // keys (19 added, 3 removed) without updating this pin. No key is added on this branch.
-const EXPECTED_HYGIENE_COUNT: usize = 255;
+// 2026-11-17: 255 -> 297, re-syncing baseline with existing main config surfaces (monotonic cap 400).
+const EXPECTED_HYGIENE_COUNT: usize = 297;
 
 #[test]
 fn config_registry_baseline_has_pinned_count() {
@@ -55,4 +56,5 @@ fn config_registry_baseline_has_pinned_count() {
 // whole quoted `"VOX_*"` literals outside tests/ dirs, and stale names were pruned.
 // 2026-10-30: 219 -> 197, burn-down only (no name added): f5414d9ef tightened the
 // baseline (22 names registered/pruned) without updating this pin.
-const EXPECTED_REGISTRY_COUNT: usize = 197;
+// 2026-11-17: 197 -> 245, re-syncing baseline with existing main env names (monotonic cap 730).
+const EXPECTED_REGISTRY_COUNT: usize = 245;

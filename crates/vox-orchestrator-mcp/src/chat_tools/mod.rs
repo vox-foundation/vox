@@ -183,7 +183,7 @@ fn read_utf8_path_cached_by_mtime(path: &std::path::Path) -> Result<String, Stri
     Ok(content)
 }
 
-/// Like [`build_system_prompt`], but injects the full body of a user-pinned
+/// Like `build_system_prompt`, but injects the full body of a user-pinned
 /// skill (by id or name) so prompt-only models honor it without a tool call.
 ///
 /// When `model_key` is `Some`, a cache-stable `## Model guidance` segment is

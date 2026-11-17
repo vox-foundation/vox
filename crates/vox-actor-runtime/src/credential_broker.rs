@@ -1,10 +1,10 @@
 //! Zero-trust capability-scoped credential broker for agents and MCP tools (`CLAVIS-05`).
 //!
 //! Agents and tool invocations never receive raw secret strings in prompts, tool arguments,
-//! or LLM-visible context. Instead, [`CredentialBroker`] verifies that the caller holds a
+//! or LLM-visible context. Instead, `CredentialBroker` verifies that the caller holds a
 //! matching [`vox_secrets::Capability`] (or explicit [`vox_secrets::SecretId`] grant), produces
-//! a [`SealedHeaderInjection`] whose `Debug` and serialized representations are strictly redacted,
-//! and scrubs outbound tool results / logs with [`CredentialBroker::scrub_tool_output`].
+//! a `SealedHeaderInjection` whose `Debug` and serialized representations are strictly redacted,
+//! and scrubs outbound tool results / logs with `CredentialBroker::scrub_tool_output`.
 
 use std::collections::{BTreeSet, HashSet};
 use std::fmt;

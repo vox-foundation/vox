@@ -1,23 +1,6 @@
 use clap::Parser;
 
-/// Subcommands for `vox architect` (requires `--features codex` or `stub-check`).
-#[derive(Parser)]
-pub enum ArchitectAction {
-    /// Validate workspace architecture against vox-schema.json
-    Check,
-    /// Automatically move crates to their schema-correct locations
-    FixSprawl {
-        /// Actually move files (default: false, dry-run only)
-        #[arg(long)]
-        apply: bool,
-    },
-    /// Analyze God Objects and suggest trait decomposition
-    Analyze {
-        /// Path to source file or directory
-        #[arg(default_value = ".")]
-        path: std::path::PathBuf,
-    },
-}
+pub use vox_cli_core::cli_actions::ArchitectAction;
 
 #[derive(Parser)]
 pub enum WorkflowAction {

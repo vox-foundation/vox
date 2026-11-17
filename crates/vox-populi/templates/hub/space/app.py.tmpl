@@ -380,10 +380,10 @@ def build_ladder_markdown() -> str:
     return "\n".join(lines)
 
 
-with gr.Blocks(title="Vox MENS Coding Playground") as demo:
+with gr.Blocks(title="Vox Mens Coding Playground") as demo:
     gr.Markdown(
-        f"# ⚡ Vox MENS — AI Coding Playground for Vox\n"
-        f"Compare compiler-verified Vox coding models side by side against base Qwen models using live checkpoints from [`{INDEX_REPO}`](https://huggingface.co/{INDEX_REPO}) · [Vox & Python Guide](https://voxlang.org/reference/mens-models/#vox-and-python-bindings)."
+        f"# ⚡ Vox Mens — Full-Stack Coding Playground\n"
+        f"Compare compiler-verified **Vox Mens** coding models side by side against unadapted baselines using live checkpoints from [`{INDEX_REPO}`](https://huggingface.co/{INDEX_REPO}) · [Vox & Python Guide](https://voxlang.org/reference/mens-models/#vox-and-python-bindings)."
     )
     ladder_md = gr.Markdown(value=build_ladder_markdown)
     refresh_btn = gr.Button("Refresh Live Hub Ladder State", size="sm")
@@ -406,8 +406,8 @@ with gr.Blocks(title="Vox MENS Coding Playground") as demo:
             run_btn = gr.Button("Generate Side-by-Side (Greedy T=0)", variant="primary")
             status_md = gr.Markdown()
             with gr.Row():
-                base_code = gr.Code(label="Base Qwen Output", language="typescript")
-                adap_code = gr.Code(label="Vox MENS Coding Assistant Output", language="typescript")
+                base_code = gr.Code(label="Unadapted Base Output", language="typescript")
+                adap_code = gr.Code(label="Vox Mens Output", language="typescript")
             run_btn.click(
                 fn=run_side_by_side,
                 inputs=[infer_size, prompt_box, max_toks],

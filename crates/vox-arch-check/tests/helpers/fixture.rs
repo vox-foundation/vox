@@ -62,13 +62,36 @@ impl ArchCheckFixture {
     pub fn binary() -> PathBuf {
         static BIN: OnceLock<PathBuf> = OnceLock::new();
         BIN.get_or_init(|| {
+            if let Some(p) = std::env::var_os("CARGO_BIN_EXE_vox-arch-check")
+                .or_else(|| std::env::var_os("CARGO_BIN_EXE_vox_arch_check"))
+                .map(PathBuf::from)
+                .filter(|p| p.exists())
+            {
+                return p;
+            }
+            if let Some(p) = option_env!("CARGO_BIN_EXE_vox-arch-check")
+                .map(PathBuf::from)
+                .filter(|p| p.exists())
+            {
+                return p;
+            }
+            let bin_name = if cfg!(windows) {
+                "vox-arch-check.exe"
+            } else {
+                "vox-arch-check"
+            };
+            if let Ok(curr) = std::env::current_exe()
+                && let Some(deps_dir) = curr.parent()
+                && let Some(profile_dir) = deps_dir.parent()
+            {
+                let sibling = profile_dir.join(bin_name);
+                if sibling.exists() {
+                    return sibling;
+                }
+            }
             let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
             let ws_root = manifest_dir.parent().unwrap().parent().unwrap();
-            let exe = if cfg!(windows) {
-                ws_root.join("target/debug/vox-arch-check.exe")
-            } else {
-                ws_root.join("target/debug/vox-arch-check")
-            };
+            let exe = ws_root.join("target/debug").join(bin_name);
             assert!(
                 exe.exists(),
                 "vox-arch-check binary not found at {} (nextest should have built it)",

@@ -71,7 +71,7 @@ pub(crate) fn build_selection_request(
 /// Build a [`ModelSelectionRequest`] with an optional pre-turn [`super::turn_decision_pack::TurnDecisionPack`]
 /// applied upstream (`DEC-01`, `DEC-03`).
 ///
-/// - When `pack` is `None`, returns the exact byte-for-byte output of [`build_selection_request`].
+/// - When `pack` is `None`, returns the exact byte-for-byte output of `build_selection_request`.
 /// - Patches `task`, `complexity`, and `prefer_local` only when not explicitly set by the caller.
 /// - May set `intent.allow_free_in_performance_mode = true` **only when `clutch.is_none()`**
 ///   (`ClutchProfile::Free` already sets that flag; `ClutchProfile::Performance`, `Genius`,

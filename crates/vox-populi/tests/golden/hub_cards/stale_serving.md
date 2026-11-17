@@ -26,33 +26,27 @@ tags:
 - spoke-vox-lang
 - gate-needs-re-gate
 ---
-# Vox MENS — Qwen3.5-2B adapter
+# Vox Mens 2B — Lightweight Laptop Model for Vox Functions, Tables & Tests
 
-2B is [trained](https://voxlang.org/reference/mens-models/#state-legend), its spoke is [vox-lang](https://voxlang.org/reference/mens-models/#hub-and-spoke) and its gate is [needs re-gate](https://voxlang.org/reference/mens-models/#state-legend): it passed the retired 32-item collateral rule and the 128-item paired re-run for 2B has not been done.
+**Vox Mens 2B** is [trained](https://voxlang.org/reference/mens-models/#state-legend) for [`vox-lang`](https://voxlang.org/reference/mens-models/#hub-and-spoke) (release check: [needs re-gate](https://voxlang.org/reference/mens-models/#state-legend)): it passed the retired 32-item collateral rule and the 128-item paired re-run for 2B has not been done.
 
-![Vox MENS Qwen3.5-2B banner](assets/banner.jpg)
+![Vox Mens 2B architectural schematic](assets/banner.jpg)
 
-Try the Qwen3.5-2B (`2B`) checkpoint live in the [Vox MENS Playground Space](https://huggingface.co/spaces/ns/vox-mens-playground?model=ns/vox-mens-qwen3.5-2b).
+*Diagram (2B): a task prompt runs locally on Windows, Linux, or Mac with low memory overhead to produce a working `.vox` function and `@test` block.*
+
+Try **Vox Mens 2B** in the [Vox Mens Playground Space](https://huggingface.co/spaces/ns/vox-mens-playground?model=ns/vox-mens-qwen3.5-2b).
 
 ## What it does
 
-Qwen3.5-2B (`2B`) is a specialized coding model for the [Vox programming language](https://voxlang.org) — a full-stack, AI-native language where database tables, backend endpoints, reactive web UI components, and typed AI agents live in one compiler-checked `.vox` file. Before publishing, Qwen3.5-2B (`2B`) must improve real Vox compiler checks on held-out prompts without losing general software engineering accuracy.
+**Vox Mens 2B** writes and fixes [Vox](https://voxlang.org) (`.vox`), a full-stack language where one file defines database tables, backend queries and mutations, web UI components, and workflows that compile to Rust and TypeScript. Because Vox is newer than mainstream languages, general-purpose AI models often guess Rust or TypeScript syntax that fails to compile; **Vox Mens 2B** is fine-tuned on verified `.vox` examples so you can generate and repair Vox locally on Windows, Linux, or Mac (`Ollama`, `vLLM`, Python, or `vox mens serve`) or through Hugging Face Inference Providers without paying large cloud API rates on every prompt.
 
 ## Why this size
 
-The compact 2B hybrid model fits comfortably on everyday developer laptops and modest desktop GPUs with limited unified memory. Pick 2B for single-file Vox endpoints, quick schema drafts, beginner Q&A, and one-pass compiler error fixes. Move down to 0.8B for tighter latency on small hardware, or step up to 4B when changes span several files. The measured training peak for 2B is 27007 MiB (`peak_source`: run_summary), and no serving memory figure has been measured for it.
-
-## Examples
-
-No 2B example is shown because the adapter checkpoint has no serving field, so its outputs do not count under the [serving-path rule](https://voxlang.org/reference/mens-models/#held-out-pass-rate).
-
-```text
-no recorded output
-```
+Vox Mens 2B fits everyday laptops and entry-level GPUs across Windows, Linux, and Mac while keeping memory use light alongside your editor and browser. Use 2B for writing single Vox functions, database table definitions, and small self-contained unit tests. Drop to 0.8B when disk or RAM is tight, or move up to 4B and 9B when a file combines tables, queries, mutations, and UI views. Measured QLoRA peak memory during the 2B run was 27007 MiB (`run_summary`).
 
 ## Use it
 
-This page currently distributes the 2B trained add-on on `Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc` while the release review is unfinished, and the files are available from the Files tab or with this download command.
+This page currently distributes the **Vox Mens 2B** trained add-on while release review is unfinished, and the files are available from the Files tab or with this download command:
 
 ```bash
 vox mens hub download --repo ns/vox-mens-qwen3.5-2b --output-dir mens/runs/qwen3.5-2b
@@ -61,11 +55,11 @@ vox mens hub download --repo ns/vox-mens-qwen3.5-2b --output-dir mens/runs/qwen3
 `vox mens serve` loads the 2B add-on only from a run directory that holds a passing collateral report and a passing `gate_receipt.json`, so no serving example is given while review is pending.
 ## Vox and Python
 
-Beginners can write and run their first `.vox` file alongside Qwen3.5-2B (`2B`) in under a minute, or call `ns/vox-mens-qwen3.5-2b` from Python and Rust.
+Beginners can write and run their first full-stack `.vox` file alongside **Vox Mens 2B** in under a minute, or call `ns/vox-mens-qwen3.5-2b` from Python and Rust.
 
 **Try Vox in 60 seconds (2B)**
 
-[Vox](https://voxlang.org) keeps your data model, backend queries, mutations, and helpers in one compiler-checked file so Qwen3.5-2B (`2B`) can edit your whole feature cleanly:
+[Vox](https://voxlang.org) keeps your schema, backend queries, mutations, and helpers in one compiler-checked file so **Vox Mens 2B** can edit an entire feature coherently:
 
 ```vox
 table Note {
@@ -87,7 +81,7 @@ fn format_status(done: bool) to str {
 }
 ```
 
-Type-check and run your first program locally while Qwen3.5-2B (`2B`) assists in the same workspace:
+Type-check and execute your program locally while **Vox Mens 2B** assists in the same workspace:
 
 ```bash
 vox check main.vox
@@ -97,7 +91,7 @@ vox llm prompt "Add an archive mutation to main.vox"
 
 **Use 2B from Vox and Rust**
 
-Inside a Vox workspace or Rust crate, route chat requests to `ns/vox-mens-qwen3.5-2b` through `vox_actor_runtime::llm::llm_chat` instead of hardcoding provider URLs:
+Because even `27B` is smaller than massive commercial cloud models, Vox projects commonly use a large cloud model for high-level planning while routing `.vox` file generation and `vox check` fixes to `ns/vox-mens-qwen3.5-2b` (locally or via Hugging Face Router) through `vox_actor_runtime::llm::llm_chat`:
 
 ```bash
 export HF_CHAT_MODEL="ns/vox-mens-qwen3.5-2b"
@@ -109,13 +103,14 @@ export VOX_POPULI_LOCAL_OLLAMA_URL="http://127.0.0.1:11435"
 use vox_actor_runtime::inference_env::resolve_huggingface_router;
 use vox_actor_runtime::model_resolution::{RouteResolutionInput, resolve_chat_provider_route};
 
-// Build a model-agnostic route to ns/vox-mens-qwen3.5-2b via Hugging Face Router or local MENS:
-let hf_endpoint = resolve_huggingface_router("ns/vox-mens-qwen3.5-2b");
+// Keep ambiguous cross-repo planning on your frontier cloud route, and delegate
+// .vox handlers, tests, and `vox check` repair loops to ns/vox-mens-qwen3.5-2b:
+let mens_specialist = resolve_huggingface_router("ns/vox-mens-qwen3.5-2b");
 ```
 
 **Use 2B from Python**
 
-Call `ns/vox-mens-qwen3.5-2b` with the standard `openai` Python client through Hugging Face Inference Providers or a local OpenAI-compatible `vox mens serve` endpoint:
+Call `ns/vox-mens-qwen3.5-2b` with the standard `openai` Python SDK through Hugging Face Inference Providers or a local `vox mens serve` endpoint:
 
 ```python
 import os
@@ -136,7 +131,7 @@ reply = client.chat.completions.create(
 print(reply.choices[0].message.content)
 ```
 
-Manage Python dependencies cleanly inside a Vox project for Qwen3.5-2B (`2B`) using `[python]` in `Vox.toml` and `vox py`:
+Manage Python dependencies inside a Vox project for **Vox Mens 2B** using `[python]` in `Vox.toml` and `vox py`:
 
 ```toml
 # Vox.toml
@@ -151,26 +146,34 @@ vox py doctor
 vox py bind openai
 ```
 
-Generate a typed Python client from a Vox service API backed by Qwen3.5-2B (`2B`) using OpenAPI:
+Generate a typed Python client from a Vox service API built with **Vox Mens 2B** using OpenAPI:
 
 ```bash
 vox emit openapi src/main.vox --out dist/openapi.json
 openapi-python-client generate --path dist/openapi.json
 ```
+## Examples
+
+No 2B example is shown because the adapter checkpoint has no serving field, so its outputs do not count under the [serving-path rule](https://voxlang.org/reference/mens-models/#held-out-pass-rate).
+
+```text
+no recorded output
+```
+
 ## Results
 
 | Result for 2B | [Held-out pass@1](https://voxlang.org/reference/mens-models/#held-out-pass-rate) | [Collateral accuracy](https://voxlang.org/reference/mens-models/#collateral-damage) | [McNemar p-value](https://voxlang.org/reference/mens-models/#why-mcnemar) |
 |---|---|---|---|
 | Base 2B | 2/8 (25.0%) | — | — |
-| Adapter 2B | — | — | — |
+| Vox Mens 2B | — | — | — |
 
-The 2B rows compare the base model with the adapter on identical items. The adapter score for 2B is not shown because its checkpoint has no serving field, so it does not count under the [serving-path rule](https://voxlang.org/reference/mens-models/#held-out-pass-rate) and 2B needs a fresh evaluation.
+The 2B rows compare the unadapted base checkpoint with Vox Mens 2B on identical items. The adapter score for 2B is not shown because its checkpoint has no serving field, so it does not count under the [serving-path rule](https://voxlang.org/reference/mens-models/#held-out-pass-rate) and 2B needs a fresh evaluation.
 
 The release gate record for 2B is [`gate_receipt.json`](https://huggingface.co/ns/vox-mens-qwen3.5-2b/blob/main/gate_receipt.json).
 
 ## Training
 
-2B ran 138 optimizer steps over 2711427 tokens, ended with a final loss (EMA) of 0.6170, a mean train loss of 0.8323 and a last-epoch validation loss of 0.7721, took 4h 10m and peaked at 27007 MiB, from Vox commit `c56e13a33`; the settings every size shares are on the [docs page](https://voxlang.org/reference/mens-models/#shared-training-settings).
+Vox Mens 2B fine-tunes base pin `Qwen/Qwen3.5-2B@15852e8c16360a2fea060d615a32b45270f8a8fc` over 138 optimizer steps (2711427 tokens), ended with a final loss (EMA) of 0.6170, a mean train loss of 0.8323 and a last-epoch validation loss of 0.7721; the 2B run took 4h 10m and peaked at 27007 MiB from Vox commit `c56e13a33` (shared settings: [docs page](https://voxlang.org/reference/mens-models/#shared-training-settings)).
 
 ## Files
 

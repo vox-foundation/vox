@@ -11,10 +11,10 @@
   "overall_delta_pass_at_k": 0.56,
   "monotonic_improvement_verified": true,
   "promotion_gate_passed": true,
-  "dataset_snapshot_uri": "trusty://vox-dataset/a9f61ea435a2cb17c90bc8837eb2553b",
-  "before_adapter_uri": "trusty://xxh3/cdadcc6895fec612d06f4a80566920c5",
-  "mid_adapter_uri": "trusty://xxh3/b3624d8f871b328a7a4041e83cd0945d",
-  "promoted_adapter_uri": "trusty://xxh3/2e4fa5ce0e1fef1b3e0515d7a406cb7d",
+  "dataset_snapshot_uri": "trusty://vox-dataset/e4c4e6700dc1078135374f92e0c404f0",
+  "before_adapter_uri": "trusty://xxh3/94a58a6e1c6f2e9282200125daafc63b",
+  "mid_adapter_uri": "trusty://xxh3/3d03140e97b6d126e26b50b4a1167243",
+  "promoted_adapter_uri": "trusty://xxh3/fa8bb3edc5464176ef1dc16b194b4ed1",
   "promoted_model_id": "mens-qlora-bench25-cycle-2",
   "spokes": [
     {

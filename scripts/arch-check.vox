@@ -1,13 +1,17 @@
+// vox:caps process
 // scripts/arch-check.vox
 //
 // Single source of truth for the architecture check CI step.
 //
 // Invokes `cargo run -p vox-arch-check --quiet` and forwards the exit code.
-// .github/workflows/ci.yml calls this script so the invocation flags live in
+// CI calls this script so the invocation flags live in
 // one place. (The former .gitlab-ci.yml mirror was retired on 2026-06-03.)
 //
 // Usage: vox run scripts/arch-check.vox
 // Source of truth: docs/src/architecture/layers.toml
+
+import process
+import log
 
 fn main() {
     print("Running vox-arch-check (layer + fan-in + LoC + orphan + docstring)...")
@@ -19,7 +23,7 @@ fn main() {
     }
 
     let res = proc.unwrap()
-    if res.code == 0 {
+    if res.code is 0 {
         print("vox-arch-check: clean")
     } else {
         log.error("vox-arch-check: FAILED (exit " + str(res.code) + ")")

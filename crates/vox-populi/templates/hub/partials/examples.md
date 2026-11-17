@@ -4,21 +4,21 @@
 No held-out report is on record for {{ f.size }}, so no example is shown for it.
 {% else -%}
 {%- if let Some(ex) = f.examples -%}
+{% if f.is_passed() -%}
 For {{ f.size }}, the examples are [
-{%- if ex.wins.len() == 2 -%}the 2 shortest items the adapter fixes
-{%- else if ex.wins.len() == 1 -%}the one item the adapter fixes
-{%- else -%}none that the adapter fixes
-{%- endif -%}
-{%- if ex.loss.is_some() %} and the shortest it still fails{% else %} and no item it still fails{% endif %}]({{ f.docs }}#examples-on-the-cards); of {{ ex.total }} items it fixes {{ ex.fixes }} and breaks {{ ex.breaks }}.
+{%- if ex.wins.len() == 2 -%}2 held-out tasks **Vox Mens {{ f.size }}** fixes over the base model
+{%- else if ex.wins.len() == 1 -%}1 held-out task **Vox Mens {{ f.size }}** fixes over the base model
+{%- else -%}held-out comparisons for **Vox Mens {{ f.size }}**
+{%- endif -%}]({{ f.docs }}#examples-on-the-cards); of {{ ex.total }} items it fixes {{ ex.fixes }} and breaks {{ ex.breaks }}.
 {%- if ex.unmatched_ids > 0 %} The {{ f.size }} held-out reports do not share every item: the count of ids found in only one of them is {{ ex.unmatched_ids }}, and none is in the counts above.{% endif %}
-{% for (win, e) in ex.blocks() %}
+{% for (win, e) in ex.win_blocks() %}
 ### {% if win %}Fixed{% else %}Still fails{% endif %} `{{ e.id }}`
 
 {{ e.prompt_fence() }}text
 {{ e.description }}
 {{ e.prompt_fence() }}
 {% for (is_base, s) in e.sides() %}
-{% if is_base %}{{ f.model_label }} base{% else %}{{ f.size }} adapter{% endif %} on `{{ e.id }}`: {{ s.verdict.phrase() }}
+{% if is_base %}Unadapted {{ f.size }} base{% else %}Vox Mens {{ f.size }}{% endif %} on `{{ e.id }}`: {{ s.verdict.phrase() }}
 {%- if let Some(n) = s.verdict.count() %} (count {{ n }}){% endif %}
 {%- if let Some(c) = s.verdict.check() %} `{{ c }}`{% endif %}.
 
@@ -33,6 +33,37 @@ no recorded output
 {%- endif %}
 {% endfor %}
 {%- endfor %}
+{%- else -%}
+For {{ f.size }}, the examples are [
+{%- if ex.wins.len() == 2 -%}the 2 shortest items the adapter fixes
+{%- else if ex.wins.len() == 1 -%}the one item the adapter fixes
+{%- else -%}none that the adapter fixes
+{%- endif -%}
+{%- if ex.loss.is_some() %} and the shortest it still fails{% else %} and no item it still fails{% endif %}]({{ f.docs }}#examples-on-the-cards); of {{ ex.total }} items it fixes {{ ex.fixes }} and breaks {{ ex.breaks }}.
+{%- if ex.unmatched_ids > 0 %} The {{ f.size }} held-out reports do not share every item: the count of ids found in only one of them is {{ ex.unmatched_ids }}, and none is in the counts above.{% endif %}
+{% for (win, e) in ex.blocks() %}
+### {% if win %}Fixed{% else %}Still fails{% endif %} `{{ e.id }}`
+
+{{ e.prompt_fence() }}text
+{{ e.description }}
+{{ e.prompt_fence() }}
+{% for (is_base, s) in e.sides() %}
+{% if is_base %}Unadapted {{ f.size }} base{% else %}Vox Mens {{ f.size }}{% endif %} on `{{ e.id }}`: {{ s.verdict.phrase() }}
+{%- if let Some(n) = s.verdict.count() %} (count {{ n }}){% endif %}
+{%- if let Some(c) = s.verdict.check() %} `{{ c }}`{% endif %}.
+
+{% if let Some(code) = s.code -%}
+{{ s.fence() }}{{ s.lang() }}
+{{ code }}
+{{ s.fence() }}
+{%- else -%}
+```text
+no recorded output
+```
+{%- endif %}
+{% endfor %}
+{%- endfor %}
+{%- endif %}
 {%- else -%}
 {%- match f.adapter_evidence %}
 {%- when AdapterEvidence::Current -%}

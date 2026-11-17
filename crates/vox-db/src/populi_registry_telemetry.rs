@@ -22,7 +22,7 @@ pub fn mesh_codex_telemetry_enabled() -> bool {
 
 /// After a successful local mens registry write, append one `populi_control_event` row (no secrets).
 ///
-/// `repository_id` should match MCP / CLI discovery (e.g. [`vox_repository::RepositoryContext::repository_id`]).
+/// `repository_id` should match MCP / CLI discovery (e.g. `vox_repository::RepositoryContext::repository_id`).
 pub async fn record_local_registry_publish_opt(
     repository_id: &str,
     registry_path: &Path,
