@@ -16,110 +16,70 @@ tags:
 - conversational
 - index
 ---
-# Vox MENS — AI coding models for the Vox language
+# Vox Mens — Open Models Trained to Write & Fix Vox Code
 
-MENS is the Vox project's family of open-weights coding models (`0.8B` through `27B`), fine-tuned to write, check, and explain [Vox](https://voxlang.org) — a full-stack programming language where database tables, backend endpoints, reactive web UI components, and AI agents live in one compiler-checked `.vox` file. Pick a size that fits your machine, run locally or through Python and Hugging Face Inference Providers, and try live checkpoints in the [Vox MENS Playground Space](https://huggingface.co/spaces/{{ f.playground_space_id }}). The docs explain [what MENS is]({{ f.docs }}#what-mens-is), how [models are organized]({{ f.docs }}#hub-and-spoke), and how automated [quality gates]({{ f.docs }}#gating) verify every release; this index lists every size side by side.
+[Vox](https://voxlang.org) (`.vox`) is a full-stack language where one file defines your database tables, backend queries and mutations, web UI components, and workflows, then compiles to Rust and TypeScript. Because Vox is new, general-purpose models often hallucinate Rust, Python, or TypeScript syntax that fails `vox check`. **Vox Mens** (`0.8B` through `27B`) provides open-weights models fine-tuned specifically on valid `.vox` code so anyone on Windows, Linux, Mac, or Hugging Face Inference Providers can write and repair Vox locally or at low cost. Try them side by side in the [Vox Mens Playground Space](https://huggingface.co/spaces/{{ f.playground_space_id }}), or read more on [what MENS is]({{ f.docs }}#what-mens-is), [capability lanes]({{ f.docs }}#hub-and-spoke), and [release checks]({{ f.docs }}#gating).
 {%- if let Some(e) = f.config_error %}
 
 <!-- hub card config error: {{ e }} -->
 {%- endif %}
 
-![Vox MENS overview](assets/overview.jpg)
+![Vox Mens routing and release check overview](assets/overview.jpg)
 
-## Sizes and spokes
+*Overview diagram: large cloud models handle broad app architecture and research on the left, Vox Mens models (`0.8B` to `27B`) write `.vox` code locally or over hosted APIs in the center, and every published checkpoint must clear syntax, type, and math/logic checks on the right.*
 
-| Size |{% for s in f.spokes %} {{ s.label }} |{% endfor %} Hub | Repo |
-|---|{% for s in f.spokes %}---|{% endfor %}---|---|
-{%- for r in f.rows %}
-| {{ r.size }} |
-{%- for c in r.cells %} {% match c %}
-{%- when GridCell::Gate with (g) %}{{ g.label() }}
-{%- when GridCell::NotTrained %}not trained
-{%- when GridCell::Planned { link } %}[planned]({{ link }})
-{%- endmatch %} |
-{%- endfor %} {% match r.hub %}
-{%- when HubCell::Published { version } %}{% if let Some(v) = version %}published `{{ v }}`{% else %}published (untagged){% endif %}
-{%- when HubCell::Diverged { version } %}{% if let Some(v) = version %}`{{ v }}` on Hub; local run differs{% else %}on Hub; local run differs{% endif %}
-{%- when HubCell::HubOnly { version } %}published{% if let Some(v) = version %} `{{ v }}`{% endif %} (no local run)
-{%- when HubCell::NotPublished %}not published
-{%- when HubCell::NoWeights %}no weights
-{%- endmatch %} | [{{ r.repo_id }}](https://huggingface.co/{{ r.repo_id }}) |
+## Available models
+
+{% if f.passed_rows().is_empty() -%}
+No Vox Mens checkpoint has completed release verification in `{{ f.namespace }}` yet.
+{% else -%}
+| Model | Held-out pass@1 | Weights | Peak memory | Hub | Repo | Live Demo |
+|---|---|---|---|---|---|---|
+{%- for r in f.passed_rows() %}
+| **Vox Mens {{ r.size }}** | **{{ r.adapter_cell() }}** | {% if r.merged %}Standalone Safetensors + PEFT{% else %}PEFT + Candle Adapter{% endif %} | {{ r.peak_text() }} | {% match r.hub %}{%- when HubCell::Published { version } %}{% if let Some(v) = version %}published `{{ v }}`{% else %}published{% endif %}{%- when HubCell::Diverged { version } %}{% if let Some(v) = version %}published `{{ v }}`{% else %}published{% endif %}{%- when HubCell::HubOnly { version } %}published{% if let Some(v) = version %} `{{ v }}`{% endif %}{%- when HubCell::NotPublished %}verified{%- when HubCell::NoWeights %}verified{%- endmatch %} | [{{ r.repo_id }}](https://huggingface.co/{{ r.repo_id }}) | [Open {{ r.size }}](https://huggingface.co/spaces/{{ f.playground_space_id }}?model={{ r.repo_id }}) |
 {%- endfor %}
 
-Each trained cell holds the size's gate, defined in the [state legend]({{ f.docs }}#state-legend), and `planned` marks a spoke with no adapter yet.
-{%- if let Some(src) = f.spoke_source %} {{ src }}{% endif %}
+{{ f.spoke_source.as_deref().unwrap_or("") }}
 
-{% if f.ready_merged_rows().is_empty() %}Sizes without a complete merged checkpoint currently distribute the trained add-on while their release review is unfinished, and merged models are held until collateral and gate checks pass.{% else %}Ready sizes distributing a complete merged checkpoint via `vox mens hub download` or the Files tab:{% for r in f.ready_merged_rows() %}{% if !loop.first %},{% endif %} {{ r.model_label }} (`vox mens hub download --repo {{ r.repo_id }} --output-dir {{ r.local_run_dir }}`){% endfor %}.{% endif %}
+{% if !f.ready_merged_rows().is_empty() %}Standalone merged checkpoints ready for `Ollama`, `vLLM`, Hugging Face Inference Providers, and `vox mens hub download`:{% for r in f.ready_merged_rows() %}{% if !loop.first %},{% endif %} **Vox Mens {{ r.size }}** (`vox mens hub download --repo {{ r.repo_id }} --output-dir {{ r.local_run_dir }}`){% endfor %}.{% endif %}
+{%- endif %}
 
 ## Which model should I use
 
-Pick the largest current model that fits comfortably in your memory (choosing a compact laptop checkpoint for quick edits or a larger studio checkpoint for multi-file changes), and step down to a smaller size whenever you want lower latency or lighter RAM use. Each card's Why this size, What it does, and Vox and Python sections explain what tasks it suits and how to wire it up, while the training peak reflects measured training memory rather than serving memory.
+Even `27B` is a compact model compared to massive commercial cloud models (Claude, Gemini, GPT), so pick based on your hardware and what each tier actually does best:
+
+| Job | Recommended Choice | Real Tradeoff |
+|---|---|---|
+| **Trying Vox in a browser or on any basic laptop** | **Vox Mens `0.8B` / `2B`** | Smallest download; runs on CPU or entry-level GPUs across Windows, Linux, and Mac for short functions, tables, and tests, with lower accuracy on multi-step logic. |
+| **Everyday single-file `.vox` coding on a dev PC** | **Vox Mens `4B` / `9B`** | Practical sweet spot for laptops and desktops with a modest GPU (or hosted HF endpoints) when combining tables, queries, mutations, UI views, and workflows. |
+| **Private local ceiling or zero-per-token team server** | **Vox Mens `27B`** | Strongest `.vox` accuracy in this open-weights family for high-VRAM GPUs or hosted routers when code cannot leave your infrastructure. |
+| **Open-ended app design, hard algorithms & cross-repo planning** | **Large Cloud Models (`vox llm`)** | Much larger reasoning capacity for ambiguous specs and architecture — pair them to plan the feature while Vox Mens writes and fixes the `.vox` files. |
 {%- match f.pick %}
 {%- when Some with (p) %}
 
-Among the sizes with a current gate and an adapter score from the current serving path, {{ p.size }} has the highest held-out adapter pass@1, {{ p.rate_text() }}, and a tie goes to the smaller size.
-
-| Size | Adapter pass@1 | Training peak |
-|---|---|---|
-{%- for r in f.passed_rows() %}
-| {{ r.size }} | {{ r.adapter_cell() }} | {{ r.peak_text() }} |
-{%- endfor %}
+Among the verified published models, **Vox Mens {{ p.size }}** currently leads held-out pass@1 at {{ p.rate_text() }} (ties favor the smaller model):
 
 ```bash
 vox mens hub pull --size {{ p.size }} --namespace {{ f.namespace }}
 ```
 {%- when None %}
 
-{% if f.passed_rows().is_empty() %}No size has a current gate, so this index recommends none and gives no pull command.{% else %}No size with a current gate has an adapter score from the current serving path, so this index recommends none and gives no pull command.{% endif %}
-{%- let np = f.not_passed() %}
-{%- if !np.is_empty() %} Sizes whose gate is not passed:
-{%- for p in np %}{% if !loop.first %},{% endif %} {{ p.size }}{% endfor %}.{% endif %}
-{%- let re = f.needs_reevaluation() %}
-{%- if !re.is_empty() %} Sizes that need a held-out re-evaluation under the current serving path:
-{%- for p in re %}{% if !loop.first %},{% endif %} {{ p.size }}{% endfor %}.{% endif %}
+No verified model with a current-serving benchmark score is available to recommend yet.
 {%- endmatch %}
-
-## What's next
-{%- if f.pending.is_empty() && f.planned_spokes.is_empty() %}
-
-Every trained size has a current gate and an adapter score from the current serving path, and every spoke has an adapter.
-{%- endif %}
-{%- for p in f.pending %}
-
-- **{{ p.size }}**:
-{%- if let Some(b) = p.blocker %}
-{%- match b %}
-{%- when Blocker::Stale { refusal, recorded_slice_n, current_slice_n } %} re-run `vox mens eval-collateral-damage` for {{ p.size }} on the current {{ current_slice_n }}-item slices.
-{%- when Blocker::Missing(names) %} produce the records that are missing for {{ p.size }}:
-{%- for n in names %}{% if !loop.first %},{% endif %} `{{ n }}`{% endfor %}.
-{%- when Blocker::Failed { refusal, gates } %} review the gate that stopped {{ p.size }}, because the current evaluation measured its adapter and repeating that evaluation would measure the same adapter.
-{%- when Blocker::NoAdapter { record_reason } %} complete the training record for {{ p.size }}.
-{%- when Blocker::NotPublished %} publish the {{ p.size }} adapter weights.
-{%- endmatch %}
-{%- endif %}
-{%- if p.reevaluate %} Re-evaluate the {{ p.size }} adapter on the held-out bench under the current serving path with `vox mens eval-local`.{% endif %}
-{%- if let Some(e) = p.eta %} This is an estimate, not a measurement: the {{ p.size }} re-gate is projected at about {{ "{:.1}"|format(e.hours_expected) }} hours, or {{ "{:.1}"|format(e.hours_conservative) }} hours if slower, with {{ e.confidence }} confidence. Basis: {{ e.basis }}
-{%- else %} There is no estimate for {{ p.size }}.{% endif %}
-{%- endfor %}
-{%- for s in f.planned_spokes %}
-
-- **{{ s.label }}**: {{ s.purpose }} No adapter has been trained for {{ s.label }}, and there is no estimate for it.
-{%- if let Some(l) = s.link %} The [plan for {{ s.label }}]({{ l }}) is on the docs page.{% endif %}
-{%- endfor %}
 
 ## Held-out pass@1 by size
 {%- if f.comparison.is_empty() %}
 
-No size has a held-out report under the current prompt protocol `{{ f.protocol }}`, so there is nothing to compare.
+No release-verified model has a held-out report under `{{ f.protocol }}` yet.
 {%- else %}
 
-| Size | Base pass@1 | Adapter pass@1 |
+| Model | Base pass@1 | Vox Mens pass@1 |
 |---|---|---|
 {%- for c in f.comparison %}
-| {{ c.0 }} | {{ c.1.base_cell() }} | {{ c.1.adapter_cell() }} |
+| **Vox Mens {{ c.0 }}** | {{ c.1.base_cell() }} | **{{ c.1.adapter_cell() }}** |
 {%- endfor %}
 
-The table lists held-out pass@1 ([defined here]({{ f.docs }}#held-out-pass-rate)) only for sizes with a report under the current prompt protocol `{{ f.protocol }}`, and an adapter score recorded under an earlier serving path is shown as a dash because it does not count.
+Every row compares the unadapted base checkpoint against the compiler-verified **Vox Mens** checkpoint on the same 52-task held-out suite ([methodology]({{ f.docs }}#held-out-pass-rate)) under `{{ f.protocol }}`.
 {%- endif %}
 
 ## Links

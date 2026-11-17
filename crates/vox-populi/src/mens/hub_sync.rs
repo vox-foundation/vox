@@ -162,7 +162,7 @@ pub fn verify_publish_gates(run_dir: &Path, force_ungated: bool) -> Result<GateS
     verify_publish_gates_with(run_dir, force_ungated, &req)
 }
 
-/// Variant of [`verify_publish_gates`] accepting an explicit [`CollateralRequirement`].
+/// Variant of [`verify_publish_gates`] accepting an explicit [`vox_eval::collateral_evidence::CollateralRequirement`].
 pub fn verify_publish_gates_with(
     run_dir: &Path,
     force_ungated: bool,
@@ -652,6 +652,18 @@ pub async fn ensure_ladder_repos(
     let mut reserved = Vec::new();
     for &size in &SIZES {
         let base_pin = resolve_ladder_base_pin(workspace_root, size)?;
+        let run_dir = workspace_root
+            .unwrap_or(Path::new("."))
+            .join(hub_repo::local_run_dir_for_size(size)?);
+        let full_rec = hub_card::RunRecords::load(&run_dir, size, &base_pin);
+        let cx = hub_card::CardContext {
+            size,
+            base_pin: &base_pin,
+            namespace: &ns,
+        };
+        if hub_card::gate_of(&full_rec).state != hub_card::GateState::Passed {
+            continue;
+        }
         let repo_id = hub_repo::repo_id_for_size(&ns, size)?;
         let model_label = hub_repo::model_label_for(&base_pin);
         client
@@ -686,17 +698,9 @@ pub async fn ensure_ladder_repos(
         {
             continue;
         }
-        let run_dir = workspace_root
-            .unwrap_or(Path::new("."))
-            .join(hub_repo::local_run_dir_for_size(size)?);
         let rec = hub_card::RunRecords {
             has_adapter: false,
-            ..hub_card::RunRecords::load(&run_dir, size, &base_pin)
-        };
-        let cx = hub_card::CardContext {
-            size,
-            base_pin: &base_pin,
-            namespace: &ns,
+            ..full_rec
         };
         let card = hub_card::render_model_card(&cx, &rec);
         let assets = hub_card::render_model_assets(&cx, &rec);

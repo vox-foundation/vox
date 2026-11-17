@@ -11,6 +11,7 @@
 - [x] **Phase 456: Model Cards v3, Prompts, `image-generator` Raster Banners, Lints, Goldens & `mens-models.md`** (`HF-CARD-01..04`)
 - [x] **Phase 457: HF Space `vox-mens-playground` & Free Inference Provider Bridge** (`HF-SPACE-01..04`)
 - [x] **Phase 457.1: Plain-English Hero Banners, What/Why/How Copy, Beginner Onboarding & Python/Vox Bindings (INSERTED)** (`HF-ONBOARD-01..04`)
+- [x] **Phase 457.2: 0.8B Canary Model Remediation, Idiomatic Vox Corpus/Prompt Upgrade & Production-Only Hub Cards (INSERTED)** (`HF-CANARY-01..04`)
 - [ ] **Phase 458: Post-27B Release Rebuild, Live Hub Sync, Space/Collection Push & Milestone Audit** (`HF-LIVE-01..03`)
 
 ---
@@ -85,6 +86,18 @@
   2. Programmatic sync sources (`mens/config/hub-cards.yaml`, `crates/vox-populi/templates/hub/{model.md,index.md,partials/*}`, `crates/vox-populi/templates/hub/space/{README.md.tmpl,index.html.tmpl}`, `docs/src/reference/mens-models.md`) clearly explain What/Why/How without hand-editing generated Hub cards.
   3. Model cards include `## Vox and Python` (`partials/onboarding.md`) covering beginner `.vox` quickstart (`vox check`, `vox run --interp`), `vox_actor_runtime::llm` / `HF_CHAT_MODEL` / `VOX_POPULI_LOCAL_OLLAMA_URL`, `openai` + `huggingface_hub` / `transformers` / `peft` Python bindings, `[python]` `Vox.toml` + `vox py sync`/`bind`, and `vox emit openapi` + `openapi-python-client` — with zero retired `@py.import`/`@table`/`@component` syntax.
   4. All `vox-quantize`, `vox-code-audit`, `vox-populi` (without `VOX_UPDATE_GOLDEN`), `vox-ml-cli --lib`, `vox-doc-pipeline --lint-only`, `vox-arch-check`, and `lints_hold_on_rendered_cards_dir` checks pass cleanly.
+
+### Phase 457.2: 0.8B Canary Model Remediation, Idiomatic Vox Corpus/Prompt Upgrade & Production-Only Hub Cards (INSERTED)
+
+- **Directory:** `.planning/workstreams/mens-hf-hub-autosync-v77/phases/457.2-08b-canary-and-clean-hub-cards/`
+- **Goal:** Fix `Vox Mens 0.8B` model quality and eliminate all unfinished/broken/internal-audit artifacts from published Hugging Face Model Cards and the Ladder Index before advancing to larger rungs (`2B`–`27B`).
+- **Depends on:** Phase 457.1
+- **Requirements:** `HF-CANARY-01`, `HF-CANARY-02`, `HF-CANARY-03`, `HF-CANARY-04`
+- **Success Criteria:**
+  1. `hub_cards_push.rs` blocks pushing ungated (`!gate_current`) model cards to Hugging Face; `index.md` and `index_facts.rs` surface only gate-passed published models with zero `planned` spoke vaporware columns, zero `not evaluated` rows, and zero `## What's next` missing-file TODO dumps.
+  2. `model.md`, `partials/{examples.md,use_it.md}`, and `examples.rs` remove `### Still fails` broken-code sections on gate-passed cards, remove `"no serving memory figure has been measured"` / checkpoint-filename disclaimers, and rank 3 verified, semicolon-free, non-stub passing examples for `widget:` and `## Examples`.
+  3. `builtin_system_prompt()` (`crates/vox-corpus/src/training/mod.rs`) documents canonical Vox `Option[T]` list indexing (`xs[i].unwrap()`), `str` iteration/slicing, tuple lists, loop/math idioms, and non-stub mutations/tests (`< 2,200` chars); `target/dogfood_v4/train.jsonl` pairs semicolon-free Vox examples + compiler-verified collection/string/full-stack completions + systemless `<think>...</think>` traces (`0` held-out leakage).
+  4. Retrained 2-epoch `Vox Mens 0.8B` improves over the `46.2%` (`24/52`) baseline and reasoning baselines, passes all `5/5` release gates, passes `vox-populi` & `lints_hold_on_rendered_cards_dir`, and syncs live (`v2`) to `brbrainerd/vox-mens-qwen3.5-0.8b`, `brbrainerd/vox-mens-index`, and `brbrainerd/vox-mens-playground` before any larger rung is trained or evaluated.
 
 ### Phase 458: Post-27B Release Rebuild, Live Hub Sync, Space/Collection Push & Milestone Audit
 

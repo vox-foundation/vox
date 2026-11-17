@@ -194,9 +194,9 @@ fn sections_in_spec_order() {
             [
                 "What it does",
                 "Why this size",
-                "Examples",
                 "Use it",
                 "Vox and Python",
+                "Examples",
                 "Results",
                 "Training",
                 "Files"
@@ -273,7 +273,7 @@ fn not_trained_card_states_only_the_trained_fact() {
         .to_string();
     let status = status_line(&card);
     assert_eq!(count_word(&status, "not trained"), 1, "{status}");
-    assert!(status.starts_with("27B is "), "{status}");
+    assert!(status.starts_with("**Vox Mens 27B** is "), "{status}");
     assert!(status.contains(&format!("“{reason}”")), "{status}");
     for label in all_labels() {
         assert_eq!(count_word(&card, label), 0, "{label}: {card}");

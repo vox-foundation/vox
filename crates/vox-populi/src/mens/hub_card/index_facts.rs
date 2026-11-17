@@ -39,6 +39,7 @@ pub(crate) enum GridCell {
 #[derive(Debug, Clone)]
 pub(crate) struct IndexRow {
     pub size: String,
+    #[allow(dead_code)]
     pub model_label: String,
     pub local_run_dir: String,
     pub repo_id: String,
@@ -85,6 +86,7 @@ impl Pick {
 /// A trained size with work left: its gate is not passed, or its adapter score is not from the
 /// current serving path.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct Pending {
     pub size: String,
     /// Why the gate is not passed; `None` when only the evidence is stale.
@@ -96,6 +98,7 @@ pub(crate) struct Pending {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct IndexFacts {
     pub namespace: String,
     pub playground_space_id: String,
@@ -114,6 +117,7 @@ pub(crate) struct IndexFacts {
     pub comparison: Vec<(String, HeldOut)>,
 }
 
+#[allow(dead_code)]
 impl IndexFacts {
     /// Rows whose gate is passed.
     pub fn passed_rows(&self) -> Vec<&IndexRow> {
@@ -295,6 +299,7 @@ pub(crate) fn index_facts(namespace: &str, entries: &[(SizeSyncRow, RunRecords)]
     }
     let comparison = rows
         .iter()
+        .filter(|r| r.gate == GateState::Passed && r.adapter_evidence == AdapterEvidence::Current)
         .filter_map(|r| Some((r.size.clone(), r.heldout.clone()?)))
         .collect();
     IndexFacts {

@@ -151,7 +151,8 @@ fn examples_section_renders_wins_and_loss() {
 fn rule_and_totals_on_every_trained_card_with_examples() {
     let mut seen: Vec<(&str, String)> = Vec::new();
     for (name, case) in trained_cases() {
-        let Some(ex) = facts(&case).examples else {
+        let f = facts(&case);
+        let Some(ex) = f.examples.as_ref() else {
             continue;
         };
         let card = render_case(&case);
@@ -159,17 +160,33 @@ fn rule_and_totals_on_every_trained_card_with_examples() {
         let lead = format!("For {}, the examples are", case.size);
         assert!(first.starts_with(&lead), "{name}: {first}");
         assert!(first.contains("#examples-on-the-cards"), "{name}: {first}");
-        if ex.wins.len() == 2 {
+        if f.is_passed() {
             assert!(
-                first.contains("the 2 shortest items the adapter fixes"),
-                "{name}"
+                !card.contains("### Still fails") && !first.contains("still fails"),
+                "{name}: passed card must never advertise broken Still fails outputs"
+            );
+            if ex.wins.len() == 2 {
+                assert!(
+                    first.contains(&format!(
+                        "2 held-out tasks **Vox Mens {}** fixes over the base model",
+                        case.size
+                    )),
+                    "{name}: {first}"
+                );
+            }
+        } else {
+            if ex.wins.len() == 2 {
+                assert!(
+                    first.contains("the 2 shortest items the adapter fixes"),
+                    "{name}"
+                );
+            }
+            assert_eq!(
+                first.contains("and the shortest it still fails"),
+                ex.loss.is_some(),
+                "{name}: {first}"
             );
         }
-        assert_eq!(
-            first.contains("and the shortest it still fails"),
-            ex.loss.is_some(),
-            "{name}: {first}"
-        );
         for part in [
             format!("of {} items", ex.total),
             format!("it fixes {} and", ex.fixes),
@@ -341,13 +358,19 @@ fn verdict_phrases_match_docs_page() {
 fn failing_outputs_are_never_in_vox_fences() {
     let mut checked = 0;
     for (name, case) in trained_cases() {
-        let Some(ex) = facts(&case).examples else {
+        let f = facts(&case);
+        let Some(ex) = f.examples.as_ref() else {
             continue;
         };
         let card = render_case(&case);
         let sec = section(&card, "Examples");
         let mut want: Vec<(&str, String)> = Vec::new();
-        for (_, e) in ex.blocks() {
+        let shown = if f.is_passed() {
+            ex.win_blocks()
+        } else {
+            ex.blocks()
+        };
+        for (_, e) in shown {
             want.push(("text", e.description.clone()));
             for (_, s) in e.sides() {
                 want.push(match (&s.code, s.passed) {
@@ -400,18 +423,24 @@ fn verdict_lines_name_size_and_item() {
     ];
     for (name, case) in trained_cases() {
         let f = facts(&case);
+        let is_passed = f.is_passed();
         let Some(ex) = f.examples else {
             continue;
         };
         let card = render_case(&case);
         let sec = section(&card, "Examples");
         let lines = prose(&sec);
-        for (_, e) in ex.blocks() {
+        let shown = if is_passed {
+            ex.win_blocks()
+        } else {
+            ex.blocks()
+        };
+        for (_, e) in shown {
             for (is_base, side) in e.sides() {
                 let who = if is_base {
-                    format!("{} base on `{}`: ", f.model_label, e.id)
+                    format!("Unadapted {} base on `{}`: ", case.size, e.id)
                 } else {
-                    format!("{} adapter on `{}`: ", case.size, e.id)
+                    format!("Vox Mens {} on `{}`: ", case.size, e.id)
                 };
                 let line = lines
                     .iter()
@@ -435,8 +464,8 @@ fn vox_symbols_are_not_escaped() {
         let id = pick_examples(
             rec.heldout_base.as_ref().unwrap(),
             rec.heldout_adapter.as_ref().unwrap(),
-            None,
-            None,
+            rec.heldout_base_ckpt.as_deref(),
+            rec.heldout_adapter_ckpt.as_deref(),
         )
         .unwrap()
         .wins[0]

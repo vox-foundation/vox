@@ -316,3 +316,91 @@ fn use_it_pick_skips_shown_wins() {
     let (b, a) = reports(&[("a", 5, false, true), ("e", 3, true, false)]);
     assert_eq!(pick_examples(&b, &a, None, None).unwrap().use_it, None);
 }
+
+#[test]
+fn collapse_failed_code_truncates_repeated_spam_and_long_tails() {
+    let mut spam = vec!["fn main() {".to_string()];
+    spam.extend(std::iter::repeat_n(
+        "    let mut found = false;".to_string(),
+        120,
+    ));
+    spam.push("}".to_string());
+    let out = collapse_failed_code(spam.join("\n"));
+    assert_eq!(out.matches("let mut found = false;").count(), 3, "{out}");
+    assert!(
+        out.contains("// ... [repeated 117 more times in raw output]"),
+        "{out}"
+    );
+    assert!(out.lines().count() <= 8, "{out}");
+}
+
+#[test]
+fn semantic_fullstack_wins_rank_ahead_of_syntax_only_passes() {
+    let base = json!({
+        "results": [
+            {"id": "humaneval_vox_041_nth_prime", "category": "humaneval-vox", "description": "short", "samples": [sample(false, "")]},
+            {"id": "page_index", "category": "page", "description": "slightly longer page prompt", "samples": [sample(false, "")]},
+            {"id": "count_primes", "category": "function", "description": "medium function prompt", "samples": [sample(false, "")]}
+        ]
+    });
+    let mut syntax_only = sample(true, "fn p() {}");
+    syntax_only["semantic_pass"] = json!(false);
+    let mut sem_page = sample(true, "component IndexPage() {}");
+    sem_page["semantic_pass"] = json!(true);
+    let mut sem_fn = sample(true, "fn count_primes() {}");
+    sem_fn["semantic_pass"] = json!(true);
+    let adapter = json!({
+        "results": [
+            {"id": "humaneval_vox_041_nth_prime", "category": "humaneval-vox", "description": "short", "samples": [syntax_only]},
+            {"id": "page_index", "category": "page", "description": "slightly longer page prompt", "samples": [sem_page]},
+            {"id": "count_primes", "category": "function", "description": "medium function prompt", "samples": [sem_fn]}
+        ]
+    });
+    let ex = pick_examples(&base, &adapter, None, None).unwrap();
+    assert_eq!(ids(&ex.wins), ["page_index", "count_primes"]);
+    assert_eq!(pretty_example_title("page_index"), "Page: index");
+    assert_eq!(
+        pretty_example_title("humaneval_vox_046_count_primes_up_to"),
+        "Count primes up to"
+    );
+}
+
+#[test]
+fn semicolon_and_stub_mutations_demote_behind_clean_vox_examples() {
+    let stub_mut =
+        "mutation update_item(id: int, title: str) to Result[str] {\n    return Ok(\"updated\")\n}";
+    let semi_fn = "fn rot(a: str, b: str) to bool {\n    let mut i = 0;\n    return a is b\n}";
+    let clean_mut = "mutation save_note(id: int, title: str) to Result[Unit] {\n    db.Note.update(id, { title: title })\n    return Ok(())\n}";
+    let clean_fn = "fn double_val(n: int) to int {\n    return n * 2\n}";
+    let texts = vec![
+        stub_mut.to_string(),
+        semi_fn.to_string(),
+        clean_mut.to_string(),
+        clean_fn.to_string(),
+    ];
+    let base = json!({
+        "results": [
+            {"id": "mutation_stub", "category": "mutation", "description": "short", "samples": [sample(false, "")]},
+            {"id": "semi_func", "category": "function", "description": "short2", "samples": [sample(false, "")]},
+            {"id": "mutation_clean", "category": "mutation", "description": "longer clean mutation prompt", "samples": [sample(false, "")]},
+            {"id": "func_clean", "category": "function", "description": "longer clean function prompt", "samples": [sample(false, "")]}
+        ]
+    });
+    let mk = |code: &str| {
+        let mut s = sample(true, code);
+        s["semantic_pass"] = json!(true);
+        s
+    };
+    let adapter = json!({
+        "results": [
+            {"id": "mutation_stub", "category": "mutation", "description": "short", "samples": [mk(stub_mut)]},
+            {"id": "semi_func", "category": "function", "description": "short2", "samples": [mk(semi_fn)]},
+            {"id": "mutation_clean", "category": "mutation", "description": "longer clean mutation prompt", "samples": [mk(clean_mut)]},
+            {"id": "func_clean", "category": "function", "description": "longer clean function prompt", "samples": [mk(clean_fn)]}
+        ]
+    });
+    let ex = pick_examples(&base, &adapter, None, Some(&texts)).unwrap();
+    assert_eq!(ids(&ex.wins), ["mutation_clean", "func_clean"]);
+    assert_eq!(ex.win_blocks().len(), 2);
+    assert!(ex.win_blocks().iter().all(|(win, _)| *win));
+}

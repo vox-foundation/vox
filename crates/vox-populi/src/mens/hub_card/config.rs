@@ -271,15 +271,42 @@ mod tests {
                 .filter(|s| s.status == SpokeStatus::Planned)
                 .all(|s| s.link.is_some())
         );
-        assert!(edited(|v| v["spokes"][1]["status"] = "shipped".into()).is_err());
+        let push_planned = |v: &mut Value| {
+            let entry: Value = serde_yaml::from_str(
+                "id: rust\nlabel: rust\nstatus: planned\npurpose: Assists with Rust bindings.\nlink: https://voxlang.org/reference/mens-models/#hub-and-spoke\n",
+            )
+            .unwrap();
+            v["spokes"].as_sequence_mut().unwrap().push(entry);
+        };
+        assert!(edited(push_planned).is_ok());
         assert!(
             edited(|v| {
+                push_planned(v);
+                v["spokes"][1]["status"] = "shipped".into();
+            })
+            .is_err()
+        );
+        assert!(
+            edited(|v| {
+                push_planned(v);
                 v["spokes"][1].as_mapping_mut().unwrap().remove("link");
             })
             .is_err()
         );
-        assert!(edited(|v| v["spokes"][1]["id"] = "vox-lang".into()).is_err());
-        assert!(edited(|v| v["default_spoke"] = "rust".into()).is_err());
+        assert!(
+            edited(|v| {
+                push_planned(v);
+                v["spokes"][1]["id"] = "vox-lang".into();
+            })
+            .is_err()
+        );
+        assert!(
+            edited(|v| {
+                push_planned(v);
+                v["default_spoke"] = "rust".into();
+            })
+            .is_err()
+        );
     }
 
     #[test]

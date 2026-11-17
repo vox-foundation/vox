@@ -17,9 +17,9 @@ This page holds every explanation that the MENS model cards on Hugging Face shar
 
 ## What MENS is
 
-MENS is the Vox project's own multi-family adapter ladder. The active Nov 2026 ladder spans five rungs across `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`, and `Qwen3.8-27B` (with earlier `Qwen3` 3.0 models retained strictly as legacy fallback if needed), sized up to 128 GB Apple Silicon unified-memory workstations, with each rung adding a small QLoRA adapter trained on Vox source.
+MENS is the Vox project's open-weights family of `.vox` coding models (`0.8B`, `2B`, `4B`, `9B`, and `27B`) built to run across Windows, Linux, macOS, browsers, and hosted APIs. Because Vox is a newer language, off-the-shelf models frequently emit Rust, Python, or TypeScript syntax that fails `vox check`. Even the `27B` checkpoint is compact compared to hundreds-of-billions-parameter commercial cloud models: in Vox (`vox-orchestrator::models::select` and `vox_actor_runtime::llm`), large cloud models handle open-ended architecture and research while MENS models handle local, private, or low-cost `.vox` generation, tests, and compiler error fixes.
 
-The base weights are never changed. An adapter is a separate file that is applied on top of the pinned base at load time, or merged into a standalone BF16 CausalLM checkpoint once all release gates pass.
+The base weights (`Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`, and `Qwen3.8-27B`) are never mutated during training: each rung trains a QLoRA adapter on compiler-checked `.vox` source and reasoning replay, and merges into a standalone CausalLM checkpoint once all release checks pass.
 
 The ladder exists to answer one question per size: does the adapter write better Vox than the base model it sits on? Every adapter is therefore scored against its own base on the same held-out items, with the same prompt and the same decode settings.
 
@@ -129,10 +129,11 @@ The gate part of the status line names what blocks it, for example the rule the 
 
 ## Examples on the cards
 
-A model card shows three real examples taken from the stored held-out evaluation of its own size. The rule that picks them is fixed, so no one chooses flattering items.
+A gate-passed model card showcases verified examples taken directly from the stored held-out evaluation of its own size. The rule that picks them is deterministic, so no one hand-picks flattering items:
 
-- **Two wins.** Among items the adapter passes and the base fails, the two with the shortest prompt. A tie in prompt length goes to the lower item id.
-- **One loss.** Among items the adapter still fails, the one with the shortest prompt, with the same tie-break. If the adapter fails no item, the card says so.
+- **Two verified wins in Examples, plus one in Use it.** Among items the adapter passes and the base fails, semantically verified, idiomatic full-stack Vox constructs (`mutation`, `query`, `page`, `component`, `action`, `workflow`, `agent`, `table`, `type`) rank first, followed by idiomatic functions, then humaneval-vox and syntax-only passes (while any output containing semicolon drift or unused-parameter/DB-free handler stubs is demoted to the bottom tier); ties break by shortest prompt and lower item id.
+- **No broken adapter code on published cards.** Gate-passed model cards render only verified `Fixed` wins, while ungated local diagnostic cards additionally include the shortest remaining failure for local engineering review (ungated cards are blocked from Hugging Face push).
+- **Scannable failure blocks.** Passing `vox` outputs are always shown verbatim; failed unadapted-base `text` outputs collapse runs of more than three identical repeated lines and cap long degenerate tails so cards remain scannable (full raw generations stay in `evidence/`).
 
 The card then states the totals. An item the adapter fixes is one the adapter passes and the base fails. An item the adapter breaks is one the base passes and the adapter fails. Items both pass or both fail are in neither count.
 
@@ -177,9 +178,7 @@ To bridge both ecosystems cleanly, `vox mens hub sync` performs a zero-allocatio
 
 Cards are generated from the run records by `vox mens hub sync`. The renderer reads the records, builds one facts object per rung, and fills one Askama template (for example "assets/banner.jpg" per rung and "assets/overview.jpg" on `vox-mens-index`). All wording is in the templates and in `mens/config/hub-cards.yaml`. Every ladder card, from 0.6B through 27B, is generated from that size's run records by the same template, alongside `.eval_results/vox_mens_eval.yaml` and `external_serving_handoff_v1.json`.
 
-Each fact is stated once. A model card states its own state and never another size's. The index grid is the only place that lists every size's state.
-
-The index shows an estimated evaluation time for work that is still to do. These figures are estimates, not measurements. They come from `hub-cards.yaml`, and the index states the basis of each.
+Each fact is stated once. A model card states its own state and never another size's. The public `vox-mens-index` lists release-verified (`passed`) models ready for adoption, while ungated or unverified runs are automatically blocked from `--cards-only --push` and `--push`.
 
 Nothing is pushed before review. The rendered cards are written to `mens/runs/hub_cards/<repo>/README.md`, read side by side, and only then synced.
 

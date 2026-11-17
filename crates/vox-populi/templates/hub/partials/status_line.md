@@ -1,7 +1,7 @@
-{{ f.size }} is
-{%- if f.trained %} [trained]({{ f.docs }}#state-legend),
-{%- if let Some(sp) = f.spoke %} its spoke is [{{ sp.id }}]({{ f.docs }}#hub-and-spoke) and
-{%- endif %} its gate is [{{ f.gate.state.label() }}]({{ f.docs }}#state-legend)
+**Vox Mens {{ f.size }}** is
+{%- if f.trained %} [trained]({{ f.docs }}#state-legend)
+{%- if let Some(sp) = f.spoke %} for [`{{ sp.id }}`]({{ f.docs }}#hub-and-spoke)
+{%- endif %} (release check: [{{ f.gate.state.label() }}]({{ f.docs }}#state-legend))
 {%- else %} [not trained]({{ f.docs }}#state-legend)
 {%- endif %}
 {%- if let Some(b) = f.gate.blocker %}:

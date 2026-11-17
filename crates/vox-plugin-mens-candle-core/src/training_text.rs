@@ -157,15 +157,24 @@ fn fuse_turns(
 
 /// `messages` rows get the same system turn prompt/response rows get, unless they
 /// already open with one — otherwise ~16% of rows train in a different context
-/// than inference serves.
+/// than inference serves. An explicit empty `{"role": "system", "content": ""}`
+/// first turn opts into systemless ChatML (matching `thinking_mode_prompt`).
 #[must_use]
 pub fn with_system_turn(
     turns: &[vox_tensor::data::ChatmlTurn],
     system: &str,
     cfg: &ChatmlConfig,
 ) -> Vec<vox_tensor::data::ChatmlTurn> {
+    if let Some(first) = turns.first()
+        && first.role == cfg.role_system
+    {
+        if first.content.is_empty() {
+            return turns[1..].to_vec();
+        }
+        return turns.to_vec();
+    }
     let mut out = Vec::with_capacity(turns.len() + 1);
-    if !system.is_empty() && turns.first().is_none_or(|t| t.role != cfg.role_system) {
+    if !system.is_empty() {
         out.push(vox_tensor::data::ChatmlTurn {
             role: cfg.role_system.clone(),
             content: system.to_string(),
@@ -233,6 +242,18 @@ mod tests {
         assert_eq!(out.len(), 3);
         let own = vec![turn("system", "mine"), turn("user", "u")];
         assert_eq!(with_system_turn(&own, "SYS", &cfg)[0].content, "mine");
+
+        let systemless = vec![
+            turn("system", ""),
+            turn("user", "How many bolts?"),
+            turn("assistant", "<think>\n2 + 1 = 3.\n</think>\n\n3"),
+        ];
+        let stripped = with_system_turn(&systemless, "SYS", &cfg);
+        assert_eq!(stripped.len(), 2);
+        assert_eq!(
+            chatml_turns_prefix_open_assistant(&stripped, &cfg),
+            qwen_reasoning::thinking_mode_prompt("How many bolts?"),
+        );
     }
 
     #[test]

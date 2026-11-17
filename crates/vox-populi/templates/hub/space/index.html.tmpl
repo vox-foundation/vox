@@ -3,21 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vox MENS — AI Coding Playground</title>
+  <title>Vox Mens — Open Code Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0b0d13;
-      --panel: #121621;
-      --panel-alt: #171c2b;
-      --border: #262e45;
-      --gold: #e2b857;
-      --gold-dim: rgba(226, 184, 87, 0.16);
-      --indigo: #6366f1;
-      --emerald: #10b981;
-      --crimson: #ef4444;
-      --amber: #f59e0b;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
+      --bg: #faf6ee;
+      --panel: #ffffff;
+      --panel-alt: #f4ede0;
+      --border: #d8c394;
+      --gold: #b8891e;
+      --gold-dim: rgba(197, 155, 39, 0.14);
+      --indigo: #1b6b3a;
+      --emerald: #1b6b3a;
+      --crimson: #b42318;
+      --amber: #9a6700;
+      --text: #1c140c;
+      --muted: #5c4f3d;
+      --display: "Cinzel", Georgia, "Times New Roman", serif;
       --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
       --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
     }
@@ -25,15 +29,15 @@
     body {
       margin: 0;
       padding: 0;
-      background: var(--bg);
+      background: radial-gradient(circle at top right, #fffdf8 0%, #faf6ee 58%, #f3ebd9 100%);
       color: var(--text);
       font-family: var(--sans);
       line-height: 1.5;
     }
     header {
-      padding: 20px 28px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, #131826 0%, #0b0d13 100%);
+      padding: 18px 28px;
+      border-bottom: 2px solid var(--gold);
+      background: linear-gradient(180deg, #fffdf9 0%, #f6efe0 100%);
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -42,9 +46,10 @@
     }
     .brand h1 {
       margin: 0;
-      font-size: 1.35rem;
-      letter-spacing: 0.02em;
-      color: #fff;
+      font-family: var(--display);
+      font-size: 1.38rem;
+      letter-spacing: 0.04em;
+      color: var(--text);
       display: flex;
       align-items: center;
       gap: 10px;
@@ -57,41 +62,43 @@
     .badge {
       display: inline-flex;
       align-items: center;
-      padding: 3px 9px;
+      padding: 3px 10px;
       border-radius: 999px;
       font-size: 0.74rem;
       font-family: var(--mono);
       font-weight: 600;
       border: 1px solid var(--border);
       background: var(--panel-alt);
+      color: var(--text);
     }
-    .badge-pass { color: #34d399; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); }
-    .badge-fail { color: #f87171; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); }
-    .badge-warn { color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1); }
+    .badge-pass { color: #ffffff; border-color: #1b6b3a; background: #1b6b3a; }
+    .badge-fail { color: #b42318; border-color: rgba(180, 35, 24, 0.35); background: rgba(180, 35, 24, 0.08); }
+    .badge-warn { color: #7a4f01; border-color: rgba(197, 155, 39, 0.55); background: rgba(197, 155, 39, 0.14); }
     .container {
       max-width: 1440px;
       margin: 0 auto;
-      padding: 22px 28px 48px;
+      padding: 20px 28px 48px;
     }
     .ladder-strip {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
       gap: 12px;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
     .rung-card {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 12px 14px;
       cursor: pointer;
+      box-shadow: 0 2px 6px rgba(28, 20, 12, 0.04);
       transition: border-color 0.15s, transform 0.1s;
     }
     .rung-card:hover { border-color: var(--gold); }
     .rung-card.active {
       border-color: var(--gold);
-      box-shadow: 0 0 0 1px var(--gold);
-      background: linear-gradient(180deg, rgba(226, 184, 87, 0.09) 0%, var(--panel) 100%);
+      box-shadow: 0 0 0 1.5px var(--gold);
+      background: linear-gradient(180deg, rgba(197, 155, 39, 0.12) 0%, var(--panel) 100%);
     }
     .rung-top {
       display: flex;
@@ -100,10 +107,10 @@
       margin-bottom: 6px;
     }
     .rung-size {
-      font-family: var(--mono);
-      font-size: 1.05rem;
+      font-family: var(--display);
+      font-size: 1.02rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text);
     }
     .rung-meta {
       font-size: 0.78rem;
@@ -122,27 +129,32 @@
       color: var(--muted);
       border: 1px solid var(--border);
       padding: 8px 16px;
-      border-radius: 8px;
+      border-radius: 999px;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.88rem;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.84rem;
+      letter-spacing: 0.02em;
     }
     .tab-btn.active {
-      color: #0b0d13;
+      color: #fffdf9;
       background: var(--gold);
       border-color: var(--gold);
     }
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 18px 20px;
       margin-bottom: 18px;
+      box-shadow: 0 3px 10px rgba(28, 20, 12, 0.05);
     }
     .panel h2 {
       margin: 0 0 12px;
+      font-family: var(--display);
       font-size: 1.02rem;
-      color: var(--gold);
+      letter-spacing: 0.03em;
+      color: var(--text);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -161,10 +173,11 @@
       color: var(--muted);
       margin-bottom: 6px;
       font-family: var(--mono);
+      font-weight: 600;
     }
     select, textarea, input[type="number"] {
       width: 100%;
-      background: #0d1018;
+      background: #fcfaf5;
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -174,13 +187,15 @@
     }
     textarea { min-height: 96px; resize: vertical; }
     button.primary {
-      background: var(--gold);
-      color: #0b0d13;
-      border: none;
-      border-radius: 8px;
+      background: var(--emerald);
+      color: #ffffff;
+      border: 1px solid #14532d;
+      border-radius: 999px;
       padding: 10px 18px;
+      font-family: var(--display);
       font-weight: 700;
-      font-size: 0.88rem;
+      letter-spacing: 0.03em;
+      font-size: 0.84rem;
       cursor: pointer;
     }
     button.primary:disabled {
@@ -191,13 +206,15 @@
       background: var(--panel-alt);
       color: var(--text);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 999px;
       padding: 8px 14px;
       font-size: 0.82rem;
+      font-weight: 600;
       cursor: pointer;
     }
     pre.code-box {
-      background: #080a10;
+      background: #f8f4ea;
+      color: var(--text);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 14px;
@@ -230,8 +247,8 @@
       padding: 8px 10px;
       border-bottom: 1px solid var(--border);
     }
-    th { color: var(--gold); font-weight: 600; }
-    a { color: var(--gold); text-decoration: none; }
+    th { color: #7a580d; font-weight: 700; font-family: var(--display); }
+    a { color: #8c640d; font-weight: 600; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .hidden { display: none !important; }
   </style>
@@ -240,23 +257,23 @@
   <header>
     <div class="brand">
       <h1>
-        <span>⚡ Vox MENS — AI Coding Playground</span>
+        <span>VOX MENS · CODE PLAYGROUND</span>
         <span class="badge" id="webgpu-badge">Checking WebGPU…</span>
       </h1>
       <p>
-        Compare compiler-verified Vox coding models side by side against base Qwen models in your browser or via Hugging Face Inference Providers ·
+        Open models trained to write and fix <code>.vox</code> code (<code>0.8B</code>–<code>27B</code>) — run locally or alongside large cloud planners ·
         <a href="https://huggingface.co/{{NAMESPACE}}/vox-mens-index" target="_blank" rel="noopener">{{NAMESPACE}}/vox-mens-index</a>
-        · <a href="https://voxlang.org/reference/mens-models/" target="_blank" rel="noopener">Docs &amp; Python/Vox Quickstart</a>
+        · <a href="https://voxlang.org/reference/mens-models/" target="_blank" rel="noopener">Model Guide &amp; Quickstart</a>
       </p>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-      <label style="margin:0;">Active Rung:</label>
-      <select id="size-select" style="width:auto; min-width:160px;">
-        <option value="0.8B" selected>Qwen3.5-0.8B</option>
-        <option value="2B">Qwen3.5-2B</option>
-        <option value="4B">Qwen3.5-4B</option>
-        <option value="9B">Qwen3.5-9B</option>
-        <option value="27B">Qwen3.8-27B</option>
+      <label style="margin:0;">Active Model:</label>
+      <select id="size-select" style="width:auto; min-width:170px;">
+        <option value="0.8B" selected>Vox Mens 0.8B</option>
+        <option value="2B">Vox Mens 2B</option>
+        <option value="4B">Vox Mens 4B</option>
+        <option value="9B">Vox Mens 9B</option>
+        <option value="27B">Vox Mens 27B</option>
       </select>
     </div>
   </header>
@@ -302,11 +319,11 @@
         <div id="sample-prompt-box" class="status-bar" style="margin-bottom:14px; color:var(--text);"></div>
         <div class="grid-2">
           <div>
-            <label id="base-sample-label">Pinned Base Qwen Output</label>
+            <label id="base-sample-label">Unadapted Base Output</label>
             <pre class="code-box" id="base-sample-code"></pre>
           </div>
           <div>
-            <label id="adapter-sample-label">Vox MENS LoRA Adapter Output (`nf4_base_plus_lora_arm v2`)</label>
+            <label id="adapter-sample-label">Vox Mens Verified Output</label>
             <pre class="code-box" id="adapter-sample-code"></pre>
           </div>
         </div>
@@ -343,7 +360,7 @@
           </div>
           <div>
             <label for="provider-endpoint-input">HF Token (`hf_...` kept in sessionStorage only) or Local Endpoint URL:</label>
-            <input type="password" id="provider-endpoint-input" placeholder="Optional: hf_... token for router.huggingface.co, or http://127.0.0.1:11435/v1/chat/completions" style="width:100%; background:#181617; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-family:var(--mono); font-size:0.82rem;" />
+            <input type="password" id="provider-endpoint-input" placeholder="Optional: hf_... token for router.huggingface.co, or http://127.0.0.1:11435/v1/chat/completions" style="width:100%; background:#fcfaf5; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-family:var(--mono); font-size:0.82rem;" />
           </div>
         </div>
         <div class="grid-2" style="margin-bottom:12px;">
@@ -352,21 +369,23 @@
             <textarea id="system-prompt-input" rows="7">You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack language that compiles to native Rust and TypeScript.
 
 ## Rules
-- Brace-delimited blocks, no semicolons, no significant indentation. Comments are `//` and `///`.
-- Return types use `to`: `fn name(p: T) to U { ... }`. Never `->` for returns (`->` appears only in `state_machine` transitions).
-- No null: use `Option[T]`, `Result[T]` (or `Result[T, E]` at API boundaries), and tagged unions.
-- `let x = expr`, `let mut x = expr`, `return expr`, `if c { } else { }`, `for x in xs { }`, `match e { Variant(f) => body }`.
-- Operators are `and`, `or`, `not`, `is`, `is not`.
+- Brace-delimited blocks, no semicolons, no significant indentation. Comments: `//`, `///`.
+- Return types use `to`: `fn name(p: T) to U { ... }`. Never `->` for returns (`->` is only in `state_machine`).
+- No null: use `Option[T]`, `Result[T]` (or `Result[T, E]`), and tagged unions (`Ok(v)`, `Error(msg)`).
+- `let x = expr`, `let mut x = expr`, `return expr`, `if c { } else { }`, `while c { }`, `for x in xs { }`, `for i in range(0, n) { }`, `match e { Variant(f) => body }`. Never `0..n` or `0..=n` ranges.
+- Operators: `and`, `or`, `not`, `is`, `is not`, `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=`. Never `&`, `|`, `^`, `<<`, `>>` (use `/ 2` and `% 2`), and never Python `x in xs` (use `xs.contains(x)`).
+- Lists (`list[T]`): `xs.len()`, `xs = xs.push(v)`, `xs.remove_at(i)`, `xs.reversed()`, `xs.contains(v)`. Indexing `xs[i]` returns `Option[T]` — unwrap with `xs[i].unwrap()` or `match xs[i] { Some(v) => ... None => {} }`; never slice `xs[a..b]` and never use `(A, B)` tuple types (define `type Pair = | Pair(a: str, b: int)`).
+- Strings (`str`, no `char` type): 1-char `str` literals, `s.len()`, `s.chars()`, `s.slice(i, i + 1)`, `c.ord()`, `chr(n)`, `str(n)`, `s.to_int()`, `float(n)`.
 
 ## Declarations (bare keywords)
 - `type Name { field: T }`, `type Name = | A | B(field: T)`
-- `table Name { field: T }`, `query name(p: T) to U { }`, `mutation name(p: T) to U { }`, `server name(p: T) to U { }`
+- `table Name { field: T }`, `query name(p: T) to U { }`, `mutation name(p: T) to U { }`, `server name(p: T) to U { }` (queries/mutations use `db.Name.*` and every parameter; never constant stubs)
 - `tool "name: description" name(p: T) to U { }`, `resource "uri" "description" name() to U { }`
 - `component Name() { view: column() { text() { "{x}" } } }`
 - `actor Name { on handler(p: T) to U { } }`, `spawn(Name)`
 - `workflow name(p: T) to Result[U] { }` calling `activity name(p: T) to Result[U] { }`
 - `routes { "/" to Home }`, `state_machine Name { state A state B on Ev() from A -> B }`, `import module.name`
-- Modifiers: `@test`, `@pure`, `@uses(net)`, `@scheduled("1h")`, `@auth(scheme: bearer)`, `@deprecated`, `@durable`.</textarea>
+- Modifiers: `@test` (must define any helper `fn` it calls), `@pure`, `@uses(net)`, `@scheduled("1h")`, `@auth(scheme: bearer)`, `@deprecated`, `@durable`.</textarea>
           </div>
           <div>
             <label for="user-prompt-input">User Prompt:</label>
@@ -386,11 +405,11 @@
         <div class="status-bar" id="webgpu-status">Ready. Select any ladder size (0.8B–27B) and click Decode to run inference.</div>
         <div class="grid-2" style="margin-top:14px;">
           <div>
-            <label id="webgpu-base-label">Base Qwen Live Output</label>
+            <label id="webgpu-base-label">Unadapted Base Live Output</label>
             <pre class="code-box" id="webgpu-base-output"></pre>
           </div>
           <div>
-            <label id="webgpu-adapter-label">Vox MENS LoRA Adapter Output (`ΔW = (B @ A) * scale`)</label>
+            <label id="webgpu-adapter-label">Vox Mens Live Output</label>
             <pre class="code-box" id="webgpu-adapter-output"></pre>
           </div>
         </div>
@@ -405,7 +424,7 @@
     const RUNG_DEFAULTS = {
       "0.8B": {
         family: "qwen3.5",
-        label: "Qwen3.5-0.8B",
+        label: "Vox Mens 0.8B",
         repoSlug: "vox-mens-qwen3.5-0.8b",
         baseModel: "Qwen/Qwen3.5-0.8B",
         onnxRepo: "onnx-community/Qwen3.5-0.8B-ONNX",
@@ -414,7 +433,7 @@
       },
       "2B": {
         family: "qwen3.5",
-        label: "Qwen3.5-2B",
+        label: "Vox Mens 2B",
         repoSlug: "vox-mens-qwen3.5-2b",
         baseModel: "Qwen/Qwen3.5-2B",
         onnxRepo: "onnx-community/Qwen3.5-2B-ONNX",
@@ -423,7 +442,7 @@
       },
       "4B": {
         family: "qwen3.5",
-        label: "Qwen3.5-4B",
+        label: "Vox Mens 4B",
         repoSlug: "vox-mens-qwen3.5-4b",
         baseModel: "Qwen/Qwen3.5-4B",
         onnxRepo: "onnx-community/Qwen3.5-4B-ONNX",
@@ -432,7 +451,7 @@
       },
       "9B": {
         family: "qwen3.5",
-        label: "Qwen3.5-9B",
+        label: "Vox Mens 9B",
         repoSlug: "vox-mens-qwen3.5-9b",
         baseModel: "Qwen/Qwen3.5-9B",
         onnxRepo: null,
@@ -441,7 +460,7 @@
       },
       "27B": {
         family: "qwen3.8",
-        label: "Qwen3.8-27B",
+        label: "Vox Mens 27B",
         repoSlug: "vox-mens-qwen3.8-27b",
         baseModel: "Qwen/Qwen3.8-27B",
         onnxRepo: null,
@@ -478,26 +497,25 @@
       return (RUNG_DEFAULTS[size] || LEGACY_RUNG_DEFAULTS[size] || { family: "qwen3" }).family;
     }
 
-    function modelLabelFor(family, size) {
-      const prefix = family === "qwen3.8" ? "Qwen3.8" : family === "qwen3.5" ? "Qwen3.5" : "Qwen3";
-      return `${prefix}-${size}`;
+    function modelLabelFor(_family, size) {
+      return `Vox Mens ${size}`;
     }
 
     function rungInfo(size) {
       const def = RUNG_DEFAULTS[size] || LEGACY_RUNG_DEFAULTS[size] || {
-        family: "qwen3",
-        label: `Qwen3-${size}`,
-        repoSlug: `vox-mens-qwen3-${size.toLowerCase()}`,
-        baseModel: `Qwen/Qwen3-${size}`,
+        family: "qwen3.5",
+        label: `Vox Mens ${size}`,
+        repoSlug: `vox-mens-qwen3.5-${size.toLowerCase()}`,
+        baseModel: `Qwen/Qwen3.5-${size}`,
         onnxRepo: null,
         webgpuCapable: false,
-        noThinkSwitch: true,
+        noThinkSwitch: false,
       };
       const row = state.ladderBySize[size] || null;
       const baseRaw = (row && row.base_pin ? String(row.base_pin) : def.baseModel).split("@")[0];
       const repoId = (row && row.repo_id) ? String(row.repo_id) : `${NAMESPACE}/${def.repoSlug}`;
       const family = (row && row.family) ? String(row.family) : inferFamily(`${baseRaw} ${repoId}`, size);
-      const label = (row && (row.model_label || (row.card && row.card.model_label))) || modelLabelFor(family, size);
+      const label = `Vox Mens ${size}`;
       const localDir = (row && row.local_dir) || `mens/runs/${family}-${size.toLowerCase()}`;
       return {
         size,
@@ -685,18 +703,24 @@
       state.ladderIndex = indexData;
       if (indexData && Array.isArray(indexData.sizes) && indexData.sizes.length > 0) {
         const nextMap = {};
-        const nextSizes = [];
+        const allSizes = [];
+        const passedSizes = [];
         for (const r of indexData.sizes) {
           if (!r || !r.size) continue;
           nextMap[r.size] = r;
-          if (!nextSizes.includes(r.size)) nextSizes.push(r.size);
+          if (!allSizes.includes(r.size)) allSizes.push(r.size);
+          const gate = r.gate_status || r.remote_gate_status || r.local_gate_status || "";
+          if (gate === "passed" && !passedSizes.includes(r.size)) passedSizes.push(r.size);
         }
-        if (nextSizes.length > 0) {
-          SIZES = nextSizes;
+        const visibleSizes = passedSizes.length > 0 ? passedSizes : allSizes;
+        if (visibleSizes.length > 0) {
+          SIZES = visibleSizes;
           state.ladderBySize = nextMap;
+          if (!SIZES.includes(state.activeSize)) {
+            state.activeSize = SIZES[0];
+          }
           const sel = el("size-select");
           if (sel) {
-            const prevVal = state.activeSize;
             sel.innerHTML = "";
             for (const sz of SIZES) {
               const info = rungInfo(sz);
@@ -705,7 +729,7 @@
               opt.textContent = info.label;
               sel.appendChild(opt);
             }
-            if (SIZES.includes(prevVal)) sel.value = prevVal;
+            sel.value = state.activeSize;
           }
           state.rungCache = {};
         }

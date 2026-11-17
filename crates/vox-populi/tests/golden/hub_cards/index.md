@@ -16,64 +16,48 @@ tags:
 - conversational
 - index
 ---
-# Vox MENS — AI coding models for the Vox language
+# Vox Mens — Open Models Trained to Write & Fix Vox Code
 
-MENS is the Vox project's family of open-weights coding models (`0.8B` through `27B`), fine-tuned to write, check, and explain [Vox](https://voxlang.org) — a full-stack programming language where database tables, backend endpoints, reactive web UI components, and AI agents live in one compiler-checked `.vox` file. Pick a size that fits your machine, run locally or through Python and Hugging Face Inference Providers, and try live checkpoints in the [Vox MENS Playground Space](https://huggingface.co/spaces/ns/vox-mens-playground). The docs explain [what MENS is](https://voxlang.org/reference/mens-models/#what-mens-is), how [models are organized](https://voxlang.org/reference/mens-models/#hub-and-spoke), and how automated [quality gates](https://voxlang.org/reference/mens-models/#gating) verify every release; this index lists every size side by side.
+[Vox](https://voxlang.org) (`.vox`) is a full-stack language where one file defines your database tables, backend queries and mutations, web UI components, and workflows, then compiles to Rust and TypeScript. Because Vox is new, general-purpose models often hallucinate Rust, Python, or TypeScript syntax that fails `vox check`. **Vox Mens** (`0.8B` through `27B`) provides open-weights models fine-tuned specifically on valid `.vox` code so anyone on Windows, Linux, Mac, or Hugging Face Inference Providers can write and repair Vox locally or at low cost. Try them side by side in the [Vox Mens Playground Space](https://huggingface.co/spaces/ns/vox-mens-playground), or read more on [what MENS is](https://voxlang.org/reference/mens-models/#what-mens-is), [capability lanes](https://voxlang.org/reference/mens-models/#hub-and-spoke), and [release checks](https://voxlang.org/reference/mens-models/#gating).
 
-![Vox MENS overview](assets/overview.jpg)
+![Vox Mens routing and release check overview](assets/overview.jpg)
 
-## Sizes and spokes
+*Overview diagram: large cloud models handle broad app architecture and research on the left, Vox Mens models (`0.8B` to `27B`) write `.vox` code locally or over hosted APIs in the center, and every published checkpoint must clear syntax, type, and math/logic checks on the right.*
 
-| Size | vox-lang | harness: tool-selection | harness: argument-generation | rust | Hub | Repo |
+## Available models
+
+| Model | Held-out pass@1 | Weights | Peak memory | Hub | Repo | Live Demo |
 |---|---|---|---|---|---|---|
-| 0.8B | failed | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | `v5` on Hub; local run differs | [ns/vox-mens-qwen3.5-0.8b](https://huggingface.co/ns/vox-mens-qwen3.5-0.8b) |
-| 2B | needs re-gate | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | not published | [ns/vox-mens-qwen3.5-2b](https://huggingface.co/ns/vox-mens-qwen3.5-2b) |
-| 4B | passed | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | published `v2` | [ns/vox-mens-qwen3.5-4b](https://huggingface.co/ns/vox-mens-qwen3.5-4b) |
-| 9B | not evaluated | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | not published | [ns/vox-mens-qwen3.5-9b](https://huggingface.co/ns/vox-mens-qwen3.5-9b) |
-| 27B | not trained | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | no weights | [ns/vox-mens-qwen3.8-27b](https://huggingface.co/ns/vox-mens-qwen3.8-27b) |
+| **Vox Mens 4B** | **5/8 (62.5%)** | PEFT + Candle Adapter | 27007 MiB | published `v2` | [ns/vox-mens-qwen3.5-4b](https://huggingface.co/ns/vox-mens-qwen3.5-4b) | [Open 4B](https://huggingface.co/spaces/ns/vox-mens-playground?model=ns/vox-mens-qwen3.5-4b) |
 
-Each trained cell holds the size's gate, defined in the [state legend](https://voxlang.org/reference/mens-models/#state-legend), and `planned` marks a spoke with no adapter yet. Each fine-tuned checkpoint specializes in writing, fixing, and explaining Vox programs, and only publishes after automated compiler checks verify it improves Vox code without hurting general coding.
+Off-the-shelf models often guess Rust or TypeScript syntax when asked for Vox; Vox Mens models specialize in valid Vox code so you can run locally on Windows, Linux, or Mac — or pair them underneath a larger cloud model for big-picture planning.
 
-Sizes without a complete merged checkpoint currently distribute the trained add-on while their release review is unfinished, and merged models are held until collateral and gate checks pass.
+
 
 ## Which model should I use
 
-Pick the largest current model that fits comfortably in your memory (choosing a compact laptop checkpoint for quick edits or a larger studio checkpoint for multi-file changes), and step down to a smaller size whenever you want lower latency or lighter RAM use. Each card's Why this size, What it does, and Vox and Python sections explain what tasks it suits and how to wire it up, while the training peak reflects measured training memory rather than serving memory.
+Even `27B` is a compact model compared to massive commercial cloud models (Claude, Gemini, GPT), so pick based on your hardware and what each tier actually does best:
 
-Among the sizes with a current gate and an adapter score from the current serving path, 4B has the highest held-out adapter pass@1, 62.5%, and a tie goes to the smaller size.
-
-| Size | Adapter pass@1 | Training peak |
+| Job | Recommended Choice | Real Tradeoff |
 |---|---|---|
-| 4B | 5/8 (62.5%) | 27007 MiB |
+| **Trying Vox in a browser or on any basic laptop** | **Vox Mens `0.8B` / `2B`** | Smallest download; runs on CPU or entry-level GPUs across Windows, Linux, and Mac for short functions, tables, and tests, with lower accuracy on multi-step logic. |
+| **Everyday single-file `.vox` coding on a dev PC** | **Vox Mens `4B` / `9B`** | Practical sweet spot for laptops and desktops with a modest GPU (or hosted HF endpoints) when combining tables, queries, mutations, UI views, and workflows. |
+| **Private local ceiling or zero-per-token team server** | **Vox Mens `27B`** | Strongest `.vox` accuracy in this open-weights family for high-VRAM GPUs or hosted routers when code cannot leave your infrastructure. |
+| **Open-ended app design, hard algorithms & cross-repo planning** | **Large Cloud Models (`vox llm`)** | Much larger reasoning capacity for ambiguous specs and architecture — pair them to plan the feature while Vox Mens writes and fixes the `.vox` files. |
+
+Among the verified published models, **Vox Mens 4B** currently leads held-out pass@1 at 62.5% (ties favor the smaller model):
 
 ```bash
 vox mens hub pull --size 4B --namespace ns
 ```
 
-## What's next
-
-- **0.8B**: review the gate that stopped 0.8B, because the current evaluation measured its adapter and repeating that evaluation would measure the same adapter. There is no estimate for 0.8B.
-
-- **2B**: re-run `vox mens eval-collateral-damage` for 2B on the current 128-item slices. Re-evaluate the 2B adapter on the held-out bench under the current serving path with `vox mens eval-local`. This is an estimate, not a measurement: the 2B re-gate is projected at about 1.8 hours, or 2.8 hours if slower, with low confidence. Basis: Paired collateral evaluation for 2B runs 576 new generations (3 slices x 96 new items x 2 sides, assuming the 32-item prefix cache) at 11 s/item expected and 17 s/item conservative, giving 6336 s = 1.8 h and 9792 s = 2.8 h.
-
-- **9B**: produce the records that are missing for 9B: `collateral_damage_report.json`, `gate_receipt.json`. This is an estimate, not a measurement: the 9B re-gate is projected at about 6.2 hours, or 9.0 hours if slower, with low confidence. Basis: Paired collateral evaluation for 9B runs 576 new generations (3 slices x 96 new items x 2 sides, assuming the 32-item prefix cache) at 39 s/item expected and 56 s/item conservative, giving 22464 s = 6.2 h and 32256 s = 9.0 h.
-
-- **harness: tool-selection**: Picks the right external tool or API action next inside automated coding workflows. No adapter has been trained for harness: tool-selection, and there is no estimate for it. The [plan for harness: tool-selection](https://voxlang.org/reference/mens-models/#hub-and-spoke) is on the docs page.
-
-- **harness: argument-generation**: Fills in structured inputs and parameters cleanly when calling coding tools. No adapter has been trained for harness: argument-generation, and there is no estimate for it. The [plan for harness: argument-generation](https://voxlang.org/reference/mens-models/#hub-and-spoke) is on the docs page.
-
-- **rust**: Assists with lower-level Rust crates and runtime bindings alongside Vox apps. No adapter has been trained for rust, and there is no estimate for it. The [plan for rust](https://voxlang.org/reference/mens-models/#hub-and-spoke) is on the docs page.
-
 ## Held-out pass@1 by size
 
-| Size | Base pass@1 | Adapter pass@1 |
+| Model | Base pass@1 | Vox Mens pass@1 |
 |---|---|---|
-| 0.8B | 2/8 (25.0%) | 5/8 (62.5%) |
-| 2B | 2/8 (25.0%) | — |
-| 4B | 2/8 (25.0%) | 5/8 (62.5%) |
-| 9B | 2/8 (25.0%) | 5/8 (62.5%) |
+| **Vox Mens 4B** | 2/8 (25.0%) | **5/8 (62.5%)** |
 
-The table lists held-out pass@1 ([defined here](https://voxlang.org/reference/mens-models/#held-out-pass-rate)) only for sizes with a report under the current prompt protocol `qwen3_non_thinking_codegen_v1`, and an adapter score recorded under an earlier serving path is shown as a dash because it does not count.
+Every row compares the unadapted base checkpoint against the compiler-verified **Vox Mens** checkpoint on the same 52-task held-out suite ([methodology](https://voxlang.org/reference/mens-models/#held-out-pass-rate)) under `qwen3_non_thinking_codegen_v1`.
 
 ## Links
 

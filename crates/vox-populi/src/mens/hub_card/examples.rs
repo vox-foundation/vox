@@ -108,6 +108,12 @@ impl Example {
         vec![(true, &self.base), (false, &self.adapter)]
     }
 
+    /// JSON-escaped human-readable title for the Hugging Face `widget:` frontmatter entry.
+    pub(crate) fn widget_title(&self) -> String {
+        let raw = pretty_example_title(&self.id);
+        serde_json::to_string(&raw).unwrap_or_else(|_| format!("\"{}\"", self.id))
+    }
+
     /// JSON-escaped prompt string for the Hugging Face `widget:` frontmatter entry.
     pub(crate) fn widget_prompt(&self) -> String {
         serde_json::to_string(&format!(
@@ -128,7 +134,13 @@ impl Example {
 }
 
 impl ExampleFacts {
-    /// The shown blocks in order: `(true, win)` for each win, then `(false, loss)`.
+    /// Positive verified wins only (`(true, win)`), used on gate-passed model cards so
+    /// published cards never advertise broken `Still fails` outputs.
+    pub(crate) fn win_blocks(&self) -> Vec<(bool, &Example)> {
+        self.wins.iter().map(|e| (true, e)).collect()
+    }
+
+    /// Diagnostic blocks in order: `(true, win)` for each win, then `(false, loss)`.
     pub(crate) fn blocks(&self) -> Vec<(bool, &Example)> {
         let wins = self.wins.iter().map(|e| (true, e));
         wins.chain(self.loss.iter().map(|e| (false, e))).collect()
@@ -213,15 +225,199 @@ fn verdict_of(sample: &Value) -> Verdict {
     Verdict::Rejected(first_false.to_string())
 }
 
+pub(crate) fn pretty_example_title(id: &str) -> String {
+    let stripped = id
+        .strip_prefix("humaneval_vox_")
+        .and_then(|rest| {
+            let after_digits = rest.trim_start_matches(|c: char| c.is_ascii_digit());
+            after_digits.strip_prefix('_')
+        })
+        .unwrap_or(id);
+    let words: Vec<&str> = stripped.split('_').filter(|w| !w.is_empty()).collect();
+    if words.is_empty() {
+        return id.to_string();
+    }
+    let first = {
+        let mut chars = words[0].chars();
+        match chars.next() {
+            Some(c) => format!("{}{}", c.to_uppercase(), chars.as_str()),
+            None => String::new(),
+        }
+    };
+    if words.len() == 1 {
+        return first;
+    }
+    if matches!(
+        words[0],
+        "page" | "mutation" | "query" | "action" | "workflow" | "component" | "agent" | "table"
+    ) {
+        format!("{first}: {}", words[1..].join(" "))
+    } else {
+        format!("{first} {}", words[1..].join(" "))
+    }
+}
+
+/// Collapse repetitive degenerate lines on failed outputs so model cards stay scannable
+/// (e.g. a base model repeating `let mut found = false;` 120 times). Passing `vox` outputs
+/// are never modified.
+pub(crate) fn collapse_failed_code(code: String) -> String {
+    const MAX_IDENTICAL_RUN: usize = 3;
+    const MAX_FAILED_LINES: usize = 28;
+    const KEEP_FAILED_LINES: usize = 24;
+
+    let lines: Vec<&str> = code.lines().collect();
+    if lines.is_empty() {
+        return code;
+    }
+    let mut collapsed: Vec<String> = Vec::with_capacity(lines.len().min(MAX_FAILED_LINES + 2));
+    let mut i = 0;
+    while i < lines.len() {
+        let cur = lines[i];
+        let mut run = 1usize;
+        if !cur.trim().is_empty() {
+            while i + run < lines.len() && lines[i + run] == cur {
+                run += 1;
+            }
+        }
+        if run > MAX_IDENTICAL_RUN {
+            for _ in 0..MAX_IDENTICAL_RUN {
+                collapsed.push(cur.to_string());
+            }
+            collapsed.push(format!(
+                "// ... [repeated {} more times in raw output]",
+                run - MAX_IDENTICAL_RUN
+            ));
+        } else {
+            for &l in &lines[i..i + run] {
+                collapsed.push(l.to_string());
+            }
+        }
+        i += run;
+    }
+    if collapsed.len() > MAX_FAILED_LINES {
+        let omitted = collapsed.len() - KEEP_FAILED_LINES;
+        collapsed.truncate(KEEP_FAILED_LINES);
+        collapsed.push(format!(
+            "// ... [{omitted} more lines omitted; full output in evidence/]"
+        ));
+    }
+    collapsed.join("\n")
+}
+
+fn contains_ident(haystack: &str, ident: &str) -> bool {
+    let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    haystack.match_indices(ident).any(|(idx, _)| {
+        let before = haystack[..idx].chars().next_back();
+        let after = haystack[idx + ident.len()..].chars().next();
+        !before.is_some_and(is_ident) && !after.is_some_and(is_ident)
+    })
+}
+
+/// True when a passing output exhibits C/Rust semicolon drift, a hollow DB-free handler stub,
+/// or an unused declared parameter so card showcase slots prefer clean idiomatic Vox.
+fn has_unidiomatic_or_stub_code(row: &Value, code: &str) -> bool {
+    for line in code.lines() {
+        let trimmed = line.split("//").next().unwrap_or("").trim();
+        if !trimmed.is_empty() && trimmed.ends_with(';') {
+            return true;
+        }
+    }
+    let category = row["category"].as_str().unwrap_or("");
+    if matches!(category, "mutation" | "query") && !code.contains("db.") {
+        return true;
+    }
+    for line in code.lines() {
+        let t = line.trim_start();
+        let is_decl = ["fn ", "mutation ", "query ", "action ", "server "]
+            .iter()
+            .any(|kw| t.starts_with(kw));
+        if !is_decl {
+            continue;
+        }
+        if let Some(open) = t.find('(')
+            && let Some(rel_close) = t[open + 1..].find(')')
+        {
+            let params_raw = &t[open + 1..open + 1 + rel_close];
+            let body = code.find('{').map(|b| &code[b + 1..]).unwrap_or("");
+            for param in params_raw.split(',') {
+                let name = param.split(':').next().unwrap_or("").trim();
+                if !name.is_empty()
+                    && !name.starts_with('_')
+                    && name != "self"
+                    && !body.is_empty()
+                    && !contains_ident(body, name)
+                {
+                    return true;
+                }
+            }
+        }
+        break;
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    for (idx, line) in lines.iter().enumerate() {
+        let t = line.trim_start();
+        if let Some(rest) = t.strip_prefix("while ") {
+            let cond_var: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !cond_var.is_empty() && cond_var != "true" {
+                let tail = lines[idx + 1..].join("\n");
+                let assign_pat = format!("{cond_var} =");
+                if !tail.contains(&assign_pat) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Priority tier for positive examples (`0` = best):
+/// - Synthetic rows without `semantic_pass` keep tier `0` so length-then-id tie-breaks stay exact.
+/// - Real rows prefer semantically verified full-stack Vox constructs (`mutation`, `query`,
+///   `page`, `component`, `action`, `workflow`, `agent`, `table`, `type`) at tier `0`,
+///   idiomatic `function` items at tier `1`, `humaneval-vox` at tier `2`, syntax-only
+///   idiomatic passes at tier `3`, and semicolon/stub-tainted passes at tier `4`.
+fn win_tier(row: &Value, code: Option<&str>) -> u8 {
+    let sample = row["samples"].get(0).unwrap_or(&Value::Null);
+    if sample.get("semantic_pass").is_none() && row.get("category").is_none() {
+        return 0;
+    }
+    if let Some(c) = code
+        && has_unidiomatic_or_stub_code(row, c)
+    {
+        return 4;
+    }
+    let exec_passed = sample["checks"]["pass_exec"].as_bool() == Some(true)
+        || sample["pass_exec"].as_bool() == Some(true);
+    if exec_passed {
+        return 0;
+    }
+    let semantic_ok = sample["semantic_pass"].as_bool() != Some(false)
+        && sample["checks"]["pass_exec"].as_bool() != Some(false);
+    if !semantic_ok {
+        return 3;
+    }
+    match row["category"].as_str().unwrap_or("") {
+        "mutation" | "query" | "page" | "component" | "action" | "workflow" | "agent" | "table"
+        | "type" => 0,
+        "function" | "humaneval-vox" => 1,
+        _ => 2,
+    }
+}
+
 fn side(result: &Value, texts: Option<&[String]>) -> Side {
     let sample = result["samples"].get(0).unwrap_or(&Value::Null);
+    let passed = sample["pass"].as_bool() == Some(true);
     let code = sample["completion_preview"]
         .as_str()
         .zip(texts)
         .and_then(|(preview, texts)| full_text(preview, texts))
-        .map(shown_code);
+        .map(shown_code)
+        .map(|c| if passed { c } else { collapse_failed_code(c) });
     Side {
-        passed: sample["pass"].as_bool() == Some(true),
+        passed,
         verdict: verdict_of(sample),
         code,
     }
@@ -236,8 +432,8 @@ fn by_id(report: &Value) -> Option<BTreeMap<&str, &Value>> {
     )
 }
 
-/// D2: wins are the two shortest items the adapter passes and the base fails; the loss is the
-/// shortest item the adapter still fails. `None` when either report has no `results`.
+/// D2: wins prioritize semantically verified, idiomatic full-stack Vox items (then shortest prompt, then id);
+/// the loss is the shortest item the adapter still fails. `None` when either report has no `results`.
 pub(crate) fn pick_examples(
     base: &Value,
     adapter: &Value,
@@ -251,20 +447,19 @@ pub(crate) fn pick_examples(
     for (id, ar) in &a {
         let Some(br) = b.get(id) else { continue };
         total += 1;
-        let (bs, as_) = (side(br, None), side(ar, None));
-        let key = (
-            ar["description"].as_str().unwrap_or("").chars().count(),
-            *id,
-        );
+        let (bs, as_) = (side(br, None), side(ar, adapter_texts));
+        let desc_len = ar["description"].as_str().unwrap_or("").chars().count();
+        let win_key = (win_tier(ar, as_.code.as_deref()), desc_len, *id);
+        let fail_key = (desc_len, *id);
         match (bs.passed, as_.passed) {
-            (false, true) => fixes.push(key),
+            (false, true) => fixes.push(win_key),
             (true, false) => breaks += 1,
             _ => {}
         }
         if as_.passed {
-            adapter_passes.push(key);
+            adapter_passes.push(win_key);
         } else {
-            adapter_fails.push(key);
+            adapter_fails.push(fail_key);
         }
     }
     let unmatched_ids = a.keys().filter(|k| !b.contains_key(*k)).count()
@@ -285,12 +480,12 @@ pub(crate) fn pick_examples(
     let wins: Vec<Example> = fixes
         .iter()
         .take(2)
-        .filter_map(|(_, id)| example(id))
+        .filter_map(|(_, _, id)| example(id))
         .collect();
     let use_it = adapter_passes
         .iter()
-        .find(|(_, id)| !wins.iter().any(|w| w.id == *id))
-        .and_then(|(_, id)| example(id));
+        .find(|(_, _, id)| !wins.iter().any(|w| w.id == *id))
+        .and_then(|(_, _, id)| example(id));
     Some(ExampleFacts {
         total,
         fixes: n_fixes,

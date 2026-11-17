@@ -78,6 +78,8 @@ pub fn remote_weights_match(remote: Option<&HfSyncManifest>, local: &HfSyncManif
 pub enum CardPushPlan {
     SkipNotTrained,
     SkipHubOnly,
+    /// Release gate has not passed; ungated cards are never pushed to Hugging Face.
+    SkipUngated,
     /// The Hub already carries these card bytes and this gate label.
     Unchanged,
     /// The gate is current: weights go through the gated publish path.
@@ -93,6 +95,7 @@ impl CardPushPlan {
         match (self, pushed) {
             (Self::SkipNotTrained, _) => "skipped (not trained)".to_string(),
             (Self::SkipHubOnly, _) => "skipped (hub only)".to_string(),
+            (Self::SkipUngated, _) => "skipped (gate not passed)".to_string(),
             (Self::Unchanged, _) => "cards unchanged".to_string(),
             (Self::GatedWeights, _) => {
                 format!("gate current, use: vox mens hub sync --push --size {size}")
@@ -121,6 +124,7 @@ fn card_entries<'a>(m: &'a HfSyncManifest) -> Vec<&'a FileHashEntry> {
 }
 
 /// Pure per-size decision. `local` is the manifest of the locally staged bundle.
+/// Ungated sizes (`!gate_current`) are never pushed to Hugging Face.
 pub fn plan_card_push(
     status: SizeSyncStatus,
     gate_current: bool,
@@ -135,6 +139,9 @@ pub fn plan_card_push(
     let Some(local) = local else {
         return CardPushPlan::SkipNotTrained;
     };
+    if !gate_current {
+        return CardPushPlan::SkipUngated;
+    }
     if let Some(r) = remote {
         let metadata_changed = local
             .files
@@ -147,7 +154,7 @@ pub fn plan_card_push(
             return CardPushPlan::Unchanged;
         }
     }
-    if gate_current && !remote_weights_match(remote, local) {
+    if !remote_weights_match(remote, local) {
         return CardPushPlan::GatedWeights;
     }
     CardPushPlan::CardOnly {
@@ -371,6 +378,11 @@ pub async fn sync_diverged_cards_in_place(
             continue;
         }
         let run_dir = root.join(&row.local_dir);
+        let records = RunRecords::load(&run_dir, &row.size, &row.base_pin);
+        if gate_of(&records).state != GateState::Passed {
+            row.action_taken = Some("skipped (gate not passed)".to_string());
+            continue;
+        }
         let stage = match scratch("auto", &row.size) {
             Ok(d) => d,
             Err(e) => {

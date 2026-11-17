@@ -4,7 +4,7 @@ use askama::Template;
 
 use super::card_facts::{CardFacts, card_facts};
 use super::facts::{AdapterEvidence, Blocker};
-use super::index_facts::{GridCell, HubCell, IndexFacts, index_facts};
+use super::index_facts::{HubCell, IndexFacts, index_facts};
 use super::{CardContext, RunRecords};
 use crate::mens::hub_sync::SizeSyncRow;
 

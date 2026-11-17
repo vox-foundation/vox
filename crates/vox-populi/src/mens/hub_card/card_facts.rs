@@ -24,6 +24,7 @@ pub(crate) const EVAL_USER_TURN_PREFIX: &str = "Write a Vox program that: ";
 #[derive(Debug, Clone)]
 pub(crate) struct CardFacts {
     pub size: String,
+    #[allow(dead_code)]
     pub model_label: String,
     pub model_family: String,
     pub uses_no_think_switch: bool,
@@ -139,6 +140,30 @@ impl CardFacts {
     /// True only when the release gate passed AND a complete merged checkpoint exists.
     pub fn is_complete_model(&self) -> bool {
         self.is_passed() && self.has_merged_model
+    }
+
+    /// Plain-English delegation role headline for the card H1.
+    pub fn role_headline(&self) -> &'static str {
+        match self.size.as_str() {
+            "0.8B" => "Smallest Open Model for Trying & Writing Vox Locally",
+            "2B" => "Lightweight Laptop Model for Vox Functions, Tables & Tests",
+            "4B" => "Everyday Local Model for Full-Stack Vox Files",
+            "9B" => "Desktop & Server Model for Multi-Step Vox Workflows",
+            "27B" => "Highest-Accuracy Private Model for Writing & Fixing Vox",
+            _ => "Open Model for Writing & Fixing Vox Code",
+        }
+    }
+
+    /// Non-redundant caption explaining the 3-stage architectural diagram in `assets/banner.jpg`.
+    pub fn figure_caption(&self) -> String {
+        match self.size.as_str() {
+            "0.8B" => "Diagram (0.8B): a short prompt runs in the browser or on an everyday laptop CPU or GPU offline and returns compiler-checked `.vox` code.".to_string(),
+            "2B" => "Diagram (2B): a task prompt runs locally on Windows, Linux, or Mac with low memory overhead to produce a working `.vox` function and `@test` block.".to_string(),
+            "4B" => "Diagram (4B): one `.vox` file combines a database `table`, backend `query` and `mutation` handlers, and a web UI `component` without cross-language glue.".to_string(),
+            "9B" => "Diagram (9B): multi-step `state_machine` and `workflow` code cycles through `vox check` error feedback on a desktop or server GPU until types hold.".to_string(),
+            "27B" => "Diagram (27B): a large cloud model handles high-level app design upstream while the private 27B model writes and fixes `.vox` code via Ollama, vLLM, Python, or the Vox CLI.".to_string(),
+            other => format!("Diagram ({other}): a developer prompt passes through the Vox Mens model and the `vox check` syntax and type check."),
+        }
     }
 
     /// Hugging Face Hub family tag matching [`Self::model_family`].
