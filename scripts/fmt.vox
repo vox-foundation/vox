@@ -66,6 +66,9 @@ fn skip_tombstone(p: str) to bool {
     if n.starts_with(".vox/salvage/") or n.contains("/.vox/salvage/") {
         return true;
     }
+    if n.ends_with("crates/vox-gui/src/config/generated_fields.rs") {
+        return true;
+    }
     return false;
 }
 
