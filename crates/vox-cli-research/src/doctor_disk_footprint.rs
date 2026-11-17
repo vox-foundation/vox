@@ -10,10 +10,10 @@
 //! anything, and never even creates the directories it measures (several of
 //! `vox-config`'s own resolvers `create_dir_all` as a side effect, so this
 //! module deliberately does NOT call those directly for the platform data
-//! dir — see [`data_dir_readonly`]). Sizing tolerates a missing directory
+//! dir — see `data_dir_readonly`). Sizing tolerates a missing directory
 //! (reported as absent, not an error) and caps the walk so a pathologically
 //! large or deep tree cannot make `vox doctor` hang — see
-//! [`MAX_ENTRIES_PER_DIR`].
+//! `MAX_ENTRIES_PER_DIR`.
 
 use std::path::{Path, PathBuf};
 

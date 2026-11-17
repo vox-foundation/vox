@@ -13,8 +13,10 @@ scripts/docs/
 scripts/docs/tutorial-test-runner.vox
 scripts/fmt.vox
 scripts/generate-bench-scaffold.vox
+scripts/gui-build.vox
 scripts/install.ps1
 scripts/install.sh
+scripts/lychee-triage.vox
 scripts/plugin-candidacy.vox
 scripts/quality/audit-telemetry.vox
 scripts/quality/audit-workspace-health.vox

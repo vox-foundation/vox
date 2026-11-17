@@ -2025,6 +2025,14 @@ fn step_nextest_slow(root: &Path) -> Result<()> {
         &[
             "nextest",
             "run",
+            "-p",
+            "vox-arch-check",
+            "-p",
+            "vox-scientia",
+            "-p",
+            "vox-codegen",
+            "-p",
+            "vox-mesh-transport",
             "-E",
             concat!(
                 "test(arch_check_live_workspace_smoke_and_description_rule)",

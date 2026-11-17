@@ -485,7 +485,7 @@ pub fn run(args: StatusArgs) -> Result<()> {
     Ok(())
 }
 
-/// Live fetch for `vox ci pre-push`, bounded by [`PUSH_FETCH_TIMEOUT`]; falls
+/// Live fetch for `vox ci pre-push`, bounded by `PUSH_FETCH_TIMEOUT`; falls
 /// back to the cached block. Silent inside GitHub Actions.
 pub fn print_live_for_push() {
     if std::env::var_os("GITHUB_ACTIONS").is_some() {

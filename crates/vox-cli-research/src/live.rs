@@ -1,6 +1,6 @@
 //! `vox live` — real-time Matrix-style EventBus dashboard.
 //!
-//! Subscribes to orchestrator [`AgentEvent`](vox_orchestrator::AgentEvent)s and renders a live,
+//! Subscribes to orchestrator [`vox_orchestrator::AgentEvent`]s and renders a live,
 //! updating dashboard in the terminal. Press Ctrl+C to quit.
 //!
 //! ## Shared bus with MCP

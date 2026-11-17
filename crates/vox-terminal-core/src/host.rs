@@ -696,7 +696,15 @@ impl LocalHost {
 
         let intent = classify(line);
         if has_osc633_pty {
-            let active_running_id = lock(&entry.session).open_block_id();
+            let mut active_running_id = lock(&entry.session).open_block_id();
+            if let Some(running_id) = active_running_id
+                && matches!(origin, BlockOrigin::Agent { .. })
+            {
+                entry.wait_until(Duration::from_millis(5000), |s| {
+                    s.open_block_id() != Some(running_id) && s.is_at_prompt()
+                });
+                active_running_id = lock(&entry.session).open_block_id();
+            }
             if let Some(running_id) = active_running_id {
                 if matches!(origin, BlockOrigin::Agent { .. }) {
                     anyhow::bail!(
@@ -780,7 +788,7 @@ impl LocalHost {
                     lock(&entry.session).finish_open_block_on_eof(-1);
                     return Err(err);
                 }
-                entry.wait_until(Duration::from_millis(1500), |s| {
+                entry.wait_until(Duration::from_millis(5000), |s| {
                     (s.open_block_id() != Some(block_id) && s.is_at_prompt()) || s.is_alt_screen()
                 });
                 return Ok(block_id);

@@ -17,6 +17,7 @@ fn main() {
     let allowlist = [
         "scripts/install.ps1",
         "scripts/install.sh",
+        "scripts/sync-prod.sh",
         "scripts/vox-dev.sh",
         "scripts/windows/vox-dev.ps1",
         "scripts/broker-bypass-fixtures/known-bypass-rustup-run-continuation.sh",

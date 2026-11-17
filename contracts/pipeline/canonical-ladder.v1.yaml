@@ -51,7 +51,7 @@ fixtures:
   - id: py_array_stats
     path: examples/golden/py_array_stats.vox
     proves: [py_array_stats]
-    targets: [rust-script]
+    targets: [interp]
   - id: py_frame_report
     path: examples/golden/py_frame_report.vox
     proves: [py_frame_report]

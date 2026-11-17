@@ -32,6 +32,7 @@ const SCRIPT_GLUE_ALLOWLIST: &[&str] = &[
     // Thin bootstrap launchers and public release installers (pre-`vox`-binary): exempt by design.
     "scripts/install.ps1",
     "scripts/install.sh",
+    "scripts/sync-prod.sh",
     "scripts/vox-dev.sh",
     "scripts/windows/vox-dev.ps1",
     // Inert test fixtures consumed by scripts/broker-bypass-lint.vox (never executed).

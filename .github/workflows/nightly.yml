@@ -750,14 +750,14 @@ jobs:
       - name: WebIR structural validate gate (TS codegen path)
         env:
           VOX_WEBIR_VALIDATE: "1"
-        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only --no-capture
+        run: cargo nextest run -p vox-codegen --test web_ir_lower_emit_test --run-ignored ignored-only --no-capture
         timeout-minutes: 90
         if: ${{ !cancelled() }}
 
       - name: Projection parity gate (WebIR + AppContract + RuntimeProjection)
         env:
           VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
-        run: cargo nextest run -p vox-compiler --test projection_parity_test
+        run: cargo nextest run -p vox-codegen --test projection_parity_test
         timeout-minutes: 90
         if: ${{ !cancelled() }}
 
@@ -773,7 +773,7 @@ jobs:
         # Drives HIR nodes through the real eval/codegen_rust/codegen_ts paths and
         # verifies the 5 accurately-seeded matrix cells (JSX, AsyncView, Spawn,
         # With, WorkflowVersion) match actual emitter behavior.
-        run: cargo nextest run -p vox-compiler --test feature_matrix_parity_test
+        run: cargo nextest run -p vox-codegen --test feature_matrix_parity_test
         timeout-minutes: 90
         if: ${{ !cancelled() }}
 
@@ -1075,6 +1075,7 @@ jobs:
         if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true') }}
         run: |
           cargo nextest run \
+            -p vox-arch-check -p vox-scientia -p vox-codegen -p vox-mesh-transport \
             -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check) or (package(vox-mesh-transport) + binary(interp_executor))' \
             --run-ignored ignored-only \
             --profile ci
@@ -2010,7 +2011,7 @@ jobs:
 
   ml-cuda-health:
     name: ML CUDA dependency health
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
       # Candle kernel compilation needs an explicit target on hosted runners,

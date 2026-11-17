@@ -510,7 +510,7 @@ async fn execute_heal(action: &HealAction) {
 }
 
 /// On Windows the build uses `lld-link` (`.cargo/config.toml`); if it vanished from
-/// PATH, links fail confusingly. Also runs [`gui_linker_carveout_health`], which
+/// PATH, links fail confusingly. Also runs `gui_linker_carveout_health`, which
 /// guards the separate vox-gui-specific `link.exe` carve-out. Elsewhere (non-Windows)
 /// this is a no-op pass.
 pub async fn linker_health(checks: &mut Vec<Check>) {

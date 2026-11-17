@@ -416,7 +416,7 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
 }
 
 /// True when the user passed the root `--json` flag —
-/// [`crate::apply_global_opts`] / `run_vox_cli_from_parsed` set
+/// `apply_global_opts` / `run_vox_cli_from_parsed` set
 /// `VOX_CLI_GLOBAL_JSON=1` before command dispatch.
 #[must_use]
 pub fn global_json_enabled() -> bool {

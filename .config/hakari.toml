@@ -52,7 +52,7 @@ workspace-members = [
 
 [final-excludes]
 third-party = [
-    { name = "candle-core" },
+    { name = "candle-core", path = "patches/candle-core-0.10.2" },
     { name = "candle-nn" },
     { name = "candle-transformers" },
     { name = "float8" },

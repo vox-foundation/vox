@@ -12,7 +12,7 @@ pub(super) use super::health::MODEL_CATALOG_LAST_REFRESH_KEY;
 pub(super) use super::spec::{
     ModelCapabilities, ModelConfig, ModelSpec, PricingSource, ProviderType, task_category_strength,
 };
-/// Receipt for one step of a multi-spoke [`AgentHarness`] + Axis development workflow.
+/// Receipt for one step of a multi-spoke `AgentHarness` + Axis development workflow.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MultiSpokeHarnessStepReceipt {
     pub step_index: usize,
@@ -26,7 +26,7 @@ pub struct MultiSpokeHarnessStepReceipt {
     pub constructs_covered: Vec<String>,
 }
 
-/// Summary report of an 8-step multi-spoke [`AgentHarness`] + Axis local LLM workflow.
+/// Summary report of an 8-step multi-spoke `AgentHarness` + Axis local LLM workflow.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MultiSpokeHarnessWorkflowReport {
     pub total_steps: usize,
@@ -36,7 +36,7 @@ pub struct MultiSpokeHarnessWorkflowReport {
     pub steps: Vec<MultiSpokeHarnessStepReceipt>,
 }
 
-/// How a multi-turn human utterance relates to prior conversation context in [`ConversationalHarnessSession`].
+/// How a multi-turn human utterance relates to prior conversation context in `ConversationalHarnessSession`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConversationalTurnMode {
     /// Standalone natural-language request introducing a new task or spoke.
@@ -65,7 +65,7 @@ pub struct ConversationalRoutingDecision {
     pub selection_rationale: String,
 }
 
-/// Receipt for one turn of an extended multi-turn human conversation through Axis + [`AgentHarness`].
+/// Receipt for one turn of an extended multi-turn human conversation through Axis + `AgentHarness`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConversationalTurnReceipt {
     pub turn_index: usize,

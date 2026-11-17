@@ -52,10 +52,10 @@ Use [`VoxDb::store`] (async method) for content-addressed blob writes (`ops_cas`
 
 ## Canonical store (SSOT)
 
-User-global relational data uses [`DbConfig::resolve_canonical`] / [`canonical_store::resolve_canonical_config`].
+User-global relational data uses `DbConfig::resolve_canonical` / `canonical_store::resolve_canonical_config`.
 Repo-backed interactive surfaces default to the workspace journey store (`.vox/store.db`) via
-[`workspace_journey_store::connect_workspace_journey_optional`]; set `VOX_WORKSPACE_JOURNEY_STORE=canonical`
-for legacy user-global / Turso. See [`canonical_store`] and [`workspace_journey_store`].
+`workspace_journey_store::connect_workspace_journey_optional`; set `VOX_WORKSPACE_JOURNEY_STORE=canonical`
+for legacy user-global / Turso. See `canonical_store` and `workspace_journey_store`.
 
 ## Turso batch SQL caveat
 

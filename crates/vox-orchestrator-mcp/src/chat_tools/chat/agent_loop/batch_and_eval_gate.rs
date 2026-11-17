@@ -45,7 +45,7 @@ pub(crate) fn apply_repair_escalation_to_config(
 ///   - Rejects `PostToolDirective::DraftPr` if `!shortlist_has_pr_tool` and records
 ///     `"post_tool_rejected_directive": "draft_pr"` in `telemetry`.
 ///   - When `p.should_reenter_repair_escalation()` (`model_still_ok_prob < confidence_threshold`
-///     or `PostToolDirective::ReenterRepairLoop`), re-enters [`apply_repair_escalation_to_config`]
+///     or `PostToolDirective::ReenterRepairLoop`), re-enters `apply_repair_escalation_to_config`
 ///     (`SelectionIntent::repair_loop()` with `prefer_local = true` and
 ///     `allow_free_in_performance_mode = true`) and records `"post_tool_low_confidence_escalated": true`.
 pub fn apply_post_tool_confidence_escalation(

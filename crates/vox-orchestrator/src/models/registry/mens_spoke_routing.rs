@@ -196,7 +196,7 @@ impl ModelRegistry {
         model_id
     }
 
-    /// Map a canonical [`vox_corpus::training::contract::SpokeKind`] to its Axis [`super::routing_task::RoutingTask`]
+    /// Map a canonical [`vox_corpus::training::contract::SpokeKind`] to its Axis [`RoutingTask`]
     /// and select the highest-scoring model in the registry (`MENS-HARNESS-02..03`).
     #[must_use]
     pub fn route_spoke_task(

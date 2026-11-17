@@ -6,7 +6,7 @@
 
 &[
     GeneratedField { key: "VOX_WASM_SKILL_FUEL", label: "WASM skill fuel", hint: "Wasmtime instruction budget for skill execution.", section: "Runtime & Sandbox", kind: "int", options: &[], default: "1000000000" },
-    GeneratedField { key: "GEMINI_MODEL", label: "Gemini Model", hint: "Default model for Gemini provider.", section: "general", kind: "string", options: &[], default: "gemini-2.5-flash" },
+    GeneratedField { key: "GEMINI_MODEL", label: "Gemini Model", hint: "Default model for Gemini provider.", section: "general", kind: "string", options: &[], default: "gemini-flash-latest" },
     GeneratedField { key: "HF_CHAT_MODEL", label: "Hf Chat Model", hint: "Preferred HF router model ID.", section: "general", kind: "string", options: &[], default: "" },
     GeneratedField { key: "HF_DEDICATED_CHAT_MODEL", label: "Hf Dedicated Chat Model", hint: "Model ID for dedicated HF endpoint.", section: "general", kind: "string", options: &[], default: "" },
     GeneratedField { key: "HF_DEDICATED_CHAT_URL", label: "Hf Dedicated Chat Url", hint: "Pinned HF Inference Endpoint URL.", section: "general", kind: "string", options: &[], default: "" },
