@@ -17,6 +17,7 @@ pub enum FindingClass {
     ReproducibilityInfra,
     PolicyGovernance,
     TelemetryTrust,
+    EmpiricalScience,
     Other,
     /// Atlas track — provider behavior epidemiology.
     ModelCapabilityAtlas,
@@ -31,6 +32,7 @@ impl FindingClass {
             Self::ReproducibilityInfra => "reproducibility_infra",
             Self::PolicyGovernance => "policy_governance",
             Self::TelemetryTrust => "telemetry_trust",
+            Self::EmpiricalScience => "empirical_science",
             Self::Other => "other",
             Self::ModelCapabilityAtlas => "model_capability_atlas",
             Self::ProviderReliabilityAtlas => "provider_reliability_atlas",
@@ -46,6 +48,7 @@ impl FindingClass {
             "reproducibility_infra" => Some(Self::ReproducibilityInfra),
             "policy_governance" => Some(Self::PolicyGovernance),
             "telemetry_trust" => Some(Self::TelemetryTrust),
+            "empirical_science" => Some(Self::EmpiricalScience),
             "other" => Some(Self::Other),
             "model_capability_atlas" => Some(Self::ModelCapabilityAtlas),
             "provider_reliability_atlas" => Some(Self::ProviderReliabilityAtlas),
@@ -167,6 +170,19 @@ pub fn builtin_class_defaults() -> ClassDefaults {
         },
     );
     by_class.insert(
+        FindingClass::EmpiricalScience.as_str().to_string(),
+        ClassPolicy {
+            reply_window_days: 7,
+            negative_result_quota: 0,
+            critic_allowed: true,
+            recommended_venues: vec![
+                "arXiv".into(),
+                "Nature-Scientific-Data".into(),
+                "ACS-Omega".into(),
+            ],
+        },
+    );
+    by_class.insert(
         FindingClass::Other.as_str().to_string(),
         ClassPolicy {
             reply_window_days: 14,
@@ -206,6 +222,7 @@ mod tests {
             FindingClass::ReproducibilityInfra,
             FindingClass::PolicyGovernance,
             FindingClass::TelemetryTrust,
+            FindingClass::EmpiricalScience,
             FindingClass::Other,
             FindingClass::ModelCapabilityAtlas,
             FindingClass::ProviderReliabilityAtlas,
@@ -221,6 +238,7 @@ mod tests {
         assert!(FindingClass::ProviderReliabilityAtlas.is_atlas());
         assert!(!FindingClass::AlgorithmicImprovement.is_atlas());
         assert!(!FindingClass::TelemetryTrust.is_atlas());
+        assert!(!FindingClass::EmpiricalScience.is_atlas());
     }
 
     #[test]
@@ -231,6 +249,7 @@ mod tests {
             FindingClass::ReproducibilityInfra,
             FindingClass::PolicyGovernance,
             FindingClass::TelemetryTrust,
+            FindingClass::EmpiricalScience,
             FindingClass::Other,
             FindingClass::ModelCapabilityAtlas,
             FindingClass::ProviderReliabilityAtlas,
@@ -247,6 +266,7 @@ mod tests {
             FindingClass::ReproducibilityInfra,
             FindingClass::PolicyGovernance,
             FindingClass::TelemetryTrust,
+            FindingClass::EmpiricalScience,
         ] {
             assert_eq!(d.policy_for(c).unwrap().negative_result_quota, 0);
         }

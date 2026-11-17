@@ -811,4 +811,176 @@ impl crate::VoxDb {
             })
             .await
     }
+
+    // ── Vox Concilium Shared `#seq` Sequence Board (`CONC-02`) ────────────────
+
+    /// Persist a sequenced `#seq` board entry into `a2a_messages` (`msg_type = "concilium_seq_board"`).
+    pub async fn append_concilium_seq_entry(
+        &self,
+        repository_id: &str,
+        entry: &vox_orchestrator_types::SequenceBoardEntry,
+    ) -> Result<(), StoreError> {
+        let payload =
+            serde_json::to_string(entry).map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let message_uuid = format!(
+            "concilium-seq-{}-{}-{}",
+            repository_id, entry.seq, entry.span_id
+        );
+        let priority_seq = entry.seq.min(i64::MAX as u64) as i64;
+        self.send_a2a_message(
+            &message_uuid,
+            &entry.sender,
+            &entry.channel,
+            "concilium_seq_board",
+            &payload,
+            priority_seq,
+            Some(entry.traceparent.as_str()),
+            repository_id,
+        )
+        .await
+    }
+
+    /// Read persisted `#seq` board entries from `a2a_messages` ordered by `seq ASC`.
+    pub async fn read_concilium_seq_board(
+        &self,
+        repository_id: &str,
+        filter: &vox_orchestrator_types::SequenceBoardFilter,
+    ) -> Result<Vec<vox_orchestrator_types::SequenceBoardEntry>, StoreError> {
+        let is_tail = filter.since_seq.is_none() && filter.seqs.as_ref().is_none_or(Vec::is_empty);
+        let since_seq = filter.since_seq.unwrap_or(0).min(i64::MAX as u64) as i64;
+        let limit = filter.limit.unwrap_or(50).clamp(1, 512);
+        let channel_filter = filter
+            .channel
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| {
+                !s.is_empty() && !s.eq_ignore_ascii_case("#all") && !s.eq_ignore_ascii_case("all")
+            })
+            .map(|ch| {
+                let lower = ch.to_ascii_lowercase();
+                if lower.starts_with('#') {
+                    lower
+                } else {
+                    format!("#{lower}")
+                }
+            });
+
+        let sql = if is_tail {
+            "SELECT payload FROM a2a_messages
+             WHERE repository_id = ?1 AND msg_type = 'concilium_seq_board' AND priority >= 0
+             ORDER BY priority DESC, id DESC"
+        } else if filter.since_seq.is_some() {
+            "SELECT payload FROM a2a_messages
+             WHERE repository_id = ?1 AND msg_type = 'concilium_seq_board' AND priority > ?2
+             ORDER BY priority ASC, id ASC"
+        } else {
+            "SELECT payload FROM a2a_messages
+             WHERE repository_id = ?1 AND msg_type = 'concilium_seq_board' AND priority >= ?2
+             ORDER BY priority ASC, id ASC"
+        };
+        let mut rows = if is_tail {
+            self.conn.query(sql, params![repository_id]).await?
+        } else {
+            self.conn
+                .query(sql, params![repository_id, since_seq])
+                .await?
+        };
+
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let payload: String = row.get(0)?;
+            let Ok(entry) =
+                serde_json::from_str::<vox_orchestrator_types::SequenceBoardEntry>(&payload)
+            else {
+                continue;
+            };
+            if let Some(ref ch) = channel_filter
+                && !entry.channel.eq_ignore_ascii_case(ch)
+            {
+                continue;
+            }
+            if let Some(ref seqs) = filter.seqs
+                && !seqs.is_empty()
+                && !seqs.contains(&entry.seq)
+            {
+                continue;
+            }
+            if let Some(since) = filter.since_seq
+                && entry.seq <= since
+            {
+                continue;
+            }
+            out.push(entry);
+            if out.len() >= limit {
+                break;
+            }
+        }
+        if is_tail {
+            out.reverse();
+        }
+        Ok(out)
+    }
+}
+
+#[cfg(all(test, feature = "local"))]
+mod tests {
+    use vox_orchestrator_types::{
+        ComputeTier, SequenceBoardEntry, SequenceBoardFilter, SwarmWorkspaceMode,
+    };
+
+    use crate::{DbConfig, VoxDb};
+
+    fn entry(seq: u64, channel: &str) -> SequenceBoardEntry {
+        SequenceBoardEntry {
+            seq,
+            channel: channel.to_string(),
+            sender: "author".to_string(),
+            body: format!("entry {seq}"),
+            mentions: Vec::new(),
+            timestamp_ms: 1_700_000_000_000 + seq,
+            traceparent: format!("00-4bf92f3577b34da6a3ce929d0e0e4736-{seq:016x}-01"),
+            span_id: format!("{seq:016x}"),
+            compute_tier: ComputeTier::LocalMensGpu,
+            file_lock_prefix: None,
+            workspace_mode: SwarmWorkspaceMode::Share,
+            parked_since_seq: None,
+            receipt_badge: None,
+            is_watchdog_alert: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn concilium_seq_board_persists_tail_and_cursor_filters() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+        for seq in 1..=60 {
+            let ch = if seq % 2 == 0 { "#verify" } else { "#parser" };
+            db.append_concilium_seq_entry("repo-conc", &entry(seq, ch))
+                .await
+                .expect("append");
+        }
+        let tail = db
+            .read_concilium_seq_board("repo-conc", &SequenceBoardFilter::default())
+            .await
+            .expect("tail");
+        assert_eq!(tail.len(), 50);
+        assert_eq!(tail.first().expect("first").seq, 11);
+        assert_eq!(tail.last().expect("last").seq, 60);
+
+        let cursor = db
+            .read_concilium_seq_board(
+                "repo-conc",
+                &SequenceBoardFilter {
+                    since_seq: Some(50),
+                    channel: Some("verify".into()),
+                    limit: Some(3),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("cursor");
+        assert_eq!(
+            cursor.iter().map(|e| e.seq).collect::<Vec<_>>(),
+            vec![52, 54, 56]
+        );
+    }
 }

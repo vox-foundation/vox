@@ -416,6 +416,8 @@ pub mod secretary;
 
 /// Dedicated `CommandOutputHub` & `\r` terminal progress-bar normalization.
 pub mod command_output_hub;
+/// Deterministic zero-token Rust watchdog for Vox Concilium (`CONC-04`).
+pub mod concilium_watchdog;
 /// Reasoning tag parser (`<think>`, `<thinking>`, `<reason>`, `<reasoning>`), `<WebSearch>` compactor & prompt-token sanitizer.
 pub mod context_sanitizer;
 /// Host-moderated Live Guest Share (`GuestShareService` & `GuestShareDecider`).
@@ -428,6 +430,7 @@ pub mod thread_run_queue;
 pub mod wire_compat;
 /// Wire Snapshot & Event Stream Compression (`WireIdTableInterner`, `LiveBodyDeduper`, and `omit_idle_subagents`).
 pub mod wire_compression;
+pub use vox_orchestrator_types::concilium::*;
 
 #[cfg(test)]
 mod tests {

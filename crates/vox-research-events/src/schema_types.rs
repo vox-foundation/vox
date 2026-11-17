@@ -97,6 +97,7 @@ pub enum FindingCandidateClass {
     ReproducibilityInfra,
     PolicyGovernance,
     TelemetryTrust,
+    EmpiricalScience,
     Other,
     /// Atlas of model capability evidence across providers (Mesh §4.2 / Phase 6).
     ModelCapabilityAtlas,

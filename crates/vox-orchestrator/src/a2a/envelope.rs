@@ -78,16 +78,17 @@ pub struct RemoteTaskEnvelope {
     /// `bundle_request` round-trip and use these bytes directly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bundle_inline_b64: Option<String>,
-    /// Track B: base64-encoded `.vox` UTF-8 source for real remote execution.
-    /// When present, the worker decodes, BLAKE3-integrity-checks, and runs it
-    /// via `vox run --mode interp` with per-dispatch `--caps`, returning real
-    /// stdout/exit. Absent ⇒ legacy echo (back-compat).
+    /// Track B: BLAKE3 hex of the decoded `.vox` source. REQUIRED when
+    /// `exec_source_b64` is set; a missing or mismatched hash refuses execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exec_source_b64: Option<String>,
     /// Track B: BLAKE3 hex of the decoded `.vox` source. REQUIRED when
     /// `exec_source_b64` is set; a missing or mismatched hash refuses execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exec_source_blake3_hex: Option<String>,
+    /// Canonical causal swarm metadata (`CONC-01`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causal_stamp: Option<vox_orchestrator_types::CausalSwarmStamp>,
 }
 
 #[cfg(test)]
@@ -108,6 +109,7 @@ mod tests {
         assert!(envelope.parent_task_id.is_none());
         assert!(envelope.trace_id.is_none());
         assert!(envelope.span_depth.is_none());
+        assert!(envelope.causal_stamp.is_none());
     }
 
     #[test]
@@ -136,6 +138,7 @@ mod tests {
             bundle_inline_b64: None,
             exec_source_b64: None,
             exec_source_blake3_hex: None,
+            causal_stamp: None,
         };
         let json = serde_json::to_string(&envelope).unwrap();
         let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();
@@ -163,6 +166,42 @@ mod tests {
         let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();
         assert_eq!(back.exec_source_b64.as_deref(), Some("c291cmNl"));
         assert_eq!(back.exec_source_blake3_hex.as_deref(), Some("deadbeef"));
+    }
+
+    #[test]
+    fn causal_stamp_round_trips_and_omits_when_none_across_envelopes() {
+        let stamp = vox_orchestrator_types::CausalSwarmStamp {
+            swarm_seq: 42,
+            channel: "#verify".to_string(),
+            traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string(),
+            span_id: "00f067aa0ba902b7".to_string(),
+            compute_tier: vox_orchestrator_types::ComputeTier::PopuliQuicPeer,
+            file_lock_prefix: Some("crates/vox-orchestrator/".to_string()),
+            workspace_mode: vox_orchestrator_types::SwarmWorkspaceMode::Share,
+            parked_since_seq: Some(40),
+        };
+        let mut env: RemoteTaskEnvelope = serde_json::from_str(
+            r#"{"idempotency_key":"k","task_id":1,"repository_id":"r","capability_requirements_json":"{}","payload":"p"}"#,
+        )
+        .expect("legacy envelope");
+        assert!(env.causal_stamp.is_none());
+        env.causal_stamp = Some(stamp.clone());
+        let env_json = serde_json::to_string(&env).expect("serialize envelope");
+        assert!(env_json.contains("causal_stamp"));
+        let env_back: RemoteTaskEnvelope =
+            serde_json::from_str(&env_json).expect("deserialize envelope");
+        assert_eq!(env_back.causal_stamp, Some(stamp.clone()));
+
+        let legacy_db: DbA2AMessage = serde_json::from_str(
+            r#"{"id":1,"message_uuid":"u1","sender_agent":"a1","receiver_agent":"a2","msg_type":"t","payload":"{}","priority":1,"thread_id":null,"acknowledged":false,"created_at":"2026-11-16","repository_id":"repo"}"#,
+        )
+        .expect("legacy db message");
+        assert!(legacy_db.causal_stamp.is_none());
+        let mut stamped_db = legacy_db;
+        stamped_db.causal_stamp = Some(stamp.clone());
+        let db_json = serde_json::to_string(&stamped_db).expect("serialize db message");
+        let db_back: DbA2AMessage = serde_json::from_str(&db_json).expect("deserialize db message");
+        assert_eq!(db_back.causal_stamp, Some(stamp));
     }
 }
 
@@ -219,6 +258,9 @@ pub struct DbA2AMessage {
     pub acknowledged: bool,
     pub created_at: String,
     pub repository_id: String,
+    /// Canonical causal swarm metadata (`CONC-01`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causal_stamp: Option<vox_orchestrator_types::CausalSwarmStamp>,
 }
 
 /// Canonical delivery plane names shared by orchestrator docs and MCP A2A responses.

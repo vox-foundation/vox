@@ -56,6 +56,7 @@ fn test_config(base_url: String) -> LlmConfig {
         temperature: None,
         top_p: None,
         max_tokens: None,
+        reasoning_max_tokens: None,
         response_format: None,
         tools: None,
         tool_choice: None,

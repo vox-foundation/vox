@@ -51,6 +51,7 @@ fn envelope_round_trips_with_bundle_ref() {
         bundle_inline_b64: Some("aGVsbG8=".into()),
         exec_source_b64: None,
         exec_source_blake3_hex: None,
+        causal_stamp: None,
     };
     let json = serde_json::to_string(&env).unwrap();
     let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();

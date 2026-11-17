@@ -124,7 +124,8 @@ impl ExtractionPipeline {
         source_text: &str,
         context_passages: &[&str],
     ) -> Result<ExtractionResult, Box<dyn std::error::Error + Send + Sync>> {
-        let indexed_sentences = split_sentences_with_offsets(source_text);
+        let masked = mask_non_prose_regions(source_text);
+        let indexed_sentences = split_sentences_with_offsets(&masked);
         // `filter_sentences` takes plain text and doesn't carry offsets (VeriScore gating
         // is out of scope for this fix); map each surviving `&str` back to its
         // source-absolute byte offset by pointer identity into `sentences` below.
@@ -339,7 +340,7 @@ fn split_sentences_with_offsets(text: &str) -> Vec<(usize, String)> {
                         Some((_, c)) => {
                             c.is_uppercase()
                                 || c.is_ascii_digit()
-                                || matches!(c, '"' | '\'' | '(' | '[')
+                                || matches!(c, '"' | '\'' | '(' | '[' | '-' | '*' | '#')
                         }
                     };
                 !mid_number && !abbrev && next_starts_sentence
@@ -365,6 +366,133 @@ fn split_sentences_with_offsets(text: &str) -> Vec<(usize, String)> {
         sentences.push((seg_start_byte + leading_ws, t.to_string()));
     }
     sentences
+}
+
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|w| w == needle)
+}
+
+/// Mask non-prose Markdown/frontmatter regions with ASCII spaces (`' '`) of
+/// the exact same byte length so sentence splitting ignores YAML frontmatter,
+/// HTML comments, fenced code blocks, and Markdown table chrome while keeping
+/// every surviving sentence's byte offsets aligned with `source_text`.
+pub fn mask_non_prose_regions(source_text: &str) -> String {
+    let mut bytes = source_text.as_bytes().to_vec();
+    let len = bytes.len();
+
+    // (a) Leading YAML frontmatter (`---\n...\n---\n` at byte 0).
+    if (source_text.starts_with("---\n") || source_text.starts_with("---\r\n"))
+        && let Some(first_nl) = source_text.find('\n')
+    {
+        let mut line_start = first_nl + 1;
+        while line_start < len {
+            let line_end = bytes[line_start..]
+                .iter()
+                .position(|&b| b == b'\n')
+                .map(|rel| line_start + rel)
+                .unwrap_or(len);
+            let line_no_cr = std::str::from_utf8(&bytes[line_start..line_end])
+                .unwrap_or("")
+                .trim_end_matches('\r');
+            if line_no_cr == "---" {
+                let fm_end = if line_end < len { line_end + 1 } else { len };
+                bytes[..fm_end].fill(b' ');
+                break;
+            }
+            if line_end >= len {
+                break;
+            }
+            line_start = line_end + 1;
+        }
+    }
+
+    // (c) Fenced code/diagram blocks (` ```...``` ` or `~~~...~~~`).
+    let mut active_fence: Option<&str> = None;
+    let mut line_start = 0usize;
+    while line_start < len {
+        let line_end = bytes[line_start..]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|rel| line_start + rel)
+            .unwrap_or(len);
+        let (is_closing, starts_backtick, starts_tilde) = {
+            let trimmed = std::str::from_utf8(&bytes[line_start..line_end])
+                .unwrap_or("")
+                .trim_start();
+            (
+                active_fence.is_some_and(|fence| trimmed.starts_with(fence)),
+                trimmed.starts_with("```"),
+                trimmed.starts_with("~~~"),
+            )
+        };
+        if active_fence.is_some() {
+            bytes[line_start..line_end].fill(b' ');
+            if is_closing {
+                active_fence = None;
+            }
+        } else if starts_backtick {
+            active_fence = Some("```");
+            bytes[line_start..line_end].fill(b' ');
+        } else if starts_tilde {
+            active_fence = Some("~~~");
+            bytes[line_start..line_end].fill(b' ');
+        }
+        if line_end >= len {
+            break;
+        }
+        line_start = line_end + 1;
+    }
+
+    // (b) HTML comments (`<!-- ... -->`, including `<!-- kb:summary -->`).
+    let mut pos = 0usize;
+    while pos < len {
+        let Some(rel_start) = find_bytes(&bytes[pos..], b"<!--") else {
+            break;
+        };
+        let start = pos + rel_start;
+        let search_from = start + 4;
+        if search_from > len {
+            break;
+        }
+        let Some(rel_end) = find_bytes(&bytes[search_from..], b"-->") else {
+            break;
+        };
+        let end = search_from + rel_end + 3;
+        bytes[start..end].fill(b' ');
+        pos = end;
+    }
+
+    // (d) Markdown table separator lines (`|---|---|`) and table pipes `|`.
+    let mut line_start = 0usize;
+    while line_start < len {
+        let line_end = bytes[line_start..]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|rel| line_start + rel)
+            .unwrap_or(len);
+        let trimmed = std::str::from_utf8(&bytes[line_start..line_end])
+            .unwrap_or("")
+            .trim();
+        let is_separator = !trimmed.is_empty()
+            && trimmed.contains('|')
+            && trimmed.contains('-')
+            && trimmed
+                .chars()
+                .all(|c| matches!(c, '|' | '-' | ':' | ' ' | '\t' | '\r'));
+        if is_separator || trimmed.starts_with('|') || trimmed.ends_with('|') {
+            bytes[line_start..line_end].fill(b' ');
+        }
+        if line_end >= len {
+            break;
+        }
+        line_start = line_end + 1;
+    }
+
+    let Ok(masked) = String::from_utf8(bytes) else {
+        return source_text.to_string();
+    };
+    debug_assert_eq!(masked.len(), source_text.len());
+    masked
 }
 
 #[cfg(test)]
@@ -693,6 +821,80 @@ mod tests {
                 .any(|v| matches!(v, ClaimVerdict::Contradicted { .. })),
             "expected Contradicted for numeric mismatch, got: {:?}",
             numeric_res.verdicts
+        );
+    }
+
+    #[tokio::test]
+    async fn markdown_frontmatter_comments_code_and_tables_produce_clean_claims() {
+        let source = "\
+---
+title: \"Doc v1.0\"
+description: \"Frontmatter threshold 99.9% should never become a claim.\"
+---
+<!-- kb:summary -->
+Provider X p95 latency increased by 12ms after the update.
+<!-- /kb:summary -->
+
+```rust
+let fake_metric = \"Throughput rose by 500% in code block.\";
+```
+
+| Metric | Delta |
+|---|---|
+| Error rate | decreased by 5 percent |
+
+- Cache hit rate improved by 15 percent.
+";
+        let masked = mask_non_prose_regions(source);
+        assert_eq!(masked.len(), source.len());
+
+        let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+        let result = pipeline.extract(source, &[]).await.unwrap();
+        assert!(!result.claims.is_empty());
+
+        let checker = SpanChecker::default();
+        for claim in &result.claims {
+            assert!(
+                !claim.text.contains("Frontmatter threshold"),
+                "frontmatter leaked into claim: {:?}",
+                claim.text
+            );
+            assert!(
+                !claim.text.contains("kb:summary"),
+                "HTML comment leaked into claim: {:?}",
+                claim.text
+            );
+            assert!(
+                !claim.text.contains("fake_metric"),
+                "fenced code leaked into claim: {:?}",
+                claim.text
+            );
+            assert!(
+                !claim.text.contains('|'),
+                "Markdown table pipe leaked into claim: {:?}",
+                claim.text
+            );
+            assert!(
+                !claim.text.contains("---"),
+                "table/frontmatter delimiter leaked into claim: {:?}",
+                claim.text
+            );
+            assert!(
+                checker.check(&claim.text, &claim.span, source),
+                "claim failed SpanChecker: {claim:?}"
+            );
+        }
+        assert!(
+            result
+                .claims
+                .iter()
+                .any(|c| c.text == "Provider X p95 latency increased by 12ms after the update.")
+        );
+        assert!(
+            result
+                .claims
+                .iter()
+                .any(|c| c.text == "Cache hit rate improved by 15 percent.")
         );
     }
 }

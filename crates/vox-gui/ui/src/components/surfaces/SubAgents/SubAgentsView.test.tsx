@@ -8,27 +8,43 @@ vi.mock('./subAgentClient', () => ({
   listenActivity: (...a: unknown[]) => listenActivityMock(...a),
 }));
 import { SubAgentsView } from './SubAgentsView';
+import { useSubAgentStore } from './subAgentStore';
 
-describe('SubAgentsView', () => {
+describe('SubAgentsView (Mode 1 Concilium Consolidation)', () => {
   beforeEach(() => {
+    useSubAgentStore.getState().reset();
     fetchTreeMock.mockReset();
-    fetchTreeMock.mockResolvedValue([{ windowId: 'w1', parentWindowId: null, title: 'planner', skill: 'plan',
-      model: { id: 'sonnet', maxTokens: 200000, toolCapable: true }, status: 'running', usedTokens: 1000, depth: 0, children: [] }]);
+    fetchTreeMock.mockResolvedValue([
+      {
+        windowId: 'w1',
+        parentWindowId: null,
+        title: 'planner',
+        skill: 'plan',
+        model: { id: 'sonnet', maxTokens: 200000, toolCapable: true },
+        status: 'running',
+        usedTokens: 1000,
+        depth: 0,
+        children: [],
+      },
+    ]);
     listenActivityMock.mockReset();
     listenActivityMock.mockRejectedValue(new Error('not tauri'));
   });
-  it('loads the tree and selecting a node shows its title and activity stream only', async () => {
-    render(<SubAgentsView pushToast={() => {}} />);
+
+  it('loads the tree into Concilium swimlanes and selecting a node shows its title and activity stream', async () => {
+    const { container } = render(<SubAgentsView pushToast={() => {}} />);
+    expect(container.querySelector('[data-slot="concilium-view"]')).not.toBeNull();
     await waitFor(() => expect(screen.getAllByText('planner').length).toBeGreaterThanOrEqual(1));
-    fireEvent.click(screen.getAllByText('planner')[0]);
+    fireEvent.click(screen.getAllByText('planner')[0]!);
     await waitFor(() => expect(screen.getByLabelText('activity for w1')).toBeDefined());
     expect(screen.getAllByText('planner').length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByLabelText('committed set for w1')).toBeNull();
   });
+
   it('does not render the dead overrule control on selection', async () => {
     render(<SubAgentsView pushToast={() => {}} />);
     await waitFor(() => expect(screen.getAllByText('planner').length).toBeGreaterThanOrEqual(1));
-    fireEvent.click(screen.getAllByText('planner')[0]);
+    fireEvent.click(screen.getAllByText('planner')[0]!);
     await waitFor(() => expect(screen.getByLabelText('activity for w1')).toBeDefined());
     expect(screen.queryByLabelText('overrule note')).toBeNull();
   });
@@ -38,11 +54,13 @@ describe('SubAgentsView', () => {
     let resolveListen!: (u: () => void) => void;
     listenActivityMock.mockReset();
     listenActivityMock.mockImplementation(
-      () => new Promise<() => void>((res) => { resolveListen = res; }),
+      () =>
+        new Promise<() => void>((res) => {
+          resolveListen = res;
+        }),
     );
     const { unmount } = render(<SubAgentsView pushToast={() => {}} />);
     unmount();
-    // Subscription resolves only AFTER unmount — the disposed flag must fire it.
     resolveListen(unlisten);
     await waitFor(() => expect(unlisten).toHaveBeenCalledTimes(1));
   });

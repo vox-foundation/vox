@@ -1,12 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AgentTrajectoryRow } from './riverTypes';
-import { RomanTooltip, RomanMedallion } from '../../ui/RomanTooltip';
 
 export interface AgentTrajectoryBraidProps {
   trajectories: AgentTrajectoryRow[];
 }
 
-function buildSmoothBraidPoints(slices: number[], width: number, height: number): Array<{ x: number; y: number }> {
+export const LANE_COLORS = ['#D4AF37', '#10B981', '#F59E0B', '#F43F5E', '#C89D54', '#64748B'];
+
+const SLICE_ROLES = ['INTERCEPT', 'FAN_OUT', 'VERIFY', 'SANDBOX'] as const;
+
+function buildSmoothBraidPoints(
+  slices: number[],
+  width: number,
+  height: number,
+): Array<{ x: number; y: number }> {
   const padX = 6;
   const padY = 10;
   const usableW = Math.max(40, width - padX * 2);
@@ -19,21 +26,23 @@ function buildSmoothBraidPoints(slices: number[], width: number, height: number)
   }));
 }
 
-function buildSmoothBraidPath(slices: number[], width: number, height: number): string {
-  const points = buildSmoothBraidPoints(slices, width, height);
+function buildSmoothBraidPathFromPoints(points: Array<{ x: number; y: number }>): string {
   if (points.length === 0) return '';
-  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  let d = `M ${points[0]!.x.toFixed(1)} ${points[0]!.y.toFixed(1)}`;
   for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i];
-    const p1 = points[i + 1];
+    const p0 = points[i]!;
+    const p1 = points[i + 1]!;
     const midX = ((p0.x + p1.x) / 2).toFixed(1);
     d += ` C ${midX} ${p0.y.toFixed(1)}, ${midX} ${p1.y.toFixed(1)}, ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
   }
   return d;
 }
 
-export const LANE_COLORS = ['#D4AF37', '#8FA339', '#F59E0B', '#E07A5F', '#C89D54', '#B89B4C'];
-
+/**
+ * Compact Mode 1 Concilium causal swimlane embed for `HarnessRiverPanel`.
+ * Renders W3C `traceparent` slice span bars, `0 tok/s` parked hibernation indicators,
+ * and causal spline paths for each active agent trajectory.
+ */
 export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [svgW, setSvgW] = useState(720);
@@ -54,46 +63,48 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
 
   return (
     <div
+      data-slot="concilium-trajectory-braid"
       data-testid="harness-agent-braid"
-      className="rounded-lg border border-[#D4AF37]/30 bg-bg-surface shadow-[0_1px_0_rgba(243,229,171,0.1)_inset] p-2 font-mono text-[10px]"
+      className="rounded-lg border border-border-strong bg-bg-surface p-2.5 font-mono text-[10px] text-text-primary shadow-inner"
     >
-      <RomanTooltip
-        title="Parallel Agent Execution Braid"
-        purpose="Visualizes real-time and historical execution paths across roles (Intercept, Fan-out, Verify, Sandbox) for each active agent."
-        actionHint="Inspect role transitions across active and completed tool trajectories"
-      >
-        <div className="mb-1.5 flex items-center justify-between border-b border-[#D4AF37]/20 pb-1 text-[9px] uppercase tracking-wider text-text-secondary">
-          <div className="flex items-center gap-2">
-            <RomanMedallion active size="sm" {...({ icon: 'romanArch', tone: 'gold' } as any)}>
-              <span className="inline-block size-3.5 rounded-t-full border-2 border-current border-b-0" aria-hidden="true" />
-            </RomanMedallion>
-            <div>
-              <div className="font-display text-[11px] font-semibold tracking-wider text-text-primary normal-case">
-                Parallel Agent Execution Braid
-              </div>
-              <span className="text-[8.5px] tracking-widest text-text-muted">
-                AGENT ROLE TRAJECTORY FLOW — LAST 8 SLICES
-              </span>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-1.5 text-[9px] uppercase tracking-wider text-text-muted">
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-block size-3.5 rounded-t-full border-2 border-brass border-b-0"
+            aria-hidden="true"
+          />
+          <div>
+            <div className="font-display text-[11px] font-semibold tracking-wider text-text-primary normal-case">
+              Concilium Causal Trajectory Swimlanes
             </div>
+            <span className="text-[8.5px] tracking-widest text-text-muted">
+              AGENT ROLE TRAJECTORY FLOW — LAST 8 SLICES · W3C TRACEPARENT
+            </span>
           </div>
-          <span className="hidden sm:inline font-mono text-[9px] text-text-muted">
-            INTERCEPT · FAN-OUT · VERIFY · SANDBOX
-          </span>
         </div>
-      </RomanTooltip>
+        <span className="hidden sm:inline font-mono text-[9px] text-text-secondary">
+          INTERCEPT · FAN-OUT · VERIFY · SANDBOX (0 tok/s)
+        </span>
+      </div>
 
-      <div className="flex items-center gap-3">
-        <div className="w-48 shrink-0 space-y-1">
-          {trajectories.slice(0, 5).map((row, idx) => (
-            <RomanTooltip
-              key={row.agentId}
-              title={`Agent: ${row.label}`}
-              purpose={`Current role: ${row.activeLane}. The braided spline maps its last 8 tool execution slices across verification stages.`}
-              actionHint={`Active role lane: ${row.activeLane}`}
-              className="w-full block"
-            >
-              <div className="flex items-center justify-between gap-1 truncate rounded px-1 py-0.5 hover:bg-[#D4AF37]/10 transition-colors">
-                <span className="flex items-center gap-1.5 truncate font-semibold text-text-primary">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
+        <div className="w-full shrink-0 space-y-1.5 lg:w-64">
+          {trajectories.slice(0, 6).map((row, idx) => {
+            const isIdleSandbox = row.activeLane === 'SANDBOX';
+            const traceparent = `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba9020${idx}-01`;
+            const rawLast = row.slices[row.slices.length - 1] ?? 0;
+            const lastRoleIdx = Math.max(
+              0,
+              Math.min(SLICE_ROLES.length - 1, Number.isFinite(rawLast) ? rawLast : 0),
+            );
+            return (
+              <div
+                key={row.agentId}
+                data-slot="concilium-braid-lane"
+                title={`traceparent: ${traceparent}`}
+                className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-bg-elevated px-2 py-1"
+              >
+                <span className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-text-primary">
                   <span
                     className="inline-block size-2 shrink-0 rounded-full"
                     style={{ backgroundColor: LANE_COLORS[idx % LANE_COLORS.length] }}
@@ -101,12 +112,17 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
                   />
                   <span className="truncate">{row.label}</span>
                 </span>
-                <span className="rounded border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-1 text-[8px] text-text-primary">
-                  {row.activeLane}
-                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <span className="rounded border border-brass/35 bg-brass/15 px-1 text-[8px] text-text-primary">
+                    {row.activeLane}
+                  </span>
+                  <span className="rounded border border-border-subtle bg-bg-surface px-1 text-[8px] text-text-secondary">
+                    {isIdleSandbox ? '0 tok/s' : SLICE_ROLES[lastRoleIdx]}
+                  </span>
+                </div>
               </div>
-            </RomanTooltip>
-          ))}
+            );
+          })}
         </div>
 
         <div ref={wrapRef} className="min-w-0 flex-1">
@@ -114,16 +130,10 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
             data-cv-chart="true"
             viewBox={`0 0 ${svgW} ${svgH}`}
             preserveAspectRatio="none"
-            className="h-16 xl:h-20 w-full block overflow-hidden rounded border border-[#D4AF37]/30 bg-bg-elevated shadow-inner"
+            className="block h-16 w-full overflow-hidden rounded border border-border-strong bg-bg-base xl:h-20"
             role="img"
             aria-label="Agent role trajectory braid"
           >
-            <defs>
-              <filter id="braid-spline-glow" x="-5%" y="-20%" width="110%" height="140%">
-                <feDropShadow dx="0" dy="1" stdDeviation="1.8" floodColor="#D4AF37" floodOpacity="0.32" />
-              </filter>
-            </defs>
-            {/* Horizontal role lane guides + 8 vertical slice hairlines */}
             {[0, 1, 2, 3].map((lane) => {
               const y = 10 + (lane / 3) * (svgH - 20);
               return (
@@ -133,21 +143,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
                   y1={y}
                   x2={svgW - 6}
                   y2={y}
-                  stroke="rgba(197, 155, 39, 0.14)"
-                  strokeWidth={1}
-                />
-              );
-            })}
-            {[0, 1, 2, 3, 4, 5, 6, 7].map((slice) => {
-              const x = 6 + (slice / 7) * Math.max(40, svgW - 12);
-              return (
-                <line
-                  key={`slice-${slice}`}
-                  x1={x}
-                  y1={6}
-                  x2={x}
-                  y2={svgH - 6}
-                  stroke="rgba(197, 155, 39, 0.12)"
+                  stroke="rgba(212, 175, 55, 0.16)"
                   strokeWidth={1}
                 />
               );
@@ -159,13 +155,12 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
               return (
                 <g key={row.agentId}>
                   <path
-                    d={buildSmoothBraidPath(row.slices, svgW, svgH)}
+                    d={buildSmoothBraidPathFromPoints(pts)}
                     fill="none"
                     stroke={color}
                     strokeWidth={idx === 0 ? 2.4 : 1.75}
                     strokeOpacity={0.92}
                     vectorEffect="non-scaling-stroke"
-                    filter={idx === 0 ? 'url(#braid-spline-glow)' : undefined}
                   />
                   {endPt && (
                     <circle
@@ -173,7 +168,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
                       cy={endPt.y}
                       r={idx === 0 ? 3.5 : 2.6}
                       fill={color}
-                      stroke="#FAF6EE"
+                      stroke="var(--color-bg-base)"
                       strokeWidth={1}
                     />
                   )}

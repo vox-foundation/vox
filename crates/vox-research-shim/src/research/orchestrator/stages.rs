@@ -618,12 +618,14 @@ pub(crate) async fn chat_stage_with_model(
         ResearchStage::Synthesis | ResearchStage::Judge => 90_000,
         _ => 45_000,
     };
-    for candidate in &mut candidates {
-        candidate.temperature = Some(temperature);
-        candidate.max_tokens = Some(max_tokens.into());
-        candidate.response_format = response_format.clone();
-        candidate.timeout_ms = Some(stage_timeout_ms);
-    }
+    apply_stage_candidate_overrides(
+        stage,
+        &mut candidates,
+        temperature,
+        max_tokens,
+        &response_format,
+        stage_timeout_ms,
+    );
     crate::research::metering::tag_candidates(&mut candidates);
     let messages = messages
         .into_iter()
@@ -655,6 +657,26 @@ pub(crate) async fn chat_stage_with_model(
 /// `cfg(test)` (so it stays unit-testable without the `runtime` feature — see
 /// `winning_candidate_model_is_threaded_through_not_the_configured_one` below),
 /// rather than only `#[cfg(feature = "runtime")]` like `chat_stage_with_model`.
+#[cfg(any(feature = "runtime", test))]
+fn apply_stage_candidate_overrides(
+    stage: vox_actor_runtime::llm::cascade::ResearchStage,
+    candidates: &mut [vox_actor_runtime::llm::LlmConfig],
+    temperature: f32,
+    max_tokens: u32,
+    response_format: &Option<serde_json::Value>,
+    timeout_ms: u64,
+) {
+    for candidate in candidates {
+        candidate.temperature = Some(temperature);
+        candidate.max_tokens = Some(max_tokens.into());
+        if stage == vox_actor_runtime::llm::cascade::ResearchStage::Synthesis {
+            candidate.reasoning_max_tokens = Some(4_000);
+        }
+        candidate.response_format = response_format.clone();
+        candidate.timeout_ms = Some(timeout_ms);
+    }
+}
+
 #[cfg(any(feature = "runtime", test))]
 fn response_to_content_and_model(
     response: vox_actor_runtime::llm::LlmResponse,
@@ -918,11 +940,8 @@ mod citation_diversity_tests {
     fn judge_budget_fits_its_schema() {
         let c = super::super::config::ResearchConfig::default();
         assert!(
-            c.judge_max_tokens >= c.synthesis_max_tokens,
-            "judge_max_tokens {} does not leave room for google/gemini-3.8-flash's \
-             reasoning tokens ahead of the visible JSON (D8 — see judge_probe_max_tokens_400_vs_4000). \
-             The judge reads the synthesis output, so its budget must scale with \
-             synthesis_max_tokens (D9)",
+            c.judge_max_tokens >= 6_000,
+            "judge_max_tokens {} does not leave sufficient headroom for reasoning + JSON schema",
             c.judge_max_tokens
         );
     }
@@ -931,13 +950,40 @@ mod citation_diversity_tests {
     fn synthesis_budget_fits_its_five_mandated_sections() {
         let c = super::super::config::ResearchConfig::default();
         assert!(
-            c.synthesis_max_tokens >= 2400,
-            "synthesis_max_tokens {} truncates the five mandated markdown sections at live \
-             evidence scale (D9 — see synthesis_probe_max_tokens_budget_vs_visible_output: \
-             1200 exhausted the budget at 1202 completion tokens mid-sentence; the natural \
-             length is ~1800)",
+            c.synthesis_max_tokens >= 12_000,
+            "synthesis_max_tokens {} should provide 12_000 total budget for reasoning + visible synthesis",
             c.synthesis_max_tokens
         );
+    }
+
+    #[test]
+    fn synthesis_stage_caps_reasoning_max_tokens_to_4000() {
+        use vox_actor_runtime::llm::LlmConfig;
+        use vox_actor_runtime::llm::cascade::ResearchStage;
+
+        let mut synth = vec![LlmConfig::openrouter("google/gemini-3.8-flash")];
+        super::apply_stage_candidate_overrides(
+            ResearchStage::Synthesis,
+            &mut synth,
+            0.2,
+            12_000,
+            &None,
+            90_000,
+        );
+        assert_eq!(synth[0].max_tokens, Some(12_000));
+        assert_eq!(synth[0].reasoning_max_tokens, Some(4_000));
+
+        let mut judge = vec![LlmConfig::openrouter("google/gemini-3.8-flash")];
+        super::apply_stage_candidate_overrides(
+            ResearchStage::Judge,
+            &mut judge,
+            0.0,
+            6_000,
+            &None,
+            90_000,
+        );
+        assert_eq!(judge[0].max_tokens, Some(6_000));
+        assert_eq!(judge[0].reasoning_max_tokens, None);
     }
 
     /// D8 live diagnostic (Task 8 fix round 2, finding (b)): the live daemon's

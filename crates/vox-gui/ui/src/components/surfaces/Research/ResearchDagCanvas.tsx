@@ -215,19 +215,33 @@ export function ResearchDagCanvas({ nodes, edges, className = '' }: ResearchDagC
   const waveClusters = useMemo(() => {
     if (!isClustered) return [];
     const grouped = new Map<number, DagNode[]>();
+    const nodeWave = new Map<string, number>();
     for (const n of nodes) {
       const list = grouped.get(n.wave) ?? [];
       list.push(n);
       grouped.set(n.wave, list);
+      nodeWave.set(n.id, n.wave);
+    }
+    const edgesByWave = new Map<number, DagEdge[]>();
+    for (const e of edges) {
+      const srcWave = nodeWave.get(e.srcId);
+      if (srcWave !== undefined && srcWave === nodeWave.get(e.dstId)) {
+        const list = edgesByWave.get(srcWave) ?? [];
+        list.push(e);
+        edgesByWave.set(srcWave, list);
+      }
     }
     return Array.from(grouped.entries())
       .sort(([a], [b]) => a - b)
       .map(([wave, waveNodes]) => {
-        const idSet = new Set(waveNodes.map((n) => n.id));
-        const verified = waveNodes.filter((n) => n.status === 'verified').length;
-        const contradicted = waveNodes.filter((n) => n.status === 'contradicted').length;
+        let verified = 0;
+        let contradicted = 0;
+        for (const n of waveNodes) {
+          if (n.status === 'verified') verified += 1;
+          else if (n.status === 'contradicted') contradicted += 1;
+        }
         const pending = waveNodes.length - verified - contradicted;
-        const waveEdges = edges.filter((e) => idSet.has(e.srcId) && idSet.has(e.dstId));
+        const waveEdges = edgesByWave.get(wave) ?? [];
         return { wave, waveNodes, waveEdges, verified, contradicted, pending };
       });
   }, [isClustered, nodes, edges]);

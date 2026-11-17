@@ -109,6 +109,8 @@ describe('PopuliMeshBentoView (Slice 435-A · AXIS-BENTO-01)', () => {
 
     expect(container.querySelectorAll('pre').length).toBe(0);
     expect(screen.getByTestId('populi-snapshot-summary')).toHaveTextContent('ed25519-sealed');
+    expect(screen.getByTestId('populi-hybrid-compute-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('populi-lock-matrix')).toBeInTheDocument();
     expect(chartSvg.querySelector('rect')?.getAttribute('fill')).toBe('var(--color-bg-surface)');
   });
 

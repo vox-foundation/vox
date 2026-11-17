@@ -36,7 +36,7 @@ test.describe('Build Output: Mounted Repo Docs (LINKS-02, P20-D9)', () => {
     const match = html.match(/<time datetime="([^"]+)"/);
     expect(match).toBeTruthy();
 
-    const gitDates = getGitDates(undefined, { paths: ['AGENTS.md'] });
+    const gitDates = getGitDates(undefined, { paths: ['docs/src', 'AGENTS.md'] });
     const gitIso = gitDates.get('AGENTS.md');
     expect(gitIso).toBeTruthy();
 

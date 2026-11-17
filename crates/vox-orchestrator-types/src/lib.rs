@@ -7,6 +7,7 @@
 
 pub mod agent_types;
 pub mod clutch;
+pub mod concilium;
 pub mod gsd;
 pub mod merge_outcome;
 pub mod pricing;
@@ -17,6 +18,13 @@ pub mod trust;
 pub mod vcs_capability;
 
 pub use clutch::{BudgetAggressiveness, ClutchProfile, QualityLevel, ResolvedClutch};
+pub use concilium::{
+    CausalSwarmStamp, ComputeNodeStatus, ComputeTier, ConciliumAgentLane,
+    ConciliumPilotActionInput, ConciliumPilotActionKind, ConciliumPilotActionResult,
+    ConciliumSnapshotDto, ConciliumSpanBar, ConciliumSpanKind, ConciliumWakeupArc,
+    DockedSwarmWorkerPill, FileLockCellDto, HybridComputeNodeCardDto, PopuliPlacementDto,
+    SequenceBoardEntry, SequenceBoardFilter, SwarmWorkerStatus, SwarmWorkspaceMode,
+};
 pub use gsd::{
     GsdDocument, GsdDocumentKind, GsdMilestone, GsdMilestoneStatus, GsdPhase, GsdPhaseStatus,
     GsdPlanWave, GsdProgressSnapshot, GsdRequirement, GsdWaveTask,

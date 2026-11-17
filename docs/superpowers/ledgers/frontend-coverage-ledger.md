@@ -32,6 +32,7 @@ surface is added or removed without updating this table.
 | Catalog | expressible | mostly static command catalog rendering |
 | Chat | blocked:reactive-streams | streamed tokens + secretary-proposed events |
 | CodeRabbit | expressible | review findings list, request-response |
+| Concilium | blocked:reactive-streams | live W3C traceparent causal swimlanes, #seq board, and agent-events / concilium snapshots |
 | Console | blocked:other | PTY streams + xterm.js terminal emulation |
 | Dashboard | blocked:reactive-streams | orch-status now `.vox`-expressible via `on stream` (Sub-project B); full surface migration pending (Sub-project G) |
 | Discovery | expressible | discovery results list, request-response |
@@ -67,9 +68,9 @@ surface is added or removed without updating this table.
 
 ## Summary
 
-- Total surfaces: 38
+- Total surfaces: 39
 - `expressible` today: 25
-- `blocked:reactive-streams`: 11
+- `blocked:reactive-streams`: 12
 - `blocked:other`: 2 (Browser, Console)
 
 The dominant blocker is `reactive-streams` (Sub-project B), confirming the spec's

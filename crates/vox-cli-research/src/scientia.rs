@@ -66,7 +66,19 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     topic,
                     limit,
                 }),
-                ScientiaCmd::RetrievalStatus => DbCli::Core(DbCliCore::RetrievalStatus),
+                ScientiaCmd::RetrievalStatus => {
+                    return match crate::db::retrieval_status().await {
+                        Ok(()) => Ok(()),
+                        Err(e)
+                            if crate::daemon_db_proxy::is_canonical_db_lock_error(&format!(
+                                "{e:#}"
+                            )) =>
+                        {
+                            crate::daemon_db_proxy::retrieval_status_via_daemon().await
+                        }
+                        Err(e) => Err(e),
+                    };
+                }
                 ScientiaCmd::MirrorSearchCorpus {
                     root,
                     source_uri_prefix,

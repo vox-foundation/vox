@@ -4,6 +4,13 @@ use super::super::types::ResearchQuery;
 use super::super::types::ResearchResult;
 use super::config::ResearchConfig;
 
+/// Returns `true` when `result` contains a substantive non-abstaining synthesis answer
+/// safe to store in or serve from `research_cache`.
+pub(super) fn is_cacheable_research_result(result: &ResearchResult) -> bool {
+    let trimmed = result.answer.trim();
+    !trimmed.is_empty() && !trimmed.starts_with(super::config::ABSTENTION_MARKER)
+}
+
 /// Codex `list_memories_by_type` cache short-circuit for identical-ish queries.
 pub(super) async fn research_cache_short_circuit(
     query: &ResearchQuery,
@@ -19,6 +26,7 @@ pub(super) async fn research_cache_short_circuit(
         .find(|entry| {
             entry.key == key
                 && now.saturating_sub(entry.created_at_unix_secs) <= config.cache_ttl_secs
+                && is_cacheable_research_result(&entry.result)
         })
         .map(|entry| entry.result)
 }
@@ -30,6 +38,9 @@ pub(super) async fn research_cache_store(
     db: &Codex,
     _config: &ResearchConfig,
 ) {
+    if !is_cacheable_research_result(result) {
+        return;
+    }
     let key = research_cache_key(query);
     let node_id = format!("research_cache:{key}");
     let entry = ResearchCacheEntry {
@@ -65,9 +76,22 @@ fn research_cache_key(query: &ResearchQuery) -> String {
         .collect::<Vec<_>>()
         .join(" ")
         .to_ascii_lowercase();
+    let site_scope = query
+        .site_scope
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or("")
+        .to_ascii_lowercase();
     let raw = format!(
-        "{}|{:?}|{}|{}|{:?}",
-        normalized_query, query.scope, query.max_sources, query.verify_claims, query.lane
+        "{}|{:?}|{}|{}|{:?}|{:?}|{}|{}",
+        normalized_query,
+        query.scope,
+        query.max_sources,
+        query.verify_claims,
+        query.lane,
+        query.domain_mode,
+        query.waves,
+        site_scope,
     );
     format!("{:016x}", super::helpers::fnv1a_hash(&raw))
 }
@@ -168,5 +192,89 @@ mod tests {
         assert_eq!(decoded.key, entry.key);
         assert_eq!(decoded.created_at_unix_secs, entry.created_at_unix_secs);
         assert_eq!(decoded.result.answer, entry.result.answer);
+    }
+
+    #[test]
+    fn cache_key_distinguishes_domain_mode_waves_and_site_scope() {
+        let base = query("solid state electrolytes", ResearchScope::Web);
+        let base_key = research_cache_key(&base);
+
+        let mut scholarly = base.clone();
+        scholarly.domain_mode = crate::research::types::ResearchDomainMode::Scholarly;
+        assert_ne!(base_key, research_cache_key(&scholarly));
+
+        let mut multi_wave = base.clone();
+        multi_wave.waves = 3;
+        assert_ne!(base_key, research_cache_key(&multi_wave));
+
+        let mut scoped = base;
+        scoped.site_scope = Some("arxiv.org".to_string());
+        assert_ne!(base_key, research_cache_key(&scoped));
+    }
+
+    #[test]
+    fn is_cacheable_research_result_rejects_empty_and_abstention_answers() {
+        let mut empty = minimal_result();
+        empty.answer = "   \n ".to_string();
+        assert!(!is_cacheable_research_result(&empty));
+
+        let mut abstained = minimal_result();
+        abstained.answer = format!(
+            "{} Missing benchmark data.",
+            super::super::config::ABSTENTION_MARKER
+        );
+        assert!(!is_cacheable_research_result(&abstained));
+
+        assert!(is_cacheable_research_result(&minimal_result()));
+    }
+
+    #[tokio::test]
+    async fn cache_store_and_short_circuit_skip_empty_and_abstention_results() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("memory db");
+        let cfg = ResearchConfig::default();
+        let q = query("cache hygiene test", ResearchScope::Web);
+
+        let mut empty = minimal_result();
+        empty.answer.clear();
+        research_cache_store(&q, &empty, &db, &cfg).await;
+        assert!(research_cache_short_circuit(&q, &db, &cfg).await.is_none());
+
+        let mut abstained = minimal_result();
+        abstained.answer = format!(
+            "{} Insufficient citations.",
+            super::super::config::ABSTENTION_MARKER
+        );
+        research_cache_store(&q, &abstained, &db, &cfg).await;
+        assert!(research_cache_short_circuit(&q, &db, &cfg).await.is_none());
+
+        // Even if a stale abstention was pre-seeded directly in knowledge_nodes, short-circuit ignores it.
+        let key = research_cache_key(&q);
+        let stale = serde_json::to_string(&ResearchCacheEntry {
+            key: key.clone(),
+            created_at_unix_secs: current_unix_secs(),
+            result: abstained,
+        })
+        .expect("serialize stale");
+        db.upsert_knowledge_node(
+            &format!("research_cache:{key}"),
+            &key,
+            &stale,
+            Some("research_cache"),
+            None,
+            None,
+        )
+        .await
+        .expect("seed stale");
+        assert!(research_cache_short_circuit(&q, &db, &cfg).await.is_none());
+
+        // Real substantive result stores and short-circuits cleanly.
+        let good = minimal_result();
+        research_cache_store(&q, &good, &db, &cfg).await;
+        let hit = research_cache_short_circuit(&q, &db, &cfg)
+            .await
+            .expect("substantive result should cache");
+        assert_eq!(hit.answer, "cached answer");
     }
 }

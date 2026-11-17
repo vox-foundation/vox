@@ -286,6 +286,7 @@ impl LlmRouter {
             temperature: Some(0.0),
             top_p: None,
             max_tokens: Some(self.max_output_tokens),
+            reasoning_max_tokens: None,
             response_format: Some(response_format),
             tools: None,
             tool_choice: None,

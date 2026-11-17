@@ -97,6 +97,9 @@ pub struct AgentEvent {
     pub timestamp_ms: u64,
     /// Event payload.
     pub kind: AgentEventKind,
+    /// Canonical causal swarm metadata (`CONC-01`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causal_stamp: Option<vox_orchestrator_types::CausalSwarmStamp>,
 }
 
 /// Compiler stage identifier used in [`AgentEventKind::BuildStage`].
@@ -774,6 +777,38 @@ pub enum AgentEventKind {
         task_id: TaskId,
         phase: crate::planning::phase_loop::PavPhase,
     },
+
+    // -----------------------------------------------------------------------
+    // Vox Concilium & Populi causal swarm variants (`CONC-01`, `CONC-02`, `CONC-03`)
+    // -----------------------------------------------------------------------
+    /// A swarm worker parked at `0 tok/s` awaiting an `@mention` doorbell.
+    AgentParked {
+        agent_id: AgentId,
+        parked_since_seq: u64,
+        channel: String,
+    },
+    /// A parked swarm worker was woken by an `@mention` doorbell on the `#seq` board.
+    AgentWoken {
+        agent_id: AgentId,
+        woken_by_seq: u64,
+        mention: String,
+    },
+    /// A swarm worker's hybrid compute placement tier was hot-swapped.
+    AgentComputeSwapped {
+        agent_id: AgentId,
+        target_tier: vox_orchestrator_types::ComputeTier,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target_node_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target_model_id: Option<String>,
+    },
+    /// An append-only entry was posted to the Shared `#seq` Sequence Board.
+    SequenceBoardPosted {
+        seq: u64,
+        channel: String,
+        sender: String,
+        mentions: Vec<String>,
+    },
 }
 
 /// Destructive mesh actions that trigger a confirmation modal and signed audit-log entry.
@@ -919,7 +954,11 @@ pub fn is_tier_a(kind: &AgentEventKind) -> bool {
         | AgentEventKind::MeshActionCommitted { .. }
         | AgentEventKind::PavPhaseChanged { .. }
         | AgentEventKind::ToolCallDispatched { .. }
-        | AgentEventKind::GroundingCheckCompleted { .. } => false,
+        | AgentEventKind::GroundingCheckCompleted { .. }
+        | AgentEventKind::AgentParked { .. }
+        | AgentEventKind::AgentWoken { .. }
+        | AgentEventKind::AgentComputeSwapped { .. }
+        | AgentEventKind::SequenceBoardPosted { .. } => false,
     }
 }
 
@@ -961,7 +1000,8 @@ pub const TIER_B_KIND_NAMES: &[&str] = &[
     "CostTick", "FileDiagChanged", "MeshTopologyChanged", "TaskReprioritized",
     "HopperItemOverridden", "HopperItemCancelled", "MeshNodeBudget",
     "MeshActionCommitted", "PavPhaseChanged", "ToolCallDispatched",
-    "GroundingCheckCompleted",
+    "GroundingCheckCompleted", "AgentParked", "AgentWoken",
+    "AgentComputeSwapped", "SequenceBoardPosted",
 ];
 
 /// Returns `true` if `kind` is a **Tier B** event (broadcast-only, never
@@ -1007,9 +1047,34 @@ impl EventBus {
             id,
             timestamp_ms,
             kind,
+            causal_stamp: None,
         };
 
         tracing::debug!(event_id = %id, "event emitted: {:?}", event.kind);
+        let _ = self.sender.send(event);
+        id
+    }
+
+    /// Emit a causally stamped event (`CONC-01`). Returns the assigned EventId.
+    pub fn emit_stamped(
+        &self,
+        kind: AgentEventKind,
+        stamp: vox_orchestrator_types::CausalSwarmStamp,
+    ) -> EventId {
+        let id = EventId(self.id_gen.fetch_add(1, Ordering::Relaxed));
+        let timestamp_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        let event = AgentEvent {
+            id,
+            timestamp_ms,
+            kind,
+            causal_stamp: Some(stamp),
+        };
+
+        tracing::debug!(event_id = %id, "stamped event emitted: {:?}", event.kind);
         let _ = self.sender.send(event);
         id
     }
@@ -1102,6 +1167,7 @@ mod tests {
                 cost_usd: 0.005,
                 temporal_context: None,
             },
+            causal_stamp: None,
         };
 
         let json = serde_json::to_string(&event).expect("serialize");
@@ -1178,6 +1244,7 @@ mod tests {
                 task_id: TaskId(42),
                 phase: PavPhase::Verifying,
             },
+            causal_stamp: None,
         };
         let json = serde_json::to_string(&event).expect("serialize");
         assert!(
@@ -1222,6 +1289,7 @@ mod tests {
                 text: "hi".into(),
                 session_id: Some("sess-42".into()),
             },
+            causal_stamp: None,
         };
         let json = serde_json::to_string(&event).expect("serialize");
         assert!(
@@ -1251,12 +1319,39 @@ mod tests {
                 text: "hi".into(),
                 session_id: None,
             },
+            causal_stamp: None,
         };
         let json = serde_json::to_string(&event).expect("serialize");
         assert!(
             !json.contains("session_id"),
             "session_id must be omitted from the wire frame when None: {json}"
         );
+    }
+
+    #[tokio::test]
+    async fn emit_stamped_attaches_causal_swarm_stamp() {
+        let bus = EventBus::new(16);
+        let mut rx = bus.subscribe();
+        let stamp = vox_orchestrator_types::CausalSwarmStamp {
+            swarm_seq: 17,
+            channel: "#parser".to_string(),
+            traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string(),
+            span_id: "00f067aa0ba902b7".to_string(),
+            compute_tier: vox_orchestrator_types::ComputeTier::LocalMensGpu,
+            file_lock_prefix: Some("crates/vox-parser/".to_string()),
+            workspace_mode: vox_orchestrator_types::SwarmWorkspaceMode::Share,
+            parked_since_seq: Some(12),
+        };
+        bus.emit_stamped(
+            AgentEventKind::AgentParked {
+                agent_id: AgentId(7),
+                parked_since_seq: 12,
+                channel: "#parser".to_string(),
+            },
+            stamp.clone(),
+        );
+        let ev = rx.recv().await.expect("receive stamped event");
+        assert_eq!(ev.causal_stamp, Some(stamp));
     }
 
     #[test]

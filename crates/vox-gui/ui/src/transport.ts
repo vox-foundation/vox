@@ -2120,6 +2120,7 @@ export function scientiaV76AuditDiff<T = unknown>(): Promise<T> {
 }
 
 export * from './transport/t3Wave3Rpc';
+export * from './transport/conciliumRpc';
 
 
 

@@ -540,9 +540,22 @@ fn build_claims_payload<T: serde::Serialize>(
 /// `vox scientia claims --publication-id X` — print a publication's extracted
 /// claims joined to each claim's latest verdict as JSON.
 pub async fn publication_claims(publication_id: &str) -> Result<()> {
-    let db = vox_db::VoxDb::connect_default()
-        .await
-        .context("connect to default Codex / VoxDb")?;
+    let db = match vox_db::VoxDb::connect_default().await {
+        Ok(db) => db,
+        Err(e) if crate::daemon_db_proxy::is_canonical_db_lock_error(&format!("{e:#}")) => {
+            let data = crate::daemon_db_proxy::scientia_claims_via_daemon(publication_id).await?;
+            let claims = data
+                .get("claims")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let payload =
+                build_claims_payload("scientia_publication_claims", publication_id, &claims);
+            println!("{}", serde_json::to_string_pretty(&payload)?);
+            return Ok(());
+        }
+        Err(e) => return Err(e).context("connect to default Codex / VoxDb"),
+    };
     let session_id = publication_session_id(publication_id);
     let claims = db
         .list_publication_claims(session_id)
@@ -618,9 +631,13 @@ fn retraction_queue_from(candidates: &[vox_scientia::dashboard::CandidateRow]) -
 /// Phase H — `vox scientia dashboard`. Assemble a `QueueSnapshot` JSON directly
 /// from the live Codex DB via `vox_scientia::review_flow::assemble_scientia_queue_from_db`.
 pub async fn scientia_dashboard() -> Result<()> {
-    let db = vox_db::VoxDb::connect_default()
-        .await
-        .context("connect to default Codex / VoxDb")?;
+    let db = match vox_db::VoxDb::connect_default().await {
+        Ok(db) => db,
+        Err(e) if crate::daemon_db_proxy::is_canonical_db_lock_error(&format!("{e:#}")) => {
+            return crate::daemon_db_proxy::scientia_dashboard_via_daemon().await;
+        }
+        Err(e) => return Err(e).context("connect to default Codex / VoxDb"),
+    };
     let snapshot = vox_scientia::review_flow::assemble_scientia_queue_from_db(&db)
         .await
         .context("assemble scientia queue")?;
@@ -635,9 +652,13 @@ pub async fn scientia_dashboard() -> Result<()> {
 /// Assembles a [`vox_scientia::dashboard::cost::CostRollup`] JSON from the
 /// live Codex DB for the **current calendar quarter** and prints it to stdout.
 pub async fn scientia_cost() -> Result<()> {
-    let db = vox_db::VoxDb::connect_default()
-        .await
-        .context("connect to default Codex / VoxDb")?;
+    let db = match vox_db::VoxDb::connect_default().await {
+        Ok(db) => db,
+        Err(e) if crate::daemon_db_proxy::is_canonical_db_lock_error(&format!("{e:#}")) => {
+            return crate::daemon_db_proxy::scientia_cost_via_daemon().await;
+        }
+        Err(e) => return Err(e).context("connect to default Codex / VoxDb"),
+    };
     let rollup = vox_scientia::review_flow::assemble_scientia_cost_from_db(&db)
         .await
         .context("assemble scientia cost rollup")?;
@@ -645,11 +666,12 @@ pub async fn scientia_cost() -> Result<()> {
     Ok(())
 }
 
-/// Map `(pipeline_phase, usd)` rows onto the four `CostInputs` category fields.
+/// Map `(pipeline_phase, usd)` rows onto the five `CostInputs` category fields.
 ///
 /// Phase string → field: `"extraction"`→`extraction_usd`, `"critic"`→
 /// `critic_usd`, `"novelty"`→`novelty_retrieval_usd`, `"scholarly"`→
-/// `scholarly_submission_usd`. Unknown phase strings are ignored (forward-compat
+/// `scholarly_submission_usd`, `"research" | "general" | "codegen" | "shopping"`→
+/// `research_usd`. Unknown phase strings are ignored (forward-compat
 /// for new phases). Pure (no IO) so the mapping is unit-testable without a DB.
 #[cfg_attr(not(test), allow(dead_code))]
 fn apply_phase_costs<'a>(
@@ -662,6 +684,7 @@ fn apply_phase_costs<'a>(
             "critic" => inputs.critic_usd += usd,
             "novelty" => inputs.novelty_retrieval_usd += usd,
             "scholarly" => inputs.scholarly_submission_usd += usd,
+            "research" | "general" | "codegen" | "shopping" => inputs.research_usd += usd,
             _ => { /* unknown phase: ignore (forward-compat) */ }
         }
     }
@@ -799,7 +822,8 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
         anyhow::anyhow!(
             "unknown candidate_class {candidate_class:?}; \
              valid: algorithmic_improvement, reproducibility_infra, policy_governance, \
-             telemetry_trust, other, model_capability_atlas, provider_reliability_atlas"
+             telemetry_trust, empirical_science, other, model_capability_atlas, \
+             provider_reliability_atlas"
         )
     })?;
     let repo_root = vox_repository::resolve_repo_root_for_ci();
@@ -983,6 +1007,7 @@ mod tests {
             critic_usd: 0.0,
             novelty_retrieval_usd: 0.0,
             scholarly_submission_usd: 0.0,
+            research_usd: 0.0,
             by_provider: vec![],
             findings_published_this_quarter: 0,
         };
@@ -993,6 +1018,10 @@ mod tests {
                 ("critic", 0.25),
                 ("novelty", 0.75),
                 ("scholarly", 2.0),
+                ("research", 1.0),
+                ("general", 0.5),
+                ("codegen", 0.25),
+                ("shopping", 0.25),
                 ("unknown_future_phase", 99.0), // ignored
                 ("extraction", 0.5),            // accumulates
             ],
@@ -1001,6 +1030,7 @@ mod tests {
         assert_eq!(inputs.critic_usd, 0.25);
         assert_eq!(inputs.novelty_retrieval_usd, 0.75);
         assert_eq!(inputs.scholarly_submission_usd, 2.0);
+        assert_eq!(inputs.research_usd, 2.0);
     }
 
     #[test]
@@ -1011,12 +1041,14 @@ mod tests {
             critic_usd: 0.0,
             novelty_retrieval_usd: 0.0,
             scholarly_submission_usd: 0.0,
+            research_usd: 0.0,
             by_provider: vec![],
             findings_published_this_quarter: 0,
         };
         apply_phase_costs(&mut inputs, std::iter::empty());
         assert_eq!(inputs.extraction_usd, 0.0);
         assert_eq!(inputs.scholarly_submission_usd, 0.0);
+        assert_eq!(inputs.research_usd, 0.0);
     }
 
     #[test]

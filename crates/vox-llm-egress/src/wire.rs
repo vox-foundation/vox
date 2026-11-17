@@ -623,11 +623,70 @@ mod tests {
         assert_eq!(payload["model"], "anthropic/claude-sonnet-4.6:online");
         assert_eq!(payload["reasoning_effort"], "high");
     }
+
+    #[test]
+    fn reasoning_max_tokens_serializes_only_for_openrouter() {
+        let messages = vec![ChatMessage {
+            role: "user".into(),
+            content: "synthesize".into(),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+            content_parts: None,
+        }];
+        let params = ChatParams {
+            max_tokens: Some(12_000),
+            reasoning_max_tokens: Some(4_000),
+            ..Default::default()
+        };
+
+        let openrouter_req = EgressRequest {
+            base_url: "https://openrouter.ai/api/v1/chat/completions".into(),
+            api_key: "secret".into(),
+            model: "google/gemini-3.8-flash".into(),
+            headers: vec![],
+            throttle_key: "openrouter".into(),
+            max_concurrent: 4,
+            timeout_ms: None,
+        };
+        let openrouter_json =
+            serde_json::to_value(build_request(&openrouter_req, &params, &messages, false))
+                .expect("serialize openrouter");
+        assert_eq!(
+            openrouter_json["reasoning"],
+            serde_json::json!({ "max_tokens": 4000 })
+        );
+
+        let default_openrouter_json = serde_json::to_value(build_request(
+            &openrouter_req,
+            &ChatParams::default(),
+            &messages,
+            false,
+        ))
+        .expect("serialize default openrouter");
+        assert!(default_openrouter_json.get("reasoning").is_none());
+
+        let openai_req = EgressRequest {
+            base_url: "https://api.openai.com/v1/chat/completions".into(),
+            model: "gpt-4o".into(),
+            throttle_key: "openai".into(),
+            ..openrouter_req
+        };
+        let openai_json =
+            serde_json::to_value(build_request(&openai_req, &params, &messages, false))
+                .expect("serialize openai");
+        assert!(openai_json.get("reasoning").is_none());
+    }
 }
 
 #[derive(Serialize)]
 pub(crate) struct StreamOptions {
     pub include_usage: bool,
+}
+
+#[derive(Serialize)]
+pub(crate) struct WireReasoningConfig {
+    max_tokens: u64,
 }
 
 /// Wire-level reasoning effort knob (`low | medium | high`) extracted from `t3router` & `thom-chat` (`VOX-ROUTER-T3-02`).
@@ -689,6 +748,8 @@ pub(crate) struct OpenAiChatRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning: Option<WireReasoningConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<&'a serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<OpenAiTool<'a>>>,
@@ -747,6 +808,10 @@ fn build_request_inner<'a>(
             })
             .collect()
     });
+    let reasoning = params
+        .reasoning_max_tokens
+        .filter(|_| req.base_url.to_ascii_lowercase().contains("openrouter.ai"))
+        .map(|max_tokens| WireReasoningConfig { max_tokens });
     OpenAiChatRequest {
         model: &req.model,
         messages: wire_messages_for_request(req, messages),
@@ -754,6 +819,7 @@ fn build_request_inner<'a>(
         top_p: params.top_p,
         seed: params.seed,
         max_tokens: params.max_tokens,
+        reasoning,
         response_format: params.response_format,
         tools,
         tool_choice: params.tool_choice,

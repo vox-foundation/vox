@@ -116,6 +116,7 @@ impl Judge for LlmJudge {
             temperature: Some(0.0),
             top_p: None,
             max_tokens: Some(512),
+            reasoning_max_tokens: None,
             response_format: Some(schema::judge_finding_json_schema()),
             tools: None,
             tool_choice: None,
