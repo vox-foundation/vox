@@ -33,6 +33,8 @@ jobs:
       shard_1_p_args: ${{ steps.affected.outputs.shard_1_p_args }}
       shard_2_p_args: ${{ steps.affected.outputs.shard_2_p_args }}
       shard_3_p_args: ${{ steps.affected.outputs.shard_3_p_args }}
+      shard_4_p_args: ${{ steps.affected.outputs.shard_4_p_args }}
+      shard_5_p_args: ${{ steps.affected.outputs.shard_5_p_args }}
     steps:
       - name: Start budget clock
         shell: bash
@@ -127,7 +129,7 @@ jobs:
           # its own group (hash-partition shards each compiled every test binary, 17-19 min).
           ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
             --graph contracts/ci/crate-graph.v1.json --github-output /tmp/affected.out \
-            --shards 3 --exclude vox-gui
+            --shards 5 --exclude vox-gui
           full=$(grep -E '^full=' /tmp/affected.out | tail -1 | cut -d= -f2 || true)
           args=$(grep -E '^affected_p_args=' /tmp/affected.out | tail -1 | cut -d= -f2- || true)
           # Fail closed: anything but an explicit non-empty affected set → whole workspace.

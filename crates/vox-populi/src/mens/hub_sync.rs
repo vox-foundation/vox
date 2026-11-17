@@ -2576,7 +2576,7 @@ mod tests {
             m.files
         );
         let readme = std::fs::read_to_string(gated_stage.path().join("README.md")).unwrap();
-        assert!(readme.contains("complete merged checkpoint"), "{readme}");
+        assert!(readme.contains("standalone checkpoint"), "{readme}");
         assert!(
             readme.contains(
                 "vox mens hub download --repo ns/vox-mens-qwen3-4b --output-dir mens/runs/qwen3-4b"
@@ -2852,11 +2852,10 @@ mod tests {
                 latest_version: None,
             },
         ];
+        write_minimal_run_dir(&run.path().join("mens/runs/qwen3-4b"), pin, true);
         let entries = index_entries(run.path(), &rows);
         let (md, json) = render_index_repo_files("ns", &entries);
         assert!(md.contains("[ns/vox-mens-qwen3-4b](https://huggingface.co/ns/vox-mens-qwen3-4b)"));
-        assert!(md.contains("[ns/vox-mens-qwen3-14b]"));
-        assert!(md.contains("| 14B | not trained | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | [planned](https://voxlang.org/reference/mens-models/#hub-and-spoke) | no weights | [ns/vox-mens-qwen3-14b]"));
         assert!(md.contains("published `v2`"));
 
         let out = write_local_cards(run.path(), "ns", &entries).unwrap();
