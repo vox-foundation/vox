@@ -152,18 +152,18 @@ export function PopuliDispatchWorkbench({
       data-slot="populi-dispatch-workbench"
       data-testid="populi-dispatch-workbench"
       aria-label="Populi Mesh Dispatch and Gossip Cadence Workbench"
-      className="flex min-w-0 flex-col gap-3 rounded-xl border border-[#D4AF37]/25 bg-[#0B0D12]/95 p-3.5 text-slate-100"
+      className="flex min-w-0 flex-col gap-3 rounded-xl border border-border-strong bg-bg-surface p-3.5 text-text-primary"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4AF37]/15 pb-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-2.5">
         <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#D4AF37]">
+          <span className="flex size-7 items-center justify-center rounded-lg border border-brass/30 bg-brass/10 text-[var(--color-accent-default)]">
             <Icon.send className="size-3.5" aria-hidden="true" />
           </span>
           <div>
-            <h2 className="font-display text-xs font-bold tracking-[0.14em] text-[#F3E5AB] uppercase">
+            <h2 className="font-display text-xs font-bold tracking-[0.14em] text-text-primary uppercase">
               Dispatch Job &amp; QUIC Gossip Control
             </h2>
-            <p className="font-mono text-[10px] text-slate-400">
+            <p className="font-mono text-[10px] text-text-muted">
               Remote .vox workload dispatch, overlay probe health ({healthyCount}/2 OK), and gossip cadence
             </p>
           </div>
@@ -188,22 +188,22 @@ export function PopuliDispatchWorkbench({
             data-testid="populi-run-probe-btn"
             disabled={probing}
             onClick={() => void onRunProbes()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#D4AF37]/55 bg-[#D4AF37]/15 px-3 py-1.5 font-display text-[11px] font-bold tracking-wider text-[#F3E5AB] uppercase transition-colors hover:border-[#D4AF37] hover:bg-[#D4AF37]/25 disabled:opacity-45"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brass/55 bg-brass/15 px-3 py-1.5 font-display text-[11px] font-bold tracking-wider text-text-primary uppercase transition-colors hover:border-brass hover:bg-brass/25 disabled:opacity-45"
           >
-            <Icon.refresh className="size-3.5 text-[#D4AF37]" aria-hidden="true" />
+            <Icon.refresh className="size-3.5 text-[var(--color-accent-default)]" aria-hidden="true" />
             <span>{probing ? 'Probing...' : 'Run Overlay Probe'}</span>
           </button>
         </div>
       </div>
 
       {!dispatchConfigured && (
-        <div className="flex items-start gap-2 rounded-md border border-[#D4AF37]/25 bg-[#D4AF37]/5 px-3 py-2 text-[11px] text-[#F3E5AB]">
-          <Icon.alert className="mt-0.5 size-3.5 shrink-0 text-[#D4AF37]" aria-hidden="true" />
+        <div className="flex items-start gap-2 rounded-md border border-brass/30 bg-brass/10 px-3 py-2 text-[11px] text-text-primary">
+          <Icon.alert className="mt-0.5 size-3.5 shrink-0 text-[var(--color-accent-default)]" aria-hidden="true" />
           <span>
             Dispatch is disabled: no populi control plane is reachable. Configure{' '}
-            <code className="font-mono text-[#F3E5AB]">VOX_ORCHESTRATOR_MESH_CONTROL_URL</code> (or{' '}
-            <code className="font-mono text-[#F3E5AB]">populi_control_url</code>) and rebuild with{' '}
-            <code className="font-mono text-[#F3E5AB]">populi-transport</code>.
+            <code className="font-mono text-text-primary">VOX_ORCHESTRATOR_MESH_CONTROL_URL</code> (or{' '}
+            <code className="font-mono text-text-primary">populi_control_url</code>) and rebuild with{' '}
+            <code className="font-mono text-text-primary">populi-transport</code>.
           </span>
         </div>
       )}
@@ -212,7 +212,7 @@ export function PopuliDispatchWorkbench({
         <div className="col-span-12 @xl/surface:col-span-6">
           <label
             htmlFor="mesh-target-node"
-            className="mb-1 block font-display text-[10px] tracking-wider text-slate-400 uppercase"
+            className="mb-1 block font-display text-[10px] tracking-wider text-text-muted uppercase"
           >
             Target node (optional)
           </label>
@@ -223,13 +223,13 @@ export function PopuliDispatchWorkbench({
             onValueChange={setTargetNode}
             disabled={!dispatchConfigured}
             options={nodeOptions}
-            className="w-full border-[#D4AF37]/25 bg-black/45 text-xs text-slate-200"
+            className="w-full border-border-strong bg-bg-elevated text-xs text-text-primary"
           />
         </div>
         <div className="col-span-12 @xl/surface:col-span-6">
           <label
             htmlFor="mesh-task-kind"
-            className="mb-1 block font-display text-[10px] tracking-wider text-slate-400 uppercase"
+            className="mb-1 block font-display text-[10px] tracking-wider text-text-muted uppercase"
           >
             Task kind (optional)
           </label>
@@ -240,13 +240,13 @@ export function PopuliDispatchWorkbench({
             onChange={(e) => setTaskKind(e.target.value)}
             disabled={!dispatchConfigured}
             placeholder="e.g. text_infer"
-            className="w-full rounded-md border border-[#D4AF37]/25 bg-black/45 px-2.5 py-1.5 font-mono text-xs text-slate-200 disabled:opacity-40"
+            className="w-full rounded-md border border-border-strong bg-bg-elevated px-2.5 py-1.5 font-mono text-xs text-text-primary disabled:opacity-40"
           />
         </div>
         <div className="col-span-12">
           <label
             htmlFor="mesh-source"
-            className="mb-1 block font-display text-[10px] tracking-wider text-slate-400 uppercase"
+            className="mb-1 block font-display text-[10px] tracking-wider text-text-muted uppercase"
           >
             Source (.vox)
           </label>
@@ -258,7 +258,7 @@ export function PopuliDispatchWorkbench({
             disabled={!dispatchConfigured}
             rows={4}
             placeholder={'fn main() {\n  print("hello from the mesh")\n}'}
-            className="w-full rounded-md border border-[#D4AF37]/25 bg-black/45 p-2.5 font-mono text-xs text-slate-200 disabled:opacity-40"
+            className="w-full rounded-md border border-border-strong bg-bg-elevated p-2.5 font-mono text-xs text-text-primary disabled:opacity-40"
           />
         </div>
       </div>
@@ -270,7 +270,7 @@ export function PopuliDispatchWorkbench({
           data-testid="populi-dispatch-btn"
           onClick={() => void dispatch()}
           disabled={!dispatchConfigured || dispatching || !source.trim()}
-          className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-4 py-1.5 font-display text-[11px] font-bold tracking-wider text-[#F3E5AB] uppercase transition-colors hover:bg-[#D4AF37]/25 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-md border border-brass/45 bg-brass/15 px-4 py-1.5 font-display text-[11px] font-bold tracking-wider text-text-primary uppercase transition-colors hover:bg-brass/25 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Icon.send aria-hidden="true" className="size-3.5" />
           <span>{dispatching ? 'Dispatching...' : 'Dispatch'}</span>
@@ -283,7 +283,7 @@ export function PopuliDispatchWorkbench({
           tabIndex={0}
           aria-label="Dispatch result"
           aria-live="polite"
-          className="max-h-56 overflow-auto rounded-md border border-[#D4AF37]/20 bg-black/50 p-3 font-mono text-[11px] text-slate-200"
+          className="max-h-56 overflow-auto rounded-md border border-border-subtle bg-bg-elevated p-3 font-mono text-[11px] text-text-primary"
         >
           {dispatchResult}
         </pre>

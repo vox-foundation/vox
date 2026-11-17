@@ -65,24 +65,24 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
     <div
       data-slot="concilium-trajectory-braid"
       data-testid="harness-agent-braid"
-      className="rounded-lg border border-[#D4AF37]/30 bg-[#0B0D12] p-2.5 font-mono text-[10px] text-slate-100 shadow-inner"
+      className="rounded-lg border border-border-strong bg-bg-surface p-2.5 font-mono text-[10px] text-text-primary shadow-inner"
     >
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-[#D4AF37]/20 pb-1.5 text-[9px] uppercase tracking-wider text-slate-400">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-1.5 text-[9px] uppercase tracking-wider text-text-muted">
         <div className="flex items-center gap-2">
           <span
-            className="inline-block size-3.5 rounded-t-full border-2 border-[#D4AF37] border-b-0"
+            className="inline-block size-3.5 rounded-t-full border-2 border-brass border-b-0"
             aria-hidden="true"
           />
           <div>
-            <div className="font-display text-[11px] font-semibold tracking-wider text-[#F3E5AB] normal-case">
+            <div className="font-display text-[11px] font-semibold tracking-wider text-text-primary normal-case">
               Concilium Causal Trajectory Swimlanes
             </div>
-            <span className="text-[8.5px] tracking-widest text-slate-400">
+            <span className="text-[8.5px] tracking-widest text-text-muted">
               AGENT ROLE TRAJECTORY FLOW — LAST 8 SLICES · W3C TRACEPARENT
             </span>
           </div>
         </div>
-        <span className="hidden sm:inline font-mono text-[9px] text-[#F3E5AB]">
+        <span className="hidden sm:inline font-mono text-[9px] text-text-secondary">
           INTERCEPT · FAN-OUT · VERIFY · SANDBOX (0 tok/s)
         </span>
       </div>
@@ -102,9 +102,9 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
                 key={row.agentId}
                 data-slot="concilium-braid-lane"
                 title={`traceparent: ${traceparent}`}
-                className="flex items-center justify-between gap-1.5 rounded border border-[#D4AF37]/25 bg-slate-950/90 px-2 py-1"
+                className="flex items-center justify-between gap-1.5 rounded border border-border-subtle bg-bg-elevated px-2 py-1"
               >
-                <span className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-[#F3E5AB]">
+                <span className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-text-primary">
                   <span
                     className="inline-block size-2 shrink-0 rounded-full"
                     style={{ backgroundColor: LANE_COLORS[idx % LANE_COLORS.length] }}
@@ -113,10 +113,10 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
                   <span className="truncate">{row.label}</span>
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
-                  <span className="rounded border border-[#D4AF37]/35 bg-[#D4AF37]/15 px-1 text-[8px] text-[#F3E5AB]">
+                  <span className="rounded border border-brass/35 bg-brass/15 px-1 text-[8px] text-text-primary">
                     {row.activeLane}
                   </span>
-                  <span className="rounded border border-slate-700 bg-slate-900 px-1 text-[8px] text-slate-300">
+                  <span className="rounded border border-border-subtle bg-bg-surface px-1 text-[8px] text-text-secondary">
                     {isIdleSandbox ? '0 tok/s' : SLICE_ROLES[lastRoleIdx]}
                   </span>
                 </div>
@@ -130,7 +130,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
             data-cv-chart="true"
             viewBox={`0 0 ${svgW} ${svgH}`}
             preserveAspectRatio="none"
-            className="block h-16 w-full overflow-hidden rounded border border-[#D4AF37]/30 bg-slate-950 xl:h-20"
+            className="block h-16 w-full overflow-hidden rounded border border-border-strong bg-bg-base xl:h-20"
             role="img"
             aria-label="Agent role trajectory braid"
           >
@@ -168,7 +168,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
                       cy={endPt.y}
                       r={idx === 0 ? 3.5 : 2.6}
                       fill={color}
-                      stroke="#0B0D12"
+                      stroke="var(--color-bg-base)"
                       strokeWidth={1}
                     />
                   )}

@@ -30,23 +30,23 @@ export function NowPlayingStrip({
     <header
       data-slot="concilium-now-playing"
       data-testid="concilium-now-playing"
-      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#D4AF37]/35 bg-[#0B0D12] px-3.5 py-2.5 text-[#F3E5AB] shadow-[0_4px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(243,229,171,0.14)]"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-strong bg-bg-surface px-3.5 py-2.5 text-text-primary shadow-sm"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#D4AF37]/50 bg-[#D4AF37]/15 text-[#F3E5AB]">
-            <Icon.flow className="size-4" aria-hidden="true" />
+          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-brass/50 bg-brass/15 text-text-primary">
+            <Icon.flow className="size-4 text-[var(--color-accent-default)]" aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="rounded border border-[#D4AF37]/45 bg-[#D4AF37]/15 px-1.5 py-0.5 font-display text-[9px] font-bold tracking-[0.14em] uppercase text-[#F3E5AB]">
+              <span className="rounded border border-brass/45 bg-brass/15 px-1.5 py-0.5 font-display text-[9px] font-bold tracking-[0.14em] uppercase text-[var(--color-accent-default)]">
                 VOX CONCILIUM
               </span>
-              <h2 className="truncate font-display text-xs sm:text-sm font-bold tracking-[0.08em] text-[#F3E5AB]">
+              <h2 className="truncate font-display text-xs sm:text-sm font-bold tracking-[0.08em] text-text-primary">
                 Agent topology &amp; W3C Causal Observatory
               </h2>
             </div>
-            <p className="truncate font-mono text-[10px] text-slate-400">
+            <p className="truncate font-mono text-[10px] text-text-muted">
               Perfetto traceparent swimlanes · #seq board · 0 tok/s parked hibernation
             </p>
           </div>
@@ -55,67 +55,67 @@ export function NowPlayingStrip({
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
           <div
             data-slot="concilium-stat-active"
-            className="flex items-center gap-1.5 rounded-lg border border-[#D4AF37]/30 bg-slate-900/80 px-2.5 py-1"
+            className="flex items-center gap-1.5 rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-1"
           >
-            <span className="size-2 rounded-full bg-[#D4AF37]" aria-hidden="true" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-400">Active Workers</span>
-            <span className="font-bold text-[#F3E5AB]" data-testid="concilium-active-workers">
+            <span className="size-2 rounded-full bg-brass" aria-hidden="true" />
+            <span className="text-[10px] uppercase tracking-wider text-text-muted">Active Workers</span>
+            <span className="font-bold text-text-primary" data-testid="concilium-active-workers">
               {activeWorkers}
             </span>
           </div>
 
           <div
             data-slot="concilium-stat-parked"
-            className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-status-pass)]/35 bg-[var(--color-status-pass)]/10 px-2.5 py-1"
           >
-            <span className="size-2 rounded-full bg-emerald-400" aria-hidden="true" />
-            <span className="text-[10px] uppercase tracking-wider text-emerald-300/80">
+            <span className="size-2 rounded-full bg-[var(--color-status-pass)]" aria-hidden="true" />
+            <span className="text-[10px] uppercase tracking-wider text-[var(--color-status-pass)]">
               Parked (0 tok/s)
             </span>
-            <span className="font-bold text-emerald-300" data-testid="concilium-parked-workers">
+            <span className="font-bold text-[var(--color-status-pass)]" data-testid="concilium-parked-workers">
               {parkedWorkers}
             </span>
           </div>
 
           <div
             data-slot="concilium-stat-seq"
-            className="flex items-center gap-1.5 rounded-lg border border-[#D4AF37]/30 bg-slate-900/80 px-2.5 py-1"
+            className="flex items-center gap-1.5 rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-1"
           >
-            <span className="text-[10px] uppercase tracking-wider text-slate-400">Head #seq</span>
-            <span className="font-bold text-[#F3E5AB]" data-testid="concilium-head-seq">
+            <span className="text-[10px] uppercase tracking-wider text-text-muted">Head #seq</span>
+            <span className="font-bold text-text-primary" data-testid="concilium-head-seq">
               #{headSeq}
             </span>
           </div>
 
           <div
             data-slot="concilium-stat-locks"
-            className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-950/25 px-2.5 py-1"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-status-fail)]/35 bg-[var(--color-status-fail)]/10 px-2.5 py-1"
           >
-            <Icon.lockKeyhole className="size-3 text-rose-400" aria-hidden="true" />
-            <span className="text-[10px] uppercase tracking-wider text-rose-300/80">
+            <Icon.lockKeyhole className="size-3 text-[var(--color-status-fail)]" aria-hidden="true" />
+            <span className="text-[10px] uppercase tracking-wider text-[var(--color-status-fail)]">
               Active File Locks
             </span>
-            <span className="font-bold text-rose-300" data-testid="concilium-active-locks">
+            <span className="font-bold text-[var(--color-status-fail)]" data-testid="concilium-active-locks">
               {activeLocks}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-[#D4AF37]/20 bg-slate-950/90 px-3 py-1.5 font-mono text-[11px]">
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-3 py-1.5 font-mono text-[11px]">
         <div className="flex min-w-0 items-center gap-2">
           <span
             className={`size-2 shrink-0 rounded-full ${
-              isLive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
+              isLive ? 'bg-[var(--color-status-pass)] animate-pulse' : 'bg-[var(--color-text-muted)]'
             }`}
             aria-hidden="true"
           />
-          <span className="shrink-0 font-display text-[9px] font-bold uppercase tracking-widest text-[#D4AF37]">
+          <span className="shrink-0 font-display text-[9px] font-bold uppercase tracking-widest text-[var(--color-accent-default)]">
             NOW PLAYING
           </span>
           <span
             data-testid="concilium-now-playing-ticker"
-            className="truncate text-slate-200"
+            className="truncate text-text-secondary"
           >
             {tickerText}
           </span>
@@ -130,8 +130,8 @@ export function NowPlayingStrip({
             onClick={() => onFocusModeChange('swimlanes')}
             className={`rounded border px-2 py-0.5 font-display text-[9px] font-bold uppercase tracking-wider transition-colors ${
               focusMode === 'swimlanes'
-                ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-[#F3E5AB]'
-                : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200'
+                ? 'border-brass bg-brass/20 text-text-primary'
+                : 'border-border-subtle bg-bg-surface text-text-muted hover:text-text-primary'
             }`}
           >
             Swimlanes
@@ -144,8 +144,8 @@ export function NowPlayingStrip({
             onClick={() => onFocusModeChange('board')}
             className={`rounded border px-2 py-0.5 font-display text-[9px] font-bold uppercase tracking-wider transition-colors ${
               focusMode === 'board'
-                ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-[#F3E5AB]'
-                : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200'
+                ? 'border-brass bg-brass/20 text-text-primary'
+                : 'border-border-subtle bg-bg-surface text-text-muted hover:text-text-primary'
             }`}
           >
             #seq Board
@@ -159,8 +159,8 @@ export function NowPlayingStrip({
             onClick={onToggleLive}
             className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[9px] font-bold uppercase tracking-wider transition-colors ${
               isLive
-                ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:border-emerald-400'
-                : 'border-slate-600 bg-slate-900 text-slate-300 hover:border-slate-400'
+                ? 'border-[var(--color-status-pass)]/40 bg-[var(--color-status-pass)]/12 text-[var(--color-status-pass)] hover:border-[var(--color-status-pass)]'
+                : 'border-border-subtle bg-bg-surface text-text-secondary hover:border-border-strong'
             }`}
           >
             <span>{isLive ? 'Live' : 'Paused'}</span>
@@ -171,7 +171,7 @@ export function NowPlayingStrip({
             data-slot="button"
             onClick={onRefresh}
             aria-label="Refresh Concilium snapshot"
-            className="inline-flex items-center gap-1 rounded border border-[#D4AF37]/35 bg-slate-900 px-2 py-0.5 font-display text-[9px] font-bold uppercase tracking-wider text-[#F3E5AB] hover:border-[#D4AF37]"
+            className="inline-flex items-center gap-1 rounded border border-border-strong bg-bg-surface px-2 py-0.5 font-display text-[9px] font-bold uppercase tracking-wider text-text-primary hover:border-brass"
           >
             <Icon.refresh className="size-3" aria-hidden="true" />
             <span>Sync</span>

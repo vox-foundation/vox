@@ -84,40 +84,40 @@ function tierBadgeLabel(tier: ComputeTier): string {
 function tierIcon(tier: ComputeTier): React.ReactNode {
   switch (tier) {
     case 'local_mens_gpu':
-      return <Icon.cpu className="size-4 text-[#D4AF37]" aria-hidden="true" />;
+      return <Icon.cpu className="size-4 text-[var(--color-accent-default)]" aria-hidden="true" />;
     case 'populi_quic_peer':
-      return <Icon.globe className="size-4 text-[#10B981]" aria-hidden="true" />;
+      return <Icon.globe className="size-4 text-[var(--color-status-pass)]" aria-hidden="true" />;
     case 'cloud_bandit':
-      return <Icon.spark className="size-4 text-[#F3E5AB]" aria-hidden="true" />;
+      return <Icon.spark className="size-4 text-[var(--color-accent-default)]" aria-hidden="true" />;
     case 'inline_cpu':
-      return <Icon.terminal className="size-4 text-slate-300" aria-hidden="true" />;
+      return <Icon.terminal className="size-4 text-text-secondary" aria-hidden="true" />;
   }
 }
 
 function nodeStatusClasses(status: HybridComputeNodeCardDto['status']): string {
   switch (status) {
     case 'online':
-      return 'border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981]';
+      return 'border-[var(--color-status-pass)]/40 bg-[var(--color-status-pass)]/10 text-[var(--color-status-pass)]';
     case 'maintenance':
     case 'degraded':
-      return 'border-[#D4AF37]/45 bg-[#D4AF37]/10 text-[#F3E5AB]';
+      return 'border-[var(--color-status-warn)]/45 bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]';
     case 'quarantined':
-      return 'border-[#F43F5E]/45 bg-[#F43F5E]/15 text-[#F43F5E]';
+      return 'border-[var(--color-status-fail)]/45 bg-[var(--color-status-fail)]/12 text-[var(--color-status-fail)]';
   }
 }
 
 function workerPillClasses(status: DockedSwarmWorkerPill['status'], selected: boolean): string {
-  const ring = selected ? 'ring-1 ring-[#F3E5AB]' : '';
+  const ring = selected ? 'ring-1 ring-brass' : '';
   switch (status) {
     case 'working':
-      return `border-[#10B981]/45 bg-[#10B981]/12 text-emerald-200 ${ring}`;
+      return `border-[var(--color-status-pass)]/45 bg-[var(--color-status-pass)]/12 text-[var(--color-status-pass)] ${ring}`;
     case 'parked':
-      return `border-dashed border-[#64748B]/60 bg-[#64748B]/15 text-slate-300 ${ring}`;
+      return `border-dashed border-border-strong bg-bg-elevated text-text-secondary ${ring}`;
     case 'tripped':
-      return `border-[#F43F5E]/50 bg-[#F43F5E]/15 text-rose-200 ${ring}`;
+      return `border-[var(--color-status-fail)]/50 bg-[var(--color-status-fail)]/12 text-[var(--color-status-fail)] ${ring}`;
     case 'waiting':
     case 'idle':
-      return `border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F3E5AB] ${ring}`;
+      return `border-brass/35 bg-brass/10 text-text-primary ${ring}`;
   }
 }
 
@@ -152,14 +152,14 @@ export function HybridComputeNodeCard({
       data-slot="populi-compute-node"
       data-testid={`populi-compute-node-${node.node_id}`}
       data-compute-tier={node.tier}
-      className={`flex min-w-0 flex-col justify-between gap-3 rounded-xl border bg-[#0B0D12]/95 p-3.5 text-slate-100 shadow-sm transition-colors ${
-        isInspected ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]/40' : 'border-[#D4AF37]/25 hover:border-[#D4AF37]/50'
+      className={`flex min-w-0 flex-col justify-between gap-3 rounded-xl border bg-bg-surface p-3.5 text-text-primary shadow-sm transition-colors ${
+        isInspected ? 'border-brass ring-1 ring-brass/40' : 'border-border-strong hover:border-brass/60'
       }`}
     >
       <div className="space-y-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 font-display text-[10px] font-bold tracking-[0.14em] text-[#D4AF37] uppercase">
+            <div className="flex items-center gap-1.5 font-display text-[10px] font-bold tracking-[0.14em] text-[var(--color-accent-default)] uppercase">
               {tierIcon(node.tier)}
               <span className="truncate">{tierBadgeLabel(node.tier)}</span>
             </div>
@@ -168,7 +168,7 @@ export function HybridComputeNodeCard({
               data-slot="button"
               aria-pressed={isInspected}
               onClick={() => onInspectNode?.(node.node_id)}
-              className="mt-0.5 text-left font-mono text-xs font-bold text-[#F3E5AB] hover:underline"
+              className="mt-0.5 text-left font-mono text-xs font-bold text-text-primary hover:underline"
             >
               {node.display_name || node.node_id}
             </button>
@@ -183,12 +183,12 @@ export function HybridComputeNodeCard({
         </div>
 
         {/* Tier-specific telemetry */}
-        <div className="rounded-lg border border-[#D4AF37]/15 bg-black/35 p-2.5 font-mono text-[11px]">
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2.5 font-mono text-[11px]">
           {node.tier === 'local_mens_gpu' && (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-slate-300">
+              <div className="flex items-center justify-between text-text-secondary">
                 <span>{node.gpu_summary ?? 'Local Accelerator'}</span>
-                <span className="text-[#F3E5AB]">
+                <span className="text-text-primary">
                   {formatVramGb(node.vram_used_mb)} / {formatVramGb(node.vram_total_mb)}
                 </span>
               </div>
@@ -199,33 +199,33 @@ export function HybridComputeNodeCard({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={vramPct}
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800"
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-overlay-subtle"
                 >
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#D4AF37] to-[#10B981]"
+                    className="h-full rounded-full bg-gradient-to-r from-[var(--color-accent-default)] to-[var(--color-status-pass)]"
                     style={{ width: `${vramPct}%` }}
                   />
                 </div>
               )}
-              <div className="flex items-center justify-between text-[10px] text-slate-400">
+              <div className="flex items-center justify-between text-[10px] text-text-muted">
                 <span>Warm KV-Cache Prefixes</span>
-                <span className="text-[#10B981]">{node.kv_cache_warm_prefixes ?? 0} warm</span>
+                <span className="text-[var(--color-status-pass)]">{node.kv_cache_warm_prefixes ?? 0} warm</span>
               </div>
             </div>
           )}
 
           {node.tier === 'populi_quic_peer' && (
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-slate-300">
+              <div className="flex items-center justify-between text-text-secondary">
                 <span className="truncate">{node.host_triple ?? 'triple unreported'}</span>
-                <span className="shrink-0 text-[#10B981]">
+                <span className="shrink-0 text-[var(--color-status-pass)]">
                   {node.rtt_ms != null ? `${node.rtt_ms}ms RTT` : 'RTT n/a'}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-400">
+              <div className="flex items-center justify-between text-[10px] text-text-muted">
                 <span className="truncate">{node.gpu_summary ?? 'Peer compute'}</span>
                 {node.vram_total_mb != null && (
-                  <span className="shrink-0 text-[#F3E5AB]">{formatVramGb(node.vram_total_mb)}</span>
+                  <span className="shrink-0 text-text-primary">{formatVramGb(node.vram_total_mb)}</span>
                 )}
               </div>
             </div>
@@ -233,32 +233,32 @@ export function HybridComputeNodeCard({
 
           {node.tier === 'cloud_bandit' && (
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-slate-300">
+              <div className="flex items-center justify-between text-text-secondary">
                 <span>Thompson Bandit Arm</span>
-                <span className="text-[#D4AF37]">
+                <span className="text-[var(--color-accent-default)]">
                   {node.bandit_weight != null
                     ? `${Math.round(node.bandit_weight * 100)}% weight`
                     : 'adaptive'}
                 </span>
               </div>
-              <div className="text-[10px] text-slate-400">
+              <div className="text-[10px] text-text-muted">
                 {node.gpu_summary ?? 'Frontier router with fallback quorum'}
               </div>
             </div>
           )}
 
           {node.tier === 'inline_cpu' && (
-            <div className="text-slate-300">
+            <div className="text-text-secondary">
               {node.gpu_summary ?? node.host_triple ?? 'Inline orchestrator host'}
             </div>
           )}
 
           {node.advertised_models.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1 border-t border-white/5 pt-1.5">
+            <div className="mt-2 flex flex-wrap gap-1 border-t border-border-subtle pt-1.5">
               {node.advertised_models.map((model, idx) => (
                 <span
                   key={`${model}-${idx}`}
-                  className="rounded border border-[#D4AF37]/20 bg-[#D4AF37]/5 px-1.5 py-0.5 text-[10px] text-[#F3E5AB]"
+                  className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 text-[10px] text-text-primary"
                 >
                   {model}
                 </span>
@@ -269,12 +269,12 @@ export function HybridComputeNodeCard({
 
         {/* Docked @agent worker pills */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between font-display text-[10px] tracking-wider text-slate-400 uppercase">
+          <div className="flex items-center justify-between font-display text-[10px] tracking-wider text-text-muted uppercase">
             <span>Docked Swarm Workers</span>
-            <span className="font-mono text-[#F3E5AB]">{node.docked_workers.length}</span>
+            <span className="font-mono text-text-primary">{node.docked_workers.length}</span>
           </div>
           {node.docked_workers.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-700/80 px-2.5 py-2 font-mono text-[10.5px] text-slate-500">
+            <div className="rounded-md border border-dashed border-border-subtle px-2.5 py-2 font-mono text-[10.5px] text-text-muted">
               No active @agent pills docked on this node
             </div>
           ) : (
@@ -302,11 +302,11 @@ export function HybridComputeNodeCard({
                     <span className="font-bold">@{worker.roster_name}</span>
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
                       <span>{throughputLabel}</span>
-                      <span className="rounded border border-current/25 bg-black/30 px-1.5 py-0.5 uppercase">
+                      <span className="rounded border border-current/25 bg-overlay-subtle px-1.5 py-0.5 uppercase">
                         {worker.workspace_mode}
                       </span>
                       {worker.file_lock_prefix && (
-                        <span className="rounded border border-[#D4AF37]/30 bg-black/30 px-1.5 py-0.5 text-[#F3E5AB]">
+                        <span className="rounded border border-brass/35 bg-bg-surface px-1.5 py-0.5 text-text-primary">
                           {worker.file_lock_prefix}
                         </span>
                       )}
@@ -320,8 +320,8 @@ export function HybridComputeNodeCard({
       </div>
 
       {/* Hot-swap target action */}
-      <div className="flex items-center justify-between gap-2 border-t border-[#D4AF37]/15 pt-2.5">
-        <span className="truncate font-mono text-[10px] text-slate-400">
+      <div className="flex items-center justify-between gap-2 border-t border-border-subtle pt-2.5">
+        <span className="truncate font-mono text-[10px] text-text-muted">
           {selectedWorkerName ? `Target: @${selectedWorkerName}` : 'Select a worker pill to migrate'}
         </span>
         <button
@@ -330,7 +330,7 @@ export function HybridComputeNodeCard({
           data-testid={`migrate-worker-btn-${node.node_id}`}
           disabled={!canMigrate}
           onClick={() => onMigrateWorkerHere(node)}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#D4AF37]/45 bg-[#D4AF37]/15 px-2.5 py-1 font-display text-[10px] font-bold tracking-wider text-[#F3E5AB] uppercase transition-colors hover:border-[#D4AF37] hover:bg-[#D4AF37]/25 disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-brass/45 bg-brass/15 px-2.5 py-1 font-display text-[10px] font-bold tracking-wider text-text-primary uppercase transition-colors hover:border-brass hover:bg-brass/25 disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Icon.arrowLeftRight className="size-3" aria-hidden="true" />
           <span>

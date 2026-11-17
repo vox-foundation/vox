@@ -70,7 +70,7 @@ export function buildLanesFromLegacy(
       status: a.phase === 'Paused' ? 'parked' : 'working',
       compute_tier: tiers[idx % tiers.length]!,
       node_id: `node-${a.id}`,
-      model_id: a.skill ?? 'claude-sonnet-4-5',
+      model_id: a.skill ?? 'anthropic/claude-sonnet',
       workspace_mode: 'share',
       file_lock_prefix: 'crates/vox-orchestrator/src/router.rs',
       parked_since_seq: a.phase === 'Paused' ? 116 : null,

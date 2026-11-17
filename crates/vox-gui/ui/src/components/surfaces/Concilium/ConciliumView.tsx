@@ -219,7 +219,7 @@ export function ConciliumView({
       data-slot="concilium-view"
       data-testid="concilium-view"
       data-focus-mode={focusMode}
-      className="@container/surface flex h-full min-h-0 min-w-0 flex-col gap-3 bg-[#0B0D12] p-3 text-slate-100"
+      className="@container/surface flex h-full min-h-0 min-w-0 flex-col gap-3 bg-bg-base p-3 text-text-primary"
     >
       <NowPlayingStrip
         activeWorkers={effectiveLanes.filter((l) => l.status === 'working').length}

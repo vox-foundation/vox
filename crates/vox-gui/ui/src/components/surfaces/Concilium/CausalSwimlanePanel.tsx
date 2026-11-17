@@ -24,22 +24,22 @@ export function formatComputeTierBadge(tier: ComputeTier): {
     case 'cloud_bandit':
       return {
         label: 'CLOUD BANDIT',
-        className: 'border-[#D4AF37]/50 bg-[#D4AF37]/15 text-[#F3E5AB]',
+        className: 'border-brass/50 bg-brass/15 text-text-primary',
       };
     case 'local_mens_gpu':
       return {
         label: 'LOCAL MENS GPU',
-        className: 'border-emerald-500/50 bg-emerald-950/50 text-emerald-300',
+        className: 'border-[var(--color-status-pass)]/50 bg-[var(--color-status-pass)]/12 text-[var(--color-status-pass)]',
       };
     case 'populi_quic_peer':
       return {
         label: 'POPULI QUIC PEER',
-        className: 'border-amber-500/50 bg-amber-950/50 text-amber-300',
+        className: 'border-[var(--color-status-warn)]/50 bg-[var(--color-status-warn)]/12 text-[var(--color-status-warn)]',
       };
     case 'inline_cpu':
       return {
         label: 'INLINE CPU',
-        className: 'border-slate-500/50 bg-slate-900 text-slate-300',
+        className: 'border-border-subtle bg-bg-elevated text-text-secondary',
       };
   }
 }
@@ -47,15 +47,15 @@ export function formatComputeTierBadge(tier: ComputeTier): {
 function spanToneClasses(kind: ConciliumSpanKind): string {
   switch (kind) {
     case 'thinking':
-      return 'border-[#D4AF37] bg-[#D4AF37]/25 text-[#F3E5AB]';
+      return 'border-brass bg-brass/20 text-text-primary';
     case 'tool_call':
     case 'writing':
-      return 'border-emerald-400/80 bg-emerald-500/25 text-emerald-100';
+      return 'border-[var(--color-status-pass)]/60 bg-[var(--color-status-pass)]/15 text-[var(--color-status-pass)]';
     case 'parked':
-      return 'border-dashed border-slate-500/80 bg-slate-800/50 text-slate-300';
+      return 'border-dashed border-border-strong bg-bg-surface text-text-secondary';
     case 'lock_wait':
     case 'trip':
-      return 'border-rose-400/80 bg-rose-500/25 text-rose-100';
+      return 'border-[var(--color-status-fail)]/60 bg-[var(--color-status-fail)]/15 text-[var(--color-status-fail)]';
   }
 }
 
@@ -85,39 +85,39 @@ export function CausalSwimlanePanel({
       data-slot="concilium-swimlanes"
       data-testid="concilium-swimlanes"
       aria-label="W3C traceparent causal swimlanes"
-      className="flex min-h-0 min-w-0 flex-col gap-2.5 rounded-xl border border-[#D4AF37]/30 bg-[#0B0D12] p-3 text-slate-100 shadow-inner"
+      className="flex min-h-0 min-w-0 flex-col gap-2.5 rounded-xl border border-border-strong bg-bg-surface p-3 text-text-primary shadow-inner"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D4AF37]/20 pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-display text-xs font-bold uppercase tracking-[0.12em] text-[#F3E5AB]">
+            <span className="font-display text-xs font-bold uppercase tracking-[0.12em] text-text-primary">
               Perfetto W3C Traceparent Causal Swimlanes
             </span>
-            <span className="rounded border border-[#D4AF37]/35 bg-[#D4AF37]/10 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB]">
+            <span className="rounded border border-brass/35 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-text-primary">
               window {safeWindowMs}ms
             </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] text-slate-300">
+        <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] text-text-secondary">
           <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full bg-[#D4AF37]" aria-hidden="true" />
+            <span className="size-2 rounded-full bg-brass" aria-hidden="true" />
             <span>Planning</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full bg-emerald-400" aria-hidden="true" />
+            <span className="size-2 rounded-full bg-[var(--color-status-pass)]" aria-hidden="true" />
             <span>Executing</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full bg-amber-400" aria-hidden="true" />
+            <span className="size-2 rounded-full bg-[var(--color-status-warn)]" aria-hidden="true" />
             <span>Verifying</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full bg-slate-400" aria-hidden="true" />
+            <span className="size-2 rounded-full bg-[var(--color-text-muted)]" aria-hidden="true" />
             <span>Paused</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full bg-rose-400" aria-hidden="true" />
+            <span className="size-2 rounded-full bg-[var(--color-status-fail)]" aria-hidden="true" />
             <span>Validated</span>
           </span>
         </div>
@@ -134,7 +134,7 @@ export function CausalSwimlanePanel({
           >
             <defs>
               <linearGradient id="concilium-wakeup-gold" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#F3E5AB" stopOpacity="0.95" />
+                <stop offset="0%" stopColor="var(--color-accent-default)" stopOpacity="0.95" />
                 <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.85" />
               </linearGradient>
             </defs>
@@ -163,7 +163,7 @@ export function CausalSwimlanePanel({
                     strokeWidth="2"
                     strokeLinecap="round"
                   />
-                  <circle cx={endX} cy={endY} r="3.5" fill="#F3E5AB" stroke="#D4AF37" strokeWidth="1.2" />
+                  <circle cx={endX} cy={endY} r="3.5" fill="var(--color-accent-default)" stroke="#D4AF37" strokeWidth="1.2" />
                   <title>{`#seq-${arc.from_seq} -> ${arc.mention} (${arc.target_span_id})`}</title>
                 </g>
               );
@@ -172,7 +172,7 @@ export function CausalSwimlanePanel({
         )}
 
         {lanes.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-4 text-center font-mono text-xs text-slate-400">
+          <div className="rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-xs text-text-muted">
             No active agent swimlanes.
           </div>
         ) : (
@@ -199,20 +199,20 @@ export function CausalSwimlanePanel({
               }}
               className={`group relative flex flex-col gap-2 rounded-lg border p-2.5 transition-colors cursor-pointer lg:flex-row lg:items-center ${
                 isSelected
-                  ? 'border-[#D4AF37] bg-[#D4AF37]/10 shadow-[0_0_12px_rgba(212,175,55,0.18)]'
-                  : 'border-[#D4AF37]/25 bg-slate-950/85 hover:border-[#D4AF37]/60'
+                  ? 'border-brass bg-brass/10 shadow-sm'
+                  : 'border-border-subtle bg-bg-elevated hover:border-brass/60'
               }`}
             >
               <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-2 lg:w-72">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs font-bold text-[#F3E5AB]">
+                    <span className="font-mono text-xs font-bold text-text-primary">
                       @{lane.roster_name.replace(/^@/, '')}
                     </span>
-                    <span className="font-mono text-[10px] text-slate-300">
+                    <span className="font-mono text-[10px] text-text-secondary">
                       {lane.roster_name}
                     </span>
-                    <span className="rounded border border-[#D4AF37]/30 bg-slate-900 px-1.5 py-0.5 font-mono text-[9px] uppercase text-slate-300">
+                    <span className="rounded border border-border-subtle bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] uppercase text-text-secondary">
                       {lane.role}
                     </span>
                   </div>
@@ -220,15 +220,15 @@ export function CausalSwimlanePanel({
                     <span className={`rounded border px-1.5 py-0.5 font-bold ${tierBadge.className}`}>
                       {tierBadge.label}
                     </span>
-                    <span className="rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-slate-300">
+                    <span className="rounded border border-border-subtle bg-bg-surface px-1.5 py-0.5 text-text-secondary">
                       jj:{lane.workspace_mode}
                     </span>
                     {lane.file_lock_prefix && (
                       <span
                         data-slot="concilium-file-lock-shield"
-                        className="inline-flex items-center gap-1 rounded border border-rose-500/45 bg-rose-950/40 px-1.5 py-0.5 text-rose-200"
+                        className="inline-flex items-center gap-1 rounded border border-[var(--color-status-fail)]/45 bg-[var(--color-status-fail)]/12 px-1.5 py-0.5 text-[var(--color-status-fail)]"
                       >
-                        <Icon.lockKeyhole className="size-2.5 text-rose-300" aria-hidden="true" />
+                        <Icon.lockKeyhole className="size-2.5" aria-hidden="true" />
                         <span>[FileLock] {lane.file_lock_prefix}</span>
                       </span>
                     )}
@@ -237,18 +237,18 @@ export function CausalSwimlanePanel({
 
                 <div className="text-right font-mono text-[10px]">
                   {isParked ? (
-                    <span className="inline-block rounded border border-dashed border-slate-500/70 bg-slate-900/90 px-1.5 py-0.5 text-slate-300">
+                    <span className="inline-block rounded border border-dashed border-border-strong bg-bg-surface px-1.5 py-0.5 text-text-secondary">
                       0 tok/s · #seq-{lane.parked_since_seq ?? 0}
                     </span>
                   ) : (
-                    <span className="inline-block rounded border border-emerald-500/40 bg-emerald-950/40 px-1.5 py-0.5 font-bold text-emerald-300">
+                    <span className="inline-block rounded border border-[var(--color-status-pass)]/40 bg-[var(--color-status-pass)]/12 px-1.5 py-0.5 font-bold text-[var(--color-status-pass)]">
                       {lane.tok_per_sec} tok/s
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="relative h-9 min-w-0 flex-1 overflow-hidden rounded-md border border-slate-800 bg-slate-900/90 p-1">
+              <div className="relative h-9 min-w-0 flex-1 overflow-hidden rounded-md border border-border-subtle bg-bg-surface p-1">
                 {lane.spans.map((span) => {
                   const leftPct = Math.min(
                     92,
@@ -271,7 +271,7 @@ export function CausalSwimlanePanel({
                     >
                       <span className="truncate font-medium">{renderSpanLabel(span, lane)}</span>
                       {span.file_lock_prefix && (
-                        <span className="shrink-0 rounded bg-rose-950/80 px-1 text-[8px] text-rose-200">
+                        <span className="shrink-0 rounded bg-overlay-subtle px-1 text-[8px] text-[var(--color-status-fail)]">
                           [FileLock] {span.file_lock_prefix}
                         </span>
                       )}

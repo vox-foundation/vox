@@ -43,9 +43,9 @@ export function LiveAgentLens({
         data-slot="concilium-agent-lens"
         data-testid="concilium-agent-lens"
         aria-label="Live Agent Lens inspector"
-        className="flex flex-col gap-3 rounded-xl border border-[#D4AF37]/30 bg-[#0B0D12] p-3.5 text-slate-200"
+        className="flex flex-col gap-3 rounded-xl border border-border-strong bg-bg-surface p-3.5 text-text-secondary"
       >
-        <p className="font-mono text-xs text-slate-400">
+        <p className="font-mono text-xs text-text-muted">
           Select a worker swimlane to inspect live W3C traceparent spans and pilot controls.
         </p>
       </aside>
@@ -72,89 +72,89 @@ export function LiveAgentLens({
       data-slot="concilium-agent-lens"
       data-testid="concilium-agent-lens"
       aria-label="Live Agent Lens inspector"
-      className="flex flex-col gap-3 rounded-xl border border-[#D4AF37]/35 bg-[#0B0D12] p-3.5 text-slate-100 shadow-lg"
+      className="flex flex-col gap-3 rounded-xl border border-border-strong bg-bg-surface p-3.5 text-text-primary shadow-sm"
     >
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[#D4AF37]/20 pb-2.5">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border-subtle pb-2.5">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="rounded border border-[#D4AF37]/45 bg-[#D4AF37]/15 px-1.5 py-0.5 font-display text-[9px] font-bold uppercase tracking-widest text-[#F3E5AB]">
+            <span className="rounded border border-brass/45 bg-brass/15 px-1.5 py-0.5 font-display text-[9px] font-bold uppercase tracking-widest text-[var(--color-accent-default)]">
               LIVE AGENT LENS
             </span>
-            <h3 className="truncate font-mono text-sm font-bold text-[#F3E5AB]">
+            <h3 className="truncate font-mono text-sm font-bold text-text-primary">
               {lane.roster_name}
             </h3>
-            <span className="font-mono text-[10px] text-slate-400">({lane.agent_id})</span>
+            <span className="font-mono text-[10px] text-text-muted">({lane.agent_id})</span>
           </div>
-          <p className="mt-1 font-mono text-[11px] text-slate-300">{lane.current_action}</p>
+          <p className="mt-1 font-mono text-[11px] text-text-secondary">{lane.current_action}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
-          <span className="rounded border border-[#D4AF37]/35 bg-slate-900 px-2 py-0.5 uppercase text-[#F3E5AB]">
+          <span className="rounded border border-border-strong bg-bg-elevated px-2 py-0.5 uppercase text-text-primary">
             {lane.status}
           </span>
-          <span className="rounded border border-emerald-500/35 bg-emerald-950/40 px-2 py-0.5 text-emerald-300">
+          <span className="rounded border border-[var(--color-status-pass)]/40 bg-[var(--color-status-pass)]/12 px-2 py-0.5 text-[var(--color-status-pass)]">
             {lane.tok_per_sec} tok/s
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 font-mono text-[10px] sm:grid-cols-4">
-        <div className="rounded-lg border border-slate-800 bg-slate-950/90 p-2">
-          <div className="text-[9px] uppercase text-slate-400">Model &amp; Node</div>
-          <div className="mt-0.5 truncate font-bold text-slate-100">{lane.model_id}</div>
-          <div className="truncate text-[9px] text-slate-400">{lane.node_id}</div>
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2">
+          <div className="text-[9px] uppercase text-text-muted">Model &amp; Node</div>
+          <div className="mt-0.5 truncate font-bold text-text-primary">{lane.model_id}</div>
+          <div className="truncate text-[9px] text-text-muted">{lane.node_id}</div>
         </div>
-        <div className="rounded-lg border border-slate-800 bg-slate-950/90 p-2">
-          <div className="text-[9px] uppercase text-slate-400">Workspace &amp; Lock</div>
-          <div className="mt-0.5 font-bold text-[#F3E5AB]">jj {lane.workspace_mode}</div>
-          <div className="truncate text-[9px] text-rose-300">
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2">
+          <div className="text-[9px] uppercase text-text-muted">Workspace &amp; Lock</div>
+          <div className="mt-0.5 font-bold text-text-primary">jj {lane.workspace_mode}</div>
+          <div className="truncate text-[9px] text-[var(--color-status-fail)]">
             {lane.file_lock_prefix ?? 'no exclusive lock'}
           </div>
         </div>
-        <div className="rounded-lg border border-slate-800 bg-slate-950/90 p-2">
-          <div className="text-[9px] uppercase text-slate-400">Token Window</div>
-          <div className="mt-0.5 font-bold text-slate-100">
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2">
+          <div className="text-[9px] uppercase text-text-muted">Token Window</div>
+          <div className="mt-0.5 font-bold text-text-primary">
             {lane.used_tokens.toLocaleString()} / {lane.max_tokens.toLocaleString()}
           </div>
-          <div className="text-[9px] text-emerald-300">{tokenRatio}% utilized</div>
+          <div className="text-[9px] text-[var(--color-status-pass)]">{tokenRatio}% utilized</div>
         </div>
-        <div className="rounded-lg border border-slate-800 bg-slate-950/90 p-2">
-          <div className="text-[9px] uppercase text-slate-400">KV-Cache Prefix</div>
-          <div className="mt-0.5 font-bold text-emerald-300">
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2">
+          <div className="text-[9px] uppercase text-text-muted">KV-Cache Prefix</div>
+          <div className="mt-0.5 font-bold text-[var(--color-status-pass)]">
             {lane.kv_cache_hit_pct != null ? `${lane.kv_cache_hit_pct}% warm` : 'N/A'}
           </div>
-          <div className="text-[9px] text-slate-400">
+          <div className="text-[9px] text-text-muted">
             {lane.parked_since_seq != null ? `Parked #seq-${lane.parked_since_seq}` : 'Active stream'}
           </div>
         </div>
       </div>
 
       {legacyAgent && (
-        <div className="rounded-lg border border-[#D4AF37]/25 bg-slate-950/80 p-2.5 font-mono text-[10px]">
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2.5 font-mono text-[10px]">
           <div className="grid grid-cols-4 gap-2">
             <div>
-              <div className="text-[8.5px] uppercase text-slate-400">Cost</div>
-              <div className="font-bold text-slate-100">${(legacyAgent.cost ?? 0).toFixed(2)}</div>
+              <div className="text-[8.5px] uppercase text-text-muted">Cost</div>
+              <div className="font-bold text-text-primary">${(legacyAgent.cost ?? 0).toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-[8.5px] uppercase text-slate-400">Budget</div>
-              <div className="font-bold text-slate-100">
+              <div className="text-[8.5px] uppercase text-text-muted">Budget</div>
+              <div className="font-bold text-text-primary">
                 {legacyAgent.budget != null ? `$${legacyAgent.budget.toFixed(2)}` : '—'}
               </div>
             </div>
             <div>
-              <div className="text-[8.5px] uppercase text-slate-400">ETA</div>
-              <div className="font-bold text-slate-100">{legacyAgent.eta}</div>
+              <div className="text-[8.5px] uppercase text-text-muted">ETA</div>
+              <div className="font-bold text-text-primary">{legacyAgent.eta}</div>
             </div>
             <div>
-              <div className="text-[8.5px] uppercase text-slate-400">Skill</div>
-              <div className="font-bold text-slate-100">{legacyAgent.skill ?? '—'}</div>
+              <div className="text-[8.5px] uppercase text-text-muted">Skill</div>
+              <div className="font-bold text-text-primary">{legacyAgent.skill ?? '—'}</div>
             </div>
           </div>
           <div className="mt-2">
-            <div className="flex items-center justify-between text-[9px] uppercase text-slate-400">
+            <div className="flex items-center justify-between text-[9px] uppercase text-text-muted">
               <span>Progress</span>
-              <span data-testid="agent-inspector-progress" className="font-bold text-[#F3E5AB]">
+              <span data-testid="agent-inspector-progress" className="font-bold text-text-primary">
                 {legacyAgent.progress != null
                   ? `${Math.max(0, Math.min(100, Math.round(legacyAgent.progress * 100)))}%`
                   : '…'}
@@ -169,9 +169,9 @@ export function LiveAgentLens({
                   aria-valuenow={pct}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-800"
+                  className="mt-1 h-1.5 overflow-hidden rounded-full bg-overlay-subtle"
                 >
-                  <div className="h-full bg-[#D4AF37]" style={{ width: `${pct}%` }} />
+                  <div className="h-full bg-brass" style={{ width: `${pct}%` }} />
                 </div>
               );
             })()}
@@ -181,16 +181,16 @@ export function LiveAgentLens({
 
       <div
         data-slot="concilium-pilot-controls"
-        className="space-y-2.5 rounded-lg border border-[#D4AF37]/30 bg-slate-950/90 p-2.5"
+        className="space-y-2.5 rounded-lg border border-border-subtle bg-bg-elevated p-2.5"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-display text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
+          <span className="font-display text-[10px] font-bold uppercase tracking-widest text-[var(--color-accent-default)]">
             Operator Pilot Controls (4 Actions)
           </span>
           {lastActionReceipt && (
             <span
               data-testid="concilium-pilot-receipt"
-              className="rounded border border-emerald-500/40 bg-emerald-950/50 px-2 py-0.5 font-mono text-[10px] text-emerald-300"
+              className="rounded border border-[var(--color-status-pass)]/40 bg-[var(--color-status-pass)]/12 px-2 py-0.5 font-mono text-[10px] text-[var(--color-status-pass)]"
             >
               {lastActionReceipt}
             </span>
@@ -209,9 +209,9 @@ export function LiveAgentLens({
                 agent_id: lane.agent_id,
               })
             }
-            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-600 bg-slate-900 px-2.5 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider text-slate-200 hover:border-[#D4AF37] hover:text-[#F3E5AB]"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border-strong bg-bg-surface px-2.5 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider text-text-secondary hover:border-brass hover:text-text-primary"
           >
-            <Icon.pause className="size-3 text-slate-300" aria-hidden="true" />
+            <Icon.pause className="size-3 text-text-secondary" aria-hidden="true" />
             <span>Park (0 tok/s)</span>
           </button>
 
@@ -228,9 +228,9 @@ export function LiveAgentLens({
                 workspace_mode: 'share',
               })
             }
-            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-emerald-500/50 bg-emerald-950/40 px-2.5 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider text-emerald-200 hover:border-emerald-400"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[var(--color-status-pass)]/50 bg-[var(--color-status-pass)]/12 px-2.5 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider text-[var(--color-status-pass)] hover:border-[var(--color-status-pass)]"
           >
-            <Icon.branch className="size-3 text-emerald-300" aria-hidden="true" />
+            <Icon.branch className="size-3" aria-hidden="true" />
             <span>Fork Warm Context (jj share)</span>
           </button>
 
@@ -248,7 +248,7 @@ export function LiveAgentLens({
                   target_tier: nextTier as ComputeTier,
                 })
               }
-              className="border-[#D4AF37]/40 bg-slate-900 font-mono text-[10px] text-[#F3E5AB]"
+              className="border-border-strong bg-bg-surface font-mono text-[10px] text-text-primary"
             />
           </div>
         </div>
@@ -268,7 +268,7 @@ export function LiveAgentLens({
               }
             }}
             placeholder={`Steer @${lane.roster_name.replace(/^@/, '')} directive...`}
-            className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1 font-mono text-[11px] text-slate-100 placeholder:text-slate-500 focus:border-[#D4AF37] focus:outline-hidden"
+            className="min-w-0 flex-1 rounded-md border border-border-strong bg-bg-surface px-2.5 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass focus:outline-hidden"
           />
           <button
             type="button"
@@ -276,7 +276,7 @@ export function LiveAgentLens({
             data-slot="button"
             data-testid="pilot-steer-agent"
             onClick={handleSteerClick}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#D4AF37]/60 bg-[#D4AF37]/20 px-2.5 py-1 font-display text-[10px] font-bold uppercase tracking-wider text-[#F3E5AB] hover:bg-[#D4AF37]/30"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-brass/60 bg-brass/20 px-2.5 py-1 font-display text-[10px] font-bold uppercase tracking-wider text-text-primary hover:bg-brass/30"
           >
             <Icon.send className="size-3" aria-hidden="true" />
             <span>Steer @agent</span>
@@ -285,7 +285,7 @@ export function LiveAgentLens({
       </div>
 
       {children && (
-        <div className="border-t border-[#D4AF37]/20 pt-2.5 font-mono text-xs">{children}</div>
+        <div className="border-t border-border-subtle pt-2.5 font-mono text-xs">{children}</div>
       )}
     </aside>
   );

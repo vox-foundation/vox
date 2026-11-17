@@ -75,7 +75,7 @@ export function PopuliTopologyView({
             data-slot="button"
             data-testid="populi-refresh-btn"
             onClick={data.refreshAll}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/40 bg-[#0B0D12]/80 px-2.5 py-1 font-display text-[10px] font-bold tracking-wider text-[#F3E5AB] uppercase hover:border-[#D4AF37]"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-bg-elevated px-2.5 py-1 font-display text-[10px] font-bold tracking-wider text-text-primary uppercase hover:border-brass"
           >
             <Icon.refresh className="size-3" aria-hidden="true" />
             <span>Refresh</span>

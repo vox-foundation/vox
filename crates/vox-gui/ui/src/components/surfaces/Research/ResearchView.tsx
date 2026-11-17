@@ -1228,7 +1228,10 @@ export function ResearchView({
                   return {
                     id: c.claimId,
                     label: `${c.claimId}: ${c.text}`,
-                    wave: Math.floor(i / 2),
+                    wave:
+                      claimRows.length <= 10
+                        ? Math.floor(i / 2)
+                        : Math.min(4, Math.floor((i * 5) / claimRows.length)),
                     kind: 'claim',
                     status: isContradicted ? 'contradicted' : isVerified ? 'verified' : 'pending',
                     confidence: c.confidence,
