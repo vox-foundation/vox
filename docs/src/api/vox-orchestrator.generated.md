@@ -234,6 +234,7 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `preregistration` | — |
 | `secretary` | — |
 | `command_output_hub` | Dedicated `CommandOutputHub` & `\r` terminal progress-bar normalization. |
+| `concilium_watchdog` | Deterministic zero-token Rust watchdog for Vox Concilium (`CONC-04`). |
 | `context_sanitizer` | Reasoning tag parser (`<think>`, `<thinking>`, `<reason>`, `<reasoning>`), `<WebSearch>` compactor & prompt-token sanitizer. |
 | `guest_share` | Host-moderated Live Guest Share (`GuestShareService` & `GuestShareDecider`). |
 | `id_allocator` | Deterministic Entity ID Allocator (`VoxIdAllocatorV2` — `{ allocate, derive }`). |

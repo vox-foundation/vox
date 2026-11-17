@@ -39,11 +39,13 @@ describe('MeshView', () => {
   });
 
   it('every button carries an explicit type="button"', async () => {
-    render(<MeshView pushToast={vi.fn()} />);
+    const { container } = render(<MeshView pushToast={vi.fn()} />);
     await waitFor(() => expect(screen.getAllByText('node-1').length).toBeGreaterThan(0));
-    for (const b of screen.getAllByRole('button')) {
+    for (const b of container.querySelectorAll('button')) {
       expect(b.getAttribute('type')).toBe('button');
     }
+    expect(screen.getByTestId('populi-hybrid-compute-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('populi-lock-matrix')).toBeInTheDocument();
   });
 
   it('associates the dispatch form labels with their controls (axe select-name, label)', async () => {

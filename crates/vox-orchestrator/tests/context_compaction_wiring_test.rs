@@ -165,6 +165,7 @@ async fn over_limit_conversation_compacts_and_archives_losslessly_before_llm_cal
         temperature: None,
         top_p: None,
         max_tokens: None,
+        reasoning_max_tokens: None,
         response_format: None,
         tools: None,
         tool_choice: None,

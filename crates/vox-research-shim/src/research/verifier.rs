@@ -750,14 +750,41 @@ fn normalize_tokens(text: &str) -> Vec<String> {
         .collect()
 }
 
+const CONTRASTIVE_AFFIRMATIVE_IDIOMS: &[&str] =
+    &["not only", "not just", "not merely", "not solely"];
+
+fn strip_contrastive_idioms(lower: &str) -> String {
+    let mut out = lower.to_string();
+    for idiom in CONTRASTIVE_AFFIRMATIVE_IDIOMS {
+        let mut search_from = 0usize;
+        while let Some(rel_idx) = out[search_from..].find(idiom) {
+            let start = search_from + rel_idx;
+            let end = start + idiom.len();
+            let left_ok = out[..start]
+                .chars()
+                .next_back()
+                .is_none_or(|c| !c.is_ascii_alphanumeric());
+            let right_ok = out[end..]
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_ascii_alphanumeric());
+            if left_ok && right_ok {
+                out.replace_range(start..end, &" ".repeat(idiom.len()));
+            }
+            search_from = end;
+        }
+    }
+    out
+}
+
 fn has_negation_token(text: &str) -> bool {
-    let lower = text.to_ascii_lowercase();
+    let lower = strip_contrastive_idioms(&text.to_ascii_lowercase());
     if NEGATION_PHRASES.iter().any(|p| lower.contains(p)) {
         return true;
     }
-    text.split(|c: char| !c.is_ascii_alphanumeric())
-        .map(|t| t.to_ascii_lowercase())
-        .any(|t| NEGATION_TOKENS.contains(&t.as_str()))
+    lower
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|t| NEGATION_TOKENS.contains(&t))
 }
 
 fn has_antonym_conflict(claim_tokens: &[String], evidence_tokens: &[String]) -> bool {
@@ -1475,5 +1502,63 @@ mod tests {
         let enforced = enforce_abstain_threshold(low_conf_contra, 0.50);
         assert_eq!(enforced.verdict, Verdict::Abstain);
         assert_eq!(enforced.label(), ClaimLabel::Abstain);
+    }
+
+    #[test]
+    fn contrastive_not_only_idioms_do_not_trigger_negation_or_false_contradiction() {
+        assert!(!has_negation_token(
+            "Vox not only improves throughput, but also reduces latency."
+        ));
+        assert!(!has_negation_token(
+            "Not just fast compilation, not merely static types, not solely local inference."
+        ));
+        assert!(has_negation_token(
+            "Vox not only improves throughput, but does not reduce memory."
+        ));
+        assert!(has_negation_token("It cannot only use BM25."));
+
+        let claim = Claim {
+            text: "Vox not only improves throughput, but also reduces latency.".to_string(),
+            claim_id: 202,
+            is_numeric: false,
+            is_recent: false,
+            is_named_event: false,
+            salience_score: 0.9,
+        };
+        let matching_affirmative_hits = vec![ResearchHit {
+            url: "https://vox.dev/bench".to_string(),
+            title: "Throughput & Latency".to_string(),
+            snippet: "Vox not only improves throughput, but also reduces latency in CI runs."
+                .to_string(),
+            score: 0.95,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        }];
+        let verdict = try_fast_lexical_verify(&claim, &matching_affirmative_hits)
+            .expect("contrastive affirmative claim should verify cleanly");
+        assert_eq!(verdict.verdict, Verdict::Supported);
+
+        let plain_affirmative_hits = vec![ResearchHit {
+            url: "https://vox.dev/bench2".to_string(),
+            title: "Benchmarks".to_string(),
+            snippet: "Vox improves throughput and reduces latency in CI runs.".to_string(),
+            score: 0.95,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        }];
+        let (score, has_conflict) =
+            lexical_containment_score(&claim.text, &plain_affirmative_hits[0].snippet);
+        assert!(score > 0.5);
+        assert!(
+            !has_conflict,
+            "not-only claim must not conflict with affirmative evidence"
+        );
+        assert!(
+            try_fast_lexical_verify(&claim, &plain_affirmative_hits)
+                .is_none_or(|v| v.verdict == Verdict::Supported),
+            "must never false-contradict affirmative evidence"
+        );
     }
 }

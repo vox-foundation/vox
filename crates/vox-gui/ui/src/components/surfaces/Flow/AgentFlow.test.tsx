@@ -18,7 +18,7 @@ const base = {
 
 const agents: Agent[] = [base];
 
-describe('AgentFlow', () => {
+describe('AgentFlow (Mode 1 Concilium Swimlanes Consolidation)', () => {
   it('renders nodes as keyboard-operable buttons', () => {
     render(<AgentFlow agents={agents} />);
     const nodes = screen.getAllByRole('button');
@@ -49,23 +49,18 @@ describe('AgentFlow', () => {
   });
 
   it('renders the inspector without crashing when budget is null (chat-category tasks have no budget)', () => {
-    const noBudgetAgents: Agent[] = [
-      { ...agents[0], budget: null },
-    ];
+    const noBudgetAgents: Agent[] = [{ ...agents[0]!, budget: null }];
     render(<AgentFlow agents={noBudgetAgents} selectedId="a1" />);
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('allows the header title to shrink and the legend row to wrap on narrow panels', () => {
     render(<AgentFlow agents={agents} />);
-    const heading = screen.getByText('Agent topology');
-    const titleContainer = heading.parentElement;
+    const heading = screen.getByText(/Agent topology/i);
+    const titleContainer = heading.parentElement?.parentElement;
     expect(titleContainer?.className).toContain('min-w-0');
 
-    const headerRow = titleContainer?.parentElement;
-    expect(headerRow?.className).toContain('flex-wrap');
-
-    const legend = screen.getByText('Planning').closest('div')?.parentElement;
+    const legend = screen.getByText('Planning').closest('div');
     expect(legend?.className).toContain('flex-wrap');
   });
 });

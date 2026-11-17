@@ -32,6 +32,21 @@
       "number": "452",
       "name": "Paired After-Audit Closure, Inline Before/After Diff Inspector & Quarantined Lesson Flywheel",
       "status": "complete"
+    },
+    {
+      "number": "453",
+      "name": "Deep Research Reasoning-Budget, Citation Audit & Daemon DB Proxy",
+      "status": "complete"
+    },
+    {
+      "number": "454",
+      "name": "Causal Swarm Event Stamping & Persistent Sequence Board",
+      "status": "complete"
+    },
+    {
+      "number": "455",
+      "name": "Vox Concilium & Populi Unified Swarm Observatory GUI",
+      "status": "complete"
     }
   ],
   "next": {
@@ -39,5 +54,5 @@
     "label": "Show progress",
     "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-11-16T03:37:09.679Z"
+  "updated_at": "2026-11-17T01:29:36.486Z"
 }

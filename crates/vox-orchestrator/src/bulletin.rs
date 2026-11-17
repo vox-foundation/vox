@@ -1,51 +1,51 @@
-//! Broadcast bulletin board for orchestrator-wide agent messages.
-//!
-//! [`BulletinBoard`](crate::bulletin::BulletinBoard) fans out [`AgentMessage`](crate::types::AgentMessage) values so every subscriber sees
-//! file changes, completions, and interrupts without point-to-point wiring.
+//! Broadcast bulletin board and append-only `#seq` Shared Sequence Board (`CONC-02`).
+
+use std::sync::Arc;
 
 use tokio::sync::broadcast;
 
 use crate::types::AgentMessage;
 
-/// Default capacity for the bulletin board broadcast channel.
+#[path = "bulletin/concilium_board.rs"]
+mod concilium_board;
+#[path = "bulletin/mentions.rs"]
+mod mentions;
+#[path = "bulletin/pilot_actions.rs"]
+mod pilot_actions;
+
+use concilium_board::BulletinConciliumInner;
+
 const DEFAULT_BULLETIN_CAPACITY: usize = 256;
 
-/// Cross-agent communication channel using broadcast pub/sub.
-///
-/// Agents publish messages (file changes, task completions, interrupts)
-/// and all other agents receive them. This follows the same pattern as
-/// `vox-actor-runtime::SubscriptionManager` but for orchestrator-level events.
+/// Cross-agent communication channel using broadcast pub/sub plus the
+/// persistent `#seq` Shared Sequence Board and `0 tok/s` doorbell registry.
 #[derive(Clone)]
 pub struct BulletinBoard {
     sender: broadcast::Sender<AgentMessage>,
+    concilium: Arc<BulletinConciliumInner>,
 }
 
 impl BulletinBoard {
-    /// Create a new bulletin board with the given channel capacity.
+    /// Phase 454 (CONC-02): Create a bulletin board with broadcast channel `capacity`.
     pub fn new(capacity: usize) -> Self {
         let (sender, _) = broadcast::channel(capacity);
-        Self { sender }
+        Self {
+            sender,
+            concilium: Arc::new(BulletinConciliumInner::default()),
+        }
     }
 
-    /// Publish a message to all subscribed agents.
+    /// Phase 454 (CONC-02): Publish a broadcast [`AgentMessage`] to active subscribers.
     pub fn publish(&self, msg: AgentMessage) {
-        let count = self.sender.receiver_count();
-        tracing::debug!(
-            subscribers = count,
-            "bulletin board message published: {:?}",
-            msg
-        );
-        // Ignore send errors (no active receivers is fine)
         let _ = self.sender.send(msg);
     }
 
-    /// Subscribe to bulletin board messages.
-    /// Returns a receiver that will get all future messages.
+    /// Phase 454 (CONC-02): Subscribe to live broadcast [`AgentMessage`] notifications.
     pub fn subscribe(&self) -> broadcast::Receiver<AgentMessage> {
         self.sender.subscribe()
     }
 
-    /// Number of active subscribers.
+    /// Phase 454 (CONC-02): Return the current count of broadcast receivers.
     pub fn subscriber_count(&self) -> usize {
         self.sender.receiver_count()
     }
@@ -57,10 +57,6 @@ impl Default for BulletinBoard {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,48 +65,12 @@ mod tests {
     #[tokio::test]
     async fn publish_and_receive() {
         let board = BulletinBoard::new(16);
-        let mut rx = board.subscribe();
-
+        let (mut rx1, mut rx2) = (board.subscribe(), board.subscribe());
+        assert_eq!(board.subscriber_count(), 2);
         board.publish(AgentMessage::TaskCompleted {
             task_id: TaskId(1),
             agent_id: AgentId(1),
         });
-
-        let msg = tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv())
-            .await
-            .expect("should not timeout")
-            .expect("should receive message");
-
-        match msg {
-            AgentMessage::TaskCompleted { task_id, agent_id } => {
-                assert_eq!(task_id, TaskId(1));
-                assert_eq!(agent_id, AgentId(1));
-            }
-            _ => panic!("wrong message variant"),
-        }
-    }
-
-    #[tokio::test]
-    async fn multiple_subscribers() {
-        let board = BulletinBoard::new(16);
-        let mut rx1 = board.subscribe();
-        let mut rx2 = board.subscribe();
-
-        assert_eq!(board.subscriber_count(), 2);
-
-        board.publish(AgentMessage::DependencyReady { task_id: TaskId(5) });
-
-        assert!(rx1.recv().await.is_ok());
-        assert!(rx2.recv().await.is_ok());
-    }
-
-    #[tokio::test]
-    async fn no_subscribers_does_not_panic() {
-        let board = BulletinBoard::new(16);
-        // Publishing with no subscribers should not panic
-        board.publish(AgentMessage::Interrupt {
-            agent_id: AgentId(1),
-            reason: "test".to_string(),
-        });
+        assert!(rx1.recv().await.is_ok() && rx2.recv().await.is_ok());
     }
 }

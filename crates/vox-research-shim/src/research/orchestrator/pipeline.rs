@@ -392,7 +392,7 @@ async fn run_research_metered_with_seed(
         let claim_extraction_text = if !all_hits.is_empty() {
             let snippets: Vec<String> = all_hits
                 .iter()
-                .take(8)
+                .take(16)
                 .map(|h| format!("- {}: {}", h.title, h.snippet))
                 .collect();
             format!(
@@ -1022,7 +1022,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
             recorded_at_ms: now_ms_i64(),
         },
     );
-    let citation_audit = audit_citations(&citations, &claim_verdicts);
+    let citation_audit = audit_citations(&answer, &citations, &claim_verdicts);
     emit_research_event(
         config,
         db,
@@ -1331,21 +1331,100 @@ pub async fn resolved_search_policy_for_research_run(
     policy
 }
 
+fn extract_referenced_citation_indices(
+    answer: &str,
+    max_citations: usize,
+) -> std::collections::BTreeSet<usize> {
+    let mut out = std::collections::BTreeSet::new();
+    if max_citations == 0 || answer.is_empty() {
+        return out;
+    }
+    let bytes = answer.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'[' {
+            let mut j = i + 1;
+            let mut aborted = false;
+            while j < bytes.len() {
+                if bytes[j] == b']' {
+                    break;
+                }
+                if bytes[j] == b'[' || bytes[j] == b'\n' || bytes[j] == b'\r' {
+                    aborted = true;
+                    break;
+                }
+                j += 1;
+            }
+            if !aborted && j < bytes.len() && bytes[j] == b']' {
+                let inner = answer[i + 1..j].trim();
+                if !inner.is_empty()
+                    && inner.chars().all(|c| {
+                        c.is_ascii_digit()
+                            || c.is_ascii_whitespace()
+                            || matches!(c, ',' | ';' | '-' | '\u{2013}')
+                    })
+                {
+                    for part in inner.split([',', ';']) {
+                        let part = part.trim();
+                        if part.is_empty() {
+                            continue;
+                        }
+                        if let Some((a, b)) = part.split_once(['-', '\u{2013}']) {
+                            if let (Ok(lo), Ok(hi)) =
+                                (a.trim().parse::<usize>(), b.trim().parse::<usize>())
+                                && lo >= 1
+                                && lo <= hi
+                                && hi - lo <= 64
+                            {
+                                for n in lo..=hi.min(max_citations) {
+                                    out.insert(n - 1);
+                                }
+                            }
+                        } else if let Ok(n) = part.parse::<usize>()
+                            && n >= 1
+                            && n - 1 < max_citations
+                        {
+                            out.insert(n - 1);
+                        }
+                    }
+                }
+                i = j + 1;
+                continue;
+            } else if aborted && j < bytes.len() && bytes[j] == b'[' {
+                i = j;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    out
+}
+
 fn audit_citations(
+    answer: &str,
     citations: &[Citation],
     verdicts: &[super::super::verifier::ClaimVerdict],
 ) -> CitationAuditResult {
+    let referenced = extract_referenced_citation_indices(answer, citations.len());
+    let indices_to_check: Vec<usize> = if referenced.is_empty() {
+        (0..citations.len()).collect()
+    } else {
+        referenced.into_iter().collect()
+    };
     let mut unsupported_citation_indices = Vec::new();
     let mut supports = Vec::new();
-    for (idx, citation) in citations.iter().enumerate() {
+    for &idx in &indices_to_check {
+        let citation = &citations[idx];
         let mut citation_supported = false;
         for verdict in verdicts {
+            let mut matched_this_verdict = false;
             for span in &verdict.evidence_spans {
                 if span.source_id == citation.source_id
                     && span.span_type == super::super::verifier::SpanType::Supporting
                     && quote_overlaps(&citation.snippet, &span.text)
                 {
                     citation_supported = true;
+                    matched_this_verdict = true;
                     supports.push(ClaimSupport {
                         claim_id: verdict.claim.claim_id,
                         citation_source_id: citation.source_id,
@@ -1354,12 +1433,29 @@ fn audit_citations(
                     });
                 }
             }
+            if !matched_this_verdict
+                && matches!(verdict.verdict, super::super::verifier::Verdict::Supported)
+            {
+                let (score, has_conflict) = super::super::verifier::lexical_containment_score(
+                    &verdict.claim.text,
+                    &citation.snippet,
+                );
+                if !has_conflict && score >= 0.55 {
+                    citation_supported = true;
+                    supports.push(ClaimSupport {
+                        claim_id: verdict.claim.claim_id,
+                        citation_source_id: citation.source_id,
+                        quote: citation.snippet.clone(),
+                        support_type: super::super::verifier::SpanType::Supporting,
+                    });
+                }
+            }
         }
         if !citation_supported {
             unsupported_citation_indices.push(idx);
         }
     }
-    let checked_citations = citations.len();
+    let checked_citations = indices_to_check.len();
     let supported_citations = checked_citations - unsupported_citation_indices.len();
     CitationAuditResult {
         checked_citations,
@@ -1833,12 +1929,149 @@ mod tests {
             resample_stability: 1.0,
         }];
 
-        let audit = audit_citations(&citations, &verdicts);
+        let audit = audit_citations("", &citations, &verdicts);
 
         assert_eq!(audit.checked_citations, 1);
         assert_eq!(audit.supported_citations, 1);
         assert!(audit.unsupported_citation_indices.is_empty());
         assert_eq!(audit.precision, 1.0);
+    }
+
+    #[test]
+    fn extract_referenced_citation_indices_parses_markers_and_ignores_non_citations() {
+        let answer = "Claim A [2][5] and [1, 3], range [6-7], invalid [0] [99] [INSUFFICIENT_EVIDENCE] [note].";
+        let indices = extract_referenced_citation_indices(answer, 8);
+        assert_eq!(
+            indices.into_iter().collect::<Vec<_>>(),
+            vec![0, 1, 2, 4, 5, 6]
+        );
+    }
+
+    #[test]
+    fn audit_citations_scopes_to_referenced_markers_and_credits_lexical_containment() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        let citations = vec![
+            Citation {
+                source_id: 0,
+                url: "https://example.com/1".into(),
+                title: "Uncited 1".into(),
+                snippet: "Unrelated gardening notes.".into(),
+                confidence: 0.9,
+            },
+            Citation {
+                source_id: 1,
+                url: "https://example.com/2".into(),
+                title: "Cited 2".into(),
+                snippet: "Vox routes synthesis with separate reasoning budgets.".into(),
+                confidence: 0.9,
+            },
+            Citation {
+                source_id: 2,
+                url: "https://example.com/3".into(),
+                title: "Uncited 3".into(),
+                snippet: "Completely unused source.".into(),
+                confidence: 0.8,
+            },
+            Citation {
+                source_id: 3,
+                url: "https://example.com/4".into(),
+                title: "Cited 4".into(),
+                snippet:
+                    "OpenRouter reasoning.max_tokens prevents thinking tokens from starving output."
+                        .into(),
+                confidence: 0.85,
+            },
+        ];
+        // Verdict 1 has an explicit span on source 1; Verdict 2 is Supported without a span on source 3
+        // (simulating a hit outside the claim's top-k evidence_spans) so lexical containment >= 0.55 credits it.
+        let verdicts = vec![
+            ClaimVerdict {
+                claim: Claim {
+                    claim_id: 10,
+                    text: "Vox routes synthesis with separate reasoning budgets.".into(),
+                    is_numeric: false,
+                    is_recent: false,
+                    is_named_event: false,
+                    salience_score: 0.9,
+                },
+                verdict: Verdict::Supported,
+                confidence: 0.95,
+                supporting_count: 1,
+                contradicting_count: 0,
+                evidence_spans: vec![EvidenceSpan {
+                    source_id: 1,
+                    span_start: 0,
+                    span_end: 50,
+                    text: "Vox routes synthesis with separate reasoning budgets.".into(),
+                    span_type: SpanType::Supporting,
+                }],
+                resample_stability: 1.0,
+            },
+            ClaimVerdict {
+                claim: Claim {
+                    claim_id: 11,
+                    text: "OpenRouter reasoning.max_tokens prevents thinking tokens from starving output."
+                        .into(),
+                    is_numeric: false,
+                    is_recent: false,
+                    is_named_event: false,
+                    salience_score: 0.85,
+                },
+                verdict: Verdict::Supported,
+                confidence: 0.9,
+                supporting_count: 1,
+                contradicting_count: 0,
+                evidence_spans: vec![],
+                resample_stability: 1.0,
+            },
+        ];
+
+        let answer = "Synthesis separates reasoning budgets [2, 4] cleanly.";
+        let audit = audit_citations(answer, &citations, &verdicts);
+        assert_eq!(audit.checked_citations, 2);
+        assert_eq!(audit.supported_citations, 2);
+        assert!(audit.unsupported_citation_indices.is_empty());
+        assert_eq!(audit.precision, 1.0);
+    }
+
+    #[test]
+    fn audit_citations_rejects_conflicting_lexical_overlap_snippet() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        let citations = vec![Citation {
+            source_id: 0,
+            url: "https://example.com/negated".into(),
+            title: "Negated".into(),
+            snippet: "OpenRouter reasoning.max_tokens does not prevent thinking tokens from starving output.".into(),
+            confidence: 0.9,
+        }];
+        let verdicts = vec![ClaimVerdict {
+            claim: Claim {
+                claim_id: 12,
+                text:
+                    "OpenRouter reasoning.max_tokens prevents thinking tokens from starving output."
+                        .into(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+                salience_score: 0.9,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.95,
+            supporting_count: 1,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        }];
+
+        let audit = audit_citations("Claim [1].", &citations, &verdicts);
+        assert_eq!(audit.checked_citations, 1);
+        assert_eq!(audit.supported_citations, 0);
+        assert_eq!(audit.unsupported_citation_indices, vec![0]);
+        assert_eq!(audit.precision, 0.0);
     }
 
     #[test]

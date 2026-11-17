@@ -27,6 +27,7 @@ pub mod check_terminal;
 pub mod ci_helpers;
 pub mod codex;
 pub mod command_sync;
+pub mod daemon_db_proxy;
 pub mod daemon_tool;
 pub mod db;
 pub mod db_cli;
@@ -281,7 +282,13 @@ async fn connect_research_db() -> anyhow::Result<vox_db::VoxDb> {
 }
 
 pub async fn research_history(limit: u32) -> anyhow::Result<()> {
-    let db = connect_research_db().await?;
+    let db = match connect_research_db().await {
+        Ok(db) => db,
+        Err(e) if daemon_db_proxy::is_canonical_db_lock_error(&format!("{e:#}")) => {
+            return daemon_db_proxy::research_history_via_daemon(limit).await;
+        }
+        Err(e) => return Err(e),
+    };
     let rows = db.list_recent_research_sessions(limit).await?;
     if rows.is_empty() {
         println!("No research sessions found.");
@@ -297,7 +304,13 @@ pub async fn research_history(limit: u32) -> anyhow::Result<()> {
 }
 
 pub async fn research_show(session_id: i64) -> anyhow::Result<()> {
-    let db = connect_research_db().await?;
+    let db = match connect_research_db().await {
+        Ok(db) => db,
+        Err(e) if daemon_db_proxy::is_canonical_db_lock_error(&format!("{e:#}")) => {
+            return daemon_db_proxy::research_show_via_daemon(session_id).await;
+        }
+        Err(e) => return Err(e),
+    };
     let Some(row) = db.get_research_session(session_id).await? else {
         anyhow::bail!("research session {session_id} not found");
     };
@@ -344,7 +357,13 @@ pub async fn research_result(
     format: &str,
     output: Option<std::path::PathBuf>,
 ) -> anyhow::Result<()> {
-    let db = connect_research_db().await?;
+    let db = match connect_research_db().await {
+        Ok(db) => db,
+        Err(e) if daemon_db_proxy::is_canonical_db_lock_error(&format!("{e:#}")) => {
+            return daemon_db_proxy::research_result_via_daemon(session_id, format, output).await;
+        }
+        Err(e) => return Err(e),
+    };
     let Some(artifact) = db.get_research_artifact(session_id).await? else {
         anyhow::bail!("no durable research artifact found for session {session_id}");
     };
@@ -354,10 +373,7 @@ pub async fn research_result(
         other => anyhow::bail!("unsupported result format {other:?}: use markdown|json"),
     };
     if let Some(path) = output {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(path, rendered)?;
+        daemon_db_proxy::write_output_file(&path, &rendered)?;
     } else {
         println!("{rendered}");
     }
@@ -561,7 +577,13 @@ fn publish_draft_path(repo_root: &std::path::Path, filename: &str) -> std::path:
 }
 
 pub async fn research_watch(session_id: i64) -> anyhow::Result<()> {
-    let db = connect_research_db().await?;
+    let db = match connect_research_db().await {
+        Ok(db) => db,
+        Err(e) if daemon_db_proxy::is_canonical_db_lock_error(&format!("{e:#}")) => {
+            return daemon_db_proxy::research_watch_via_daemon(session_id).await;
+        }
+        Err(e) => return Err(e),
+    };
     loop {
         let Some(row) = db.get_research_session(session_id).await? else {
             anyhow::bail!("research session {session_id} not found");
@@ -640,6 +662,16 @@ pub async fn run_research_query(
         Ok(cfg) => match VoxDb::connect(cfg).await {
             Ok(conn) => Some(Arc::new(conn)),
             Err(e) => {
+                let err_text = format!("{e:#}");
+                if daemon_db_proxy::is_canonical_db_lock_error(&err_text)
+                    && let Some(()) = daemon_db_proxy::try_run_research_via_daemon(
+                        &research_run_daemon_params(&rq),
+                        json,
+                    )
+                    .await?
+                {
+                    return Ok(());
+                }
                 tracing::warn!(
                     error = %e,
                     "canonical VoxDb unavailable (locked or unreachable); running research inline without durable DB persistence (set VOX_DB_PATH to persist concurrently)"

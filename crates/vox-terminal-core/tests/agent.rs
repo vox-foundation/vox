@@ -17,6 +17,7 @@ fn token_streamed_maps_to_agent_message() {
             text: "hello world".into(),
             session_id: None,
         },
+        causal_stamp: None,
     };
     let cfg = AgentAdapterConfig { agent_id: None };
     let translated = translate_event(&ev, &cfg);
@@ -34,6 +35,7 @@ fn non_token_events_return_none() {
         kind: AgentEventKind::AgentRetired {
             agent_id: fake_agent_id(),
         },
+        causal_stamp: None,
     };
     let cfg = AgentAdapterConfig { agent_id: None };
     assert!(translate_event(&ev, &cfg).is_none());

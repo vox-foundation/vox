@@ -81,6 +81,14 @@ fn research_stage_label(stage: Option<ResearchStage>) -> String {
         .unwrap_or_else(|| "unspecified".to_string())
 }
 
+/// Returns `true` when an LLM response produced no visible text because its completion
+/// budget was exhausted inside reasoning tokens.
+#[must_use]
+pub fn is_empty_reasoning_exhausted_response(response: &LlmResponse) -> bool {
+    response.content.trim().is_empty()
+        && (response.finish_reason.as_deref() == Some("length") || response.reasoning_tokens > 0)
+}
+
 /// Run chat completion over an explicit candidate cascade.
 ///
 /// When `research_stage` is `Some`, emits [`TelemetryEvent::AiFixture`] prompt-dispatch telemetry.
@@ -103,35 +111,65 @@ pub async fn chat_with_cascade(
         return Err("no LLM candidates available for research cascade".to_string());
     }
 
-    let res = infer_with_retry(opts, messages, candidates).await;
     let stage_lbl = research_stage_label(research_stage);
-    let (outcome, err) = match &res {
-        ActivityResult::Ok(Ok(_)) => ("ok", None),
-        ActivityResult::Ok(Err(e)) => ("error", Some(e.clone())),
-        ActivityResult::Failed(e) => (
-            "error",
-            Some(format!("research cascade activity failed: {e:?}")),
-        ),
-        ActivityResult::Cancelled => ("cancelled", Some("research cascade cancelled".into())),
-    };
+    let mut last_error = "No LLM candidates provided".to_string();
+
+    for candidate in candidates {
+        match infer_with_retry(opts, messages.clone(), vec![candidate.clone()]).await {
+            ActivityResult::Ok(Ok((response, cfg))) => {
+                if is_empty_reasoning_exhausted_response(&response) {
+                    tracing::warn!(
+                        candidate_model = %candidate.model,
+                        finish_reason = ?response.finish_reason,
+                        reasoning_tokens = response.reasoning_tokens,
+                        "candidate exhausted token budget in reasoning with empty visible content; trying next candidate"
+                    );
+                    last_error = format!(
+                        "Candidate {} exhausted token budget in reasoning with empty visible content",
+                        candidate.model
+                    );
+                    continue;
+                }
+                vox_telemetry::record_event!(&TelemetryEvent::AiFixture(
+                    AiFixtureEvent::PromptDispatch(PromptDispatchTelemetryEvent {
+                        stage: stage_lbl,
+                        outcome: "ok".into(),
+                        error: None,
+                        redact_count: 0,
+                    })
+                ));
+                note_research_model_use(research_stage, &cfg, &response);
+                return Ok(response);
+            }
+            ActivityResult::Ok(Err(e)) => {
+                last_error = e;
+            }
+            ActivityResult::Failed(e) => {
+                last_error = format!("research cascade activity failed: {e:?}");
+            }
+            ActivityResult::Cancelled => {
+                vox_telemetry::record_event!(&TelemetryEvent::AiFixture(
+                    AiFixtureEvent::PromptDispatch(PromptDispatchTelemetryEvent {
+                        stage: stage_lbl,
+                        outcome: "cancelled".into(),
+                        error: Some("research cascade cancelled".into()),
+                        redact_count: 0,
+                    })
+                ));
+                return Err("research cascade cancelled".to_string());
+            }
+        }
+    }
+
     vox_telemetry::record_event!(&TelemetryEvent::AiFixture(AiFixtureEvent::PromptDispatch(
         PromptDispatchTelemetryEvent {
             stage: stage_lbl,
-            outcome: outcome.into(),
-            error: err,
+            outcome: "error".into(),
+            error: Some(last_error.clone()),
             redact_count: 0,
         }
     )));
-
-    match res {
-        ActivityResult::Ok(Ok((response, cfg))) => {
-            note_research_model_use(research_stage, &cfg, &response);
-            Ok(response)
-        }
-        ActivityResult::Ok(Err(e)) => Err(e),
-        ActivityResult::Failed(e) => Err(format!("research cascade activity failed: {e:?}")),
-        ActivityResult::Cancelled => Err("research cascade cancelled".to_string()),
-    }
+    Err(last_error)
 }
 
 /// Run chat completion over an explicit candidate cascade with schema parsing and fallback.
@@ -359,6 +397,7 @@ pub fn cascade_with_optional_manual(
             temperature: None,
             top_p: None,
             max_tokens: None,
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,
@@ -697,5 +736,110 @@ mod tests {
         .await;
         assert!(res.is_err());
         assert!(res.unwrap_err().contains("no LLM candidates available"));
+    }
+
+    #[test]
+    fn empty_reasoning_exhausted_predicate_detects_empty_length_and_reasoning_tokens() {
+        let base = LlmResponse {
+            content: String::new(),
+            prompt_tokens: 10,
+            completion_tokens: 4000,
+            model: "m".into(),
+            cost_usd: None,
+            tool_calls: None,
+            latency_ms: 10,
+            cache_read_tokens: 0,
+            ttft_ms: None,
+            tpot_ms: None,
+            finish_reason: Some("length".into()),
+            reasoning_tokens: 0,
+            reasoning: Some("thinking...".into()),
+        };
+        assert!(is_empty_reasoning_exhausted_response(&base));
+
+        let with_reasoning_tokens = LlmResponse {
+            content: "   \n ".into(),
+            finish_reason: Some("stop".into()),
+            reasoning_tokens: 512,
+            ..base.clone()
+        };
+        assert!(is_empty_reasoning_exhausted_response(
+            &with_reasoning_tokens
+        ));
+
+        let plain_empty_stop = LlmResponse {
+            content: String::new(),
+            finish_reason: Some("stop".into()),
+            reasoning_tokens: 0,
+            ..base.clone()
+        };
+        assert!(!is_empty_reasoning_exhausted_response(&plain_empty_stop));
+
+        let visible_output = LlmResponse {
+            content: "# Executive Summary".into(),
+            finish_reason: Some("length".into()),
+            reasoning_tokens: 512,
+            ..base
+        };
+        assert!(!is_empty_reasoning_exhausted_response(&visible_output));
+    }
+
+    #[tokio::test]
+    async fn chat_with_cascade_falls_back_when_first_candidate_exhausts_reasoning_budget() {
+        use wiremock::matchers::{body_partial_json, method};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(serde_json::json!({"model": "thinking-exhausted"})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "thinking-exhausted",
+                "choices": [{
+                    "finish_reason": "length",
+                    "message": {"role": "assistant", "content": "", "reasoning": "ran out of budget"}
+                }],
+                "usage": {
+                    "prompt_tokens": 20,
+                    "completion_tokens": 4000,
+                    "completion_tokens_details": {"reasoning_tokens": 4000}
+                }
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(
+                serde_json::json!({"model": "fallback-visible"}),
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "fallback-visible",
+                "choices": [{
+                    "finish_reason": "stop",
+                    "message": {"role": "assistant", "content": "Complete synthesis report."}
+                }],
+                "usage": {"prompt_tokens": 20, "completion_tokens": 12}
+            })))
+            .mount(&server)
+            .await;
+
+        let url = format!("{}/chat/completions", server.uri());
+        let mut c1 = LlmConfig::openrouter("thinking-exhausted");
+        c1.base_url = Some(url.clone());
+        c1.api_key = Some("k".into());
+        c1.telemetry_skip_interaction = true;
+        let mut c2 = LlmConfig::openrouter("fallback-visible");
+        c2.base_url = Some(url);
+        c2.api_key = Some("k".into());
+        c2.telemetry_skip_interaction = true;
+
+        let resp = chat_with_cascade(
+            &ActivityOptions::default(),
+            vec![],
+            vec![c1, c2],
+            Some(ResearchStage::Synthesis),
+        )
+        .await
+        .expect("cascade should fall back to second candidate");
+        assert_eq!(resp.model, "fallback-visible");
+        assert_eq!(resp.content, "Complete synthesis report.");
     }
 }

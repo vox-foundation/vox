@@ -1440,6 +1440,7 @@ pub async fn assemble_scientia_cost_from_db(
         critic_usd: 0.0,
         novelty_retrieval_usd: 0.0,
         scholarly_submission_usd: 0.0,
+        research_usd: 0.0,
         by_provider: Vec::new(),
         findings_published_this_quarter: findings,
     };
@@ -1449,6 +1450,7 @@ pub async fn assemble_scientia_cost_from_db(
             "critic" => inputs.critic_usd += row.total_usd,
             "novelty" => inputs.novelty_retrieval_usd += row.total_usd,
             "scholarly" => inputs.scholarly_submission_usd += row.total_usd,
+            "research" | "general" | "codegen" | "shopping" => inputs.research_usd += row.total_usd,
             _ => {}
         }
     }
@@ -1478,6 +1480,7 @@ pub async fn assemble_scientia_cost_from_db(
                     "critic" => inputs.critic_usd += usd,
                     "novelty" => inputs.novelty_retrieval_usd += usd,
                     "scholarly" => inputs.scholarly_submission_usd += usd,
+                    "research" | "general" | "codegen" | "shopping" => inputs.research_usd += usd,
                     _ => {}
                 }
             }
@@ -2436,5 +2439,38 @@ mod tests {
                 .iter()
                 .any(|p| p.provider == "openrouter" && p.usd > 0.0)
         );
+    }
+
+    #[tokio::test]
+    async fn assemble_scientia_cost_includes_research_domain_phases() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+        for (idx, phase, usd) in [
+            (1, "research", 1.25),
+            (2, "general", 0.50),
+            (3, "codegen", 0.75),
+            (4, "shopping", 0.25),
+            (5, "scholarly", 2.00),
+        ] {
+            db.insert_scientia_cost_telemetry(
+                &format!("agent-{idx}"),
+                &format!("sess-{idx}"),
+                "vox-research",
+                phase,
+                Some("google"),
+                Some("gemini-2.5-flash"),
+                Some(1000),
+                Some(200),
+                usd,
+                None,
+            )
+            .await
+            .expect("telemetry");
+        }
+        let cost = assemble_scientia_cost_from_db(&db).await.expect("cost");
+        assert!((cost.this_quarter.research_usd - 2.75).abs() < 1e-9);
+        assert!((cost.this_quarter.scholarly_submission_usd - 2.00).abs() < 1e-9);
+        assert!((cost.this_quarter.total_usd - 4.75).abs() < 1e-9);
     }
 }

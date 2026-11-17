@@ -506,6 +506,7 @@ async fn llm_repair_mermaid_block(
         temperature: Some(0.0),
         top_p: None,
         max_tokens: Some(256),
+        reasoning_max_tokens: None,
         response_format: None,
         tools: None,
         tool_choice: None,

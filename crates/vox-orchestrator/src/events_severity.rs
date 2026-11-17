@@ -132,6 +132,10 @@ impl AgentEventKind {
             | K::HopperItemOverridden { .. }
             | K::HopperItemCancelled { .. }
             | K::MeshActionCommitted { .. }
+            | K::AgentParked { .. }
+            | K::AgentWoken { .. }
+            | K::AgentComputeSwapped { .. }
+            | K::SequenceBoardPosted { .. }
             | K::PavPhaseChanged { .. } => Info,
         }
     }

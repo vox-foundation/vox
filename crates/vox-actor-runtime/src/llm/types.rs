@@ -70,6 +70,9 @@ pub struct LlmConfig {
     pub seed: Option<u64>,
     /// Maximum tokens to generate when supported.
     pub max_tokens: Option<u64>,
+    /// Optional cap on internal reasoning tokens (forwarded to providers like OpenRouter).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_max_tokens: Option<u64>,
     /// Optional JSON Schema / response-format object for structured output.
     pub response_format: Option<serde_json::Value>,
     /// Optional function tools forwarded to OpenAI-compatible chat APIs.
@@ -109,6 +112,7 @@ impl LlmConfig {
             temperature: None,
             top_p: None,
             max_tokens: None,
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,
@@ -136,6 +140,7 @@ impl LlmConfig {
             temperature: None,
             top_p: None,
             max_tokens: None,
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,
@@ -165,6 +170,7 @@ impl LlmConfig {
             temperature: None,
             top_p: None,
             max_tokens: None,
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,
@@ -190,6 +196,7 @@ impl LlmConfig {
             temperature: None,
             top_p: None,
             max_tokens: None,
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,
@@ -219,6 +226,7 @@ impl LlmConfig {
             temperature: None,
             top_p: None,
             max_tokens: None,
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,
@@ -286,6 +294,7 @@ impl LlmConfig {
             temperature: entry.temperature,
             top_p: entry.top_p,
             max_tokens: entry.max_tokens,
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,

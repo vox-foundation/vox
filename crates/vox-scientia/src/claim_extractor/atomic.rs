@@ -48,18 +48,19 @@ impl AtomicDecomposer {
 
         segments
             .iter()
-            .take(self.config.max_claims_per_sentence)
-            .filter(|(_, s)| s.trim().len() > 5)
-            .map(|(offset, seg)| {
-                let text = seg.trim().to_string();
+            .filter_map(|(offset, seg)| {
+                let (leading_bytes, trimmed) = trim_markdown_segment(seg);
+                if trimmed.len() <= 5 {
+                    return None;
+                }
+                let start = *offset + leading_bytes;
+                let end = start + trimmed.len();
+                let text = trimmed.to_string();
                 let id = fnv1a_hash(&text);
                 let tuple = extract_tuple(&text);
-                AtomicClaim {
+                Some(AtomicClaim {
                     id,
-                    span: SpanBound {
-                        start: *offset,
-                        end: *offset + seg.len(),
-                    },
+                    span: SpanBound { start, end },
                     verifiability: if tuple.is_some() {
                         VerifiabilityClass::Numeric
                     } else {
@@ -68,10 +69,32 @@ impl AtomicDecomposer {
                     verifiability_score: if tuple.is_some() { 0.85 } else { 0.6 },
                     tuple,
                     text,
-                }
+                })
             })
+            .take(self.config.max_claims_per_sentence)
             .collect()
     }
+}
+
+/// Trim leading/trailing whitespace, `#` heading markers, and `- ` / `* ` list
+/// bullets from a candidate claim segment while returning the exact leading
+/// byte offset consumed from `seg`.
+fn trim_markdown_segment(seg: &str) -> (usize, &str) {
+    let mut s = seg;
+    loop {
+        let before_len = s.len();
+        s = s.trim_start();
+        s = s.trim_start_matches('#');
+        s = s.trim_start();
+        if let Some(rest) = s.strip_prefix("- ").or_else(|| s.strip_prefix("* ")) {
+            s = rest;
+        }
+        if s.len() == before_len {
+            break;
+        }
+    }
+    let leading_bytes = seg.len() - s.len();
+    (leading_bytes, s.trim_end())
 }
 
 fn extract_tuple(text: &str) -> Option<SciClaimTuple> {
@@ -136,6 +159,28 @@ mod tests {
         let c1 = decomposer.decompose("Latency rose by 10ms.");
         let c2 = decomposer.decompose("Latency rose by 10ms.");
         assert_eq!(c1[0].id, c2[0].id);
+    }
+
+    #[test]
+    fn trims_markdown_headings_and_bullets_with_exact_spans() {
+        let decomposer = AtomicDecomposer::default();
+        for sentence in [
+            "## Provider X p95 latency increased by 12ms.",
+            "  - Error rate decreased by 5 percent.  ",
+            "* Throughput rose by 30 percent.",
+            "### - Latency fell by 10ms.",
+        ] {
+            let claims = decomposer.decompose(sentence);
+            assert_eq!(claims.len(), 1, "sentence={sentence:?}");
+            let claim = &claims[0];
+            assert!(!claim.text.starts_with('#'));
+            assert!(!claim.text.starts_with("- "));
+            assert!(!claim.text.starts_with("* "));
+            assert_eq!(
+                &sentence[claim.span.start..claim.span.end],
+                claim.text.as_str()
+            );
+        }
     }
 }
 

@@ -16,6 +16,8 @@ pub struct QuarterlyCostSummary {
     pub critic_usd: f64,
     pub novelty_retrieval_usd: f64,
     pub scholarly_submission_usd: f64,
+    #[serde(default)]
+    pub research_usd: f64,
     pub total_usd: f64,
 }
 
@@ -27,12 +29,14 @@ pub struct CostByProvider {
 
 /// Inputs assembled by the dashboard backend from cost-bearing telemetry
 /// rows. Producers are responsible for windowing to "this quarter."
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct CostInputs {
     pub extraction_usd: f64,
     pub critic_usd: f64,
     pub novelty_retrieval_usd: f64,
     pub scholarly_submission_usd: f64,
+    #[serde(default)]
+    pub research_usd: f64,
     /// Per-provider breakdown for the same window.
     pub by_provider: Vec<(String, f64)>,
     /// Number of findings published in the window. Used to compute the
@@ -46,7 +50,8 @@ pub fn build_cost_rollup(inputs: &CostInputs) -> CostRollup {
     let total = inputs.extraction_usd
         + inputs.critic_usd
         + inputs.novelty_retrieval_usd
-        + inputs.scholarly_submission_usd;
+        + inputs.scholarly_submission_usd
+        + inputs.research_usd;
     let per_finding_average = if inputs.findings_published_this_quarter == 0 {
         0.0
     } else {
@@ -66,6 +71,7 @@ pub fn build_cost_rollup(inputs: &CostInputs) -> CostRollup {
             critic_usd: inputs.critic_usd,
             novelty_retrieval_usd: inputs.novelty_retrieval_usd,
             scholarly_submission_usd: inputs.scholarly_submission_usd,
+            research_usd: inputs.research_usd,
             total_usd: total,
         },
         per_finding_average_usd: per_finding_average,
@@ -83,7 +89,8 @@ mod tests {
             critic_usd: 5.0,
             novelty_retrieval_usd: 2.5,
             scholarly_submission_usd: 0.5,
-            by_provider: vec![("anthropic".into(), 7.0), ("openai".into(), 11.0)],
+            research_usd: 3.0,
+            by_provider: vec![("anthropic".into(), 7.0), ("openai".into(), 14.0)],
             findings_published_this_quarter: 6,
         }
     }
@@ -91,14 +98,15 @@ mod tests {
     #[test]
     fn total_equals_sum_of_subcosts() {
         let r = build_cost_rollup(&sample());
-        let want = 10.0 + 5.0 + 2.5 + 0.5;
+        let want = 10.0 + 5.0 + 2.5 + 0.5 + 3.0;
         assert!((r.this_quarter.total_usd - want).abs() < 1e-9);
+        assert!((r.this_quarter.research_usd - 3.0).abs() < 1e-9);
     }
 
     #[test]
     fn per_finding_average_uses_total_over_count() {
         let r = build_cost_rollup(&sample());
-        let want = (10.0 + 5.0 + 2.5 + 0.5) / 6.0;
+        let want = (10.0 + 5.0 + 2.5 + 0.5 + 3.0) / 6.0;
         assert!((r.per_finding_average_usd - want).abs() < 1e-9);
     }
 
@@ -122,7 +130,7 @@ mod tests {
                 },
                 CostByProvider {
                     provider: "openai".into(),
-                    usd: 11.0
+                    usd: 14.0
                 },
             ]
         );
@@ -134,5 +142,18 @@ mod tests {
         let j = serde_json::to_string(&r).unwrap();
         let back: CostRollup = serde_json::from_str(&j).unwrap();
         assert_eq!(back, r);
+    }
+
+    #[test]
+    fn missing_research_usd_defaults_to_zero() {
+        let legacy = r#"{
+            "extraction_usd": 1.0,
+            "critic_usd": 2.0,
+            "novelty_retrieval_usd": 3.0,
+            "scholarly_submission_usd": 4.0,
+            "total_usd": 10.0
+        }"#;
+        let parsed: QuarterlyCostSummary = serde_json::from_str(legacy).unwrap();
+        assert_eq!(parsed.research_usd, 0.0);
     }
 }

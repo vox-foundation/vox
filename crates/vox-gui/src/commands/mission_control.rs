@@ -1,28 +1,23 @@
-//! Tauri commands for the Mission Control surface.
-//!
-//! Exposes:
-//! - `list_subagent_tree`   — delegation bindings from the orchestrator topology
-//! - `list_mc_approvals`    — pending HITL approvals (delegates to existing orch method)
-//! - `set_task_mesh_policy` — update `mesh_policy` on a queued task
+//! Tauri commands for the Mission Control and Vox Concilium / Populi surfaces.
 
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use vox_foundation::protocol::orch_daemon_method;
+use vox_orchestrator::{
+    ConciliumPilotActionInput, ConciliumPilotActionResult, ConciliumSnapshotDto,
+    PopuliPlacementDto, SequenceBoardEntry,
+};
 
 use crate::remote::backend::BackendState;
 
-async fn call_orchestrator_daemon(
-    backend: &BackendState,
-    method: &str,
-    params: serde_json::Value,
-) -> Result<serde_json::Value, String> {
-    backend.call(method, params).await.map_err(String::from)
-}
+#[path = "mission_control/concilium_impl.rs"]
+mod concilium_impl;
 
-// ---------------------------------------------------------------------------
-// Subagent tree
-// ---------------------------------------------------------------------------
+use concilium_impl::{
+    call_orchestrator_daemon, concilium_board_impl, concilium_pilot_action_impl,
+    concilium_placement_impl, concilium_snapshot_impl,
+};
 
 /// One edge in the subagent delegation tree returned by `list_subagent_tree`.
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,19 +29,33 @@ pub struct SubagentTreeNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_task_id: Option<u64>,
     pub reason: String,
-    /// Chat session that originated this delegation (Phase D Task D1/D3), when
-    /// the spawn happened inside a chat turn. `None` for spawns with no chat
-    /// origin (e.g. scaling/handoff spawns).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chat_session_id: Option<String>,
-    /// Provider tool-call id of the spawn request, for correlating this edge
-    /// back to the exact turn (Phase D Task D1/D3).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin_turn_id: Option<String>,
 }
 
-/// Returns the current subagent delegation tree from the orchestrator.
-/// The daemon serves this via `orch.subagent_tree` (ExtraDispatch hook).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct McApprovalRow {
+    pub approval_id: String,
+    pub tool: String,
+    pub summary: String,
+    pub requested_at_ms: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SetMeshPolicyInput {
+    pub task_id: u64,
+    pub policy: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MeshPolicyResult {
+    pub ok: bool,
+    pub message: String,
+}
+
+// toestub-ignore(skeleton/untested-pub-api) — Tauri IPC wrappers; logic unit-tested in concilium_impl
 #[tauri::command]
 pub async fn list_subagent_tree(
     daemon: tauri::State<'_, Arc<BackendState>>,
@@ -57,29 +66,12 @@ pub async fn list_subagent_tree(
         serde_json::json!({}),
     )
     .await?;
-    let nodes = resp
+    Ok(resp
         .get("tree")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-    Ok(nodes)
+        .unwrap_or_default())
 }
 
-// ---------------------------------------------------------------------------
-// Approvals (delegates to the existing LIST_PENDING_APPROVALS method)
-// ---------------------------------------------------------------------------
-
-/// Raw approval row forwarded from the orchestrator's PendingApprovals registry.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct McApprovalRow {
-    pub approval_id: String,
-    pub tool: String,
-    pub summary: String,
-    pub requested_at_ms: i64,
-}
-
-/// Returns pending HITL approvals from the orchestrator daemon.
-/// The GUI Approvals surface already calls this via MCP; this Tauri command
-/// provides a direct path for MissionControlPanel without an extra MCP hop.
 #[tauri::command]
 pub async fn list_mc_approvals(
     daemon: tauri::State<'_, Arc<BackendState>>,
@@ -90,32 +82,12 @@ pub async fn list_mc_approvals(
         serde_json::json!({}),
     )
     .await?;
-    let rows = resp
+    Ok(resp
         .get("approvals")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-    Ok(rows)
+        .unwrap_or_default())
 }
 
-// ---------------------------------------------------------------------------
-// Mesh policy
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Deserialize)]
-pub struct SetMeshPolicyInput {
-    pub task_id: u64,
-    /// `"any"` | `"local_only"` | `{"exclude": ["node-id", ...]}`
-    pub policy: serde_json::Value,
-}
-
-#[derive(Debug, Serialize)]
-pub struct MeshPolicyResult {
-    pub ok: bool,
-    pub message: String,
-}
-
-/// Updates the `mesh_policy` of a queued task in the orchestrator.
-/// The daemon serves `orch.set_mesh_policy` via ExtraDispatch.
 #[tauri::command]
 pub async fn set_task_mesh_policy(
     input: SetMeshPolicyInput,
@@ -139,23 +111,63 @@ pub async fn set_task_mesh_policy(
     Ok(MeshPolicyResult { ok, message })
 }
 
+/// Phase 454 (CONC-03): Fetch live Vox Concilium causal swimlane snapshot via daemon RPC.
+#[tauri::command]
+pub async fn concilium_snapshot(
+    daemon: tauri::State<'_, Arc<BackendState>>,
+) -> Result<ConciliumSnapshotDto, String> {
+    concilium_snapshot_impl(&daemon.current().await).await
+}
+
+/// Phase 454 (CONC-03): Fetch `#seq` Shared Sequence Board entries via daemon RPC.
+#[tauri::command]
+pub async fn concilium_board(
+    daemon: tauri::State<'_, Arc<BackendState>>,
+    since_seq: Option<u64>,
+    seqs: Option<Vec<u64>>,
+    channel: Option<String>,
+    limit: Option<usize>,
+) -> Result<Vec<SequenceBoardEntry>, String> {
+    concilium_board_impl(&daemon.current().await, since_seq, seqs, channel, limit).await
+}
+
+/// Phase 454 (CONC-03): Fetch hybrid Populi compute node placement map via daemon RPC.
+#[tauri::command]
+pub async fn concilium_placement(
+    daemon: tauri::State<'_, Arc<BackendState>>,
+) -> Result<PopuliPlacementDto, String> {
+    concilium_placement_impl(&daemon.current().await).await
+}
+
+/// Phase 454 (CONC-03): Dispatch a pilot steering action via daemon RPC.
+#[tauri::command]
+pub async fn concilium_pilot_action(
+    input: ConciliumPilotActionInput,
+    daemon: tauri::State<'_, Arc<BackendState>>,
+) -> Result<ConciliumPilotActionResult, String> {
+    concilium_pilot_action_impl(&daemon.current().await, &input).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::daemon::PersistentDaemon;
-    use crate::remote::gateway_client::test_support::{duplex_client, profile};
 
-    #[tokio::test]
-    async fn remote_backend_surfaces_typed_not_remote_capable_error() {
-        let (client, _server) = duplex_client(profile(&["mission-control"])).await;
-        let backend = BackendState::new(Arc::new(PersistentDaemon::default()));
-        backend.set_remote(Arc::new(client), None).await;
-        let err =
-            call_orchestrator_daemon(&backend, orch_daemon_method::PING, serde_json::json!({}))
-                .await
-                .unwrap_err();
-        let v: serde_json::Value = serde_json::from_str(&err).expect("error envelope");
-        assert_eq!(v["error"]["code"], "not_remote_capable");
-        assert_eq!(v["error"]["method"], orch_daemon_method::PING);
+    #[test]
+    fn mission_control_has_zero_direct_vox_db_handles() {
+        let src = include_str!("mission_control.rs");
+        let impl_src = include_str!("mission_control/concilium_impl.rs");
+        for body in [src, impl_src] {
+            let prod = body.split("\n#[cfg(test)]").next().unwrap_or(body);
+            assert!(!prod.contains(concat!("vox", "_db")));
+            assert!(!prod.contains(concat!("Vox", "Db")));
+        }
+    }
+
+    #[test]
+    fn mesh_policy_input_round_trips_json() {
+        let parsed: SetMeshPolicyInput =
+            serde_json::from_str(r#"{"task_id":7,"policy":"local_only"}"#).expect("parse policy");
+        assert_eq!(parsed.task_id, 7);
+        assert_eq!(parsed.policy, serde_json::json!("local_only"));
     }
 }

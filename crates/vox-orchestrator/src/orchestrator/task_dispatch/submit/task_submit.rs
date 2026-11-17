@@ -862,6 +862,7 @@ impl Orchestrator {
                         // when a script-dispatch sender populates these.
                         exec_source_b64: None,
                         exec_source_blake3_hex: None,
+                        causal_stamp: None,
                     };
                     let relay_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
                         &base,
@@ -1116,6 +1117,7 @@ impl Orchestrator {
                         bundle_inline_b64: None,
                         exec_source_b64: None,
                         exec_source_blake3_hex: None,
+                        causal_stamp: None,
                     };
                     if let Err(err) = crate::a2a::relay_remote_task_envelope(
                         &client,

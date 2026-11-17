@@ -736,6 +736,7 @@ pub fn router() -> Router<GatewayState> {
         .route("/hopper/inbox", get(get_hopper_inbox))
         .route("/hopper/assigned", get(get_hopper_assigned))
         .route("/hopper/history", get(get_hopper_history))
+        .merge(super::concilium_api::router())
         .merge(crate::gui_ops::models::api_v2_router())
         .merge(crate::gui_ops::prefs::api_v2_router())
         .merge(crate::gui_ops::chat::api_v2_router())

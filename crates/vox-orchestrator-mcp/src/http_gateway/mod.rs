@@ -6,6 +6,7 @@
 
 mod status;
 use status::*;
+pub(crate) mod concilium_api;
 pub(crate) mod dashboard_api;
 pub(crate) mod scientia_feed;
 use scientia_feed::{ResearchFeedHub, TopicMessage, spawn_scientia_feed_workers};

@@ -54,6 +54,23 @@ pub fn meets_discovery_low_bar(result: &ResearchResult) -> bool {
 /// Infer a specific `EventCandidateClass` from the synthesized report and verified claims.
 #[must_use]
 pub fn infer_candidate_class(text: &str) -> EventCandidateClass {
+    const EMPIRICAL_SCIENCE_TERMS: [&str; 15] = [
+        "electrolyte",
+        "ionic conductivity",
+        "crystal",
+        "solid-state",
+        "catalyst",
+        "thermodynamic",
+        "spectroscop",
+        "molecule",
+        "polymer",
+        "protein",
+        "genome",
+        "clinical",
+        "ariadne",
+        "arrhenius",
+        "activation energy",
+    ];
     let lower = text.to_ascii_lowercase();
     if lower.contains("model capability atlas") || lower.contains("capability epidemiology") {
         EventCandidateClass::ModelCapabilityAtlas
@@ -61,6 +78,11 @@ pub fn infer_candidate_class(text: &str) -> EventCandidateClass {
         || lower.contains("reliability epidemiology")
     {
         EventCandidateClass::ProviderReliabilityAtlas
+    } else if EMPIRICAL_SCIENCE_TERMS
+        .iter()
+        .any(|term| lower.contains(term))
+    {
+        EventCandidateClass::EmpiricalScience
     } else if lower.contains("reproducib")
         || lower.contains("sandbox")
         || lower.contains("compiler error")
@@ -150,7 +172,8 @@ fn db_candidate_class(class: &EventCandidateClass) -> FindingCandidateClass {
         EventCandidateClass::ReproducibilityInfra => FindingCandidateClass::ReproducibilityInfra,
         EventCandidateClass::PolicyGovernance => FindingCandidateClass::PolicyGovernance,
         EventCandidateClass::TelemetryTrust => FindingCandidateClass::TelemetryTrust,
-        EventCandidateClass::Other
+        EventCandidateClass::EmpiricalScience
+        | EventCandidateClass::Other
         | EventCandidateClass::ModelCapabilityAtlas
         | EventCandidateClass::ProviderReliabilityAtlas => FindingCandidateClass::Other,
     }
@@ -521,6 +544,21 @@ mod tests {
         assert_eq!(
             infer_candidate_class("Safety floor and policy governance SSOT"),
             EventCandidateClass::PolicyGovernance
+        );
+        for sample in [
+            "Solid-state electrolyte ionic conductivity with Arrhenius activation energy",
+            "Ariadne crystal catalyst thermodynamic spectroscopy",
+            "Polymer molecule protein genome clinical assay",
+        ] {
+            assert_eq!(
+                infer_candidate_class(sample),
+                EventCandidateClass::EmpiricalScience,
+                "expected EmpiricalScience for {sample:?}"
+            );
+        }
+        assert_eq!(
+            db_candidate_class(&EventCandidateClass::EmpiricalScience),
+            FindingCandidateClass::Other
         );
     }
 

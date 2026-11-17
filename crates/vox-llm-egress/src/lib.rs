@@ -154,6 +154,8 @@ pub struct ChatParams<'a> {
     /// Sampling seed for providers that support deterministic sampling; ignored by providers that do not.
     pub seed: Option<u64>,
     pub max_tokens: Option<u64>,
+    /// Optional cap on internal reasoning tokens (serialized for providers that support it, e.g. OpenRouter).
+    pub reasoning_max_tokens: Option<u64>,
     pub response_format: Option<&'a serde_json::Value>,
     pub tools: Option<&'a [ToolDef]>,
     pub tool_choice: Option<&'a serde_json::Value>,

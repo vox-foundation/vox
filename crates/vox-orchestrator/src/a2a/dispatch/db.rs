@@ -95,6 +95,7 @@ pub async fn poll_inbox_from_db(
             acknowledged: row.acknowledged,
             created_at: row.created_at,
             repository_id: row.repository_id,
+            causal_stamp: None,
         });
     }
     Ok(msgs)

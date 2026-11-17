@@ -606,6 +606,7 @@ pub(crate) fn resolve_chat_config_with_auto_pick(
             temperature: None,
             top_p: None,
             max_tokens: Some(2048),
+            reasoning_max_tokens: None,
             response_format: None,
             tools: None,
             tool_choice: None,

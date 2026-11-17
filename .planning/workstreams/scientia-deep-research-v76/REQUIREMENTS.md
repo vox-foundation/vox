@@ -54,21 +54,21 @@ Committed scope for Milestone v7.6 (`Phases 447–452`). Every requirement maps 
 
 ### Live Research Hardening & Daemon DB Proxy (`LIVE`)
 
-- [ ] **LIVE-09**: Unary and streaming research synthesis (`vox-llm-egress` + `vox-research-shim::stages`) decouple reasoning-token budgets from visible output budgets (`synthesis_max_tokens >= 12,000` or explicit reasoning cap) so frontier thinking models (`gemini-4-carbon`, DeepSeek R1/Pro) never truncate visible Markdown mid-sentence or emit `0`-char answers after reasoning exhaustion.
-- [ ] **LIVE-10**: `audit_citations` evaluates precision over citations actually referenced `[N]` in the synthesized report (extracting claims across cited hits rather than only `all_hits[..8]`), `try_fast_lexical_verify` ignores contrastive `"not only"` constructions when computing negation conflict, and `research_cache` keys include `domain_mode` while refusing to cache `[INSUFFICIENT_EVIDENCE]` abstentions.
-- [ ] **LIVE-11**: `vox_scientia::claim_extractor::AtomicDecomposer` strips YAML frontmatter (`---`), HTML comments (`<!-- kb:summary -->`), and Markdown table delimiters prior to sentence splitting; `publication-novelty-fetch --persist-metadata` auto-projects `max_lexical_score` into `scientia_evidence` so `publication-discovery-scan` drops `novelty_overlap_assumed_default`; `EventCandidateClass` adds empirical/domain science classification; and `vox scientia cost` includes `research` / `codegen` / `scholarly` runs in `this_quarter.total_usd`.
-- [ ] **LIVE-12**: When canonical `vox.db` holds an active Turso `flock` from `vox-gui` or `vox-orchestrator-d` / `vox-mcp`, CLI `vox research` and `vox scientia` commands automatically proxy DB reads/writes through the running daemon IPC socket (falling back cleanly to explicit `VOX_DB_PATH` when standalone).
+- [x] **LIVE-09**: Unary and streaming research synthesis (`vox-llm-egress` + `vox-research-shim::stages`) decouple reasoning-token budgets from visible output budgets (`synthesis_max_tokens >= 12,000` or explicit reasoning cap) so frontier thinking models (`gemini-4-carbon`, DeepSeek R1/Pro) never truncate visible Markdown mid-sentence or emit `0`-char answers after reasoning exhaustion.
+- [x] **LIVE-10**: `audit_citations` evaluates precision over citations actually referenced `[N]` in the synthesized report (extracting claims across cited hits rather than only `all_hits[..8]`), `try_fast_lexical_verify` ignores contrastive `"not only"` constructions when computing negation conflict, and `research_cache` keys include `domain_mode` while refusing to cache `[INSUFFICIENT_EVIDENCE]` abstentions.
+- [x] **LIVE-11**: `vox_scientia::claim_extractor::AtomicDecomposer` strips YAML frontmatter (`---`), HTML comments (`<!-- kb:summary -->`), and Markdown table delimiters prior to sentence splitting; `publication-novelty-fetch --persist-metadata` auto-projects `max_lexical_score` into `scientia_evidence` so `publication-discovery-scan` drops `novelty_overlap_assumed_default`; `EventCandidateClass` adds empirical/domain science classification; and `vox scientia cost` includes `research` / `codegen` / `scholarly` runs in `this_quarter.total_usd`.
+- [x] **LIVE-12**: When canonical `vox.db` holds an active Turso `flock` from `vox-gui` or `vox-orchestrator-d` / `vox-mcp`, CLI `vox research` and `vox scientia` commands automatically proxy DB reads/writes through the running daemon IPC socket (falling back cleanly to explicit `VOX_DB_PATH` when standalone).
 
 ### Vox Concilium & Populi Causal Swarm Observatory (`CONC`)
 
-- [ ] **CONC-01**: Backend `AgentEvent`, `BulletinBoard`, `DbA2AMessage`, and `vox-populi` `RemoteTaskEnvelope` stamp canonical causal swarm metadata: `(swarm_seq: u64, channel: String, traceparent: String, span_id: String, compute_tier: ComputeTier, file_lock_prefix: Option<String>, workspace_mode: WorkspaceMode, parked_since_seq: Option<u64>)`.
-- [ ] **CONC-02**: Append-only `#seq` Shared Sequence Board persists across `BulletinBoard` and Codex `a2a_messages` with `read_board(since_seq, seqs, channel)` cursoring, `@agent` / `@#channel` doorbell wakeup routing, and `0 tok/s` parked actor state (`waiting` until mentioned).
-- [ ] **CONC-03**: Pilot steering RPCs (`/api/v2/concilium/*` + MCP + CLI) expose live operator interventions: `park_agent` (`0 tok/s`), `steer_agent` (append `#seq` directive + wake), `fork_agent` (branch warm conversation + `jj`/git `share` workspace preserving local MENS KV-cache prefix), and `swap_agent_compute` (hot-migrate waiting/throttled workers across Cloud Bandit, Local MENS GPU, and Populi QUIC Peers).
-- [ ] **CONC-04**: Zero-token Rust watchdog (`circuit_breaker` + lease TTL monitor) feeds live stall, quota-failover, `AttentionBudget`, and `FileAffinityMap` lock-contention events directly onto the `#seq` board, escalating to an LLM `@monitor` worker only when deterministic recovery rules trip.
-- [ ] **CONC-05**: Operator-approved `5 -> 2` Axis GUI consolidation merges `SubAgentsView`, `AgentFlow`, and `AgentTrajectoryBraid` into **Mode 1: Vox Concilium** (`ConciliumView.tsx`, `<400`-LoC Radix `data-slot` child components, obsidian + gold telemetry palette, `0` raw emojis/dingbats, `SURFACE_REGISTRY` route compatibility preserved).
-- [ ] **CONC-06**: **Vox Concilium** renders a global **"Now Playing" strip**, Perfetto-style **W3C `traceparent` Causal Swimlanes** (showing `Thinking`, streaming tool calls, `[FileLock]` shields, `Parked · 0 tok/s` sleep bars, and golden `@mention` wakeup arcs), `#channel`-filtered **Shared `#seq` Sequence Board** with diff/test receipts, and **Live Agent Lens** pilot controls.
-- [ ] **CONC-07**: Operator-approved consolidation merges `MeshView` and `PopuliMeshBentoView` into **Mode 2: Vox Populi Placement Map** (`PopuliTopologyView.tsx`), docking live `@agent` pills directly onto **Local Host MENS GPU**, **Populi QUIC Peer (`iroh`)**, and **Cloud Frontier Router** cards around the Rust-enforced **`FileAffinityMap` Lock Matrix** (`0` `5000ms` blind polling loops; event-driven WS/SSE updates).
-- [ ] **CONC-08**: Playwright / Vitest visual and behavioral verification proves live causal swimlane rendering, `#seq` doorbell wakeups, `0 tok/s` parking, `FileAffinityMap` shield updates, and hybrid compute hot-swap with `0` `VoxDb` handles in `vox-gui` and `0` `vox-arch-check` / `toestub` regressions.
+- [x] **CONC-01**: Backend `AgentEvent`, `BulletinBoard`, `DbA2AMessage`, and `vox-populi` `RemoteTaskEnvelope` stamp canonical causal swarm metadata: `(swarm_seq: u64, channel: String, traceparent: String, span_id: String, compute_tier: ComputeTier, file_lock_prefix: Option<String>, workspace_mode: WorkspaceMode, parked_since_seq: Option<u64>)`.
+- [x] **CONC-02**: Append-only `#seq` Shared Sequence Board persists across `BulletinBoard` and Codex `a2a_messages` with `read_board(since_seq, seqs, channel)` cursoring, `@agent` / `@#channel` doorbell wakeup routing, and `0 tok/s` parked actor state (`waiting` until mentioned).
+- [x] **CONC-03**: Pilot steering RPCs (`/api/v2/concilium/*` + MCP + CLI) expose live operator interventions: `park_agent` (`0 tok/s`), `steer_agent` (append `#seq` directive + wake), `fork_agent` (branch warm conversation + `jj`/git `share` workspace preserving local MENS KV-cache prefix), and `swap_agent_compute` (hot-migrate waiting/throttled workers across Cloud Bandit, Local MENS GPU, and Populi QUIC Peers).
+- [x] **CONC-04**: Zero-token Rust watchdog (`circuit_breaker` + lease TTL monitor) feeds live stall, quota-failover, `AttentionBudget`, and `FileAffinityMap` lock-contention events directly onto the `#seq` board, escalating to an LLM `@monitor` worker only when deterministic recovery rules trip.
+- [x] **CONC-05**: Operator-approved `5 -> 2` Axis GUI consolidation merges `SubAgentsView`, `AgentFlow`, and `AgentTrajectoryBraid` into **Mode 1: Vox Concilium** (`ConciliumView.tsx`, `<400`-LoC Radix `data-slot` child components, obsidian + gold telemetry palette, `0` raw emojis/dingbats, `SURFACE_REGISTRY` route compatibility preserved).
+- [x] **CONC-06**: **Vox Concilium** renders a global **"Now Playing" strip**, Perfetto-style **W3C `traceparent` Causal Swimlanes** (showing `Thinking`, streaming tool calls, `[FileLock]` shields, `Parked · 0 tok/s` sleep bars, and golden `@mention` wakeup arcs), `#channel`-filtered **Shared `#seq` Sequence Board** with diff/test receipts, and **Live Agent Lens** pilot controls.
+- [x] **CONC-07**: Operator-approved consolidation merges `MeshView` and `PopuliMeshBentoView` into **Mode 2: Vox Populi Placement Map** (`PopuliTopologyView.tsx`), docking live `@agent` pills directly onto **Local Host MENS GPU**, **Populi QUIC Peer (`iroh`)**, and **Cloud Frontier Router** cards around the Rust-enforced **`FileAffinityMap` Lock Matrix** (`0` `5000ms` blind polling loops; event-driven WS/SSE updates).
+- [x] **CONC-08**: Playwright / Vitest visual and behavioral verification proves live causal swimlane rendering, `#seq` doorbell wakeups, `0 tok/s` parking, `FileAffinityMap` shield updates, and hybrid compute hot-swap with `0` `VoxDb` handles in `vox-gui` and `0` `vox-arch-check` / `toestub` regressions.
 
 ## Future Requirements (Deferred to `v7.6.x` / `v8.0+`)
 
@@ -132,18 +132,18 @@ Populated and verified during roadmap creation (`Phases 447–452`).
 | AUDT-02 | Phase 452 | Complete |
 | AUDT-03 | Phase 452 | Complete |
 | AUDT-04 | Phase 452 | Complete |
-| LIVE-09 | Phase 453 | Pending |
-| LIVE-10 | Phase 453 | Pending |
-| LIVE-11 | Phase 453 | Pending |
-| LIVE-12 | Phase 453 | Pending |
-| CONC-01 | Phase 454 | Pending |
-| CONC-02 | Phase 454 | Pending |
-| CONC-03 | Phase 454 | Pending |
-| CONC-04 | Phase 454 | Pending |
-| CONC-05 | Phase 455 | Pending |
-| CONC-06 | Phase 455 | Pending |
-| CONC-07 | Phase 455 | Pending |
-| CONC-08 | Phase 455 | Pending |
+| LIVE-09 | Phase 453 | Complete |
+| LIVE-10 | Phase 453 | Complete |
+| LIVE-11 | Phase 453 | Complete |
+| LIVE-12 | Phase 453 | Complete |
+| CONC-01 | Phase 454 | Complete |
+| CONC-02 | Phase 454 | Complete |
+| CONC-03 | Phase 454 | Complete |
+| CONC-04 | Phase 454 | Complete |
+| CONC-05 | Phase 455 | Complete |
+| CONC-06 | Phase 455 | Complete |
+| CONC-07 | Phase 455 | Complete |
+| CONC-08 | Phase 455 | Complete |
 
 **Coverage:**
 - v7.6 requirements: 38 total (`26` completed in Phases 447–452; `12` added across Phases 453–455)

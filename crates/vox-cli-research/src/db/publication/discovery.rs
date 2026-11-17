@@ -16,15 +16,11 @@ pub async fn publication_discovery_scan(
         vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
     let mut candidates: Vec<serde_json::Value> = Vec::new();
     for row in rows {
-        let evidence =
-            vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref())
-                .unwrap_or_default();
-        let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+        let rank = rank_discovery_row(
             row.publication_id.as_str(),
             row.source_ref.as_deref(),
-            &evidence,
+            row.metadata_json.as_deref(),
             &scientia_h,
-            None,
         );
         candidates.push(serde_json::json!({
             "publication_id": row.publication_id,
@@ -64,23 +60,12 @@ pub async fn publication_discovery_explain(publication_id: &str) -> Result<()> {
     let novelty_bundle = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
         row.metadata_json.as_deref(),
     );
-    let overlap_for_rank = novelty_bundle.as_ref().map(|b| {
-        vox_publisher::scientia_finding_ledger::novelty_overlap_blend_01(b, &scientia_h) as f32
-    });
-    let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+    let rank = rank_discovery_row(
         publication_id,
         row.source_ref.as_deref(),
-        &evidence,
+        row.metadata_json.as_deref(),
         &scientia_h,
-        overlap_for_rank,
     );
-    if let Some(ref b) = novelty_bundle {
-        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(
-            &mut rank,
-            b,
-            &scientia_h,
-        );
-    }
     let completion = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
     let preview = vox_publisher::scientia_discovery::destination_transform_previews(
         &manifest,
@@ -119,6 +104,59 @@ pub async fn publication_transform_preview(publication_id: &str) -> Result<()> {
     println!("{}", serde_json::to_string_pretty(&preview)?);
     Ok(())
 }
+fn overlap_from_scientia_evidence_json(metadata_json: Option<&str>) -> Option<f64> {
+    let raw = metadata_json.map(str::trim).filter(|s| !s.is_empty())?;
+    let root: serde_json::Value = serde_json::from_str(raw).ok()?;
+    let ev = root.get(vox_publisher::scientia_evidence::METADATA_KEY_SCIENTIA_EVIDENCE)?;
+    if ev
+        .get("prior_art_query_succeeded")
+        .and_then(|v| v.as_bool())
+        == Some(false)
+    {
+        return None;
+    }
+    ev.get("prior_art_max_lexical_overlap")
+        .or_else(|| ev.get("max_lexical_score"))
+        .or_else(|| ev.get("novelty_overlap"))
+        .and_then(|v| v.as_f64())
+        .map(|v| v.clamp(0.0, 1.0))
+}
+
+fn rank_discovery_row(
+    publication_id: &str,
+    source_ref: Option<&str>,
+    metadata_json: Option<&str>,
+    scientia_h: &vox_publisher::scientia_heuristics::ScientiaHeuristics,
+) -> vox_publisher::scientia_discovery::DiscoveryCandidateRank {
+    let evidence = vox_publisher::scientia_evidence::parse_scientia_evidence(metadata_json)
+        .unwrap_or_default();
+    let novelty_bundle =
+        vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(metadata_json);
+    let evidence_overlap = overlap_from_scientia_evidence_json(metadata_json);
+    let overlap_for_rank = novelty_bundle
+        .as_ref()
+        .map(|b| {
+            vox_publisher::scientia_finding_ledger::novelty_overlap_blend_01(b, scientia_h) as f32
+        })
+        .or(evidence_overlap.map(|v| v as f32));
+    let mut rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+        publication_id,
+        source_ref,
+        &evidence,
+        scientia_h,
+        overlap_for_rank,
+    );
+    if let Some(ref b) = novelty_bundle {
+        vox_publisher::scientia_discovery::merge_novelty_overlap_into_rank(
+            &mut rank, b, scientia_h,
+        );
+    } else if let Some(lex) = evidence_overlap {
+        rank.prior_art_max_lexical_overlap = Some(lex);
+        rank.novelty_overlap_assumed_default = false;
+    }
+    rank
+}
+
 pub(super) fn merge_novelty_bundle_into_metadata_json_str(
     metadata_json: Option<&str>,
     bundle: &vox_publisher::scientia_finding_ledger::NoveltyEvidenceBundleV1,
@@ -129,8 +167,40 @@ pub(super) fn merge_novelty_bundle_into_metadata_json_str(
         } else {
             serde_json::json!({})
         };
+    if !root.is_object() {
+        root = serde_json::json!({});
+    }
     root[vox_publisher::scientia_evidence::METADATA_KEY_SCIENTIA_NOVELTY_BUNDLE] =
         serde_json::to_value(bundle).context("novelty bundle serde")?;
+    let (max_lex, max_sem) =
+        vox_publisher::scientia_finding_ledger::bundle_max_overlap_scores(bundle);
+    let prior_art_query_succeeded =
+        bundle.traces().iter().any(|t| {
+            t.http_status.is_some_and(|s| (200..300).contains(&s)) || t.cached == Some(true)
+        }) || !bundle.normalized_hits.is_empty();
+    if let Some(root_obj) = root.as_object_mut() {
+        let ev_entry = root_obj
+            .entry(vox_publisher::scientia_evidence::METADATA_KEY_SCIENTIA_EVIDENCE)
+            .or_insert_with(|| serde_json::json!({}));
+        if !ev_entry.is_object() {
+            *ev_entry = serde_json::json!({});
+        }
+        if let Some(ev_obj) = ev_entry.as_object_mut() {
+            ev_obj.insert(
+                "prior_art_max_lexical_overlap".to_string(),
+                serde_json::json!(max_lex),
+            );
+            ev_obj.insert("max_lexical_score".to_string(), serde_json::json!(max_lex));
+            ev_obj.insert(
+                "prior_art_max_semantic_overlap".to_string(),
+                serde_json::json!(max_sem),
+            );
+            ev_obj.insert(
+                "prior_art_query_succeeded".to_string(),
+                serde_json::json!(prior_art_query_succeeded),
+            );
+        }
+    }
     Ok(serde_json::to_string(&root)?)
 }
 /// Fetch OpenAlex / Crossref / Semantic Scholar prior art for a stored manifest; optional `--persist-metadata` merges `scientia_novelty_bundle` and recomputes digest.
@@ -517,4 +587,95 @@ pub async fn publication_discovery_publish_rss(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_research_events::schema_types::{
+        NormalizedHit, NoveltyEvidenceBundle, NoveltySource, OverlapSummary, QueryTrace,
+    };
+
+    fn sample_bundle(max_lex: f64, http_status: Option<i32>) -> NoveltyEvidenceBundle {
+        NoveltyEvidenceBundle {
+            schema_version: 1,
+            bundle_id: "nb-test-1".to_string(),
+            candidate_id: "fc-test-1".to_string(),
+            computed_at_ms: 1_700_000_000_000,
+            query_digest_sha256: "a".repeat(64),
+            sources: vec![NoveltySource::Openalex],
+            normalized_hits: vec![NormalizedHit {
+                source: NoveltySource::Openalex,
+                work_uri: "https://openalex.org/W1".to_string(),
+                title: "Prior study".to_string(),
+                year: Some(2024),
+                lexical_score: Some(max_lex),
+                semantic_score: Some(0.41),
+                overlap_note: None,
+                cited_by_count: Some(5),
+            }],
+            overlap_summary: Some(OverlapSummary {
+                max_lexical_score: Some(max_lex),
+                max_semantic_score: Some(0.41),
+                recency_bucket: None,
+            }),
+            query_traces: http_status.map(|code| {
+                vec![QueryTrace {
+                    source: "openalex".to_string(),
+                    request_fingerprint_sha256: "b".repeat(64),
+                    http_status: Some(code),
+                    cached: None,
+                }]
+            }),
+        }
+    }
+
+    #[test]
+    fn merge_novelty_bundle_projects_overlap_into_scientia_evidence_preserving_keys() {
+        let existing = serde_json::json!({
+            "scientia_evidence": {
+                "human_meaningful_advance": true,
+                "custom_note": "keep-me"
+            },
+            "other_root_key": 42
+        })
+        .to_string();
+        let bundle = sample_bundle(0.37, Some(200));
+        let merged = merge_novelty_bundle_into_metadata_json_str(Some(&existing), &bundle)
+            .expect("merge succeeds");
+        let parsed: serde_json::Value = serde_json::from_str(&merged).expect("valid json");
+
+        assert_eq!(parsed["other_root_key"], 42);
+        let ev = &parsed["scientia_evidence"];
+        assert_eq!(ev["human_meaningful_advance"], true);
+        assert_eq!(ev["custom_note"], "keep-me");
+        assert_eq!(ev["prior_art_max_lexical_overlap"], 0.37);
+        assert_eq!(ev["max_lexical_score"], 0.37);
+        assert_eq!(ev["prior_art_max_semantic_overlap"], 0.41);
+        assert_eq!(ev["prior_art_query_succeeded"], true);
+        assert!(parsed["scientia_novelty_bundle"].is_object());
+    }
+
+    #[test]
+    fn rank_discovery_row_drops_assumed_default_after_merge_novelty_bundle() {
+        let bundle = sample_bundle(0.24, Some(200));
+        let merged =
+            merge_novelty_bundle_into_metadata_json_str(None, &bundle).expect("merge succeeds");
+        let h = vox_publisher::scientia_heuristics::ScientiaHeuristics::default();
+        let rank = rank_discovery_row("pub-1", None, Some(&merged), &h);
+        assert!(!rank.novelty_overlap_assumed_default);
+        assert_eq!(rank.prior_art_max_lexical_overlap, Some(0.24));
+
+        // Even when only projected scientia_evidence fields are present, assumed default is dropped.
+        let evidence_only = serde_json::json!({
+            "scientia_evidence": {
+                "prior_art_max_lexical_overlap": 0.18,
+                "prior_art_query_succeeded": true
+            }
+        })
+        .to_string();
+        let rank_ev = rank_discovery_row("pub-2", None, Some(&evidence_only), &h);
+        assert!(!rank_ev.novelty_overlap_assumed_default);
+        assert_eq!(rank_ev.prior_art_max_lexical_overlap, Some(0.18));
+    }
 }
