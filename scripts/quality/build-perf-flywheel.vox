@@ -1,0 +1,125 @@
+// vox:caps fs process env
+// build-perf-flywheel.vox — Contention-invariant build-perf baseline/after
+// verifier and regression guard for vox-build-queue and vox-cargo-shim.
+import fs
+import process
+import json
+
+fn pointer_int(j: Json, path: str, default: int) to int {
+    return j.pointer(path).and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(default)
+}
+
+fn pointer_float(j: Json, path: str, default: float) to float {
+    return j.pointer(path).and_then(fn(x: Json) to Option[float] { x.as_float() }).unwrap_or(default)
+}
+
+fn pointer_bool(j: Json, path: str, default: bool) to bool {
+    return j.pointer(path).and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(default)
+}
+
+fn main() {
+    print("Vox Build-Perf Flywheel Guard (contention-invariant)")
+
+    let report_path = "contracts/reports/build-perf-flywheel.v1.json"
+    if not fs.exists(report_path) {
+        print("FAIL: missing flywheel report: " + report_path)
+        process.exit(1)
+    }
+
+    let raw = fs.read(report_path).unwrap()
+    let parsed = json.parse(raw)
+    if parsed.is_err() {
+        print("FAIL: malformed JSON in " + report_path + ": " + parsed.unwrap_err())
+        process.exit(1)
+    }
+    let doc = parsed.unwrap()
+
+    let schema_ver = pointer_int(doc, "/schema_version", 0)
+    let units_before = pointer_int(doc, "/before/shim_compile_units", 0)
+    let units_after = pointer_int(doc, "/after/shim_compile_units", 999999)
+    let hakari_after = pointer_int(doc, "/after/hakari_parity_dry_run_exit_code", 1)
+    let bare_after = pointer_int(doc, "/after/bare_cargo_check_shim_exit_code", 1)
+    let adaptive_jobs = pointer_bool(doc, "/after/adaptive_build_jobs", false)
+    let rusage_enabled = pointer_bool(doc, "/after/rusage_telemetry_in_metrics", false)
+
+    let shim_cpu = pointer_int(doc, "/rusage_telemetry_measurements/shim_check_bare/cpu_ms", 0)
+    let cold_compile = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_cold_check/compile_ms", 0)
+    let cold_cpu = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_cold_check/cpu_ms", 0)
+    let cold_eff = pointer_float(doc, "/rusage_telemetry_measurements/root_vox_build_queue_cold_check/eff_par_x", 0.0)
+    let warm_compile = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_warm_check/compile_ms", 0)
+    let warm_cpu = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_warm_check/cpu_ms", 0)
+    let post_prune_cold_compile = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_post_prune_cold_check/compile_ms", 0)
+    let post_prune_cold_cpu = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_post_prune_cold_check/cpu_ms", 0)
+    let post_prune_cold_eff = pointer_float(doc, "/rusage_telemetry_measurements/root_vox_build_queue_post_prune_cold_check/eff_par_x", 0.0)
+    let post_prune_warm_compile = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_post_prune_warm_check/compile_ms", 0)
+    let post_prune_warm_cpu = pointer_int(doc, "/rusage_telemetry_measurements/root_vox_build_queue_post_prune_warm_check/cpu_ms", 0)
+
+    let mut failures = 0
+
+    if schema_ver isnt 1 {
+        print("FAIL: expected schema_version == 1, got " + str(schema_ver))
+        failures = failures + 1
+    }
+    if units_before < 1000 {
+        print("FAIL: expected before.shim_compile_units >= 1000, got " + str(units_before))
+        failures = failures + 1
+    }
+    if units_after > 40 {
+        print("FAIL: regression in after.shim_compile_units (> 40): " + str(units_after))
+        failures = failures + 1
+    }
+    if hakari_after isnt 0 {
+        print("FAIL: after.hakari_parity_dry_run_exit_code != 0: " + str(hakari_after))
+        failures = failures + 1
+    }
+    if bare_after isnt 0 {
+        print("FAIL: after.bare_cargo_check_shim_exit_code != 0: " + str(bare_after))
+        failures = failures + 1
+    }
+    if not adaptive_jobs or not rusage_enabled {
+        print("FAIL: expected adaptive_build_jobs and rusage_telemetry_in_metrics enabled")
+        failures = failures + 1
+    }
+    if post_prune_cold_compile <= 0 or post_prune_cold_compile >= cold_compile {
+        print("FAIL: expected post-prune cold compile (" + str(post_prune_cold_compile) + "ms) < pre-prune cold compile (" + str(cold_compile) + "ms)")
+        failures = failures + 1
+    }
+
+    let hakari_cfg = ".config/hakari.toml"
+    if not fs.exists(hakari_cfg) {
+        print("FAIL: missing " + hakari_cfg)
+        failures = failures + 1
+    } else {
+        let htext = fs.read(hakari_cfg).unwrap()
+        if not htext.contains("vox-build-queue") {
+            print("FAIL: .config/hakari.toml must exclude vox-build-queue")
+            failures = failures + 1
+        }
+    }
+
+    let bq_toml = "crates/vox-build-queue/Cargo.toml"
+    if not fs.exists(bq_toml) {
+        print("FAIL: missing " + bq_toml)
+        failures = failures + 1
+    } else {
+        let btext = fs.read(bq_toml).unwrap()
+        if btext.contains("workspace-hack") {
+            print("FAIL: crates/vox-build-queue/Cargo.toml must stay decoupled from workspace-hack")
+            failures = failures + 1
+        }
+    }
+
+    print("  shim units: " + str(units_before) + " -> " + str(units_after))
+    print("  shim bare rusage: cpu=" + str(shim_cpu) + "ms, exit=" + str(bare_after))
+    print("  root vox-build-queue cold (pre-prune): wall=" + str(cold_compile) + "ms, cpu=" + str(cold_cpu) + "ms, eff_par=" + str(cold_eff) + "x")
+    print("  root vox-build-queue warm (pre-prune): wall=" + str(warm_compile) + "ms, cpu=" + str(warm_cpu) + "ms")
+    print("  root vox-build-queue cold (post-prune): wall=" + str(post_prune_cold_compile) + "ms, cpu=" + str(post_prune_cold_cpu) + "ms, eff_par=" + str(post_prune_cold_eff) + "x")
+    print("  root vox-build-queue warm (post-prune): wall=" + str(post_prune_warm_compile) + "ms, cpu=" + str(post_prune_warm_cpu) + "ms")
+
+    if failures > 0 {
+        print("FAILED: " + str(failures) + " flywheel guard check(s) failed.")
+        process.exit(1)
+    }
+
+    print("OK: all build-perf flywheel invariants satisfied.")
+}

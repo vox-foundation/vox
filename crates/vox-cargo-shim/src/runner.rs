@@ -12,6 +12,7 @@ pub struct RunOutcome {
     pub exit_code: i32,
     pub compile_ms: u64,
     pub timed_out: bool,
+    pub rusage: vox_build_queue::metrics::ChildrenRusage,
 }
 
 fn parse_secs_opt(raw: Option<&str>) -> Option<u64> {
@@ -179,6 +180,7 @@ pub fn run_child_post_queue(
         cmd.stdout(Stdio::inherit()).stderr(Stdio::inherit());
     }
 
+    let ru_before = vox_build_queue::metrics::sample_children_rusage();
     let t_run = Instant::now();
     let mut child = cmd.spawn()?;
     drop(cmd);
@@ -206,6 +208,7 @@ pub fn run_child_post_queue(
         std::thread::sleep(Duration::from_millis(CHILD_POLL_MS));
     };
     let compile_ms = t_run.elapsed().as_millis() as u64;
+    let rusage = ru_before.delta(&vox_build_queue::metrics::sample_children_rusage());
 
     if let Some((out_p, err_p)) = tee_files {
         let _ = tail_stream(out_p, out_off, false);
@@ -223,6 +226,7 @@ pub fn run_child_post_queue(
         exit_code,
         compile_ms,
         timed_out,
+        rusage,
     })
 }
 

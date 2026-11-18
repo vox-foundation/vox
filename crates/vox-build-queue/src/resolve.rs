@@ -179,12 +179,38 @@ fn is_falsy(val: &str) -> bool {
 }
 
 /// Whether `vox-cargo-shim` should probe `PATH` and inject `RUSTC_WRAPPER=sccache`.
+/// Opt-in via `VOX_BROKER_SCCACHE=1` because local dev incremental builds do not cache well in sccache.
 pub fn should_inject_sccache(env: &BTreeMap<String, String>) -> bool {
     !env.contains_key("RUSTC_WRAPPER")
         && !env
             .get("VOX_BROKER_NO_SCCACHE")
             .is_some_and(|v| is_truthy(v))
-        && !env.get("VOX_BROKER_SCCACHE").is_some_and(|v| is_falsy(v))
+        && env.get("VOX_BROKER_SCCACHE").is_some_and(|v| is_truthy(v))
+}
+
+/// Whether `vox-cargo-shim` should mask ambient `[build] rustc-wrapper` config (via `CARGO_BUILD_RUSTC_WRAPPER=""`)
+/// when the caller did not opt in with `VOX_BROKER_SCCACHE=1` or set `RUSTC_WRAPPER` explicitly.
+pub fn should_disable_ambient_sccache(env: &BTreeMap<String, String>) -> bool {
+    if env
+        .get("VOX_BROKER_NO_SCCACHE")
+        .is_some_and(|v| is_truthy(v))
+    {
+        return true;
+    }
+    if env.get("VOX_BROKER_SCCACHE").is_some_and(|v| is_truthy(v)) {
+        return false;
+    }
+    !env.contains_key("RUSTC_WRAPPER") && !env.contains_key("CARGO_BUILD_RUSTC_WRAPPER")
+}
+
+/// True if the caller explicitly passed `-j`/`--jobs` before `--`.
+pub fn has_explicit_jobs_flag(args: &[String]) -> bool {
+    args.iter().take_while(|a| a.as_str() != "--").any(|a| {
+        a == "-j"
+            || a == "--jobs"
+            || a.starts_with("--jobs=")
+            || (a.starts_with("-j") && a.len() > 2 && a[2..].chars().all(|c| c.is_ascii_digit()))
+    })
 }
 
 /// Locate an executable `sccache` binary on `path_var`, skipping `own_exe`'s directory.
@@ -455,12 +481,22 @@ mod tests {
         assert_eq!(found, normalize_target_path(tmp.path(), &real_sc));
 
         let mut env = BTreeMap::new();
+        assert!(!should_inject_sccache(&env));
+        assert!(should_disable_ambient_sccache(&env));
+        env.insert("VOX_BROKER_SCCACHE".into(), "1".into());
         assert!(should_inject_sccache(&env));
+        assert!(!should_disable_ambient_sccache(&env));
         env.insert("RUSTC_WRAPPER".into(), "".into());
         assert!(!should_inject_sccache(&env));
         env.remove("RUSTC_WRAPPER");
         env.insert("VOX_BROKER_NO_SCCACHE".into(), "1".into());
         assert!(!should_inject_sccache(&env));
+        assert!(should_disable_ambient_sccache(&env));
+
+        assert!(has_explicit_jobs_flag(&sv(&["check", "-j4"])));
+        assert!(has_explicit_jobs_flag(&sv(&["check", "-j", "4"])));
+        assert!(has_explicit_jobs_flag(&sv(&["check", "--jobs=4"])));
+        assert!(!has_explicit_jobs_flag(&sv(&["test", "--", "-j", "1"])));
 
         let wt = tmp.path().join("wt");
         std::fs::create_dir_all(wt.join(".cargo")).unwrap();

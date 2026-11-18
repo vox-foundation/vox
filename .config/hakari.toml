@@ -48,6 +48,7 @@ workspace-members = [
     "vox-plugin-sdk",
     "vox-research-events",
     "vox-quantize",
+    "vox-build-queue",
 ]
 
 [final-excludes]
@@ -113,4 +114,5 @@ workspace-members = [
     "vox-openai",
     "vox-oauth-pkce",
     "vox-llm-egress",
+    "vox-build-queue",
 ]

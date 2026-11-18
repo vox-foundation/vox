@@ -429,13 +429,14 @@ exit 0
     let sys_path =
         std::env::join_paths([&sc_dir, Path::new("/bin"), Path::new("/usr/bin")]).unwrap();
 
-    // 1. Auto-sccache + VOX_ISOLATED_TARGET=1 + VOX_WORKSTREAM=axis-v75
+    // 1. Opt-in sccache + VOX_ISOLATED_TARGET=1 + VOX_WORKSTREAM=axis-v75
     let out = clean_shim_cmd()
         .current_dir(&wt)
         .args(["check", "--broker-run-timeout=30", "-p", "demo"])
         .env("CARGO_HOME", &cargo_home)
         .env("VOX_BROKER_HOME", &broker_home)
         .env("PATH", &sys_path)
+        .env("VOX_BROKER_SCCACHE", "1")
         .env("VOX_ISOLATED_TARGET", "1")
         .env("VOX_WORKSTREAM", "axis-v75")
         .output()

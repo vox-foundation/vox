@@ -40,7 +40,7 @@ pub fn max_concurrent() -> usize {
 
 /// Pure core of [`max_concurrent`], split out so it's testable without mutating
 /// the process environment (which would require `unsafe` under edition 2024).
-/// When unset, falls back to `parallelism.max(1)`.
+/// When unset, falls back to `(parallelism / 3).clamp(2, 8).min(parallelism.max(1))`.
 pub fn max_concurrent_from(raw: Option<&str>, parallelism: usize) -> usize {
     if let Some(n) = raw
         .and_then(|v| v.parse::<usize>().ok())
@@ -48,7 +48,21 @@ pub fn max_concurrent_from(raw: Option<&str>, parallelism: usize) -> usize {
     {
         return n;
     }
-    parallelism.max(1)
+    let ceil = parallelism.max(1);
+    (parallelism / 3).clamp(2, 8).min(ceil)
+}
+
+/// Compute adaptive `CARGO_BUILD_JOBS` from host parallelism and 1-minute load average.
+/// Reserves half the reported load from compiler threads so concurrent workloads do not thrash.
+pub fn adaptive_build_jobs(parallelism: usize, load_1m: Option<f64>) -> usize {
+    let ceil = parallelism.max(1);
+    let floor = ceil.clamp(1, 4);
+    match load_1m {
+        Some(load) => {
+            ((parallelism as f64 - (load * 0.5)).round().max(0.0) as usize).clamp(floor, ceil)
+        }
+        None => ceil,
+    }
 }
 
 /// Slots reserved for a build domain the filesystem semaphore cannot see (a
@@ -383,11 +397,11 @@ mod tests {
 
     #[test]
     fn effective_max_concurrent_logic() {
-        // No reservation: falls through to the base cap unchanged.
-        assert_eq!(effective_max_concurrent_from(None, None, 24), 24);
-        assert_eq!(effective_max_concurrent_from(None, Some("0"), 24), 24);
-        // Normal reservation: base 24, reserve 3 -> 21.
-        assert_eq!(effective_max_concurrent_from(None, Some("3"), 24), 21);
+        // No reservation: falls through to (parallelism / 3).clamp(2, 8) -> 8 for 24 cores.
+        assert_eq!(effective_max_concurrent_from(None, None, 24), 8);
+        assert_eq!(effective_max_concurrent_from(None, Some("0"), 24), 8);
+        // Normal reservation: base 8, reserve 3 -> 5.
+        assert_eq!(effective_max_concurrent_from(None, Some("3"), 24), 5);
         // Reservation exceeding the base cap floors at 1, never 0.
         assert_eq!(effective_max_concurrent_from(None, Some("99"), 24), 1);
         // Reservation applies AFTER an explicit override too.
@@ -449,13 +463,23 @@ mod tests {
     }
 
     #[test]
-    fn default_cap_follows_the_machine_with_no_literal_bounds() {
-        assert_eq!(max_concurrent_from(None, 18), 18);
+    fn default_cap_follows_the_machine_with_clamped_thirds() {
+        assert_eq!(max_concurrent_from(None, 18), 6);
+        assert_eq!(max_concurrent_from(None, 24), 8);
         assert_eq!(max_concurrent_from(None, 1), 1);
         assert_eq!(max_concurrent_from(Some("3"), 18), 3);
         // Invalid or zero overrides fall back to the machine default.
-        assert_eq!(max_concurrent_from(Some("0"), 18), 18);
-        assert_eq!(max_concurrent_from(Some("xx"), 18), 18);
+        assert_eq!(max_concurrent_from(Some("0"), 18), 6);
+        assert_eq!(max_concurrent_from(Some("xx"), 18), 6);
+    }
+
+    #[test]
+    fn adaptive_build_jobs_scales_with_load_and_respects_bounds() {
+        assert_eq!(adaptive_build_jobs(18, None), 18);
+        assert_eq!(adaptive_build_jobs(18, Some(0.0)), 18);
+        assert_eq!(adaptive_build_jobs(18, Some(14.4)), 11);
+        assert_eq!(adaptive_build_jobs(18, Some(60.0)), 4);
+        assert_eq!(adaptive_build_jobs(2, Some(10.0)), 2);
     }
 
     #[test]

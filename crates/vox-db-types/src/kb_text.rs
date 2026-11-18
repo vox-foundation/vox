@@ -169,7 +169,10 @@ fn md_image(tail: &str) -> (usize, Option<String>) {
         };
         let consumed = base + 1 + close + 1;
         let (dest, _) = parse_dest(&inner[..close]);
-        return if target_allowed(&dest) {
+        return if target_allowed(&dest)
+            && next_marker(alt).is_none()
+            && next_marker(&inner[..close]).is_none()
+        {
             (consumed, None)
         } else {
             (consumed, Some(omitted(alt)))
@@ -297,11 +300,17 @@ fn html_image(tail: &str) -> (usize, Option<String>) {
             .filter(|c| !c.is_whitespace() && !c.is_control())
             .collect()
     });
-    let keep = get("srcset").is_none() && src.as_deref().is_some_and(target_allowed);
-    (
-        i.min(b.len()),
-        (!keep).then(|| omitted(get("alt").unwrap_or(""))),
-    )
+    let end = i.min(b.len());
+    let src_count = attrs.iter().filter(|(k, _)| k == "src").count();
+    let extra_src = attrs
+        .iter()
+        .any(|(k, v)| (k != "src" && k.contains("src")) || v.to_ascii_lowercase().contains("src"));
+    let keep = src_count == 1
+        && !extra_src
+        && get("srcset").is_none()
+        && src.as_deref().is_some_and(target_allowed)
+        && next_marker(&tail[4..end]).is_none();
+    (end, (!keep).then(|| omitted(get("alt").unwrap_or(""))))
 }
 
 /// Text that has passed through [`sanitize`]. The field is private and there is
@@ -517,6 +526,8 @@ mod tests {
         assert!(!back.contains("e/x.png"));
         let data = sanitize("![p](data:image/png;base64,AAAA)");
         assert!(!data.contains("base64"));
+        let nested = sanitize("![<img src=\"https://evil.example/x.png]()");
+        assert!(!nested.to_ascii_lowercase().contains("<img") && !nested.contains("!["));
     }
 
     #[test]

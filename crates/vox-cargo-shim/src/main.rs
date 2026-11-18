@@ -109,6 +109,9 @@ fn record_telemetry(
     coalesced_hit: bool,
     timed_out: bool,
     exit_code: i32,
+    rusage: metrics::ChildrenRusage,
+    load_1m_x100: u64,
+    effective_jobs: u32,
 ) {
     let queue_wait_ms = target_wait_ms + slot_wait_ms;
     let rec = metrics::MetricRecord {
@@ -125,11 +128,26 @@ fn record_telemetry(
         compile_ms,
         coalesced_hit,
         timed_out,
+        user_cpu_ms: rusage.user_cpu_ms,
+        sys_cpu_ms: rusage.sys_cpu_ms,
+        max_rss_kb: rusage.max_rss_kb,
+        page_faults_major: rusage.page_faults_major,
+        page_faults_minor: rusage.page_faults_minor,
+        load_1m_x100,
+        effective_jobs,
     };
     let _ = metrics::append(&root.join("metrics.jsonl"), &rec);
+    let cpu_ms = rusage.user_cpu_ms.saturating_add(rusage.sys_cpu_ms);
+    let eff_par_x100 = (cpu_ms.saturating_mul(100))
+        .checked_div(compile_ms)
+        .unwrap_or(0);
     let line = format!(
-        "{ts} {sub:<6} wait={queue_wait_ms:>6}ms target_wait={target_wait_ms}ms slot_wait={slot_wait_ms}ms compile={compile_ms}ms ahead={busy} cap={cap} coalesce={would_coalesce} coalesced={coalesced_hit} timeout={timed_out} exit={exit_code} {wt}\n",
+        "{ts} {sub:<6} wait={queue_wait_ms:>6}ms target_wait={target_wait_ms}ms slot_wait={slot_wait_ms}ms compile={compile_ms}ms cpu={cpu_ms}ms eff_par={eff_par:.2}x jobs={effective_jobs} load={load:.2} majflt={majflt} rss_kb={rss_kb} ahead={busy} cap={cap} coalesce={would_coalesce} coalesced={coalesced_hit} timeout={timed_out} exit={exit_code} {wt}\n",
         ts = rec.ts_ms,
+        eff_par = eff_par_x100 as f64 / 100.0,
+        load = load_1m_x100 as f64 / 100.0,
+        majflt = rusage.page_faults_major,
+        rss_kb = rusage.max_rss_kb,
         wt = worktree.display(),
     );
     if let Ok(mut f) = std::fs::OpenOptions::new()
@@ -243,6 +261,8 @@ fn run_global(
         )
     {
         env.insert("RUSTC_WRAPPER".into(), sc.to_string_lossy().into_owned());
+    } else if resolve::should_disable_ambient_sccache(&env) {
+        env.insert("CARGO_BUILD_RUSTC_WRAPPER".into(), String::new());
     }
     let sccache_active = env
         .get("RUSTC_WRAPPER")
@@ -276,6 +296,31 @@ fn run_global(
         0
     };
     let arrival_ts_ms = metrics::now_ms();
+    let load_1m = global::load_average_1m();
+    let load_1m_x100 = load_1m
+        .map(|l| (l.max(0.0) * 100.0).round() as u64)
+        .unwrap_or(0);
+    let adaptive_disabled = env.get("VOX_BROKER_ADAPTIVE_JOBS").is_some_and(|v| {
+        matches!(
+            v.trim().to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        )
+    });
+    let parallelism = std::thread::available_parallelism()
+        .map(|p| p.get())
+        .unwrap_or(4);
+    let effective_jobs: u32 = if !adaptive_disabled
+        && !env.contains_key("CARGO_BUILD_JOBS")
+        && !resolve::has_explicit_jobs_flag(run_cmd_args)
+    {
+        let j = global::adaptive_build_jobs(parallelism, load_1m);
+        env.insert("CARGO_BUILD_JOBS".into(), j.to_string());
+        j as u32
+    } else {
+        env.get("CARGO_BUILD_JOBS")
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(parallelism as u32)
+    };
 
     // Stage A: Attach directly to an active in-flight leader without taking any lock or slot.
     if can_coalesce
@@ -288,8 +333,23 @@ fn run_global(
         )
     {
         record_telemetry(
-            &root, &worktree, sub, argv_hash, env_hash, waited_ms, 0, 0, 0, n, true, true, false,
+            &root,
+            &worktree,
+            sub,
+            argv_hash,
+            env_hash,
+            waited_ms,
+            0,
+            0,
+            0,
+            n,
+            true,
+            true,
+            false,
             code,
+            metrics::ChildrenRusage::default(),
+            load_1m_x100,
+            effective_jobs,
         );
         if build_args.is_some() && code == 0 {
             exec_real(real, args, depth, toolchain, Some(&env));
@@ -340,6 +400,9 @@ fn run_global(
             true,
             false,
             code,
+            metrics::ChildrenRusage::default(),
+            load_1m_x100,
+            effective_jobs,
         );
         if build_args.is_some() && code == 0 {
             exec_real(real, args, depth, toolchain, Some(&env));
@@ -401,6 +464,9 @@ fn run_global(
         false,
         outcome.timed_out,
         outcome.exit_code,
+        outcome.rusage,
+        load_1m_x100,
+        effective_jobs,
     );
 
     if build_args.is_some() && outcome.exit_code == 0 {
