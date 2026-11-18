@@ -180,19 +180,31 @@ pub fn format_agent_command_for_shell(shell_name: &str, osc633_capable: bool, cm
     if osc633_capable {
         return format!("__vox_pager_enter; {trimmed}");
     }
-    if normalize_shell_name(shell_name) == "cmd" {
-        return format!(
+    match normalize_shell_name(shell_name).as_str() {
+        "cmd" => format!(
             "set PAGER=cat&& set GIT_PAGER=cat&& set SYSTEMD_PAGER=cat&& set BAT_PAGER=cat&& set MANPAGER=cat&& set GH_PAGER=cat&& {trimmed}"
-        );
+        ),
+        "pwsh" | "powershell" => format!(
+            "$env:PAGER='cat'; $env:GIT_PAGER='cat'; $env:SYSTEMD_PAGER='cat'; $env:BAT_PAGER='cat'; $env:MANPAGER='cat'; $env:GH_PAGER='cat'; {trimmed}"
+        ),
+        "nu" => format!(
+            "$env.PAGER = 'cat'; $env.GIT_PAGER = 'cat'; $env.SYSTEMD_PAGER = 'cat'; $env.BAT_PAGER = 'cat'; $env.MANPAGER = 'cat'; $env.GH_PAGER = 'cat'; {trimmed}"
+        ),
+        _ => format!("{POSIX_PAGER_ENV_PREFIX} {trimmed}"),
     }
-    format!("{POSIX_PAGER_ENV_PREFIX} {trimmed}")
 }
 
 impl LocalHost {
     /// Spawn a PTY session with an optional initial working directory override.
     pub async fn open_with_cwd(&self, spec: OpenSpec, cwd: Option<&Path>) -> Result<SessionId> {
-        let def = default_shell();
-        let shell = spec.shell.as_deref().unwrap_or(&def);
+        let resolved_shell = match spec.shell.as_deref() {
+            Some(s) if s.eq_ignore_ascii_case("auto") || s.eq_ignore_ascii_case("ai") => {
+                crate::pty::detect_ai_shell()
+            }
+            Some(s) => s.to_string(),
+            None => default_shell(),
+        };
+        let shell = resolved_shell.as_str();
         let shell_name = normalize_shell_name(shell);
         let cols = if spec.cols == 0 { 120 } else { spec.cols };
         let rows = if spec.rows == 0 { 32 } else { spec.rows };
@@ -228,6 +240,7 @@ impl LocalHost {
                 lock(&pump_eof.session).finish_open_block_on_eof(exit_code);
                 pump_eof.pty_eof.store(true, Ordering::Release);
                 pump_eof.settled_cv.notify_all();
+                pump_eof.settled_notify.notify_waiters();
             },
         )?;
         let osc633_capable = handle.supports_osc633();
@@ -350,6 +363,9 @@ impl LocalHost {
             let wait_ms = req.wait_ms.clamp(MIN_AGENT_WAIT_MS, MAX_AGENT_WAIT_MS);
             let mut completed_at: Option<Instant> = None;
             loop {
+                let notified = entry.settled_notify.notified();
+                tokio::pin!(notified);
+                notified.as_mut().enable();
                 let step_action = {
                     let mut sess = lock(&entry.session);
                     let block_state = sess
@@ -408,8 +424,11 @@ impl LocalHost {
                 if step_action {
                     break;
                 }
-                // drift-allow(timeout-literal): async PTY completion/stall poll cadence
-                tokio::time::sleep(Duration::from_millis(POLL_STEP_MS)).await;
+                tokio::select! {
+                    () = &mut notified => {}
+                    // drift-allow(timeout-literal): async PTY stall check fallback cadence
+                    () = tokio::time::sleep(Duration::from_millis(POLL_STEP_MS)) => {}
+                }
             }
         }
 
@@ -492,6 +511,7 @@ impl LocalHost {
         );
         entry.promoted_bg.store(true, Ordering::Release);
         entry.settled_cv.notify_all();
+        entry.settled_notify.notify_waiters();
         Ok(())
     }
 }
@@ -542,6 +562,18 @@ mod tests {
         let fallback = format_agent_command_for_shell("sh", false, "git status");
         assert!(fallback.starts_with("PAGER=cat GIT_PAGER=cat "));
         assert!(fallback.ends_with(" git status"));
+
+        let pwsh_fallback = format_agent_command_for_shell("pwsh", false, "git status");
+        assert!(pwsh_fallback.starts_with("$env:PAGER='cat';"));
+        assert!(pwsh_fallback.ends_with(" git status"));
+
+        let nu_fallback = format_agent_command_for_shell("nu", false, "git status");
+        assert!(nu_fallback.starts_with("$env.PAGER = 'cat';"));
+        assert!(nu_fallback.ends_with(" git status"));
+
+        let cmd_fallback = format_agent_command_for_shell("cmd", false, "git status");
+        assert!(cmd_fallback.starts_with("set PAGER=cat&&"));
+        assert!(cmd_fallback.ends_with(" git status"));
     }
 
     #[cfg(unix)]

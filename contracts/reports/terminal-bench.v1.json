@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-11-17T21:35:00Z",
+  "os": "macos",
+  "arch": "aarch64",
+  "metrics": {
+    "input_to_frame_p50_ms": 0.006125,
+    "input_to_frame_p99_ms": 0.033874999999999995,
+    "pty_scroll_throughput_mb_s": 4.453456970144112,
+    "alt_screen_switch_ms": 0.048334,
+    "agent_exec_roundtrip_p50_ms": 0.055417,
+    "tokio_worker_stall_max_ms": 0.0300334,
+    "osc633_block_accuracy_pct": 100.0,
+    "session_rss_kb_at_1k_blocks": 271
+  },
+  "slas": {
+    "max_tokio_worker_stall_ms": 2.0,
+    "max_alt_screen_switch_ms": 12.0,
+    "max_agent_exec_roundtrip_p50_ms": 8.0,
+    "min_osc633_block_accuracy_pct": 99.9,
+    "min_pty_scroll_throughput_mb_s": 2.0,
+    "max_session_rss_kb_at_1k_blocks": 46080
+  },
+  "all_slas_met": true,
+  "competitor_baselines": [
+    {
+      "terminal": "Ghostty",
+      "version_era": "1.1+ (Nov 2026)",
+      "rendering_stack": "Zig / Metal / OpenGL GPU glyph atlas",
+      "input_to_frame_p50_ms": "2.0 - 4.0 ms",
+      "alt_screen_latency_ms": "< 4.0 ms",
+      "osc633_block_model": false,
+      "native_agent_bridge": false
+    },
+    {
+      "terminal": "Warp",
+      "version_era": "Nov 2026 Release",
+      "rendering_stack": "Rust / wgpu block+VT hybrid",
+      "input_to_frame_p50_ms": "5.0 - 9.0 ms",
+      "alt_screen_latency_ms": "8.0 - 16.0 ms",
+      "osc633_block_model": true,
+      "native_agent_bridge": true
+    },
+    {
+      "terminal": "Kitty",
+      "version_era": "0.39+ (Nov 2026)",
+      "rendering_stack": "C / Python GPU SIMD + CSI u",
+      "input_to_frame_p50_ms": "2.5 - 5.0 ms",
+      "alt_screen_latency_ms": "< 5.0 ms",
+      "osc633_block_model": false,
+      "native_agent_bridge": false
+    },
+    {
+      "terminal": "WezTerm",
+      "version_era": "2026 nightly",
+      "rendering_stack": "Rust / wgpu mux",
+      "input_to_frame_p50_ms": "4.0 - 8.0 ms",
+      "alt_screen_latency_ms": "< 8.0 ms",
+      "osc633_block_model": false,
+      "native_agent_bridge": false
+    },
+    {
+      "terminal": "Alacritty",
+      "version_era": "0.15+ (Nov 2026)",
+      "rendering_stack": "Rust / OpenGL",
+      "input_to_frame_p50_ms": "2.5 - 5.0 ms",
+      "alt_screen_latency_ms": "< 5.0 ms",
+      "osc633_block_model": false,
+      "native_agent_bridge": false
+    },
+    {
+      "terminal": "Zed / VS Code / Cursor Terminal",
+      "version_era": "Nov 2026 IDE embedded",
+      "rendering_stack": "GPUI / xterm.js WebGL2",
+      "input_to_frame_p50_ms": "6.0 - 16.0 ms",
+      "alt_screen_latency_ms": "10.0 - 20.0 ms",
+      "osc633_block_model": true,
+      "native_agent_bridge": true
+    }
+  ]
+}

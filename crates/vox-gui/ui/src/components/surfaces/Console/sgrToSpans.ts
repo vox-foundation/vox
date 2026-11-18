@@ -2,6 +2,11 @@ import React from 'react';
 import { Icon } from '../../ui/Icons';
 import { voxTransport, type OpenLocator } from '../../../transport';
 import {
+  encodeKittyKeyEvent, extractOsc52Clipboard, extractOsc8Links, renderWithOsc8,
+  type Osc8LinkEntry,
+} from './oscProtocols';
+export { encodeKittyKeyEvent, extractOsc52Clipboard, extractOsc8Links, type Osc8LinkEntry };
+import {
   DARK_ANSI_16_PALETTE,
   LIGHT_ANSI_16_PALETTE,
   resolveAnsi16PaletteArray,
@@ -317,7 +322,7 @@ export function dispatchWorkspaceFileLocator(
 
 const LINK_BTN_CLS = 'inline-flex max-w-full flex-wrap items-center gap-1 break-all text-left text-(--terminal-well-cursor) underline decoration-dotted hover:opacity-90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
-function renderLinkedText(text: string, searchQuery: string | undefined, onOpenLocator: ((loc: OpenLocator) => void) | undefined, keyPrefix: string): React.ReactNode {
+function renderPlainLinkedText(text: string, searchQuery: string | undefined, onOpenLocator: ((loc: OpenLocator) => void) | undefined, keyPrefix: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let cursor = 0;
   let k = 0;
@@ -362,10 +367,16 @@ function renderLinkedText(text: string, searchQuery: string | undefined, onOpenL
 }
 
 export function sgrToSpans(raw: string, opts?: SgrRenderOptions): React.ReactNode {
-  const spans = parseSgrSpans(raw, opts);
+  const { cleaned, links } = extractOsc8Links(raw);
+  const spans = parseSgrSpans(cleaned, opts);
   if (spans.length === 0) return null;
   return spans.map((span, idx) => {
-    const children = renderLinkedText(span.text, opts?.searchQuery, opts?.onOpenLocator, `s${idx}`);
+    const children = renderWithOsc8(
+      span.text, links, `s${idx}`, LINK_BTN_CLS,
+      (txt, kp) => renderPlainLinkedText(txt, opts?.searchQuery, opts?.onOpenLocator, kp),
+      (txt, kp) => renderHighlightedText(txt, opts?.searchQuery, kp),
+      sanitizeWorkspaceFileLocator, dispatchWorkspaceFileLocator, opts?.onOpenLocator,
+    );
     const classes: string[] = [];
     if (span.bold) classes.push('font-semibold');
     if (span.dim && !span.fg) classes.push('text-(--terminal-well-muted)');

@@ -1,4 +1,5 @@
 use super::*;
+use crate::training::contract::OrganicSpokeKind;
 
 pub(super) fn has_top_level_shell_chaining(cmd: &str) -> bool {
     let mut in_single = false;
@@ -177,6 +178,196 @@ pub fn verify_structured_shell_roundtrip(
     expected_json_keys: &[String],
 ) -> SpokeRoundtripReceipt {
     verify_shell_roundtrip(case_id, prompt, response, expected_json_keys)
+}
+
+/// One structured step in a Tier-3B stateful agentic terminal session trajectory (`TERM-SPOKE-02`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum TerminalTrajectoryStep {
+    Exec {
+        command: String,
+        #[serde(default)]
+        expected_status: Option<String>,
+        #[serde(default)]
+        credential_prompt: bool,
+        #[serde(default)]
+        hitl_approved: bool,
+    },
+    SendInput {
+        input: String,
+        #[serde(default)]
+        hitl_approved: bool,
+    },
+    Read {
+        block_id: u64,
+    },
+    VoxEval {
+        code: String,
+    },
+    Cite {
+        mention: String,
+    },
+}
+
+/// Tier-3B Spoke 3 (`OrganicSpokeKind::AGENTIC_TERMINAL_TASK_FAMILY`) stateful PTY trajectory verifier.
+#[must_use]
+pub fn verify_terminal_session_trajectory(
+    case_id: &str,
+    prompt: &str,
+    steps_json: &str,
+) -> SpokeRoundtripReceipt {
+    let raw = strip_code_fences(steps_json);
+    let (clean, _) = redact_trajectory_secrets(&raw);
+
+    let fail_early = |stage: &str, diagnostics: Vec<String>| SpokeRoundtripReceipt {
+        case_id: case_id.to_string(),
+        spoke: SpokeKind::StructuredShell,
+        syntax_valid: false,
+        semantic_valid: false,
+        execution_passed: false,
+        pass_at_1: false,
+        pass_at_k: false,
+        constructs_covered: Vec::new(),
+        stdout_or_result: diagnostics.join("; "),
+        oracle_receipt: OracleReceipt {
+            spoke: SpokeKind::StructuredShell,
+            passed: false,
+            stage: stage.to_string(),
+            diagnostics,
+            exit_code: Some(1),
+        },
+        admitted_record: None,
+    };
+
+    let Ok(steps) = serde_json::from_str::<Vec<TerminalTrajectoryStep>>(&clean) else {
+        return fail_early(
+            "json_parse",
+            vec!["terminal trajectory must be a JSON array of TerminalTrajectoryStep".to_string()],
+        );
+    };
+    if steps.is_empty() {
+        return fail_early(
+            "empty_trajectory",
+            vec!["terminal trajectory must contain at least one step".to_string()],
+        );
+    }
+
+    let mut diagnostics = Vec::new();
+    let mut constructs = Vec::new();
+    let mut awaiting_credential = false;
+    let mut awaiting_interactive = false;
+
+    for step in &steps {
+        match step {
+            TerminalTrajectoryStep::Exec {
+                command,
+                expected_status,
+                credential_prompt,
+                hitl_approved,
+            } => {
+                constructs.push("vox_terminal_exec".to_string());
+                let trimmed = command.trim();
+                if trimmed.is_empty() || trimmed.contains(['\n', '\r']) {
+                    diagnostics.push("exec command cannot be empty or multi-line".to_string());
+                } else {
+                    if has_top_level_shell_chaining(trimmed) && !*hitl_approved {
+                        diagnostics.push(format!(
+                            "unapproved shell chaining rejected in tier-3B trajectory: {trimmed}"
+                        ));
+                    }
+                    if let Err(e) = classify_shell_safety_floor(trimmed)
+                        && !*hitl_approved
+                    {
+                        diagnostics.push(e);
+                    }
+                }
+                let st = expected_status.as_deref().unwrap_or("completed");
+                awaiting_interactive = st == "awaiting_input";
+                awaiting_credential = awaiting_interactive && *credential_prompt;
+            }
+            TerminalTrajectoryStep::SendInput { input, .. } => {
+                constructs.push("vox_terminal_send_input".to_string());
+                if awaiting_credential {
+                    diagnostics.push(
+                        "CREDENTIAL_PROMPT_USER_ONLY: agent attempted send_input on credential prompt".to_string(),
+                    );
+                } else if !awaiting_interactive {
+                    diagnostics
+                        .push("send_input used when prior exec was not awaiting_input".to_string());
+                } else if input.trim().is_empty() {
+                    diagnostics.push("send_input text must not be empty".to_string());
+                }
+                awaiting_interactive = false;
+                awaiting_credential = false;
+            }
+            TerminalTrajectoryStep::Read { .. } => {
+                constructs.push("vox_terminal_read".to_string());
+            }
+            TerminalTrajectoryStep::VoxEval { code } => {
+                constructs.push("vox_native_eval".to_string());
+                if code.trim().is_empty() {
+                    diagnostics.push("vox_eval code cannot be empty".to_string());
+                }
+            }
+            TerminalTrajectoryStep::Cite { mention } => {
+                constructs.push("term_citation".to_string());
+                if !mention.starts_with("@term") {
+                    diagnostics.push(format!("invalid @term citation syntax: {mention}"));
+                }
+            }
+        }
+    }
+
+    constructs.sort();
+    constructs.dedup();
+    let semantic_valid = diagnostics.is_empty();
+    let oracle_receipt = OracleReceipt {
+        spoke: SpokeKind::StructuredShell,
+        passed: semantic_valid,
+        stage: if semantic_valid {
+            "agentic_terminal_trajectory+safety_floor+credential_guard".to_string()
+        } else {
+            "agentic_terminal_validation_failed".to_string()
+        },
+        diagnostics: diagnostics.clone(),
+        exit_code: Some(if semantic_valid { 0 } else { 1 }),
+    };
+
+    let admitted_record = if semantic_valid {
+        Some(TrainingRecordV2::new(
+            SpokeKind::StructuredShell,
+            prompt,
+            "You are a Vox agentic terminal operator using stateful PTY tools and AST-gated commands.",
+            &clean,
+            oracle_receipt.clone(),
+            RecordProvenance {
+                origin: "spoke_roundtrip".to_string(),
+                source_id: case_id.to_string(),
+                task_family: OrganicSpokeKind::AGENTIC_TERMINAL_TASK_FAMILY.to_string(),
+                difficulty: 6,
+            },
+        ))
+    } else {
+        None
+    };
+
+    SpokeRoundtripReceipt {
+        case_id: case_id.to_string(),
+        spoke: SpokeKind::StructuredShell,
+        syntax_valid: true,
+        semantic_valid,
+        execution_passed: semantic_valid,
+        pass_at_1: semantic_valid,
+        pass_at_k: semantic_valid,
+        constructs_covered: constructs,
+        stdout_or_result: if semantic_valid {
+            "agentic terminal trajectory verified".to_string()
+        } else {
+            diagnostics.join("; ")
+        },
+        oracle_receipt,
+        admitted_record,
+    }
 }
 
 /// Spoke 4 (`SPOKE-04`): MCP Tool-Calling trajectory round-trip verifier.
@@ -368,6 +559,7 @@ pub fn verify_mcp_roundtrip(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::training::contract::OrganicSpokeKind;
 
     #[test]
     fn shell_chaining_detection_ignores_quotes_and_brace_blocks() {
@@ -422,5 +614,44 @@ mod tests {
         let b = verify_rust_workspace_roundtrip("r", "p", src);
         assert_eq!(a.execution_passed, b.execution_passed);
         assert_eq!(a.syntax_valid, b.syntax_valid);
+    }
+
+    #[test]
+    fn agentic_terminal_trajectory_enforces_safety_and_credential_guard() {
+        let ok_json = r#"[
+            {"op":"exec","command":"cargo check -p vox-terminal-core","expected_status":"awaiting_input","credential_prompt":false},
+            {"op":"send_input","input":"y"},
+            {"op":"read","block_id":1},
+            {"op":"vox_eval","code":"let n = 42"},
+            {"op":"cite","mention":"@term:s-1#1"}
+        ]"#;
+        let ok = verify_terminal_session_trajectory("term-ok", "drive terminal", ok_json);
+        assert!(
+            ok.execution_passed,
+            "unexpected failure: {}",
+            ok.stdout_or_result
+        );
+        assert_eq!(
+            ok.admitted_record.unwrap().provenance.task_family,
+            OrganicSpokeKind::AGENTIC_TERMINAL_TASK_FAMILY
+        );
+
+        let cred_violation = r#"[
+            {"op":"exec","command":"sudo ls","expected_status":"awaiting_input","credential_prompt":true,"hitl_approved":true},
+            {"op":"send_input","input":"hunter2"}
+        ]"#;
+        let bad_cred = verify_terminal_session_trajectory("term-cred", "sudo", cred_violation);
+        assert!(!bad_cred.execution_passed);
+        assert!(
+            bad_cred
+                .stdout_or_result
+                .contains("CREDENTIAL_PROMPT_USER_ONLY")
+        );
+
+        let chain_violation = r#"[
+            {"op":"exec","command":"echo ok && rm -rf ."}
+        ]"#;
+        let bad_chain = verify_terminal_session_trajectory("term-chain", "bad", chain_violation);
+        assert!(!bad_chain.execution_passed);
     }
 }

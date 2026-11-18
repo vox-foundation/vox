@@ -295,6 +295,14 @@ pub fn key_event_to_vt_bytes(key: &KeyEvent) -> Option<Vec<u8>> {
     if key.kind == KeyEventKind::Release {
         return None;
     }
+    if key.code == KeyCode::Enter {
+        if key.modifiers.contains(KeyModifiers::SHIFT) {
+            return Some(b"\x1b[13;2u".to_vec());
+        }
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
+            return Some(b"\x1b[13;5u".to_vec());
+        }
+    }
     if key.modifiers.contains(KeyModifiers::CONTROL)
         && let KeyCode::Char(c) = key.code
         && c.is_ascii_alphabetic()
@@ -324,12 +332,27 @@ pub fn key_event_to_vt_bytes(key: &KeyEvent) -> Option<Vec<u8>> {
     }
 }
 
+pub async fn run_plain_with_host(host: &dyn SessionHost, sid: &str) -> Result<()> {
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let raw = line?;
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let _ = host.submit(sid, trimmed).await?;
+    }
+    Ok(())
+}
+
 /// Async entry-point for `vox term` / `vox-term` driving a [`SessionHost`] session.
 pub async fn run_with_args(args: TermCliArgs) -> Result<()> {
     if is_headless() {
         if args.attach.is_some() {
             let host = resolve_host(args.force_local).await;
-            let _ = attach_or_open_session(host.as_ref(), args.attach.as_deref(), 120, 32).await?;
+            let (sid, _att) =
+                attach_or_open_session(host.as_ref(), args.attach.as_deref(), 120, 32).await?;
+            return run_plain_with_host(host.as_ref(), &sid).await;
         }
         return run_plain();
     }
@@ -351,7 +374,6 @@ pub async fn run_with_args(args: TermCliArgs) -> Result<()> {
     let mut last_seq = att.seq;
     let mut blocks_state = att.blocks;
     let mut alt_screen = att.alt_screen || grid.is_alt_screen();
-    let mode = "vox";
 
     // Agent strip: accumulates streamed agent messages for display below the block list.
     let mut agent_lines: Vec<String> = Vec::new();
@@ -479,9 +501,9 @@ pub async fn run_with_args(args: TermCliArgs) -> Result<()> {
                     })
                     .collect();
                 frame.render_widget(Paragraph::new(tail), chunks[1]);
-                input.render(frame, chunks[2], mode);
+                input.render(frame, chunks[2], input.active_mode());
             } else {
-                input.render(frame, chunks[1], mode);
+                input.render(frame, chunks[1], input.active_mode());
             }
         })?;
 
@@ -527,6 +549,7 @@ pub async fn run_with_args(args: TermCliArgs) -> Result<()> {
                 ..
             }) => {
                 let line = std::mem::take(&mut input.buf);
+                input.ghost_suffix.clear();
                 let is_active = blocks_state.last().is_some_and(|b| {
                     matches!(b.status, BlockStatus::Running | BlockStatus::AwaitingInput)
                 });
@@ -535,13 +558,27 @@ pub async fn run_with_args(args: TermCliArgs) -> Result<()> {
                 }
             }
             Event::Key(KeyEvent {
+                code: KeyCode::Tab | KeyCode::Right,
+                ..
+            }) => {
+                let _ = input.accept_ghost();
+            }
+            Event::Key(KeyEvent {
                 code: KeyCode::Backspace,
                 ..
-            }) => input.backspace(),
+            }) => {
+                input.backspace();
+                let history: Vec<String> = blocks_state.iter().map(|b| b.input.clone()).collect();
+                input.update_ghost(&history);
+            }
             Event::Key(KeyEvent {
                 code: KeyCode::Char(c),
                 ..
-            }) => input.push_char(c),
+            }) => {
+                input.push_char(c);
+                let history: Vec<String> = blocks_state.iter().map(|b| b.input.clone()).collect();
+                input.update_ghost(&history);
+            }
             _ => {}
         }
     }

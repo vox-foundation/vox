@@ -162,6 +162,19 @@ impl OrganicSpokeKind {
             }
         }
     }
+
+    /// Sub-spoke task family tag for Tier-3B stateful interactive PTY terminal trajectories.
+    pub const AGENTIC_TERMINAL_TASK_FAMILY: &'static str = "agentic_terminal";
+}
+
+/// Sub-tier discriminator within [`SpokeKind::StructuredShell`] (`TERM-SPOKE-01`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShellSpokeTier {
+    /// Tier 3A: Single-command structured Nushell / PowerShell / CLI pipeline.
+    StatelessPipeline,
+    /// Tier 3B: Multi-step stateful PTY session trajectory (`vox_terminal_*`, `.vox` REPL, `AwaitingInput`).
+    AgenticTerminal,
 }
 
 impl From<SpokeKind> for OrganicSpokeKind {

@@ -8,6 +8,8 @@ import {
   parseSgrSpans,
   sgrToSpans,
   sanitizeWorkspaceFileLocator,
+  extractOsc52Clipboard,
+  encodeKittyKeyEvent,
 } from './sgrToSpans';
 
 describe('sgrToSpans', () => {
@@ -169,5 +171,28 @@ describe('sgrToSpans', () => {
       line: 42,
       col: 9,
     });
+  });
+
+  it('renders OSC 8 hyperlinks, decodes OSC 52 clipboard payloads, and encodes Kitty CSI u keys', () => {
+    const openSpy = vi
+      .spyOn(voxTransport, 'openLocator')
+      .mockResolvedValue({ opened: true } as never);
+    const osc8 = 'See \x1b]8;;https://voxlang.org/spec\x07Vox Spec\x1b]8;;\x07 and \x1b]8;;file://crates/vox-cli/src/main.rs\x07CLI Main\x1b]8;;\x07';
+    render(<pre>{sgrToSpans(osc8)}</pre>);
+    const oscLinks = screen.getAllByTestId('term-output-osc8-link');
+    expect(oscLinks).toHaveLength(2);
+    expect(oscLinks[0]?.textContent).toBe('Vox Spec');
+    fireEvent.click(oscLinks[0]!);
+    expect(openSpy).toHaveBeenCalledWith({ kind: 'web', value: 'https://voxlang.org/spec' });
+    fireEvent.click(oscLinks[1]!);
+    expect(openSpy).toHaveBeenCalledWith({ kind: 'file', value: 'crates/vox-cli/src/main.rs' });
+
+    const osc52 = extractOsc52Clipboard('ok\x1b]52;c;aGVsbG8tdm94\x07');
+    expect(osc52.clipboardText).toBe('hello-vox');
+    expect(osc52.cleaned).toBe('ok');
+
+    expect(encodeKittyKeyEvent({ key: 'Enter', shiftKey: true })).toBe('\x1b[13;2u');
+    expect(encodeKittyKeyEvent({ key: 'Enter', ctrlKey: true })).toBe('\x1b[13;5u');
+    expect(encodeKittyKeyEvent({ key: 'Enter' })).toBeNull();
   });
 });

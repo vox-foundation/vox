@@ -34,7 +34,7 @@ Re-exported so integration tests (`tests/`) can access modules.
 
 | Feature | Default / Enables |
 |---|---|
-| `default` | — |
+| `default` | vox-lang |
 | `vox-lang` | vox-terminal-core/vox-lang |
 
 ## Workspace Dependencies
@@ -88,9 +88,10 @@ graph {
 | `fn` | `app::pick_latest_session_id` | `pub fn pick_latest_session_id(sessions: &[SessionInfo]) -> Option<String>` | [`crates/vox-term/src/app.rs#L95-L112`](../../../crates/vox-term/src/app.rs#L95-L112) | Select the newest session ID, ordering `term-{n}` sessions by numeric suffix (`10 > 9`) rather than lexicographically (`"term-9" > "term-10"`). |
 | `fn` | `app::attach_or_open_session` | `pub async fn attach_or_open_session(` | [`crates/vox-term/src/app.rs#L116`](../../../crates/vox-term/src/app.rs#L116) | Attach to an existing session (`Some("latest")` or `Some(id)`) or open and attach to a fresh session (`None`) on `host`. |
 | `fn` | `app::apply_session_event` | `pub async fn apply_session_event(` | [`crates/vox-term/src/app.rs#L160`](../../../crates/vox-term/src/app.rs#L160) | Apply one [`SessionEvent`] onto `vox-term`'s local view state completely in-place (zero `host.attach` RPC round-trips on normal block lifecycles, preventing output duplication and orphaned daemon subscription streams). |
-| `fn` | `app::key_event_to_vt_bytes` | `pub fn key_event_to_vt_bytes(key: &KeyEvent) -> Option<Vec<u8>>` | [`crates/vox-term/src/app.rs#L294-L325`](../../../crates/vox-term/src/app.rs#L294-L325) | Translate a crossterm [`KeyEvent`] into raw VT input bytes, ignoring key-release events. |
-| `fn` | `app::run_with_args` | `pub async fn run_with_args(args: TermCliArgs) -> Result<()>` | [`crates/vox-term/src/app.rs#L328`](../../../crates/vox-term/src/app.rs#L328) | Async entry-point for `vox term` / `vox-term` driving a [`SessionHost`] session. |
-| `fn` | `app::run` | `pub fn run() -> Result<()>` | [`crates/vox-term/src/app.rs#L553-L562`](../../../crates/vox-term/src/app.rs#L553-L562) | Synchronous entry-point for standalone `vox-term` (`crates/vox-term/src/main.rs`). |
+| `fn` | `app::key_event_to_vt_bytes` | `pub fn key_event_to_vt_bytes(key: &KeyEvent) -> Option<Vec<u8>>` | [`crates/vox-term/src/app.rs#L294-L333`](../../../crates/vox-term/src/app.rs#L294-L333) | Translate a crossterm [`KeyEvent`] into raw VT input bytes, ignoring key-release events. |
+| `fn` | `app::run_plain_with_host` | `pub async fn run_plain_with_host(host: &dyn SessionHost, sid: &str) -> Result<()>` | [`crates/vox-term/src/app.rs#L335-L346`](../../../crates/vox-term/src/app.rs#L335-L346) | — |
+| `fn` | `app::run_with_args` | `pub async fn run_with_args(args: TermCliArgs) -> Result<()>` | [`crates/vox-term/src/app.rs#L349`](../../../crates/vox-term/src/app.rs#L349) | Async entry-point for `vox term` / `vox-term` driving a [`SessionHost`] session. |
+| `fn` | `app::run` | `pub fn run() -> Result<()>` | [`crates/vox-term/src/app.rs#L590-L599`](../../../crates/vox-term/src/app.rs#L590-L599) | Synchronous entry-point for standalone `vox-term` (`crates/vox-term/src/main.rs`). |
 | `struct` | `term_setup::TermSetup` | `pub struct TermSetup` | [`crates/vox-term/src/term_setup.rs#L15-L17`](../../../crates/vox-term/src/term_setup.rs#L15-L17) | RAII guard: enters raw mode + alternate screen; restores both on drop. |
 | `fn` | `term_setup::new` | `pub fn new() -> anyhow::Result<Self>` | [`crates/vox-term/src/term_setup.rs#L24-L28`](../../../crates/vox-term/src/term_setup.rs#L24-L28) | Enter raw mode and the alternate screen.  Returns `Err` if the terminal does not support raw mode (e.g. `TERM=dumb`, pipe, CI). Callers should degrade gracefully. |
 | `fn` | `theme::is_dumb_terminal` | `pub fn is_dumb_terminal() -> bool` | [`crates/vox-term/src/theme.rs#L25-L27`](../../../crates/vox-term/src/theme.rs#L25-L27) | Returns `true` when the terminal is known-dumb (no color/glyph support). |

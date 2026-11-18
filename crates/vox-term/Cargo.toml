@@ -6,7 +6,7 @@ description = "Headless-capable ratatui TUI front-end for vox-terminal-core."
 license.workspace = true
 
 [features]
-default = []
+default = ["vox-lang"]
 vox-lang = ["vox-terminal-core/vox-lang"]
 
 [lib]

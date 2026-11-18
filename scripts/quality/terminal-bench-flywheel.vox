@@ -1,0 +1,81 @@
+// vox:caps fs process
+// terminal-bench-flywheel.vox — Milestone v8.0 Terminal SLA & Competitor Parity Guard
+import fs
+import process
+import json
+
+fn pointer_int(j: Json, path: str, default: int) to int {
+    return j.pointer(path).and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(default)
+}
+
+fn pointer_float(j: Json, path: str, default: float) to float {
+    return j.pointer(path).and_then(fn(x: Json) to Option[float] { x.as_float() }).unwrap_or(default)
+}
+
+fn pointer_bool(j: Json, path: str, default: bool) to bool {
+    return j.pointer(path).and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(default)
+}
+
+fn main() {
+    print("Vox Terminal SOTA Benchmark & Competitor Parity Guard (v8.0)")
+
+    let report_path = "contracts/reports/terminal-bench.v1.json"
+    if not fs.exists(report_path) {
+        print("FAIL: missing terminal bench report: " + report_path)
+        process.exit(1)
+    }
+
+    let raw = fs.read(report_path).unwrap()
+    let parsed = json.parse(raw)
+    if parsed.is_err() {
+        print("FAIL: malformed JSON in " + report_path + ": " + parsed.unwrap_err())
+        process.exit(1)
+    }
+    let doc = parsed.unwrap()
+
+    let schema_ver = pointer_int(doc, "/schema_version", 0)
+    let slas_met = pointer_bool(doc, "/all_slas_met", false)
+    let input_p50 = pointer_float(doc, "/metrics/input_to_frame_p50_ms", 999.0)
+    let scroll_mb = pointer_float(doc, "/metrics/pty_scroll_throughput_mb_s", 0.0)
+    let alt_ms = pointer_float(doc, "/metrics/alt_screen_switch_ms", 999.0)
+    let agent_ms = pointer_float(doc, "/metrics/agent_exec_roundtrip_p50_ms", 999.0)
+    let stall_ms = pointer_float(doc, "/metrics/tokio_worker_stall_max_ms", 999.0)
+    let osc_acc = pointer_float(doc, "/metrics/osc633_block_accuracy_pct", 0.0)
+    let rss_kb = pointer_int(doc, "/metrics/session_rss_kb_at_1k_blocks", 999999)
+
+    let mut failures = 0
+    if schema_ver isnt 1 {
+        print("FAIL: expected schema_version 1, got " + str(schema_ver))
+        failures = failures + 1
+    }
+    if not slas_met {
+        print("FAIL: all_slas_met is false in " + report_path)
+        failures = failures + 1
+    }
+    if osc_acc < 99.9 {
+        print("FAIL: osc633_block_accuracy_pct < 99.9: " + str(osc_acc))
+        failures = failures + 1
+    }
+    if stall_ms >= 2.0 {
+        print("FAIL: tokio_worker_stall_max_ms >= 2.0: " + str(stall_ms))
+        failures = failures + 1
+    }
+    if alt_ms >= 12.0 {
+        print("FAIL: alt_screen_switch_ms >= 12.0: " + str(alt_ms))
+        failures = failures + 1
+    }
+    if agent_ms >= 8.0 {
+        print("FAIL: agent_exec_roundtrip_p50_ms >= 8.0: " + str(agent_ms))
+        failures = failures + 1
+    }
+    if not raw.contains("Ghostty") or not raw.contains("Warp") {
+        print("FAIL: missing Nov 2026 competitor baselines (Ghostty/Warp)")
+        failures = failures + 1
+    }
+
+    if failures > 0 {
+        process.exit(1)
+    }
+
+    print("PASS: schema_version=1 all_slas_met=true input_p50_ms=" + str(input_p50) + " throughput_mib_s=" + str(scroll_mb) + " alt_switch_ms=" + str(alt_ms) + " agent_p50_ms=" + str(agent_ms) + " tokio_stall_ms=" + str(stall_ms) + " osc633_pct=" + str(osc_acc) + " rss_kb_1k=" + str(rss_kb))
+}

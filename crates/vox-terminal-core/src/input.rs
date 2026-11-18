@@ -30,6 +30,11 @@ pub fn classify(raw: &str) -> InputIntent {
             return InputIntent::VoxNative(t.to_string());
         }
         let (name, args) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
+        if !name.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+            || name.contains(['/', '\\', '.'])
+        {
+            return InputIntent::Shell(t.to_string());
+        }
         return match name {
             "nu" => {
                 let trimmed_args = args.trim();
@@ -73,6 +78,14 @@ mod tests {
                 name: "nu".to_string(),
                 args: "--help".to_string()
             }
+        );
+        assert_eq!(
+            classify("/usr/bin/env"),
+            InputIntent::Shell("/usr/bin/env".to_string())
+        );
+        assert_eq!(
+            classify("/bin/echo hi"),
+            InputIntent::Shell("/bin/echo hi".to_string())
         );
     }
 }

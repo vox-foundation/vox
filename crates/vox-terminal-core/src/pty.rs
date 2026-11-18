@@ -4,9 +4,9 @@
 //! `ShellBackend` trait are the SSOT. The GUI's Tauri commands now call
 //! `PtyHost` and forward the byte stream via their event emitter.
 //!
-//! **Forward-compat seam for Track 6 (Nushell):** `ShellBackend` is defined
+//! **Structured shell seam (`ShellKind::Nushell`):** `ShellBackend` is defined
 //! here so `Session` depends on `dyn ShellBackend`, not on `PtyShell`
-//! concretely. Track 6 adds `NuShell` behind the `nushell` cargo feature.
+//! concretely, with `NuStructuredBackend` supplying structured JSON pipelines.
 
 use std::io::Read;
 use std::path::Path;
@@ -195,6 +195,12 @@ fi
 /// Upgrade path: route through `vox shell check` (`contracts/terminal/exec-policy.v1.yaml`)
 /// before exec once vox-term needs to gate agent-issued or untrusted commands.
 pub fn run_shell_capture(cmd: &str) -> (i32, String, String) {
+    run_shell_capture_in_cwd(cmd, None)
+}
+
+/// Run `cmd` as a single line via the platform's default shell in `cwd` (when provided
+/// and present on disk), capturing stdout/stderr and exit code.
+pub fn run_shell_capture_in_cwd(cmd: &str, cwd: Option<&Path>) -> (i32, String, String) {
     let shell = default_shell();
     let base = shell
         .rsplit(['/', '\\'])
@@ -206,11 +212,12 @@ pub fn run_shell_capture(cmd: &str) -> (i32, String, String) {
     } else {
         "-c"
     };
-    match std::process::Command::new(&shell)
-        .arg(flag)
-        .arg(cmd)
-        .output()
-    {
+    let mut command = std::process::Command::new(&shell);
+    command.arg(flag).arg(cmd);
+    if let Some(dir) = cwd.filter(|d| d.is_dir()) {
+        command.current_dir(dir);
+    }
+    match command.output() {
         Ok(out) => (
             out.status.code().unwrap_or(-1),
             String::from_utf8_lossy(&out.stdout).into_owned(),
@@ -246,9 +253,166 @@ pub fn diagnose_nu_posix_isms(script: &str) -> Vec<String> {
     diagnostics
 }
 
+/// Wrap a Nushell pipeline for raw JSON capture without double-encoding existing `to json` tails.
+#[must_use]
+pub fn format_nu_structured_command(pipeline: &str) -> String {
+    let t = pipeline.trim();
+    if t.ends_with("| to json") || t.ends_with("| to json --raw") {
+        t.to_string()
+    } else {
+        format!("do {{ {t} }} | to json --raw")
+    }
+}
+
+fn try_native_structured_pipeline(
+    pipeline: &str,
+    cwd: Option<&Path>,
+) -> Option<(i32, String, String)> {
+    let trimmed = pipeline.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let stages: Vec<&str> = trimmed
+        .split('|')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    if stages.is_empty() {
+        return None;
+    }
+    let head_tokens: Vec<&str> = stages[0].split_whitespace().collect();
+    let head = head_tokens.first().copied()?;
+    let active_dir = cwd
+        .filter(|d| d.is_dir())
+        .map(Path::to_path_buf)
+        .or_else(|| std::env::current_dir().ok())?;
+
+    let tail_supported = stages[1..].iter().all(|st| {
+        let s = st.trim();
+        s == "to json"
+            || s == "to json --raw"
+            || s.starts_with("first ")
+            || s.starts_with("sort-by ")
+            || s.starts_with("where type == ")
+    });
+    if !tail_supported {
+        return None;
+    }
+
+    let mut rows: Vec<serde_json::Value> = match head {
+        "ls" => {
+            let rel_arg = head_tokens
+                .iter()
+                .skip(1)
+                .find(|t| !t.starts_with('-'))
+                .map(|p| p.trim_matches(['\'', '"']));
+            if let Some(p) = rel_arg
+                && Path::new(p)
+                    .components()
+                    .any(|c| matches!(c, std::path::Component::ParentDir))
+            {
+                return Some((
+                    1,
+                    String::new(),
+                    "path traversal '..' rejected in structured ls".to_string(),
+                ));
+            }
+            let target = rel_arg
+                .map(|p| active_dir.join(p))
+                .unwrap_or_else(|| active_dir.clone());
+            let entries = match std::fs::read_dir(&target) {
+                Ok(rd) => rd,
+                Err(e) => return Some((1, String::new(), e.to_string())),
+            };
+            let mut items = Vec::new();
+            for entry in entries.flatten() {
+                let meta = entry.metadata().ok();
+                let ftype = if meta.as_ref().is_some_and(|m| m.is_dir()) {
+                    "dir"
+                } else {
+                    "file"
+                };
+                let size = meta.as_ref().map_or(0, |m| m.len());
+                items.push(serde_json::json!({
+                    "name": entry.file_name().to_string_lossy(),
+                    "type": ftype,
+                    "size": size,
+                }));
+            }
+            items.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+            items
+        }
+        "pwd" => {
+            return Some((
+                0,
+                serde_json::json!([{ "cwd": active_dir.display().to_string() }]).to_string(),
+                String::new(),
+            ));
+        }
+        "version" => {
+            return Some((
+                0,
+                serde_json::json!([{
+                    "engine": "vox-structured-fallback",
+                    "os": std::env::consts::OS,
+                    "arch": std::env::consts::ARCH
+                }])
+                .to_string(),
+                String::new(),
+            ));
+        }
+        "env" => std::env::vars()
+            .filter(|(k, _)| {
+                let upper = k.to_ascii_uppercase();
+                !upper.contains("KEY")
+                    && !upper.contains("TOKEN")
+                    && !upper.contains("SECRET")
+                    && !upper.contains("PASSWORD")
+            })
+            .take(64)
+            .map(|(k, v)| serde_json::json!({ "name": k, "value": v }))
+            .collect(),
+        _ => return None,
+    };
+
+    for st in &stages[1..] {
+        let s = st.trim();
+        if let Some(rest) = s.strip_prefix("where type == ") {
+            let want = rest.trim().trim_matches(['\'', '"']);
+            rows.retain(|r| r.get("type").and_then(|v| v.as_str()) == Some(want));
+        } else if let Some(col) = s.strip_prefix("sort-by ") {
+            let key = col.trim();
+            rows.sort_by(|a, b| {
+                if key == "size" {
+                    a["size"].as_u64().cmp(&b["size"].as_u64())
+                } else {
+                    a[key].as_str().cmp(&b[key].as_str())
+                }
+            });
+        } else if let Some(n_str) = s.strip_prefix("first ")
+            && let Ok(n) = n_str.trim().parse::<usize>()
+        {
+            rows.truncate(n);
+        }
+    }
+
+    serde_json::to_string(&rows)
+        .ok()
+        .map(|json| (0, json, String::new()))
+}
+
 /// Run pipeline via `nu` with structured JSON capture when available,
-/// falling back gracefully with diagnostics.
+/// falling back to Vox's native structured pipeline or platform shell in host CWD.
 pub fn run_nu_structured_capture(pipeline: &str) -> (i32, String, String) {
+    run_nu_structured_capture_in_cwd(pipeline, None)
+}
+
+/// Run pipeline via `nu` with structured JSON capture in `cwd` when available,
+/// falling back to Vox's native structured pipeline or platform shell in `cwd`.
+pub fn run_nu_structured_capture_in_cwd(
+    pipeline: &str,
+    cwd: Option<&Path>,
+) -> (i32, String, String) {
     let warnings = diagnose_nu_posix_isms(pipeline);
     let mut warning_prefix = String::new();
     if !warnings.is_empty() {
@@ -261,12 +425,13 @@ pub fn run_nu_structured_capture(pipeline: &str) -> (i32, String, String) {
         .is_ok()
     {
         // Try structured capture via `to json --raw`
-        let structured_cmd = format!("do {{ {pipeline} }} | to json --raw");
-        if let Ok(out) = std::process::Command::new("nu")
-            .arg("--no-config-file")
-            .arg("-c")
-            .arg(&structured_cmd)
-            .output()
+        let structured_cmd = format_nu_structured_command(pipeline);
+        let mut scmd = std::process::Command::new("nu");
+        scmd.arg("--no-config-file").arg("-c").arg(&structured_cmd);
+        if let Some(dir) = cwd.filter(|d| d.is_dir()) {
+            scmd.current_dir(dir);
+        }
+        if let Ok(out) = scmd.output()
             && out.status.success()
         {
             return (
@@ -277,12 +442,12 @@ pub fn run_nu_structured_capture(pipeline: &str) -> (i32, String, String) {
         }
 
         // Fall back to direct execution
-        match std::process::Command::new("nu")
-            .arg("--no-config-file")
-            .arg("-c")
-            .arg(pipeline)
-            .output()
-        {
+        let mut direct = std::process::Command::new("nu");
+        direct.arg("--no-config-file").arg("-c").arg(pipeline);
+        if let Some(dir) = cwd.filter(|d| d.is_dir()) {
+            direct.current_dir(dir);
+        }
+        match direct.output() {
             Ok(out) => (
                 out.status.code().unwrap_or(-1),
                 format!("{warning_prefix}{}", String::from_utf8_lossy(&out.stdout)),
@@ -290,30 +455,80 @@ pub fn run_nu_structured_capture(pipeline: &str) -> (i32, String, String) {
             ),
             Err(e) => (-1, String::new(), format!("{warning_prefix}{e}")),
         }
+    } else if let Some((code, stdout, stderr)) = try_native_structured_pipeline(pipeline, cwd)
+        && warning_prefix.is_empty()
+    {
+        (code, stdout, stderr)
     } else {
-        let (code, stdout, stderr) = run_shell_capture(pipeline);
+        let (code, stdout, stderr) = run_shell_capture_in_cwd(pipeline, cwd);
         let notice = "[nu not found on PATH; executed via platform shell fallback]\n";
         (code, format!("{notice}{warning_prefix}{stdout}"), stderr)
     }
 }
 
-// ── ShellBackend trait (forward-compat seam for Track 6 Nushell) ─────────────
+// ── ShellBackend trait ───────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShellKind {
-    /// A system shell running over a PTY (bash, pwsh, etc.)
+    /// A system shell running over a PTY (bash, pwsh, zsh, fish, nu, etc.)
     Pty,
-    /// Nushell in-process (behind the `nushell` cargo feature, Track 6)
+    /// Structured JSON pipeline backend (`nu` when on PATH, or native structured fallback).
     Nushell,
 }
 
 /// Uniform interface over shell backends. `Session` depends on this trait,
-/// not on any concrete type, so the default backend can be changed (e.g., to
-/// Nushell) without touching session logic.
+/// not on any concrete type, so structured or PTY backends stay interchangeable.
 pub trait ShellBackend: Send + 'static {
     fn kind(&self) -> ShellKind;
     fn write(&mut self, data: &[u8]) -> Result<()>;
     fn kill(&mut self);
+}
+
+/// Concrete `ShellBackend` driving structured Nushell/JSON pipeline evaluations in `cwd`.
+#[derive(Debug, Default)]
+pub struct NuStructuredBackend {
+    pub cwd: Option<std::path::PathBuf>,
+    last_output: String,
+    killed: bool,
+}
+
+impl NuStructuredBackend {
+    pub fn with_cwd(cwd: Option<std::path::PathBuf>) -> Self {
+        Self {
+            cwd,
+            last_output: String::new(),
+            killed: false,
+        }
+    }
+
+    pub fn last_output(&self) -> &str {
+        &self.last_output
+    }
+}
+
+impl ShellBackend for NuStructuredBackend {
+    fn kind(&self) -> ShellKind {
+        ShellKind::Nushell
+    }
+
+    fn write(&mut self, data: &[u8]) -> Result<()> {
+        if self.killed {
+            anyhow::bail!("structured shell backend closed");
+        }
+        let pipeline = String::from_utf8_lossy(data);
+        let (_, stdout, stderr) =
+            run_nu_structured_capture_in_cwd(pipeline.trim(), self.cwd.as_deref());
+        self.last_output = if stderr.is_empty() {
+            stdout
+        } else {
+            format!("{stdout}{stderr}")
+        };
+        Ok(())
+    }
+
+    fn kill(&mut self) {
+        self.killed = true;
+    }
 }
 
 // ── PtyHost / PtyHandle ───────────────────────────────────────────────────────
@@ -627,5 +842,50 @@ mod tests {
             cmd.get_env("HIST_IGNORE_SPACE").and_then(|v| v.to_str()),
             Some("1")
         );
+    }
+
+    #[test]
+    fn run_shell_capture_in_cwd_and_native_structured_fallback_respect_cwd() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("alpha.txt"), "hello").expect("write");
+        let (code, stdout, _stderr) = run_shell_capture_in_cwd("pwd", Some(dir.path()));
+        assert_eq!(code, 0);
+        let dir_name = dir
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .expect("dir basename");
+        assert!(
+            stdout.contains(dir_name),
+            "unexpected pwd stdout: {stdout:?}"
+        );
+
+        let (ncode, nout, nerr) = try_native_structured_pipeline(
+            "ls | where type == file | first 1 | to json",
+            Some(dir.path()),
+        )
+        .expect("native structured ls");
+        assert_eq!(ncode, 0);
+        assert!(nerr.is_empty());
+        let parsed: serde_json::Value = serde_json::from_str(&nout).expect("valid json array");
+        assert_eq!(parsed[0]["name"], "alpha.txt");
+
+        let mut backend = NuStructuredBackend::with_cwd(Some(dir.path().to_path_buf()));
+        assert_eq!(backend.kind(), ShellKind::Nushell);
+        backend.write(b"pwd | to json").expect("backend write");
+        let bjson: serde_json::Value =
+            serde_json::from_str(backend.last_output()).expect("valid json output");
+        assert!(bjson[0]["cwd"].as_str().unwrap().contains(dir_name));
+
+        assert_eq!(format_nu_structured_command("ls | to json"), "ls | to json");
+        assert_eq!(
+            format_nu_structured_command("ls"),
+            "do { ls } | to json --raw"
+        );
+        let (tcode, _tout, terr) =
+            try_native_structured_pipeline("ls ../outside", Some(dir.path()))
+                .expect("traversal check returns diagnostic");
+        assert_eq!(tcode, 1);
+        assert!(terr.contains("traversal"));
     }
 }
