@@ -127,7 +127,22 @@ export function classifyPromptIntent(
     };
   }
 
-  // 6. Default / shell mode with non-hijacking AI Assist hint
+  // 6. Locked `shell` mode prefixes bare commands with `!` to skip speculative Vox compilation
+  if (shellMode === 'shell') {
+    return {
+      kind: 'shell',
+      modeBadge: 'shell',
+      showAiAssistPill: shouldShowAiAssistHint(trimmed, shellMode),
+      toSubmitPayload: (raw: string) => {
+        const t = raw.trim();
+        if (!t) return '';
+        if (t.startsWith('!') || t.startsWith('?') || SLASH_VERB_RE.test(t)) return t;
+        return `!${t}`;
+      },
+    };
+  }
+
+  // 7. Default mode with non-hijacking AI Assist hint
   return {
     kind: 'shell',
     modeBadge: 'shell',

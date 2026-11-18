@@ -166,15 +166,36 @@ pub(super) fn spawn_term_forwarder(
             let lagged = tokio::select! {
                 chunk = att.output.recv() => match chunk {
                     Ok(c) => {
+                        const COALESCE_MAX_BYTES: usize = 32 * 1024;
                         last_seq = c.seq;
-                        let data = decode_stream_chunk(&mut decoder, &c.bytes);
+                        let mut data = decode_stream_chunk(&mut decoder, &c.bytes);
+                        let mut batch_bytes = c.bytes.len();
+                        let mut lag_seen = false;
+                        while batch_bytes < COALESCE_MAX_BYTES {
+                            match att.output.try_recv() {
+                                Ok(next) => {
+                                    last_seq = next.seq;
+                                    batch_bytes += next.bytes.len();
+                                    let chunk_str = decode_stream_chunk(&mut decoder, &next.bytes);
+                                    if !chunk_str.is_empty() {
+                                        data.push_str(&chunk_str);
+                                    }
+                                }
+                                Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {
+                                    lag_seen = true;
+                                    break;
+                                }
+                                Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+                                | Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+                            }
+                        }
                         if !data.is_empty() {
                             let _ = app_handle.emit(
                                 TERM_OUTPUT_EVENT,
-                                TermOutputPayload { session_id: sid.clone(), seq: c.seq, data },
+                                TermOutputPayload { session_id: sid.clone(), seq: last_seq, data },
                             );
                         }
-                        false
+                        lag_seen
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => true,
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => {

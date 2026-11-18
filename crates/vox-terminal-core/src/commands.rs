@@ -75,7 +75,7 @@ impl Default for CommandRegistry {
             description: "List available slash-commands",
             handler: |_| {
                 CommandResult::Output(
-                    "Available commands: /help /model /budget /skills /memory /context /clear /compact /sh /nu /ai"
+                    "Available commands: /help /model /budget /skills /memory /context /clear /compact /reset /sh /nu /ai"
                         .into(),
                 )
             },
@@ -142,33 +142,68 @@ impl Default for CommandRegistry {
             name: "budget",
             description: "Show or set token budget",
             handler: |args| {
-                if args.is_empty() {
-                    CommandResult::Output("Token budget: unlimited".into())
+                if args.trim().is_empty() {
+                    CommandResult::Output(
+                        "[budget]\ntoken_limit: unlimited\nscope: local_session".into(),
+                    )
                 } else {
-                    CommandResult::Output(format!("Budget set to: {args} tokens"))
+                    CommandResult::Output(format!(
+                        "[budget]\ntoken_limit: {}\nscope: local_session",
+                        args.trim()
+                    ))
                 }
             },
         });
         r.register(CommandEntry {
             name: "skills",
             description: "List available skills",
-            handler: |_| {
-                CommandResult::Output("Skill registry: use `vox skill list` for details.".into())
+            handler: |args| {
+                let q = args.trim();
+                if q.is_empty() {
+                    CommandResult::Output(
+                        "[skills]\nregistry: active (workspace .vox/skills + .agents/skills)\nhint: run `vox skill list` or `/skills <query>`".into(),
+                    )
+                } else {
+                    CommandResult::Output(format!(
+                        "[skills]\nquery: {q}\nhint: run `vox skill search {q}` for full catalog matches"
+                    ))
+                }
             },
         });
         r.register(CommandEntry {
             name: "memory",
             description: "Open memory editor",
-            handler: |_| {
-                CommandResult::Output("Memory editor: use `vox memory search` for details.".into())
+            handler: |args| {
+                let q = args.trim();
+                if q.is_empty() {
+                    CommandResult::Output(
+                        "[memory]\nstore: vox-db hybrid memory\nhint: run `vox memory search <query>` or `/memory <query>`".into(),
+                    )
+                } else {
+                    CommandResult::Output(format!(
+                        "[memory]\nquery: {q}\nhint: run `vox memory search {q}` for hybrid recall"
+                    ))
+                }
             },
         });
         r.register(CommandEntry {
             name: "context",
             description: "Edit context window",
-            handler: |_| {
-                CommandResult::Output("Context window: use `vox llm context` for details.".into())
+            handler: |args| {
+                let sub = args.trim();
+                if sub.is_empty() {
+                    CommandResult::Output(
+                        "[context]\nbundle: terminal_blocks+cwd+git_branch (3-stage redacted)\nhint: use `@term:last`, `@term:failed`, or `vox llm context`".into(),
+                    )
+                } else {
+                    CommandResult::Output(format!("[context]\naction: {sub}"))
+                }
             },
+        });
+        r.register(CommandEntry {
+            name: "reset",
+            description: "Reset persistent .vox REPL declarations and bindings",
+            handler: |_| CommandResult::Output("[vox repl]\nstate: reset".into()),
         });
         r.register(CommandEntry {
             name: "sh",

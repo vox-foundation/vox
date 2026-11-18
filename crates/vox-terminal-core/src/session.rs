@@ -11,7 +11,7 @@ use crate::block::{Block, BlockId, BlockKind, BlockOrigin, BlockStatus, OutputCh
 use crate::commands::{CommandRegistry, CommandResult};
 use crate::input::InputIntent;
 use crate::osc633::{Osc633Event, Osc633Parser};
-use crate::pty::run_shell_capture;
+use crate::pty::{run_nu_structured_capture_in_cwd, run_shell_capture_in_cwd};
 
 #[path = "session_agent.rs"]
 mod session_agent;
@@ -97,6 +97,7 @@ pub struct Session {
     max_block_bytes: usize,
     parser: Osc633Parser,
     vt_shadow: crate::vt_shadow::VtShadow,
+    vox_repl: crate::vox_interp::VoxReplSession,
     tx: broadcast::Sender<SessionEvent>,
 }
 
@@ -122,6 +123,7 @@ impl Session {
             max_block_bytes: session_agent::DEFAULT_MAX_BLOCK_OUTPUT_BYTES,
             parser: Osc633Parser::new(),
             vt_shadow: crate::vt_shadow::VtShadow::new(cols, rows),
+            vox_repl: crate::vox_interp::VoxReplSession::new(),
             tx,
         }
     }
@@ -325,6 +327,27 @@ impl Session {
         }
     }
 
+    /// Evaluate a `.vox` expression/declaration against this session's persistent REPL state.
+    pub fn eval_vox_line(
+        &mut self,
+        src: &str,
+        level: crate::host::TermSecurityLevel,
+    ) -> anyhow::Result<String> {
+        let cwd_buf = self.cwd.as_deref().map(std::path::PathBuf::from);
+        self.vox_repl
+            .eval_in_session(src, level, cwd_buf.as_deref())
+    }
+
+    /// True if `trimmed` should attempt Vox evaluation before shell fallback.
+    #[must_use]
+    pub fn should_eval_vox(&self, trimmed: &str) -> bool {
+        self.vox_repl.should_eval(trimmed)
+    }
+
+    pub fn reset_vox_repl(&mut self) {
+        self.vox_repl.reset();
+    }
+
     /// Dispatch a classified [`InputIntent`] (stateless fallback / slash / Vox / agent).
     pub fn submit(&mut self, intent: InputIntent) -> BlockId {
         self.submit_with_origin(intent, BlockOrigin::User)
@@ -332,9 +355,20 @@ impl Session {
 
     /// Dispatch a classified [`InputIntent`] with an explicit [`BlockOrigin`].
     pub fn submit_with_origin(&mut self, intent: InputIntent, origin: BlockOrigin) -> BlockId {
+        self.submit_with_origin_and_level(intent, origin, crate::host::TermSecurityLevel::default())
+    }
+
+    /// Dispatch a classified [`InputIntent`] with explicit origin and security level.
+    pub fn submit_with_origin_and_level(
+        &mut self,
+        intent: InputIntent,
+        origin: BlockOrigin,
+        security_level: crate::host::TermSecurityLevel,
+    ) -> BlockId {
+        let session_cwd = self.cwd.as_deref().map(std::path::PathBuf::from);
         match intent {
             InputIntent::Shell(cmd) => {
-                let (code, stdout, stderr) = run_shell_capture(&cmd);
+                let (code, stdout, stderr) = run_shell_capture_in_cwd(&cmd, session_cwd.as_deref());
                 let mut chunks = Vec::new();
                 if !stdout.is_empty() {
                     chunks.push(OutputChunk::text(Stream::Stdout, stdout));
@@ -345,7 +379,8 @@ impl Session {
                 self.push_block(BlockKind::Shell, origin, cmd, chunks, code)
             }
             InputIntent::StructuredShell(pipeline) => {
-                let (code, stdout, stderr) = crate::pty::run_nu_structured_capture(&pipeline);
+                let (code, stdout, stderr) =
+                    run_nu_structured_capture_in_cwd(&pipeline, session_cwd.as_deref());
                 let mut chunks = Vec::new();
                 if !stdout.is_empty() {
                     chunks.push(OutputChunk::text(Stream::Stdout, stdout));
@@ -362,7 +397,24 @@ impl Session {
                 )
             }
             InputIntent::Command { name, args } => {
-                let result = CommandRegistry::default().dispatch(&format!("/{name} {args}"));
+                if name == "reset" {
+                    self.vox_repl.reset();
+                }
+                let result = if name == "nu"
+                    && !args.trim().is_empty()
+                    && args.trim() != "help"
+                    && args.trim() != "--help"
+                {
+                    let (code, stdout, stderr) =
+                        run_nu_structured_capture_in_cwd(args.trim(), session_cwd.as_deref());
+                    if code == 0 {
+                        CommandResult::Output(stdout)
+                    } else {
+                        CommandResult::Output(format!("exit {code}: {stderr}{stdout}"))
+                    }
+                } else {
+                    CommandRegistry::default().dispatch(&format!("/{name} {args}"))
+                };
                 let (text, ok) = match result {
                     CommandResult::Output(s) => (s, true),
                     CommandResult::Silent => (String::new(), true),
@@ -383,43 +435,40 @@ impl Session {
             }
             InputIntent::VoxNative(src) => {
                 let trimmed = src.trim();
-                let is_explicit_vox = trimmed.starts_with("fn ")
-                    || trimmed.starts_with("let ")
-                    || trimmed.starts_with("type ")
-                    || trimmed.starts_with("import ")
-                    || trimmed.starts_with('@');
-                let vox_src = if trimmed.contains("fn main") {
-                    trimmed.to_string()
-                } else {
-                    format!("fn main() -> Int {{ {trimmed} }}")
-                };
-                match crate::vox_interp::eval_line(&vox_src) {
-                    Ok(out) => self.push_block(
-                        BlockKind::VoxNative,
-                        origin,
-                        src,
-                        vec![OutputChunk::text(Stream::Stdout, out)],
-                        0,
-                    ),
-                    Err(err) if is_explicit_vox => self.push_block(
-                        BlockKind::VoxNative,
-                        origin,
-                        src,
-                        vec![OutputChunk::text(Stream::Stderr, err.to_string())],
-                        1,
-                    ),
-                    Err(_) => {
-                        let (code, stdout, stderr) = run_shell_capture(trimmed);
-                        let mut chunks = Vec::new();
-                        if !stdout.is_empty() {
-                            chunks.push(OutputChunk::text(Stream::Stdout, stdout));
+                let is_explicit_vox = crate::vox_interp::is_explicit_vox_syntax(trimmed);
+                if self.should_eval_vox(trimmed) {
+                    match self.eval_vox_line(trimmed, security_level) {
+                        Ok(out) => {
+                            return self.push_block(
+                                BlockKind::VoxNative,
+                                origin,
+                                src,
+                                vec![OutputChunk::text(Stream::Stdout, out)],
+                                0,
+                            );
                         }
-                        if !stderr.is_empty() {
-                            chunks.push(OutputChunk::text(Stream::Stderr, stderr));
+                        Err(err) if is_explicit_vox => {
+                            return self.push_block(
+                                BlockKind::VoxNative,
+                                origin,
+                                src,
+                                vec![OutputChunk::text(Stream::Stderr, err.to_string())],
+                                1,
+                            );
                         }
-                        self.push_block(BlockKind::Shell, origin, src, chunks, code)
+                        Err(_) => {}
                     }
                 }
+                let (code, stdout, stderr) =
+                    run_shell_capture_in_cwd(trimmed, session_cwd.as_deref());
+                let mut chunks = Vec::new();
+                if !stdout.is_empty() {
+                    chunks.push(OutputChunk::text(Stream::Stdout, stdout));
+                }
+                if !stderr.is_empty() {
+                    chunks.push(OutputChunk::text(Stream::Stderr, stderr));
+                }
+                self.push_block(BlockKind::Shell, origin, src, chunks, code)
             }
             InputIntent::Agent(prompt) => {
                 let routed = crate::agent::route_agent_prompt(&prompt);

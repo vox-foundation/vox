@@ -1,0 +1,4 @@
+# Phase 475 Verification
+
+- `cargo test -p vox-corpus --lib training::spoke_roundtrip`: `46 passed; 0 failed; 269 filtered out` (verified `agentic_terminal_trajectory_enforces_safety_and_credential_guard` plus `five_spoke_golden_suite_achieves_100_percent_and_renders_scorecard`, `five_spoke_benchmark_suite_25_achieves_100_percent_across_all_25_problems`, `grammar_unification_voxlang_mcp_and_eight_spoke_provenance_guards`, `organic_search_to_compilation_suite_15_achieves_100_percent_across_all_spokes`, `adversarial_and_real_query_spoke_suite_48_achieves_100_percent_across_all_spokes`, and `adversarial_and_real_query_spoke_suite_64_achieves_100_percent_across_all_spokes`).
+- `cargo test -p vox-terminal-core --features vox-lang`: `corpus::curate`, `corpus::redact`, and `corpus::writer` redaction/scrubbing tests passed within `89/89` unit suite.

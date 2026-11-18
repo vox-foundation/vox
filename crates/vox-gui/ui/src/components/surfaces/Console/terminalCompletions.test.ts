@@ -128,6 +128,7 @@ describe('Task 1: promptHighlighter, intentRouter, and terminalCompletions', () 
       const nl2 = classifyPromptIntent('why did cargo fail', 'shell');
       expect(nl2.kind).toBe('shell');
       expect(nl2.showAiAssistPill).toBe(true);
+      expect(nl2.toSubmitPayload('ls -la')).toBe('!ls -la');
 
       // Operators or flags suppress AI Assist pill
       const shellWithPipe = classifyPromptIntent('what file | grep foo', 'default');

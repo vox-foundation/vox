@@ -234,7 +234,7 @@ impl SessionHost for LocalHost {
         LocalHost::attach_since(self, id, after_seq)
     }
     async fn submit(&self, id: &str, line: &str) -> Result<BlockId> {
-        LocalHost::submit(self, id, line)
+        LocalHost::submit_async(self, id, line).await
     }
     async fn input(&self, id: &str, bytes: &[u8]) -> Result<()> {
         LocalHost::input(self, id, bytes)
@@ -329,6 +329,7 @@ pub(crate) struct Entry {
     pub(crate) pty: Mutex<Option<PtyHandle>>,
     pub(crate) replay: Mutex<Replay>,
     pub(crate) settled_cv: Condvar,
+    pub(crate) settled_notify: tokio::sync::Notify,
     pub(crate) pty_eof: AtomicBool,
     pub(crate) out_tx: broadcast::Sender<OutputFrame>,
     pub(crate) security_level: Mutex<TermSecurityLevel>,
@@ -364,6 +365,7 @@ impl Entry {
                 truncated_front: false,
             }),
             settled_cv: Condvar::new(),
+            settled_notify: tokio::sync::Notify::new(),
             pty_eof: AtomicBool::new(false),
             out_tx: broadcast::channel(256).0,
             security_level: Mutex::new(TermSecurityLevel::default()),
@@ -418,6 +420,7 @@ impl Entry {
         lock(&self.session).on_pty_bytes(bytes);
         drop(r);
         self.settled_cv.notify_all();
+        self.settled_notify.notify_waiters();
     }
 
     pub(crate) fn wait_until<P>(&self, timeout: Duration, pred: P)
@@ -437,6 +440,34 @@ impl Entry {
                 Ok((guard, _)) => guard,
                 Err(poisoned) => poisoned.into_inner().0,
             };
+        }
+    }
+
+    /// Async non-blocking wait using `tokio::sync::Notify` (never stalls Tokio worker threads).
+    pub(crate) async fn wait_until_async<P>(&self, timeout: Duration, pred: P)
+    where
+        P: Fn(&Session) -> bool,
+    {
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            let notified = self.settled_notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            {
+                let sess = lock(&self.session);
+                if pred(&sess) || self.pty_eof.load(Ordering::Acquire) {
+                    return;
+                }
+            }
+            let Some(rem) = deadline.checked_duration_since(tokio::time::Instant::now()) else {
+                return;
+            };
+            if rem.is_zero() {
+                return;
+            }
+            if tokio::time::timeout(rem, notified).await.is_err() {
+                return;
+            }
         }
     }
 }
@@ -478,6 +509,7 @@ fn preempt_agent_turns_and_pty(entry: &Entry, emit_mode: TermControlMode, force_
         let _ = pty.signal(TermSignal::Interrupt);
     }
     entry.settled_cv.notify_all();
+    entry.settled_notify.notify_waiters();
 }
 
 pub struct LocalHost {
@@ -652,97 +684,120 @@ impl LocalHost {
             .find(|b| b.id == block)
             .cloned()
     }
+}
 
-    /// Classify `line` and run it through the session (`!cmd`, `/cmd`, `?ask`, …).
-    pub fn submit(&self, id: &str, line: &str) -> Result<BlockId> {
-        self.submit_with_origin(id, line, BlockOrigin::User)
+enum SubmitWaitTarget {
+    Settled(BlockId),
+    AwaitPty {
+        block_id: BlockId,
+        timeout: Duration,
+        wait_block_gone: Option<BlockId>,
+    },
+}
+
+fn prepare_submit_entry(
+    host: &LocalHost,
+    id: &str,
+    line: &str,
+    origin: &BlockOrigin,
+) -> Result<(Arc<Entry>, TermSecurityLevel, bool)> {
+    let entry = host.entry(id)?;
+    let security_level = *lock(&entry.security_level);
+    match origin {
+        BlockOrigin::User => {
+            let flipped = {
+                let mut mode = lock(&entry.control_mode);
+                if *mode == TermControlMode::Autopilot {
+                    *mode = TermControlMode::Manual;
+                    true
+                } else {
+                    false
+                }
+            };
+            if flipped {
+                let mut s = lock(&entry.session);
+                let _ = s.bump_control_epoch();
+                s.emit_event(SessionEvent::ControlModeChanged {
+                    control_mode: TermControlMode::Manual,
+                });
+            }
+        }
+        BlockOrigin::Agent { .. } => {
+            security_level
+                .allows_agent_command(line)
+                .map_err(|reason| anyhow!(reason))?;
+        }
+        BlockOrigin::System => {}
     }
 
-    /// Classify `line` and run it through the session with an explicit [`BlockOrigin`].
-    pub fn submit_with_origin(&self, id: &str, line: &str, origin: BlockOrigin) -> Result<BlockId> {
-        let entry = self.entry(id)?;
-        match &origin {
-            BlockOrigin::User => {
-                let flipped = {
-                    let mut mode = lock(&entry.control_mode);
-                    if *mode == TermControlMode::Autopilot {
-                        *mode = TermControlMode::Manual;
-                        true
-                    } else {
-                        false
-                    }
-                };
-                if flipped {
-                    let mut s = lock(&entry.session);
-                    let _ = s.bump_control_epoch();
-                    s.emit_event(SessionEvent::ControlModeChanged {
-                        control_mode: TermControlMode::Manual,
-                    });
-                }
+    let has_osc633_pty = !entry.pty_eof.load(Ordering::Acquire)
+        && lock(&entry.pty)
+            .as_ref()
+            .is_some_and(PtyHandle::supports_osc633);
+    Ok((entry, security_level, has_osc633_pty))
+}
+
+fn dispatch_submit_on_entry(
+    id: &str,
+    entry: &Entry,
+    security_level: TermSecurityLevel,
+    has_osc633_pty: bool,
+    line: &str,
+    origin: BlockOrigin,
+) -> Result<SubmitWaitTarget> {
+    let intent = classify(line);
+    if has_osc633_pty {
+        let active_running_id = lock(&entry.session).open_block_id();
+        if let Some(running_id) = active_running_id {
+            if matches!(origin, BlockOrigin::Agent { .. }) {
+                anyhow::bail!(
+                    "agent cannot inject stdin into an already-running terminal block ({running_id:?})"
+                );
             }
-            BlockOrigin::Agent { .. } => {
-                let level = *lock(&entry.security_level);
-                level
-                    .allows_agent_command(line)
-                    .map_err(|reason| anyhow!(reason))?;
+            if matches!(intent, InputIntent::Command { .. } | InputIntent::Agent(_)) {
+                let bid = lock(&entry.session).submit_with_origin_and_level(
+                    intent,
+                    origin,
+                    security_level,
+                );
+                return Ok(SubmitWaitTarget::Settled(bid));
             }
-            BlockOrigin::System => {}
+            {
+                let mut pty_guard = lock(&entry.pty);
+                let pty = pty_guard
+                    .as_mut()
+                    .ok_or_else(|| anyhow!("terminal session {id} is closed"))?;
+                pty.write(format!("{line}\n").as_bytes())?;
+            }
+            return Ok(SubmitWaitTarget::AwaitPty {
+                block_id: running_id,
+                timeout: Duration::from_millis(500),
+                wait_block_gone: Some(running_id),
+            });
         }
 
-        let has_osc633_pty = !entry.pty_eof.load(Ordering::Acquire)
-            && lock(&entry.pty)
-                .as_ref()
-                .is_some_and(PtyHandle::supports_osc633);
-
-        let intent = classify(line);
-        if has_osc633_pty {
-            let mut active_running_id = lock(&entry.session).open_block_id();
-            if let Some(running_id) = active_running_id
-                && matches!(origin, BlockOrigin::Agent { .. })
-            {
-                entry.wait_until(Duration::from_millis(5000), |s| {
-                    s.open_block_id() != Some(running_id) && s.is_at_prompt()
-                });
-                active_running_id = lock(&entry.session).open_block_id();
-            }
-            if let Some(running_id) = active_running_id {
-                if matches!(origin, BlockOrigin::Agent { .. }) {
-                    anyhow::bail!(
-                        "agent cannot inject stdin into an already-running terminal block ({running_id:?})"
+        let pty_shell_target: Option<(String, String)> = match intent {
+            InputIntent::Shell(cmd) => Some((cmd.clone(), cmd)),
+            InputIntent::StructuredShell(pipeline) => {
+                if entry.shell_name == "nu" {
+                    let wire = crate::pty::format_nu_structured_command(&pipeline);
+                    Some((format!("!nu {pipeline}"), wire))
+                } else {
+                    let bid = lock(&entry.session).submit_with_origin_and_level(
+                        InputIntent::StructuredShell(pipeline),
+                        origin,
+                        security_level,
                     );
+                    return Ok(SubmitWaitTarget::Settled(bid));
                 }
-                if matches!(intent, InputIntent::Command { .. } | InputIntent::Agent(_)) {
-                    let bid = lock(&entry.session).submit_with_origin(intent, origin);
-                    return Ok(bid);
-                }
-                {
-                    let mut pty_guard = lock(&entry.pty);
-                    let pty = pty_guard
-                        .as_mut()
-                        .ok_or_else(|| anyhow!("terminal session {id} is closed"))?;
-                    pty.write(format!("{line}\n").as_bytes())?;
-                }
-                entry.wait_until(Duration::from_millis(500), |s| {
-                    s.open_block_id() != Some(running_id) && s.is_at_prompt()
-                });
-                return Ok(running_id);
             }
-
-            let pty_shell_target: Option<(String, String)> = match intent {
-                InputIntent::Shell(cmd) => Some((cmd.clone(), cmd)),
-                InputIntent::VoxNative(src) => {
-                    let trimmed = src.trim();
-                    let is_explicit_vox = trimmed.starts_with("fn ")
-                        || trimmed.starts_with("let ")
-                        || trimmed.starts_with("type ")
-                        || trimmed.starts_with("import ")
-                        || trimmed.starts_with('@');
-                    let vox_src = if trimmed.contains("fn main") {
-                        trimmed.to_string()
-                    } else {
-                        format!("fn main() -> Int {{ {trimmed} }}")
-                    };
-                    match crate::vox_interp::eval_line(&vox_src) {
+            InputIntent::VoxNative(src) => {
+                let trimmed = src.trim().to_string();
+                let is_explicit_vox = crate::vox_interp::is_explicit_vox_syntax(&trimmed);
+                let should_eval = lock(&entry.session).should_eval_vox(&trimmed);
+                if should_eval {
+                    let eval_res = lock(&entry.session).eval_vox_line(&trimmed, security_level);
+                    match eval_res {
                         Ok(out) => {
                             let bid = lock(&entry.session).push_completed_block(
                                 BlockKind::VoxNative,
@@ -751,7 +806,7 @@ impl LocalHost {
                                 vec![OutputChunk::text(Stream::Stdout, out)],
                                 0,
                             );
-                            return Ok(bid);
+                            return Ok(SubmitWaitTarget::Settled(bid));
                         }
                         Err(err) if is_explicit_vox => {
                             let bid = lock(&entry.session).push_completed_block(
@@ -761,42 +816,131 @@ impl LocalHost {
                                 vec![OutputChunk::text(Stream::Stderr, err.to_string())],
                                 1,
                             );
-                            return Ok(bid);
+                            return Ok(SubmitWaitTarget::Settled(bid));
                         }
-                        Err(_) => {
-                            let shell_cmd = trimmed.to_string();
-                            Some((src, shell_cmd))
-                        }
+                        Err(_) => Some((src, trimmed)),
                     }
+                } else {
+                    Some((src, trimmed))
                 }
-                other => {
-                    let bid = lock(&entry.session).submit_with_origin(other, origin);
-                    return Ok(bid);
+            }
+            other => {
+                let bid = lock(&entry.session).submit_with_origin_and_level(
+                    other,
+                    origin,
+                    security_level,
+                );
+                return Ok(SubmitWaitTarget::Settled(bid));
+            }
+        };
+
+        if let Some((display_input, shell_cmd)) = pty_shell_target {
+            let block_id = lock(&entry.session).begin_pty_submission(display_input, origin);
+            let write_res = {
+                let mut pty_guard = lock(&entry.pty);
+                match pty_guard.as_mut() {
+                    Some(pty) => pty.write(format!("{shell_cmd}\n").as_bytes()),
+                    None => Err(anyhow!("terminal session {id} is closed")),
                 }
             };
+            if let Err(err) = write_res {
+                lock(&entry.session).finish_open_block_on_eof(-1);
+                return Err(err);
+            }
+            return Ok(SubmitWaitTarget::AwaitPty {
+                block_id,
+                timeout: Duration::from_millis(5000),
+                wait_block_gone: None,
+            });
+        }
+    }
 
-            if let Some((display_input, shell_cmd)) = pty_shell_target {
-                let block_id = lock(&entry.session).begin_pty_submission(display_input, origin);
-                let write_res = {
-                    let mut pty_guard = lock(&entry.pty);
-                    match pty_guard.as_mut() {
-                        Some(pty) => pty.write(format!("{shell_cmd}\n").as_bytes()),
-                        None => Err(anyhow!("terminal session {id} is closed")),
-                    }
-                };
-                if let Err(err) = write_res {
-                    lock(&entry.session).finish_open_block_on_eof(-1);
-                    return Err(err);
-                }
-                entry.wait_until(Duration::from_millis(5000), |s| {
-                    (s.open_block_id() != Some(block_id) && s.is_at_prompt()) || s.is_alt_screen()
-                });
-                return Ok(block_id);
+    let block =
+        lock(&entry.session).submit_with_origin_and_level(classify(line), origin, security_level);
+    Ok(SubmitWaitTarget::Settled(block))
+}
+
+impl LocalHost {
+    /// Classify `line` and run it through the session asynchronously without blocking Tokio workers.
+    pub async fn submit_async(&self, id: &str, line: &str) -> Result<BlockId> {
+        self.submit_with_origin_async(id, line, BlockOrigin::User)
+            .await
+    }
+
+    /// Classify `line` and run it through the session asynchronously using `tokio::sync::Notify`.
+    pub async fn submit_with_origin_async(
+        &self,
+        id: &str,
+        line: &str,
+        origin: BlockOrigin,
+    ) -> Result<BlockId> {
+        let (entry, security_level, has_osc633_pty) =
+            prepare_submit_entry(self, id, line, &origin)?;
+        let active_running_id = if has_osc633_pty && matches!(origin, BlockOrigin::Agent { .. }) {
+            lock(&entry.session).open_block_id()
+        } else {
+            None
+        };
+        if let Some(running_id) = active_running_id {
+            entry
+                .wait_until_async(Duration::from_millis(5000), |s| {
+                    s.open_block_id() != Some(running_id) && s.is_at_prompt()
+                })
+                .await;
+        }
+        match dispatch_submit_on_entry(id, &entry, security_level, has_osc633_pty, line, origin)? {
+            SubmitWaitTarget::Settled(bid) => Ok(bid),
+            SubmitWaitTarget::AwaitPty {
+                block_id,
+                timeout,
+                wait_block_gone,
+            } => {
+                let target_gone = wait_block_gone.unwrap_or(block_id);
+                entry
+                    .wait_until_async(timeout, |s| {
+                        (s.open_block_id() != Some(target_gone) && s.is_at_prompt())
+                            || (wait_block_gone.is_none() && s.is_alt_screen())
+                    })
+                    .await;
+                Ok(block_id)
             }
         }
+    }
 
-        let block = lock(&entry.session).submit_with_origin(classify(line), origin);
-        Ok(block)
+    /// Classify `line` and run it through the session (`!cmd`, `/cmd`, `?ask`, …).
+    pub fn submit(&self, id: &str, line: &str) -> Result<BlockId> {
+        self.submit_with_origin(id, line, BlockOrigin::User)
+    }
+
+    /// Classify `line` and run it through the session with an explicit [`BlockOrigin`].
+    pub fn submit_with_origin(&self, id: &str, line: &str, origin: BlockOrigin) -> Result<BlockId> {
+        let (entry, security_level, has_osc633_pty) =
+            prepare_submit_entry(self, id, line, &origin)?;
+        let active_running_id = if has_osc633_pty && matches!(origin, BlockOrigin::Agent { .. }) {
+            lock(&entry.session).open_block_id()
+        } else {
+            None
+        };
+        if let Some(running_id) = active_running_id {
+            entry.wait_until(Duration::from_millis(5000), |s| {
+                s.open_block_id() != Some(running_id) && s.is_at_prompt()
+            });
+        }
+        match dispatch_submit_on_entry(id, &entry, security_level, has_osc633_pty, line, origin)? {
+            SubmitWaitTarget::Settled(bid) => Ok(bid),
+            SubmitWaitTarget::AwaitPty {
+                block_id,
+                timeout,
+                wait_block_gone,
+            } => {
+                let target_gone = wait_block_gone.unwrap_or(block_id);
+                entry.wait_until(timeout, |s| {
+                    (s.open_block_id() != Some(target_gone) && s.is_at_prompt())
+                        || (wait_block_gone.is_none() && s.is_alt_screen())
+                });
+                Ok(block_id)
+            }
+        }
     }
 
     /// Return the last `max_blocks` blocks for `id` with `input` and `plain_output()`
@@ -884,6 +1028,7 @@ impl LocalHost {
             lock(&entry.session).cancel_open_block();
         }
         entry.settled_cv.notify_all();
+        entry.settled_notify.notify_waiters();
         Ok(())
     }
 
@@ -912,6 +1057,7 @@ impl LocalHost {
         }
         entry.pty_eof.store(true, Ordering::Release);
         entry.settled_cv.notify_all();
+        entry.settled_notify.notify_waiters();
         Ok(())
     }
 }
@@ -926,6 +1072,7 @@ impl Drop for LocalHost {
             }
             entry.pty_eof.store(true, Ordering::Release);
             entry.settled_cv.notify_all();
+            entry.settled_notify.notify_waiters();
         }
     }
 }
@@ -1260,6 +1407,93 @@ mod tests {
         host.set_control_mode(&sid, TermControlMode::Manual)
             .unwrap();
         assert_eq!(host.control_epoch(&sid).unwrap(), 2);
+        host.close(&sid).unwrap();
+    }
+
+    #[test]
+    fn submit_async_does_not_block_current_thread_tokio_executor() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            let host = Arc::new(LocalHost::default());
+            let sid = host.open_synthetic(80, 24);
+            let entry = host.entry(&sid).unwrap();
+            let bid =
+                lock(&entry.session).begin_pty_submission("sleep 1".into(), BlockOrigin::User);
+
+            let ticks = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let ticks_clone = Arc::clone(&ticks);
+            let entry_done = Arc::clone(&entry);
+            let ticker = tokio::spawn(async move {
+                for i in 0..5 {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                    ticks_clone.fetch_add(1, Ordering::Relaxed);
+                    if i == 3 {
+                        entry_done.feed(b"\x1b]633;D;0\x07\x1b]633;A\x07$ \x1b]633;B\x07");
+                    }
+                }
+            });
+
+            entry
+                .wait_until_async(Duration::from_millis(500), |s| {
+                    s.open_block_id() != Some(bid) && s.is_at_prompt()
+                })
+                .await;
+            ticker.await.unwrap();
+            assert!(
+                ticks.load(Ordering::Relaxed) >= 4,
+                "single-thread Tokio tasks must continue progressing while waiting asynchronously"
+            );
+        });
+    }
+
+    #[cfg(feature = "vox-lang")]
+    #[tokio::test]
+    async fn persistent_vox_repl_evaluates_non_int_types_and_remembers_let_bindings() {
+        let host = LocalHost::default();
+        let sid = host.open_synthetic(80, 24);
+
+        let b1 = host.submit_async(&sid, "let x = 40").await.unwrap();
+        assert_eq!(host.block(&sid, b1).unwrap().kind, BlockKind::VoxNative);
+        let b2 = host.submit_async(&sid, "x + 2").await.unwrap();
+        assert_eq!(host.block(&sid, b2).unwrap().kind, BlockKind::VoxNative);
+        assert!(
+            host.block(&sid, b2).unwrap().plain_output().contains("42"),
+            "expected persistent let binding x+2 = 42, got: {:?}",
+            host.block(&sid, b2).unwrap().plain_output()
+        );
+
+        let b3 = host
+            .submit_async(&sid, "\"hello \" + \"vox\"")
+            .await
+            .unwrap();
+        assert_eq!(host.block(&sid, b3).unwrap().kind, BlockKind::VoxNative);
+        assert_eq!(host.block(&sid, b3).unwrap().plain_output(), "hello vox");
+
+        let b4 = host.submit_async(&sid, "/reset").await.unwrap();
+        assert_eq!(host.block(&sid, b4).unwrap().kind, BlockKind::SlashCommand);
+        host.close(&sid).unwrap();
+    }
+
+    #[tokio::test]
+    async fn open_with_auto_shell_resolves_ai_shell_cleanly() {
+        let host = LocalHost::default();
+        let sid = host
+            .open(OpenSpec {
+                cols: 80,
+                rows: 24,
+                shell: Some("auto".to_string()),
+            })
+            .await
+            .expect("open auto shell");
+        let bid = host
+            .submit_async(&sid, "!echo auto-shell-ok")
+            .await
+            .unwrap();
+        let block = host.block(&sid, bid).expect("block");
+        assert!(block.plain_output().contains("auto-shell-ok"));
         host.close(&sid).unwrap();
     }
 }

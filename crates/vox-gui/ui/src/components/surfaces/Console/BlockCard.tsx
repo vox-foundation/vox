@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
 import { AgentTurnContent } from './AgentTurnContent';
 import { JsonLedgerTable, tryParseStructuredJson } from './JsonLedgerTable';
+import { RichBlockPreview, formatBlockRusageBadge, tryParseVoxFrameOrPlot } from './RichBlockPreview';
 import { sgrToSpans, stripAnsi } from './sgrToSpans';
 import { SlashMetaContent, TermBlockFeedbackStrip } from './SlashMetaContent';
 import { TERMINAL_MONO_STYLE, useDocumentThemeAttr } from './terminalTheme';
@@ -139,12 +140,11 @@ export function BlockCard({
   const agentOrigin = isAgentOrigin(block.origin);
   const statusLabel = formatStatusLabel(block);
   const durationLabel = formatDuration(block);
+  const rusageBadge = formatBlockRusageBadge(block);
   const rawOutput = extractRawOutput(block);
   const { plainOutput, isStructured, renderedOutput: formattedStructured } = formatRenderedBlockOutput(block.input, rawOutput);
-  const structuredData = React.useMemo(
-    () => (plainOutput ? tryParseStructuredJson(plainOutput) : null),
-    [plainOutput],
-  );
+  const richPreview = React.useMemo(() => (plainOutput ? tryParseVoxFrameOrPlot(plainOutput) : null), [plainOutput]);
+  const structuredData = React.useMemo(() => (!richPreview && plainOutput ? tryParseStructuredJson(plainOutput) : null), [plainOutput, richPreview]);
 
   const lineCount = plainOutput ? plainOutput.replace(/\n$/, '').split('\n').length : 0;
   const isAgentTurn = block.kind === 'AgentTurn';
@@ -289,6 +289,7 @@ export function BlockCard({
             </Button>
           )}
           {durationLabel && <span className="text-text-muted">{durationLabel}</span>}
+          {rusageBadge && <span data-testid="term-block-rusage" className="text-text-muted">{rusageBadge}</span>}
         </div>
       </div>
 
@@ -309,6 +310,8 @@ export function BlockCard({
         />
       ) : isSlashMeta ? (
         <SlashMetaContent block={block} />
+      ) : richPreview ? (
+        <div onClick={(e) => e.stopPropagation()}><RichBlockPreview spec={richPreview} /></div>
       ) : structuredData !== null && ledgerView === 'table' ? (
         <div onClick={(e) => e.stopPropagation()}>
           <JsonLedgerTable data={structuredData} />
