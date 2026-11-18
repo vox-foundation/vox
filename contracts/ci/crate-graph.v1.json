@@ -41,9 +41,7 @@
     "vox-build-meta": [
       "workspace-hack"
     ],
-    "vox-build-queue": [
-      "workspace-hack"
-    ],
+    "vox-build-queue": [],
     "vox-capability-registry": [
       "workspace-hack"
     ],
@@ -615,7 +613,8 @@
       "vox-db",
       "vox-orchestrator-types",
       "vox-secrets",
-      "vox-telemetry"
+      "vox-telemetry",
+      "workspace-hack"
     ],
     "vox-orchestrator-queue": [
       "vox-config",

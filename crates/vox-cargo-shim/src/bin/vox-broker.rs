@@ -250,6 +250,7 @@ mod tests {
             compile_ms: 5,
             coalesced_hit: false,
             timed_out: false,
+            ..Default::default()
         };
         vox_build_queue::metrics::append(&tmp.path().join("metrics.jsonl"), &rec).unwrap();
         let out = render_stats(tmp.path());

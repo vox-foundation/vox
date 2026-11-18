@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MetricRecord {
     pub ts_ms: u128,
     pub worktree: String,
@@ -28,6 +28,83 @@ pub struct MetricRecord {
     pub coalesced_hit: bool,
     #[serde(default)]
     pub timed_out: bool,
+    #[serde(default)]
+    pub user_cpu_ms: u64,
+    #[serde(default)]
+    pub sys_cpu_ms: u64,
+    #[serde(default)]
+    pub max_rss_kb: u64,
+    #[serde(default)]
+    pub page_faults_major: u64,
+    #[serde(default)]
+    pub page_faults_minor: u64,
+    #[serde(default)]
+    pub load_1m_x100: u64,
+    #[serde(default)]
+    pub effective_jobs: u32,
+}
+
+/// Cumulative child-tree resource usage snapshot from `getrusage(RUSAGE_CHILDREN)`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ChildrenRusage {
+    pub user_cpu_ms: u64,
+    pub sys_cpu_ms: u64,
+    pub max_rss_kb: u64,
+    pub page_faults_major: u64,
+    pub page_faults_minor: u64,
+}
+
+impl ChildrenRusage {
+    /// Delta between a pre-spawn snapshot and a post-exit snapshot.
+    /// `max_rss_kb` reports the post-exit high-water mark (monotonic per parent process).
+    pub fn delta(&self, after: &Self) -> Self {
+        Self {
+            user_cpu_ms: after.user_cpu_ms.saturating_sub(self.user_cpu_ms),
+            sys_cpu_ms: after.sys_cpu_ms.saturating_sub(self.sys_cpu_ms),
+            max_rss_kb: after.max_rss_kb,
+            page_faults_major: after
+                .page_faults_major
+                .saturating_sub(self.page_faults_major),
+            page_faults_minor: after
+                .page_faults_minor
+                .saturating_sub(self.page_faults_minor),
+        }
+    }
+}
+
+/// Sample cumulative `RUSAGE_CHILDREN` metrics on Unix (zeros on non-Unix).
+#[allow(unsafe_code)]
+pub fn sample_children_rusage() -> ChildrenRusage {
+    #[cfg(unix)]
+    {
+        // SAFETY: zero-initialized rusage struct passed to POSIX `getrusage(RUSAGE_CHILDREN, ...)`.
+        let mut ru: libc::rusage = unsafe { std::mem::zeroed() };
+        let rc = unsafe { libc::getrusage(libc::RUSAGE_CHILDREN, &mut ru) };
+        if rc != 0 {
+            return ChildrenRusage::default();
+        }
+        let tv_ms = |tv: libc::timeval| -> u64 {
+            (tv.tv_sec.max(0) as u64)
+                .saturating_mul(1000)
+                .saturating_add((tv.tv_usec.max(0) as u64) / 1000)
+        };
+        let raw_rss = ru.ru_maxrss.max(0) as u64;
+        #[cfg(target_os = "macos")]
+        let max_rss_kb = raw_rss / 1024;
+        #[cfg(not(target_os = "macos"))]
+        let max_rss_kb = raw_rss;
+        ChildrenRusage {
+            user_cpu_ms: tv_ms(ru.ru_utime),
+            sys_cpu_ms: tv_ms(ru.ru_stime),
+            max_rss_kb,
+            page_faults_major: ru.ru_majflt.max(0) as u64,
+            page_faults_minor: ru.ru_minflt.max(0) as u64,
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        ChildrenRusage::default()
+    }
 }
 
 /// Wall-clock milliseconds since the Unix epoch (0 if the clock is before it).
@@ -51,7 +128,7 @@ pub fn append(path: &Path, rec: &MetricRecord) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Summary {
     pub count: usize,
     pub p50_wait_ms: u64,
@@ -59,6 +136,9 @@ pub struct Summary {
     pub p95_target_wait_ms: u64,
     pub p95_slot_wait_ms: u64,
     pub p50_compile_ms: u64,
+    pub p50_cpu_ms: u64,
+    pub mean_effective_parallelism_x100: u64,
+    pub total_major_faults: u64,
     pub coalesce_rate: f64,
     pub coalesced_hits: usize,
     pub timeouts: usize,
@@ -79,8 +159,9 @@ impl Summary {
         } else {
             "BUILD-DAEMON: not needed (daemonless shim sufficient)"
         };
+        let eff_par = self.mean_effective_parallelism_x100 as f64 / 100.0;
         format!(
-            "builds={} p50_wait={}ms p95_wait={}ms (target_p95={}ms slot_p95={}ms compile_p50={}ms) coalesce_rate={:.1}% coalesced={} timeouts={} -> {}",
+            "builds={} p50_wait={}ms p95_wait={}ms (target_p95={}ms slot_p95={}ms compile_p50={}ms) coalesce_rate={:.1}% coalesced={} timeouts={} -> {} [cpu_p50={}ms eff_par={:.2}x majflt={}]",
             self.count,
             self.p50_wait_ms,
             self.p95_wait_ms,
@@ -90,7 +171,10 @@ impl Summary {
             self.coalesce_rate * 100.0,
             self.coalesced_hits,
             self.timeouts,
-            verdict
+            verdict,
+            self.p50_cpu_ms,
+            eff_par,
+            self.total_major_faults
         )
     }
 }
@@ -126,17 +210,7 @@ pub fn summarize_str(text: &str) -> anyhow::Result<Summary> {
         .collect();
     let count = recs.len();
     if count == 0 {
-        return Ok(Summary {
-            count: 0,
-            p50_wait_ms: 0,
-            p95_wait_ms: 0,
-            p95_target_wait_ms: 0,
-            p95_slot_wait_ms: 0,
-            p50_compile_ms: 0,
-            coalesce_rate: 0.0,
-            coalesced_hits: 0,
-            timeouts: 0,
-        });
+        return Ok(Summary::default());
     }
     let mut waits: Vec<u64> = recs.iter().map(|r| r.queue_wait_ms).collect();
     waits.sort_unstable();
@@ -159,6 +233,29 @@ pub fn summarize_str(text: &str) -> anyhow::Result<Summary> {
         .collect();
     compiles.sort_unstable();
 
+    let mut cpus: Vec<u64> = recs
+        .iter()
+        .map(|r| r.user_cpu_ms.saturating_add(r.sys_cpu_ms))
+        .collect();
+    cpus.sort_unstable();
+
+    let mut par_sum: u128 = 0;
+    let mut par_count: u128 = 0;
+    for r in &recs {
+        let wall = if r.compile_ms == 0 && !r.coalesced_hit && r.ran_ms > 0 {
+            r.ran_ms
+        } else {
+            r.compile_ms
+        };
+        let cpu = r.user_cpu_ms.saturating_add(r.sys_cpu_ms);
+        if wall > 0 && cpu > 0 {
+            par_sum = par_sum.saturating_add(((cpu as u128) * 100) / (wall as u128));
+            par_count += 1;
+        }
+    }
+    let mean_effective_parallelism_x100 = par_sum.checked_div(par_count).unwrap_or(0) as u64;
+    let total_major_faults = recs.iter().map(|r| r.page_faults_major).sum();
+
     let coalesce = recs.iter().filter(|r| r.would_coalesce).count() as f64 / count as f64;
     let coalesced_hits = recs.iter().filter(|r| r.coalesced_hit).count();
     let timeouts = recs.iter().filter(|r| r.timed_out).count();
@@ -170,6 +267,9 @@ pub fn summarize_str(text: &str) -> anyhow::Result<Summary> {
         p95_target_wait_ms: percentile(&target_waits, 0.95),
         p95_slot_wait_ms: percentile(&slot_waits, 0.95),
         p50_compile_ms: percentile(&compiles, 0.50),
+        p50_cpu_ms: percentile(&cpus, 0.50),
+        mean_effective_parallelism_x100,
+        total_major_faults,
         coalesce_rate: coalesce,
         coalesced_hits,
         timeouts,
@@ -195,6 +295,7 @@ mod tests {
             compile_ms: 100,
             coalesced_hit: false,
             timed_out: false,
+            ..Default::default()
         }
     }
 
@@ -229,6 +330,7 @@ mod tests {
             coalesce_rate: 0.0,
             coalesced_hits: 0,
             timeouts: 0,
+            ..Default::default()
         };
         assert!(!s.daemon_recommended());
         assert!(s.render().contains("not needed"));
@@ -246,6 +348,7 @@ mod tests {
             coalesce_rate: 0.2,
             coalesced_hits: 2,
             timeouts: 1,
+            ..Default::default()
         };
         assert!(s.daemon_recommended());
         assert!(s.render().contains("recommended"));
@@ -282,6 +385,29 @@ mod tests {
             rendered.contains(
                 "(target_p95=250ms slot_p95=50ms compile_p50=420ms) coalesce_rate=33.3% coalesced=1 timeouts=1 ->"
             ),
+            "got: {rendered}"
+        );
+    }
+
+    #[test]
+    fn contention_rusage_summary_calculates_cpu_parallelism_and_faults() {
+        let mut r = rec(0, false);
+        r.compile_ms = 1000;
+        r.user_cpu_ms = 4200;
+        r.sys_cpu_ms = 800;
+        r.max_rss_kb = 128_000;
+        r.page_faults_major = 12;
+        r.page_faults_minor = 3400;
+        r.load_1m_x100 = 1441;
+        r.effective_jobs = 11;
+        let line = serde_json::to_string(&r).unwrap();
+        let s = summarize_str(&line).unwrap();
+        assert_eq!(s.p50_cpu_ms, 5000);
+        assert_eq!(s.mean_effective_parallelism_x100, 500);
+        assert_eq!(s.total_major_faults, 12);
+        let rendered = s.render();
+        assert!(
+            rendered.contains("cpu_p50=5000ms eff_par=5.00x majflt=12"),
             "got: {rendered}"
         );
     }

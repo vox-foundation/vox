@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "report_id": "build-perf-flywheel-2026-11-17",
+  "host_contention_context": {
+    "load_avg_before": [14.41, 13.66, 12.66],
+    "phys_mem_used_gib_before": 127,
+    "compressor_gib_before": 46,
+    "swapouts_before": 9813598,
+    "active_background_workload": "vox-ml-cli metal/qlora training and evaluation",
+    "note": "Wall-clock duration varies with host CPU/memory/syspolicyd contention; invariants track compile-unit graph size, sccache isolation, Hakari feature parity, child-tree rusage CPU/parallelism/faults, and target/ directory density."
+  },
+  "before": {
+    "shim_compile_units": 1104,
+    "bare_cargo_check_shim_exit_code": 101,
+    "bare_cargo_check_shim_error": "sccache: caused by: Failed to read response header",
+    "hakari_parity_dry_run_exit_code": 1,
+    "hakari_parity_missing_crate": "vox-orchestrator-models",
+    "broker_default_max_concurrent_cap": 24,
+    "adaptive_build_jobs": false,
+    "rusage_telemetry_in_metrics": false
+  },
+  "after": {
+    "shim_compile_units": 33,
+    "shim_compile_units_delta_pct": -97.01,
+    "bare_cargo_check_shim_exit_code": 0,
+    "bare_cargo_check_shim_sccache_policy": "opt-in via VOX_BROKER_SCCACHE=1; ambient ~/.cargo/config.toml rustc-wrapper masked via CARGO_BUILD_RUSTC_WRAPPER=\"\"",
+    "hakari_parity_dry_run_exit_code": 0,
+    "broker_default_max_concurrent_cap": 6,
+    "broker_default_max_concurrent_formula": "(parallelism / 3).clamp(2, 8).min(ceil)",
+    "adaptive_build_jobs": true,
+    "adaptive_build_jobs_coalesce_invariant": "CARGO_BUILD_JOBS injected after compute_coalesce_key",
+    "rusage_telemetry_in_metrics": true
+  },
+  "rusage_telemetry_measurements": {
+    "shim_check_bare": {
+      "ts_ms": 1794959304578,
+      "compile_ms": 733,
+      "cpu_ms": 464,
+      "eff_par_x": 0.63,
+      "effective_jobs": 15,
+      "load_1m": 5.20,
+      "majflt": 6543,
+      "rss_kb": 118304,
+      "exit_code": 0
+    },
+    "root_vox_build_queue_cold_check": {
+      "ts_ms": 1794959491760,
+      "compile_ms": 106979,
+      "cpu_ms": 6481,
+      "eff_par_x": 0.06,
+      "effective_jobs": 14,
+      "load_1m": 8.05,
+      "majflt": 2511,
+      "rss_kb": 283392,
+      "exit_code": 0
+    },
+    "root_vox_build_queue_warm_check": {
+      "ts_ms": 1794959590371,
+      "compile_ms": 864,
+      "cpu_ms": 485,
+      "eff_par_x": 0.56,
+      "effective_jobs": 14,
+      "load_1m": 7.77,
+      "majflt": 2839,
+      "rss_kb": 255952,
+      "exit_code": 0
+    },
+    "root_vox_build_queue_post_prune_cold_check": {
+      "ts_ms": 1794962603641,
+      "compile_ms": 13132,
+      "cpu_ms": 30075,
+      "eff_par_x": 2.29,
+      "effective_jobs": 14,
+      "load_1m": 7.58,
+      "majflt": 11859,
+      "rss_kb": 437216,
+      "exit_code": 0
+    },
+    "root_vox_build_queue_post_prune_warm_check": {
+      "ts_ms": 1794962643458,
+      "compile_ms": 744,
+      "cpu_ms": 452,
+      "eff_par_x": 0.60,
+      "effective_jobs": 14,
+      "load_1m": 7.73,
+      "majflt": 2841,
+      "rss_kb": 255728,
+      "exit_code": 0
+    }
+  },
+  "target_debug_deps_bloat_finding": {
+    "path": "target/debug/deps",
+    "st_size_bytes": 34489152,
+    "estimated_entries": 1077786,
+    "st_nlink": 65535,
+    "after_prune_st_size_bytes": 1152,
+    "after_prune_entries": 36,
+    "historical_broker_builds": 10412,
+    "root_cause": "split-debuginfo = \"unpacked\" across 10412 historical builds + macOS syspolicyd dlopen fcntl scan (570m+ cumulative daemon CPU) on proc-macro dylibs"
+  },
+  "verification_suites": {
+    "vox_build_queue_unit_tests": "45 passed; 0 failed",
+    "vox_cargo_shim_all_targets": "30 passed; 0 failed (4 main + 15 vox-broker + 4 broker_coalesce_and_timeout + 2 passthrough + 1 queue_serializes + 4 vox_broker_readonly)",
+    "clippy": "0 warnings on vox-build-queue and vox-cargo-shim (-D warnings)"
+  }
+}

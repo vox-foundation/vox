@@ -20,6 +20,7 @@ vox-telemetry = { workspace = true }
 vox-orchestrator-types = { workspace = true }
 vox-config = { workspace = true }
 vox-bounded-fs.workspace = true
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true
