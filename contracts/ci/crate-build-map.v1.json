@@ -1185,7 +1185,7 @@
     {
       "crate": "workspace-hack",
       "compile_s": 0.6,
-      "dependents": 100,
+      "dependents": 99,
       "blast_s": 626.0,
       "fan_in": 95,
       "touches_90d": 8,
