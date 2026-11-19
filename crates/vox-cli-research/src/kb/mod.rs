@@ -35,7 +35,13 @@ pub enum KbCmd {
 /// Dispatch a `vox kb` subcommand.
 pub async fn run(cmd: KbCmd) -> anyhow::Result<()> {
     match cmd {
-        KbCmd::Eval(args) => eval::run(&args),
+        KbCmd::Eval(args) => {
+            if args.multi_repo {
+                eval::run_multi_repo_eval(args.json).await
+            } else {
+                eval::run(&args)
+            }
+        }
         KbCmd::Status { json } => daemon_report("vox_kb_status", json, render_kb_status).await,
         KbCmd::Reindex { json } => daemon_report("vox_kb_reindex", json, render_index_report).await,
     }

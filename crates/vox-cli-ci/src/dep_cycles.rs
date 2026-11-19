@@ -197,14 +197,14 @@ pub fn run_dep_cycles(root: &Path, deny_new: bool, allowlist_path: Option<&Path>
         report.push_str(&format!("  - back-edge-cycle: {}\n", c.join(" -> ")));
     }
 
-    let dir = root.join("graphify-out");
+    let dir = vox_config::paths::repo_ci_maps_cache_dir(root);
     std::fs::create_dir_all(&dir).ok();
     std::fs::write(dir.join("DEP_CYCLES.md"), &report).ok();
     print!("{report}");
 
     if !normal_cycles.is_empty() {
         anyhow::bail!(
-            "{} normal-dependency cycle(s) detected — see graphify-out/DEP_CYCLES.md",
+            "{} normal-dependency cycle(s) detected — see .vox/cache/ci-maps/DEP_CYCLES.md",
             normal_cycles.len()
         );
     }

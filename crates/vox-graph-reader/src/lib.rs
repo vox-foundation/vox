@@ -28,6 +28,8 @@ pub mod lens;
 pub mod lod;
 pub mod manifest;
 pub mod overlay;
+pub mod polyglot;
+mod polyglot_edges;
 pub mod reachability;
 pub mod rebuild;
 pub mod rebuild_causes;
@@ -256,6 +258,58 @@ impl GraphifyReader {
                     .map(|_| id.clone())
             })
             .collect()
+    }
+
+    /// Run Personalized PageRank from `seeds` over the loaded graph (`alpha` in `(0, 1]`).
+    pub fn personalized_pagerank(
+        &self,
+        seeds: &[String],
+        alpha: f64,
+        iterations: usize,
+    ) -> Vec<(String, f64)> {
+        if self.nodes.is_empty() {
+            return Vec::new();
+        }
+        let valid_seeds: Vec<&String> = seeds
+            .iter()
+            .filter(|s| self.nodes.contains_key(s.as_str()))
+            .collect();
+        if valid_seeds.is_empty() {
+            return Vec::new();
+        }
+        let alpha = alpha.clamp(0.01, 0.99);
+        let seed_mass = 1.0 / valid_seeds.len() as f64;
+        let mut p: HashMap<&str, f64> = HashMap::new();
+        for s in &valid_seeds {
+            *p.entry(s.as_str()).or_insert(0.0) += seed_mass;
+        }
+        for _ in 0..iterations.max(1) {
+            let mut next: HashMap<&str, f64> = HashMap::new();
+            let mut dangling = 0.0_f64;
+            for (u, score) in &p {
+                if let Some(nbrs) = self.adjacency.get(*u).filter(|n| !n.is_empty()) {
+                    let share = (1.0 - alpha) * score / nbrs.len() as f64;
+                    for v in nbrs {
+                        *next.entry(v.as_str()).or_insert(0.0) += share;
+                    }
+                } else {
+                    dangling += score;
+                }
+            }
+            let restart = alpha + (1.0 - alpha) * dangling;
+            for s in &valid_seeds {
+                *next.entry(s.as_str()).or_insert(0.0) += restart * seed_mass;
+            }
+            p = next;
+        }
+        let mut ranked: Vec<(String, f64)> =
+            p.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+        ranked.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.0.cmp(&b.0))
+        });
+        ranked
     }
 }
 

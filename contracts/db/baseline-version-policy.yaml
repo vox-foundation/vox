@@ -42,7 +42,7 @@ policy:
   # re-updated for 97: Research Trial Tier-A tables (trial_campaigns, trial_campaigns_log, trial_runs, trial_samples) + llm_interactions.trial_run_label.
   # re-updated for 97 (digest refresh): Autonomy UX attention_events + v1.7 ops_agent_telemetry (agent_events, cost_records, agent_sessions) + Turso covering/composite indexes, redundant left-prefix index pruning, scientia_embedding_cache.vector_blob, and consolidated sidecar tables (telemetry_upload_spool, mesh_replay_nonces, mesh_local_nodes).
   # re-updated for 98: GSD suite persistence tables (gsd_milestones, gsd_phases, gsd_documents, gsd_decisions).
-  repository_baseline_digest_hex: "0x57e677717da73a3007e8abbb919427cec9c106ee012152b95f1602e22a7e2b9b"
+  repository_baseline_digest_hex: "0x7b31ef919dabf6d03b7e091986ef0e190f51c28979e2c75a362be28a05783e3c"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

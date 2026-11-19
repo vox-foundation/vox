@@ -237,7 +237,15 @@ pub fn rebuild_graph(
     // Resolve each bare call target to a qualified definition id. Preference:
     // same-module -> same-crate-unique -> global-unique. Ambiguous, unresolved,
     // and self-edges are dropped (honesty rule: never invent an edge).
-    let all_edges: Vec<ExtractedEdge> = resolve_edges(&all_nodes, &all_edges);
+    let mut all_edges: Vec<ExtractedEdge> = resolve_edges(&all_nodes, &all_edges);
+
+    // Fold polyglot Go/SQL/Markdown nodes plus Code <-> Doc <-> Decision cross-edges.
+    crate::polyglot::augment_rebuild_with_polyglot_and_cross_edges(
+        source_dir,
+        &manager,
+        &mut all_nodes,
+        &mut all_edges,
+    )?;
 
     // For every dangling boundary edge whose target node is absent, synthesize a
     // `missing`-flagged node so coverage can see the dead-end. The node id is the

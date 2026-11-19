@@ -282,7 +282,17 @@ pub fn extract_ast_in_module_with_wrappers(
     wrappers: &HashMap<String, String>,
 ) -> ExtractedGraph {
     if path.extension().is_some_and(|ext| ext == "vox") {
-        return crate::ast_vox::extract_vox_ast_in_module(content, module_id);
+        let mut g = crate::ast_vox::extract_vox_ast_in_module(content, module_id);
+        let inline = crate::polyglot::extract_inline_sql_and_endpoints(content, module_id);
+        g.nodes.extend(inline.nodes);
+        g.edges.extend(inline.edges);
+        return g;
+    }
+
+    if let Some(ext) = path.extension().and_then(|e| e.to_str())
+        && matches!(ext, "go" | "sql" | "md" | "mdx")
+    {
+        return crate::polyglot::extract_polyglot_in_module(ext, content, module_id);
     }
 
     let mut nodes = Vec::new();
@@ -319,6 +329,10 @@ pub fn extract_ast_in_module_with_wrappers(
         #[cfg(not(feature = "tree-sitter-grammars"))]
         let _ = (wrappers, BOUNDARY_CALLEES);
     }
+
+    let inline = crate::polyglot::extract_inline_sql_and_endpoints(content, module_id);
+    nodes.extend(inline.nodes);
+    edges.extend(inline.edges);
 
     ExtractedGraph { nodes, edges }
 }

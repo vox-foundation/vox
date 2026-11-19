@@ -15,6 +15,7 @@ pub mod eval_rust_metrics;
 pub mod eval_split;
 pub mod extract_docs;
 pub mod extract_gsd;
+pub mod extract_gsd_learnings;
 pub mod extract_rs;
 pub mod extract_vox;
 pub mod harness_union;

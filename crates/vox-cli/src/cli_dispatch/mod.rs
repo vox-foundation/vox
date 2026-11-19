@@ -426,9 +426,15 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             name,
             kind,
             template,
+            harness,
         } => {
-            crate::commands::init::run(name.as_deref(), kind.as_deref(), template.as_deref())
-                .await?;
+            crate::commands::init::run_with_options(
+                name.as_deref(),
+                kind.as_deref(),
+                template.as_deref(),
+                harness,
+            )
+            .await?;
         }
         Cli::New { cmd } => {
             crate::commands::new::run(cmd).await?;
@@ -535,9 +541,18 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             .await
             .map_err(|e| anyhow::anyhow!("{}", e))?;
         }
-        Cli::Repo { cmd } => {
-            let cmd = cmd.unwrap_or(crate::commands::repo::RepoCmd::Status { json: false });
-            crate::commands::repo::run(cmd).await?;
+        Cli::Repo { wiki, write, cmd } => {
+            if let Some(action) = wiki {
+                crate::commands::repo::run_wiki_action(&action, write, false).await?;
+            } else {
+                let cmd = cmd.unwrap_or(crate::commands::repo::RepoCmd::Status {
+                    json: false,
+                    active: false,
+                    wiki: None,
+                    write: false,
+                });
+                crate::commands::repo::run(cmd).await?;
+            }
         }
         #[cfg(feature = "dei")]
         Cli::Safety { cmd } => {

@@ -398,6 +398,8 @@ pub async fn execute_search_plan(
                 .trust_tiers_for_knowledge_nodes(&ids)
                 .await
                 .map_err(|e| e.to_string())?;
+            let mut seen_nodes: std::collections::HashSet<String> = ids.iter().cloned().collect();
+            let mut seed_ranks: Vec<(String, usize)> = Vec::new();
             let mut lines = Vec::new();
             // `rank` is the pre-filter rank, so dropping a hit never reorders the survivors.
             for (rank, (id, label, snippet)) in rows.into_iter().enumerate() {
@@ -409,6 +411,7 @@ pub async fn execute_search_plan(
                     continue;
                 }
                 note_tier(&mut min_trust_tier, tier);
+                seed_ranks.push((id.clone(), rank));
                 let snip = snippet.replace('\n', " ");
                 unified_hits.push(UnifiedHit {
                     source: "knowledge".to_string(),
@@ -423,6 +426,44 @@ pub async fn execute_search_plan(
                     "[tier:{}] [node:{id}] {label} — {snip}",
                     tier.as_db_str()
                 ));
+            }
+            for (seed_id, seed_rank) in seed_ranks.into_iter().take(3) {
+                let Ok(neighbors) = db.get_knowledge_neighbors(&seed_id).await else {
+                    continue;
+                };
+                let nbr_ids: Vec<String> =
+                    neighbors.iter().map(|(nid, _, _, _)| nid.clone()).collect();
+                let nbr_tiers = db
+                    .trust_tiers_for_knowledge_nodes(&nbr_ids)
+                    .await
+                    .unwrap_or_default();
+                for (nbr_id, nbr_label, rel, weight) in neighbors {
+                    if !seen_nodes.insert(nbr_id.clone()) {
+                        continue;
+                    }
+                    let tier = nbr_tiers
+                        .get(&nbr_id)
+                        .copied()
+                        .unwrap_or(ContextTrustTier::Untrusted);
+                    if policy.exclude_untrusted_hits && tier == ContextTrustTier::Untrusted {
+                        continue;
+                    }
+                    note_tier(&mut min_trust_tier, tier);
+                    let score = 0.85 * f64::from(weight) / (1.0 + seed_rank as f64);
+                    unified_hits.push(UnifiedHit {
+                        source: "knowledge".to_string(),
+                        kind: "knowledge".to_string(),
+                        path: Some(format!("node:{nbr_id}")),
+                        title: (!nbr_label.is_empty()).then(|| nbr_label.clone()),
+                        snippet: format!("1-hop via {rel} from {seed_id}"),
+                        score,
+                        provenance: vec![format!("knowledge:ppr_hop:{rel}")],
+                    });
+                    lines.push(format!(
+                        "[tier:{}] [node:{nbr_id}] {nbr_label} — 1-hop via {rel} from {seed_id}",
+                        tier.as_db_str()
+                    ));
+                }
             }
             if !lines.is_empty() {
                 backend_mix.push(SearchBackend::KnowledgeFts);
@@ -707,10 +748,10 @@ pub async fn execute_search_plan(
         Vec::new()
     };
 
-    // Structural (graphify) corpus: lexical-over-labels hits from the default graph.
+    // Structural (graphify) corpus: HippoRAG-style PPR + Leiden community summary retrieval.
     // Inert unless the planner routed GraphifyStructural (relational queries on a graph).
     let graphify_lines = if plan.corpora.contains(&SearchCorpus::GraphifyStructural) {
-        let hits = vox_config::graphify::load_graphify_corpora(&ctx.repo_root)
+        let (ppr_hits, comm_hits) = vox_config::graphify::load_all_corpora(&ctx.repo_root)
             .ok()
             .and_then(|reg| {
                 let corpus = reg
@@ -720,7 +761,7 @@ pub async fn execute_search_plan(
                     .cloned()?;
                 let raw = std::fs::read_to_string(ctx.repo_root.join(&corpus.graph_path)).ok()?;
                 let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
-                Some(vox_config::graphify::lexical_search_graph(
+                Some(vox_config::graphify::ppr_and_community_search_graph(
                     &value,
                     &corpus.id,
                     query,
@@ -728,21 +769,46 @@ pub async fn execute_search_plan(
                 ))
             })
             .unwrap_or_default();
-        let lines: Vec<String> = hits
-            .into_iter()
-            .map(|h| {
-                unified_hits.push(UnifiedHit {
-                    source: "graphify".to_string(),
-                    kind: "structural".to_string(),
-                    path: Some(h.node_id.clone()),
-                    title: Some(h.label.clone()),
-                    snippet: h.label.clone(),
-                    score: h.score as f64,
-                    provenance: vec!["graphify:label".to_string()],
-                });
-                format!("graphify[{}] {} (score {})", h.node_id, h.label, h.score)
-            })
-            .collect();
+        let mut lines: Vec<String> = Vec::with_capacity(ppr_hits.len() + comm_hits.len());
+        for h in ppr_hits {
+            unified_hits.push(UnifiedHit {
+                source: "graphify".to_string(),
+                kind: h.kind.clone(),
+                path: Some(h.node_id.clone()),
+                title: Some(h.label.clone()),
+                snippet: format!(
+                    "{} (community: {}; honesty: {})",
+                    h.label,
+                    h.community.as_deref().unwrap_or("-"),
+                    h.honesty.as_deref().unwrap_or("EXTRACTED")
+                ),
+                score: h.ppr_score,
+                provenance: vec!["graphify:ppr".to_string()],
+            });
+            lines.push(format!(
+                "graphify:ppr[{} kind:{} comm:{}] {} (ppr {:.4})",
+                h.node_id,
+                h.kind,
+                h.community.as_deref().unwrap_or("-"),
+                h.label,
+                h.ppr_score
+            ));
+        }
+        for c in comm_hits {
+            unified_hits.push(UnifiedHit {
+                source: "graphify".to_string(),
+                kind: "community_summary".to_string(),
+                path: Some(format!("community:{}", c.community_id)),
+                title: Some(format!("Community {}", c.community_id)),
+                snippet: c.summary.clone(),
+                score: c.cumulative_ppr,
+                provenance: vec!["graphify:leiden_community".to_string()],
+            });
+            lines.push(format!(
+                "graphify:community[{} members:{}] {} (ppr {:.4})",
+                c.community_id, c.member_count, c.summary, c.cumulative_ppr
+            ));
+        }
         if !lines.is_empty() {
             backend_mix.push(SearchBackend::Graphify);
         }
@@ -934,5 +1000,68 @@ mod tests {
             "text query must NOT route to GraphifyStructural; got {:?}",
             plan.corpora
         );
+    }
+
+    #[tokio::test]
+    async fn execute_search_plan_fuses_ppr_graphify_and_communities_via_rrf() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(
+            root.join("src/verify_token.rs"),
+            "pub fn verify_token() {}\n",
+        )
+        .unwrap();
+
+        let cache_base = root.join(".vox").join("cache");
+        vox_config::graphify::provision_repo_graphify_corpora(&cache_base, "demo_repo_id").unwrap();
+        let graph_path = cache_base.join("graphify/demo_repo_id/repo-code-graph/graph.json");
+        let graph_json = serde_json::json!({
+            "nodes": [
+                { "id": "src/verify_token.rs::verify_token", "label": "verify_token", "kind": "fn", "community": "c_0" },
+                { "id": "docs/wiki/security.md", "label": "Security Architecture", "kind": "doc", "community": "c_0" },
+                { "id": "docs/adr/002-jwt.md", "label": "Zero Trust Tokens", "kind": "adr", "community": "c_1" }
+            ],
+            "links": [
+                { "source": "src/verify_token.rs::verify_token", "target": "docs/wiki/security.md", "kind": "documented_in", "confidence": "EXTRACTED" },
+                { "source": "docs/wiki/security.md", "target": "docs/adr/002-jwt.md", "kind": "governed_by_adr", "confidence": "INFERRED" }
+            ]
+        });
+        std::fs::write(
+            &graph_path,
+            serde_json::to_string_pretty(&graph_json).unwrap(),
+        )
+        .unwrap();
+
+        let mut plan = vox_db::heuristic_search_plan("verify_token", false, None);
+        plan.corpora = vec![
+            SearchCorpus::GraphifyStructural,
+            SearchCorpus::RepoInventory,
+        ];
+        let mut policy = SearchPolicy::default();
+        policy.prefer_rrf_merge = true;
+
+        let ctx = SearchRuntimeContext::new(
+            root.to_path_buf(),
+            None,
+            root.join("memory"),
+            root.join("MEMORY.md"),
+        );
+
+        let exec = execute_search_plan(&ctx, "verify_token", &plan, 6, &policy, None)
+            .await
+            .unwrap();
+        assert!(exec.backend_mix.contains(&SearchBackend::Graphify));
+        assert!(
+            exec.unified_hits
+                .iter()
+                .any(|h| h.path.as_deref() == Some("docs/wiki/security.md"))
+        );
+        assert!(
+            exec.unified_hits
+                .iter()
+                .any(|h| h.kind == "community_summary")
+        );
+        assert!(!exec.rrf_fused_lines.is_empty());
     }
 }

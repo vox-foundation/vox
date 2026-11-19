@@ -13,6 +13,209 @@
 
 use std::collections::BTreeSet;
 use std::ops::Range;
+use std::path::Path;
+
+/// Logical tier of a scoped KB corpus under a repository or global library.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CorpusTier {
+    DocsSrc,
+    Wiki,
+    RootDocs,
+    ExternalCustom,
+    GlobalLibrary,
+}
+
+impl CorpusTier {
+    /// Canonical lowercase identifier used in scoped corpus keys and cache directories.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::DocsSrc => "docs_src",
+            Self::Wiki => "wiki",
+            Self::RootDocs => "root_docs",
+            Self::ExternalCustom => "external_custom",
+            Self::GlobalLibrary => "global_library",
+        }
+    }
+}
+
+/// Adaptive discovery & scoping manifest for indexing any repository (Vox or external).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KbCorpusManifest {
+    pub repository_id: String,
+    pub tier: CorpusTier,
+    pub root_dirs: Vec<String>,
+    pub root_files: Vec<String>,
+    pub excluded_dir_names: Vec<String>,
+}
+
+const DEFAULT_ROOT_DOC_CANDIDATES: &[&str] = &[
+    "VOX.md",
+    "AGENTS.md",
+    "README.md",
+    "ARCHITECTURE.md",
+    "CLAUDE.md",
+];
+
+const DEFAULT_MANAGED_EXCLUDED_DIRS: &[&str] = &[
+    "archive",
+    ".git",
+    ".vox",
+    "target",
+    "node_modules",
+    "dist",
+    "build",
+    ".venv",
+];
+
+fn fallback_repo_id_for_root(repo_root: &Path) -> String {
+    let canonical = std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
+    let hash = blake3::hash(canonical.to_string_lossy().as_bytes()).to_hex();
+    hash[..16].to_string()
+}
+
+impl KbCorpusManifest {
+    /// Strict Vox-repo default manifest (`docs/src` excluding `archive`).
+    #[must_use]
+    pub fn vox_default(repository_id: impl Into<String>) -> Self {
+        Self {
+            repository_id: repository_id.into(),
+            tier: CorpusTier::DocsSrc,
+            root_dirs: KB_CORPUS_ROOTS.iter().map(|s| (*s).to_string()).collect(),
+            root_files: Vec::new(),
+            excluded_dir_names: KB_EXCLUDED_DIR_NAMES
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
+        }
+    }
+
+    /// Discover corpus roots/files under `repo_root` with an explicit `repository_id`.
+    #[must_use]
+    pub fn discover_for_repo_with_id(repo_root: &Path, repository_id: impl Into<String>) -> Self {
+        let mut root_dirs = Vec::new();
+        for dir in ["docs/src", "docs/wiki", "docs"] {
+            if repo_root.join(dir).is_dir() {
+                root_dirs.push(dir.to_string());
+            }
+        }
+        let mut root_files = Vec::new();
+        for file in DEFAULT_ROOT_DOC_CANDIDATES {
+            if repo_root.join(file).is_file() {
+                root_files.push((*file).to_string());
+            }
+        }
+        let tier = if repo_root.join("docs/src").is_dir() {
+            CorpusTier::DocsSrc
+        } else if repo_root.join("docs/wiki").is_dir() {
+            CorpusTier::Wiki
+        } else {
+            CorpusTier::RootDocs
+        };
+        Self {
+            repository_id: repository_id.into(),
+            tier,
+            root_dirs,
+            root_files,
+            excluded_dir_names: DEFAULT_MANAGED_EXCLUDED_DIRS
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
+        }
+    }
+
+    /// Discover corpus roots/files under any repository, deriving a deterministic repository id.
+    #[must_use]
+    pub fn discover_for_repo(repo_root: &Path) -> Self {
+        Self::discover_for_repo_with_id(repo_root, fallback_repo_id_for_root(repo_root))
+    }
+
+    /// Build a manifest pinned to one explicit `CorpusTier` under `repo_root`.
+    #[must_use]
+    pub fn for_tier(repo_root: &Path, repository_id: impl Into<String>, tier: CorpusTier) -> Self {
+        let mut root_dirs = Vec::new();
+        let mut root_files = Vec::new();
+        match tier {
+            CorpusTier::DocsSrc => {
+                if repo_root.join("docs/src").is_dir() {
+                    root_dirs.push("docs/src".to_string());
+                }
+            }
+            CorpusTier::Wiki => {
+                if repo_root.join("docs/wiki").is_dir() {
+                    root_dirs.push("docs/wiki".to_string());
+                }
+            }
+            CorpusTier::RootDocs => {
+                for file in DEFAULT_ROOT_DOC_CANDIDATES {
+                    if repo_root.join(file).is_file() {
+                        root_files.push((*file).to_string());
+                    }
+                }
+            }
+            CorpusTier::ExternalCustom => {
+                return Self::discover_for_repo_with_id(repo_root, repository_id);
+            }
+            CorpusTier::GlobalLibrary => {
+                if repo_root.is_dir() {
+                    root_dirs.push(".".to_string());
+                }
+            }
+        }
+        Self {
+            repository_id: repository_id.into(),
+            tier,
+            root_dirs,
+            root_files,
+            excluded_dir_names: DEFAULT_MANAGED_EXCLUDED_DIRS
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
+        }
+    }
+
+    /// Deterministic DB corpus key for this `(repository_id, tier)` scope.
+    #[must_use]
+    pub fn corpus_key(&self) -> String {
+        vox_db::kb_scoped_corpus_key(&self.repository_id, self.tier.as_str())
+    }
+
+    /// True if `rel` (slash-separated repo-relative `.md`/`.mdx` path) is permitted by this manifest.
+    #[must_use]
+    pub fn includes_rel_path(&self, rel: &str) -> bool {
+        if rel.is_empty()
+            || rel.starts_with('/')
+            || rel.contains(['\\', ':', '#'])
+            || !(rel.ends_with(".md") || rel.ends_with(".mdx"))
+        {
+            return false;
+        }
+        let comps: Vec<&str> = rel.split('/').collect();
+        if comps
+            .iter()
+            .any(|c| c.is_empty() || *c == "." || *c == "..")
+        {
+            return false;
+        }
+        if comps
+            .iter()
+            .any(|c| self.excluded_dir_names.iter().any(|ex| ex == c))
+        {
+            return false;
+        }
+        if self.root_files.iter().any(|f| f == rel) {
+            return true;
+        }
+        self.root_dirs.iter().any(|root| {
+            if root == "." {
+                true
+            } else {
+                rel.starts_with(&format!("{root}/"))
+            }
+        })
+    }
+}
 
 /// Repo-relative directories whose Markdown forms the KB corpus.
 pub const KB_CORPUS_ROOTS: &[&str] = &["docs/src"];

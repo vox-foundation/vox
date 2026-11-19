@@ -409,4 +409,56 @@ impl VoxDb {
             })
             .await
     }
+
+    /// Update the orchestration queue stage for `publication_id` in `scientia_publication_queue`.
+    pub async fn set_publication_queue_stage(
+        &self,
+        publication_id: &str,
+        stage: &str,
+    ) -> Result<(), StoreError> {
+        let ts = now_ms();
+        let publication_id = publication_id.to_string();
+        let stage = stage.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE scientia_publication_queue SET stage = ?2, updated_at_ms = ?3 WHERE publication_id = ?1",
+                    (publication_id, stage, ts),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::VoxDb;
+
+    #[tokio::test]
+    async fn set_publication_queue_stage_updates_queue_row() {
+        let db = VoxDb::open_memory().await.unwrap();
+        db.insert_publication_queue_raw("disc-q-stage-1", "pub-q-stage-1", "draft")
+            .await
+            .unwrap();
+
+        db.set_publication_queue_stage("pub-q-stage-1", "published")
+            .await
+            .unwrap();
+
+        let mut rows = db
+            .conn
+            .query(
+                "SELECT stage FROM scientia_publication_queue WHERE publication_id = ?1",
+                ("pub-q-stage-1",),
+            )
+            .await
+            .unwrap();
+        let row = rows.next().await.unwrap().expect("queue row");
+        let stage: String = row.get(0).unwrap();
+        assert_eq!(stage, "published");
+    }
 }

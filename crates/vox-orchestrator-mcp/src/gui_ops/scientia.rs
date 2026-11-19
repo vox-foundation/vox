@@ -472,6 +472,167 @@ pub struct LimitQuery {
     pub limit: Option<i64>,
 }
 
+fn manifest_row_to_dto(m: &vox_db::PublicationManifestRow) -> PublicationManifestDto {
+    let meta: Value = m
+        .metadata_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(|s| serde_json::from_str::<Value>(s).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let sci = meta.get("scientific_publication");
+
+    let resolved_class = sci
+        .and_then(|s| s.get("candidate_class"))
+        .and_then(Value::as_str)
+        .and_then(vox_scientia::class_routing::FindingClass::from_str)
+        .or_else(|| vox_scientia::class_routing::FindingClass::from_str(&m.content_type))
+        .unwrap_or(vox_scientia::class_routing::FindingClass::EmpiricalScience);
+    let resolved_tier = sci
+        .and_then(|s| s.get("publication_tier"))
+        .and_then(Value::as_str)
+        .and_then(vox_scientia::class_routing::PublicationTier::from_str)
+        .unwrap_or_else(|| {
+            vox_scientia::class_routing::PublicationTier::recommended_for_class(resolved_class)
+        });
+    let (default_primary, default_secs) =
+        vox_scientia::class_routing::default_arxiv_categories_for_class(resolved_class);
+
+    let arxiv_primary_category = sci
+        .and_then(|s| s.get("arxiv_primary_category"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(default_primary)
+        .to_string();
+
+    let arxiv_secondary_categories = sci
+        .and_then(|s| s.get("arxiv_secondary_categories"))
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| default_secs.into_iter().map(ToString::to_string).collect());
+
+    let license_spdx = sci
+        .and_then(|s| s.get("license_spdx"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("CC-BY-4.0")
+        .to_string();
+
+    let orcid = sci
+        .and_then(|s| {
+            s.get("orcid").or_else(|| {
+                s.get("authors")
+                    .and_then(Value::as_array)
+                    .and_then(|a| a.first())
+                    .and_then(|f| f.get("orcid"))
+            })
+        })
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string);
+
+    let ror_affiliation = sci
+        .and_then(|s| {
+            s.get("ror_affiliation")
+                .or_else(|| s.get("affiliation"))
+                .or_else(|| {
+                    s.get("authors")
+                        .and_then(Value::as_array)
+                        .and_then(|a| a.first())
+                        .and_then(|f| f.get("affiliation"))
+                })
+        })
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string);
+
+    let prereserved_doi = sci
+        .and_then(|s| s.get("prereserved_doi").or_else(|| s.get("doi")))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string);
+
+    let arxiv_id = sci
+        .and_then(|s| s.get("arxiv_id"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string);
+
+    let flywheel_stages_done: Vec<String> = meta
+        .pointer("/scientia_evidence/flywheel/stages_done")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let has_abs = m
+        .abstract_text
+        .as_deref()
+        .is_some_and(|s| s.split_whitespace().count() >= 20);
+    let has_body =
+        m.body_markdown.contains("## Introduction") && m.body_markdown.contains("## Methods");
+    let passed_signals = [
+        resolved_class != vox_scientia::class_routing::FindingClass::Other,
+        has_abs,
+        has_body,
+        m.citations_json
+            .as_deref()
+            .is_some_and(|s| !s.trim().is_empty()),
+        orcid.is_some(),
+        prereserved_doi.is_some(),
+        flywheel_stages_done.len() >= 4,
+        matches!(m.state.as_str(), "approved" | "submitted" | "published"),
+    ]
+    .into_iter()
+    .filter(|b| *b)
+    .count();
+    let readiness_score = ((passed_signals * 100) / 8).clamp(25, 100) as u8;
+    let arxiv_ready = has_abs && has_body;
+
+    PublicationManifestDto {
+        publication_id: m.publication_id.clone(),
+        content_type: m.content_type.clone(),
+        state: m.state.clone(),
+        created_at_ms: m.created_at_ms,
+        updated_at_ms: m.updated_at_ms,
+        title: Some(vox_scientia::review_flow::synthesize_scholarly_title(
+            Some(&m.title),
+            Some(&m.body_markdown),
+            resolved_class.as_str(),
+            &m.publication_id,
+        )),
+        author: (!m.author.trim().is_empty()).then(|| m.author.clone()),
+        abstract_text: m.abstract_text.clone(),
+        candidate_class: Some(resolved_class.as_str().to_string()),
+        publication_tier: Some(resolved_tier.as_str().to_string()),
+        arxiv_primary_category: Some(arxiv_primary_category),
+        arxiv_secondary_categories: Some(arxiv_secondary_categories),
+        license_spdx: Some(license_spdx),
+        orcid,
+        ror_affiliation,
+        prereserved_doi,
+        arxiv_id,
+        readiness_score: Some(readiness_score),
+        arxiv_ready: Some(arxiv_ready),
+        flywheel_stages_done: Some(flywheel_stages_done),
+    }
+}
+
 /// GET /api/v2/scientia/manifests?limit=
 pub async fn get_manifests(
     State(gs): State<GatewayState>,
@@ -487,23 +648,10 @@ pub async fn get_manifests(
         Err(e) => return e,
     };
     match db
-        .list_publication_manifests(
-            Some("scientia"),
-            None,
-            q.limit.unwrap_or(DEFAULT_MANIFEST_LIMIT),
-        )
+        .list_publication_manifests(None, None, q.limit.unwrap_or(DEFAULT_MANIFEST_LIMIT))
         .await
     {
-        Ok(rows) => ok(rows
-            .iter()
-            .map(|m| PublicationManifestDto {
-                publication_id: m.publication_id.clone(),
-                content_type: m.content_type.clone(),
-                state: m.state.clone(),
-                created_at_ms: m.created_at_ms,
-                updated_at_ms: m.updated_at_ms,
-            })
-            .collect::<Vec<_>>()),
+        Ok(rows) => ok(rows.iter().map(manifest_row_to_dto).collect::<Vec<_>>()),
         Err(e) => err("db_error", &e.to_string()),
     }
 }
@@ -720,6 +868,38 @@ pub async fn post_promote_candidate(
     }
 }
 
+async fn hydrated_scientific_spec(
+    db: &vox_db::VoxDb,
+    publication_id: &str,
+) -> Result<
+    (
+        vox_scientia::manuscript::scaffold::ScaffoldInput,
+        vox_scientia::manuscript::latex::ScientificPublicationSpec,
+    ),
+    String,
+> {
+    let manifest = review_flow::resolve_manifest_or_promote(db, publication_id)
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    let input = review_flow::assemble_scaffold_from_db(db, &manifest.publication_id)
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    let mut spec =
+        vox_scientia::manuscript::latex::ScientificPublicationSpec::hydrate_from_manifest(
+            &manifest.publication_id,
+            &manifest.title,
+            &manifest.author,
+            manifest.abstract_text.as_deref(),
+            &manifest.body_markdown,
+            &manifest.content_type,
+            manifest.metadata_json.as_deref(),
+            &manifest.content_sha3_256,
+            &input,
+        );
+    spec.autofill_missing_sections(&input);
+    Ok((input, spec))
+}
+
 /// POST /api/v2/scientia/publications/{id}/manuscript
 pub async fn post_publication_manuscript(
     State(gs): State<GatewayState>,
@@ -734,15 +914,17 @@ pub async fn post_publication_manuscript(
         Ok(db) => db,
         Err(e) => return e,
     };
-    let input = match review_flow::assemble_scaffold_from_db(&db, &publication_id).await {
-        Ok(i) => i,
-        Err(e) => return err("not_found", &anyhow_msg(e)),
+    let (input, spec) = match hydrated_scientific_spec(&db, &publication_id).await {
+        Ok(v) => v,
+        Err(e) => return err("not_found", &e),
     };
-    let markdown = vox_scientia::manuscript::scaffold::render_imrad(&input);
+    let markdown = spec.to_scientific_markdown(&input);
     ok(serde_json::json!({
-        "publication_id": publication_id,
+        "publication_id": spec.publication_id,
+        "title": input.title_hint,
         "markdown": markdown,
         "scaffold": input,
+        "spec": spec,
     }))
 }
 
@@ -760,14 +942,23 @@ pub async fn post_publication_latex(
         Ok(db) => db,
         Err(e) => return e,
     };
-    let input = match review_flow::assemble_scaffold_from_db(&db, &publication_id).await {
-        Ok(i) => i,
-        Err(e) => return err("not_found", &anyhow_msg(e)),
+    let (input, spec) = match hydrated_scientific_spec(&db, &publication_id).await {
+        Ok(v) => v,
+        Err(e) => return err("not_found", &e),
     };
-    let latex = vox_scientia::manuscript::latex::render_latex(&input);
+    let latex = vox_scientia::manuscript::latex::render_scientific_arxiv_latex(&input, &spec);
+    let references_bib = vox_scientia::manuscript::latex::render_references_bibtex(
+        &input.cited_facts,
+        &input.results_rows,
+        &spec,
+    );
+    let todo_stub_count = vox_scientia::manuscript::latex::count_latex_todo_stubs(&latex);
     ok(serde_json::json!({
-        "publication_id": publication_id,
+        "publication_id": spec.publication_id,
+        "title": input.title_hint,
         "latex": latex,
+        "references_bib": references_bib,
+        "todo_stub_count": todo_stub_count,
     }))
 }
 
@@ -778,6 +969,8 @@ pub async fn post_publication_arxiv_bundle(
     headers: HeaderMap,
     Path(publication_id): Path<String>,
 ) -> Json<Value> {
+    use base64::Engine as _;
+
     if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
         return e;
     }
@@ -785,37 +978,31 @@ pub async fn post_publication_arxiv_bundle(
         Ok(db) => db,
         Err(e) => return e,
     };
-    let input = match review_flow::assemble_scaffold_from_db(&db, &publication_id).await {
-        Ok(i) => i,
-        Err(e) => return err("not_found", &anyhow_msg(e)),
+    let (input, spec) = match hydrated_scientific_spec(&db, &publication_id).await {
+        Ok(v) => v,
+        Err(e) => return err("not_found", &e),
     };
-    let orcids: Vec<(String, Option<String>)> = input
-        .authors
-        .iter()
-        .map(|a| (a.name.clone(), a.orcid.clone()))
-        .collect();
-    let meta = vox_scientia::manuscript::latex::ArxivHandoffMeta {
-        primary_category: "cs.SE".to_string(),
-        category_origin: "default".to_string(),
-        license_spdx: Some("Apache-2.0".to_string()),
-        comments: None,
-        orcids,
-    };
-    match vox_scientia::manuscript::latex::render_arxiv_bundle_with_handoff(
-        &input,
-        &[],
-        Some(&meta),
-    ) {
-        Ok(bytes) => {
-            let entries = vox_scientia::manuscript::latex::list_bundle_entries(&bytes)
-                .unwrap_or_default()
-                .into_iter()
+    match vox_scientia::manuscript::latex::render_scientific_arxiv_bundle(&input, &[], &spec) {
+        Ok(bundle) => {
+            let entries = bundle
+                .entries
+                .iter()
                 .map(|(p, sz)| serde_json::json!({ "path": p, "bytes": sz }))
                 .collect::<Vec<_>>();
+            let validation_findings =
+                vox_scientia::manuscript::latex::validate_arxiv_bundle_tar_gz(&bundle.tar_gz_bytes);
+            let tar_gz_base64 =
+                base64::engine::general_purpose::STANDARD.encode(&bundle.tar_gz_bytes);
             ok(serde_json::json!({
-                "publication_id": publication_id,
-                "bytes_len": bytes.len(),
+                "publication_id": spec.publication_id,
+                "bytes_len": bundle.tar_gz_bytes.len(),
                 "entries": entries,
+                "main_tex": bundle.main_tex,
+                "references_bib": bundle.references_bib,
+                "arxiv_metadata_json": bundle.arxiv_metadata_json,
+                "upload_checklist_md": bundle.upload_checklist_md,
+                "validation_findings": validation_findings,
+                "tar_gz_base64": tar_gz_base64,
             }))
         }
         Err(e) => err("bundle_error", &e.to_string()),

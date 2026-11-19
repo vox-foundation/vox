@@ -14,8 +14,13 @@ mod types;
 mod voxignore;
 
 pub use catalog::{
-    RepoCatalogError, load_repo_catalog_from_repo, refresh_repo_catalog,
-    repo_catalog_manifest_path, resolve_repo_catalog,
+    RepoCatalogError, add_repository_to_catalog, add_repository_to_catalog_with_home,
+    external_repo_cache_root, external_repo_cache_root_under, get_active_repository_context,
+    get_active_repository_context_with_home, global_library_root, global_library_root_under,
+    load_repo_catalog_from_repo, onboard_repository_harness, onboard_repository_harness_with_home,
+    refresh_repo_catalog, remove_repository_from_catalog, repo_catalog_manifest_path,
+    resolve_repo_catalog, save_repo_catalog, switch_active_repository,
+    switch_active_repository_with_home, vox_user_home_dir,
 };
 pub use federation::{
     ContractDrift, ContractFileDigest, CrossRepoParityReport, FederatedCrateNode, FederatedEdge,
@@ -25,11 +30,11 @@ pub use federation::{
 };
 pub use query::{repo_query_file, repo_query_history, repo_query_text};
 pub use types::{
-    CrossRepoQueryTrace, QueryFileParams, QueryHistoryParams, QueryTextParams, RemoteAdapterHints,
-    RepoAccessMode, RepoCapability, RepoCatalog, RepoCatalogRefreshResult, RepoFileRead,
-    RepoFileReadResponse, RepoHistoryEntry, RepoHistoryResponse, RepoQuerySkippedRepository,
-    RepoTextMatch, RepoTextSearchResponse, RepositoryDescriptor, ResolvedRepoCatalog,
-    ResolvedRepositoryDescriptor,
+    ActiveRepoContext, CrossRepoQueryTrace, HarnessOnboardSummary, QueryFileParams,
+    QueryHistoryParams, QueryTextParams, RemoteAdapterHints, RepoAccessMode, RepoCapability,
+    RepoCatalog, RepoCatalogRefreshResult, RepoFileRead, RepoFileReadResponse, RepoHistoryEntry,
+    RepoHistoryResponse, RepoQuerySkippedRepository, RepoTextMatch, RepoTextSearchResponse,
+    RepositoryDescriptor, ResolvedRepoCatalog, ResolvedRepositoryDescriptor,
 };
 pub(crate) use voxignore::VoxIgnore;
 

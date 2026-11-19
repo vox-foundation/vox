@@ -268,6 +268,45 @@ impl crate::VoxDb {
         }
         Ok(())
     }
+
+    /// Fetch one `kb_findings` row by `id`.
+    pub async fn kb_finding_by_id(&self, id: &str) -> Result<Option<KbFindingRow>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                &format!("{FINDING_SELECT} WHERE id = ?1 LIMIT 1"),
+                params![id],
+            )
+            .await?;
+        match rows.next().await? {
+            Some(r) => Ok(Some(finding_row(&r)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Record a review decision (`approved`, `promoted`, `rejected`, etc.) on a finding.
+    pub async fn kb_finding_mark_reviewed(
+        &self,
+        id: &str,
+        status: FindingStatus,
+        reviewed_by: &str,
+        review_note: Option<&str>,
+    ) -> Result<bool, StoreError> {
+        let updated = self
+            .conn
+            .execute(
+                "UPDATE kb_findings SET status = ?1, reviewed_by = ?2, review_note = ?3, reviewed_at_ms = ?4 WHERE id = ?5",
+                params![
+                    status.as_db_str(),
+                    reviewed_by,
+                    review_note,
+                    crate::now_unix_ms() as i64,
+                    id,
+                ],
+            )
+            .await?;
+        Ok(updated > 0)
+    }
 }
 
 #[cfg(test)]

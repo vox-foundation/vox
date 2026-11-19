@@ -104,6 +104,36 @@ pub struct PublicationManifestDto {
     pub state: String,
     pub created_at_ms: i64,
     pub updated_at_ms: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub abstract_text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication_tier: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arxiv_primary_category: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arxiv_secondary_categories: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license_spdx: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orcid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ror_affiliation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prereserved_doi: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arxiv_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub readiness_score: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arxiv_ready: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flywheel_stages_done: Option<Vec<String>>,
 }
 
 /// One extracted claim awaiting human review, with its latest verdict (if any).

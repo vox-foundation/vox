@@ -393,15 +393,170 @@ pub fn upsert_registered_corpus(repo_root: &Path, corpus: &GraphifyCorpus) -> st
 }
 
 /// Canonical YAML corpora + runtime-registered corpora. YAML wins id collisions.
+/// When the repo YAML manifest is absent (e.g. an external onboarded repository), falls back
+/// to `.vox/cache/vox-graph/registered.v1.json` / `.vox/cache/graphify/registered.v1.json`
+/// when present.
 pub fn load_all_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry, GraphifyError> {
-    let mut reg = load_graphify_corpora(repo_root)?;
-    let existing: HashSet<String> = reg.corpora.iter().map(|c| c.id.clone()).collect();
-    for c in load_registered_corpora(repo_root) {
-        if !existing.contains(&c.id) {
-            reg.corpora.push(c);
+    match load_graphify_corpora(repo_root) {
+        Ok(mut reg) => {
+            let existing: HashSet<String> = reg.corpora.iter().map(|c| c.id.clone()).collect();
+            for c in load_registered_corpora(repo_root) {
+                if !existing.contains(&c.id) {
+                    reg.corpora.push(c);
+                }
+            }
+            Ok(reg)
+        }
+        Err(err @ GraphifyError::Io { .. }) => {
+            let registered = load_registered_corpora(repo_root);
+            if registered.is_empty() {
+                return Err(err);
+            }
+            let default_corpus_id = if registered.iter().any(|c| c.id == "repo-code-graph") {
+                "repo-code-graph".to_string()
+            } else {
+                registered[0].id.clone()
+            };
+            Ok(GraphifyCorporaRegistry {
+                default_corpus_id,
+                ttl_days_default: default_ttl_days(),
+                corpora: registered,
+            })
+        }
+        Err(err) => Err(err),
+    }
+}
+
+fn sanitize_graphify_segment(raw: &str) -> String {
+    let cleaned: String = raw
+        .trim()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if cleaned.is_empty() {
+        "default".to_string()
+    } else {
+        cleaned
+    }
+}
+
+/// Pure repository- and corpus-scoped graphify cache resolver (`<base>/<repo_id>/<corpus_id>`).
+#[must_use]
+pub fn resolve_scoped_graphify_cache_dir(
+    repo_root: &Path,
+    repository_id: &str,
+    corpus_id: &str,
+    disable_raw: Option<&str>,
+    cache_dir_raw: Option<&str>,
+) -> GraphifyCacheDir {
+    if graphify_disable_active(disable_raw) {
+        return GraphifyCacheDir::Disabled;
+    }
+    let base = match cache_dir_raw {
+        Some(v) if !v.trim().is_empty() => PathBuf::from(v),
+        _ => repo_root
+            .join(super::paths::REPO_CACHE_DIR)
+            .join(super::paths::REPO_GRAPHIFY_CACHE_SUBDIR),
+    };
+    GraphifyCacheDir::Enabled(
+        base.join(sanitize_graphify_segment(repository_id))
+            .join(sanitize_graphify_segment(corpus_id)),
+    )
+}
+
+/// Standard 3-corpus Graphify registry entries provisioned for every onboarded repository.
+#[must_use]
+pub fn default_repo_graphify_corpora(repository_id: &str, _has_gui: bool) -> Vec<GraphifyCorpus> {
+    let repo_seg = sanitize_graphify_segment(repository_id);
+    let mk = |id: &str, title: &str, scope: &str, mode: &str, intents: &[&str]| {
+        let dir = format!(".vox/cache/graphify/{repo_seg}/{id}");
+        GraphifyCorpus {
+            id: id.to_string(),
+            title: title.to_string(),
+            scope_path: scope.to_string(),
+            graph_path: format!("{dir}/graph.json"),
+            manifest_path: format!("{dir}/{MANIFEST_BASENAME}"),
+            extraction_mode: Some(mode.to_string()),
+            default_for_intents: intents.iter().map(|s| (*s).to_string()).collect(),
+            is_virtual: false,
+            source_root: None,
+        }
+    };
+    vec![
+        mk(
+            "repo-code-graph",
+            "Repository Code Graph",
+            ".",
+            "ast",
+            &["code_navigation", "relational"],
+        ),
+        mk(
+            "doc-wiki-graph",
+            "Documentation & OpenWiki Cross-Edge Graph",
+            "docs",
+            "doc-cross-edges",
+            &["documentation", "architecture"],
+        ),
+        mk(
+            "gui-surface-graph",
+            "GUI Surface & Registry Graph",
+            "ui",
+            "gui-wiring",
+            &["gui_surface"],
+        ),
+    ]
+}
+
+/// Provision per-repo Graphify corpus directories and registration overlays under `cache_base_root`
+/// (e.g. `<repo>/.vox/cache` or `~/.vox/repos/<id>/cache` in read-only mode).
+pub fn provision_repo_graphify_corpora(
+    cache_base_root: &Path,
+    repository_id: &str,
+) -> std::io::Result<PathBuf> {
+    let repo_seg = sanitize_graphify_segment(repository_id);
+    let corpora = default_repo_graphify_corpora(&repo_seg, true);
+    for c in &corpora {
+        fs::create_dir_all(
+            cache_base_root
+                .join(super::paths::REPO_GRAPHIFY_CACHE_SUBDIR)
+                .join(&repo_seg)
+                .join(&c.id),
+        )?;
+    }
+
+    let primary_overlay = cache_base_root.join("vox-graph").join("registered.v1.json");
+    let legacy_overlay = cache_base_root
+        .join(super::paths::REPO_GRAPHIFY_CACHE_SUBDIR)
+        .join("registered.v1.json");
+
+    let mut existing: Vec<GraphifyCorpus> = fs::read_to_string(&primary_overlay)
+        .ok()
+        .and_then(|s| serde_json::from_str::<RegisteredCorporaFile>(&s).ok())
+        .map(|f| f.corpora)
+        .unwrap_or_default();
+
+    for corpus in corpora {
+        if !existing.iter().any(|c| c.id == corpus.id) {
+            existing.push(corpus);
         }
     }
-    Ok(reg)
+
+    let json = serde_json::to_string_pretty(&RegisteredCorporaFile { corpora: existing })
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+    for overlay in [&primary_overlay, &legacy_overlay] {
+        if let Some(parent) = overlay.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(overlay, &json)?;
+    }
+    Ok(primary_overlay)
 }
 
 /// Pure resolver behind [`repo_graphify_cache_dir`]: takes the raw `VOX_GRAPHIFY_DISABLE`
@@ -540,6 +695,306 @@ pub fn lexical_search_graph(
     scored.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| a.label.cmp(&b.label)));
     scored.truncate(limit);
     scored
+}
+
+/// Associative retrieval hit produced by Personalized PageRank (HippoRAG-style traversal).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct PprGraphHit {
+    pub node_id: String,
+    pub label: String,
+    pub kind: String,
+    pub community: Option<String>,
+    pub ppr_score: f64,
+    pub lexical_seed_overlap: usize,
+    pub honesty: Option<String>,
+}
+
+/// Leiden community summary ranked by cumulative PPR probability mass.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct CommunitySummaryHit {
+    pub community_id: String,
+    pub member_count: usize,
+    pub cumulative_ppr: f64,
+    pub top_node_ids: Vec<String>,
+    pub cross_edge_kinds: Vec<String>,
+    pub summary: String,
+}
+
+fn edge_honesty_weight(edge: &serde_json::Value) -> (f64, Option<String>) {
+    let honesty = edge
+        .get("confidence")
+        .or_else(|| edge.get("honesty"))
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    let weight = match honesty.as_deref() {
+        Some("EXTRACTED" | "resolved") => 1.0,
+        Some("INFERRED" | "declared") => 0.7,
+        Some("AMBIGUOUS" | "dangling") => 0.35,
+        _ => 0.85,
+    };
+    (weight, honesty)
+}
+
+fn tokenize_for_ppr(s: &str) -> HashSet<String> {
+    s.to_ascii_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|t| t.len() >= 2)
+        .map(str::to_string)
+        .collect()
+}
+
+/// Run HippoRAG-style Personalized PageRank from lexical seed matches over nodes (`id`, `label`,
+/// `kind`) and return both top-`limit` `PprGraphHit`s and ranked `CommunitySummaryHit`s.
+#[must_use]
+pub fn ppr_and_community_search_graph(
+    value: &serde_json::Value,
+    _corpus_id: &str,
+    query: &str,
+    limit: usize,
+) -> (Vec<PprGraphHit>, Vec<CommunitySummaryHit>) {
+    let Some(nodes_arr) = value.get("nodes").and_then(|n| n.as_array()) else {
+        return (Vec::new(), Vec::new());
+    };
+    if nodes_arr.is_empty() || limit == 0 {
+        return (Vec::new(), Vec::new());
+    }
+    let query_tokens = tokenize_for_ppr(query);
+    if query_tokens.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+
+    struct NodeMeta {
+        id: String,
+        label: String,
+        kind: String,
+        community: Option<String>,
+        overlap: usize,
+    }
+
+    let mut nodes: Vec<NodeMeta> = Vec::with_capacity(nodes_arr.len());
+    let mut id_to_idx: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::with_capacity(nodes_arr.len());
+
+    for n in nodes_arr {
+        let Some(label) = node_label_from_json(n) else {
+            continue;
+        };
+        let id = node_id_from_json(n, label);
+        if id_to_idx.contains_key(&id) {
+            continue;
+        }
+        let kind = n
+            .get("kind")
+            .or_else(|| n.get("type"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("node")
+            .to_string();
+        let community = n
+            .get("community")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        let mut node_tokens = tokenize_for_ppr(&id);
+        node_tokens.extend(tokenize_for_ppr(label));
+        node_tokens.extend(tokenize_for_ppr(&kind));
+        let overlap = query_tokens.intersection(&node_tokens).count();
+        let idx = nodes.len();
+        id_to_idx.insert(id.clone(), idx);
+        nodes.push(NodeMeta {
+            id,
+            label: label.to_string(),
+            kind,
+            community,
+            overlap,
+        });
+    }
+
+    if nodes.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+
+    let mut seed_indices: Vec<usize> = nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.overlap > 0)
+        .map(|(i, _)| i)
+        .collect();
+    if seed_indices.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+    seed_indices.sort_by(|&a, &b| {
+        nodes[b]
+            .overlap
+            .cmp(&nodes[a].overlap)
+            .then_with(|| nodes[a].id.cmp(&nodes[b].id))
+    });
+    seed_indices.truncate(8);
+
+    let seed_sum: f64 = seed_indices.iter().map(|&i| nodes[i].overlap as f64).sum();
+    let mut personalization = vec![0.0_f64; nodes.len()];
+    for &i in &seed_indices {
+        personalization[i] = nodes[i].overlap as f64 / seed_sum.max(1.0);
+    }
+
+    let mut adj: Vec<Vec<(usize, f64)>> = vec![Vec::new(); nodes.len()];
+    let mut out_weight = vec![0.0_f64; nodes.len()];
+    let mut node_honesty: Vec<Option<String>> = vec![None; nodes.len()];
+    let mut comm_edge_kinds: std::collections::BTreeMap<
+        String,
+        std::collections::BTreeSet<String>,
+    > = std::collections::BTreeMap::new();
+
+    if let Some(edges_arr) = value
+        .get("links")
+        .or_else(|| value.get("edges"))
+        .and_then(|e| e.as_array())
+    {
+        for edge in edges_arr {
+            let Some(src_str) = edge.get("source").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let Some(dst_str) = edge.get("target").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let (Some(&s), Some(&t)) = (id_to_idx.get(src_str), id_to_idx.get(dst_str)) else {
+                continue;
+            };
+            if s == t {
+                continue;
+            }
+            let (w, honesty) = edge_honesty_weight(edge);
+            if node_honesty[s].is_none() {
+                node_honesty[s].clone_from(&honesty);
+            }
+            if node_honesty[t].is_none() {
+                node_honesty[t].clone_from(&honesty);
+            }
+            let ekind = edge
+                .get("kind")
+                .or_else(|| edge.get("relation"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("edge")
+                .to_string();
+            for comm in [&nodes[s].community, &nodes[t].community]
+                .into_iter()
+                .flatten()
+            {
+                comm_edge_kinds
+                    .entry(comm.clone())
+                    .or_default()
+                    .insert(ekind.clone());
+            }
+            adj[s].push((t, w));
+            out_weight[s] += w;
+            adj[t].push((s, w));
+            out_weight[t] += w;
+        }
+    }
+
+    let alpha = 0.15_f64;
+    let mut ppr = personalization.clone();
+    let mut next = vec![0.0_f64; nodes.len()];
+    for _ in 0..12 {
+        next.fill(0.0);
+        let mut dangling_mass = 0.0_f64;
+        for u in 0..nodes.len() {
+            if out_weight[u] <= 0.0 {
+                dangling_mass += ppr[u];
+                continue;
+            }
+            let share = (1.0 - alpha) * (ppr[u] / out_weight[u]);
+            for &(v, w) in &adj[u] {
+                next[v] += share * w;
+            }
+        }
+        for v in 0..nodes.len() {
+            next[v] += (alpha + (1.0 - alpha) * dangling_mass) * personalization[v];
+        }
+        std::mem::swap(&mut ppr, &mut next);
+    }
+
+    let mut ranked: Vec<usize> = (0..nodes.len()).filter(|&i| ppr[i] > 0.0).collect();
+    ranked.sort_by(|&a, &b| {
+        ppr[b]
+            .partial_cmp(&ppr[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| nodes[b].overlap.cmp(&nodes[a].overlap))
+            .then_with(|| nodes[a].id.cmp(&nodes[b].id))
+    });
+
+    let ppr_hits: Vec<PprGraphHit> = ranked
+        .iter()
+        .take(limit)
+        .map(|&i| PprGraphHit {
+            node_id: nodes[i].id.clone(),
+            label: nodes[i].label.clone(),
+            kind: nodes[i].kind.clone(),
+            community: nodes[i].community.clone(),
+            ppr_score: ppr[i],
+            lexical_seed_overlap: nodes[i].overlap,
+            honesty: node_honesty[i].clone(),
+        })
+        .collect();
+
+    let mut by_comm: std::collections::BTreeMap<String, Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for &i in &ranked {
+        let comm = nodes[i]
+            .community
+            .clone()
+            .unwrap_or_else(|| "c_0".to_string());
+        by_comm.entry(comm).or_default().push(i);
+    }
+
+    let mut comm_hits: Vec<CommunitySummaryHit> = by_comm
+        .into_iter()
+        .map(|(community_id, mut idxs)| {
+            let member_count = idxs.len();
+            let cumulative_ppr: f64 = idxs.iter().map(|&i| ppr[i]).sum();
+            idxs.sort_by(|&a, &b| {
+                ppr[b]
+                    .partial_cmp(&ppr[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            let top_node_ids: Vec<String> =
+                idxs.iter().take(4).map(|&i| nodes[i].id.clone()).collect();
+            let top_labels: Vec<String> = idxs
+                .iter()
+                .take(4)
+                .map(|&i| nodes[i].label.clone())
+                .collect();
+            let cross_edge_kinds: Vec<String> = comm_edge_kinds
+                .get(&community_id)
+                .map(|s| s.iter().cloned().collect())
+                .unwrap_or_default();
+            let summary = format!(
+                "Community {community_id} ({member_count} active nodes): {}; edges: {}",
+                top_labels.join(", "),
+                if cross_edge_kinds.is_empty() {
+                    "internal".to_string()
+                } else {
+                    cross_edge_kinds.join(", ")
+                }
+            );
+            CommunitySummaryHit {
+                community_id,
+                member_count,
+                cumulative_ppr,
+                top_node_ids,
+                cross_edge_kinds,
+                summary,
+            }
+        })
+        .collect();
+
+    comm_hits.sort_by(|a, b| {
+        b.cumulative_ppr
+            .partial_cmp(&a.cumulative_ppr)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.community_id.cmp(&b.community_id))
+    });
+    comm_hits.truncate((limit / 2).max(1));
+    (ppr_hits, comm_hits)
 }
 
 /// Project graph nodes into knowledge-node records for lexical ingest.
@@ -1246,5 +1701,68 @@ mod tests {
             select_corpus_for_intent(&reg, "gui_surface").as_deref(),
             Some("vox-gui-surface")
         );
+    }
+
+    #[test]
+    fn provision_repo_graphify_corpora_and_load_all_fallback_for_external_repo() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache_base = tmp.path().join(".vox").join("cache");
+        let overlay = provision_repo_graphify_corpora(&cache_base, "demo-repo-123").unwrap();
+        assert!(overlay.is_file());
+        assert!(
+            cache_base
+                .join("graphify/demo-repo-123/repo-code-graph")
+                .is_dir()
+        );
+        assert!(
+            cache_base
+                .join("graphify/demo-repo-123/doc-wiki-graph")
+                .is_dir()
+        );
+        assert!(
+            cache_base
+                .join("graphify/demo-repo-123/gui-surface-graph")
+                .is_dir()
+        );
+
+        let reg = load_all_corpora(tmp.path()).unwrap();
+        assert_eq!(reg.default_corpus_id, "repo-code-graph");
+        assert!(reg.corpora.iter().any(|c| c.id == "doc-wiki-graph"));
+        assert!(reg.corpora.iter().any(|c| c.id == "gui-surface-graph"));
+    }
+
+    #[test]
+    fn ppr_and_community_search_recalls_multihop_cross_edge_targets() {
+        let graph = serde_json::json!({
+            "nodes": [
+                { "id": "src/auth.rs::verify_token", "label": "verify_token", "kind": "fn", "community": "c_0" },
+                { "id": "docs/wiki/security.md", "label": "Architecture Handbook", "kind": "doc", "community": "c_0" },
+                { "id": "docs/adr/001.md", "label": "Zero Trust Contract", "kind": "adr", "community": "c_1" },
+                { "id": "src/unrelated.rs::render_plot", "label": "render_plot", "kind": "fn", "community": "c_2" }
+            ],
+            "links": [
+                { "source": "src/auth.rs::verify_token", "target": "docs/wiki/security.md", "kind": "documented_in", "confidence": "EXTRACTED" },
+                { "source": "docs/wiki/security.md", "target": "docs/adr/001.md", "kind": "governed_by_adr", "confidence": "INFERRED" }
+            ]
+        });
+
+        let (hits, communities) =
+            ppr_and_community_search_graph(&graph, "repo-code-graph", "verify_token", 4);
+        // Zero lexical overlap on docs/wiki/security.md & docs/adr/001.md, yet PPR surfaces them.
+        assert!(
+            hits.iter().any(|h| h.node_id == "docs/wiki/security.md"),
+            "1-hop documented_in doc must rank via PPR: {hits:?}"
+        );
+        assert!(
+            hits.iter().any(|h| h.node_id == "docs/adr/001.md"),
+            "2-hop governed_by_adr node must rank via PPR: {hits:?}"
+        );
+        assert!(
+            !hits
+                .iter()
+                .any(|h| h.node_id == "src/unrelated.rs::render_plot")
+        );
+        assert!(!communities.is_empty());
+        assert_eq!(communities[0].community_id, "c_0");
     }
 }

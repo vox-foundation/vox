@@ -106,9 +106,9 @@ pub(crate) fn skip_unlabeled_code_fence_rel(rel_normalized: &str) -> bool {
     if rel_normalized.contains("docs/src/architecture/planning-meta/") {
         return true;
     }
-    // Entire architecture tree: diagrams, mixed excerpts, and long-form SSOT all tolerate
+    // Entire architecture + wiki trees: diagrams, mixed excerpts, and long-form SSOT tolerate
     // unlabeled fences; tutorials/reference/how-to remain enforced.
-    rel_normalized.starts_with("docs/src/architecture/")
+    rel_normalized.starts_with("docs/src/architecture/") || rel_normalized.starts_with("docs/wiki/")
 }
 
 fn skip_unlabeled_code_fence(path: &Path, repo_root: &Path) -> bool {

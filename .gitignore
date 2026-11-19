@@ -61,6 +61,7 @@ docs-astro/public/robots.txt
 # Playwright HTML report & transient screenshots/ledgers (local e2e runs; never commit)
 **/playwright-report/
 **/test-results/
+crates/vox-gui/ui/artifacts/
 
 # === SCRATCH / EPHEMERAL / LOGS ===
 .tmp_metadata.json

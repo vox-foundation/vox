@@ -3,12 +3,13 @@
 //! The only filter is [`crate::kb_ids::is_kb_corpus_path`] — the same predicate the Phase 1
 //! eval snapshot uses — plus "never follow or index symlinks".
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
 use super::FileError;
-use crate::kb_ids::{KB_CORPUS_ROOTS, KB_EXCLUDED_DIR_NAMES, is_kb_corpus_path};
+use crate::kb_ids::KbCorpusManifest;
 
 /// One corpus file: absolute path plus repo-relative, forward-slash path (the doc id).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,25 +18,31 @@ pub struct CorpusFile {
     pub rel_path: String,
 }
 
-/// Walk every KB corpus root under `repo_root`; files are sorted by `rel_path`.
-///
-/// The second half holds every walk error (missing root, unreadable or vanished directory) with
-/// a repo-relative path and no host path in the text. A caller that deletes data must treat a
-/// non-empty error list as an incomplete walk.
+/// Walk every directory and root file allowed by `manifest` under `repo_root`; sorted & deduplicated.
 #[must_use]
-pub fn walk_corpus(repo_root: &Path) -> (Vec<CorpusFile>, Vec<FileError>) {
+pub fn walk_corpus_with_manifest(
+    repo_root: &Path,
+    manifest: &KbCorpusManifest,
+) -> (Vec<CorpusFile>, Vec<FileError>) {
     let mut out = Vec::new();
+    let mut seen_paths = BTreeSet::new();
     let mut errors = Vec::new();
-    for root in KB_CORPUS_ROOTS {
-        let walker = WalkDir::new(repo_root.join(root))
+    let excluded = &manifest.excluded_dir_names;
+
+    for root in &manifest.root_dirs {
+        let root_path = if root == "." {
+            repo_root.to_path_buf()
+        } else {
+            repo_root.join(root)
+        };
+        let walker = WalkDir::new(&root_path)
             .follow_links(false)
             .into_iter()
-            // Pruning only skips work; `is_kb_corpus_path` below stays the authority.
             .filter_entry(|e| {
                 !(e.file_type().is_dir()
                     && e.file_name()
                         .to_str()
-                        .is_some_and(|n| KB_EXCLUDED_DIR_NAMES.contains(&n)))
+                        .is_some_and(|n| excluded.iter().any(|ex| ex == n)))
             });
         for entry in walker {
             let entry = match entry {
@@ -45,8 +52,7 @@ pub fn walk_corpus(repo_root: &Path) -> (Vec<CorpusFile>, Vec<FileError>) {
                         path: e
                             .path()
                             .and_then(|p| rel_slash_path(repo_root, p))
-                            .unwrap_or_else(|| (*root).to_string()),
-                        // The io error's Display carries no path; walkdir's own does.
+                            .unwrap_or_else(|| root.clone()),
                         error: e
                             .io_error()
                             .map_or_else(|| e.to_string(), ToString::to_string),
@@ -60,7 +66,7 @@ pub fn walk_corpus(repo_root: &Path) -> (Vec<CorpusFile>, Vec<FileError>) {
             let Some(rel_path) = rel_slash_path(repo_root, entry.path()) else {
                 continue;
             };
-            if is_kb_corpus_path(&rel_path) {
+            if manifest.includes_rel_path(&rel_path) && seen_paths.insert(rel_path.clone()) {
                 out.push(CorpusFile {
                     abs: entry.into_path(),
                     rel_path,
@@ -68,8 +74,42 @@ pub fn walk_corpus(repo_root: &Path) -> (Vec<CorpusFile>, Vec<FileError>) {
             }
         }
     }
+
+    for rel in &manifest.root_files {
+        let abs = repo_root.join(rel);
+        match std::fs::symlink_metadata(&abs) {
+            Ok(meta) => {
+                if !meta.file_type().is_symlink()
+                    && meta.is_file()
+                    && manifest.includes_rel_path(rel)
+                    && seen_paths.insert(rel.clone())
+                {
+                    out.push(CorpusFile {
+                        abs,
+                        rel_path: rel.clone(),
+                    });
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => errors.push(FileError {
+                path: rel.clone(),
+                error: e.to_string(),
+            }),
+        }
+    }
+
     out.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
     (out, errors)
+}
+
+/// Walk every KB corpus root under `repo_root`; files are sorted by `rel_path`.
+///
+/// The second half holds every walk error (missing root, unreadable or vanished directory) with
+/// a repo-relative path and no host path in the text. A caller that deletes data must treat a
+/// non-empty error list as an incomplete walk.
+#[must_use]
+pub fn walk_corpus(repo_root: &Path) -> (Vec<CorpusFile>, Vec<FileError>) {
+    walk_corpus_with_manifest(repo_root, &KbCorpusManifest::vox_default("vox"))
 }
 
 /// `path` relative to `repo_root`, forward-slash joined; `None` when outside it or non-UTF-8.

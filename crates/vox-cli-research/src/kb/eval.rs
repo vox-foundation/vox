@@ -63,6 +63,9 @@ pub struct KbEvalArgs {
     /// Why a new epoch is being written (required with --write-baseline).
     #[arg(long, value_name = "TEXT", requires = "write_baseline")]
     pub epoch_note: Option<String>,
+    /// Run hermetic multi-repo Recall@5, MRR, multi-hop PPR grounding, and zero-leakage eval (`KB-04`).
+    #[arg(long, conflicts_with_all = ["gate", "tighten", "write_baseline", "query", "headings", "snapshot_corpus"])]
+    pub multi_repo: bool,
 }
 
 pub(crate) const EVAL_DIR: &str = "contracts/kb/eval";
@@ -90,6 +93,25 @@ pub fn run(args: &KbEvalArgs) -> Result<()> {
         };
         run_report(&dir, split, args.json, &mut out)
     }
+}
+
+/// Async handler for `vox kb eval --multi-repo`.
+pub async fn run_multi_repo_eval(json: bool) -> Result<()> {
+    let report = vox_search::kb_eval::run_hermetic_multi_repo_eval(&content_hash).await?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        print!("{}", report.render_text());
+    }
+    if !report.passed {
+        bail!(
+            "multi-repo KB eval failed (leakage={}, recall@5={:.4}, mrr@10={:.4})",
+            report.cross_repo_leakage_count,
+            report.recall_at_5,
+            report.mrr_at_10
+        );
+    }
+    Ok(())
 }
 
 pub fn run_report(eval_dir: &Path, split: Split, json: bool, out: &mut impl Write) -> Result<()> {

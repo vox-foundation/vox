@@ -3,6 +3,7 @@
 use anyhow::Result;
 use clap::Subcommand;
 use serde::Serialize;
+use std::path::PathBuf;
 
 use vox_repository::RepoWorkspaceStatus;
 
@@ -13,12 +14,24 @@ pub enum RepoCmd {
         /// Emit compact JSON (also when `VOX_CLI_GLOBAL_JSON=1`).
         #[arg(long)]
         json: bool,
+        /// Include resolved active multi-repo context & cache paths (`--active`).
+        #[arg(long)]
+        active: bool,
+        /// Run an OpenWiki action (`init`, `build`, `status`, `diff`) for the active repository.
+        #[arg(long)]
+        wiki: Option<String>,
+        /// Persist changes when used with `--wiki build`.
+        #[arg(long)]
+        write: bool,
     },
-    /// Scaffold a new Vox-compatible repository structure (.voxignore, AGENTS.md, etc.)
+    /// Scaffold a new Vox-compatible repository harness (`.voxignore`, `VOX.md`, `AGENTS.md`, `docs/wiki/`, `.vox/`) or external read-only cache (`--read-only`).
     Init {
         /// Project name to initialize repository metadata with
         #[arg(long)]
         name: Option<String>,
+        /// Zero-footprint external read-only mode (writes cache only under `~/.vox/repos/<id>/`)
+        #[arg(long = "read-only", alias = "external-cache-only")]
+        read_only: bool,
     },
     /// Explicit repository catalog operations (`.vox/repositories.yaml`).
     Catalog {
@@ -36,8 +49,24 @@ pub enum RepoCmd {
 pub enum RepoCatalogCmd {
     /// Resolve and print the current repo catalog.
     List,
-    /// Re-resolve the current repo catalog and write a snapshot cache.
-    Refresh,
+    /// Re-resolve the current repo catalog, or apply `--add` / `--remove` / `--switch` updates and write a snapshot cache.
+    Refresh {
+        /// Switch the active repository focus by repository_id, display_name, or root path.
+        #[arg(long)]
+        switch: Option<String>,
+        /// Add or update a local/external repository path in `.vox/repositories.yaml`.
+        #[arg(long)]
+        add: Option<PathBuf>,
+        /// Optional display name used with `--add`.
+        #[arg(long)]
+        name: Option<String>,
+        /// Mark `--add` entry as read-only (`~/.vox/repos/<id>/` external cache, zero target repo writes).
+        #[arg(long = "read-only", alias = "external-cache-only")]
+        read_only: bool,
+        /// Remove a repository entry by repository_id, display_name, or root path.
+        #[arg(long)]
+        remove: Option<String>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -111,17 +140,210 @@ fn current_repo_root() -> Result<std::path::PathBuf> {
     Ok(vox_repository::discover_repository_or_fallback(&cwd).root)
 }
 
+pub async fn run_wiki_action(action: &str, write: bool, json: bool) -> Result<()> {
+    let cwd = std::env::current_dir()?;
+    let workspace_root = vox_repository::discover_repository_or_fallback(&cwd).root;
+    let active_ctx = vox_repository::get_active_repository_context(&workspace_root).ok();
+    let (target_root, ext_override) = match &active_ctx {
+        Some(ctx) if ctx.read_only => (
+            PathBuf::from(&ctx.root_path),
+            Some(PathBuf::from(&ctx.openwiki_cache_dir)),
+        ),
+        Some(ctx) => (PathBuf::from(&ctx.root_path), None),
+        None => (workspace_root, None),
+    };
+    let out_opt = ext_override.as_deref();
+    let json_mode = json || json_output_enabled();
+    let trimmed = action.trim();
+
+    if trimmed == "sync" || trimmed == "heal" {
+        let rep = vox_doc_pipeline::pipeline::openwiki::heal_tier1_deterministic(
+            &target_root,
+            &[],
+            write || trimmed == "heal",
+            out_opt,
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
+        if json_mode {
+            print_value(&rep)?;
+        } else {
+            println!(
+                "openwiki {trimmed} OK (llm_calls={}, impacted={}, updated={}, repaired_anchors={})",
+                rep.llm_calls,
+                rep.blast_radius.impacted_docs.len(),
+                rep.updated_pages.len(),
+                rep.repaired_anchors
+            );
+        }
+        return Ok(());
+    }
+
+    if trimmed == "heal-list"
+        || trimmed.starts_with("heal-apply:")
+        || trimmed.starts_with("heal-reject:")
+        || trimmed.starts_with("heal-demote:")
+    {
+        let db = crate::workspace_db::connect_cli_workspace_voxdb().await?;
+        let repo_ctx = vox_repository::discover_repository_or_fallback(&target_root);
+        if trimmed == "heal-list" {
+            let rows = db
+                .kb_heal_proposals_list(Some(&repo_ctx.repository_id), None, 100)
+                .await?;
+            print_value(&rows)?;
+        } else if let Some(id) = trimmed.strip_prefix("heal-apply:") {
+            let path = vox_search::promotion::apply_staged_heal_proposal(
+                &db,
+                &target_root,
+                id,
+                "cli-operator",
+                Some("Applied via `vox repo --wiki`"),
+            )
+            .await?;
+            print_value(&serde_json::json!({
+                "status": "applied",
+                "proposal_id": id,
+                "path": path.display().to_string(),
+            }))?;
+        } else if let Some(id) = trimmed.strip_prefix("heal-reject:") {
+            let ok = db
+                .kb_heal_proposal_update_status(
+                    id,
+                    "rejected",
+                    Some("cli-operator"),
+                    Some("Rejected via `vox repo --wiki`"),
+                )
+                .await?;
+            print_value(&serde_json::json!({
+                "status": "rejected",
+                "proposal_id": id,
+                "updated": ok,
+            }))?;
+        } else if let Some(id) = trimmed.strip_prefix("heal-demote:") {
+            if let Some(row) = db.kb_heal_proposal_get(id).await? {
+                let _ = vox_doc_pipeline::pipeline::openwiki::demote_doc_to_legacy(
+                    &target_root,
+                    &row.doc_path,
+                )
+                .map_err(|e| anyhow::anyhow!(e))?;
+                let ok = db
+                    .kb_heal_proposal_update_status(
+                        id,
+                        "demoted_to_legacy",
+                        Some("cli-operator"),
+                        Some("Demoted doc to legacy via `vox repo --wiki`"),
+                    )
+                    .await?;
+                print_value(&serde_json::json!({
+                    "status": "demoted_to_legacy",
+                    "proposal_id": id,
+                    "doc_path": row.doc_path,
+                    "updated": ok,
+                }))?;
+            } else {
+                anyhow::bail!("Heal proposal `{id}` not found");
+            }
+        }
+        return Ok(());
+    }
+
+    match trimmed {
+        "init" => {
+            let rep = vox_doc_pipeline::pipeline::openwiki::openwiki_init(&target_root, out_opt)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            if json_mode {
+                print_value(&rep)?;
+            } else {
+                println!(
+                    "openwiki init OK ({} pages, {} updated) -> {}",
+                    rep.generated_pages.len(),
+                    rep.updated_pages.len(),
+                    rep.output_dir
+                );
+            }
+        }
+        "build" => {
+            let rep =
+                vox_doc_pipeline::pipeline::openwiki::openwiki_build(&target_root, write, out_opt)
+                    .map_err(|e| anyhow::anyhow!(e))?;
+            if json_mode {
+                print_value(&rep)?;
+            } else {
+                println!(
+                    "openwiki build OK (write={}, {} pages, {} changed) -> {}",
+                    write,
+                    rep.generated_pages.len(),
+                    rep.updated_pages.len(),
+                    rep.output_dir
+                );
+            }
+        }
+        "status" => {
+            let rep = vox_doc_pipeline::pipeline::openwiki::openwiki_status(&target_root, out_opt)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            if json_mode {
+                print_value(&rep)?;
+            } else {
+                println!(
+                    "openwiki status: initialized={} stale_pages={}/{} dir={}",
+                    rep.initialized, rep.stale_pages, rep.total_pages, rep.wiki_dir
+                );
+            }
+        }
+        "diff" => {
+            let rep = vox_doc_pipeline::pipeline::openwiki::openwiki_diff(&target_root, out_opt)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            if json_mode {
+                print_value(&rep)?;
+            } else {
+                println!(
+                    "openwiki diff: has_changes={} pages={} dir={}",
+                    rep.has_changes,
+                    rep.diffs.len(),
+                    rep.wiki_dir
+                );
+            }
+        }
+        other => anyhow::bail!(
+            "Unknown --wiki action '{other}' (expected init|build|status|diff|sync|heal|heal-list|heal-apply:<id>|heal-reject:<id>|heal-demote:<id>)"
+        ),
+    }
+    Ok(())
+}
+
 pub async fn run(cmd: RepoCmd) -> Result<()> {
     let repo_root = current_repo_root()?;
     match cmd {
-        RepoCmd::Init { name } => {
-            crate::repo_init::run(name.as_deref()).await?;
+        RepoCmd::Init { name, read_only } => {
+            crate::repo_init::run_with_options(name.as_deref(), read_only).await?;
         }
-        RepoCmd::Status { json } => {
+        RepoCmd::Status {
+            json,
+            active,
+            wiki,
+            write,
+        } => {
+            if let Some(action) = wiki {
+                return run_wiki_action(&action, write, json).await;
+            }
             let cwd = std::env::current_dir()?;
             let payload: RepoWorkspaceStatus = vox_repository::repo_workspace_status_for_cwd(&cwd);
+            let active_ctx = if active {
+                vox_repository::get_active_repository_context(&payload.root).ok()
+            } else {
+                None
+            };
             if json || json_output_enabled() {
-                println!("{}", serde_json::to_string(&payload)?);
+                if let Some(ref ctx) = active_ctx {
+                    println!(
+                        "{}",
+                        serde_json::to_string(&serde_json::json!({
+                            "workspace": payload,
+                            "active_context": ctx,
+                        }))?
+                    );
+                } else {
+                    println!("{}", serde_json::to_string(&payload)?);
+                }
             } else {
                 println!("root:            {}", payload.root.display());
                 println!("repository_id:   {}", payload.repository_id);
@@ -157,6 +379,17 @@ pub async fn run(cmd: RepoCmd) -> Result<()> {
                         println!("  ... and {} more", n - 20);
                     }
                 }
+                if let Some(ref ctx) = active_ctx {
+                    println!(
+                        "active_repo:     {} ({})",
+                        ctx.display_name, ctx.repository_id
+                    );
+                    println!("read_only:       {}", ctx.read_only);
+                    println!("kb_cache_dir:    {}", ctx.kb_cache_dir);
+                    println!("graphify_cache:  {}", ctx.graphify_cache_dir);
+                    println!("openwiki_cache:  {}", ctx.openwiki_cache_dir);
+                    println!("global_library:  {}", ctx.global_library_dir);
+                }
             }
         }
         RepoCmd::Catalog { cmd } => match cmd {
@@ -164,9 +397,38 @@ pub async fn run(cmd: RepoCmd) -> Result<()> {
                 let catalog = vox_repository::resolve_repo_catalog(&repo_root)?;
                 print_value(&catalog)?;
             }
-            RepoCatalogCmd::Refresh => {
-                let refreshed = vox_repository::refresh_repo_catalog(&repo_root)?;
-                print_value(&refreshed)?;
+            RepoCatalogCmd::Refresh {
+                switch,
+                add,
+                name,
+                read_only,
+                remove,
+            } => {
+                if let Some(add_path) = add {
+                    let target = if add_path.is_absolute() {
+                        add_path
+                    } else {
+                        repo_root.join(&add_path)
+                    };
+                    let added = vox_repository::add_repository_to_catalog(
+                        &repo_root,
+                        &target,
+                        name.as_deref(),
+                        read_only,
+                    )?;
+                    print_value(&added)?;
+                } else if let Some(remove_target) = remove {
+                    let remaining =
+                        vox_repository::remove_repository_from_catalog(&repo_root, &remove_target)?;
+                    print_value(&remaining)?;
+                } else if let Some(switch_target) = switch {
+                    let switched =
+                        vox_repository::switch_active_repository(&repo_root, &switch_target)?;
+                    print_value(&switched)?;
+                } else {
+                    let refreshed = vox_repository::refresh_repo_catalog(&repo_root)?;
+                    print_value(&refreshed)?;
+                }
             }
         },
         RepoCmd::Query { cmd } => match cmd {

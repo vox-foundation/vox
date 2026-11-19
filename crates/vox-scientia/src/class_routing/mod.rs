@@ -22,8 +22,10 @@ pub mod defaults;
 pub mod routing;
 
 pub use defaults::{
-    ClassDefaults, ClassPolicy, ClassRoutingError, FindingClass, builtin_class_defaults,
-    load_class_defaults_from_repo, load_class_defaults_from_yaml,
+    ArxivSubjectEntry, ClassDefaults, ClassPolicy, ClassRoutingError, FindingClass,
+    PublicationTier, arxiv_subject_catalog, builtin_class_defaults,
+    default_arxiv_categories_for_class, find_arxiv_subject, is_valid_arxiv_category,
+    load_class_defaults_from_repo, load_class_defaults_from_yaml, valid_spdx_licenses,
 };
 pub use routing::{
     atlas_gate_applies_to, critic_allowed_for, effective_critic_allowed, negative_result_quota_for,

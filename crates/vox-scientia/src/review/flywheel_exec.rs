@@ -6,8 +6,11 @@ use serde_json::{Map, Value, json};
 use vox_db::VoxDb;
 
 use crate::findings_site::render_finding_page;
-use crate::manuscript::latex::{ArxivHandoffMeta, render_arxiv_bundle_with_handoff, render_latex};
-use crate::manuscript::scaffold::{ScaffoldInput, render_imrad};
+use crate::manuscript::latex::{
+    ScientificArxivBundle, ScientificPublicationSpec, count_latex_todo_stubs,
+    render_references_bibtex, render_scientific_arxiv_bundle, render_scientific_arxiv_latex,
+};
+use crate::manuscript::scaffold::ScaffoldInput;
 use crate::review::flywheel_gate::sha3_256_hex;
 use crate::review_flow::{
     assemble_finding_page_from_db, assemble_scaffold_from_db, ensure_evidence_map,
@@ -89,21 +92,32 @@ async fn get_scaffold<'a>(
     Ok(slot.as_ref().expect("scaffold populated"))
 }
 
-fn build_bundle_bytes(pub_id: &str, sc: &ScaffoldInput) -> Result<Vec<u8>> {
+fn build_scientific_spec(
+    manifest: &vox_db::PublicationManifestRow,
+    sc: &ScaffoldInput,
+) -> ScientificPublicationSpec {
+    let mut spec = ScientificPublicationSpec::hydrate_from_manifest(
+        &manifest.publication_id,
+        &manifest.title,
+        &manifest.author,
+        manifest.abstract_text.as_deref(),
+        &manifest.body_markdown,
+        &manifest.content_type,
+        manifest.metadata_json.as_deref(),
+        &manifest.content_sha3_256,
+        sc,
+    );
+    spec.autofill_missing_sections(sc);
+    spec
+}
+
+fn build_scientific_bundle(
+    sc: &ScaffoldInput,
+    spec: &ScientificPublicationSpec,
+) -> Result<ScientificArxivBundle> {
     let mut bundle_sc = sc.clone();
     bundle_sc.figures.clear();
-    let handoff = ArxivHandoffMeta {
-        primary_category: "cs.SE".into(),
-        category_origin: "default".into(),
-        license_spdx: Some("CC-BY-4.0".into()),
-        comments: Some(format!("SCIENTIA flywheel bundle for {pub_id}")),
-        orcids: sc
-            .authors
-            .iter()
-            .map(|a| (a.name.clone(), a.orcid.clone()))
-            .collect(),
-    };
-    render_arxiv_bundle_with_handoff(&bundle_sc, &[], Some(&handoff)).context("arxiv bundle")
+    render_scientific_arxiv_bundle(&bundle_sc, &[], spec).context("scientific arxiv bundle")
 }
 
 fn build_ro_crate_sha(
@@ -188,22 +202,42 @@ pub async fn flywheel_advance_from_db(
                 arts.insert("prior_art_count".into(), json!(uris.len()));
             }
             FlywheelStage::ScaffoldImrad => {
-                let md = render_imrad(get_scaffold(db, &pub_id, &mut sc_cache).await?);
+                let sc = get_scaffold(db, &pub_id, &mut sc_cache).await?;
+                let spec = build_scientific_spec(&manifest, sc);
+                let md = spec.to_scientific_markdown(sc);
                 arts.insert("imrad_chars".into(), json!(md.len()));
                 arts.insert("markdown".into(), json!(md));
             }
             FlywheelStage::RenderLatex => {
-                let tex = render_latex(get_scaffold(db, &pub_id, &mut sc_cache).await?);
+                let sc = get_scaffold(db, &pub_id, &mut sc_cache).await?;
+                let spec = build_scientific_spec(&manifest, sc);
+                let tex = render_scientific_arxiv_latex(sc, &spec);
+                let bib = render_references_bibtex(&sc.cited_facts, &sc.results_rows, &spec);
                 arts.insert("latex_chars".into(), json!(tex.len()));
+                arts.insert("todo_stubs".into(), json!(count_latex_todo_stubs(&tex)));
                 arts.insert("latex".into(), json!(tex));
+                arts.insert("references_bib".into(), json!(bib));
             }
             FlywheelStage::ArxivBundle => {
-                let gz =
-                    build_bundle_bytes(&pub_id, get_scaffold(db, &pub_id, &mut sc_cache).await?)?;
-                arxiv_len = gz.len();
+                let sc = get_scaffold(db, &pub_id, &mut sc_cache).await?;
+                let spec = build_scientific_spec(&manifest, sc);
+                let bundle = build_scientific_bundle(sc, &spec)?;
+                arxiv_len = bundle.tar_gz_bytes.len();
                 arts.insert("arxiv_bundle_bytes".into(), json!(arxiv_len));
                 arts.insert("arxiv_bytes_len".into(), json!(arxiv_len));
-                arts.insert("arxiv_bundle_sha3_256".into(), json!(sha3_256_hex(&gz)));
+                arts.insert(
+                    "arxiv_bundle_sha3_256".into(),
+                    json!(sha3_256_hex(&bundle.tar_gz_bytes)),
+                );
+                arts.insert("references_bib".into(), json!(bundle.references_bib));
+                arts.insert(
+                    "arxiv_metadata_json".into(),
+                    json!(bundle.arxiv_metadata_json),
+                );
+                arts.insert(
+                    "upload_checklist_md".into(),
+                    json!(bundle.upload_checklist_md),
+                );
             }
             FlywheelStage::RoCrate => {
                 let sc = get_scaffold(db, &pub_id, &mut sc_cache).await?;
@@ -335,6 +369,14 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+        assert_eq!(row.state, "approved", "flywheel completion advances state");
+        assert_eq!(p.artifacts["todo_stubs"], 0);
+        assert!(
+            f.artifacts["references_bib"]
+                .as_str()
+                .unwrap_or("")
+                .contains("@misc{vox_artifact_")
+        );
         let meta: Value =
             serde_json::from_str(row.metadata_json.as_deref().unwrap_or("{}")).unwrap();
         assert!(

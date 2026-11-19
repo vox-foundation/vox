@@ -13,6 +13,7 @@ use super::{
 #[serde(rename_all = "snake_case")]
 pub enum RepoAccessMode {
     Local,
+    ReadOnlyLocal,
     RemoteMcp,
     RemoteGitHost,
     RemoteSearchService,
@@ -23,6 +24,8 @@ pub enum RepoAccessMode {
 #[serde(rename_all = "snake_case")]
 pub enum RepoCapability {
     ReadFile,
+    #[serde(alias = "write")]
+    WriteFile,
     ListFiles,
     TextSearch,
     SemanticSearch,
@@ -57,6 +60,10 @@ pub struct RepositoryDescriptor {
     pub metadata: Option<serde_json::Value>,
     pub role: Option<String>,
     pub optional: bool,
+    #[serde(default)]
+    pub read_only: bool,
+    #[serde(default)]
+    pub external_cache_dir: Option<String>,
     pub shared_contracts: Vec<String>,
     pub cargo_patch_crates: Vec<String>,
 }
@@ -76,6 +83,8 @@ impl Default for RepositoryDescriptor {
             metadata: None,
             role: None,
             optional: false,
+            read_only: false,
+            external_cache_dir: None,
             shared_contracts: Vec::new(),
             cargo_patch_crates: Vec::new(),
         }
@@ -117,9 +126,42 @@ pub struct ResolvedRepositoryDescriptor {
     #[serde(default)]
     pub optional: bool,
     #[serde(default)]
+    pub read_only: bool,
+    #[serde(default)]
+    pub external_cache_dir: Option<String>,
+    #[serde(default)]
     pub shared_contracts: Vec<String>,
     #[serde(default)]
     pub cargo_patch_crates: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "json-schema", derive(JsonSchema))]
+pub struct ActiveRepoContext {
+    pub repository_id: String,
+    pub display_name: String,
+    pub root_path: String,
+    pub access_mode: RepoAccessMode,
+    #[serde(default)]
+    pub read_only: bool,
+    pub kb_cache_dir: String,
+    pub graphify_cache_dir: String,
+    pub openwiki_cache_dir: String,
+    pub global_library_dir: String,
+    pub updated_at_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "json-schema", derive(JsonSchema))]
+pub struct HarnessOnboardSummary {
+    pub repository_id: String,
+    pub root_path: String,
+    pub read_only: bool,
+    pub created_paths: Vec<String>,
+    pub existing_paths: Vec<String>,
+    pub cache_dirs: Vec<String>,
+    pub global_library_dir: String,
+    pub catalog_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

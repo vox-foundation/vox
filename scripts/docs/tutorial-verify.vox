@@ -379,7 +379,7 @@ fn verify_tutorial(path: str, registry: list[RegistryEntry], install_content: st
                         i = i + 1
                         continue
                     }
-                    if t.starts_with("-") or t.contains("/") or t.contains(".") or t.contains("<") or t.contains("=") {
+                    if t.starts_with("-") or t.starts_with("\"") or t.starts_with("'") or t.contains("/") or t.contains(".") or t.contains("<") or t.contains("=") {
                         let mut j = i
                         while j < raw_tokens.len() {
                             let ft = raw_tokens.get(j).unwrap().trim()

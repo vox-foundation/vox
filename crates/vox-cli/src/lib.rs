@@ -472,6 +472,9 @@ pub enum Cli {
         /// Application template: `chatbot`, `dashboard`, or `api` (with `--kind application` or default).
         #[arg(long)]
         template: Option<String>,
+        /// Also initialize the universal Vox harness (`VOX.md`, `AGENTS.md`, `.voxignore`, `.well-known/llms.txt`, `docs/wiki/`, `.vox/`).
+        #[arg(long)]
+        harness: bool,
     },
     /// Scaffold a new Vox application from opinionated presets (`vox new web`)
     New {
@@ -545,6 +548,12 @@ pub enum Cli {
     },
     /// Repository discovery status, catalog (`.vox/repositories.yaml`), and cross-repo queries.
     Repo {
+        /// Run an OpenWiki action (`init`, `build`, `status`, `diff`) for the active repository.
+        #[arg(long)]
+        wiki: Option<String>,
+        /// Persist updated OpenWiki files when used with `--wiki build`.
+        #[arg(long)]
+        write: bool,
         /// Subcommand (`Option` so bare `vox repo` defaults to status in dispatch).
         #[command(subcommand)]
         cmd: Option<commands::repo::RepoCmd>,

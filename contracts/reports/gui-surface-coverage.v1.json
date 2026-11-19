@@ -5901,13 +5901,17 @@
     "scan_training_corpus",
     "scientia_cost_rollup",
     "scientia_dashboard_snapshot",
+    "scientia_publication_arxiv_bundle",
+    "scientia_publication_arxiv_readiness",
     "scientia_publication_claims",
+    "scientia_publication_classify",
     "scientia_publication_extract_claims",
     "scientia_publication_finding_page",
     "scientia_publication_flywheel_advance",
     "scientia_publication_latex",
     "scientia_publication_manuscript",
     "scientia_publication_replay",
+    "scientia_publication_stage_advance",
     "scientia_publication_venue_recommend",
     "scientia_v76_audit_diff",
     "search_model_cards",
@@ -5976,7 +5980,8 @@
     "vox_graphify_status",
     "vox_search_query",
     "warp",
-    "workspace_town_scan"
+    "workspace_town_scan",
+    "write_doc_markdown"
   ],
   "capabilities": [
     {

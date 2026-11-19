@@ -20,6 +20,7 @@
 pub mod bundle;
 pub mod escape;
 pub mod render;
+pub mod scientific;
 
 pub use bundle::{
     ArxivHandoffMeta, BundleError, list_bundle_entries, render_arxiv_bundle,
@@ -27,3 +28,10 @@ pub use bundle::{
 };
 pub use escape::escape_latex;
 pub use render::render_latex;
+pub use scientific::{
+    ArxivReadinessCheckItem, ArxivReadinessReport, BundleValidationFinding,
+    PublicationLifecycleStage, ScientificArxivBundle, ScientificAuthor, ScientificPublicationSpec,
+    ScientificSections, StageGateSummary, count_latex_todo_stubs,
+    evaluate_scientific_arxiv_readiness, render_references_bibtex, render_scientific_arxiv_bundle,
+    render_scientific_arxiv_latex, sanitize_bibtex_key, validate_arxiv_bundle_tar_gz,
+};

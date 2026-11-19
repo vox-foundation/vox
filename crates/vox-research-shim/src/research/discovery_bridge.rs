@@ -130,6 +130,21 @@ pub fn extract_title_hint(result: &ResearchResult) -> Option<String> {
         "implementation implications",
         "summary",
         "introduction",
+        "overview",
+        "abstract",
+        "background",
+        "methods",
+        "methodology",
+        "results",
+        "discussion",
+        "conclusion",
+        "references",
+        "citations",
+        "key findings",
+        "key takeaways",
+        "findings",
+        "research synthesis",
+        "synthesis",
     ];
     for line in result.answer.lines() {
         let trimmed = line.trim();
@@ -152,7 +167,18 @@ pub fn extract_title_hint(result: &ResearchResult) -> Option<String> {
             .unwrap_or(trimmed)
             .trim()
             .trim_start_matches(['-', '*', ' ']);
-        if first_sentence.len() >= 12 {
+        let lower_sentence = first_sentence.to_ascii_lowercase();
+        if first_sentence.len() >= 18
+            && ![
+                "based on ",
+                "here is ",
+                "in this report",
+                "this report ",
+                "promoted from ",
+            ]
+            .iter()
+            .any(|prefix| lower_sentence.starts_with(prefix))
+        {
             return Some(first_sentence.chars().take(120).collect());
         }
     }
@@ -200,8 +226,18 @@ pub fn finding_candidate_from_research_result(result: &ResearchResult) -> Findin
             .join(" ")
     );
     let candidate_class = infer_candidate_class(&combined_corpus);
+    let class_fallback_label = match candidate_class {
+        EventCandidateClass::EmpiricalScience => "Empirical Evaluation and Synthesis",
+        EventCandidateClass::AlgorithmicImprovement => "Algorithmic Performance Study",
+        EventCandidateClass::ReproducibilityInfra => "Reproducibility and Verification Study",
+        EventCandidateClass::PolicyGovernance => "Governance and Policy Analysis",
+        EventCandidateClass::TelemetryTrust => "Telemetry Calibration and Trust Study",
+        EventCandidateClass::ModelCapabilityAtlas => "Model Capability Atlas Evaluation",
+        EventCandidateClass::ProviderReliabilityAtlas => "Provider Reliability Atlas Study",
+        EventCandidateClass::Other => "Technical Architecture Synthesis",
+    };
     let title_hint = extract_title_hint(result)
-        .or_else(|| Some(format!("Research Finding (Session #{session_id})")));
+        .or_else(|| Some(format!("{class_fallback_label} (#{session_id})")));
     let total_claims = result.research_metadata.claim_verdicts.len();
     let disputed_claims = result
         .research_metadata
