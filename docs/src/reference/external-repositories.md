@@ -1,13 +1,20 @@
 ---
 title: "External repositories & workspace SSOT"
-description: "Official documentation for External repositories & workspace SSOT for the Vox language. Detailed technical reference, architecture guides"
+description: "Single source of truth for repository identity, layout-derived affinity, Two-Tier Hybrid vs read-only KB/OpenWiki storage, and federated catalog queries across any repository."
 category: "Language Reference"
-training_eligible: true
-
+status: "current"
+topic: "version-control"
+domain: "platform"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "TechArticle"
 ---
 
 # External repositories & workspace SSOT
+
+<!-- kb:summary -->
+Defines Vox's canonical repository discovery, stable `repository_id` hashing, language-agnostic affinity detection, and federated storage model across Cargo, Node/TypeScript, Python, Go, and `.vox` repositories. Covers committed `.vox/repositories.yaml` multi-repo catalogs, Two-Tier Hybrid storage (`docs/wiki/` + `~/.vox/library/`), and zero-footprint `--read-only` indexing under `~/.vox/repos/<id>/`.
+<!-- /kb:summary -->
 
 Single source of truth for **repository identity**, **layout-derived affinity**, and **tenant-scoped** on-disk paths. Applies to the Vox monorepo and arbitrary Git checkouts.
 
@@ -65,12 +72,15 @@ Current policy:
 - remote entries are adapter metadata first, query backends later
 - cross-repo paths stay per-repository; there is no shared global path namespace
 
-See also: [Cross-repo querying and observability](../archive/research-2026-q1/cross-repo-query-observability.md).
+- **Multi-repo onboarding & switching:** Use `vox repo init [--read-only]` to scaffold harness config, or register and hot-switch siblings via `vox repo catalog refresh --add <path> [--name N] [--read-only]`, `--switch <id>`, and `--remove <id>`.
+
+See also: [Universal Multi-Repo Knowledgebase & Self-Healing OpenWiki](../architecture/universal-kb-graphify-openwiki-multirepo-research-2026.md) and [Tutorial: Managing Knowledgebases, Self-Healing OpenWiki & the Doc Studio](../tutorials/tut-knowledgebase-and-openwiki.mdx).
 
 ## Related
 
+- [Search & Hybrid Retrieval Reference](ref-search.md) — `voxlang.org` Pagefind + `/llms.txt`, Axis `⌘K` Omnibar, and multi-repo `vox-search` (BM25 + HNSW + Graphify PPR).
 - [`orchestration-unified.md`](orchestration-unified.md) — MCP/DeI plan alignment, migration flags, benchmark telemetry env.
-- [`mens.md`](populi.md) — `VOX_MESH_*` contract, local registry, HTTP control plane.
+- [`populi.md`](populi.md) — `VOX_MESH_*` contract, local registry, HTTP control plane.
 - ADR 004 (`docs/src/adr/004-codex-arca-turso-ssot.md`) — Codex env and Turso.
 - `AGENTS.md` §2.2.2 — short agent-oriented summary.
 

@@ -1,6 +1,6 @@
 ---
 title: "Hashing & Identity Builtins"
-description: "Official documentation for Hashing & Identity Builtins for the Vox language. Detailed technical reference, architecture guides, and imple"
+description: "Reference for Vox's built-in XXH3-128 fast hashing, BLAKE3-256 content addressing, UUID generation, and monotonic timestamp primitives."
 category: "Language Reference"
 training_eligible: true
 

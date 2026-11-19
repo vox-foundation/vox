@@ -94,6 +94,7 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `parallel_exploration` | — |
 | `policy` | — |
 | `probe` | — |
+| `promotion` | — |
 | `research` | — |
 | `safety_governor` | — |
 | `scraper` | — |

@@ -4,11 +4,17 @@ description: "Learn how to build modern, reactive UIs in Vox using the view-call
 category: "Tutorials"
 status: "current"
 sort_order: 5
-training_eligible: true
-
+topic: "web-frontend"
+domain: "gui"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "HowTo"
 ---
 # Tutorial: Building UI with VUV view-calls
+
+<!-- kb:summary -->
+Introduces reactive frontend authoring in Vox using the view-call (VUV) syntax inside `component` declarations. Demonstrates typed style keyword arguments, component composition, `.map(...)` iteration and conditionals inside trailing child blocks, `routes` wiring, binding UI events directly to `mutation` handlers with `Id[T]` row identity fields, and `raw_class` escape hatches.
+<!-- /kb:summary -->
 
 Learn how to build modern, reactive user interfaces with Vox. This tutorial covers the `component` declaration, the VUV view-call authoring syntax (function calls + trailing-block children + typed style kwargs), and binding UI state to backend logic.
 
@@ -167,3 +173,5 @@ For escapes, use `raw_class="…"` to drop in Tailwind utilities verbatim. Use s
 - [How to author Vox views (full reference)](../how-to/how-to-author-views.md)
 - [GUI Authoring Syntax 2026 (design rationale)](../architecture/gui-authoring-syntax-2026.md)
 - [First App](tut-first-app.md) — Apply these UI patterns to a collaborative task list.
+- [Vox Axis Desktop Workbench & Non-Modal Doc Studio](../how-to/how-to-axis-workbench.md) — See how Vox renders its own 32-surface Tauri 2 workbench and multi-format Doc Studio.
+- [Managing Knowledgebases & OpenWiki](tut-knowledgebase-and-openwiki.mdx) — Document UI routes and surface components automatically across Layer 4 OpenWiki hubs.

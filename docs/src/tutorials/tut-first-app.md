@@ -1,14 +1,20 @@
 ---
 title: "Tutorial: Building a Collaborative Task List"
-description: "Build a full-stack Task app end to end with Vox."
+description: "Build a full-stack Task app end to end with Vox: schema tables, queries, mutations, reactive components, routing, and live execution."
 category: "Tutorials"
 status: "current"
 sort_order: 2
-training_eligible: true
-
+topic: "code-generation"
+domain: "language"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "HowTo"
 ---
 # Tutorial: Building a Collaborative Task List
+
+<!-- kb:summary -->
+Step-by-step full-stack tutorial for building a persistent task-list application in a single `.vox` module. Covers initializing a workspace with `vox init`, declaring a SQL-backed `table Task` schema, adding `query` and `mutation` endpoints with `Result[str]` error propagation, building a reactive UI `component` with route bindings, and running `vox check`, `vox build`, and `vox run`.
+<!-- /kb:summary -->
 
 Learn how to build a full-stack task list in one `.vox` file: a `table`, a `query`, a `mutation`, a `component`, and a route.
 
@@ -87,6 +93,9 @@ Visit `http://localhost:3000` to see your collaborative task list in action!
 ---
 
 **Next Steps**:
+- [Interactive Full-Stack Walkthrough](tut-fullstack-walkthrough.mdx) — Inspect the generated SQL, Axum, and React TSX output side by side.
 - [Checkpoints Checklist](tut-first-vox-app-checkpoints.md) — Verify your minimal compile and run pipeline.
 - [Actor Basics](tut-actor-basics.md) — Add real-time collaboration with shared state.
 - [Durable Workflows](tut-workflow-durability.md) — Automate task reminders.
+- [Managing Knowledgebases & Self-Healing OpenWiki](tut-knowledgebase-and-openwiki.mdx) — Generate 5-layer OpenWiki hubs from your schema and routes automatically.
+- [Deep Research & Scientia Publication](tut-deep-research-and-scientia.mdx) — Connect empirical benchmarks into the research-to-publication flywheel.

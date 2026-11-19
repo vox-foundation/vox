@@ -1,14 +1,20 @@
 ---
 title: "Tutorial: Workflow Durability"
-description: "Learn how to build resilient, long-running processes using Vox workflows."
+description: "Learn how to build resilient, long-running processes using Vox workflows and activities backed by the durable VoxDb journal."
 category: "Tutorials"
 status: "current"
 sort_order: 6
-training_eligible: true
-
+topic: "durable-workflows"
+domain: "runtime"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "HowTo"
 ---
 # Tutorial: Workflow Durability
+
+<!-- kb:summary -->
+Explains how to build crash-safe, replayable background processes in Vox using `activity` and `workflow` declarations backed by `VoxDbTracker`. Covers durable step ordinals, idempotent activity design, retry options in `with { ... }` blocks, deterministic replay across restarts, and explicit `Result[T]` error propagation with `match`.
+<!-- /kb:summary -->
 
 > [!NOTE]
 > **What is true as of Phase 6.** Activity bodies run and journal real
@@ -28,16 +34,33 @@ Learn how to build resilient, long-running processes using Vox workflows. This t
 
 ## 1. The Challenge of Long-Running Tasks
 
-Traditional async functions lose their state if the server restarts or a network error occurs. Vox workflows are intended to solve that by recording progress in a database.
+Traditional async functions lose their state if the server restarts or a network error occurs. Vox workflows solve that by persisting each completed activity's ordinal and output in `VoxDbTracker`.
 
 ## 2. Defining a Workflow
 
-Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
-
-Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
+Use the bare `activity` and `workflow` keywords to describe long-running orchestration with explicit `Result[T]` recovery:
 
 ```vox
 {{#include ../../../examples/golden/getting_started.vox:logic}}
+```
+
+Or combine domain-level validation inside a replayable verification pipeline:
+
+```vox
+activity verify_citation_hash(slug: str, hash_hex: str) to Result[str] {
+    if len(hash_hex) < 8 {
+        return Error("Digest too short for immutable journal")
+    }
+    return Ok("verified:" + slug + "@" + hash_hex)
+}
+
+workflow curate_research_entry(slug: str, hash_hex: str) to str {
+    let outcome = verify_citation_hash(slug, hash_hex)
+    match outcome {
+        Ok(receipt) => "Persisted: " + receipt
+        Error(reason) => "Quarantined: " + reason
+    }
+}
 ```
 
 The `with` block provides execution options for the activity:
@@ -68,5 +91,7 @@ The `with` block provides execution options for the activity:
 ---
 
 **Next Steps**:
+- [Deep Research & Scientia Publication](tut-deep-research-and-scientia.mdx) — Orchestrate multi-wave research and `arXiv.org` staging pipelines.
+- [Knowledgebases, Self-Healing OpenWiki & Doc Studio](tut-knowledgebase-and-openwiki.mdx) — Automate 5-layer docs sync and repair across your repository.
 - [Language Syntax](../reference/ref-syntax.md) — Explore advanced workflow expressions.
 - [First App](tut-first-app.md) — Integrate a workflow into your task list.

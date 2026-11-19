@@ -176,22 +176,36 @@ workflow process_subscription(amount_cents: int) to str {
 
 ### Step 3: Launch the Vox Axis Desktop Workbench
 
-Start the orchestrator daemon and open the [Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md) (`vox-gui`) to inspect live MCP tool calls, Loquela risk/clutch posture controls (`Alt+1..4`), and the 132-crate Architecture Atlas:
+Start the orchestrator daemon and open the [Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md) (`vox-gui`) to inspect live MCP tool calls, Loquela risk/clutch posture controls (`Alt+1..4`), the non-modal Multi-Format Doc Studio (`Read | Split | Edit`), and the 3D `VRBS ROMA` Architecture Atlas:
 
 ```bash
 cargo run -p vox-gui
+```
+
+![Non-modal Doc Studio docked on the right beside the Memory Knowledge Base view in Vox Axis](../assets/axis/doc-reader-arcane.webp)
+
+### Step 4: Query Your Knowledge Base, OpenWiki & Deep Research Loop
+
+Once Vox is running on your project (or any brownfield Rust, TypeScript, Python, or Go repo onboarded via `vox repo init`), you can search your 3-layer Federated KB, generate a 5-layer self-healing OpenWiki, or run a citation-audited deep synthesis:
+
+```bash
+vox kb status
+vox ci wiki-sync --polyglot --status
+vox research run "How do Vox durable workflows journal activity steps?" --lane fast --json
 ```
 
 ## Next Steps
 
 Each link owns one job. Stay on that page for that job.
 
+- **[Deep Research, Preflight & Scientia Publication](tut-deep-research-and-scientia.mdx)** — frame investigations with statistical archetypes, steer `+1 Wave Refinement`, scope `Index Now` vs. quarantine, and stage 7-stage `arXiv.org` bundles.
+- **[Knowledgebases, Self-Healing OpenWiki & Doc Studio](tut-knowledgebase-and-openwiki.mdx)** — federate `vox_baseline` + `~/.vox/library/` + `docs/wiki/`, generate 5-layer OpenWiki hubs with protected auto-fences, run Tier-1/Tier-2 self-healing, and author multi-format docs.
 - **[First Full-Stack App](tut-first-app.md)** — fill in the task list: mutations, component, and route.
 - **[Interactive Full-Stack Walkthrough](tut-fullstack-walkthrough.mdx)** — compare one `.vox` file with the SQL, Axum, and React it emits.
 - **[UI with VUV view-calls](tut-ui-integration.md)** — compose `component` trees, iteration, and typed style kwargs.
 - **[Use a React component from Vox](use-a-react-component-from-vox.md)** — import an existing React component.
 - **[Actors](tut-actor-basics.md)** — persistent actors and identity.
 - **[Durable Workflows](tut-workflow-durability.md)** — replayable activities, timers, and crash recovery. The short workflow in section 3 is not that lesson.
-- **[Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md)** — Loquela posture controls, `@kb` pins, and panel layout. That guide is a how-to, not a tutorial.
+- **[Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md)** — Loquela posture controls, `@kb` pins, non-modal Doc Dock, and panel layout.
 - **Published adapters** — [Qwen3 0.6B](https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b), [1.7B](https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b), [4B](https://huggingface.co/brbrainerd/vox-mens-qwen3-4b), and the [index](https://huggingface.co/brbrainerd/vox-mens-index). `vox mens hub download --repo brbrainerd/vox-mens-qwen3-4b --output-dir <dir>` fetches a card when `vox-ml-cli` is built with `mens-hf-hub`. The 8B adapter is not public.
 - **[Language Syntax Reference](../reference/ref-syntax.md)** — types, pattern matching, and decorators.

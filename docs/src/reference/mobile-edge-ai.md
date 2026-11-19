@@ -1,6 +1,6 @@
 ---
 title: "Mobile and edge AI — SSOT"
-description: "Official documentation for Mobile and edge AI — SSOT for the Vox language. Detailed technical reference, architecture guides, and impleme"
+description: "Single source of truth for how Vox separates workstation QLoRA training from on-device Android, iOS, and browser edge inference."
 category: "Language Reference"
 training_eligible: true
 

@@ -1,6 +1,6 @@
 ---
 title: "How To: Train Mens on RTX 4080 Super"
-description: "Official documentation for How To: Train Mens on RTX 4080 Super for the Vox language. Detailed technical reference, architecture guides"
+description: "Step-by-step runbook for building and running Mens QLoRA and Burn LoRA fine-tuning workflows on RTX 4080-class GPUs."
 category: "How-To Guides"
 training_eligible: true
 

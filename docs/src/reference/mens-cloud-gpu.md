@@ -1,6 +1,6 @@
 ---
 title: "Mens Cloud GPU Training Strategy"
-description: "Official documentation for Mens Cloud GPU Training Strategy for the Vox language. Detailed technical reference, architecture guides, an"
+description: "Reference for Mens local and cloud GPU training presets, VRAM auto-detection, and profile compatibility matrices."
 category: "Language Reference"
 training_eligible: true
 

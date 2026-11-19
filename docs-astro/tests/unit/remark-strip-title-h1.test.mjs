@@ -24,3 +24,10 @@ test('keeps an H1 that does not open the page, and pages without one', () => {
   const h2 = { type: 'heading', depth: 2, children: [] };
   assert.deepEqual(run([h2, para('Body')]), [h2, para('Body')]);
 });
+
+test('skips MDX import statements (mdxjsEsm) and JSX comments (mdxFlowExpression) before leading H1', () => {
+  const esm = { type: 'mdxjsEsm', value: 'import { Card } from "@astrojs/starlight/components";' };
+  const jsxComment = { type: 'mdxFlowExpression', value: '/* kb:summary */' };
+  assert.deepEqual(run([esm, h1('Title'), jsxComment, para('Body')]), [esm, jsxComment, para('Body')]);
+  assert.deepEqual(run([esm, jsxComment, h1('Title'), para('Body')]), [esm, jsxComment, para('Body')]);
+});

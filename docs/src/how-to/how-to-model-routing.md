@@ -1,6 +1,6 @@
 ---
 title: "Model Routing & Provider Cascade"
-description: "Official documentation for Model Routing & Provider Cascade for the Vox language. Detailed technical reference, architecture guides, and "
+description: "Configure Vox's dynamic OpenRouter catalog, BYOK quotas, and model-agnostic provider cascade across CLI, MCP, and vox-orchestrator-d."
 category: "How-To Guides"
 training_eligible: true
 

@@ -1,18 +1,29 @@
 ---
 title: "Vox Deep-Research Primer (Claude & Gemini)"
-description: "Paste-ready context block and prompt templates that brief Claude Research and Gemini Deep Research on what Vox is, so external research tasks stay on-topic and grounded."
+description: "Paste-ready context block and prompt templates briefing external research agents on current Vox architecture, alongside links to Vox's native Deep Research & Scientia pipeline."
 category: "Contributors"
 status: "current"
+topic: "scientia-research"
+domain: "knowledge"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 ---
 
 # Vox Deep-Research Primer
+
+<!-- kb:summary -->
+Provides an up-to-date `<vox_context>` disambiguation block and structured prompt templates for external Claude Research and Gemini Deep Research sessions, ensuring third-party models distinguish `vox-foundation/vox` from overloaded "vox" brand names and anchor accurately on shipped `0.6.0` capabilities alongside native `vox research` and Scientia workflows.
+<!-- /kb:summary -->
+
+> [!TIP]
+> Running investigations inside an active repository? Start with Vox's native in-repo research workbench (`vox research run` / Axis **Research**, **Live KB Preflight**, `+1 Wave Refinement`, and 7-stage `arXiv.org` staging) in [Tutorial: Deep Research, Knowledge Preflight & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx).
 
 Use this page when you run deep research **outside** the repo (claude.ai Research,
 Gemini Deep Research). Those agents have never seen Vox, and "vox" is a heavily
 overloaded word online. Paste **§1 Context block** first, then one template
 from **§2**.
 
-Facts below are accurate as of 2026-09-21 (workspace `0.6.0`). Re-check the
+Facts below are current as of 2026-11-18 (workspace `0.6.0`). Re-check the
 README and the [stability matrix](https://voxlang.org/reference/stability/)
 before reusing this after a version bump.
 
@@ -61,23 +72,31 @@ Types: Result[T], Option, Id[T], ADTs, `?` error propagation, `match`.
 
 MATURITY (do not overstate)
 - Mature/Stable: compiler + full-stack codegen, CLI (vox check/build/run/
-  doctor/audit/ci), database layer, 300+ first-party MCP tools, durable
-  workflows on the interpreter path (journal-backed replay).
-- Preview: durable workflows via Rust codegen, local inference/QLoRA
-  (Rust-native Candle/Burn, no Python), Tauri operator GUI.
-- Emergent/not yet: P2P mesh routing, published installers, public
+  doctor/audit/ci/kb/repo/research/scientia), VoxDb (v97 SQLite/Turso),
+  376 first-party MCP tools, 3-layer Federated KB (BM25 + HNSW + Graphify
+  Personalized PageRank), 5-layer Polyglot OpenWiki with two-tier self-healing,
+  and durable workflows on the interpreter path (journal-backed replay).
+- Preview: durable workflows via Rust codegen, pure-Rust Candle/QLoRA training
+  and inference (`vox mens`), Vox Axis Tauri 2 workbench (32 views, VRBS ROMA
+  simulator, non-modal multi-format Doc Dock, Concilium & Populi observatory),
+  and 7-stage Scientia `arXiv.org` manuscript staging.
+- Published QLoRA adapters: Qwen3 0.6B, 1.7B, and 4B under `brbrainerd/vox-mens-*`.
+- Emergent/not yet: P2P WAN mesh routing, published installers, public
   benchmark leaderboard, .vox -> native desktop app compiler.
 
 INTERNAL SUBSYSTEM NAMES (Latin-flavored)
-- MENS: fine-tuning/training lane; trains a Vox-specialized code model
-  (active base: Qwen3-8B, QLoRA). Tests in the repo double as training data
-  (test pass rate is a planned GRPO reward term).
-- Populi: control plane + peer-to-peer mesh for distributed inference/GPU work.
-- SCIENTIA: research/evidence framework (includes a deep-research pipeline).
+- MENS: fine-tuning/training lane; trains Vox-specialized Qwen3 QLoRA adapters
+  (0.6B/1.7B/4B published on HuggingFace) with compiler-feedback rewards.
+- Populi / Concilium: control plane, peer-to-peer mesh, and W3C `traceparent`
+  + `#seq` causal swarm observatory in Vox Axis.
+- SCIENTIA: verifiable 4-tier Deep Research (`Off|Auto|Fast|Deep`), Socrates
+  quarantine vs. scoped indexing, and 7-stage `arXiv.org`/Zenodo/OpenReview pipeline.
+- OpenWiki & Graphify: 5-layer polyglot documentation engine (`docs/wiki/`,
+  `openwiki:auto` fences, AST cross-edges, Tier-1/Tier-2 self-healing).
 - Codex / Arca: data store facade / low-level SQL (SQLite/Turso/libSQL) layer.
 - Clavis (vox-secrets): secret management. TOESTUB: anti-stub quality gate.
 - Orchestrator (vox-orchestrator): agent task dispatch; all LLM calls go
-  through a model-agnostic facade with a scored model registry.
+  through `vox_actor_runtime::llm` with a scored model registry.
 
 DISAMBIGUATION — these are NOT Vox-the-language; discard results about them:
 Vox Media / vox.com; VOX (Spanish political party); Vox guitar amps; MagicaVoxel

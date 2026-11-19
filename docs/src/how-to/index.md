@@ -1,20 +1,26 @@
 ---
 title: "How-To Guides"
-description: "Goal-oriented guides and practical recipes for building with Vox."
+description: "Goal-oriented guides and practical recipes for building with Vox, managing Federated Knowledge Bases, and operating Vox Axis."
 category: "How-To Guides"
 status: "current"
 topic: "doc-governance"
 domain: "documentation"
 authorship: "llm-assisted"
-authorship_model: "claude-3-5-sonnet"
+authorship_model: "claude-opus-4-6"
 ---
 # How-To Guides
 
 <!-- kb:summary -->
-Serves as the central directory for goal-oriented recipes and practical how-to guides across the Vox ecosystem. Catalogs core task-focused walkthroughs including full-stack application development, AI agent integration via MCP, local and cloud database configuration, production deployment strategies, and automated testing patterns.
+Serves as the central directory for goal-oriented recipes and practical how-to guides across the Vox ecosystem. Catalogs core task-focused walkthroughs spanning full-stack application development, AI agent integration via MCP, Federated Knowledge Base and self-healing OpenWiki operations, Scientia publication staging, the Vox Axis desktop workbench, deployment, and MENS training.
 <!-- /kb:summary -->
 
-Problem-oriented recipes and practical how-to guides for building applications, integrating tools, and managing infrastructure with Vox.
+Problem-oriented recipes and practical how-to guides for building applications, managing knowledge bases, and operating Vox infrastructure.
+
+## Knowledge Base, OpenWiki, Research & Axis Workbench
+- [Vox Axis Desktop Workbench & Loquela Controls](how-to-axis-workbench.md): Navigate the 32 Axis views, non-modal Multi-Format Doc Studio, Memory/Research surfaces, `VRBS ROMA`, and `Alt+1..4` controls
+- [Publish Scientia Findings](how-to-scientia-publication.md): Prepare, preflight, dual-approve, and stage 7-stage `arXiv.org` & Zenodo publication bundles
+- [Tutorial — Deep Research & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx): Frame investigations with statistical archetypes, steer `+1 Wave Refinement`, and publish findings
+- [Tutorial — Knowledgebases, Self-Healing OpenWiki & Doc Studio](../tutorials/tut-knowledgebase-and-openwiki.mdx): Federate repos (`vox repo`), generate 5-layer OpenWiki hubs (`vox ci wiki-sync`), and run Tier-1/Tier-2 self-healing
 
 ## Core Workflows
 - [First Full-Stack App](first-full-stack-app.md): Build an end-to-end Vox application

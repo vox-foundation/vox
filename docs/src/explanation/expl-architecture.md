@@ -1,13 +1,20 @@
 ---
 title: "Compiler Architecture"
-description: "Official documentation for Compiler Architecture for the Vox language. Detailed technical reference, architecture guides, and implementat"
+description: "Modular pipeline of the Vox compiler (Lexer, Parser, AST, HIR, Typeck, WebIR, AppContract, RuntimeProjection, Rust/TS emitters) alongside MENS QLoRA, Graphify, and Self-Healing OpenWiki."
 category: "Concepts"
-training_eligible: true
-
+status: "current"
+topic: "compiler-frontend"
+domain: "language"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "TechArticle"
 ---
 
 # Compiler Architecture
+
+<!-- kb:summary -->
+Architectural breakdown of the Vox compiler pipeline inside `crates/vox-compiler/src/`: tokenization, resilient recursive-descent parsing, AST and HIR lowering, Hindley-Milner bidirectional type checking, WebIR lowering and validation, `AppContract` and `RuntimeProjection` emission, dual Rust Axum and React TypeScript codegen, plus how the MENS QLoRA corpus and Graphify OpenWiki documentation systems bind directly to compiler stages.
+<!-- /kb:summary -->
 
 The Vox compiler follows a modular pipeline architecture with conceptual stages. The current implementation is consolidated under `crates/vox-compiler/src/`, where each stage is represented by explicit modules.
 
@@ -17,54 +24,23 @@ Current implementation note: the practical pipeline is currently consolidated un
 
 ## Pipeline Overview
 
-```text
-Source Code (.vox)
-    │
-    ▼
-┌────────────────┐
-│     Lexer      │  Tokenization (logos)
-└──────┬─────────┘
-       │ Vec<Token>
-       ▼
-┌────────────────┐
-│     Parser     │  Recursive descent parser → AST Module
-└──────┬─────────┘
-       │ Module (AST root)
-       ▼
-┌────────────────┐
-│      AST       │  Strongly-typed AST wrappers
-└──────┬─────────┘
-       │ Module (Decl, Expr, Stmt, Pattern)
-       ▼
-┌────────────────┐
-│      HIR       │  Desugaring + name resolution + dead code detection
-└──────┬─────────┘
-       │ HirModule
-       ▼
-┌────────────────┐
-│    Typeck      │  Bidirectional type checking + HM inference
-└──────┬─────────┘
-       │ Typed HIR + Vec<Diagnostic>
-       ▼
-┌────────────────┐
-│     Web IR     │  HIR→WebIR lower + validate
-└──────┬─────────┘
-       │ WebIrModule
-       ▼
-┌────────────────┐
-│  App Contract  │  HIR→AppContract (HTTP/RPC/server config)
-└──────┬─────────┘
-       │ AppContractModule
-       ▼
-┌────────────────┐
-│ Runtime Proj   │  HIR→RuntimeProjection (DB/task capability hints)
-└──────┬─────────┘
-       │ RuntimeProjectionModule
-       ▼
-┌──────────────────┬─────────────────────┐
-│ vox-codegen-rust │  vox-codegen-ts     │
-│  (quote! → .rs)  │  (string → .ts/tsx) │
-└──────────────────┴─────────────────────┘
+```vox-diagram
+graph {
+    direction: down
+    node Src: "Source Code (.vox)"
+    node Lex: "Lexer (logos Vec<Token>)"
+    node Parse: "Parser + AST"
+    node HIR: "HIR + Bidirectional Typeck"
+    node WebIR: "WebIR + AppContract + RuntimeProjection"
+    node Rust: "vox-codegen-rust (Axum + SQLite/Turso)"
+    node TS: "vox-codegen-ts (React/TSX + vox-client.ts)"
+    Src -> Lex
+    Lex -> Parse
+    Parse -> HIR
+    HIR -> WebIR
+    WebIR -> Rust
+    WebIR -> TS
+}
 ```
 
 Current path note:
@@ -167,17 +143,11 @@ Emits TypeScript/TSX in modular files:
 | `adt.rs` | TypeScript discriminated union types |
 
 Normative strategy for reducing frontend emitter complexity while preserving React interop:
-[ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
-Detailed implementation sequencing and weighted task quotas:
-[Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
-Ordered file-by-file execution map:
-[WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
-Canonical current-vs-target representation mapping:
-[Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
-Quantified K-complexity delta for the canonical worked app:
-[WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
-Reproducible per-token-class computation:
-[WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
+[ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md), backed by [Internal Web IR Implementation Blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
+
+## Knowledge, Graphify & Self-Healing OpenWiki Pipeline
+
+The same HIR symbol tables and polyglot AST extractors feed `vox-graph-reader` and `vox-doc-pipeline` to maintain **Code <-> Doc <-> Decision** cross-edges, HippoRAG Personalized PageRank retrieval (`vox-search`), 5-layer OpenWiki synthesis (`vox ci wiki-sync --polyglot`), and two-tier self-healing documentation updates whenever crate APIs or `.vox` declarations evolve ([Managing Knowledgebases & Self-Healing OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx) · [Deep Research & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx)).
 
 ---
 
@@ -370,7 +340,8 @@ Properties enforced on the project itself, invisible from the language surface:
 - [Language Reference](../reference/ref-syntax.md) — Full syntax and feature reference
 - [Actors & Workflows](expl-actors-workflows.md) — Workflow durability and actor persistence
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md) — CLI commands, package manager, LSP
-- [Web IR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map
-- [Web IR acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — parser, K-metric, parity, and rollout thresholds
+- [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx) — Multi-repo Graphify + 5-layer OpenWiki self-healing
+- [Deep Research & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx) — Archetype preflight, wave steering, and `arXiv.org` staging
+- [Internal Web IR Implementation Blueprint](../architecture/internal-web-ir-implementation-blueprint.md) — WebIR acceptance gates and lowering specification
 
 

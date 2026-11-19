@@ -1,0 +1,406 @@
+---
+title: "Tutorial: Managing Knowledgebases, Self-Healing OpenWiki & the Doc Studio"
+description: "Onboard any repository into Vox's 3-layer Federated Knowledge Base, generate 5-layer polyglot OpenWiki hubs with deterministic auto-fences, run Tier-1 and Tier-2 self-healing, and author multi-format docs in the non-modal Doc Dock."
+category: "Tutorials"
+status: "current"
+sort_order: 9
+topic: "knowledge-base"
+domain: "knowledge"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
+schema_type: "HowTo"
+keywords: ["Vox knowledge base tutorial", "OpenWiki self-healing documentation", "multi-repo RAG", "Graphify Personalized PageRank", "markdown AsciiDoc editor"]
+code_anchors:
+  - "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx"
+  - "crates/vox-gui/ui/src/components/surfaces/DocReader/DocReader.tsx"
+  - "crates/vox-doc-pipeline/src/pipeline/openwiki.rs"
+---
+
+import { Steps, Tabs, TabItem, CardGrid, Card, Aside } from '@astrojs/starlight/components';
+import VoxPlayground from '../../../docs-astro/src/components/VoxPlayground.astro';
+
+# Tutorial: Managing Knowledgebases, Self-Healing OpenWiki & the Doc Studio
+
+{/* kb:summary */}
+This tutorial shows how to use Vox as a universal documentation and knowledgebase engine across single or federated polyglot repositories. You will configure the 3-layer Federated Knowledge Base, index source and documentation files with W3C SKOS facets and HippoRAG Personalized PageRank retrieval, generate 5-layer OpenWiki hubs with protected auto-fences, run Tier-1 and Tier-2 self-healing against code changes, and author Markdown, AsciiDoc, YAML, JSON, and CSV files in the non-modal Doc Dock.
+{/* /kb:summary */}
+
+Documentation fails for two predictable reasons: either it lives in an external wiki disconnected from code reviews and drifts out of date, or machine generators overwrite carefully written engineering explanations. Vox solves both problems together by combining a **3-layer Federated Knowledge Base**, **deterministic Polyglot Graphify + Personalized PageRank retrieval**, **5-layer OpenWiki generation with protected fences**, and a **two-tier self-healing loop** integrated directly beside the **Non-Modal Multi-Format Doc Studio** in Vox Axis.
+
+<div class="vox-media-frame">
+  <img src="/assets/axis/federated-kb-openwiki-arch.webp" alt="Architecture diagram of the Vox Federated Knowledge Base and Self-Healing OpenWiki loop spanning 3-Layer Federated KB, Graphify plus HippoRAG PPR, 5-Layer OpenWiki with protected auto-fences, and Two-Tier Self-Healing" width="1600" height="900" />
+  <div class="vox-media-caption">
+    <strong>Universal KB &amp; Self-Healing OpenWiki Loop</strong> — <em>Combines repo-local <code>docs/wiki/</code>, personal <code>~/.vox/library/</code>, and baseline canon through deterministic AST cross-edges, protected <code>openwiki:auto</code> fences, and 4-gate verified prose healing.</em>
+  </div>
+</div>
+
+```vox-diagram
+graph {
+    direction: down
+    node Repo: "Any Polyglot Repo (Rust, TS, Python, Go, Vox)"
+    node Layers: "3-Layer Federated KB (Baseline + Global Library + Repo Wiki)"
+    node Graph: "Polyglot Graphify (Code <-> Doc <-> Decision Cross-Edges + PPR)"
+    node Wiki: "5-Layer OpenWiki + Protected Auto-Fences"
+    node Heal: "Tier-1 AST Blast-Radius Heal + Tier-2 Gated Prose Diffs"
+    node Dock: "Non-Modal Doc Dock (Read | Split | Edit Across 7+ Formats)"
+    Repo -> Layers
+    Layers -> Graph
+    Graph -> Wiki
+    Wiki -> Heal
+    Heal -> Dock
+    Dock -> Layers
+}
+```
+
+<div class="vox-showcase-grid" data-testid="tut-kb-visual-showcase">
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/memory-arcane.webp" alt="Vox Axis Memory view in Imperial Carrara theme showing 3-layer Federated KB controls, single-row citation cards, Top-K Depth rotary dial, and Search Shard actions" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">Memory · 3-Layer Federated KB</span>
+      <h3 class="vox-showcase-title">Scoped Search &amp; Single-Row Citations</h3>
+      <p class="vox-showcase-desc">
+        Toggle <code>Repo-Local</code>, <code>Global Library</code>, and <code>Vox Baseline</code> shards simultaneously, inspect provenance tags (<code>Memory Shard</code>, <code>Code Chunk</code>, <code>Codex Canon</code>), and launch <code>Expand</code>, <code>Research</code>, or <code>Open</code> in one click.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/doc-reader-arcane.webp" alt="Non-modal DocViewerDrawer docked on the right beside live Memory workspace showing Read Split Edit toolbar, frontmatter facets, kb summary card, NOTE callout, and GFM table" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">Doc Dock · Non-Modal Split Studio</span>
+      <h3 class="vox-showcase-title">Live Workspace + Multi-Format Editor</h3>
+      <p class="vox-showcase-desc">
+        Edit Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and source code beside an interactive workbench — switch <code>Width: Split | Wide | Full</code> or <code>Minimize</code> without locking your workspace behind a modal backdrop.
+      </p>
+    </div>
+  </div>
+</div>
+
+---
+
+## Understanding the 3-Layer Federated Knowledge Base
+
+Vox separates durable shared engineering standards from repo-specific architecture and temporary cache shards so you can run Vox either inside the core Vox repository or across your own polyglot projects:
+
+| Layer | Storage Location | Scope &amp; Git Policy | What Belongs Here |
+|---|---|---|---|
+| **Layer 1: Vox Baseline Canon** | `docs/src/` (canonical Vox canon) | Built-in / read-only baseline | Language grammar, durable workflows, `VoxDb`, MCP contracts, governance ADRs |
+| **Layer 2: Global Library** | `~/.vox/library/` | User-global across every repo | Cross-project playbooks, promoted findings, reusable checklists &amp; standards |
+| **Layer 3: Repo-Local Wiki** | `docs/wiki/` + `.vox/cache/` (or `--read-only` `~/.vox/repos/<id>/`) | Tracked Markdown + gitignored shards | Repo OpenWiki 5-layer hubs, local architecture decisions, symbol citations |
+
+<Aside type="note" title="Zero-Footprint Read-Only Onboarding">
+  Need to search, map, and generate an OpenWiki for an upstream third-party repository without writing `.vox/` or `docs/wiki/` files into its checkout? Pass `--read-only` when initializing or adding it — all indexes and OpenWiki caches stay isolated under `~/.vox/repos/<id>/`.
+</Aside>
+
+---
+
+## Step-by-Step Guide
+
+<Steps>
+
+1. **Onboard Any Repository &amp; Federate Sibling Projects (`vox repo`)**
+
+   Inside any Rust, TypeScript/JavaScript, Python, Go, Vox, or mixed repository, scaffold the harness (`VOX.md`, `AGENTS.md`, `.voxignore`, `.well-known/llms.txt`, `docs/wiki/`, and `.vox/repositories.yaml`), then federate sibling or upstream reference repositories:
+
+   <Tabs>
+     <TabItem label="CLI">
+       ```bash
+       # Initialize the current repository's KB, OpenWiki, and .vox/repositories.yaml
+       vox repo init --name my-service
+
+       # Or onboard an external reference repo with zero working-tree writes
+       vox repo init --read-only
+
+       # Register a sibling repository and an upstream read-only reference
+       vox repo catalog refresh --add ../payments-worker --name "Payments Worker"
+       vox repo catalog refresh --add ../upstream-sdk --name "Upstream SDK" --read-only
+
+       # List cataloged repos, switch live daemon focus, or search code across repos
+       vox repo catalog list
+       vox repo catalog refresh --switch payments-worker
+       vox repo query text "IdempotencyKey"
+       ```
+
+       Example `.vox/repositories.yaml` committed in the primary workspace:
+
+       ```yaml
+       schema_version: 1
+       primary_repository_id: my-service
+       repositories:
+         - repository_id: my-service
+           display_name: "My Service"
+           root: "."
+           read_only: false
+         - repository_id: payments-worker
+           display_name: "Payments Worker"
+           root: "../payments-worker"
+           read_only: false
+         - repository_id: upstream-sdk
+           display_name: "Upstream SDK"
+           root: "../upstream-sdk"
+           read_only: true   # shards stay isolated in ~/.vox/repos/upstream-sdk/
+       ```
+     </TabItem>
+     <TabItem label="Vox Axis GUI">
+       1. Open the **Repository** surface (`repository`) or click the persistent **Repo Switcher** in the bottom status bar.
+       2. Register sibling repos via the onboarding panel with **Hybrid (`docs/wiki/`)** or **Read-Only External (`~/.vox/repos/`)** storage mode.
+       3. Switching active repositories updates `active_repository_id` live in `vox-orchestrator-d` without restarting the app or leaking `repo_local` shards across projects.
+     </TabItem>
+   </Tabs>
+
+2. **Author Structured Pages with W3C SKOS Facets &amp; Hybrid Graphify Search (`vox kb` + `VoxGraph`)**
+
+   Every curated page carries machine-checkable YAML frontmatter bound to `contracts/documentation/kb-taxonomy.v1.yaml` (`category`, `status: "current"`, `topic`, `domain`, `authorship`) and a 40–120 word `<!-- kb:summary -->` directly under the H1 heading. When indexed, `vox-search` fuses four retrieval legs through Reciprocal Rank Fusion (RRF):
+
+   1. **Tantivy BM25 lexical search** over heading chunks (`chunk_hash`, heading paths, `kb://` URIs)
+   2. **HNSW semantic vector retrieval**
+   3. **Polyglot Graphify AST + Doc + Decision cross-edges** (`documented_in`, `cites_symbol`, `governed_by_adr`)
+   4. **HippoRAG Personalized PageRank (PPR) &amp; Leiden community summaries** — resolving multi-hop questions across code and documentation with zero upfront LLM indexing cost
+
+   <div class="vox-showcase-grid">
+     <div class="vox-showcase-card">
+       <img src="/assets/axis/vox-search-arcane.webp" alt="VoxGraph Search Index panel showing live shard diagnostics, Knowledge Corpus health, TTL and LOD knobs with explanatory tooltips, and Search Shard in Memory button" width="1280" height="800" loading="lazy" />
+       <div class="vox-showcase-body">
+         <span class="vox-showcase-badge vox-showcase-badge--gold">Search Index · VoxGraph</span>
+         <h3 class="vox-showcase-title">Live Shard Telemetry &amp; 1-Click Corpus Jump</h3>
+         <p class="vox-showcase-desc">
+           Inspect active corpus node and cross-edge counts, tune <code>TTL (DAYS)</code> and <code>LOD</code> dials with plain-English tooltips, sync graphs incrementally with <code>blake3</code>, or click <code>Search Shard in Memory</code>.
+         </p>
+       </div>
+     </div>
+
+     <div class="vox-showcase-card">
+       <img src="/assets/axis/memory-slate.webp" alt="Memory view in Minimalist Grey-Blue Slate dark theme showing clean hierarchy, corpus toggles, and single-row Open, Pin, Research actions" width="1280" height="800" loading="lazy" />
+       <div class="vox-showcase-body">
+         <span class="vox-showcase-badge">Memory · Slate Dark Profile</span>
+         <h3 class="vox-showcase-title">Federated Corpus Filtering</h3>
+         <p class="vox-showcase-desc">
+           Collapse or expand any hit inline, launch a deep synthesis directly from a hit via <code>Research</code>, or jump straight into editing the underlying source or Markdown file via <code>Open</code>.
+         </p>
+       </div>
+     </div>
+   </div>
+
+   Verify index health, reindex single-flight, and run retrieval evaluation from the CLI:
+
+   ```bash
+   vox kb status
+   vox kb reindex
+   vox kb eval
+   ```
+
+3. **Generate a 5-Layer Polyglot OpenWiki with Human-Safe Auto-Fences (`vox ci wiki-sync`)**
+
+   Run OpenWiki generation to synthesize five structured system layers for your codebase — covering module architecture, CLI/HTTP/MCP/API interfaces, SQL/VoxDb data models, GUI surfaces, and workflows/runbooks — complete with validated `vox-diagram` topologies:
+
+   ```bash
+   # Preview or initialize docs/wiki/ structure + .vox/cache/openwiki/manifest.v1.json
+   vox ci wiki-sync --polyglot --init
+
+   # Write/refresh all 5 OpenWiki layers deterministically
+   vox ci wiki-sync --polyglot --write
+
+   # Inspect repository OpenWiki status or diff without writing
+   vox repo status --wiki status
+   vox ci wiki-sync --polyglot --diff
+   ```
+
+   Crucially, OpenWiki isolates machine-maintained symbol tables, source `#Lstart-Lend` citations, and dependency diagrams inside deterministic fence markers so your surrounding architectural prose, design rationale, and runbooks are **never overwritten**:
+
+   ```markdown
+   ---
+   title: "Layer 2 — API, CLI & MCP Interfaces"
+   description: "Generated and human-annotated interface catalog for my-service."
+   category: "Architecture SSOTs"
+   status: "current"
+   topic: "knowledge-base"
+   domain: "knowledge"
+   authorship: "llm-assisted"
+   authorship_model: "claude-opus-4-6"
+   ---
+
+   # Layer 2 — API, CLI & MCP Interfaces
+
+   <!-- kb:summary -->
+   Documents the HTTP, CLI, and MCP contracts exposed by my-service, pairing architectural notes maintained by engineers with automatically refreshed symbol signatures and source line anchors regenerated cleanly inside deterministic OpenWiki auto-fences.
+   <!-- /kb:summary -->
+
+   ## Human Engineering Context (Never Overwritten)
+
+   Keep custom rollout caveats, SLO thresholds, and deprecation warnings right here. Repeated `vox ci wiki-sync --polyglot --write` runs leave every word outside auto-fences untouched.
+
+   <!-- openwiki:auto:start id="interface-inventory" -->
+   | Interface | Kind | Source Anchor |
+   |---|---|---|
+   | `complete_task` | MCP Tool | `src/main.vox#L14-L18` |
+   <!-- openwiki:auto:end -->
+   ```
+
+4. **Run Two-Tier Self-Healing When Code Changes (`--heal` &amp; Self-Heal Diff Inspector)**
+
+   Whenever source files change, Vox runs two complementary healing tiers over Graphify's reverse `documented_in` / `cites_symbol` / `governed_by_adr` blast radius rather than scanning unrelated documentation:
+
+   - **Tier 1 (Zero-LLM Deterministic AST Auto-Heal):** Traces `git diff` impact and updates shifted `#Lstart-Lend` anchors, function/struct signatures, CLI/MCP tables, and `vox-diagram` graphs inside `openwiki:auto` fences with `0` LLM calls:
+
+     ```bash
+     vox ci wiki-sync --polyglot --heal
+     ```
+
+   - **Tier 2 (4-Gate Verified Semantic Prose Proposals):** When behavior changes invalidate surrounding narrative prose, `vox audit docs --verify-llm` and `vox audit docs --self-heal-plan` synthesize minimal unified diffs via `vox_actor_runtime::llm` and gate every patch through **four checks** — `kb_rewrite_guard` anti-hallucination check, `vox-doc-pipeline --lint-only`, `vox-diagram` verification, and `.vox` doctest compilation — before staging approved diffs in `kb_heal_proposals` (`Apply Patch`, `Edit`, `Demote`, or `Reject`):
+
+     ```bash
+     vox audit docs --verify-llm
+     vox audit docs --self-heal-plan
+     vox ci wiki-sync --polyglot --heal --auto-apply
+     ```
+
+   Inspect how Tier-1 and Tier-2 cooperate on a concrete function rename + parameter addition:
+
+   <Tabs>
+     <TabItem label="1. Code Diff (src/billing.vox)">
+       ```diff
+       -tool "Charge invoice" charge_invoice(id: Id[Invoice]) to Result[str] {
+       +tool "Charge invoice with idempotency key" charge_invoice(id: Id[Invoice], key: str) to Result[str] {
+            return Ok("charged:" + key)
+        }
+       ```
+     </TabItem>
+     <TabItem label="2. Tier-1 Auto-Fence (0 LLM)">
+       ```diff
+        ## Human Engineering Context (Never Overwritten)
+        Keep custom rollout caveats and SLO thresholds right here.
+
+        <!-- openwiki:auto:start id="interface-inventory" -->
+       -| `charge_invoice(id: Id[Invoice])` | MCP Tool | `src/billing.vox#L14-L18` |
+       +| `charge_invoice(id: Id[Invoice], key: str)` | MCP Tool | `src/billing.vox#L28-L34` |
+        <!-- openwiki:auto:end -->
+       ```
+     </TabItem>
+     <TabItem label="3. Tier-2 4-Gate Prose Diff">
+       ```diff
+       -Call `charge_invoice` with an invoice id only; duplicate retries are unchecked.
+       +Pass a caller-generated `key` (`[src/billing.vox:L28-L34]`) so `charge_invoice` enforces idempotent billing retries.
+       ```
+     </TabItem>
+   </Tabs>
+
+5. **Work Side-by-Side in the Non-Modal Multi-Format Doc Studio (`DocViewerDrawer` + `DocReader`)**
+
+   Clicking **`Open`** on any `MemoryView` citation card, **`Edit in Doc Dock`** on a `Research` synthesis, or opening any page from `Cmd/Ctrl+K` mounts the **Doc Studio** inside a non-modal right dock (`aria-modal="false"`). Because there is no focus trap or dimmed backdrop, the rest of Vox Axis stays live while you author docs:
+
+   - **Workspace Widths &amp; Minimize:** Toggle **`Split`** (48% docked alongside live telemetry), **`Wide`** (68%), **`Full`** (88%), or **`Minimize`** to collapse to a non-blocking pill while switching to Terminal, `VoxGraph`, or `Research`.
+   - **Three Live Modes (`Read | Split | Edit`) &amp; Multi-Format Parsing:** Edit with a side-by-side rendered preview featuring **Markdown/GFM** (tables, task checklists, GitHub `[!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` alerts), clickable YAML frontmatter facet pills, expandable `kb:summary` banners, inline **`AsciiDoc` (`.adoc`)**, syntax-formatted **`JSON` / `JSONL`**, **`YAML` / `TOML`**, **`CSV` / `TSV`** sortable grids, and line-numbered **`.vox` / `.rs` / `.ts` / `.sql`** code viewers.
+   - **`+ New Doc` &amp; Safe Multi-Root Persistence (`write_doc_markdown`):** Create fresh templated notes directly inside `docs/wiki/`, `docs/src/`, or `~/.vox/library/` via `+ New Doc`, using the quick-insert toolbar (`H2`, `Table`, `Alert`, `Task`, `Diagram`) and path input validated against `.env*` secret and traversal guards.
+
+   <div class="vox-media-frame">
+     <img src="/assets/axis/non-modal-doc-studio-formats.webp" alt="Non-modal Doc Viewer Dock architectural layout showing live unblocked Memory Research VoxGraph and Terminal workspace on the left and multi-format Read Split Edit Dock on the right" width="1600" height="900" loading="lazy" />
+     <div class="vox-media-caption">
+       <strong>Side-by-Side Unblocked Workflow (<code>aria-modal="false"</code>)</strong> — <em>Trigger any citation's <code>Open</code> action or Research's <code>Edit in Doc Dock</code> without blocking active terminal tests or search scopes.</em>
+     </div>
+   </div>
+
+   | File Class | Extensions | Rendered Capabilities in Doc Studio (`Read` &amp; `Split`) |
+   |---|---|---|
+   | **Markdown &amp; MDX** | `.md`, `.mdx` | YAML frontmatter facet pills, collapsible `kb:summary`, GFM tables, checklists, `[!NOTE]` / `[!TIP]` / `[!WARNING]` alerts |
+   | **AsciiDoc** | `.adoc`, `.asciidoc` | Section hierarchy, admonition blocks, attribute headers, source blocks |
+   | **Config &amp; Data** | `.yaml`, `.yml`, `.toml`, `.json`, `.jsonl`, `.csv`, `.tsv` | Validated structured trees, key-value summaries, sortable/readable tabular grids |
+   | **Source Code** | `.vox`, `.rs`, `.ts`, `.tsx`, `.sql` | Syntax highlighting, 1-based line numbers matching `[path:Lstart-Lend]` Graphify anchors |
+
+   <div class="vox-showcase-grid">
+     <div class="vox-showcase-card">
+       <img src="/assets/axis/doc-reader-slate.webp" alt="Non-modal Doc Studio in Basalt Slate dark theme docked beside active workspace controls" width="1280" height="800" loading="lazy" />
+       <div class="vox-showcase-body">
+         <span class="vox-showcase-badge">Doc Studio · Basalt Slate (void)</span>
+         <h3 class="vox-showcase-title">WCAG Contrast Across Read, Split &amp; Edit</h3>
+         <p class="vox-showcase-desc">
+           Semantic Style Dictionary tokens keep Markdown alerts, code blocks, CSV/JSON/YAML inspectors, and Split panes crisp in both Carrara light and Slate dark profiles.
+         </p>
+       </div>
+     </div>
+
+     <div class="vox-showcase-card">
+       <img src="/assets/axis/discovery-arcane.webp" alt="Vox Axis Discovery chronicle surface with passive Live auto-sync and single-header navigation into Research, Memory, and Publications" width="1280" height="800" loading="lazy" />
+       <div class="vox-showcase-body">
+         <span class="vox-showcase-badge vox-showcase-badge--gold">Discovery · Live Auto-Sync</span>
+         <h3 class="vox-showcase-title">Passive Live Updates Across the Flywheel</h3>
+         <p class="vox-showcase-desc">
+           As indexed docs, heal proposals, and research findings advance, Discovery updates passively over event and visibility listeners with 1-click jumps to Memory, Research, and Publications.
+         </p>
+       </div>
+     </div>
+   </div>
+
+</Steps>
+
+## Common Pitfalls &amp; Operational Recipes
+
+<details open class="vox-details-card">
+  <summary class="vox-details-summary">
+    Keeping Federated Wikis &amp; Self-Healing Pipelines Clean
+  </summary>
+  <div style="margin-top: 0.85rem; font-size: 0.94rem; line-height: 1.58;">
+    <ul>
+      <li><strong>Do not hand-edit inside <code>openwiki:auto</code> fences:</strong> Any edits between <code>&lt;!-- openwiki:auto:start --&gt;</code> and <code>&lt;!-- openwiki:auto:end --&gt;</code> are overwritten on the next <code>vox ci wiki-sync</code> pass. Write team rationale strictly outside those markers.</li>
+      <li><strong>Keep every <code>&lt;!-- kb:summary --&gt;</code> within 40–120 words:</strong> <code>vox-doc-pipeline --lint-only</code> enforces word bounds directly below the page H1 so retrieval snippets remain dense and consistent across <code>voxlang.org</code> and Axis Memory.</li>
+      <li><strong>Use <code>--read-only</code> for third-party vendor checkouts:</strong> Keeping <code>{'read_only: true'}</code> stores Graphify and Tantivy shards strictly in <code>~/.vox/repos/&lt;id&gt;/</code> with zero untracked files in upstream checkouts.</li>
+    </ul>
+  </div>
+</details>
+
+---
+
+## Interactive Lab: Modeling a Self-Healing Wiki Registry in `.vox`
+
+You can expose custom knowledgebase rules or team wiki validators as first-class Vox schemas, server handlers, and MCP tools in a single `.vox` module. Try editing and running the example below:
+
+<VoxPlayground initialCode={`// Typed OpenWiki inventory + staleness check + MCP lookup tool in .vox
+table WikiPage {
+    slug:       str
+    layer_num:  int
+    needs_heal: bool
+}
+
+query stale_page_count() to int {
+    return len(db.WikiPage.where({ needs_heal: true }))
+}
+
+server register_wiki_page(slug: str, layer_num: int, needs_heal: bool) to Result[str] {
+    if layer_num < 1 or layer_num > 5 {
+        return Error("OpenWiki layers must be between 1 and 5")
+    }
+    let _id = db.WikiPage.insert({ slug: slug, layer_num: layer_num, needs_heal: needs_heal })?
+    return Ok("Registered layer " + str(layer_num) + " page: " + slug)
+}
+
+tool "Inspect OpenWiki staleness summary" wiki_health_report() to Result[str] {
+    let total = len(db.WikiPage.all())
+    let stale = stale_page_count()
+    return Ok("OpenWiki pages=" + str(total) + " pending_heal=" + str(stale))
+}
+
+fn main() to Result[str] {
+    print(register_wiki_page("layer-1-architecture", 1, false)?)
+    print(register_wiki_page("layer-2-mcp-contracts", 2, true)?)
+    let summary = wiki_health_report()?
+    print(summary)
+    return Ok(summary)
+}`} />
+
+---
+
+## Where to Go Next
+
+<CardGrid>
+  <Card title="Deep Research &amp; Scientia Tutorial" icon="magnifier">
+    Pair your curated knowledge base with Prior-Art Preflight, multi-wave steering, scoped storage, and 7-stage `arXiv.org` publication in [Deep Research, Preflight &amp; Scientia Publication](tut-deep-research-and-scientia.mdx).
+  </Card>
+  <Card title="Universal KB &amp; OpenWiki Architecture" icon="open-book">
+    Dive into `(repository_id, corpus_tier)` partitioning, Graphify cross-edge types, and Tier-2 verification gates in [Universal Multi-Repo KB &amp; Self-Healing OpenWiki](../architecture/universal-kb-graphify-openwiki-multirepo-research-2026.md).
+  </Card>
+  <Card title="Self-Maintaining Docs SSOT" icon="approve-check">
+    Inspect the `vox-doc-pipeline` freshness ledger, anchor validation, and guarded draft-PR rules in [Self-Maintaining Docs Engine SSOT](../architecture/openwiki-self-healing-docs-ssot-2026.md).
+  </Card>
+  <Card title="Search &amp; Hybrid Retrieval Reference" icon="magnifier">
+    Inspect all three search planes (`voxlang.org` Pagefind + `/llms.txt`, Axis `⌘K` Omnibar, and multi-repo `vox-search` BM25 + HNSW + Graphify PPR) in [Search &amp; Hybrid Retrieval Reference](../reference/ref-search.md).
+  </Card>
+</CardGrid>

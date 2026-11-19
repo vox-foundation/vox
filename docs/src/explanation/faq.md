@@ -1,15 +1,21 @@
 ---
 title: "Vox FAQ: Frequently Asked Questions"
-description: "Answers to common questions about Vox, its current architecture, generated outputs, MCP support, and Mens training lanes."
+description: "Answers to common questions about Vox, its compiler, Federated Knowledge Base, Self-Healing OpenWiki, Deep Research & Scientia, Vox Axis GUI, and Mens training."
 category: "Concepts"
 status: "current"
-training_eligible: true
-
+topic: "doc-governance"
+domain: "documentation"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "FAQPage"
-keywords: ["Vox FAQ", "Vox language questions", "AI native language runtime", "null safety programming"]
+keywords: ["Vox FAQ", "Vox language questions", "AI native language runtime", "null safety programming", "OpenWiki federated knowledge base"]
 ---
 
 # Vox Frequently Asked Questions (FAQ)
+
+<!-- kb:summary -->
+Frequently asked questions covering the Vox language, compiler guarantees, `Option[T]` and `Result[T]` error handling, database storage via Codex/Arca, AI orchestration and Mens training, plus Vox's 3-layer Federated Knowledge Base, 5-layer Self-Healing OpenWiki, Deep Research-to-`arXiv.org` pipeline, and Non-Modal Multi-Format Doc Studio.
+<!-- /kb:summary -->
 
 This page answers product and architecture questions.
 
@@ -79,7 +85,16 @@ vox mens train --backend qlora
 See [Mens native training SSOT](../reference/mens-training.md), [Mens training data contract](../reference/mens-training-data-contract.md), and [How To: Train Mens Models](../how-to/how-to-train-mens-4080.md).
 
 ### What is the Socrates Protocol?
-An orchestration-layer reasoning protocol (SOP). Before generating or approving code, Vox uses structural prompts to force the underlying LLM to evaluate confidence and structure its reasoning via the MCP control plane.
+An orchestration-layer reasoning protocol (SOP). Before generating or approving code or indexing research findings, Vox uses structured evidence checks and confidence scoring via the MCP and Scientia control plane (`Save to KB` quarantine vs. direct scoped indexing).
+
+### How do the Federated Knowledge Base & Self-Healing OpenWiki work?
+Vox maintains three isolated knowledge layers (`Vox Baseline` canon, cross-repo `Global Library ~/.vox/library/`, and repo-local `docs/wiki/` or `--read-only` `~/.vox/repos/<id>/`), indexed via Tantivy BM25, HNSW vectors, polyglot Graphify AST cross-edges, and HippoRAG Personalized PageRank. Running `vox ci wiki-sync --polyglot --heal` updates machine-generated tables and diagrams inside `<!-- openwiki:auto:start -->` fences with zero LLM calls while preserving surrounding human prose and staging 4-gate verified semantic prose diffs in `kb_heal_proposals`. See [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx).
+
+### How do Deep Research & Scientia `arXiv.org` publication connect?
+Starting from statistical archetypes and Live KB Prior-Art Preflight, `vox research run` / `ResearchView` runs `Off | Auto | Fast | Deep` synthesis with `+1 Wave Refinement` steering, scoped storage routing (`Index Now` vs. `Save to KB` quarantine), 1-click `Edit in Doc Dock`, and 7-stage scholarly bundle staging (`main.tex`, `references.bib`, `.tar.gz`, digest-bound dual approvals). See [Deep Research & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx) and [Publish Scientia Findings](../how-to/how-to-scientia-publication.md).
+
+### What is the Non-Modal Multi-Format Doc Studio in Vox Axis?
+Opening any page in **Vox Axis** (`vox-gui`) docks `DocViewerDrawer` + `DocReader` on the right (`aria-modal="false"`) with `Split | Wide | Full | Minimize` widths and live `Read | Split | Edit` modes across Markdown/GFM, MDX, AsciiDoc, YAML/TOML, JSON/JSONL, CSV/TSV, and line-numbered source files — leaving Memory, Research, VoxGraph, and Terminal interactive on the left. See [Using the Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md).
 
 ## Deployment & Community
 

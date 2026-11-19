@@ -1,6 +1,6 @@
 ---
 title: "QLoRA Fine-tuning Data Strategy & SSoT"
-description: "Official documentation for QLoRA Fine-tuning Data Strategy & SSoT for the Vox language. Detailed technical reference, architecture guides"
+description: "Data scaling policy and continuous AST/Markdown extraction pipeline feeding Mens QLoRA training without stale hand-curated folders."
 category: "Language Reference"
 training_eligible: true
 

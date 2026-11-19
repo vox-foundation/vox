@@ -25,3 +25,22 @@ Vox adopts the open-source GSD (Get Shit Done) workflow suite as its canonical s
 5. **CLI & MCP (`vox plan` / `vox gsd` & `vox_gsd_*`)**: Registered in `contracts/operations/catalog.v1.yaml` and exposed identically over CLI, MCP (`crates/vox-orchestrator-mcp/src/gsd_tools.rs`), and daemon-class GUI IPC (`crates/vox-gui/src/commands/gsd.rs`).
 6. **Vox Axis GUI (`GsdStudioView`)**: Promoted `view_key: gsd` (`live_backend`) supporting `/gsd` and `/gsd-*` slash commands in `Loquela`.
 7. **MENS Awareness (`vox-corpus` & `vox-ml-cli`)**: `extract_gsd` extracts milestone, roadmap, requirement, plan-wave, and verification trajectories into ShareGPT/tool-workflow training mixes (`vox corpus extract-gsd`).
+
+## Cross-Milestone Extracted Learnings (`v1.0`–`v7.9`)
+
+Cross-milestone learning extraction (`extract_and_write_all_learnings` in `crates/vox-corpus/src/corpus/extract_gsd.rs`) consolidates all completed phase artifacts (`*-PLAN.md`, `*-SUMMARY.md`, `*-VERIFICATION.md`, `*-UAT.md`, `*-REVIEW.md`) into per-phase `*-LEARNINGS.md` files, root `.planning/LEARNINGS.md`, `.planning/estimation-calibration.json`, `.planning/RETROSPECTIVE.md`, and `mens/data/mix_sources/gsd_workflows.jsonl`:
+
+- **Decisions:**
+  - Single-stream wave sequencing (`v1.5` Wave 0 onward) and `VoxDb` schema baseline serialization eliminated cross-branch digest collisions and shared React shell conflicts.
+  - Physical 4-repo federation (`vox`, `vox-ops`, `vox-axis`, `voxlang.org`) + `vox_repository::core` leaf decoupling (`v6.7`–`v6.9`) cut incremental rebuild times by `28%–89%` (`0` dev-dependency cycles).
+  - Model-agnostic `vox_actor_runtime::llm` routing, fail-closed release gates (`CardPushPlan::SkipUngated`), and `(repository_id, corpus_tier)` DB partitioning (`v7.7`, `v7.9`) ensure offline sovereignty and zero cross-repo leakage.
+- **Lessons Learned:**
+  - `gsd-tools.cjs query estimate-calibrate` inspects only `.planning/phases/` and ignores archived `.planning/milestones/**` and `.planning/workstreams/**`; `extract_gsd.rs` pairs archived `PLAN.md` estimates with `SUMMARY.md` actuals directly so historical calibration samples are never lost.
+  - Platform regex portability (`\b` in BSD `grep`), macOS `/var` -> `/private/var` canonicalization, CWD-relative asset assumptions, and fire-and-forget `tokio::spawn` writes must be verified explicitly in hermetic tests rather than assumed.
+  - Fast canary runs (`Vox Mens 0.8B v2`, `46.2% -> 73.1% pass@1`) catch ChatML template and corpus drift before multi-hour `2B`–`27B` runs start.
+- **Patterns Established:**
+  - Removal-only ratchets (`ignored-test-age`, `gui-coverage-exemptions`, `kb-facet-backlog`, `toestub` suppression gates) plus bitwise CPU/offline verification (`forward_packed` on `Device::Cpu`, Playwright + Axe + VLM CV Flywheel) enforce quality without hardware or cloud dependencies in CI.
+  - Dual-surface CSS containment (`:not([data-slot])`, `:not(.xterm)`), `useGroupRef()` imperative layout hydration, and non-destructive `<!-- openwiki:auto:start/end -->` fences preserve user state across automated updates.
+- **Surprises & Calibration:**
+  - Planned token estimates consistently ran `~4x–10x` higher than measured `SUMMARY.md` actuals across early milestones (`estimation-calibration.json`), demonstrating the necessity of empirical estimate-vs-actual calibration.
+  - Full-attention activation checkpointing lowered `Qwen3.8-27B` Metal peak memory (`45.38` GiB) below uncheckpointed `Qwen3.5-9B` (`49.00` GiB), and target-isolated `FairQueue` broker coalescing eliminated `target/.cargo-lock` pileups across multi-agent sessions.
