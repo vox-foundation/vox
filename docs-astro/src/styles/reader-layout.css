@@ -518,11 +518,20 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-hero-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.55rem;
   background: var(--sl-color-accent);
-  color: #05080f;
-  padding: 0.65rem 1.35rem;
+  color: #05080f !important;
+  padding: 0.5rem 1.15rem;
+  border: 1.5px solid transparent;
   border-radius: 8px;
   font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0 !important;
   text-decoration: none;
 }
 
@@ -534,16 +543,25 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 .vox-progressive-tiers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+  align-items: stretch;
   gap: 1.15rem;
   margin: 1rem 0 1.65rem;
+}
+
+.vox-progressive-tiers > * {
+  margin-top: 0 !important;
 }
 
 .vox-tier-card {
   border-radius: 14px;
   padding: 1.35rem;
+  height: 100%;
+  margin: 0 !important;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 0.9rem;
 }
 
 .vox-tier-card--cyan {
@@ -619,18 +637,26 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   font-weight: 600;
 }
 
-.vox-tier-list--amber {
-  margin: 0 0 0.95rem;
+.vox-tier-list--cyan {
+  margin: 0;
   padding-left: 1.15rem;
-  font-size: 0.83rem;
-  line-height: 1.62;
+  font-size: 0.82rem;
+  line-height: 1.58;
+  color: #bae6fd;
+}
+
+.vox-tier-list--amber {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.82rem;
+  line-height: 1.58;
   color: #fde68a;
 }
 
 .vox-tier-list--emerald {
-  margin: 0 0 0.75rem;
+  margin: 0;
   padding-left: 1.15rem;
-  font-size: 0.81rem;
+  font-size: 0.82rem;
   line-height: 1.58;
   color: #d1fae5;
 }
@@ -640,7 +666,8 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   align-items: center;
   justify-content: center;
   height: 2.75rem;
-  background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%);
+  background-color: #06b6d4;
+  background-image: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%);
   color: #041019 !important;
   padding: 0 1rem;
   border-radius: 8px;
@@ -656,12 +683,14 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   align-items: center;
   justify-content: center;
   height: 2.5rem;
-  background: linear-gradient(180deg, #22d3ee 0%, #0ea5e9 100%);
+  margin-top: auto;
+  background-color: #0ea5e9;
+  background-image: linear-gradient(180deg, #22d3ee 0%, #0ea5e9 100%);
   color: #041019 !important;
   padding: 0 0.95rem;
   border-radius: 8px;
   font-weight: 700;
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   text-decoration: none;
   box-shadow: 0 2px 14px rgba(14, 165, 233, 0.28);
 }
@@ -671,9 +700,26 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   align-items: center;
   justify-content: center;
   height: 2.5rem;
+  margin-top: auto;
   background: rgba(245, 158, 11, 0.16);
   border: 1px solid rgba(245, 158, 11, 0.48);
   color: #fde68a !important;
+  padding: 0 0.95rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.vox-tier-btn-emerald {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  margin-top: auto;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #a7f3d0 !important;
   padding: 0 0.95rem;
   border-radius: 8px;
   font-weight: 600;
@@ -755,6 +801,7 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   border-radius: 4px;
 }
 
+:root[data-theme='light'] .vox-tier-list--cyan,
 :root[data-theme='light'] .vox-tier-list--amber,
 :root[data-theme='light'] .vox-tier-list--emerald {
   color: #1e293b;
@@ -762,16 +809,26 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 
 :root[data-theme='light'] .vox-tier-btn-cyan-top,
 :root[data-theme='light'] .vox-tier-btn-cyan-bottom {
-  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  background-color: #0369a1;
+  background-image: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff !important;
   box-shadow: 0 3px 12px rgba(2, 132, 199, 0.25);
 }
 
 :root[data-theme='light'] .vox-tier-btn-amber {
-  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+  background-color: #b45309;
+  background-image: linear-gradient(180deg, #d97706 0%, #b45309 100%);
   border-color: #b45309;
   color: #ffffff !important;
   box-shadow: 0 3px 12px rgba(180, 83, 9, 0.22);
+}
+
+:root[data-theme='light'] .vox-tier-btn-emerald {
+  background-color: #047857;
+  background-image: linear-gradient(180deg, #059669 0%, #047857 100%);
+  border-color: #047857;
+  color: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(4, 120, 87, 0.22);
 }
 
 :root[data-theme='light'] .vox-tier-link {
@@ -838,19 +895,32 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 
 .vox-home-actions {
   display: flex;
+  align-items: center;
   gap: 0.75rem;
   justify-content: center;
   flex-wrap: wrap;
-  margin-bottom: 1.35rem;
+  margin: 0 0 1.35rem;
+}
+
+.vox-home-actions > * {
+  margin-top: 0 !important;
 }
 
 .vox-hero-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.55rem;
   border: 1.5px solid #38bdf8;
   background: rgba(56, 189, 248, 0.1);
   color: #f8fafc !important;
-  padding: 0.65rem 1.25rem;
+  padding: 0.5rem 1.15rem;
   border-radius: 8px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0 !important;
   text-decoration: none;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
@@ -862,12 +932,20 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-hero-btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.55rem;
   border: 1.5px solid rgba(245, 158, 11, 0.7);
   background: rgba(245, 158, 11, 0.14);
   color: #fef3c7 !important;
-  padding: 0.65rem 1.25rem;
+  padding: 0.5rem 1.15rem;
   border-radius: 8px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0 !important;
   text-decoration: none;
 }
 
@@ -878,12 +956,20 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-hero-btn-ghost {
-  border: 1px solid var(--sl-color-hairline);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.55rem;
+  border: 1.5px solid var(--sl-color-hairline);
   background: rgba(15, 23, 42, 0.45);
   color: #e2e8f0 !important;
-  padding: 0.65rem 1.15rem;
+  padding: 0.5rem 1.15rem;
   border-radius: 8px;
   font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0 !important;
   text-decoration: none;
 }
 
@@ -913,6 +999,7 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   display: block;
   width: 100%;
   height: auto;
+  object-fit: contain;
   image-rendering: auto;
 }
 
@@ -956,18 +1043,49 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 .vox-showcase-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  align-items: stretch;
   gap: 1.15rem;
   margin: 1.25rem 0;
+}
+
+.vox-showcase-grid > * {
+  margin-top: 0 !important;
 }
 
 .vox-showcase-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  margin: 0 !important;
+  box-sizing: border-box;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--sl-color-hairline);
   background: #0d131f;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.vox-showcase-card > img {
+  aspect-ratio: 16 / 10;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.sl-markdown-content .card-grid {
+  align-items: stretch;
+}
+
+.sl-markdown-content .card-grid > * {
+  margin-top: 0 !important;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.sl-markdown-content .card-grid > .card {
+  height: 100%;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 :root[data-theme='light'] .vox-showcase-card {

@@ -45,7 +45,7 @@ test.describe('Session rail actions', () => {
   test('archive flows through chat_archive_session and removes the session tab', async ({ page }) => {
     const row = page.getByRole('tab', { name: /Mock chat/i });
     await row.hover();
-    await row.getByRole('button', { name: 'Archive' }).click();
+    await page.getByTestId('session-row-mock-session-1').getByRole('button', { name: 'Archive' }).click();
 
     await expect
       .poll(

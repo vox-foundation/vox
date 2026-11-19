@@ -3,12 +3,36 @@ import type { ArenaTurnComparisonDto, ArenaVoteOutcomeDto } from '../../../trans
 import { evaluateHighlightBudget } from '../../../lib/chat/deferredHighlight';
 
 const FILE_LINE_RE = /\b([a-zA-Z0-9_./-]+\.(?:rs|vox|tsx|ts|toml|json|md):\d+(?:-\d+)?)\b/g;
+const BOLD_SPAN_RE = /(\*\*[^*\n]+\*\*)/g;
+
+function renderFileRefsInText(segment: string, keyPrefix: string): React.ReactNode {
+  FILE_LINE_RE.lastIndex = 0;
+  const fileSplit = segment.split(FILE_LINE_RE);
+  if (fileSplit.length === 1) return segment;
+  return fileSplit.map((chunk, fIdx) => {
+    if (fIdx % 2 === 1) {
+      return (
+        <span
+          key={`${keyPrefix}-file-${fIdx}`}
+          data-testid="chat-file-link"
+          className="inline-flex items-center rounded border border-brass/30 bg-brass/10 px-1.5 py-0.2 font-mono text-[11px] text-brass"
+        >
+          {chunk}
+        </span>
+      );
+    }
+    return chunk;
+  });
+}
 
 function renderInlineFormattedText(segment: string, keyPrefix: string): React.ReactNode {
-  if (!segment.includes('`') && !FILE_LINE_RE.test(segment)) {
+  FILE_LINE_RE.lastIndex = 0;
+  const hasFile = FILE_LINE_RE.test(segment);
+  FILE_LINE_RE.lastIndex = 0;
+  const hasBold = /\*\*[^*\n]+\*\*/.test(segment);
+  if (!segment.includes('`') && !hasFile && !hasBold) {
     return segment;
   }
-  FILE_LINE_RE.lastIndex = 0;
   const parts = segment.split(/(`[^`\n]+`)/g);
   return parts.map((part, idx) => {
     if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
@@ -23,21 +47,19 @@ function renderInlineFormattedText(segment: string, keyPrefix: string): React.Re
         </code>
       );
     }
-    const fileSplit = part.split(FILE_LINE_RE);
-    if (fileSplit.length === 1) return part;
-    return fileSplit.map((chunk, fIdx) => {
-      if (fIdx % 2 === 1) {
+    const boldParts = part.split(BOLD_SPAN_RE);
+    return boldParts.map((bChunk, bIdx) => {
+      if (bChunk.startsWith('**') && bChunk.endsWith('**') && bChunk.length > 4) {
         return (
-          <span
-            key={`${keyPrefix}-file-${idx}-${fIdx}`}
-            data-testid="chat-file-link"
-            className="inline-flex items-center rounded border border-brass/30 bg-brass/10 px-1.5 py-0.2 font-mono text-[11px] text-brass"
+          <strong
+            key={`${keyPrefix}-bold-${idx}-${bIdx}`}
+            className="font-semibold text-text-primary"
           >
-            {chunk}
-          </span>
+            {renderFileRefsInText(bChunk.slice(2, -2), `${keyPrefix}-bf-${idx}-${bIdx}`)}
+          </strong>
         );
       }
-      return chunk;
+      return renderFileRefsInText(bChunk, `${keyPrefix}-f-${idx}-${bIdx}`);
     });
   });
 }
@@ -47,11 +69,12 @@ export function renderStructuredMessageText(text: string): React.ReactNode {
   const hasCodeFence = text.includes('```');
   const hasInlineBacktick = text.includes('`');
   const hasHeading = /^#{1,3}\s+/m.test(text);
+  const hasBold = /\*\*[^*\n]+\*\*/.test(text);
   FILE_LINE_RE.lastIndex = 0;
   const hasFileRef = FILE_LINE_RE.test(text);
   FILE_LINE_RE.lastIndex = 0;
 
-  if (!hasCodeFence && !hasInlineBacktick && !hasHeading && !hasFileRef) {
+  if (!hasCodeFence && !hasInlineBacktick && !hasHeading && !hasFileRef && !hasBold) {
     return text;
   }
 

@@ -24,23 +24,23 @@ This workflow uses a single publication manifest in Codex (`publication_manifest
 
 <div class="vox-showcase-grid">
   <div class="vox-showcase-card">
-    <img src="/assets/axis/publications-arcane.webp" alt="Vox Axis Publications Studio showing 7-stage scholarly lifecycle filters, arXiv taxonomy metadata, and dual-approval status" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/publications-arcane.webp" alt="Vox Axis Publications Studio showing 7-stage scholarly lifecycle filters, arXiv taxonomy metadata, and dual-approval status" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">Publications Studio</span>
       <h3 class="vox-showcase-title">7-Stage Lifecycle &amp; <code>arXiv.org</code> Bundle Control</h3>
       <p class="vox-showcase-desc">
-        Inspect classification filters, ORCID/DOI attribution, SPDX licenses, and zero-stub <code>main.tex</code> + <code>references.bib</code> <code>.tar.gz</code> bundles directly in Vox Axis.
+        Inspect classification filters, ORCID/DOI attribution, SPDX licenses, and zero-stub <code>main.tex</code> + <code>references.bib</code> bundles directly in Vox Axis.
       </p>
     </div>
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/scientia-arcane.webp" alt="Vox Axis Scientia dashboard with clickable publication candidate rows and quick-picker manuscript pills" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/scientia-arcane.webp" alt="Vox Axis Scientia dashboard with clickable publication candidate rows and quick-picker manuscript pills" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge">Scientia Overview</span>
       <h3 class="vox-showcase-title">Clickable Candidates &amp; Quick Manuscript Pickers</h3>
       <p class="vox-showcase-desc">
-        Click any discovery candidate (<code>cand-*</code>) or <code>PUB-*</code> quick-picker pill across Scientia, Claims, and Discovery Review to load manifests with zero ID copy-pasting.
+        Click any discovery candidate (<code>cand-*</code>) or <code>PUB-*</code> quick-picker pill across Scientia and Discovery Review to load manifests without copying IDs.
       </p>
     </div>
   </div>
@@ -211,10 +211,10 @@ Use `vox db` for operator controls that are broader than the `vox scientia` conv
 ```bash
 vox db publication-route-simulate --publication-id ai-research-2026-03
 vox db publication-route-simulate --publication-id ai-research-2026-03 --json
-vox db publication-publish --publication-id ai-research-2026-03 --channels reddit,youtube --dry-run true
-vox db publication-publish --publication-id ai-research-2026-03 --channels reddit,youtube --dry-run true --json
-vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run true
-vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run true --json
+vox db publication-publish --publication-id ai-research-2026-03 --channels reddit,youtube --dry-run
+vox db publication-publish --publication-id ai-research-2026-03 --channels reddit,youtube --dry-run --json
+vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run
+vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run --json
 ```
 
 Add `--json` for machine-readable stdout (one structured object per invocation). MCP equivalents `vox_scientia_publication_publish` and `vox_scientia_publication_retry_failed` accept **`json: true`** for a single-line compact JSON tool envelope.

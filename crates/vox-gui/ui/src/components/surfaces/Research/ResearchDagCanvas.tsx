@@ -145,8 +145,8 @@ function DagSvgGraph({
         role="region"
         aria-label={ariaLabel}
         viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
-        className="w-full h-auto min-w-[500px]"
-        style={{ minHeight: `${canvasHeight}px` }}
+        className="w-full h-auto max-w-full"
+        style={{ minHeight: `${Math.min(canvasHeight, 156)}px` }}
       >
         <title>{ariaLabel}</title>
         <desc>Dynamic acyclic graph showing evidence waves, claim status, and relational edge arrows</desc>

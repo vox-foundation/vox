@@ -25,52 +25,34 @@ import VoxPlayground from '../../../docs-astro/src/components/VoxPlayground.astr
 This tutorial shows how to use Vox as a universal documentation and knowledgebase engine across single or federated polyglot repositories. You will configure the 3-layer Federated Knowledge Base, index source and documentation files with W3C SKOS facets and HippoRAG Personalized PageRank retrieval, generate 5-layer OpenWiki hubs with protected auto-fences, run Tier-1 and Tier-2 self-healing against code changes, and author Markdown, AsciiDoc, YAML, JSON, and CSV files in the non-modal Doc Dock.
 {/* /kb:summary */}
 
-Documentation fails for two predictable reasons: either it lives in an external wiki disconnected from code reviews and drifts out of date, or machine generators overwrite carefully written engineering explanations. Vox solves both problems together by combining a **3-layer Federated Knowledge Base**, **deterministic Polyglot Graphify + Personalized PageRank retrieval**, **5-layer OpenWiki generation with protected fences**, and a **two-tier self-healing loop** integrated directly beside the **Non-Modal Multi-Format Doc Studio** in Vox Axis.
+External wikis drift out of sync with code reviews, while naive generators overwrite human rationale. Vox pairs a **3-layer Federated KB**, **Polyglot Graphify + Personalized PageRank**, **protected `openwiki:auto` fences**, and a **two-tier healing loop** directly beside the non-modal **Doc Studio**.
 
 <div class="vox-media-frame">
-  <img src="/assets/axis/federated-kb-openwiki-arch.webp" alt="Architecture diagram of the Vox Federated Knowledge Base and Self-Healing OpenWiki loop spanning 3-Layer Federated KB, Graphify plus HippoRAG PPR, 5-Layer OpenWiki with protected auto-fences, and Two-Tier Self-Healing" width="1600" height="900" />
+  <img src="/assets/axis/federated-kb-openwiki-arch.webp" alt="Architecture diagram of the Vox Federated Knowledge Base and Self-Healing OpenWiki loop spanning 3-Layer Federated KB, Graphify plus HippoRAG PPR, 5-Layer OpenWiki with protected auto-fences, and Two-Tier Self-Healing" width="1600" height="900" loading="lazy" decoding="async" />
   <div class="vox-media-caption">
     <strong>Universal KB &amp; Self-Healing OpenWiki Loop</strong> — <em>Combines repo-local <code>docs/wiki/</code>, personal <code>~/.vox/library/</code>, and baseline canon through deterministic AST cross-edges, protected <code>openwiki:auto</code> fences, and 4-gate verified prose healing.</em>
   </div>
 </div>
 
-```vox-diagram
-graph {
-    direction: down
-    node Repo: "Any Polyglot Repo (Rust, TS, Python, Go, Vox)"
-    node Layers: "3-Layer Federated KB (Baseline + Global Library + Repo Wiki)"
-    node Graph: "Polyglot Graphify (Code <-> Doc <-> Decision Cross-Edges + PPR)"
-    node Wiki: "5-Layer OpenWiki + Protected Auto-Fences"
-    node Heal: "Tier-1 AST Blast-Radius Heal + Tier-2 Gated Prose Diffs"
-    node Dock: "Non-Modal Doc Dock (Read | Split | Edit Across 7+ Formats)"
-    Repo -> Layers
-    Layers -> Graph
-    Graph -> Wiki
-    Wiki -> Heal
-    Heal -> Dock
-    Dock -> Layers
-}
-```
-
 <div class="vox-showcase-grid" data-testid="tut-kb-visual-showcase">
   <div class="vox-showcase-card">
-    <img src="/assets/axis/memory-arcane.webp" alt="Vox Axis Memory view in Imperial Carrara theme showing 3-layer Federated KB controls, single-row citation cards, Top-K Depth rotary dial, and Search Shard actions" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/memory-arcane.webp" alt="Vox Axis Memory view in Imperial Carrara theme showing 3-layer Federated KB controls, single-row citation cards, Top-K Depth rotary dial, and Search Shard actions" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">Memory · 3-Layer Federated KB</span>
       <h3 class="vox-showcase-title">Scoped Search &amp; Single-Row Citations</h3>
       <p class="vox-showcase-desc">
-        Toggle <code>Repo-Local</code>, <code>Global Library</code>, and <code>Vox Baseline</code> shards simultaneously, inspect provenance tags (<code>Memory Shard</code>, <code>Code Chunk</code>, <code>Codex Canon</code>), and launch <code>Expand</code>, <code>Research</code>, or <code>Open</code> in one click.
+        Toggle <code>Repo-Local</code>, <code>Global Library</code>, and <code>Vox Baseline</code> shards together, inspect provenance pills, and launch <code>Expand</code>, <code>Research</code>, or <code>Open</code>.
       </p>
     </div>
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/doc-reader-arcane.webp" alt="Non-modal DocViewerDrawer docked on the right beside live Memory workspace showing Read Split Edit toolbar, frontmatter facets, kb summary card, NOTE callout, and GFM table" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/doc-reader-arcane.webp" alt="Non-modal DocViewerDrawer docked on the right beside live Memory workspace showing Read Split Edit toolbar, frontmatter facets, kb summary card, NOTE callout, and GFM table" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">Doc Dock · Non-Modal Split Studio</span>
       <h3 class="vox-showcase-title">Live Workspace + Multi-Format Editor</h3>
       <p class="vox-showcase-desc">
-        Edit Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and source code beside an interactive workbench — switch <code>Width: Split | Wide | Full</code> or <code>Minimize</code> without locking your workspace behind a modal backdrop.
+        Edit Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and source code in <code>Split | Wide | Full</code> widths without blocking background panes.
       </p>
     </div>
   </div>
@@ -159,23 +141,23 @@ Vox separates durable shared engineering standards from repo-specific architectu
 
    <div class="vox-showcase-grid">
      <div class="vox-showcase-card">
-       <img src="/assets/axis/vox-search-arcane.webp" alt="VoxGraph Search Index panel showing live shard diagnostics, Knowledge Corpus health, TTL and LOD knobs with explanatory tooltips, and Search Shard in Memory button" width="1280" height="800" loading="lazy" />
+       <img src="/assets/axis/vox-search-arcane.webp" alt="VoxGraph Search Index panel showing live shard diagnostics, Knowledge Corpus health, TTL and LOD knobs with explanatory tooltips, and Search Shard in Memory button" width="1280" height="800" loading="lazy" decoding="async" />
        <div class="vox-showcase-body">
          <span class="vox-showcase-badge vox-showcase-badge--gold">Search Index · VoxGraph</span>
-         <h3 class="vox-showcase-title">Live Shard Telemetry &amp; 1-Click Corpus Jump</h3>
+         <h3 class="vox-showcase-title">Live Shard Health &amp; Graph Sync</h3>
          <p class="vox-showcase-desc">
-           Inspect active corpus node and cross-edge counts, tune <code>TTL (DAYS)</code> and <code>LOD</code> dials with plain-English tooltips, sync graphs incrementally with <code>blake3</code>, or click <code>Search Shard in Memory</code>.
+           Inspect active node/edge counts, tune <code>TTL</code> and <code>LOD</code> controls, run incremental <code>blake3</code> graph syncs, or jump to <code>Search Shard in Memory</code>.
          </p>
        </div>
      </div>
 
      <div class="vox-showcase-card">
-       <img src="/assets/axis/memory-slate.webp" alt="Memory view in Minimalist Grey-Blue Slate dark theme showing clean hierarchy, corpus toggles, and single-row Open, Pin, Research actions" width="1280" height="800" loading="lazy" />
+       <img src="/assets/axis/memory-slate.webp" alt="Memory view in Minimalist Grey-Blue Slate dark theme showing clean hierarchy, corpus toggles, and single-row Open, Pin, Research actions" width="1280" height="800" loading="lazy" decoding="async" />
        <div class="vox-showcase-body">
          <span class="vox-showcase-badge">Memory · Slate Dark Profile</span>
          <h3 class="vox-showcase-title">Federated Corpus Filtering</h3>
          <p class="vox-showcase-desc">
-           Collapse or expand any hit inline, launch a deep synthesis directly from a hit via <code>Research</code>, or jump straight into editing the underlying source or Markdown file via <code>Open</code>.
+           Expand hits inline, pivot any citation directly into multi-wave <code>Research</code>, or inspect its file inside the Doc Studio via <code>Open</code>.
          </p>
        </div>
      </div>
@@ -293,7 +275,7 @@ Vox separates durable shared engineering standards from repo-specific architectu
    - **`+ New Doc` &amp; Safe Multi-Root Persistence (`write_doc_markdown`):** Create fresh templated notes directly inside `docs/wiki/`, `docs/src/`, or `~/.vox/library/` via `+ New Doc`, using the quick-insert toolbar (`H2`, `Table`, `Alert`, `Task`, `Diagram`) and path input validated against `.env*` secret and traversal guards.
 
    <div class="vox-media-frame">
-     <img src="/assets/axis/non-modal-doc-studio-formats.webp" alt="Non-modal Doc Viewer Dock architectural layout showing live unblocked Memory Research VoxGraph and Terminal workspace on the left and multi-format Read Split Edit Dock on the right" width="1600" height="900" loading="lazy" />
+     <img src="/assets/axis/non-modal-doc-studio-formats.webp" alt="Non-modal Doc Viewer Dock architectural layout showing live unblocked Memory Research VoxGraph and Terminal workspace on the left and multi-format Read Split Edit Dock on the right" width="1600" height="900" loading="lazy" decoding="async" />
      <div class="vox-media-caption">
        <strong>Side-by-Side Unblocked Workflow (<code>aria-modal="false"</code>)</strong> — <em>Trigger any citation's <code>Open</code> action or Research's <code>Edit in Doc Dock</code> without blocking active terminal tests or search scopes.</em>
      </div>
@@ -308,23 +290,23 @@ Vox separates durable shared engineering standards from repo-specific architectu
 
    <div class="vox-showcase-grid">
      <div class="vox-showcase-card">
-       <img src="/assets/axis/doc-reader-slate.webp" alt="Non-modal Doc Studio in Basalt Slate dark theme docked beside active workspace controls" width="1280" height="800" loading="lazy" />
+       <img src="/assets/axis/doc-reader-slate.webp" alt="Non-modal Doc Studio in Basalt Slate dark theme docked beside active workspace controls" width="1280" height="800" loading="lazy" decoding="async" />
        <div class="vox-showcase-body">
          <span class="vox-showcase-badge">Doc Studio · Basalt Slate (void)</span>
          <h3 class="vox-showcase-title">WCAG Contrast Across Read, Split &amp; Edit</h3>
          <p class="vox-showcase-desc">
-           Semantic Style Dictionary tokens keep Markdown alerts, code blocks, CSV/JSON/YAML inspectors, and Split panes crisp in both Carrara light and Slate dark profiles.
+           Semantic Style Dictionary tokens keep Markdown alerts, code blocks, structured inspectors, and Split panes sharp in both light and dark themes.
          </p>
        </div>
      </div>
 
      <div class="vox-showcase-card">
-       <img src="/assets/axis/discovery-arcane.webp" alt="Vox Axis Discovery chronicle surface with passive Live auto-sync and single-header navigation into Research, Memory, and Publications" width="1280" height="800" loading="lazy" />
+       <img src="/assets/axis/discovery-arcane.webp" alt="Vox Axis Discovery chronicle surface with passive Live auto-sync and single-header navigation into Research, Memory, and Publications" width="1280" height="800" loading="lazy" decoding="async" />
        <div class="vox-showcase-body">
          <span class="vox-showcase-badge vox-showcase-badge--gold">Discovery · Live Auto-Sync</span>
-         <h3 class="vox-showcase-title">Passive Live Updates Across the Flywheel</h3>
+         <h3 class="vox-showcase-title">Passive Chronicle &amp; Flywheel Jumps</h3>
          <p class="vox-showcase-desc">
-           As indexed docs, heal proposals, and research findings advance, Discovery updates passively over event and visibility listeners with 1-click jumps to Memory, Research, and Publications.
+           Tracks candidate syntheses, heal proposals, and publication runs passively via live event listeners with 1-click surface navigation.
          </p>
        </div>
      </div>
@@ -391,16 +373,16 @@ fn main() to Result[str] {
 ## Where to Go Next
 
 <CardGrid>
-  <Card title="Deep Research &amp; Scientia Tutorial" icon="magnifier">
-    Pair your curated knowledge base with Prior-Art Preflight, multi-wave steering, scoped storage, and 7-stage `arXiv.org` publication in [Deep Research, Preflight &amp; Scientia Publication](tut-deep-research-and-scientia.mdx).
+  <Card title="Deep Research &amp; Scientia" icon="magnifier">
+    Pair your KB with Prior-Art Preflight, `+1 Wave` steering, and `arXiv.org` bundles in [Deep Research &amp; Scientia](tut-deep-research-and-scientia.mdx).
   </Card>
-  <Card title="Universal KB &amp; OpenWiki Architecture" icon="open-book">
-    Dive into `(repository_id, corpus_tier)` partitioning, Graphify cross-edge types, and Tier-2 verification gates in [Universal Multi-Repo KB &amp; Self-Healing OpenWiki](../architecture/universal-kb-graphify-openwiki-multirepo-research-2026.md).
+  <Card title="Universal KB Architecture" icon="open-book">
+    Review `(repository_id, corpus_tier)` partitioning and Graphify cross-edges in [Universal KB &amp; OpenWiki](../architecture/universal-kb-graphify-openwiki-multirepo-research-2026.md).
   </Card>
   <Card title="Self-Maintaining Docs SSOT" icon="approve-check">
-    Inspect the `vox-doc-pipeline` freshness ledger, anchor validation, and guarded draft-PR rules in [Self-Maintaining Docs Engine SSOT](../architecture/openwiki-self-healing-docs-ssot-2026.md).
+    Inspect `vox-doc-pipeline` freshness gates and anchor verification in [Self-Maintaining Docs SSOT](../architecture/openwiki-self-healing-docs-ssot-2026.md).
   </Card>
-  <Card title="Search &amp; Hybrid Retrieval Reference" icon="magnifier">
-    Inspect all three search planes (`voxlang.org` Pagefind + `/llms.txt`, Axis `⌘K` Omnibar, and multi-repo `vox-search` BM25 + HNSW + Graphify PPR) in [Search &amp; Hybrid Retrieval Reference](../reference/ref-search.md).
+  <Card title="Search &amp; Hybrid Retrieval" icon="magnifier">
+    Configure Pagefind, Axis `⌘K` Omnibar, and multi-repo RRF retrieval in [Search &amp; Retrieval Reference](../reference/ref-search.md).
   </Card>
 </CardGrid>

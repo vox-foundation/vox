@@ -24,10 +24,10 @@ import VoxPlayground from '../../../docs-astro/src/components/VoxPlayground.astr
 This hands-on tutorial walks through Vox's closed-loop Deep Research and Scientia publication system. You will frame investigations with statistical researcher archetypes, check existing knowledge via Live KB Prior-Art Preflight, steer multi-wave evidence synthesis with `+1 Wave Refinement`, choose between immediate scoped KB indexing and Socrates verification quarantine, refine reports in the non-modal Doc Dock, and stage validated `arXiv.org` scholarly manuscript bundles.
 {/* /kb:summary */}
 
-Vox treats technical and scientific research as an auditable, stateful engineering pipeline rather than an ephemeral chat prompt. Every query reconciles your local knowledge base before calling external providers, surfaces intermediate subqueries and cited domains in real time, and feeds verified conclusions into either searchable memory or a 7-stage `arXiv.org` publication pipeline.
+Vox runs technical investigation as a stateful verification loop: queries check your local knowledge base before calling external providers, expose subqueries and cited domains, and feed verified syntheses into searchable memory or an `arXiv.org` publication pipeline.
 
 <div class="vox-media-frame">
-  <img src="/assets/axis/scientia-research-arxiv-flywheel.webp" alt="End-to-end architectural diagram of the Verifiable Deep Research to arXiv.org Flywheel spanning Archetype Preflight, 4-Tier Continuum and Wave Steering, Scoped Storage Gate, Non-Modal Doc Dock, and 7-Stage arXiv Bundle" width="1376" height="768" />
+  <img src="/assets/axis/scientia-research-arxiv-flywheel.webp" alt="End-to-end architectural diagram of the Verifiable Deep Research to arXiv.org Flywheel spanning Archetype Preflight, 4-Tier Continuum and Wave Steering, Scoped Storage Gate, Non-Modal Doc Dock, and 7-Stage arXiv Bundle" width="1376" height="768" loading="lazy" decoding="async" />
   <div class="vox-media-caption">
     <strong>End-to-End Verifiable Research Loop</strong> — <em>From Live KB Prior-Art Preflight through <code>+1 Wave Refinement</code> steering, scoped <code>Index Now</code> vs. Socrates quarantine, non-modal Split editing, and SHA3-bound <code>arXiv.org</code> bundle synthesis.</em>
   </div>
@@ -42,41 +42,25 @@ Vox treats technical and scientific research as an auditable, stateful engineeri
 | **Architecture Trade-off** | *"What invariants, fan-in limits, and migration risks affect this design?"* | `Deep` (`2–3` waves) · `CodeGen` | `Index Now` (`Repo-Local KB`) |
 | **Verification &amp; Claim Audit** | *"Which cited benchmarks or doc claims actually match live source spans?"* | `Auto` or `Deep` · `Scholarly` | `Save to KB` (Socrates Quarantine) |
 
-```vox-diagram
-graph {
-    direction: right
-    node Pre: "1. Archetype + Live KB Prior-Art Preflight"
-    node Run: "2. 4-Tier Continuum + +1 Wave Steer"
-    node Store: "3. Index Now (Scoped KB) or Save to KB (Quarantine)"
-    node Dock: "4. Non-Modal Doc Dock (Read / Split / Edit)"
-    node Pub: "5. 7-Stage Scientia -> arXiv.org Bundle"
-    Pre -> Run
-    Run -> Store
-    Run -> Dock
-    Store -> Pub
-    Dock -> Pub
-}
-```
-
 <div class="vox-showcase-grid" data-testid="tut-research-visual-showcase">
   <div class="vox-showcase-card">
-    <img src="/assets/axis/research-arcane.webp" alt="Vox Axis Research surface in Imperial Carrara light theme showing above-the-fold synthesis report, headline verdict banner, statistical archetypes, and Edit in Doc Dock action" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/research-arcane.webp" alt="Vox Axis Research surface in Imperial Carrara light theme showing above-the-fold synthesis report, headline verdict banner, statistical archetypes, and Edit in Doc Dock action" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">Research · Imperial Carrara (arcane)</span>
-      <h3 class="vox-showcase-title">Above-the-Fold Verdict, Subqueries &amp; Steering</h3>
+      <h3 class="vox-showcase-title">Verdict Banner, Subqueries &amp; Wave Steer</h3>
       <p class="vox-showcase-desc">
-        Completed syntheses lead with the epistemic verdict and Markdown report at the top of the viewport, keeping past-session filtering, domain modes, wave steering, and storage routing within one click.
+        Leads with the epistemic verdict and report at the top of the pane, keeping session filters, modes, wave steering, and storage routing one click away.
       </p>
     </div>
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/research-slate.webp" alt="Vox Axis Research surface in Minimalist Grey-Blue Slate dark theme showing empirical synthesis telemetry and wave controls" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/research-slate.webp" alt="Vox Axis Research surface in Minimalist Grey-Blue Slate dark theme showing empirical synthesis telemetry and wave controls" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge">Research · Basalt Slate (void)</span>
-      <h3 class="vox-showcase-title">Dual-Theme Observability &amp; Scoped Persistence</h3>
+      <h3 class="vox-showcase-title">Slate Dark Mode &amp; Scoped Persistence</h3>
       <p class="vox-showcase-desc">
-        Switch freely between Carrara and Slate without losing WCAG contrast across subquery breakdowns, reliability penalties, or 1-click handoff into the non-modal Doc Dock.
+        Switches cleanly between Carrara light and Slate dark with preserved contrast across subquery telemetry, reliability gates, and Doc Dock handoff.
       </p>
     </div>
   </div>
@@ -118,21 +102,28 @@ graph {
          --json
        ```
 
-       Example structured output emitted with `--json`:
+       Example structured `ResearchResult` payload emitted with `--json`:
 
        ```json
        {
-         "session_id": "res-20261118-ppr-rag",
-         "lane": "deep",
-         "domain_mode": "scholarly",
-         "waves_completed": 3,
-         "confidence": 0.91,
-         "verdict": "Fusing Graphify AST cross-edges + HippoRAG PPR with BM25/HNSW RRF resolves multi-hop code-to-doc citations without per-file LLM indexing.",
-         "subqueries": [
-           "HippoRAG personalized pagerank multi-hop retrieval",
-           "AST symbol cross-edges documentation blast radius"
+         "answer": "Fusing Graphify AST cross-edges + HippoRAG PPR with BM25/HNSW RRF resolves multi-hop code-to-doc citations without per-file LLM indexing [1][2].",
+         "sources": [
+           { "url": "https://arxiv.org/abs/2405.14831", "title": "HippoRAG: Neurobiologically Inspired Long-Term Memory for LLMs", "score": 0.94 }
          ],
-         "cited_domains": ["arxiv.org", "github.com", "voxlang.org"]
+         "citations": [
+           { "index": 1, "url": "https://arxiv.org/abs/2405.14831", "title": "HippoRAG: Neurobiologically Inspired Long-Term Memory for LLMs" }
+         ],
+         "research_metadata": {
+           "quality_score": 91,
+           "wave_count": 3,
+           "subqueries": [
+             "HippoRAG personalized pagerank multi-hop retrieval",
+             "AST symbol cross-edges documentation blast radius"
+           ],
+           "claims_extracted_count": 6,
+           "claims_verified_count": 6,
+           "synthesis_model": "anthropic/claude-sonnet-4-6"
+         }
        }
        ```
      </TabItem>
@@ -146,7 +137,8 @@ graph {
    - **Penalize noisy domains:** Mark outdated mirrors or hallucinated posts so future runs down-rank them automatically:
 
    ```bash
-   vox research flag <session-id> --url https://example.invalid/outdated-post --defect stale-api --notes "Pre-0.6 syntax"
+   # 42 = numeric scientia_research_sessions.id (see `vox research history`)
+   vox research flag 42 --url https://example.invalid/outdated-post --defect hallucinated_api --notes "Pre-0.6 syntax"
    ```
 
 4. **Control Where Knowledge Lands: `Index Now` vs. `Save to KB` Quarantine**
@@ -170,7 +162,7 @@ graph {
    Prefer saving locally as a gitignored draft first from the terminal? Export directly from CLI:
 
    ```bash
-   vox research publish <session-id> --slug ppr-vs-dense-code-rag
+   vox research publish 42 --slug ppr-vs-dense-code-rag
    ```
 
 6. **Promote &amp; Stage a 7-Stage `arXiv.org` Publication Bundle**
@@ -179,23 +171,23 @@ graph {
 
    <div class="vox-showcase-grid">
      <div class="vox-showcase-card">
-       <img src="/assets/axis/publications-arcane.webp" alt="Vox Axis Publications Studio showing 7-stage arXiv lifecycle controls, subject taxonomy, SPDX license metadata, and dual-approval status" width="1280" height="800" loading="lazy" />
+       <img src="/assets/axis/publications-arcane.webp" alt="Vox Axis Publications Studio showing 7-stage arXiv lifecycle controls, subject taxonomy, SPDX license metadata, and dual-approval status" width="1280" height="800" loading="lazy" decoding="async" />
        <div class="vox-showcase-body">
          <span class="vox-showcase-badge vox-showcase-badge--gold">Publications Studio</span>
          <h3 class="vox-showcase-title">7-Stage Lifecycle &amp; <code>arXiv.org</code> Export</h3>
          <p class="vox-showcase-desc">
-           Inspect scholarly metadata (authors, ORCIDs, <code>arXiv.org</code> subject classification, SPDX license), digest-bound dual approvals, and zero-stub <code>main.tex</code> + <code>references.bib</code> <code>.tar.gz</code> staging.
+           Manage scholarly metadata, digest-bound dual approvals, and zero-stub <code>main.tex</code> + <code>references.bib</code> bundles cleanly.
          </p>
        </div>
      </div>
 
      <div class="vox-showcase-card">
-       <img src="/assets/axis/scientia-arcane.webp" alt="Vox Axis Scientia dashboard with clickable publication candidates, quick manuscript pills, and reply-window monitors" width="1280" height="800" loading="lazy" />
+       <img src="/assets/axis/scientia-arcane.webp" alt="Vox Axis Scientia dashboard with clickable publication candidates, quick manuscript pills, and reply-window monitors" width="1280" height="800" loading="lazy" decoding="async" />
        <div class="vox-showcase-body">
          <span class="vox-showcase-badge">Scientia Candidate Radar</span>
-         <h3 class="vox-showcase-title">Zero-Typing Manuscript Quick-Pickers</h3>
+         <h3 class="vox-showcase-title">Clickable Candidate Quick-Pickers</h3>
          <p class="vox-showcase-desc">
-           Ranked discovery candidates (<code>{'cand-*'}</code>) and <code>{'PUB-*'}</code> manuscript pills deep-link straight into Claim Review and Publications Studio with zero manual ID copy-pasting.
+           Click candidate pills (<code>{'cand-*'}</code>) and <code>{'PUB-*'}</code> manifests directly to open Claim Review and staging controls without copying IDs.
          </p>
        </div>
      </div>
@@ -221,17 +213,26 @@ graph {
      --dry-run
    ```
 
-   Inspect what `publication-preflight --with-worthiness` checks before staging:
+   Inspect what `publication-preflight --with-worthiness` emits (`PreflightReport`; `publication-status` wraps this with active content digest and approval counts):
 
    ```json
    {
-     "publication_id": "ppr-code-rag-2026",
-     "content_sha3_256": "8f3c...a91e",
-     "approvals_count": 2,
-     "worthiness_score": 0.89,
-     "destination_readiness": { "arxiv_assist": "ready" },
+     "ok": true,
+     "readiness_score": 94,
+     "findings": [],
      "manual_required": [],
-     "next_actions": ["Run scholarly pipeline dry-run", "Export arXiv tar.gz bundle"]
+     "next_actions": [
+       {
+         "code": "scholarly_dry_run",
+         "summary": "Run scholarly pipeline dry-run",
+         "reason": "Dual approvals verified for active digest",
+         "command_hint": "vox scientia publication-scholarly-pipeline-run --publication-id ppr-code-rag-2026 --dry-run"
+       }
+     ],
+     "confidence": "auto_with_review",
+     "destination_readiness": [
+       { "destination": "arxiv_assist", "ready": true, "remediation": "" }
+     ]
    }
    ```
 
@@ -247,7 +248,7 @@ graph {
     <ul>
       <li><strong>Edited Markdown after approvals?</strong> Dual approvals bind cryptographically to <code>{'content_sha3_256'}</code>. Any tweak to prose re-hashes the digest and requires fresh <code>publication-approve</code> signatures from two distinct reviewers before submit.</li>
       <li><strong><code>arxiv-assist</code> preflight blocked on missing abstract or metadata?</strong> Ensure your Markdown frontmatter includes <code>description</code>/<code>{'abstract_text'}</code>, or pass <code>--abstract-text</code> and <code>--scholarly-metadata-json</code> (ORCIDs + SPDX license) during <code>publication-prepare</code>.</li>
-      <li><strong>Transient remote upload timeout after staging?</strong> Recover idempotently without duplicate submissions via <code>vox db publication-retry-failed --publication-id &lt;id&gt; --dry-run true</code>, then rerun live once credentials or limits clear.</li>
+      <li><strong>Transient remote upload timeout after staging?</strong> Recover idempotently without duplicate submissions via <code>vox db publication-retry-failed --publication-id &lt;id&gt; --dry-run</code>, then rerun live once credentials or limits clear.</li>
     </ul>
   </div>
 </details>
@@ -305,13 +306,13 @@ fn main() to Result[str] {
 ## Where to Go Next
 
 <CardGrid>
-  <Card title="Knowledgebases &amp; OpenWiki Tutorial" icon="open-book">
-    Learn how indexed syntheses feed into multi-repo Search, Graphify Personalized PageRank, 5-layer OpenWiki hubs, and the non-modal Doc Studio in [Managing Knowledgebases &amp; Self-Healing OpenWiki](tut-knowledgebase-and-openwiki.mdx).
+  <Card title="Knowledgebases &amp; OpenWiki" icon="open-book">
+    Feed verified syntheses into multi-repo search, Personalized PageRank, 5-layer OpenWiki hubs, and the Doc Studio in [Knowledgebases &amp; OpenWiki](tut-knowledgebase-and-openwiki.mdx).
   </Card>
-  <Card title="Publish Scientia Findings (How-To)" icon="approve-check">
-    Inspect all `vox scientia` flags, ORCID/DOI metadata contracts, worthiness rubrics, and social syndication routing in [How-To: Publish Scientia Findings](../how-to/how-to-scientia-publication.md).
+  <Card title="Publish Scientia Findings" icon="approve-check">
+    Inspect `vox scientia` flags, ORCID/DOI schemas, worthiness rubrics, and distribution routing in [How-To: Publish Scientia Findings](../how-to/how-to-scientia-publication.md).
   </Card>
   <Card title="Vox Axis Desktop Workbench" icon="laptop">
-    Explore keyboard shortcuts (`Cmd/Ctrl+K`, `Alt+1..4`), `VRBS ROMA` spatial navigation, and all 32 GUI views in [Using the Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md).
+    Explore keybinds (`Cmd/Ctrl+K`, `Alt+1..4`), `VRBS ROMA` spatial navigation, and all 33 GUI views in [Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md).
   </Card>
 </CardGrid>

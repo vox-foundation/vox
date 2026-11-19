@@ -104,7 +104,7 @@ fn main() to Result[str] {
 ---
 
 <vox-playground data-initial-code={initialCode} data-examples={JSON.stringify(examples)}>
-  <div class="vox-playground" id="try-it" data-testid="vox-compiler-playground">
+  <div class="vox-playground not-content" data-testid="vox-compiler-playground">
     <div class="playground-header">
       <div class="playground-title-group">
         <span class="vox-dot">.vox</span>
@@ -316,6 +316,12 @@ fn main() to Result[str] {
     box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
+  .vox-playground button {
+    margin: 0;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+
   .playground-header {
     display: flex;
     align-items: center;
@@ -324,11 +330,12 @@ fn main() to Result[str] {
     padding: 0.65rem 1.1rem;
     background: linear-gradient(180deg, #111726 0%, #0c111d 100%);
     border-bottom: 1px solid rgba(71, 85, 105, 0.38);
+    flex-wrap: wrap;
   }
 
   .playground-title-group {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.42rem;
   }
 
@@ -356,17 +363,25 @@ fn main() to Result[str] {
 
   .playground-tabs {
     display: flex;
-    gap: 0.3rem;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
   }
 
   .playground-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
     background: rgba(15, 23, 42, 0.65);
     color: #94a3b8;
     border: 1px solid rgba(71, 85, 105, 0.38);
     border-radius: 0.35rem;
-    padding: 0.24rem 0.58rem;
+    padding: 0 0.62rem;
     font-size: 0.71rem;
     font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
     transition: all 0.15s ease;
   }
@@ -383,26 +398,48 @@ fn main() to Result[str] {
   }
 
   .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
     background: rgba(15, 23, 42, 0.75);
-    color: #94a3b8;
-    border: 1px solid rgba(71, 85, 105, 0.4);
+    color: #cbd5e1;
+    border: 1px solid rgba(71, 85, 105, 0.45);
     border-radius: 0.35rem;
-    padding: 0.24rem 0.58rem;
+    padding: 0 0.65rem;
     font-size: 0.71rem;
     font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .copy-btn:hover {
+    color: #f8fafc;
+    border-color: rgba(34, 211, 238, 0.45);
   }
 
   .run-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
     background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%);
     color: #041019;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 0.35rem;
-    padding: 0.26rem 0.72rem;
-    font-size: 0.73rem;
+    padding: 0 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
     box-shadow: 0 2px 10px rgba(34, 211, 238, 0.25);
+  }
+
+  .run-btn:hover {
+    filter: brightness(1.06);
   }
 
   .playground-split-grid {
@@ -419,6 +456,7 @@ fn main() to Result[str] {
   .playground-left-pane {
     display: flex;
     flex-direction: column;
+    margin: 0;
     border-right: 1px solid rgba(71, 85, 105, 0.35);
     background: #0a0e17;
   }
@@ -560,6 +598,7 @@ fn main() to Result[str] {
   .playground-right-pane {
     display: flex;
     flex-direction: column;
+    margin: 0;
     background: #0a0e17;
   }
 
@@ -575,6 +614,9 @@ fn main() to Result[str] {
   }
 
   .target-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     color: #94a3b8;
     border: none;
@@ -583,8 +625,10 @@ fn main() to Result[str] {
     padding: 0 0.65rem;
     font-size: 0.75rem;
     font-weight: 600;
-    cursor: pointer;
+    line-height: 1;
     white-space: nowrap;
+    margin: 0;
+    cursor: pointer;
     transition: all 0.15s ease;
   }
 
@@ -636,6 +680,9 @@ fn main() to Result[str] {
   }
 
   .secondary-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     color: #94a3b8;
     border: none;
@@ -644,6 +691,9 @@ fn main() to Result[str] {
     padding: 0 0.65rem;
     font-size: 0.76rem;
     font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    margin: 0;
     cursor: pointer;
   }
 

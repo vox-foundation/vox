@@ -5,7 +5,7 @@
        agent orchestrator & MCP runtime, curated KB index, MENS pure-Rust QLoRA lane, empirical benchmarks,
        and the canonical 60-row suite status matrix.
     2. `vox-foundation/vox-axis/README.md` (`crates/vox-gui/README.md`): Desktop Tauri 2 operator console,
-       all 32 catalog-generated GUI surfaces, `VRBS ROMA` 3D/2.5D codebase simulator, `AQVAEDUCTUS` cascade,
+       all 33 catalog-generated GUI surfaces, `VRBS ROMA` 3D/2.5D codebase simulator, `AQVAEDUCTUS` cascade,
        and the 4-profile WCAG theme contract.
     3. `vox-foundation/voxlang.org/README.md` (`docs-astro/README.md`): Public Astro 7 + Starlight documentation
        engine, `vox-doc-pipeline` compiler-verified `.vox` doctests, Diátaxis + W3C SKOS taxonomy, and the
@@ -51,8 +51,8 @@
 </div>
 
 > [!WARNING]
-> **Last reviewed: 2026-11-18 (`v8.9` / `0.6.0` workspace, commit `8ad718f70`).** Vox is an active pre-1.0 research project, not production software.
-> - **Working & CI-gated on `main`:** recursive-descent parser & type checker (`vox check`), capability-sandboxed interpreter (`vox run --interp --caps`), SQLite/Turso data layer (`vox-db`, schema baseline `99`), 3-layer Federated Knowledge Base (`vox kb`, Tantivy 0.22 BM25 + 4-leg RRF + HippoRAG Personalized PageRank), polyglot symbol graph (`vox graph`), EBNF/JSON-Schema grammar export (`vox grammar`), VoxDiagram (`vox diagram`), model router (`vox model`), Clavis secret resolver (`vox secrets`), compiler-verified `933`-page public docs site (`voxlang.org`), and `33` `crates.io` dry-run verified foundation crates (`vox ci publish-dry-run`) *(3-shard Linux CI baseline `16,491 / 16,491` passing tests on `b2ce949b4`; live CLI, contract, and docs gates re-verified `2026-11-18` on `8ad718f70`)*.
+> **Last reviewed: 2026-11-19 (`v9.0` / `0.6.0` workspace, commit `c2edb14ae`).** Vox is an active pre-1.0 research project, not production software.
+> - **Working & CI-gated on `main`:** recursive-descent parser & type checker (`vox check`), capability-sandboxed interpreter (`vox run --interp --caps`), SQLite/Turso data layer (`vox-db`, schema baseline `99`), 3-layer Federated Knowledge Base (`vox kb`, Tantivy 0.22 BM25 + 4-leg RRF + HippoRAG Personalized PageRank), polyglot symbol graph (`vox graph`), EBNF/JSON-Schema grammar export (`vox grammar`), VoxDiagram (`vox diagram`), model router (`vox model`), Clavis secret resolver (`vox secrets`), compiler-verified `954`-page public docs site (`voxlang.org`), and `33` `crates.io` dry-run verified foundation crates (`vox ci publish-dry-run`) *(3-shard Linux CI baseline `16,491 / 16,491` passing tests on `b2ce949b4`; live CLI, contract, and docs gates re-verified `2026-11-18` on `8ad718f70` / `2026-11-19` on `c2edb14ae`)*.
 > - **Prototypes:** full-stack Rust/React codegen (`vox build`), durable workflow replay (`VoxDbTracker`), sandboxed Python/Polars interop (`vox py`, `std.frame`), `424`-tool MCP & causal swarm harness (`vox mcp`, **Vox Concilium & Populi**), polyglot self-healing OpenWiki (`vox ci wiki-sync --polyglot --heal`), Tauri 2 desktop workbench ([**Vox Axis**](https://github.com/vox-foundation/vox-axis) with `33` `SURFACE_REGISTRY` views, stateful 5-shell Roman Scriptorium PTY, and Non-Modal Multi-Format Doc Dock), 4-tier Deep Research & 7-stage `arXiv.org` Scientia pipeline (`vox research`, `vox scientia`), and pure-Rust QLoRA training (`vox mens`, with public Qwen3 `0.6B`/`1.7B`/`4B` adapters on Hugging Face).
 > - **Install from source:** There is no stable release tag yet; build from `main` with Cargo ([Trying It](#trying-it)).
 
@@ -109,7 +109,7 @@ A typical web app restates one domain model in four places:
 Names and types can drift at each boundary. People and coding agents both spend time keeping the copies aligned.
 
 <div align="center">
-  <img src="docs/src/assets/schema-fragmentation.webp" alt="One field written four times: SQL completed_at, Rust Option DateTime, JSON completedAt null, and TypeScript isDone, beside one Vox table that emits done: bool to every layer" width="760" />
+  <img src="docs/src/assets/schema-fragmentation.webp" alt="One field written four times: SQL completed_at, Rust Option DateTime, JSON completedAt null, and TypeScript isDone, beside one Vox table that emits done: bool to every layer" width="760" height="424" loading="lazy" decoding="async" />
   <p>
     <strong>One field, written four times</strong><br />
     <em>completed_at, completedAt, and isDone are the same fact. Each boundary renames it or changes its type. A Vox table states it once, and every layer keeps that name and type.</em>
@@ -380,6 +380,7 @@ Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release
 
 Newest first.
 
+- **2026-11-19** (`v9.0`): Refreshed all 16 `voxlang.org` / Vox Axis `16:10` captures (`axeViolations: 0`) and rebuilt animated `.webp` tours (`vox_language_suite_tour.webp` `-91.9%`, `axis_hero_tour.webp` `-62.3%`, static `vox_hero_banner.webp` `-89.3%`), promoted the interactive 9-surface `<VoxGuiTourCarousel />` above `#why-vox`, eliminated Starlight sibling button/card alignment drift (`<= 2px` delta), cut `10 Mbps` WAN initial load latency (`5,824.3 ms -> 318.8 ms`, `LCP 2,436 ms -> 320 ms`, `CLS = 0`) and full-scroll image footprint (`9.08 MiB -> 839.5 KiB`), and verified schema/CLI examples via `/gsd-code-review --fix` ([Frontpage Perf & CV Flywheel SSOT](docs/src/architecture/voxlang-frontpage-perf-and-gui-tour-cv-ssot-2026.md)).
 - **2026-11-18** (`v8.8–v8.9`): Shipped interactive `.mdx` flagship tutorials ([Deep Research & Scientia](docs/src/tutorials/tut-deep-research-and-scientia.mdx), [Knowledgebase & OpenWiki](docs/src/tutorials/tut-knowledgebase-and-openwiki.mdx)), 3 Carrara/Slate/Brass `.webp` architectural infographics, `v89-quality.spec.ts` Playwright HTML/link/anchor/backtick gate, SKOS facet backlog tightening (`665 -> 649` docs, `0` lint errors), and re-verified all **60 rows** of the Status matrix on `8ad718f70` (`933` static pages, `424` MCP tools, `VoxDb` baseline `99`, `56/56` cross-repo contracts).
 - **2026-11-18** (`v8.1–v8.7`): Closed the unified Research ↔ Federated KB ↔ Scientia `arXiv.org` lifecycle (`7` stages, `PublicationTier`, SPDX/ORCID/DOI, zero-stub `.tar.gz` bundles), statistical researcher archetypes + Live KB Prior-Art Preflight + `+1 Wave Refinement`, click-tax & Romanesque/Slate UX convergence, and the workspace-wide **Non-Modal Multi-Format Doc Dock** (`Read | Split | Edit` via `vox://open-doc`).
 - **2026-11-17** (`v7.9–v8.0`): Shipped Universal Multi-Repo Onboarding (`vox repo`, Two-Tier Hybrid + `--read-only`), polyglot Graphify Code ↔ Doc ↔ Decision cross-edges with **HippoRAG Personalized PageRank + Leiden** retrieval (`vox-search`), **5-layer Polyglot Self-Healing OpenWiki** (`vox ci wiki-sync --polyglot --heal`), non-blocking `tokio::sync::Notify` 5-shell PTY + stateful `!nu` Nushell + persistent `VoxReplState` + Spoke 9 (`AgenticTerminal`) ([KB/OpenWiki research](docs/src/architecture/universal-kb-graphify-openwiki-multirepo-research-2026.md), [terminal audit](docs/src/architecture/terminal-surfaces-audit-and-benchmarks-research-2026.md)).

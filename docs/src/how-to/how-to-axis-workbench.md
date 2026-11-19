@@ -1,6 +1,6 @@
 ---
 title: "Using the Vox Axis Desktop Workbench & Loquela Controls"
-description: "Navigate the 32 Vox Axis GUI surfaces, explore the VRBS ROMA 3D/2.5D codebase simulator and AQVAEDUCTUS cascade, switch between the 4 WCAG theme profiles, and steer real-time Loquela chat posture knobs (Alt+1..4)."
+description: "Navigate the 33 Vox Axis GUI surfaces, explore the VRBS ROMA 3D/2.5D codebase simulator and AQVAEDUCTUS cascade, switch between the 4 WCAG theme profiles, and steer real-time Loquela chat posture knobs (Alt+1..4)."
 category: "How-To Guides"
 status: "current"
 sort_order: 12
@@ -17,13 +17,13 @@ code_anchors:
 # Using the Vox Axis Desktop Workbench & Loquela Controls
 
 <!-- kb:summary -->
-The Vox Axis Desktop Workbench (`vox-gui`, published at `vox-foundation/vox-axis`) is a native Tauri 2 operator console and spatial codebase simulator uniting multi-agent chat (`Loquela`), the `VRBS ROMA` 3D/2.5D isometric workspace simulator, the `AQVAEDUCTUS` 3-tier hydraulic verification cascade, an interactive Documentation & Findings Reader (`DocReader`), and live telemetry across 32 catalog-generated surfaces under an enforced 4-profile WCAG theme contract.
+The Vox Axis Desktop Workbench (`vox-gui`, published at `vox-foundation/vox-axis`) is a native Tauri 2 operator console and spatial codebase simulator uniting multi-agent chat (`Loquela`), the `VRBS ROMA` 3D/2.5D isometric workspace simulator, the `AQVAEDUCTUS` 3-tier hydraulic verification cascade, an interactive Documentation & Findings Reader (`DocReader`), and live telemetry across 33 catalog-generated surfaces under an enforced 4-profile WCAG theme contract.
 <!-- /kb:summary -->
 
 <div class="vox-media-frame">
-  <img src="/assets/axis/axis_hero_tour.webp" alt="Animated WebP tour of Vox Axis: VRBS ROMA Codebase Simulator, Imperium Blast-Radius Inspector, Mission Control, Multi-Dock Chat, AQVAEDUCTUS Cascade, MENS Studio, and Dual Theme Contract" width="1100" height="688" />
+  <img src="/assets/axis/axis_hero_tour.webp" alt="Animated WebP tour of Vox Axis: VRBS ROMA Codebase Simulator, Imperium Blast-Radius Inspector, Multi-Dock Chat, AQVAEDUCTUS 3-Tier Hydraulic Cascade, Deep Research & Epistemic DAG, Non-Modal Multi-Format Doc Studio, and Enforced Slate Dark Theme" width="960" height="600" loading="lazy" decoding="async" />
   <div class="vox-media-caption">
-    <strong>Vox Axis Flagship Workbench Tour (<a href="https://github.com/vox-foundation/vox-axis"><code>vox-foundation/vox-axis</code></a>)</strong> — <em>Cycling through the <code>VRBS ROMA</code> Codebase Simulator, <code>Imperium Prefecture</code> Blast-Radius Inspector, Mission Control, Multi-Dock Chat, <code>AQVAEDUCTUS</code> 3-Tier Hydraulic Verification Cascade, MENS Corpus Studio, and the Enforced Theme Contract (<code>Imperial Carrara White &amp; Gold</code> vs. <code>Minimalist Grey-Blue Slate</code>).</em>
+    <strong>Vox Axis Flagship Workbench Tour (<a href="https://github.com/vox-foundation/vox-axis"><code>vox-foundation/vox-axis</code></a>)</strong> — <em>Cycling through the <code>VRBS ROMA</code> Codebase Simulator, <code>Imperium Prefecture</code> Blast-Radius Inspector, Multi-Dock Chat, <code>AQVAEDUCTUS</code> 3-Tier Hydraulic Verification Cascade, Deep Research &amp; Epistemic DAG, Non-Modal Multi-Format Doc Studio, and the Enforced Theme Contract (<code>Imperial Carrara White &amp; Gold</code> vs. <code>Minimalist Grey-Blue Slate</code>).</em>
   </div>
 </div>
 
@@ -45,9 +45,9 @@ graph {
 ```
 
 <div class="vox-media-frame">
-  <img src="/assets/axis/axis_dual_mode_architecture.webp" alt="Vox Axis Dual-Mode Transport Architecture: Local Tauri 2 IPC vs Remote TOFU SPKI-Pinned TLS Gateway" width="1100" height="580" loading="lazy" />
+  <img src="/assets/axis/axis_dual_mode_architecture.webp" alt="Vox Axis Dual-Mode Transport Architecture: Local Tauri 2 IPC vs Remote TOFU SPKI-Pinned TLS Gateway" width="1376" height="768" loading="lazy" decoding="async" />
   <div class="vox-media-caption">
-    <strong>Dual-Mode Transport (<code>transport.ts</code>)</strong> — <em>Runs 100% offline in Local Mode over in-process Tauri 2 IPC against local <code>VoxDb</code> (v97) and <code>Clavis</code>, or connects in Remote Mode over TOFU SPKI SHA-256 pinned TLS to <code>vox-orchestrator-d</code>.</em>
+    <strong>Dual-Mode Transport (<code>transport.ts</code>)</strong> — <em>Runs 100% offline in Local Mode over in-process Tauri 2 IPC against local <code>VoxDb</code> (v99) and <code>Clavis</code>, or connects in Remote Mode over TOFU SPKI SHA-256 pinned TLS to <code>vox-orchestrator-d</code>.</em>
   </div>
 </div>
 
@@ -59,20 +59,20 @@ Run the desktop shell from the workspace root or launch via the `vox` CLI:
 cargo run -p vox-cli --features gui -- gui
 ```
 
-Use **`Cmd+K`** (macOS) or **`Ctrl+K`** (Windows/Linux) at any time to open the Universal Capability Palette and jump across all **32 registered surfaces** organized into 5 domains:
-1. **Operate (11 views):** `dashboard`, `chat`, `tasks`, `sub-agents`, `flow`, `mesh`, `runs`, `needs-you`, `approvals`, `policies`, `mercatus`
+Use **`Cmd+K`** (macOS) or **`Ctrl+K`** (Windows/Linux) at any time to open the Universal Capability Palette and jump across all **33 registered surfaces** organized into 5 domains:
+1. **Operate (12 views):** `dashboard`, `chat`, `tasks`, `sub-agents`, `flow`, `mesh`, `runs`, `needs-you`, `approvals`, `policies`, `mercatus`, `gsd`
 2. **Develop (8 views):** `console`, `catalog`, `skills`, `harness` (`AQVAEDUCTUS`), `harness-health`, `repository`, `browser`, `coderabbit`
 3. **Knowledge & Socrates Gate (6 views):** `vox-search`, `memory`, `activity`, `research`, `scientia`, `publications`
 4. **Compute / MENS (4 views):** `mens`, `models`, `populi`, `oratio`
 5. **System & `VRBS ROMA` (3 views):** `settings`, `explorer`, `gamify` (`VRBS ROMA` Simulator)
 
-For a complete screen-by-screen visual reference of all 32 views, see the [**`vox-foundation/vox-axis` README**](https://github.com/vox-foundation/vox-axis).
+For a complete screen-by-screen visual reference of all 33 views, see the [**`vox-foundation/vox-axis` README**](https://github.com/vox-foundation/vox-axis).
 
 ## 2. Exploring `VRBS ROMA` & the `AQVAEDUCTUS` Verification Cascade
 
 <div class="vox-showcase-grid">
   <div class="vox-showcase-card">
-    <img src="/assets/axis/urbs-civilization.webp" alt="VRBS ROMA 3D/2.5D Codebase Simulator" width="720" height="450" loading="lazy" />
+    <img src="/assets/axis/urbs-civilization.webp" alt="VRBS ROMA 3D/2.5D Codebase Simulator" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">gamify · VRBS ROMA</span>
       <h3 class="vox-showcase-title">Isometric Codebase Metropolis &amp; Forma Urbis Radar</h3>
@@ -83,7 +83,7 @@ For a complete screen-by-screen visual reference of all 32 views, see the [**`vo
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/urbs-imperium-inspector.webp" alt="Imperium Prefecture Blast-Radius DAG Inspector" width="720" height="450" loading="lazy" />
+    <img src="/assets/axis/urbs-imperium-inspector.webp" alt="Imperium Prefecture Blast-Radius DAG Inspector" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">ImperiumInspector.tsx</span>
       <h3 class="vox-showcase-title">Imperium Blast-Radius DAG Inspector</h3>
@@ -111,23 +111,23 @@ Open **`Settings → Theme Contract`** (`settings`) to switch live between the 4
 
 <div class="vox-showcase-grid">
   <div class="vox-showcase-card">
-    <img src="/assets/axis/theme-arcane.webp" alt="Imperial Carrara White and Gold Default Theme" width="720" height="450" loading="lazy" />
+    <img src="/assets/axis/theme-arcane.webp" alt="Imperial Carrara White and Gold Default Theme" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">Light · arcane &amp; glacier</span>
-      <h3 class="vox-showcase-title">Imperial Carrara White &amp; Gold (Default)</h3>
+      <h3 class="vox-showcase-title">Carrara Light &amp; Glacier Profiles</h3>
       <p class="vox-showcase-desc">
-        Sunlit honed Carrara marble (<code>#FAF6EE</code>), burnished gold mouldings (<code>#C59B27</code>), deep espresso ink (<code>#1C140C</code>), and emerald laurel signets (<code>#1B6B3A</code>).
+        Light palette (<code>#FAF6EE</code> canvas, <code>#1C140C</code> ink, <code>#C59B27</code> gold accents, <code>#1B6B3A</code> status tokens) with WCAG AA contrast.
       </p>
     </div>
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/theme-slate.webp" alt="Minimalist Grey-Blue Slate Dark Theme" width="720" height="450" loading="lazy" />
+    <img src="/assets/axis/theme-slate.webp" alt="Minimalist Grey-Blue Slate Dark Theme" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge">Dark · slate &amp; high-contrast</span>
-      <h3 class="vox-showcase-title">Minimalist Grey-Blue Slate &amp; WCAG AAA</h3>
+      <h3 class="vox-showcase-title">Slate Dark &amp; WCAG AAA Profiles</h3>
       <p class="vox-showcase-desc">
-        Basalt/slate dark palette (<code>#0c0e10</code> / <code>#15191c</code> / <code>#1f262b</code>), crisp <code>Inter</code> + tabular monospace geometry, and zero marble textures.
+        Slate dark palette (<code>#0c0e10</code> / <code>#15191c</code> / <code>#1f262b</code>) paired with <code>Inter</code> and tabular monospace fonts.
       </p>
     </div>
   </div>
@@ -163,45 +163,45 @@ Vox Axis unites live research, federated corpus search, passive discovery auto-s
 
 <div class="vox-showcase-grid">
   <div class="vox-showcase-card">
-    <img src="/assets/axis/doc-reader-arcane.webp" alt="Non-modal DocViewerDrawer docked on the right beside MemoryView with Read Split Edit modes and GFM/frontmatter rendering" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/doc-reader-arcane.webp" alt="Non-modal DocViewerDrawer docked on the right beside MemoryView with Read Split Edit modes and GFM/frontmatter rendering" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">Doc Dock · Split / Wide / Full</span>
       <h3 class="vox-showcase-title">Non-Modal Multi-Format Doc Studio</h3>
       <p class="vox-showcase-desc">
-        Inspect or edit Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and code side-by-side while keeping <code>Memory</code>, <code>Research</code>, or <code>Terminal</code> live on the left.
+        Edit Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and code in <code>Split | Wide | Full</code> widths while <code>Memory</code> or <code>Research</code> stays live.
       </p>
     </div>
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/memory-arcane.webp" alt="MemoryView showing 3-layer Federated KB controls, Top-K Depth rotary dial, provenance tags, and unwrapped citation action rows" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/memory-arcane.webp" alt="MemoryView showing 3-layer Federated KB controls, Top-K Depth rotary dial, provenance tags, and unwrapped citation action rows" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">memory · Federated KB</span>
-      <h3 class="vox-showcase-title">3-Layer Retrieval &amp; In-App <code>Open</code> Routing</h3>
+      <h3 class="vox-showcase-title">3-Layer Retrieval &amp; In-App <code>Open</code></h3>
       <p class="vox-showcase-desc">
-        Search across Repo-Local, Global Library, and Baseline canon with provenance pills (<code>Memory Shard</code>, <code>Code Chunk</code>, <code>Codex Canon</code>) and instant Doc Dock handoff.
+        Filter Repo-Local, Global Library, and Baseline canon with provenance tags and 1-click <code>Open</code> handoff into the right Doc Dock.
       </p>
     </div>
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/research-arcane.webp" alt="ResearchView with above-the-fold Synthesis Report, Domain Mode selector, Archetype presets, and Edit in Doc Dock button" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/research-arcane.webp" alt="ResearchView with above-the-fold Synthesis Report, Domain Mode selector, Archetype presets, and Edit in Doc Dock button" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge vox-showcase-badge--gold">research · Multi-Wave Steer</span>
-      <h3 class="vox-showcase-title">Deep Research &amp; Scoped Persistence</h3>
+      <h3 class="vox-showcase-title">Deep Research &amp; Scoped Storage</h3>
       <p class="vox-showcase-desc">
-        Start from Statistical Archetypes + Live KB Preflight, switch <code>Mode: General | CodeGen | Scholarly | Shopping</code>, steer <code>+1 Wave Refinement</code>, or send directly to <code>Edit in Doc Dock</code>.
+        Run Statistical Archetypes + KB Preflight, switch <code>General | CodeGen | Scholarly | Shopping</code> modes, and steer <code>+1 Wave</code> refinement.
       </p>
     </div>
   </div>
 
   <div class="vox-showcase-card">
-    <img src="/assets/axis/discovery-arcane.webp" alt="Discovery chronicle view with passive Live auto-sync and direct jumps to Research, Memory, and Publications" width="1280" height="800" loading="lazy" />
+    <img src="/assets/axis/discovery-arcane.webp" alt="Discovery chronicle view with passive Live auto-sync and direct jumps to Research, Memory, and Publications" width="1280" height="800" loading="lazy" decoding="async" />
     <div class="vox-showcase-body">
       <span class="vox-showcase-badge">activity · Discovery Flywheel</span>
-      <h3 class="vox-showcase-title">Zero-Polling Chronicle &amp; Flywheel Jumps</h3>
+      <h3 class="vox-showcase-title">Passive Chronicle &amp; Flywheel Jumps</h3>
       <p class="vox-showcase-desc">
-        Tracks candidate syntheses, claims, and publication events via passive <code>Live auto-sync</code> with single-header ergonomics and instant cross-surface navigation.
+        Tracks candidate syntheses, claims, and publication events via passive <code>Live auto-sync</code> with 1-click cross-surface jumps.
       </p>
     </div>
   </div>

@@ -542,7 +542,7 @@ export const ImperiumInspector: React.FC<ImperiumInspectorProps> = ({
           <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-zinc-400">
             Dirty File & Module List ({d.buildings.length})
           </div>
-          <div className="max-h-28 space-y-1 overflow-y-auto pr-1">
+          <div className="max-h-[120px] space-y-1 overflow-y-auto pr-1">
             {d.buildings.map((b) => {
               const shortName = b.path.split('/').slice(-2).join('/');
               const isWorking = Object.values(agentTasks).some((t) => t.filePath === b.path);
