@@ -1,21 +1,29 @@
 import React, { useState } from 'react';
 import {
+  ARXIV_SUBJECT_OPTIONS,
+  PUBLICATION_TIER_OPTIONS,
   advanceFlywheel,
+  advancePublicationStage,
+  classifyPublication,
   draftManuscript,
   executeReplay,
+  renderArxivBundle,
   renderFindingPage,
   renderLatex,
+  type ArxivReadinessReportDto,
   type FlywheelAdvanceDto,
 } from '../../../api/scientia';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { Icon } from '../../ui/Icons';
+import { VoxSelect } from '../../ui/Select';
 
 export interface DirectPublicationDrawerProps {
   publicationId: string;
   pushToast?: SurfaceDecoratorProps['pushToast'];
   onReplayVerified?: (score: number) => void;
   onFlywheelAdvanced?: (result: FlywheelAdvanceDto) => void;
+  onStageOrClassificationUpdated?: (report: ArxivReadinessReportDto) => void;
   compact?: boolean;
 }
 
@@ -59,15 +67,16 @@ const FLYWHEEL_STEPS = [
 ] as const;
 
 /**
- * Direct Publication Flywheel Drawer (STUD-02).
- * Interactive 6-stage progression stepper from claim extraction to deterministic replay
- * verification, backed by `scientia_publication_flywheel_advance` and direct artifact renders.
+ * Direct Publication Flywheel & arXiv.org Control Drawer (STUD-02 / PUB-STUDIO-UX-04).
+ * Interactive 6-stage flywheel stepper paired with arXiv classification, IMRaD autofill,
+ * BibTeX/tar.gz synthesis, and 7-stage lifecycle advancement.
  */
 export function DirectPublicationDrawer({
   publicationId,
   pushToast,
   onReplayVerified,
   onFlywheelAdvanced,
+  onStageOrClassificationUpdated,
   compact = false,
 }: DirectPublicationDrawerProps) {
   const [busy, setBusy] = useState(false);
@@ -75,6 +84,9 @@ export function DirectPublicationDrawer({
   const [previewTitle, setPreviewTitle] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [roCrateDigest, setRoCrateDigest] = useState<string | null>(null);
+  const [tier, setTier] = useState<string>('arxiv_preprint');
+  const [arxivCat, setArxivCat] = useState<string>('cs.AI');
+  const [readinessScore, setReadinessScore] = useState<number | null>(null);
 
   const toast = pushToast ?? (() => {});
   const trimmedId = publicationId.trim();
@@ -126,16 +138,21 @@ export function DirectPublicationDrawer({
     <div
       data-testid="direct-publication-drawer"
       data-slot="direct-publication-drawer"
-      className="rounded-xl border border-border-subtle bg-overlay-subtle p-3.5 space-y-3"
+      className="vox-marble-tablet space-y-3 rounded-xl border border-(--color-gold-500)/45 bg-bg-elevated p-3.5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Icon.flow className="size-4 text-brass shrink-0" aria-hidden="true" />
-          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-text-muted">
+        <div className="flex flex-wrap items-center gap-2">
+          <Icon.flow className="size-4 shrink-0 text-brass" aria-hidden="true" />
+          <span className="font-display text-[11px] uppercase tracking-[0.16em] text-text-primary">
             Direct Publication Flywheel
           </span>
+          {readinessScore !== null && (
+            <span className="rounded border border-(--color-status-pass)/45 bg-bg-surface px-2 py-0.5 font-mono text-[11px] font-semibold text-(--color-status-pass)">
+              arXiv Ready {readinessScore}%
+            </span>
+          )}
           {roCrateDigest && (
-            <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 font-mono text-[9px] text-emerald-200">
+            <span className="rounded border border-(--color-status-pass)/40 bg-bg-surface px-2 py-0.5 font-mono text-[11px] text-(--color-status-pass)">
               RO-Crate {roCrateDigest.slice(0, 18)}
             </span>
           )}
@@ -144,72 +161,111 @@ export function DirectPublicationDrawer({
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
+            data-slot="button"
             data-testid="flywheel-advance-btn"
             disabled={!trimmedId || busy}
             onClick={() => runAdvance('replay_verify')}
-            className="inline-flex items-center gap-1.5 rounded border border-[#D4AF37]/50 bg-[#78350F]/30 px-2.5 py-1 font-mono text-[11px] font-semibold text-[#F3E5AB] hover:bg-[#78350F]/50 disabled:opacity-40"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-(--color-gold-500)/60 bg-bg-surface px-3 font-display text-[11px] font-semibold uppercase tracking-wider text-text-primary transition-colors hover:border-(--color-gold-400) disabled:opacity-40"
           >
-            <Icon.play className="size-3 shrink-0" aria-hidden="true" />
+            <Icon.play className="size-3 shrink-0 text-brass" aria-hidden="true" />
             <span>{busy ? 'Advancing…' : 'Advance Full Flywheel'}</span>
           </button>
+          {!compact && (
+            <>
+              <button
+                type="button"
+                data-slot="button"
+                data-testid="studio-draft-imrad-btn"
+                disabled={!trimmedId || busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const res = await draftManuscript(trimmedId);
+                    setPreviewTitle(`IMRaD Manuscript (${res.title ?? trimmedId})`);
+                    setPreviewContent(res.markdown);
+                    setStagesDone((prev) =>
+                      prev.includes('scaffold_imrad') ? prev : [...prev, 'scaffold_imrad'],
+                    );
+                  } catch (err) {
+                    toast({
+                      tone: 'warn',
+                      title: 'Draft IMRaD failed',
+                      body: sanitizeErrorForToast(err),
+                      cause: 'backend-error',
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                className="inline-flex h-8 items-center rounded-lg border border-brass/45 bg-bg-surface px-3 font-sans text-xs font-medium text-text-primary transition-colors hover:border-brass disabled:opacity-40"
+              >
+                Draft IMRaD
+              </button>
+              <button
+                type="button"
+                data-slot="button"
+                data-testid="studio-render-latex-btn"
+                disabled={!trimmedId || busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const res = await renderLatex(trimmedId);
+                    setPreviewTitle(`LaTeX Source (${res.title ?? trimmedId})`);
+                    setPreviewContent(res.latex);
+                    setStagesDone((prev) =>
+                      prev.includes('render_latex') ? prev : [...prev, 'render_latex'],
+                    );
+                  } catch (err) {
+                    toast({
+                      tone: 'warn',
+                      title: 'Render LaTeX failed',
+                      body: sanitizeErrorForToast(err),
+                      cause: 'backend-error',
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                className="inline-flex h-8 items-center rounded-lg border border-brass/45 bg-bg-surface px-3 font-sans text-xs font-medium text-text-primary transition-colors hover:border-brass disabled:opacity-40"
+              >
+                Render LaTeX
+              </button>
+              <button
+                type="button"
+                data-slot="button"
+                data-testid="studio-arxiv-bundle-btn"
+                disabled={!trimmedId || busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const bundle = await renderArxivBundle(trimmedId);
+                    setPreviewTitle(`BibTeX & arXiv Bundle (${bundle.bytes_len} B)`);
+                    setPreviewContent(
+                      `% === references.bib ===\n${bundle.references_bib}\n% === arxiv-metadata.json ===\n${bundle.arxiv_metadata_json}`,
+                    );
+                    setStagesDone((prev) =>
+                      prev.includes('arxiv_bundle') ? prev : [...prev, 'arxiv_bundle'],
+                    );
+                  } catch (err) {
+                    toast({
+                      tone: 'warn',
+                      title: 'arXiv bundle failed',
+                      body: sanitizeErrorForToast(err),
+                      cause: 'backend-error',
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                className="inline-flex h-8 items-center rounded-lg border border-brass/45 bg-bg-surface px-3 font-sans text-xs font-medium text-text-primary transition-colors hover:border-brass disabled:opacity-40"
+              >
+                BibTeX &amp; Bundle
+              </button>
+            </>
+          )}
           <button
             type="button"
-            data-testid="studio-draft-imrad-btn"
-            disabled={!trimmedId || busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                const res = await draftManuscript(trimmedId);
-                setPreviewTitle(`IMRaD Manuscript (${res.title ?? trimmedId})`);
-                setPreviewContent(res.markdown);
-                setStagesDone((prev) =>
-                  prev.includes('scaffold_imrad') ? prev : [...prev, 'scaffold_imrad'],
-                );
-              } catch (err) {
-                toast({
-                  tone: 'warn',
-                  title: 'Draft IMRaD failed',
-                  body: sanitizeErrorForToast(err),
-                  cause: 'backend-error',
-                });
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="rounded border border-brass/30 bg-brass/10 px-2.5 py-1 font-mono text-[11px] text-brass hover:bg-brass/20 disabled:opacity-40"
-          >
-            Draft IMRaD
-          </button>
-          <button
-            type="button"
-            data-testid="studio-render-latex-btn"
-            disabled={!trimmedId || busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                const res = await renderLatex(trimmedId);
-                setPreviewTitle(`LaTeX Source (${res.title ?? trimmedId})`);
-                setPreviewContent(res.latex);
-                setStagesDone((prev) =>
-                  prev.includes('render_latex') ? prev : [...prev, 'render_latex'],
-                );
-              } catch (err) {
-                toast({
-                  tone: 'warn',
-                  title: 'Render LaTeX failed',
-                  body: sanitizeErrorForToast(err),
-                  cause: 'backend-error',
-                });
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="rounded border border-cyan/30 bg-cyan/10 px-2.5 py-1 font-mono text-[11px] text-cyan hover:bg-cyan/20 disabled:opacity-40"
-          >
-            Render LaTeX
-          </button>
-          <button
-            type="button"
+            data-slot="button"
             data-testid="studio-finding-page-btn"
             disabled={!trimmedId || busy}
             onClick={async () => {
@@ -232,12 +288,13 @@ export function DirectPublicationDrawer({
                 setBusy(false);
               }
             }}
-            className="rounded border border-violet-400/30 bg-violet-400/10 px-2.5 py-1 font-mono text-[11px] text-violet-200 hover:bg-violet-400/20 disabled:opacity-40"
+            className="inline-flex h-8 items-center rounded-lg border border-border-strong bg-bg-surface px-3 font-sans text-xs font-medium text-text-secondary transition-colors hover:border-brass/45 hover:text-text-primary disabled:opacity-40"
           >
             Finding Page HTML
           </button>
           <button
             type="button"
+            data-slot="button"
             data-testid="studio-execute-replay-btn"
             disabled={!trimmedId || busy}
             onClick={async () => {
@@ -265,12 +322,111 @@ export function DirectPublicationDrawer({
                 setBusy(false);
               }
             }}
-            className="rounded border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-mono text-[11px] text-emerald-200 hover:bg-emerald-400/20 disabled:opacity-40"
+            className="inline-flex h-8 items-center rounded-lg border border-(--color-status-pass)/45 bg-bg-surface px-3 font-sans text-xs font-medium text-(--color-status-pass) transition-colors hover:border-(--color-status-pass) disabled:opacity-40"
           >
             Execute Replay
           </button>
         </div>
       </div>
+
+      {/* Quick Classification & arXiv Stage Controls (hidden in compact Studio view where Classification Tablet & Stage Controller sit directly above) */}
+      {!compact && (
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border-strong bg-bg-surface p-2.5">
+        <div className="min-w-[160px] flex-1">
+          <VoxSelect
+            aria-label="Publication tier"
+            data-testid="drawer-tier-select"
+            value={tier}
+            onValueChange={setTier}
+            options={PUBLICATION_TIER_OPTIONS.map((t) => ({ value: t.id, label: t.label }))}
+          />
+        </div>
+        <div className="min-w-[170px] flex-1">
+          <VoxSelect
+            aria-label="arXiv category"
+            data-testid="drawer-arxiv-select"
+            value={arxivCat}
+            onValueChange={setArxivCat}
+            options={ARXIV_SUBJECT_OPTIONS.map((c) => ({ value: c.code, label: c.name }))}
+          />
+        </div>
+        <button
+          type="button"
+          data-slot="button"
+          data-testid="drawer-autofill-imrad-btn"
+          disabled={!trimmedId || busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const report = await classifyPublication({
+                publicationId: trimmedId,
+                publicationTier: tier,
+                arxivPrimaryCategory: arxivCat,
+                autofillImrad: true,
+              });
+              setReadinessScore(report.readiness_score);
+              setPreviewTitle(`Zero-Stub Scientific main.tex (${report.readiness_score}%)`);
+              setPreviewContent(report.main_tex_preview);
+              onStageOrClassificationUpdated?.(report);
+              toast({
+                tone: 'ok',
+                title: 'IMRaD & classification saved',
+                body: `${report.arxiv_primary_category} · ${report.readiness_score}% ready · ${report.todo_stub_count} TODO stubs`,
+                cause: 'backend-ok',
+              });
+            } catch (err) {
+              toast({
+                tone: 'warn',
+                title: 'Classification update failed',
+                body: sanitizeErrorForToast(err),
+                cause: 'backend-error',
+              });
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="inline-flex h-8 items-center rounded-lg border border-brass/50 bg-bg-elevated px-3 font-sans text-xs font-medium text-text-primary transition-colors hover:border-brass disabled:opacity-40"
+        >
+          Autofill Scientific IMRaD
+        </button>
+        <button
+          type="button"
+          data-slot="button"
+          data-testid="drawer-approve-stage-btn"
+          disabled={!trimmedId || busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const report = await advancePublicationStage({
+                publicationId: trimmedId,
+                targetStage: 'approved',
+                autofillImrad: true,
+              });
+              setReadinessScore(report.readiness_score);
+              onStageOrClassificationUpdated?.(report);
+              toast({
+                tone: 'ok',
+                title: 'Manifest approved for arXiv',
+                body: `${report.publication_id} · stage ${report.current_stage} · ${report.readiness_score}%`,
+                cause: 'backend-ok',
+              });
+            } catch (err) {
+              toast({
+                tone: 'warn',
+                title: 'Stage advance failed',
+                body: sanitizeErrorForToast(err),
+                cause: 'backend-error',
+              });
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="inline-flex h-8 items-center rounded-lg border border-(--color-status-pass)/50 bg-bg-elevated px-3 font-sans text-xs font-medium text-(--color-status-pass) transition-colors hover:border-(--color-status-pass) disabled:opacity-40"
+        >
+          Approve for arXiv
+        </button>
+      </div>
+      )}
 
       {/* 6-Stage Flywheel Stepper */}
       <div
@@ -288,22 +444,23 @@ export function DirectPublicationDrawer({
             <button
               key={step.id}
               type="button"
+              data-slot="button"
               data-testid={`flywheel-step-${step.id}`}
               disabled={!trimmedId || busy}
               onClick={() => runAdvance(step.targetStage)}
-              className={`flex items-center justify-between gap-1.5 rounded-lg border px-2.5 py-2 text-left font-mono text-[10px] transition ${
+              className={`flex h-8 items-center justify-between gap-1.5 rounded-lg border px-2.5 text-left font-mono text-[11px] transition-colors ${
                 done
-                  ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-200'
-                  : 'border-border-subtle bg-black/25 text-text-secondary hover:border-brass/40 hover:text-text-primary'
+                  ? 'border-(--color-status-pass)/50 bg-bg-surface text-(--color-status-pass)'
+                  : 'border-border-strong bg-bg-surface text-text-secondary hover:border-brass/50 hover:text-text-primary'
               } disabled:opacity-40`}
             >
               <span className="truncate">
                 {index + 1}. {step.label}
               </span>
               {done ? (
-                <Icon.check className="size-3 shrink-0 text-emerald-300" aria-hidden="true" />
+                <Icon.check className="size-3.5 shrink-0 text-(--color-status-pass)" aria-hidden="true" />
               ) : (
-                <Icon.chevR className="size-3 shrink-0 text-text-muted" aria-hidden="true" />
+                <Icon.chevR className="size-3.5 shrink-0 text-text-muted" aria-hidden="true" />
               )}
             </button>
           );
@@ -313,22 +470,23 @@ export function DirectPublicationDrawer({
       {previewContent && (
         <div
           data-testid="studio-artifact-preview"
-          className="rounded-lg border border-brass/30 bg-black/50 p-3"
+          className="rounded-lg border border-(--color-gold-500)/45 bg-bg-surface p-3"
         >
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <span className="font-mono text-xs font-semibold text-brass">{previewTitle}</span>
             <button
               type="button"
+              data-slot="button"
               onClick={() => {
                 setPreviewContent(null);
                 setPreviewTitle(null);
               }}
-              className="font-mono text-[11px] text-text-muted hover:text-text-secondary"
+              className="h-8 rounded-lg border border-border-strong bg-bg-elevated px-2.5 font-sans text-xs text-text-secondary hover:text-text-primary"
             >
               Close Preview
             </button>
           </div>
-          <pre className="max-h-56 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-secondary">
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-primary">
             {previewContent}
           </pre>
         </div>

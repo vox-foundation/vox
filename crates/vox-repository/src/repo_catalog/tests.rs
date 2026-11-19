@@ -1,6 +1,8 @@
 use super::{
-    QueryFileParams, QueryTextParams, RepoAccessMode, repo_query_file, repo_query_text,
-    resolve_repo_catalog,
+    QueryFileParams, QueryTextParams, RepoAccessMode, add_repository_to_catalog_with_home,
+    external_repo_cache_root_under, get_active_repository_context_with_home,
+    onboard_repository_harness_with_home, remove_repository_from_catalog, repo_query_file,
+    repo_query_text, resolve_repo_catalog, switch_active_repository_with_home,
 };
 use std::fs;
 use tempfile::tempdir;
@@ -115,4 +117,115 @@ fn an_unparseable_manifest_is_still_an_error() {
     )
     .expect("catalog");
     assert!(resolve_repo_catalog(workspace.path()).is_err());
+}
+
+#[test]
+fn onboard_repository_harness_creates_expected_layout_and_is_idempotent() {
+    let workspace = tempdir().expect("workspace");
+    let home = tempdir().expect("home");
+    fs::create_dir_all(workspace.path().join(".git")).expect("git");
+    fs::write(
+        workspace.path().join("Cargo.toml"),
+        "[package]\nname = \"demo-harness\"\nversion = \"0.1.0\"\n",
+    )
+    .expect("cargo toml");
+
+    let first = onboard_repository_harness_with_home(workspace.path(), false, home.path())
+        .expect("onboard");
+    assert!(!first.read_only);
+    assert!(workspace.path().join("VOX.md").is_file());
+    assert!(workspace.path().join("AGENTS.md").is_file());
+    assert!(workspace.path().join(".voxignore").is_file());
+    assert!(workspace.path().join(".well-known/llms.txt").is_file());
+    assert!(workspace.path().join("docs/wiki/README.md").is_file());
+    assert!(workspace.path().join(".vox/repositories.yaml").is_file());
+    assert!(workspace.path().join(".vox/cache/kb").is_dir());
+    assert!(workspace.path().join(".vox/cache/graphify").is_dir());
+    assert!(workspace.path().join(".vox/cache/openwiki").is_dir());
+    assert!(home.path().join(".vox/library").is_dir());
+
+    fs::write(workspace.path().join("VOX.md"), "# custom user notes\n").expect("custom vox.md");
+    let second =
+        onboard_repository_harness_with_home(workspace.path(), false, home.path()).expect("rerun");
+    assert!(second.created_paths.is_empty());
+    assert_eq!(
+        fs::read_to_string(workspace.path().join("VOX.md")).expect("read vox.md"),
+        "# custom user notes\n"
+    );
+}
+
+#[test]
+fn onboard_repository_harness_read_only_leaves_external_repo_untouched() {
+    let external = tempdir().expect("external");
+    let home = tempdir().expect("home");
+    fs::write(external.path().join("README.md"), "# External Project\n").expect("readme");
+
+    let summary =
+        onboard_repository_harness_with_home(external.path(), true, home.path()).expect("onboard");
+    assert!(summary.read_only);
+    assert!(!external.path().join("VOX.md").exists());
+    assert!(!external.path().join("AGENTS.md").exists());
+    assert!(!external.path().join(".vox").exists());
+    assert!(!external.path().join("docs/wiki").exists());
+
+    let ext_root = external_repo_cache_root_under(home.path(), &summary.repository_id);
+    assert!(ext_root.join("repositories.yaml").is_file());
+    assert!(ext_root.join("cache/kb").is_dir());
+    assert!(ext_root.join("cache/graphify").is_dir());
+    assert!(ext_root.join("cache/openwiki").is_dir());
+}
+
+#[test]
+fn catalog_add_switch_and_remove_persist_active_context() {
+    let primary = tempdir().expect("primary");
+    let external = tempdir().expect("external");
+    let home = tempdir().expect("home");
+
+    fs::create_dir_all(primary.path().join(".git")).expect("primary git");
+    fs::create_dir_all(external.path().join(".git")).expect("ext git");
+    fs::write(
+        external.path().join("README.md"),
+        "# Satellite\nhello from ext\n",
+    )
+    .expect("readme");
+
+    onboard_repository_harness_with_home(primary.path(), false, home.path()).expect("onboard");
+    let added = add_repository_to_catalog_with_home(
+        primary.path(),
+        external.path(),
+        Some("ext-sat"),
+        true,
+        home.path(),
+    )
+    .expect("add ext");
+    assert_eq!(added.repositories.len(), 2);
+
+    // Querying across the catalog works on ReadOnlyLocal repositories.
+    let txt = repo_query_text(
+        primary.path(),
+        &QueryTextParams {
+            query: "hello from ext".to_string(),
+            repository_ids: None,
+            max_matches_per_repo: 5,
+            ..QueryTextParams::default()
+        },
+        None,
+    )
+    .expect("query ext");
+    assert_eq!(txt.hits.len(), 1);
+    assert_eq!(txt.hits[0].display_name, "ext-sat");
+
+    let switched =
+        switch_active_repository_with_home(primary.path(), "ext-sat", home.path()).expect("switch");
+    assert!(switched.read_only);
+    assert_eq!(switched.display_name, "ext-sat");
+    assert!(!external.path().join(".vox").exists());
+
+    let loaded =
+        get_active_repository_context_with_home(primary.path(), home.path()).expect("get active");
+    assert_eq!(loaded.repository_id, switched.repository_id);
+
+    let after_remove =
+        remove_repository_from_catalog(primary.path(), "ext-sat").expect("remove ext");
+    assert_eq!(after_remove.repositories.len(), 1);
 }

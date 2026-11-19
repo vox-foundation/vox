@@ -1,5 +1,118 @@
 # Milestones
 
+## v8.9 Adversarial `voxlang.org` Audit, `.mdx` / HTML Backtick Fixes, Bespoke Infographics & Deep Cross-Link Overhaul (Shipped: 2026-11-18)
+
+**Phases completed:** 7 phases (`Phases 526–532`), 28/28 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`532-REVIEW.md`](workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/532-REVIEW.md), [`532-REVIEW-FIX.md`](workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/532-REVIEW-FIX.md))
+**Archive:** [`v8.9-ROADMAP.md`](workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/milestones/v8.9-ROADMAP.md) | [`v8.9-REQUIREMENTS.md`](workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/milestones/v8.9-REQUIREMENTS.md) | [`v8.9-MILESTONE-AUDIT.md`](workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/milestones/v8.9-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **`.mdx` Engine, Showcase HTML & Verifier Fixes (`Phase 526`):** Updated `remarkStripTitleH1` (`SKIP_TYPES` skipping `mdxjsEsm` and `mdxFlowExpression`) with AST unit coverage, purged raw backtick leaks across `docs/src/index.mdx`, `how-to-axis-workbench.md`, `how-to-scientia-publication.md`, and `tut-deep-research-and-scientia.mdx`, and fixed quoted positional arg tokenization in `scripts/docs/tutorial-verify.vox`.
+- **3 Dual-Theme Architectural Infographics (`Phase 527`):** Produced and staged `scientia-research-arxiv-flywheel.webp`, `federated-kb-openwiki-arch.webp`, and `non-modal-doc-studio-formats.webp` under both `docs/src/assets/axis/` and `docs-astro/public/assets/axis/`.
+- **Flagship Tutorials, Corpus Gaps & Regression Guard (`Phases 528–531`):** Deepened `tut-deep-research-and-scientia.mdx` and `tut-knowledgebase-and-openwiki.mdx`, modernized sibling tutorials (`tut-getting-started.md`, `tut-first-app.md`, `tut-ui-integration.md`, `tut-actor-basics.md`), replaced/upgraded `ref-search.md`, `gui-navigation.md`, `external-repositories.md`, `scientia-ssot-handbook.md`, `ref-syntax.md`, `glossary.md`, `faq.md`, `why-vox-for-ai.md`, `expl-architecture.md`, `expl-ai-orchestration.md`, and `vox-deep-research-primer.md`, fixed truncated frontmatter descriptions, added `docs-astro/tests/build-output/v89-quality.spec.ts`, and tightened the facet backlog (`662 -> 649` docs).
+- **Pre-Merge Code Review & SSOT Closure (`Phase 532`):** Remediated `CR-01..10` across `vox-scientia`, `vox-db` (`set_publication_queue_stage` via TDD), `vox-orchestrator-mcp`, `vox-doc-pipeline`, `vox-gui/ui`, `contracts/db/baseline-version-policy.yaml`, `docs/src/`, and `README.md`, verifying `vox audit arch`, `vox ci ssot-drift`, `vox-doc-pipeline --lint-only`, `astro build` (`934` pages), `node:test` (`1084/1084`), Playwright (`43 passed, 1 skipped`), and Vitest (`6/6` touched files, `53/53` tests).
+
+---
+
+## v8.8 `voxlang.org` Tutorials, Federated KB/OpenWiki & Axis Guide Upgrade (Shipped: 2026-11-18)
+
+**Phases completed:** 6 phases (`Phases 520–525`), 24/24 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/voxlang-tutorials-kb-openwiki-docs-v88/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/voxlang-tutorials-kb-openwiki-docs-v88/REQUIREMENTS.md)
+
+- Converted 10 verified dual-theme `v8.7` Axis GUI captures into `.webp` showcases and authored interactive `.mdx` flagship tutorials (`tut-deep-research-and-scientia.mdx`, `tut-knowledgebase-and-openwiki.mdx`) with compiling `.vox` playground labs, alongside upgrades across `tut-getting-started.md`, `tut-fullstack-walkthrough.mdx`, `tut-workflow-durability.md`, `how-to-axis-workbench.md`, `how-to-scientia-publication.md`, `how-to-ai-agents.md`, `how-to/index.md`, and `docs/src/index.mdx` (`why_vox` parity preserved).
+
+---
+
+## v8.7 Workspace-Wide Non-Modal Doc Dock & Multi-Surface E2E Closure (Shipped: 2026-11-18)
+
+**Phases completed:** 6 phases (`Phases 514–519`), 24/24 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/workspace-doc-dock-and-e2e-closure-v87/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/workspace-doc-dock-and-e2e-closure-v87/REQUIREMENTS.md)
+
+- Shipped `resolve_workspace_doc_path` across `docs/src`, `docs/wiki`, repo root, `contracts`, `crates`, `scripts`, and `~/.vox/library/` (blocking `.env*` & `..` traversal while fixing `docs/src/docs/src/` double-prefixing and supporting `.rs`/`.ts`/`.tsx`/`.sql`), wired the `vox://open-doc` event bus for `MemoryView` and `ResearchView` -> `DocReader.tsx`, and repaired `coldStartJourneys.test.tsx`.
+
+---
+
+## v8.6 Research Above-Fold Synthesis, Discovery Dedup & Non-Modal Markdown Studio (Shipped: 2026-11-18)
+
+**Phases completed:** 7 phases (`Phases 507–513`), 28/28 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/research-above-fold-synthesis-and-discovery-dedup-v86/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/research-above-fold-synthesis-and-discovery-dedup-v86/REQUIREMENTS.md)
+
+- Promoted synthesized research reports above the fold in `ResearchView` alongside past-session keyword filtering (`research-history-filter-input`) and 1-click Domain Mode cycling, deduplicated `DiscoverySurface` / `ActivitySurface` chrome via `EmbeddedSurfaceProvider` + `visibilitychange` sync, tightened `MemoryView` citation rows, and converted `DocViewerDrawer` + `DocReader` into a non-modal docked Markdown/multi-format studio (`aria-modal="false"`, `Read | Split | Edit` persistence).
+
+---
+
+## v8.5 Research Click-Tax Elimination, Wave Steering & Unified KB Scoping (Shipped: 2026-11-18)
+
+**Phases completed:** 6 phases (`Phases 501–506`), 24/24 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/research-click-tax-observability-and-control-v85/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/research-click-tax-observability-and-control-v85/REQUIREMENTS.md)
+
+- Eliminated click tax and copy-paste ID friction across `Research`, `Memory`, `Scientia`, `Claims`, `Search Index`, and `Publications`; exposed subquery/domain/pruning observability + mid-flight `+1 Wave Refinement` steering; unified `Repo-Local KB` / `Global Library` indexing vs. `kb_findings` quarantine; and added `VoxGraphStatusPanel` shard diagnostics.
+
+---
+
+## v8.4 Research UX Journey, Statistical Archetypes & Live KB Preflight (Shipped: 2026-11-18)
+
+**Phases completed:** 6 phases (`Phases 495–500`), 24/24 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/research-ux-journey-and-power-v84/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/research-ux-journey-and-power-v84/REQUIREMENTS.md)
+
+- Modeled the Research, Federated KB, Discovery Review, and Publications Studio journeys around 4 statistical researcher archetypes, added debounced Live KB Prior-Art Preflight (`vox_search_query`), and shipped an interactive epistemic Confidence Gate.
+
+---
+
+## v8.3 Unified Research, Federated KB & Scientia Publication Flywheel (Shipped: 2026-11-18)
+
+**Phases completed:** 6 phases (`Phases 489–494`), 24/24 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/unified-research-kb-publication-flywheel-v83/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/unified-research-kb-publication-flywheel-v83/REQUIREMENTS.md)
+
+- Closed the end-to-end loop connecting active `ResearchView`, 3-layer federated KB (`vox_baseline`, `~/.vox/library/`, `docs/wiki/`), and autonomous `Scientia` discovery-to-publication (`PublicationsView`).
+
+---
+
+## v8.2 Scientia Publication Classification, 7-Stage Lifecycle & `arXiv.org` Control Studio (Shipped: 2026-11-18)
+
+**Phases completed:** 6 phases (`Phases 483–488`), 24/24 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/scientia-arxiv-publication-control-v82/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/scientia-arxiv-publication-control-v82/REQUIREMENTS.md)
+
+- Delivered 7-stage lifecycle control (`draft -> doi_reserved -> orcid_attributed -> approved -> submitted -> published` + `failed`), `PublicationTier` + `arXiv.org` taxonomy + SPDX/ORCID/DOI validation, zero-stub `arXiv.org` LaTeX / `references.bib` / `.tar.gz` synthesis, and `PublicationsView.tsx` + `DirectPublicationDrawer.tsx` controls.
+
+---
+
+## v8.1 Research & KB Romanesque / Slate UX Overhaul & Concept-Art CV Flywheel (Shipped: 2026-11-18)
+
+**Phases completed:** 6 phases (`Phases 477–482`), 24/24 requirements verified (`100%`)
+**Workstream:** [`ROADMAP.md`](workstreams/scientia-kb-roman-ux-v81/ROADMAP.md) | [`REQUIREMENTS.md`](workstreams/scientia-kb-roman-ux-v81/REQUIREMENTS.md)
+
+- Remediated palette leaks, micro-fonts, and flat vertical sprawl across Research (`research`, `scientia`, `publications`, `activity`) and KB (`memory`, `vox-search`, `DocReader`) surfaces across dual Romanesque (`arcane`) & Slate (`void`) themes via Concept Art plates and CV Flywheel convergence.
+
+---
+
+## v8.0 Axis Terminal SOTA, Async Notify PTY, Stateful Nushell, Persistent VoxLang REPL & Spoke 9 (Shipped: 2026-11-17)
+
+**Phases completed:** 6 phases (`Phases 471–476`), 28/28 requirements verified (`100%`)
+**Archive:** [`v8.0-ROADMAP.md`](workstreams/axis-terminal-sota-v80/milestones/v8.0-ROADMAP.md) | [`v8.0-REQUIREMENTS.md`](workstreams/axis-terminal-sota-v80/milestones/v8.0-REQUIREMENTS.md) | [`v8.0-MILESTONE-AUDIT.md`](workstreams/axis-terminal-sota-v80/milestones/v8.0-MILESTONE-AUDIT.md)
+
+- Shipped async `Notify` `120 Hz` PTY IPC coalescing, stateful `nu` shell profiling, persistent VoxLang REPL state, Nov 2026 terminal UX (`OSC 8`/`52`, Kitty `CSI u`, `std.frame`/`std.plot`), `OrganicSpokeKind::AgenticTerminal` (Spoke 9), and `vox bench terminal` (`terminal-bench.v1.json`).
+
+---
+
+## v7.9 Universal Multi-Repo Knowledgebase, Graphify Associative Retrieval & Tiered Self-Healing OpenWiki (Shipped: 2026-11-17)
+
+**Phases completed:** 6 phases (`Phases 465–470`), 24/24 requirements verified (`100%`)
+**Archive:** [`v7.9-ROADMAP.md`](workstreams/universal-kb-openwiki-v79/milestones/v7.9-ROADMAP.md) | [`v7.9-REQUIREMENTS.md`](workstreams/universal-kb-openwiki-v79/milestones/v7.9-REQUIREMENTS.md) | [`v7.9-MILESTONE-AUDIT.md`](workstreams/universal-kb-openwiki-v79/milestones/v7.9-MILESTONE-AUDIT.md)
+
+- Delivered multi-repo onboarding (`vox init --harness`, `vox repo {init,add,switch}` with `--read-only`), `(repository_id, corpus_tier)` DB/Tantivy partitioning, polyglot Graphify Code ↔ Doc ↔ Decision cross-edges + HippoRAG PPR/Leiden retrieval, 5-layer OKF OpenWiki with Tier-1 blast-radius + Tier-2 verified prose heal, zero-mock OpenWiki Heal Studio + Code Atlas, and `v79-universal-kb-openwiki-flywheel-proof.v1.json`.
+
+---
+
+## v7.6 Unified Light ↔ Deep Research Continuum, Extreme-Data Streaming, Socrates/Novelty Verification & Concilium Swarm Observatory (Shipped: 2026-11-16)
+
+**Phases completed:** 9 phases (`Phases 447–455`), 14 plans, 38/38 requirements verified (`100%`)
+**Archive:** [`v7.6-ROADMAP.md`](workstreams/scientia-deep-research-v76/milestones/v7.6-ROADMAP.md) | [`v7.6-REQUIREMENTS.md`](workstreams/scientia-deep-research-v76/milestones/v7.6-REQUIREMENTS.md) | [`v7.6-MILESTONE-AUDIT.md`](workstreams/scientia-deep-research-v76/milestones/v7.6-MILESTONE-AUDIT.md)
+
+- Unified Chat RAG and multi-wave Deep Research (`Off | Auto | Fast | Deep`), added sequenced SSE/WS streaming + `std.frame` cursors, shipped 3-tier NLI claim verification + Novelty × Utility discovery + `ApprovalToken`-gated publication, decoupled OpenRouter reasoning/synthesis budgets + `flock`-aware daemon DB proxying, and consolidated the `5 -> 2` **Vox Concilium & Populi** causal swarm observatory.
+
+---
+
 ## v7.5 Roman Scriptorium Warp-Class Agentic Terminal, Stateful PTY Engine, Bidirectional Chat Harness & CV Flywheel Convergence (Shipped: 2026-11-15)
 
 **Phases completed:** 7 phases (`Phases 441–447`), 29 plans, 65 tasks, 28/28 requirements verified (`100%`) — `/gsd-code-review --fix` applied across `441–447` ([`446-REVIEW.md`](workstreams/axis-warp-terminal-v75/milestones/v7.5-phases/446-roman-scriptorium-theme-and-cv-flywheel/446-REVIEW.md), [`446-REVIEW-FIX.md`](workstreams/axis-warp-terminal-v75/milestones/v7.5-phases/446-roman-scriptorium-theme-and-cv-flywheel/446-REVIEW-FIX.md))

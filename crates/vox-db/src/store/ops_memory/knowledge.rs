@@ -77,6 +77,34 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Upsert Graphify Code <-> Doc <-> Decision nodes and weighted cross-edges (`EXTRACTED`=1.0,
+    /// `INFERRED`=0.7, `AMBIGUOUS`=0.35) into `knowledge_nodes` and `knowledge_edges`.
+    pub async fn ingest_graphify_cross_edges(
+        &self,
+        nodes: &[(String, String, String, String)],
+        edges: &[(String, String, String, String)],
+    ) -> Result<(usize, usize), StoreError> {
+        let mut nodes_upserted = 0_usize;
+        let mut edges_upserted = 0_usize;
+        for (id, label, content, node_type) in nodes {
+            self.upsert_knowledge_node(id, label, content, Some(node_type.as_str()), None, None)
+                .await?;
+            nodes_upserted += 1;
+        }
+        for (src, dst, rel, honesty) in edges {
+            let weight = match honesty.as_str() {
+                "EXTRACTED" | "resolved" => 1.0_f32,
+                "INFERRED" | "declared" => 0.7_f32,
+                "AMBIGUOUS" | "dangling" => 0.35_f32,
+                _ => 0.85_f32,
+            };
+            self.create_knowledge_edge(src, dst, rel, weight, None)
+                .await?;
+            edges_upserted += 1;
+        }
+        Ok((nodes_upserted, edges_upserted))
+    }
+
     /// Fetch neighboring nodes along with their relations
     pub async fn get_knowledge_neighbors(
         &self,
@@ -708,5 +736,57 @@ mod tests {
             .expect("health after delete");
         assert_eq!(health_after.node_count, 2);
         assert_eq!(health_after.edge_count, 0);
+    }
+
+    #[tokio::test]
+    async fn ingest_graphify_cross_edges_stores_weighted_relations() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let nodes = vec![
+            (
+                "src/lib.rs::verify".to_string(),
+                "verify".to_string(),
+                "code fn".to_string(),
+                "fn".to_string(),
+            ),
+            (
+                "doc:docs/adr/001.md".to_string(),
+                "ADR-001".to_string(),
+                "decision doc".to_string(),
+                "adr".to_string(),
+            ),
+        ];
+        let edges = vec![
+            (
+                "src/lib.rs::verify".to_string(),
+                "doc:docs/adr/001.md".to_string(),
+                "documented_in".to_string(),
+                "EXTRACTED".to_string(),
+            ),
+            (
+                "src/lib.rs::verify".to_string(),
+                "doc:docs/adr/001.md".to_string(),
+                "governed_by_adr".to_string(),
+                "INFERRED".to_string(),
+            ),
+        ];
+        let (n_cnt, e_cnt) = db
+            .ingest_graphify_cross_edges(&nodes, &edges)
+            .await
+            .unwrap();
+        assert_eq!((n_cnt, e_cnt), (2, 2));
+
+        let nbrs = db
+            .get_knowledge_neighbors("src/lib.rs::verify")
+            .await
+            .unwrap();
+        assert_eq!(nbrs.len(), 2);
+        assert!(
+            nbrs.iter()
+                .any(|(_, _, rel, w)| rel == "documented_in" && (*w - 1.0).abs() < 0.01)
+        );
+        assert!(
+            nbrs.iter()
+                .any(|(_, _, rel, w)| rel == "governed_by_adr" && (*w - 0.7).abs() < 0.01)
+        );
     }
 }

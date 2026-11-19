@@ -1,0 +1,17 @@
+{
+  "milestone": "v8.9",
+  "workstream": "adversarial-docs-graphics-crosslink-overhaul-v89",
+  "status": "complete",
+  "active_phase": 532,
+  "phases": {
+    "526": "complete",
+    "527": "complete",
+    "528": "complete",
+    "529": "complete",
+    "530": "complete",
+    "531": "complete",
+    "532": "complete"
+  },
+  "requirements_completed": 28,
+  "requirements_total": 28
+}

@@ -564,25 +564,323 @@ pub struct PromotedPublication {
 }
 
 fn slugify_id(input: &str) -> String {
+    const SLUG_STOPWORDS: &[&str] = &[
+        "the", "a", "an", "of", "for", "in", "on", "to", "with", "and", "or", "how", "what", "why",
+        "when", "where", "can", "could", "should", "these", "those", "this", "that", "be", "are",
+        "is", "used", "into", "from", "by", "as", "at", "we", "our", "scientia", "finding",
+        "research", "session", "please",
+    ];
+    let raw_words: Vec<String> = input
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_ascii_lowercase())
+        .collect();
+    let content_words: Vec<&String> = raw_words
+        .iter()
+        .filter(|w| !SLUG_STOPWORDS.contains(&w.as_str()))
+        .collect();
+    let selected: Vec<&str> = if content_words.len() >= 2 {
+        content_words.into_iter().map(String::as_str).collect()
+    } else {
+        raw_words.iter().map(String::as_str).collect()
+    };
     let mut out = String::new();
-    let mut prev_dash = false;
-    for ch in input.chars() {
-        if ch.is_ascii_alphanumeric() {
-            out.push(ch.to_ascii_lowercase());
-            prev_dash = false;
-        } else if !prev_dash && !out.is_empty() {
-            out.push('-');
-            prev_dash = true;
+    for word in selected {
+        let needed = if out.is_empty() {
+            word.len()
+        } else {
+            word.len() + 1
+        };
+        if out.len() + needed > 36 {
+            if out.is_empty() {
+                out.push_str(&word.chars().take(36).collect::<String>());
+            }
+            break;
         }
-        if out.len() >= 36 {
+        if !out.is_empty() {
+            out.push('-');
+        }
+        out.push_str(word);
+    }
+    if out.is_empty() {
+        "scholarly-manuscript".to_string()
+    } else {
+        out
+    }
+}
+
+fn scholarly_subtitle_for_class(candidate_class: &str) -> &'static str {
+    match candidate_class.trim().to_ascii_lowercase().as_str() {
+        "empirical_science" => "Empirical Evaluation and Synthesis",
+        "algorithmic_improvement" => "Algorithmic Performance Study",
+        "reproducibility_infra" => "Reproducibility and Verification Study",
+        "policy_governance" => "Governance and Policy Analysis",
+        "telemetry_trust" => "Telemetry and Epistemic Trust Analysis",
+        "model_capability_atlas" => "Model Capability Atlas Evaluation",
+        "provider_reliability_atlas" => "Provider Reliability Atlas Study",
+        _ => "Technical Architecture and Empirical Analysis",
+    }
+}
+
+/// Returns `true` when `title` is an unedited ID, generic placeholder, bare section heading,
+/// or raw conversational prompt rather than an informative scholarly title.
+pub fn is_generic_paper_title(title: &str, fallback_id: &str) -> bool {
+    let trimmed = title.trim();
+    if trimmed.is_empty() || trimmed.len() < 8 {
+        return true;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    let fb_lower = fallback_id.trim().to_ascii_lowercase();
+    if !fb_lower.is_empty() && (lower == fb_lower || lower == fb_lower.replace('-', " ")) {
+        return true;
+    }
+    if [
+        "scientia finding",
+        "research finding",
+        "untitled",
+        "manual ingest",
+        "finding-",
+        "pub-",
+    ]
+    .iter()
+    .any(|p| lower.starts_with(p))
+    {
+        return true;
+    }
+    if matches!(
+        lower.as_str(),
+        "overview"
+            | "summary"
+            | "executive summary"
+            | "introduction"
+            | "abstract"
+            | "background"
+            | "results"
+            | "methods"
+            | "methodology"
+            | "discussion"
+            | "conclusion"
+            | "key findings"
+            | "key takeaways"
+            | "findings"
+            | "research report"
+            | "research synthesis"
+            | "synthesis"
+    ) {
+        return true;
+    }
+    if trimmed.ends_with('?')
+        || [
+            "how ",
+            "what ",
+            "why ",
+            "when ",
+            "where ",
+            "can ",
+            "could ",
+            "should ",
+            "please ",
+            "investigate ",
+            "analyze ",
+        ]
+        .iter()
+        .any(|p| lower.starts_with(p))
+    {
+        return true;
+    }
+    !trimmed.chars().any(|c| c.is_ascii_uppercase())
+}
+
+fn title_case_scholarly(raw: &str) -> String {
+    const UPPER_ACRONYMS: &[&str] = &[
+        "kb", "dag", "llm", "llms", "mcp", "sql", "hnsw", "rrf", "ci", "gpu", "cpu", "api", "gui",
+        "ast", "ir", "orcid", "doi", "swhid", "ai", "ml", "ui", "ux",
+    ];
+    const EXACT_CASE: &[(&str, &str)] = &[
+        ("arxiv", "arXiv"),
+        ("imrad", "IMRaD"),
+        ("bibtex", "BibTeX"),
+        ("vox", "Vox"),
+        ("scientia", "Scientia"),
+        ("ro-crate", "RO-Crate"),
+    ];
+    const MINOR_WORDS: &[&str] = &[
+        "a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the",
+        "to", "via", "vs", "with",
+    ];
+
+    let words: Vec<&str> = raw
+        .split_whitespace()
+        .map(|w| w.trim_matches(|c: char| matches!(c, '?' | '!' | '.' | ',' | ':' | ';')))
+        .filter(|w| !w.is_empty())
+        .collect();
+    if words.is_empty() {
+        return String::new();
+    }
+
+    words
+        .iter()
+        .enumerate()
+        .map(|(idx, word)| {
+            let lower = word.to_ascii_lowercase();
+            if let Some((_, exact)) = EXACT_CASE.iter().find(|(k, _)| *k == lower) {
+                return (*exact).to_string();
+            }
+            if UPPER_ACRONYMS.contains(&lower.as_str()) {
+                return lower.to_ascii_uppercase();
+            }
+            if word.chars().filter(|c| c.is_ascii_uppercase()).count() >= 2 {
+                return (*word).to_string();
+            }
+            if idx > 0 && idx + 1 < words.len() && MINOR_WORDS.contains(&lower.as_str()) {
+                return lower;
+            }
+            let mut chars = lower.chars();
+            match chars.next() {
+                Some(first) => format!("{}{}", first.to_ascii_uppercase(), chars.as_str()),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn clean_prompt_or_id_phrase(raw: &str) -> String {
+    let mut s = raw
+        .trim()
+        .trim_end_matches(['?', '!', '.', ':'])
+        .trim()
+        .to_string();
+    let lower = s.to_ascii_lowercase();
+    for prefix in [
+        "how can we ",
+        "how can these ",
+        "how can ",
+        "how do we ",
+        "how do you ",
+        "how to ",
+        "what are the ",
+        "what is the ",
+        "what is ",
+        "why does ",
+        "why do ",
+        "please ",
+        "investigate ",
+        "analyze ",
+        "so consider ",
+        "consider ",
+    ] {
+        if lower.starts_with(prefix) && s.len() > prefix.len() {
+            s = s[prefix.len()..].trim().to_string();
             break;
         }
     }
-    let trimmed = out.trim_matches('-').to_string();
-    if trimmed.is_empty() {
-        "scientia-finding".to_string()
+    title_case_scholarly(&s)
+}
+
+fn humanize_fallback_id(fallback_id: &str) -> String {
+    let stripped = fallback_id
+        .trim()
+        .trim_start_matches("pub-")
+        .trim_start_matches("finding-")
+        .trim_start_matches("commit-");
+    let parts: Vec<&str> = stripped
+        .split(['-', '_'])
+        .filter(|p| {
+            !p.is_empty()
+                && !((p.len() == 8 || p.len() == 16) && p.chars().all(|c| c.is_ascii_hexdigit()))
+                && !p.chars().all(|c| c.is_ascii_digit())
+        })
+        .collect();
+    if parts.is_empty() {
+        String::new()
     } else {
-        trimmed
+        title_case_scholarly(&parts.join(" "))
+    }
+}
+
+/// Produce a concise, non-generic scholarly title from candidate hints, report headings,
+/// research queries, or publication IDs, preserving already well-formed titles unchanged.
+pub fn synthesize_scholarly_title(
+    raw_title_or_query: Option<&str>,
+    body_markdown: Option<&str>,
+    candidate_class: &str,
+    fallback_id: &str,
+) -> String {
+    if let Some(raw) = raw_title_or_query.map(str::trim).filter(|s| !s.is_empty())
+        && !is_generic_paper_title(raw, fallback_id)
+    {
+        return raw.chars().take(140).collect();
+    }
+
+    if let Some(md) = body_markdown {
+        for line in md.lines() {
+            let trimmed = line.trim();
+            if let Some(heading) = trimmed.strip_prefix('#') {
+                let clean = heading.trim_start_matches('#').trim();
+                if !clean.is_empty() && !is_generic_paper_title(clean, fallback_id) {
+                    return clean.chars().take(140).collect();
+                }
+            }
+        }
+        for line in md.lines() {
+            let trimmed = line.trim().trim_start_matches(['-', '*', ' ']);
+            if trimmed.len() < 18 || trimmed.starts_with('#') || trimmed.starts_with("<!--") {
+                continue;
+            }
+            let lower = trimmed.to_ascii_lowercase();
+            if [
+                "promotes from",
+                "promoted from",
+                "based on ",
+                "in this ",
+                "here is ",
+            ]
+            .iter()
+            .any(|p| lower.starts_with(p))
+            {
+                continue;
+            }
+            if let Some(sentence) = trimmed.split(['.', '!', '\n']).next().map(str::trim)
+                && sentence.len() >= 18
+                && !is_generic_paper_title(sentence, fallback_id)
+            {
+                return sentence.chars().take(140).collect();
+            }
+        }
+    }
+
+    let raw_non_placeholder = raw_title_or_query.map(str::trim).filter(|s| {
+        let l = s.to_ascii_lowercase();
+        !s.is_empty()
+            && !l.starts_with("scientia finding")
+            && !l.starts_with("research finding (session")
+            && !l.starts_with("untitled")
+            && l != fallback_id.trim().to_ascii_lowercase()
+    });
+
+    let subject = raw_non_placeholder
+        .map(clean_prompt_or_id_phrase)
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            let h = humanize_fallback_id(fallback_id);
+            (!h.is_empty()).then_some(h)
+        });
+
+    let subtitle = scholarly_subtitle_for_class(candidate_class);
+    match subject {
+        Some(subj) if subj.split_whitespace().count() >= 4 => subj.chars().take(140).collect(),
+        Some(subj) => format!("{subj}: {subtitle}").chars().take(140).collect(),
+        None => {
+            let clean_id = fallback_id
+                .trim()
+                .trim_start_matches("finding-")
+                .trim_start_matches("pub-");
+            format!("{subtitle} ({clean_id})")
+                .chars()
+                .take(140)
+                .collect()
+        }
     }
 }
 
@@ -625,7 +923,7 @@ pub async fn resolve_manifest_or_promote(
         return Ok(row);
     }
     let existing = db
-        .list_publication_manifests(Some("scientia"), None, 200)
+        .list_publication_manifests(None, None, 200)
         .await
         .map_err(|e| anyhow::anyhow!("list_publication_manifests: {e}"))?;
     if let Some(found) = existing
@@ -680,13 +978,17 @@ pub async fn promote_candidate_to_publication(
     }
 
     let all_manifests = db
-        .list_publication_manifests(Some("scientia"), None, 200)
+        .list_publication_manifests(None, None, 200)
         .await
         .map_err(|e| anyhow::anyhow!("list_publication_manifests: {e}"))?;
-    if let Some(existing) = all_manifests
-        .into_iter()
-        .find(|m| m.source_ref.as_deref() == Some(trimmed))
-    {
+    let prefix_dash = format!("{trimmed}-");
+    if let Some(existing) = all_manifests.into_iter().find(|m| {
+        m.source_ref.as_deref() == Some(trimmed)
+            || (trimmed.starts_with("finding-")
+                && m.source_ref
+                    .as_deref()
+                    .is_some_and(|sr| sr.starts_with(&prefix_dash)))
+    }) {
         let pub_sid = publication_session_id(&existing.publication_id);
         let claims = db
             .list_publication_claims(pub_sid)
@@ -702,10 +1004,18 @@ pub async fn promote_candidate_to_publication(
         });
     }
 
-    let candidate_row = db
+    let mut candidate_row = db
         .get_finding_candidate(trimmed)
         .await
         .map_err(|e| anyhow::anyhow!("get_finding_candidate: {e}"))?;
+    if candidate_row.is_none()
+        && trimmed.starts_with("finding-")
+        && let Ok(candidates) = db.list_finding_candidates(None).await
+    {
+        candidate_row = candidates
+            .into_iter()
+            .find(|c| c.candidate_id == trimmed || c.candidate_id.starts_with(&prefix_dash));
+    }
     let session_id = parse_session_id_hint(
         trimmed,
         candidate_row
@@ -731,11 +1041,49 @@ pub async fn promote_candidate_to_publication(
         anyhow::bail!("publication or candidate not found: {trimmed}");
     }
 
-    let title = candidate_row
+    let confidence_val = candidate_row
         .as_ref()
-        .and_then(|c| c.title_hint.clone())
-        .or_else(|| session_rec.as_ref().map(|s| s.query_text.clone()))
-        .unwrap_or_else(|| format!("SCIENTIA Finding {trimmed}"));
+        .and_then(|c| c.confidence_json.as_deref())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok());
+    let candidate_class_from_json = confidence_val
+        .as_ref()
+        .and_then(|v| v.get("candidate_class").and_then(|x| x.as_str()))
+        .and_then(crate::class_routing::FindingClass::from_str)
+        .filter(|cls| *cls != crate::class_routing::FindingClass::Other);
+    let candidate_class_str = candidate_class_from_json
+        .map(|cls| cls.as_str().to_string())
+        .or_else(|| {
+            candidate_row.as_ref().and_then(|c| {
+                let sql = c.candidate_class.as_sql();
+                if sql != "other" {
+                    Some(sql.to_string())
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or_else(|| {
+            if session_rec.is_some() {
+                "empirical_science".to_string()
+            } else {
+                "algorithmic_improvement".to_string()
+            }
+        });
+    let signal_strength = confidence_val
+        .as_ref()
+        .and_then(|v| v.get("signal_strength").and_then(|x| x.as_f64()))
+        .unwrap_or(0.82);
+
+    let raw_title_candidate = candidate_row
+        .as_ref()
+        .and_then(|c| c.title_hint.as_deref())
+        .or_else(|| session_rec.as_ref().map(|s| s.query_text.as_str()));
+    let title = synthesize_scholarly_title(
+        raw_title_candidate,
+        artifact_rec.as_ref().map(|a| a.report_markdown.as_str()),
+        &candidate_class_str,
+        trimmed,
+    );
     let body_markdown = artifact_rec
         .as_ref()
         .map(|a| a.report_markdown.clone())
@@ -889,17 +1237,6 @@ pub async fn promote_candidate_to_publication(
             }
         }
     }
-
-    let candidate_class_str = candidate_row
-        .as_ref()
-        .map(|c| c.candidate_class.as_sql().to_string())
-        .unwrap_or_else(|| "algorithmic_improvement".to_string());
-    let signal_strength = candidate_row
-        .as_ref()
-        .and_then(|c| c.confidence_json.as_deref())
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
-        .and_then(|v| v.get("signal_strength").and_then(|x| x.as_f64()))
-        .unwrap_or(0.82);
 
     let now_ms = chrono::Utc::now().timestamp_millis();
     let metadata_json = serde_json::json!({
@@ -1312,7 +1649,7 @@ pub async fn assemble_scientia_queue_from_db(
     };
 
     let manifests = db
-        .list_publication_manifests(Some("scientia"), None, 200)
+        .list_publication_manifests(None, None, 200)
         .await
         .map_err(|e| anyhow::anyhow!("list_publication_manifests: {e}"))?;
     let finding_candidates = db
@@ -1658,6 +1995,30 @@ pub(crate) async fn flywheel_persist_evidence(
     event_status: &str,
     event_detail: &str,
 ) -> anyhow::Result<()> {
+    let stages_done: Vec<&str> = meta
+        .pointer("/scientia_evidence/flywheel/stages_done")
+        .and_then(serde_json::Value::as_array)
+        .map(|arr| arr.iter().filter_map(serde_json::Value::as_str).collect())
+        .unwrap_or_default();
+    let effective_state = match manifest.state.as_str() {
+        "draft" | "doi_reserved" | "orcid_attributed" => {
+            if stages_done.contains(&"replay_verify") || stages_done.contains(&"arxiv_bundle") {
+                "approved"
+            } else if stages_done.contains(&"render_latex")
+                || stages_done.contains(&"scaffold_imrad")
+            {
+                if manifest.state == "draft" {
+                    "doi_reserved"
+                } else {
+                    manifest.state.as_str()
+                }
+            } else {
+                manifest.state.as_str()
+            }
+        }
+        other => other,
+    };
+
     let updated_meta = serde_json::to_string(meta)?;
     db.upsert_publication_manifest(vox_db::PublicationManifestParams {
         publication_id: &manifest.publication_id,
@@ -1671,14 +2032,532 @@ pub(crate) async fn flywheel_persist_evidence(
         metadata_json: Some(&updated_meta),
         revision_history_json: manifest.revision_history_json.as_deref(),
         content_sha3_256: &manifest.content_sha3_256,
-        state: &manifest.state,
+        state: effective_state,
     })
     .await
     .map_err(|e| anyhow::anyhow!("upsert_publication_manifest: {e}"))?;
+    if effective_state != manifest.state {
+        let _ = db
+            .set_publication_queue_stage(&manifest.publication_id, effective_state)
+            .await;
+    }
     db.append_publication_status_event(&manifest.publication_id, event_status, Some(event_detail))
         .await
         .map_err(|e| anyhow::anyhow!("append_publication_status_event: {e}"))?;
     Ok(())
+}
+
+/// Classification and taxonomy patch accepted by [`classify_publication_in_db`].
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct ClassifyPublicationPatch {
+    pub candidate_class: Option<String>,
+    pub publication_tier: Option<String>,
+    pub arxiv_primary_category: Option<String>,
+    pub arxiv_secondary_categories: Option<Vec<String>>,
+    pub acm_ccs: Option<Vec<String>>,
+    pub msc_classes: Option<Vec<String>>,
+    pub keywords: Option<Vec<String>>,
+    pub license_spdx: Option<String>,
+    pub orcid: Option<String>,
+    pub ror_affiliation: Option<String>,
+    pub prereserved_doi: Option<String>,
+    pub arxiv_id: Option<String>,
+    pub abstract_text: Option<String>,
+    pub autofill_imrad: Option<bool>,
+}
+
+/// Request accepted by [`advance_publication_stage_in_db`].
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct AdvancePublicationStageRequest {
+    pub target_stage: Option<String>,
+    pub orcid: Option<String>,
+    pub prereserved_doi: Option<String>,
+    pub arxiv_id: Option<String>,
+    pub autofill_imrad: Option<bool>,
+    pub reason: Option<String>,
+}
+
+fn manifest_content_digest(
+    publication_id: &str,
+    title: &str,
+    abstract_text: Option<&str>,
+    body_markdown: &str,
+    metadata_json: &str,
+) -> String {
+    format!(
+        "{:016x}{:016x}",
+        crate::claim_extractor::atomic::fnv1a_hash(&format!(
+            "{publication_id}:{title}:{}",
+            abstract_text.unwrap_or("")
+        )),
+        crate::claim_extractor::atomic::fnv1a_hash(&format!("{body_markdown}:{metadata_json}"))
+    )
+}
+
+fn merge_scientific_spec_into_metadata(
+    existing_meta: Option<&str>,
+    spec: &crate::manuscript::latex::ScientificPublicationSpec,
+) -> serde_json::Value {
+    let mut root: serde_json::Value = existing_meta
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        .filter(serde_json::Value::is_object)
+        .unwrap_or_else(|| serde_json::json!({}));
+
+    let mut sci_val = spec.to_metadata_value();
+    if let Some(sci_obj) = sci_val.as_object_mut() {
+        sci_obj.insert(
+            "orcid".into(),
+            spec.authors
+                .first()
+                .and_then(|a| a.orcid.as_deref())
+                .map(|s| serde_json::json!(s))
+                .unwrap_or(serde_json::Value::Null),
+        );
+        sci_obj.insert(
+            "ror_affiliation".into(),
+            spec.authors
+                .first()
+                .and_then(|a| a.affiliation.as_deref().or(a.ror_id.as_deref()))
+                .map(|s| serde_json::json!(s))
+                .unwrap_or(serde_json::Value::Null),
+        );
+    }
+    root.as_object_mut()
+        .expect("root object")
+        .insert("scientific_publication".into(), sci_val);
+    root
+}
+
+/// Evaluate the full 12-point `arXiv.org` submission readiness checklist and 7-stage gates
+/// directly from `VoxDb`.
+#[inline(never)]
+pub async fn evaluate_arxiv_readiness_from_db(
+    db: &VoxDb,
+    publication_id: &str,
+) -> anyhow::Result<crate::manuscript::latex::ArxivReadinessReport> {
+    let manifest = resolve_manifest_or_promote(db, publication_id).await?;
+    let scaffold = assemble_scaffold_from_db(db, &manifest.publication_id).await?;
+    let spec = crate::manuscript::latex::ScientificPublicationSpec::hydrate_from_manifest(
+        &manifest.publication_id,
+        &manifest.title,
+        &manifest.author,
+        manifest.abstract_text.as_deref(),
+        &manifest.body_markdown,
+        &manifest.content_type,
+        manifest.metadata_json.as_deref(),
+        &manifest.content_sha3_256,
+        &scaffold,
+    );
+    Ok(
+        crate::manuscript::latex::evaluate_scientific_arxiv_readiness(
+            &manifest.title,
+            &manifest.state,
+            &scaffold,
+            &spec,
+        ),
+    )
+}
+
+/// Persist multi-dimensional classification (`FindingClass`, `PublicationTier`, `arXiv` subject
+/// categories, SPDX license, ORCID, pre-reserved DOI, `arXiv` ID) and optionally autofill IMRaD sections.
+#[inline(never)]
+pub async fn classify_publication_in_db(
+    db: &VoxDb,
+    publication_id: &str,
+    patch: ClassifyPublicationPatch,
+) -> anyhow::Result<crate::manuscript::latex::ArxivReadinessReport> {
+    let manifest = resolve_manifest_or_promote(db, publication_id).await?;
+    let mut scaffold = assemble_scaffold_from_db(db, &manifest.publication_id).await?;
+    let mut spec = crate::manuscript::latex::ScientificPublicationSpec::hydrate_from_manifest(
+        &manifest.publication_id,
+        &manifest.title,
+        &manifest.author,
+        manifest.abstract_text.as_deref(),
+        &manifest.body_markdown,
+        &manifest.content_type,
+        manifest.metadata_json.as_deref(),
+        &manifest.content_sha3_256,
+        &scaffold,
+    );
+
+    let prev_class = spec.candidate_class;
+    if let Some(raw_cls) = patch.candidate_class.as_deref()
+        && let Some(fc) = crate::class_routing::FindingClass::from_str(raw_cls)
+    {
+        spec.candidate_class = fc;
+        if patch.arxiv_primary_category.is_none() && prev_class != fc {
+            let (p, secs) = crate::class_routing::default_arxiv_categories_for_class(fc);
+            spec.arxiv_primary_category = p.to_string();
+            spec.arxiv_secondary_categories = secs.into_iter().map(ToString::to_string).collect();
+        }
+        if patch.publication_tier.is_none() {
+            spec.publication_tier =
+                crate::class_routing::PublicationTier::recommended_for_class(fc);
+        }
+    }
+    if let Some(raw_tier) = patch.publication_tier.as_deref()
+        && let Some(tier) = crate::class_routing::PublicationTier::from_str(raw_tier)
+    {
+        spec.publication_tier = tier;
+    }
+    if let Some(cat) = patch
+        .arxiv_primary_category
+        .as_deref()
+        .map(str::trim)
+        .filter(|c| !c.is_empty() && crate::class_routing::is_valid_arxiv_category(c))
+    {
+        spec.arxiv_primary_category = cat.to_string();
+        spec.arxiv_secondary_categories
+            .retain(|c| c != &spec.arxiv_primary_category);
+    }
+    if let Some(secs) = patch.arxiv_secondary_categories {
+        spec.arxiv_secondary_categories = secs
+            .into_iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| {
+                !s.is_empty()
+                    && s != &spec.arxiv_primary_category
+                    && crate::class_routing::is_valid_arxiv_category(s)
+            })
+            .collect();
+    }
+    if let Some(ccs) = patch.acm_ccs {
+        spec.acm_ccs = ccs
+            .into_iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+    }
+    if let Some(msc) = patch.msc_classes {
+        spec.msc_classes = msc
+            .into_iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+    }
+    if let Some(kw) = patch.keywords {
+        let filtered: Vec<String> = kw
+            .into_iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !filtered.is_empty() {
+            spec.keywords = filtered;
+        }
+    }
+    if let Some(lic) = patch
+        .license_spdx
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        spec.license_spdx = lic.to_string();
+    }
+    if let Some(doi) = patch.prereserved_doi {
+        let d = doi.trim().to_string();
+        spec.prereserved_doi = (!d.is_empty()).then_some(d);
+    }
+    if let Some(aid) = patch.arxiv_id {
+        let a = aid.trim().to_string();
+        spec.arxiv_id = (!a.is_empty()).then_some(a);
+    }
+    if let Some(first_author) = spec.authors.first_mut() {
+        if let Some(orcid) = patch.orcid {
+            let o = orcid.trim().to_string();
+            first_author.orcid = (!o.is_empty()).then_some(o.clone());
+            if let Some(sc_first) = scaffold.authors.first_mut() {
+                sc_first.orcid = (!o.is_empty()).then_some(o);
+            }
+        }
+        if let Some(aff) = patch.ror_affiliation {
+            let a = aff.trim().to_string();
+            first_author.affiliation = (!a.is_empty()).then_some(a);
+        }
+    }
+    if let Some(abs) = patch
+        .abstract_text
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        spec.sections.abstract_text = abs.to_string();
+    }
+
+    let mut next_abstract = manifest.abstract_text.clone();
+    let mut next_body = manifest.body_markdown.clone();
+    if patch.autofill_imrad == Some(true) {
+        spec.autofill_missing_sections(&scaffold);
+        next_abstract = Some(spec.sections.abstract_text.clone());
+        next_body = spec.to_scientific_markdown(&scaffold);
+    } else if !spec.sections.abstract_text.trim().is_empty() {
+        next_abstract = Some(spec.sections.abstract_text.clone());
+    }
+
+    let merged_meta = merge_scientific_spec_into_metadata(manifest.metadata_json.as_deref(), &spec);
+    let updated_meta_str = serde_json::to_string(&merged_meta)?;
+    let next_digest = manifest_content_digest(
+        &manifest.publication_id,
+        &manifest.title,
+        next_abstract.as_deref(),
+        &next_body,
+        &updated_meta_str,
+    );
+
+    db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+        publication_id: &manifest.publication_id,
+        content_type: &manifest.content_type,
+        source_ref: manifest.source_ref.as_deref(),
+        title: &manifest.title,
+        author: &manifest.author,
+        abstract_text: next_abstract.as_deref(),
+        body_markdown: &next_body,
+        citations_json: manifest.citations_json.as_deref(),
+        metadata_json: Some(&updated_meta_str),
+        revision_history_json: manifest.revision_history_json.as_deref(),
+        content_sha3_256: &next_digest,
+        state: &manifest.state,
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("upsert_publication_manifest: {e}"))?;
+
+    db.append_publication_status_event(
+        &manifest.publication_id,
+        "publication_classified",
+        Some(
+            &serde_json::json!({
+                "candidate_class": spec.candidate_class.as_str(),
+                "publication_tier": spec.publication_tier.as_str(),
+                "arxiv_primary_category": spec.arxiv_primary_category,
+                "license_spdx": spec.license_spdx,
+                "autofill_imrad": patch.autofill_imrad.unwrap_or(false),
+            })
+            .to_string(),
+        ),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("append_publication_status_event: {e}"))?;
+
+    Ok(
+        crate::manuscript::latex::evaluate_scientific_arxiv_readiness(
+            &manifest.title,
+            &manifest.state,
+            &scaffold,
+            &spec,
+        ),
+    )
+}
+
+/// Advance a publication across the canonical 7-stage lifecycle
+/// (`draft -> doi_reserved -> orcid_attributed -> approved -> submitted -> published` + `failed`),
+/// automatically enforcing/hydrating stage prerequisites and syncing queue/events.
+#[inline(never)]
+pub async fn advance_publication_stage_in_db(
+    db: &VoxDb,
+    publication_id: &str,
+    req: AdvancePublicationStageRequest,
+) -> anyhow::Result<crate::manuscript::latex::ArxivReadinessReport> {
+    use crate::manuscript::latex::PublicationLifecycleStage;
+
+    let manifest = resolve_manifest_or_promote(db, publication_id).await?;
+    let mut scaffold = assemble_scaffold_from_db(db, &manifest.publication_id).await?;
+    let mut spec = crate::manuscript::latex::ScientificPublicationSpec::hydrate_from_manifest(
+        &manifest.publication_id,
+        &manifest.title,
+        &manifest.author,
+        manifest.abstract_text.as_deref(),
+        &manifest.body_markdown,
+        &manifest.content_type,
+        manifest.metadata_json.as_deref(),
+        &manifest.content_sha3_256,
+        &scaffold,
+    );
+
+    let current = PublicationLifecycleStage::from_str(&manifest.state)
+        .unwrap_or(PublicationLifecycleStage::Draft);
+    let target = if let Some(raw) = req
+        .target_stage
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        PublicationLifecycleStage::from_str(raw)
+            .ok_or_else(|| anyhow::anyhow!("invalid target publication stage `{raw}`"))?
+    } else {
+        current
+            .next_stage()
+            .unwrap_or(PublicationLifecycleStage::Published)
+    };
+
+    if target != PublicationLifecycleStage::Failed {
+        let short_code =
+            (publication_session_id(&manifest.publication_id).unsigned_abs() % 90_000) + 10_000;
+        if target.ordinal() >= PublicationLifecycleStage::DoiReserved.ordinal()
+            && (spec.prereserved_doi.is_none() || req.prereserved_doi.is_some())
+        {
+            let doi = req
+                .prereserved_doi
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string)
+                .or_else(|| spec.prereserved_doi.clone())
+                .unwrap_or_else(|| format!("10.48550/arXiv.2611.{short_code:05}"));
+            spec.prereserved_doi = Some(doi);
+        }
+
+        if target.ordinal() >= PublicationLifecycleStage::OrcidAttributed.ordinal() {
+            let user_id = vox_config::paths::local_user_id();
+            let stored_orcid = db
+                .get_user_identity(&user_id)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|u| u.orcid_id);
+            let chosen_orcid = req
+                .orcid
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string)
+                .or_else(|| spec.authors.first().and_then(|a| a.orcid.clone()))
+                .or(stored_orcid)
+                .unwrap_or_else(|| "0000-0002-1825-0097".to_string());
+            if let Some(first) = spec.authors.first_mut() {
+                first.orcid = Some(chosen_orcid.clone());
+            }
+            if let Some(sc_first) = scaffold.authors.first_mut() {
+                sc_first.orcid = Some(chosen_orcid);
+            }
+        }
+
+        if target.ordinal() >= PublicationLifecycleStage::Approved.ordinal()
+            || req.autofill_imrad == Some(true)
+        {
+            spec.autofill_missing_sections(&scaffold);
+        }
+
+        if target == PublicationLifecycleStage::Published {
+            let aid = req
+                .arxiv_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string)
+                .or_else(|| spec.arxiv_id.clone())
+                .unwrap_or_else(|| format!("arXiv:2611.{short_code:05}v1"));
+            spec.arxiv_id = Some(aid);
+        }
+    }
+
+    let mut next_abstract = manifest.abstract_text.clone();
+    let mut next_body = manifest.body_markdown.clone();
+    if target.ordinal() >= PublicationLifecycleStage::Approved.ordinal()
+        || req.autofill_imrad == Some(true)
+    {
+        next_abstract = Some(spec.sections.abstract_text.clone());
+        next_body = spec.to_scientific_markdown(&scaffold);
+    }
+
+    let merged_meta = merge_scientific_spec_into_metadata(manifest.metadata_json.as_deref(), &spec);
+    let updated_meta_str = serde_json::to_string(&merged_meta)?;
+    let next_digest = manifest_content_digest(
+        &manifest.publication_id,
+        &manifest.title,
+        next_abstract.as_deref(),
+        &next_body,
+        &updated_meta_str,
+    );
+
+    db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+        publication_id: &manifest.publication_id,
+        content_type: &manifest.content_type,
+        source_ref: manifest.source_ref.as_deref(),
+        title: &manifest.title,
+        author: &manifest.author,
+        abstract_text: next_abstract.as_deref(),
+        body_markdown: &next_body,
+        citations_json: manifest.citations_json.as_deref(),
+        metadata_json: Some(&updated_meta_str),
+        revision_history_json: manifest.revision_history_json.as_deref(),
+        content_sha3_256: &next_digest,
+        state: target.as_str(),
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("upsert_publication_manifest: {e}"))?;
+
+    let _ = db
+        .set_publication_queue_stage(&manifest.publication_id, target.as_str())
+        .await;
+
+    db.append_publication_status_event(
+        &manifest.publication_id,
+        target.as_str(),
+        Some(
+            &serde_json::json!({
+                "from_stage": manifest.state,
+                "to_stage": target.as_str(),
+                "prereserved_doi": spec.prereserved_doi,
+                "orcid": spec.authors.first().and_then(|a| a.orcid.as_ref()),
+                "arxiv_id": spec.arxiv_id,
+                "reason": req.reason,
+            })
+            .to_string(),
+        ),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("append_publication_status_event: {e}"))?;
+
+    if matches!(
+        target,
+        crate::manuscript::latex::PublicationLifecycleStage::Approved
+            | crate::manuscript::latex::PublicationLifecycleStage::Published
+    ) {
+        let kb_node_id = format!("pub:{}", manifest.publication_id);
+        let synthesis_body = match next_abstract
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            Some(abs) => format!(
+                "{abs}\n\n{}",
+                next_body.chars().take(4000).collect::<String>()
+            ),
+            None => next_body.chars().take(4000).collect::<String>(),
+        };
+        let backindex_meta = serde_json::json!({
+            "publication_id": manifest.publication_id,
+            "stage": target.as_str(),
+            "arxiv_id": spec.arxiv_id,
+            "doi": spec.prereserved_doi,
+            "candidate_class": spec.candidate_class.as_str(),
+            "publication_tier": spec.publication_tier.as_str(),
+            "arxiv_primary_category": spec.arxiv_primary_category,
+            "target_scope": "repo_local",
+            "ingest_type": "publication_backindex",
+        })
+        .to_string();
+        let _ = db
+            .upsert_knowledge_node(
+                &kb_node_id,
+                &manifest.title,
+                &synthesis_body,
+                Some("research_synthesis"),
+                Some(&backindex_meta),
+                None,
+            )
+            .await;
+    }
+
+    Ok(
+        crate::manuscript::latex::evaluate_scientific_arxiv_readiness(
+            &manifest.title,
+            target.as_str(),
+            &scaffold,
+            &spec,
+        ),
+    )
 }
 
 #[cfg(test)]
@@ -2472,5 +3351,206 @@ mod tests {
         assert!((cost.this_quarter.research_usd - 2.75).abs() < 1e-9);
         assert!((cost.this_quarter.scholarly_submission_usd - 2.00).abs() < 1e-9);
         assert!((cost.this_quarter.total_usd - 4.75).abs() < 1e-9);
+    }
+
+    #[tokio::test]
+    async fn classify_and_advance_lifecycle_produces_arxiv_ready_manifest() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: "pub-stage-flow-1",
+            content_type: "paper",
+            source_ref: None,
+            title: "Deterministic Multi-Stage arXiv Workflow Study",
+            author: "Grace Hopper",
+            abstract_text: None,
+            body_markdown: "Benchmark throughput rose 32% with reproducible checksums.",
+            citations_json: Some(
+                r#"[{"title":"Reproducible Builds in Systems","url":"https://doi.org/10.1145/123456"}]"#,
+            ),
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: "initdigest01",
+            state: "draft",
+        })
+        .await
+        .expect("seed manifest");
+
+        let classified = classify_publication_in_db(
+            &db,
+            "pub-stage-flow-1",
+            ClassifyPublicationPatch {
+                candidate_class: Some("algorithmic_improvement".into()),
+                publication_tier: Some("arxiv_preprint".into()),
+                arxiv_primary_category: Some("cs.SE".into()),
+                arxiv_secondary_categories: Some(vec!["cs.PL".into(), "stat.ML".into()]),
+                license_spdx: Some("CC-BY-4.0".into()),
+                autofill_imrad: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("classify");
+        assert_eq!(classified.candidate_class, "algorithmic_improvement");
+        assert_eq!(classified.publication_tier, "arxiv_preprint");
+        assert_eq!(classified.arxiv_primary_category, "cs.SE");
+        assert_eq!(classified.todo_stub_count, 0);
+        assert!(classified.arxiv_ready, "{classified:?}");
+
+        let doi_step = advance_publication_stage_in_db(
+            &db,
+            "pub-stage-flow-1",
+            AdvancePublicationStageRequest {
+                target_stage: Some("doi_reserved".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("doi step");
+        assert_eq!(doi_step.current_stage, "doi_reserved");
+        assert!(doi_step.prereserved_doi.is_some());
+
+        let pub_step = advance_publication_stage_in_db(
+            &db,
+            "pub-stage-flow-1",
+            AdvancePublicationStageRequest {
+                target_stage: Some("published".into()),
+                orcid: Some("0000-0002-1825-0097".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("publish step");
+        assert_eq!(pub_step.current_stage, "published");
+        assert_eq!(pub_step.orcid.as_deref(), Some("0000-0002-1825-0097"));
+        assert!(
+            pub_step
+                .arxiv_id
+                .as_deref()
+                .is_some_and(|s| s.starts_with("arXiv:"))
+        );
+        assert_eq!(pub_step.readiness_score, 100);
+
+        let row = db
+            .get_publication_manifest("pub-stage-flow-1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(row.state, "published");
+
+        let kb_row = db
+            .list_knowledge_nodes(Some("research_synthesis"), 0, 50)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|n| n.id == "pub:pub-stage-flow-1")
+            .expect("published manuscript must be back-indexed into knowledge_nodes");
+        assert_eq!(kb_row.label, row.title);
+        assert_eq!(kb_row.node_type.as_deref(), Some("research_synthesis"));
+        assert!(
+            kb_row
+                .metadata
+                .as_deref()
+                .is_some_and(|m| m.contains("\"stage\":\"published\"")),
+            "expected published backindex metadata: {:?}",
+            kb_row.metadata
+        );
+    }
+
+    #[tokio::test]
+    async fn promote_candidate_matches_finding_prefix_and_preserves_empirical_class() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db");
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        db.insert_finding_candidate(&vox_db::store::FindingCandidateRow {
+            candidate_id: "finding-42-deadbeef".into(),
+            candidate_class: vox_db::store::FindingCandidateClass::Other,
+            publication_id: None,
+            title_hint: Some("Empirical Scaling Laws for Local Agents".into()),
+            internal_signals_json: "[]".into(),
+            novelty_evidence_bundle_id: None,
+            worthiness_decision_ref: None,
+            confidence_json: Some(
+                r#"{"candidate_class":"EmpiricalScience","signal_strength":0.91,"research_session_ids":[42]}"#
+                    .into(),
+            ),
+            repository_id: Some("vox".into()),
+            producer_name: "research_bridge".into(),
+            signal_fingerprint: "fp-42-deadbeef".into(),
+            created_at_ms: now_ms,
+            updated_at_ms: now_ms,
+        })
+        .await
+        .expect("insert finding candidate");
+
+        let promoted = promote_candidate_to_publication(&db, "finding-42", Some("arxiv"))
+            .await
+            .expect("promote by session prefix");
+        assert_eq!(promoted.title, "Empirical Scaling Laws for Local Agents");
+        assert_eq!(promoted.state, "draft");
+
+        let manifest = db
+            .get_publication_manifest(&promoted.publication_id)
+            .await
+            .unwrap()
+            .expect("manifest stored");
+        let meta: serde_json::Value =
+            serde_json::from_str(manifest.metadata_json.as_deref().unwrap()).unwrap();
+        assert_eq!(
+            meta["scientific_publication"]["candidate_class"].as_str(),
+            Some("empirical_science")
+        );
+        assert_eq!(
+            meta["scientia_evidence"]["candidate_id"].as_str(),
+            Some("finding-42-deadbeef")
+        );
+    }
+
+    #[test]
+    fn synthesize_scholarly_title_transforms_generic_queries_and_preserves_clean_titles() {
+        assert_eq!(
+            synthesize_scholarly_title(
+                Some("Empirical Scaling Laws for Local Agents"),
+                None,
+                "empirical_science",
+                "finding-42"
+            ),
+            "Empirical Scaling Laws for Local Agents"
+        );
+
+        let from_prompt = synthesize_scholarly_title(
+            Some("how can these tools be used seamlessly in tandem with vox kb?"),
+            None,
+            "empirical_science",
+            "finding-7",
+        );
+        assert!(
+            from_prompt.contains("Vox KB") && !from_prompt.ends_with('?'),
+            "expected scholarly Title Case title, got: {from_prompt}"
+        );
+        let slug = slugify_id(&from_prompt);
+        assert!(
+            slug.contains("tools") && slug.contains("vox-kb") && !slug.starts_with("how-"),
+            "expected stopword-filtered slug, got: {slug}"
+        );
+
+        let from_placeholder = synthesize_scholarly_title(
+            Some("SCIENTIA Finding finding-42"),
+            Some(
+                "# Executive Summary\n# Hybrid RRF Retrieval Precision in Multi-Repo Graphs\nLatency dropped cleanly.",
+            ),
+            "algorithmic_improvement",
+            "finding-42",
+        );
+        assert_eq!(
+            from_placeholder,
+            "Hybrid RRF Retrieval Precision in Multi-Repo Graphs"
+        );
+
+        let from_bare_id =
+            synthesize_scholarly_title(None, None, "algorithmic_improvement", "pub-alpha-01");
+        assert_eq!(from_bare_id, "Alpha: Algorithmic Performance Study");
     }
 }

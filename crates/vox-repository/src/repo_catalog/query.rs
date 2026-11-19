@@ -161,7 +161,10 @@ pub fn repo_query_text(
     let repositories_considered = selected.len();
 
     for repo in &selected {
-        if repo.access_mode != RepoAccessMode::Local {
+        if !matches!(
+            repo.access_mode,
+            RepoAccessMode::Local | RepoAccessMode::ReadOnlyLocal
+        ) {
             skipped.push(skip_non_local_repo(
                 repo,
                 "remote adapter query backend not implemented for MVP",
@@ -287,7 +290,10 @@ pub fn repo_query_file(
     let repositories_considered = selected.len();
 
     for repo in &selected {
-        if repo.access_mode != RepoAccessMode::Local {
+        if !matches!(
+            repo.access_mode,
+            RepoAccessMode::Local | RepoAccessMode::ReadOnlyLocal
+        ) {
             skipped.push(skip_non_local_repo(
                 repo,
                 "remote adapter file reads not implemented for MVP",
@@ -390,7 +396,10 @@ pub fn repo_query_history(
     let repositories_considered = selected.len();
 
     for repo in &selected {
-        if repo.access_mode != RepoAccessMode::Local {
+        if !matches!(
+            repo.access_mode,
+            RepoAccessMode::Local | RepoAccessMode::ReadOnlyLocal
+        ) {
             skipped.push(skip_non_local_repo(
                 repo,
                 "remote adapter history queries not implemented for MVP",

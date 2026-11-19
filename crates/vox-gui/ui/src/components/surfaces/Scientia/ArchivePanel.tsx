@@ -11,11 +11,11 @@ import {
   type ArchiveStatus,
 } from './archiveApi';
 
-/** Colour the completeness bar by band: low = rose, mid = amber, high = emerald. */
+/** Colour the completeness bar by band: low = fail, mid = warn, high = pass. */
 function meterTone(pct: number): string {
-  if (pct >= 80) return 'bg-emerald-400/70';
-  if (pct >= 50) return 'bg-amber-400/70';
-  return 'bg-rose-400/70';
+  if (pct >= 80) return 'bg-(--color-status-pass)';
+  if (pct >= 50) return 'bg-(--color-status-warn)';
+  return 'bg-(--color-status-fail)';
 }
 
 /**
@@ -111,7 +111,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
     <section className="space-y-4">
       <div>
         <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{useLabel('archive-panel')}</h2>
-        <p className="font-mono text-xs text-text-muted">
+        <p className="font-sans text-xs text-text-muted">
           Metadata completeness, deterministic autofill, and deposit status (Zenodo / Software Heritage).
         </p>
       </div>
@@ -128,12 +128,13 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
           value={pubId}
           onChange={(e) => setPubId(e.target.value)}
           placeholder="publication id"
-          className="flex-1 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
+          className="h-9 flex-1 rounded-lg border border-border-subtle bg-bg-elevated px-3 font-mono text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-brass/50"
         />
         <button
           type="submit"
+          data-slot="button"
           disabled={loading || !pubId.trim()}
-          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
+          className="h-9 rounded-lg border border-border-subtle bg-bg-elevated px-3.5 text-xs font-semibold uppercase tracking-wider text-text-primary hover:border-brass/45 disabled:opacity-40 transition-colors"
         >
           {loading ? 'Loading…' : 'Load'}
         </button>
@@ -142,9 +143,9 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
       {report && (
         <div className="space-y-4">
           {/* Completeness meter */}
-          <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+          <div className="rounded-xl border border-border-subtle bg-bg-surface p-4">
             <div className="flex items-end justify-between">
-              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
+              <span className="font-display text-xs uppercase tracking-[0.16em] text-text-muted">
                 Metadata completeness
               </span>
               <span className="font-mono text-2xl text-text-primary" aria-label="completeness percent">
@@ -152,7 +153,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
                 <span className="text-sm text-text-muted">%</span>
               </span>
             </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-overlay-subtle">
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-border-subtle bg-bg-elevated">
               <div
                 role="progressbar"
                 aria-valuenow={pct}
@@ -165,9 +166,10 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
             <div className="mt-3 flex justify-end">
               <button
                 type="button"
+                data-slot="button"
                 onClick={autofill}
                 disabled={autofilling}
-                className="rounded-lg border border-brass/40 bg-brass/15 px-3 py-1.5 text-[11px] uppercase tracking-wider text-brass hover:bg-brass/20 disabled:opacity-40"
+                className="h-8 rounded-lg border border-brass/45 bg-bg-elevated px-3 text-xs font-semibold uppercase tracking-wider text-brass hover:bg-brass/15 disabled:opacity-40 transition-colors"
               >
                 {autofilling ? 'Auto-filling…' : 'Auto-fill'}
               </button>
@@ -175,17 +177,17 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
           </div>
 
           {/* Required-missing checklist */}
-          <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
-            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
+          <div className="rounded-xl border border-border-subtle bg-bg-surface p-4">
+            <span className="font-display text-xs uppercase tracking-[0.16em] text-text-muted">
               Required missing ({report.required_missing.length})
             </span>
             {report.required_missing.length === 0 ? (
-              <p className="mt-2 font-mono text-[11px] text-emerald-300/80">All required fields present.</p>
+              <p className="mt-2 font-sans text-xs text-(--color-status-pass)">All required fields present.</p>
             ) : (
               <ul className="mt-2 space-y-1">
                 {report.required_missing.map((f) => (
-                  <li key={f} className="flex items-center gap-2 font-mono text-[12px] text-rose-200/90">
-                    <Icon.square aria-hidden="true" className="size-3.5 shrink-0 text-rose-400/70" />
+                  <li key={f} className="flex items-center gap-2 font-mono text-xs text-(--color-status-fail)">
+                    <Icon.square aria-hidden="true" className="size-3.5 shrink-0 text-(--color-status-fail)" />
                     {f}
                   </li>
                 ))}
@@ -195,15 +197,15 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
 
           {/* "Needs human" tags */}
           {report.human_only_pending.length > 0 && (
-            <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
-              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
+            <div className="rounded-xl border border-border-subtle bg-bg-surface p-4">
+              <span className="font-display text-xs uppercase tracking-[0.16em] text-text-muted">
                 Needs human ({report.human_only_pending.length})
               </span>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {report.human_only_pending.map((f) => (
                   <span
                     key={f}
-                    className="rounded-sm border border-amber-400/20 bg-amber-400/6 px-1.5 py-0.5 font-mono text-[10px] text-amber-200/90"
+                    className="rounded border border-(--color-status-warn)/35 bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-(--color-status-warn)"
                   >
                     {f}
                   </span>
@@ -212,46 +214,46 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
             </div>
           )}
 
-          {/* Field provenance chips */}
+          {/* Field provenance chips — collapsed by default for progressive disclosure */}
           {report.field_provenance.length > 0 && (
-            <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
-              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
-                Field provenance
-              </span>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+            <details className="rounded-xl border border-border-subtle bg-bg-surface p-4">
+              <summary className="cursor-pointer font-display text-xs uppercase tracking-[0.16em] text-text-muted select-none">
+                Field provenance ({report.field_provenance.length})
+              </summary>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {report.field_provenance.map((p, i) => (
                   <span
                     key={`${p.field}-${i}`}
                     title={p.notes ?? undefined}
-                    className="rounded-sm border border-violet-400/20 bg-violet-400/6 px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
+                    className="rounded border border-brass/35 bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-brass"
                   >
                     {p.field} → {p.origin}
                   </span>
                 ))}
               </div>
-            </div>
+            </details>
           )}
 
           {/* Deposit status */}
-          <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
-            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
+          <div className="rounded-xl border border-border-subtle bg-bg-surface p-4">
+            <span className="font-display text-xs uppercase tracking-[0.16em] text-text-muted">
               Deposit status
             </span>
-            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-[12px]">
+            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-xs">
               <dt className="text-text-muted">Zenodo DOI</dt>
-              <dd className="text-text-secondary">
+              <dd className="text-text-primary">
                 {status?.zenodo_doi ?? <span className="text-text-muted">not yet deposited</span>}
               </dd>
               <dt className="text-text-muted">Zenodo state</dt>
-              <dd className="text-text-secondary">
+              <dd className="text-text-primary">
                 {status?.zenodo_state ?? <span className="text-text-muted">—</span>}
               </dd>
               <dt className="text-text-muted">SWHID</dt>
-              <dd className="break-all text-text-secondary">
+              <dd className="break-all text-text-primary">
                 {status?.swhid ?? <span className="text-text-muted">not yet deposited</span>}
               </dd>
               <dt className="text-text-muted">SWH task</dt>
-              <dd className="text-text-secondary">
+              <dd className="text-text-primary">
                 {status?.swh_task_status ?? <span className="text-text-muted">—</span>}
               </dd>
             </dl>
@@ -260,7 +262,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
       )}
 
       {!report && !loading && (
-        <div className="rounded-xl border border-border-subtle bg-overlay-subtle px-4 py-10 text-center font-mono text-[11px] text-text-muted">
+        <div className="rounded-xl border border-border-subtle bg-bg-surface px-4 py-10 text-center text-xs text-text-muted">
           Enter a publication id to view its archive readiness.
         </div>
       )}

@@ -10,6 +10,7 @@ schema_type: "TechArticle"
 audience: ["contributors", "agents"]
 related:
   - docs/src/architecture/data-storage-ssot-2026.md
+  - docs/src/architecture/universal-kb-graphify-openwiki-multirepo-research-2026.md
   - crates/vox-db/src/retrieval.rs
   - crates/vox-search/src/execution.rs
   - crates/vox-search/src/policy.rs
@@ -166,6 +167,7 @@ Orchestrator wraps retrieval in **`RetrievalEvidenceEnvelope`** (`crates/vox-orc
 ## 9. Related crates
 
 - `vox-scientia-ingest` depends on `vox-search` (e.g. `EmbeddingService` in `deduplicator.rs`); do **not** remove `vox-search` from that crate.
+- See [Universal Multi-Repo KB, Graphify & Self-Healing OpenWiki Research (2026)](universal-kb-graphify-openwiki-multirepo-research-2026.md) for the `v7.9` architecture covering multi-repo KB indexing, Code-Doc-Decision Graphify cross-edges with PPR retrieval, polyglot 5-layer OpenWiki, and tiered self-healing documentation.
 
 ## 10. Change checklist
 

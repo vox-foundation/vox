@@ -37,11 +37,25 @@ pub struct KbIngestTextParams {
     pub content: String,
     #[serde(default)]
     pub source_url: Option<String>,
+    /// Target KB scope (`"repo_local"` or `"global_library"`); defaults to `"repo_local"`.
+    #[serde(default)]
+    pub target_scope: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct KbIngestUrlParams {
     pub url: String,
+    /// Target KB scope (`"repo_local"` or `"global_library"`); defaults to `"repo_local"`.
+    #[serde(default)]
+    pub target_scope: Option<String>,
+}
+
+fn normalize_target_scope(raw: Option<&str>) -> &'static str {
+    if raw.is_some_and(|s| s.trim().eq_ignore_ascii_case("global_library")) {
+        "global_library"
+    } else {
+        "repo_local"
+    }
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -86,6 +100,7 @@ pub async fn kb_ingest_text(state: &ServerState, p: KbIngestTextParams) -> Strin
         "title": label,
         "source_url": p.source_url,
         "ingest_type": "text",
+        "target_scope": normalize_target_scope(p.target_scope.as_deref()),
     })
     .to_string();
     match db
@@ -99,7 +114,23 @@ pub async fn kb_ingest_text(state: &ServerState, p: KbIngestTextParams) -> Strin
         )
         .await
     {
-        Ok(_) => ToolResult::ok(node_id).to_json(),
+        Ok(_) => {
+            let _ = crate::kb_tools::findings::file_gui_finding(
+                db,
+                &state.repository.root,
+                vox_db::kb_text::FindingOrigin::GuiIngestText,
+                &label,
+                &p.content,
+                p.source_url.as_deref(),
+                serde_json::json!({
+                    "node_id": node_id,
+                    "target_scope": normalize_target_scope(p.target_scope.as_deref()),
+                    "ingest_type": "text",
+                }),
+            )
+            .await;
+            ToolResult::ok(node_id).to_json()
+        }
         Err(e) => db_err::<String>(e),
     }
 }
@@ -168,7 +199,12 @@ async fn check_robots_allowed(client: &reqwest::Client, target_url: &str) -> boo
 }
 
 #[cfg(feature = "web-scrape")]
-async fn scrape_into_kb(db: &vox_db::VoxDb, clean_url: &str) -> Result<String, String> {
+async fn scrape_into_kb(
+    db: &vox_db::VoxDb,
+    repo_root: &std::path::Path,
+    clean_url: &str,
+    target_scope: &str,
+) -> Result<String, String> {
     let policy = vox_search::policy::SearchPolicy::from_env();
     let timeout_ms = policy.scraper_timeout_ms.max(1000);
 
@@ -194,6 +230,7 @@ async fn scrape_into_kb(db: &vox_db::VoxDb, clean_url: &str) -> Result<String, S
         "title": doc.title,
         "text_density": doc.text_density,
         "ingest_type": "url",
+        "target_scope": target_scope,
     })
     .to_string();
     let label = if doc.title.trim().is_empty() {
@@ -211,11 +248,30 @@ async fn scrape_into_kb(db: &vox_db::VoxDb, clean_url: &str) -> Result<String, S
     )
     .await
     .map_err(|e| e.to_string())?;
+    let _ = crate::kb_tools::findings::file_gui_finding(
+        db,
+        repo_root,
+        vox_db::kb_text::FindingOrigin::GuiIngestUrl,
+        label,
+        &doc.markdown,
+        Some(clean_url),
+        serde_json::json!({
+            "node_id": node_id,
+            "target_scope": target_scope,
+            "ingest_type": "url",
+        }),
+    )
+    .await;
     Ok(node_id)
 }
 
 #[cfg(not(feature = "web-scrape"))]
-async fn scrape_into_kb(_db: &vox_db::VoxDb, _clean_url: &str) -> Result<String, String> {
+async fn scrape_into_kb(
+    _db: &vox_db::VoxDb,
+    _repo_root: &std::path::Path,
+    _clean_url: &str,
+    _target_scope: &str,
+) -> Result<String, String> {
     Err("URL ingest needs a server built with web scraping (vox-cli `heavy-retrieval`)".into())
 }
 
@@ -228,7 +284,8 @@ pub async fn kb_ingest_url(state: &ServerState, p: KbIngestUrlParams) -> String 
         Ok(db) => db,
         Err(e) => return ToolResult::<String>::err(e).to_json(),
     };
-    match scrape_into_kb(db, clean_url).await {
+    let scope = normalize_target_scope(p.target_scope.as_deref());
+    match scrape_into_kb(db, &state.repository.root, clean_url, scope).await {
         Ok(id) => ToolResult::ok(id).to_json(),
         Err(e) => ToolResult::<String>::err(e).to_json(),
     }
@@ -565,7 +622,7 @@ mod tests {
 
     #[tokio::test]
     async fn ingest_list_count_and_delete_round_trip() {
-        let (gs, _db) = gateway_with_memory_db().await;
+        let (gs, db) = gateway_with_memory_db().await;
         let st = gs.server_state();
         let added = tool_json(
             &kb_ingest_text(
@@ -574,6 +631,7 @@ mod tests {
                     title: " Remote note ".into(),
                     content: "remote body".into(),
                     source_url: None,
+                    target_scope: Some("global_library".into()),
                 },
             )
             .await,
@@ -581,6 +639,31 @@ mod tests {
         assert_eq!(added["success"], true, "{added}");
         let id = added["data"].as_str().unwrap().to_string();
         assert!(id.starts_with("doc:"));
+
+        let meta_row = db
+            .list_knowledge_nodes(None, 0, 50)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|n| n.id == id)
+            .expect("knowledge node row");
+        assert!(
+            meta_row
+                .metadata
+                .as_deref()
+                .is_some_and(|m| m.contains("\"target_scope\":\"global_library\"")),
+            "expected target_scope in metadata: {:?}",
+            meta_row.metadata
+        );
+
+        let finding_row = db
+            .kb_findings_list(None, 50)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|f| f.origin == vox_db::kb_text::FindingOrigin::GuiIngestText)
+            .expect("companion kb_findings quarantine row");
+        assert_eq!(finding_row.title, "Remote note");
 
         let listed = nodes(&gs).await;
         let rows = listed["data"].as_array().expect("rows");
@@ -610,13 +693,23 @@ mod tests {
                     title: String::new(),
                     content: "  ".into(),
                     source_url: None,
+                    target_scope: None,
                 },
             )
             .await,
         );
         assert_eq!(blank["success"], false);
         for url in ["", "ftp://x"] {
-            let out = tool_json(&kb_ingest_url(st, KbIngestUrlParams { url: url.into() }).await);
+            let out = tool_json(
+                &kb_ingest_url(
+                    st,
+                    KbIngestUrlParams {
+                        url: url.into(),
+                        target_scope: None,
+                    },
+                )
+                .await,
+            );
             assert_eq!(out["success"], false, "{url}: {out}");
         }
         let missing = tool_json(

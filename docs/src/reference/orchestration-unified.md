@@ -1,6 +1,6 @@
 ---
 title: "Unified orchestration — SSOT"
-description: "Official documentation for Unified orchestration — SSOT for the Vox language. Detailed technical reference, architecture guides, and impl"
+description: "Canonical compatibility rules, journey envelopes, workspace stores, and boot profiles unifying Vox CLI, MCP, and vox-orchestrator-d."
 category: "Language Reference"
 training_eligible: true
 

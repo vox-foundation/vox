@@ -1,14 +1,20 @@
 ---
 title: "AI Agent Orchestration"
-description: "How Vox natively integrates LLMs, agents, and local logic via the Model Context Protocol (MCP) and Distributed Execution Intelligence (DEI) orchestrator."
+description: "How Vox natively integrates LLMs, agents, Federated Knowledge Base retrieval, and workspace MCP tools via the Model Context Protocol and vox-orchestrator."
 category: "Concepts"
 status: "current"
-training_eligible: true
-
+topic: "agent-orchestrator"
+domain: "orchestration"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "TechArticle"
 ---
 
 # AI Agent Orchestration
+
+<!-- kb:summary -->
+Explains how Vox exposes typed application functions and live data URIs to AI agents over the Model Context Protocol (`tool` and `resource` declarations), coordinates multi-agent handoffs with file-affinity locking inside `vox-orchestrator`, enforces `@require` safety preconditions, and grounds turns via Vox's 3-layer Federated Knowledge Base and Research continuum.
+<!-- /kb:summary -->
 
 Vox was built from the ground up to blur the lines between traditional application logic and AI agent capabilities. Rather than bolting an AI SDK onto a web framework, Vox uses the **Model Context Protocol (MCP)** and its internal **DEI (Distributed Execution Intelligence) Orchestrator** as first-class citizens.
 
@@ -67,4 +73,6 @@ Because Vox exposes functions directly to reasoning engines, security is modeled
 
 **Related Topics**:
 - [Build AI Agent Tools](../how-to/how-to-ai-agents.md)
+- [Managing Knowledgebases & Self-Healing OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx)
+- [Deep Research & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx)
 - [The Security Model](expl-security.md)

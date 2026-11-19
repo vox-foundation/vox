@@ -7,6 +7,7 @@ import { DISCOVERY_PRESET_SEED_KEY } from '../../../lib/navigation';
 import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
 import { Icon } from '../../ui/Icons';
+import { EmbeddedSurfaceProvider } from '../../dashboard/EmbeddedSurfaceContext';
 import type { Toast } from '../../../types/tauri';
 
 export type DiscoveryPreset = 'timeline' | 'inbox' | 'review' | 'archive';
@@ -84,7 +85,7 @@ export function DiscoverySurface({ pushToast, gamifyEnabled, condensed }: Discov
         title="Epistemic Activity & Discovery Ledger"
         subtitle="TIMELINE · INBOX · REVIEW · ARCHIVAL PROVENANCE"
         waxSealBadge="CHRONICLE LIVE"
-        icon={<Icon.bolt className="size-4 text-[#F3E5AB]" />}
+        icon={<Icon.bolt className="size-4 text-text-primary" />}
         gauges={[
           {
             label: 'Presets',
@@ -127,19 +128,20 @@ export function DiscoverySurface({ pushToast, gamifyEnabled, condensed }: Discov
           <div
             role="tablist"
             aria-label="Discovery presets"
-            className="flex flex-wrap gap-1 rounded-lg border border-[#C59B27]/35 bg-bg-elevated p-1"
+            className="flex flex-wrap items-center gap-1 rounded-lg border border-brass/35 bg-transparent p-0.5"
           >
             {PRESETS.map(p => (
               <button
                 key={p.id}
                 type="button"
                 role="tab"
+                data-slot="tab"
                 aria-selected={preset === p.id}
                 onClick={() => selectPreset(p.id)}
-                className={`rounded-md px-3 py-1 font-display text-[10px] uppercase tracking-[0.14em] transition ${
+                className={`inline-flex h-8 items-center rounded-md px-3 font-display text-xs uppercase tracking-[0.12em] transition-colors ${
                   preset === p.id
-                    ? 'border border-[#D4AF37]/60 bg-[#D4AF37]/20 text-[#F3E5AB]'
-                    : 'text-[#C8B99E] hover:bg-[#D4AF37]/10 hover:text-[#F3E5AB]'
+                    ? 'border border-brass/70 bg-brass/20 text-text-primary font-semibold'
+                    : 'border border-transparent text-text-secondary hover:bg-brass/10 hover:text-text-primary'
                 }`}
               >
                 {p.label}
@@ -152,19 +154,21 @@ export function DiscoverySurface({ pushToast, gamifyEnabled, condensed }: Discov
       <BentoGrid preset="hero" className="flex-1">
         <BentoCard span="hero-main" className="min-h-0 flex-1 overflow-hidden p-3">
           <BentoScrollRegion ariaLabel={`Discovery ${preset} feed`} className="flex-1 pr-1">
-            {preset === 'timeline' && <ActivitySurface pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
-            {preset === 'inbox' && <DiscoveryInbox pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
-            {preset === 'review' && <DiscoveryReview pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
-            {preset === 'archive' && <ArchivePanel pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
+            <EmbeddedSurfaceProvider value={true}>
+              {preset === 'timeline' && <ActivitySurface pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
+              {preset === 'inbox' && <DiscoveryInbox pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
+              {preset === 'review' && <DiscoveryReview pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
+              {preset === 'archive' && <ArchivePanel pushToast={pushToast} gamifyEnabled={gamifyEnabled} />}
+            </EmbeddedSurfaceProvider>
           </BentoScrollRegion>
         </BentoCard>
 
         <BentoCard span="hero-rail" className="gap-3">
           <div className="flex flex-wrap items-center justify-between gap-1.5">
-            <span className="font-display text-[11px] uppercase tracking-wider text-brass">
+            <span className="font-display text-xs uppercase tracking-wider text-brass">
               Preset Explorer &amp; Provenance
             </span>
-            <span className="font-mono text-[10px] text-text-muted">
+            <span className="font-mono text-[11px] text-text-muted">
               {visitedPresets.size}/{PRESETS.length} visited
             </span>
           </div>
@@ -176,33 +180,61 @@ export function DiscoverySurface({ pushToast, gamifyEnabled, condensed }: Discov
                 <button
                   key={p.id}
                   type="button"
+                  data-slot="button"
                   aria-label={`Focus ${p.label} lane`}
                   onClick={() => selectPreset(p.id)}
-                  className={`flex w-full flex-col gap-1 rounded-lg border p-2.5 text-left transition-colors ${
+                  className={`flex w-full flex-col gap-1 rounded-lg border p-3 text-left transition-colors ${
                     isCurrent
                       ? 'border-brass/60 bg-bg-elevated text-text-primary'
-                      : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-brass/35'
+                      : 'border-border-subtle bg-bg-surface text-text-secondary hover:border-brass/40'
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-1.5">
-                    <span className="font-display text-[11px] uppercase tracking-wider text-text-primary">
+                    <span className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
                       {p.label} Lane
                     </span>
-                    <span className="rounded border border-border-subtle bg-bg-surface px-1.5 py-0.5 font-mono text-[9px] text-text-muted">
+                    <span className="rounded border border-border-subtle bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-text-muted">
                       {isCurrent ? 'active' : seen ? 'inspected' : 'pending'}
                     </span>
                   </div>
-                  <span className="text-[11px] leading-snug text-text-muted">{p.summary}</span>
+                  <span className="text-xs leading-snug text-text-secondary">{p.summary}</span>
                 </button>
               );
             })}
-            <div className="rounded-lg border border-[#D4AF37]/30 bg-bg-elevated/60 p-2.5 text-[11px] text-text-secondary">
-              <div className="font-display text-[10px] uppercase tracking-wider text-brass">
-                Archival Provenance Gate
+            <div className="rounded-lg border border-brass/35 bg-bg-elevated p-3 text-xs text-text-secondary space-y-2.5">
+              <div>
+                <div className="font-display text-xs uppercase tracking-wider text-brass">
+                  Archival Provenance Gate
+                </div>
+                <p className="mt-1 leading-relaxed text-text-secondary">
+                  Findings promoted in Review enter the Knowledge Base and track Zenodo DOI + SWHID archival hashes in Archive.
+                </p>
               </div>
-              <p className="mt-1 leading-relaxed text-text-muted">
-                Findings promoted in Review enter the Knowledge Base and track Zenodo DOI + SWHID archival hashes in Archive.
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                {(
+                  [
+                    { id: 'research', label: 'Open Research', testId: 'discovery-jump-research' },
+                    { id: 'memory', label: 'Open Memory', testId: 'discovery-jump-memory' },
+                    { id: 'publications', label: 'Open Publications', testId: 'discovery-jump-publications' },
+                  ] as const
+                ).map((dest) => (
+                  <button
+                    key={dest.id}
+                    type="button"
+                    data-slot="button"
+                    data-roman-plaque="true"
+                    data-testid={dest.testId}
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new CustomEvent('vox://navigate-surface', { detail: { view: dest.id } }),
+                      )
+                    }
+                    className="vox-brass-plaque-btn inline-flex h-8 items-center rounded px-2.5 text-[11px] transition-colors"
+                  >
+                    <span>{dest.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </BentoScrollRegion>
         </BentoCard>

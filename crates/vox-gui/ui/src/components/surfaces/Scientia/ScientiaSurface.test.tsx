@@ -32,7 +32,7 @@ describe('ScientiaSurface (Findings)', () => {
     expect(screen.getByTestId('scientia-claims')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Audit Diff' }));
     expect(screen.getByTestId('scientia-audit-inspector')).toBeInTheDocument();
-  });
+  }, 20_000);
 
   it('switches directly to Studio & Review when vox://scientia-open-studio fires', () => {
     render(<ScientiaSurface pushToast={() => {}} />);

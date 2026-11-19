@@ -1,6 +1,6 @@
 ---
 title: "Codex HTTP API"
-description: "Official documentation for Codex HTTP API for the Vox language. Detailed technical reference, architecture guides, and implementation pat"
+description: "Reference for Codex HTTP API endpoints, OpenAPI schema validation, readiness checks, and speech ingress routes backed by vox-db."
 category: "Language Reference"
 training_eligible: true
 

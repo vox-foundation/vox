@@ -1,6 +1,6 @@
 ---
 title: "OpenClaw Competitive Analysis"
-description: "Official documentation for OpenClaw Competitive Analysis for the Vox language. Detailed technical reference, architecture guides, and imp"
+description: "Architectural comparison between the OpenClaw TypeScript gateway ecosystem and Vox's compiler-verified MCP, VoxDb, and orchestrator infrastructure."
 category: "Concepts"
 training_eligible: true
 

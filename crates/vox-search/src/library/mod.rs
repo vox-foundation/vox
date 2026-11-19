@@ -71,7 +71,6 @@ pub async fn index_library(
     lexical_dir: &Path,
     deps: &IndexDeps<'_>,
 ) -> Result<IndexReport> {
-    let started = Instant::now();
     // Before any DB access: a daemon rooted at the wrong repo must fail loudly, not "succeed".
     for root in crate::kb_ids::KB_CORPUS_ROOTS {
         anyhow::ensure!(
@@ -80,6 +79,55 @@ pub async fn index_library(
             repo_root.display()
         );
     }
+    let manifest = crate::kb_ids::KbCorpusManifest::vox_default("vox");
+    index_library_inner(
+        db,
+        repo_root,
+        lexical_dir,
+        &manifest,
+        KB_LIBRARY_CORPUS,
+        deps,
+    )
+    .await
+}
+
+/// Index an arbitrary repository or corpus tier using an explicit [`crate::kb_ids::KbCorpusManifest`].
+pub async fn index_library_scoped(
+    db: &VoxDb,
+    repo_root: &Path,
+    lexical_dir: &Path,
+    manifest: &crate::kb_ids::KbCorpusManifest,
+    deps: &IndexDeps<'_>,
+) -> Result<IndexReport> {
+    let has_dir = manifest.root_dirs.iter().any(|d| {
+        if d == "." {
+            repo_root.is_dir()
+        } else {
+            repo_root.join(d).is_dir()
+        }
+    });
+    let has_file = manifest
+        .root_files
+        .iter()
+        .any(|f| repo_root.join(f).is_file());
+    anyhow::ensure!(
+        has_dir || has_file,
+        "no configured KB corpus roots or files found under {}",
+        repo_root.display()
+    );
+    let corpus_key = manifest.corpus_key();
+    index_library_inner(db, repo_root, lexical_dir, manifest, &corpus_key, deps).await
+}
+
+async fn index_library_inner(
+    db: &VoxDb,
+    repo_root: &Path,
+    lexical_dir: &Path,
+    manifest: &crate::kb_ids::KbCorpusManifest,
+    corpus_key: &str,
+    deps: &IndexDeps<'_>,
+) -> Result<IndexReport> {
+    let started = Instant::now();
     let mut report = IndexReport {
         corpus_commit: deps.corpus_commit.clone(),
         lexical_backend: LEXICAL_BACKEND.into(),
@@ -88,11 +136,11 @@ pub async fn index_library(
     // The hash skip is only sound when the stored rows came from this chunker; with no manifest
     // the provenance of existing rows is unknown, so everything is re-chunked.
     let skip_ok = db
-        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .get_kb_index_state(corpus_key)
         .await?
         .is_some_and(|s| s.chunker_version == chunk::CHUNKER_VERSION);
     let mut walked: Vec<String> = Vec::new();
-    let (files, walk_errors) = corpus::walk_corpus(repo_root);
+    let (files, walk_errors) = corpus::walk_corpus_with_manifest(repo_root, manifest);
     let walk_complete = walk_errors.is_empty();
     report.errors.extend(walk_errors);
     for file in files {
@@ -113,7 +161,7 @@ pub async fn index_library(
             Err(e) => {
                 // Content we cannot read now is not vouched for (fail-closed; no-op without a row).
                 db.set_library_document_tier(
-                    KB_LIBRARY_CORPUS,
+                    corpus_key,
                     &file.rel_path,
                     vox_db::ContextTrustTier::Untrusted,
                 )
@@ -132,12 +180,12 @@ pub async fn index_library(
         let file_hash = (deps.hasher)(text.as_bytes());
         if skip_ok
             && db
-                .library_document_file_hash(KB_LIBRARY_CORPUS, &file.rel_path)
+                .library_document_file_hash(corpus_key, &file.rel_path)
                 .await?
                 .as_deref()
                 == Some(file_hash.as_str())
         {
-            db.set_library_document_tier(KB_LIBRARY_CORPUS, &file.rel_path, tier)
+            db.set_library_document_tier(corpus_key, &file.rel_path, tier)
                 .await?;
             report.docs_unchanged += 1;
             continue;
@@ -156,7 +204,7 @@ pub async fn index_library(
             })
             .collect();
         let doc = LibraryDocUpsert {
-            corpus: KB_LIBRARY_CORPUS,
+            corpus: corpus_key,
             rel_path: &file.rel_path,
             title: &parsed.title,
             file_hash: &file_hash,
@@ -176,16 +224,21 @@ pub async fn index_library(
 
     // Prune only on a complete walk that is not suspiciously empty: a partial or empty walk is
     // not "everything else was deleted" (CR-01).
-    let prune_safe = walk_complete
-        && (report.docs_seen > 0 || db.library_chunk_count(KB_LIBRARY_CORPUS).await? == 0);
+    let prune_safe =
+        walk_complete && (report.docs_seen > 0 || db.library_chunk_count(corpus_key).await? == 0);
     if prune_safe {
         report.docs_pruned = db
-            .prune_library_documents_not_in(KB_LIBRARY_CORPUS, &walked)
+            .prune_library_documents_not_in(corpus_key, &walked)
             .await?
             .len();
     } else {
+        let root_desc = if manifest.root_dirs.is_empty() {
+            manifest.root_files.join(", ")
+        } else {
+            manifest.root_dirs.join(", ")
+        };
         report.errors.push(FileError {
-            path: crate::kb_ids::KB_CORPUS_ROOTS.join(", "),
+            path: root_desc,
             error: "prune skipped: the corpus walk was incomplete or found no files while Library \
                     chunks are stored"
                 .into(),
@@ -193,7 +246,7 @@ pub async fn index_library(
     }
     db.prune_orphan_kb_chunk_embeddings().await?;
 
-    let rows = db.library_chunk_rows(KB_LIBRARY_CORPUS).await?;
+    let rows = db.library_chunk_rows(corpus_key).await?;
     let current = LibraryLexicalIndex::open(lexical_dir)
         .ok()
         .and_then(|i| i.num_docs().ok());
@@ -219,7 +272,7 @@ pub async fn index_library(
     };
     report.duration_ms = started.elapsed().as_millis() as u64;
     db.put_kb_index_state(&KbIndexState {
-        corpus: KB_LIBRARY_CORPUS.into(),
+        corpus: corpus_key.into(),
         corpus_root: repo_root.to_string_lossy().into_owned(),
         corpus_commit: deps.corpus_commit.clone(),
         indexed_at: String::new(), // assigned by the store
@@ -251,10 +304,14 @@ pub struct LibraryStatus {
     pub consistent: bool,
 }
 
-/// Read the manifest and compare DB rows with the Tantivy index at `lexical_dir`.
-pub async fn status(db: &VoxDb, lexical_dir: &Path) -> Result<LibraryStatus> {
-    let state = db.get_kb_index_state(KB_LIBRARY_CORPUS).await?;
-    let db_chunk_count = db.library_chunk_count(KB_LIBRARY_CORPUS).await?;
+/// Read the manifest and compare DB rows for `corpus_key` with the Tantivy index at `lexical_dir`.
+pub async fn status_scoped(
+    db: &VoxDb,
+    lexical_dir: &Path,
+    corpus_key: &str,
+) -> Result<LibraryStatus> {
+    let state = db.get_kb_index_state(corpus_key).await?;
+    let db_chunk_count = db.library_chunk_count(corpus_key).await?;
     let lexical_docs = LibraryLexicalIndex::open(lexical_dir)
         .ok()
         .and_then(|i| i.num_docs().ok());
@@ -268,6 +325,11 @@ pub async fn status(db: &VoxDb, lexical_dir: &Path) -> Result<LibraryStatus> {
         lexical_docs,
         consistent,
     })
+}
+
+/// Read the manifest and compare DB rows with the Tantivy index at `lexical_dir`.
+pub async fn status(db: &VoxDb, lexical_dir: &Path) -> Result<LibraryStatus> {
+    status_scoped(db, lexical_dir, KB_LIBRARY_CORPUS).await
 }
 
 /// One ranked library hit.
@@ -305,12 +367,11 @@ pub async fn search(
     search_with_taxonomy(db, lexical_dir, query, limit, None).await
 }
 
-/// [`search`] with query-time synonym expansion: an altLabel or deprecated alias in `query`
-/// appends a quoted facet phrase that matches only cards tagged with the concept's prefLabel.
-/// `None` passes the query to Tantivy untouched.
-pub async fn search_with_taxonomy(
+/// Scoped BM25 search restricted strictly to `corpus_key` during DB hydration.
+pub async fn search_scoped_with_taxonomy(
     db: &VoxDb,
     lexical_dir: &Path,
+    corpus_key: &str,
     query: &str,
     limit: usize,
     taxonomy: Option<&Taxonomy>,
@@ -319,7 +380,9 @@ pub async fn search_with_taxonomy(
     let query = expanded.as_deref().unwrap_or(query);
     let ranked = LibraryLexicalIndex::open(lexical_dir)?.search(query, limit)?;
     let hashes: Vec<String> = ranked.iter().map(|(h, _)| h.clone()).collect();
-    let rows = db.library_chunks_by_hashes(&hashes).await?;
+    let rows = db
+        .library_chunks_by_hashes_in_corpus(corpus_key, &hashes)
+        .await?;
     let scores: std::collections::HashMap<&str, f32> =
         ranked.iter().map(|(h, s)| (h.as_str(), *s)).collect();
     Ok(rows
@@ -339,6 +402,19 @@ pub async fn search_with_taxonomy(
             chunk_kind: r.chunk_kind,
         })
         .collect())
+}
+
+/// [`search`] with query-time synonym expansion: an altLabel or deprecated alias in `query`
+/// appends a quoted facet phrase that matches only cards tagged with the concept's prefLabel.
+/// `None` passes the query to Tantivy untouched.
+pub async fn search_with_taxonomy(
+    db: &VoxDb,
+    lexical_dir: &Path,
+    query: &str,
+    limit: usize,
+    taxonomy: Option<&Taxonomy>,
+) -> Result<Vec<LibraryHit>> {
+    search_scoped_with_taxonomy(db, lexical_dir, KB_LIBRARY_CORPUS, query, limit, taxonomy).await
 }
 
 /// Compute the deterministic status/superseded/staleness ranking multiplier (`RET-04`):
@@ -372,17 +448,18 @@ pub fn rank_multiplier_for_doc_frontmatter(frontmatter_json: &str, is_stale: boo
     mult
 }
 
-/// Hybrid RRF + local contextual dense + term-density reranked library search (`EMB-01..04`, `RET-04`).
-/// Falls back cleanly to lexical-only when `limit == 0` or query is empty.
-pub async fn search_hybrid_with_taxonomy(
+/// Hybrid RRF + local contextual dense + term-density reranked library search scoped strictly to `corpus_key`.
+pub async fn search_hybrid_scoped_with_taxonomy(
     db: &VoxDb,
     lexical_dir: &Path,
+    corpus_key: &str,
     query: &str,
     limit: usize,
     taxonomy: Option<&Taxonomy>,
 ) -> Result<Vec<LibraryHit>> {
     let fetch_k = limit.saturating_mul(3).max(20);
-    let mut hits = search_with_taxonomy(db, lexical_dir, query, fetch_k, taxonomy).await?;
+    let mut hits =
+        search_scoped_with_taxonomy(db, lexical_dir, corpus_key, query, fetch_k, taxonomy).await?;
     if hits.is_empty() {
         return Ok(hits);
     }
@@ -418,6 +495,19 @@ pub async fn search_hybrid_with_taxonomy(
     });
     hits.truncate(limit);
     Ok(hits)
+}
+
+/// Hybrid RRF + local contextual dense + term-density reranked library search (`EMB-01..04`, `RET-04`).
+/// Falls back cleanly to lexical-only when `limit == 0` or query is empty.
+pub async fn search_hybrid_with_taxonomy(
+    db: &VoxDb,
+    lexical_dir: &Path,
+    query: &str,
+    limit: usize,
+    taxonomy: Option<&Taxonomy>,
+) -> Result<Vec<LibraryHit>> {
+    search_hybrid_scoped_with_taxonomy(db, lexical_dir, KB_LIBRARY_CORPUS, query, limit, taxonomy)
+        .await
 }
 
 #[cfg(test)]
@@ -473,5 +563,167 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(hybrid_hits.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn index_external_repo_without_docs_src_discovers_wiki_and_root_docs() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(repo.path().join("docs/wiki")).unwrap();
+        std::fs::write(
+            repo.path().join("README.md"),
+            "# External Repo\nextrootmarker content\n",
+        )
+        .unwrap();
+        std::fs::write(
+            repo.path().join("VOX.md"),
+            "# VOX\nvoexharness descriptor\n",
+        )
+        .unwrap();
+        std::fs::write(
+            repo.path().join("docs/wiki/arch.md"),
+            "# Arch\nextwikiarchitecture details\n",
+        )
+        .unwrap();
+
+        let manifest = crate::kb_ids::KbCorpusManifest::discover_for_repo(repo.path());
+        assert_eq!(manifest.tier, crate::kb_ids::CorpusTier::Wiki);
+        assert!(manifest.root_dirs.contains(&"docs/wiki".to_string()));
+        assert!(manifest.root_files.contains(&"README.md".to_string()));
+        assert!(manifest.root_files.contains(&"VOX.md".to_string()));
+
+        let lex = repo.path().join("cache/kb/lex");
+        let db = VoxDb::open_memory().await.unwrap();
+        let deps = IndexDeps {
+            hasher: &hasher,
+            corpus_commit: None,
+            trust_tier: vox_db::ContextTrustTier::Trusted,
+            is_committed_clean: &|_: &str| true,
+        };
+
+        let report = index_library_scoped(&db, repo.path(), &lex, &manifest, &deps)
+            .await
+            .unwrap();
+        assert_eq!(report.docs_seen, 3);
+        let corpus_key = manifest.corpus_key();
+
+        let st = status_scoped(&db, &lex, &corpus_key).await.unwrap();
+        assert!(st.consistent);
+
+        let wiki_hits =
+            search_scoped_with_taxonomy(&db, &lex, &corpus_key, "extwikiarchitecture", 5, None)
+                .await
+                .unwrap();
+        assert!(!wiki_hits.is_empty());
+        assert!(wiki_hits.iter().all(|h| h.doc_path == "docs/wiki/arch.md"));
+
+        let root_hits = search_scoped_with_taxonomy(&db, &lex, &corpus_key, "voexharness", 5, None)
+            .await
+            .unwrap();
+        assert!(!root_hits.is_empty());
+        assert!(root_hits.iter().all(|h| h.doc_path == "VOX.md"));
+    }
+
+    #[tokio::test]
+    async fn scoped_corpora_prevent_cross_repo_and_cross_tier_leakage() {
+        let repo_a = tempfile::tempdir().unwrap();
+        let repo_b = tempfile::tempdir().unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(repo_a.path().join("docs/wiki")).unwrap();
+        std::fs::create_dir_all(repo_b.path().join("docs/wiki")).unwrap();
+
+        std::fs::write(
+            repo_a.path().join("README.md"),
+            "# Alpha\nsharedneedle alpha rootdoc\n",
+        )
+        .unwrap();
+        std::fs::write(
+            repo_a.path().join("docs/wiki/guide.md"),
+            "# Alpha Wiki\nsharedneedle alpha wikitier\n",
+        )
+        .unwrap();
+        std::fs::write(
+            repo_b.path().join("docs/wiki/guide.md"),
+            "# Beta Wiki\nsharedneedle beta wikitier\n",
+        )
+        .unwrap();
+
+        let db = VoxDb::open_memory().await.unwrap();
+        let deps = IndexDeps {
+            hasher: &hasher,
+            corpus_commit: None,
+            trust_tier: vox_db::ContextTrustTier::Trusted,
+            is_committed_clean: &|_: &str| true,
+        };
+
+        let man_a_wiki = crate::kb_ids::KbCorpusManifest::for_tier(
+            repo_a.path(),
+            "repo-alpha",
+            crate::kb_ids::CorpusTier::Wiki,
+        );
+        let man_a_root = crate::kb_ids::KbCorpusManifest::for_tier(
+            repo_a.path(),
+            "repo-alpha",
+            crate::kb_ids::CorpusTier::RootDocs,
+        );
+        let man_b_wiki = crate::kb_ids::KbCorpusManifest::for_tier(
+            repo_b.path(),
+            "repo-beta",
+            crate::kb_ids::CorpusTier::Wiki,
+        );
+
+        let lex_a_wiki =
+            lexical::resolve_scoped_index_dir(Some(cache.path()), None, "repo-alpha", "wiki")
+                .unwrap();
+        let lex_a_root =
+            lexical::resolve_scoped_index_dir(Some(cache.path()), None, "repo-alpha", "root_docs")
+                .unwrap();
+        let lex_b_wiki =
+            lexical::resolve_scoped_index_dir(Some(cache.path()), None, "repo-beta", "wiki")
+                .unwrap();
+
+        index_library_scoped(&db, repo_a.path(), &lex_a_wiki, &man_a_wiki, &deps)
+            .await
+            .unwrap();
+        index_library_scoped(&db, repo_a.path(), &lex_a_root, &man_a_root, &deps)
+            .await
+            .unwrap();
+        index_library_scoped(&db, repo_b.path(), &lex_b_wiki, &man_b_wiki, &deps)
+            .await
+            .unwrap();
+
+        let hits_a_wiki = search_scoped_with_taxonomy(
+            &db,
+            &lex_a_wiki,
+            &man_a_wiki.corpus_key(),
+            "sharedneedle",
+            10,
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(!hits_a_wiki.is_empty());
+        assert!(
+            hits_a_wiki
+                .iter()
+                .all(|h| h.doc_path == "docs/wiki/guide.md" && !h.snippet.contains("beta"))
+        );
+        assert!(
+            hits_a_wiki
+                .iter()
+                .any(|h| h.snippet.contains("alpha wikitier"))
+        );
+
+        // Even querying repo-beta's lexical dir with repo-alpha's corpus_key yields 0 rows.
+        let cross = search_scoped_with_taxonomy(
+            &db,
+            &lex_b_wiki,
+            &man_a_wiki.corpus_key(),
+            "sharedneedle",
+            10,
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(cross.is_empty());
     }
 }

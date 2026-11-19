@@ -1,17 +1,50 @@
 ---
 title: "How-To: Publish Scientia findings"
-description: "Prepare, approve, and submit scientific findings from Vox Scientia using the publication manifest SSOT."
+description: "Prepare, approve, and submit scientific findings from Vox Scientia across the 7-stage scholarly lifecycle and arXiv.org staging pipeline."
 category: "How-To Guides"
-training_eligible: true
-
+status: "current"
+sort_order: 14
+topic: "scientia-research"
+domain: "knowledge"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "HowTo"
 ---
 
 # How-To: Publish Scientia findings
 
-This workflow uses a single publication manifest in Codex (`publication_manifests`) with digest-bound approvals and scholarly submission tracking.
+<!-- kb:summary -->
+Practical reference guide for preparing, preflighting, dual-approving, and submitting scientific and engineering research artifacts through Vox Scientia's digest-bound publication manifest (`publication_manifests`). Covers the 7-stage scholarly lifecycle, `arXiv.org` and Zenodo bundle staging exports, Axis GUI manuscript quick-pickers, epistemic worthiness checks, and idempotent multi-channel distribution routing.
+<!-- /kb:summary -->
 
-> Note: scholarly submit defaults to `local_ledger` (`VOX_SCHOLARLY_ADAPTER`). For architecture and lingo, see [VoxGiantia publication architecture](../archive/research-2026-q1/voxgiantia-publication-architecture.md). For operator inputs vs derived fields, see [operator inputs](scientia-publication-operator-inputs.md). For remediation, see [publication playbook](../reference/scientia-publication-playbook.md). Policy SSOT: [scientia-publication-automation-ssot](../archive/research-2026-q1/scientia-publication-automation-ssot.md), [worthiness rules](../reference/scientia-publication-worthiness-rules.md), [readiness audit](../archive/research-2026-q1/scientia-publication-readiness-audit.md).
+This workflow uses a single publication manifest in Codex (`publication_manifests`) with digest-bound approvals and scholarly submission tracking across the **7-stage lifecycle** (`draft` -> `doi_reserved` -> `orcid_attributed` -> `approved` -> `submitted` -> `published`, plus `failed` recovery). For a guided walkthrough starting from deep research archetypes, see [Tutorial: Deep Research, Knowledge Preflight & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx).
+
+> [!NOTE]
+> Scholarly submit defaults to `local_ledger` (`VOX_SCHOLARLY_ADAPTER`). See [Operator Inputs](scientia-publication-operator-inputs.md), [Publication Playbook](../reference/scientia-publication-playbook.md), [Worthiness Rules](../reference/scientia-publication-worthiness-rules.md), [Scientia SSOT Handbook](../reference/scientia-ssot-handbook.md), and [Click-Tax & Research Control SSOT](../architecture/research-click-tax-observability-and-control-ssot-2026.md).
+
+<div class="vox-showcase-grid">
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/publications-arcane.webp" alt="Vox Axis Publications Studio showing 7-stage scholarly lifecycle filters, arXiv taxonomy metadata, and dual-approval status" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">Publications Studio</span>
+      <h3 class="vox-showcase-title">7-Stage Lifecycle &amp; <code>arXiv.org</code> Bundle Control</h3>
+      <p class="vox-showcase-desc">
+        Inspect classification filters, ORCID/DOI attribution, SPDX licenses, and zero-stub <code>main.tex</code> + <code>references.bib</code> <code>.tar.gz</code> bundles directly in Vox Axis.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/scientia-arcane.webp" alt="Vox Axis Scientia dashboard with clickable publication candidate rows and quick-picker manuscript pills" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge">Scientia Overview</span>
+      <h3 class="vox-showcase-title">Clickable Candidates &amp; Quick Manuscript Pickers</h3>
+      <p class="vox-showcase-desc">
+        Click any discovery candidate (<code>cand-*</code>) or <code>PUB-*</code> quick-picker pill across Scientia, Claims, and Discovery Review to load manifests with zero ID copy-pasting.
+      </p>
+    </div>
+  </div>
+</div>
 
 ## Fastest safe path
 
@@ -33,7 +66,7 @@ Use `vox scientia publication-status --publication-id <id> --with-worthiness` as
 - `vox scientia publication-discovery-refresh-evidence --publication-id <id>` — merges live Socrates telemetry + JSON sidecars, rebuilds `scientia_evidence` (headings, signals), upserts digest; emits `discovery_evidence_refreshed`. MCP: `vox_scientia_publication_discovery_refresh_evidence`.
 - Preflight JSON now includes `destination_readiness` (credential **presence** checks; no secret values).
 
-**Anti-slop:** LLM assists (`vox_scientia_assist_suggestions` in MCP) must output JSON checklists grounded on provided evidence; they do **not** establish novelty or scientific truth. See `contracts/scientia/machine-suggestion-block.schema.json` and [scientia-a2a-evidence-tasks](../archive/research-2026-q1/scientia-a2a-evidence-tasks.md).
+**Anti-slop:** LLM assists (`vox_scientia_assist_suggestions` in MCP) must output JSON checklists grounded on provided evidence; they do **not** establish novelty or scientific truth. See `contracts/scientia/machine-suggestion-block.schema.json` and [Scientia SSOT Handbook](../reference/scientia-ssot-handbook.md).
 
 ## 1) Prepare a manifest
 

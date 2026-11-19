@@ -12,7 +12,7 @@ import { CardGrid, Card } from '@astrojs/starlight/components';
 
 <div class="vox-home-hero" data-testid="vox-suite-portal-hero">
   <p class="vox-home-kicker">
-    Pre-1.0 Research Prototype · v6.8 / Workspace v0.6.0 · Apache-2.0
+    Pre-1.0 Research Prototype · v8.8 / Workspace v0.6.0 · Apache-2.0
   </p>
   <h1 class="vox-home-title">
     Vox
@@ -236,11 +236,17 @@ Empirically testing whether a single-file language improves LLM code generation 
   <Card title="4. Verified Agent Harness" icon="approve-check">
     A built-in 376-tool MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared files in the task hopper, and route across live OpenRouter and local models. <a href="/how-to/how-to-ai-agents/">Agent Guide →</a>
   </Card>
-  <Card title="5. Trusted Knowledge Base" icon="open-book">
-    <code>vox kb</code> indexes curated docs with Tantivy 0.22 and W3C SKOS taxonomy facets while quarantining unverified web scrapes as <code>Untrusted</code> until cleared by the 5-stage Socrates gate. <a href="/reference/cli/">CLI Docs →</a>
+  <Card title="5. Federated KB &amp; Self-Healing OpenWiki" icon="open-book">
+    <code>vox kb</code>, <code>vox repo</code>, and <code>vox ci wiki-sync --polyglot --heal</code> federate Repo-Local <code>docs/wiki/</code>, <code>~/.vox/library/</code>, and Vox Baseline canon with Tantivy BM25 + HippoRAG Personalized PageRank, W3C SKOS facets, protected auto-fences, and Tier-1/Tier-2 drift repair. <a href="/tutorials/tut-knowledgebase-and-openwiki/">KB &amp; OpenWiki Tutorial →</a>
   </Card>
-  <Card title="6. Native ML & Eval (MENS)" icon="star">
+  <Card title="6. Native ML &amp; Eval (MENS)" icon="star">
     Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with McNemar + Holm compiler-feedback evaluation (<code>vox model eval-compare</code>). Public adapters: <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b">Qwen3 0.6B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b">1.7B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-4b">4B</a>, and the <a href="https://huggingface.co/brbrainerd/vox-mens-index">index</a>. <a href="/explanation/expl-architecture/">Architecture →</a>
+  </Card>
+  <Card title="7. Deep Research & Scientia (arXiv.org)" icon="magnifier">
+    Frame questions via statistical archetypes and Live KB Prior-Art Preflight, steer multi-wave runs with <code>+1 Wave Refinement</code>, choose scoped <code>Index Now</code> vs. Socrates quarantine, and stage 7-stage <code>arXiv.org</code> manuscripts. <a href="/tutorials/tut-deep-research-and-scientia/">Research Tutorial →</a>
+  </Card>
+  <Card title="8. Non-Modal Multi-Format Doc Studio" icon="pencil">
+    Author Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and code in <code>Read | Split | Edit</code> beside live Axis surfaces (<code>aria-modal="false"</code>) with clickable citations, callouts, and <code>+ New Doc</code> templates. <a href="/how-to/how-to-axis-workbench/">Doc Studio Guide →</a>
   </Card>
 </CardGrid>
 
@@ -302,6 +308,56 @@ Empirically testing whether a single-file language improves LLM code generation 
       <h3 class="vox-showcase-title">3-Tier Hydraulic Verification Cascade</h3>
       <p class="vox-showcase-desc">
         Visualizes live model routing as a 3-tier Roman hydraulic sluice cascade (<code>CURSUS I · Fast Local MENS</code>, <code>CURSUS II · Balanced Hybrid</code>, <code>CURSUS III · Deep Frontier</code>) flowing through 4 verification gates (<code>AST PARSE</code> → <code>TYPECHECK</code> → <code>TOESTUB</code> → <code>TEST SUITE</code>).
+      </p>
+    </div>
+  </div>
+</div>
+
+### Knowledge, Self-Healing OpenWiki &amp; Verifiable Research Studio
+
+Every Knowledge Base search, deep synthesis wave, non-modal Markdown/AsciiDoc edit, and `arXiv.org` staging transition shares one live operator flywheel ([Research Tutorial](/tutorials/tut-deep-research-and-scientia/) · [KB &amp; OpenWiki Tutorial](/tutorials/tut-knowledgebase-and-openwiki/)):
+
+<div class="vox-showcase-grid" data-testid="axis-kb-research-showcase">
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/research-arcane.webp" alt="Vox Axis Research Studio with Statistical Archetypes, above-the-fold Synthesis Report, Domain Mode selector, and Edit in Doc Dock action" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">research · Multi-Wave Synthesis</span>
+      <h3 class="vox-showcase-title">Archetypes, Preflight &amp; Wave Steering</h3>
+      <p class="vox-showcase-desc">
+        Start from Live KB Prior-Art Preflight, switch Domain Mode (<code>General</code> / <code>CodeGen</code> / <code>Scholarly</code> / <code>Shopping</code>), steer <code>+1 Wave Refinement</code>, and route cleanly to <code>Index Now</code> or <code>Save to KB</code>. <a href="/tutorials/tut-deep-research-and-scientia/">Walkthrough →</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/memory-arcane.webp" alt="Vox Axis Memory surface showing 3-layer Federated KB controls, Top-K Depth rotary dial, provenance tags, and single-row Open actions" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">memory · 3-Layer Federated KB</span>
+      <h3 class="vox-showcase-title">Multi-Repo BM25 + HippoRAG PPR</h3>
+      <p class="vox-showcase-desc">
+        Query Repo-Local <code>docs/wiki/</code>, Global Library <code>~/.vox/library/</code>, and Vox Baseline canon with provenance tags, inline chunk expansion, and 1-click Doc Dock inspection. <a href="/tutorials/tut-knowledgebase-and-openwiki/">KB &amp; OpenWiki →</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/doc-reader-arcane.webp" alt="Non-modal DocViewerDrawer docked on the right beside live Memory workspace with Read Split Edit toolbar, frontmatter pills, and GFM tables" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">Doc Dock · Non-Modal Split Studio</span>
+      <h3 class="vox-showcase-title">Multi-Format Read / Split / Edit Dock</h3>
+      <p class="vox-showcase-desc">
+        Dock Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and code in <code>Split | Wide | Full</code> without modal lockouts; author with <code>+ New Doc</code> templates and OpenWiki auto-fences. <a href="/how-to/how-to-axis-workbench/">Doc Studio →</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="./assets/axis/publications-arcane.webp" alt="Vox Axis Publications Control Studio managing 7-stage scholarly pipeline, ORCID/DOI attribution, SPDX licenses, and arXiv.org bundle staging" width="720" height="450" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge">publications · Scientia arXiv</span>
+      <h3 class="vox-showcase-title">7-Stage Scientia &amp; <code>arXiv.org</code> Staging</h3>
+      <p class="vox-showcase-desc">
+        Advance candidate findings through digest-bound dual approvals, worthiness scoring, ORCID/DOI attribution, and zero-stub <code>main.tex</code> + <code>references.bib</code> <code>.tar.gz</code> bundles. <a href="/how-to/how-to-scientia-publication/">Publication Guide →</a>
       </p>
     </div>
   </div>
@@ -400,10 +456,10 @@ Organized by the [Diátaxis framework](https://diataxis.fr/) — structured arou
 
 | Goal | Start Here |
 |:---|:---|
-| **Learn step by step** | [Installing Vox](/reference/installation/) · [Getting Started](/tutorials/tut-getting-started/) · [First Full-Stack App](/tutorials/tut-first-app/) · [Full-Stack Walkthrough](/tutorials/tut-fullstack-walkthrough/) · [Durable Workflows](/tutorials/tut-workflow-durability/) |
-| **Follow task recipes** | [Vox Axis Desktop Workbench](/how-to/how-to-axis-workbench/) · [AI Agents & MCP](/how-to/how-to-ai-agents/) · [External App Bootstrap](/how-to/external-app-bootstrap/) · [Troubleshooting FAQ](/how-to/troubleshooting-faq/) |
+| **Learn step by step** | [Installing Vox](/reference/installation/) · [Getting Started](/tutorials/tut-getting-started/) · [Deep Research & Scientia](/tutorials/tut-deep-research-and-scientia/) · [Knowledgebase & OpenWiki](/tutorials/tut-knowledgebase-and-openwiki/) · [First Full-Stack App](/tutorials/tut-first-app/) · [Full-Stack Walkthrough](/tutorials/tut-fullstack-walkthrough/) · [Durable Workflows](/tutorials/tut-workflow-durability/) |
+| **Follow task recipes** | [Vox Axis Desktop Workbench](/how-to/how-to-axis-workbench/) · [Publish Scientia Findings](/how-to/how-to-scientia-publication/) · [AI Agents & MCP](/how-to/how-to-ai-agents/) · [External App Bootstrap](/how-to/external-app-bootstrap/) · [Troubleshooting FAQ](/how-to/troubleshooting-faq/) |
 | **Understand the design** | [Why Vox for AI](/explanation/why-vox-for-ai/) · [Compiler Architecture](/explanation/expl-architecture/) · [Empirical Vox vs. TS Benchmark](/architecture/vox-vs-ts-empirical-benchmark-2026/) · [General FAQ](/explanation/faq/) |
-| **Look up exact details** | [Syntax Reference](/reference/ref-syntax/) · [CLI Reference](/reference/cli/) · [Decorators](/reference/ref-decorators/) · [Stability Matrix](/reference/stability/) |
+| **Look up exact details** | [Syntax Reference](/reference/ref-syntax/) · [CLI Reference](/reference/cli/) · [Decorators](/reference/ref-decorators/) · [Search & Retrieval](/reference/ref-search/) · [Stability Matrix](/reference/stability/) |
 | **Contribute or audit** | [Where Things Live](/architecture/where-things-live/) · [Flywheel & Multi-Repo SSOT](/architecture/monorepo-to-multirepo-flywheel-ssot-2026/) · [Contributor Hub](/contributors/contributor-hub/) · [Agents Policy (`AGENTS.md`)](/repo/agents-md/) |
 
 ---

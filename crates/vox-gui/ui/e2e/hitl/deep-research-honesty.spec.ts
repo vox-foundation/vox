@@ -29,7 +29,8 @@ test.describe('Deep Research Dual Lanes, Engine Drawer & Honesty E2E', () => {
     await fastBtn.click();
     await expect(fastBtn).toHaveAttribute('aria-selected', 'true');
 
-    // 4. Verify Provider Quota Badge Strip
+    // 4. Expand Progressive-Disclosure Providers Ledger & Verify Quota Badge Strip
+    await page.getByText(/Retrieval Parameters & Providers/i).click();
     const badgeStrip = page.getByTestId('provider-badge-strip');
     await expect(badgeStrip).toBeVisible();
     await expect(badgeStrip).toContainText('Wikipedia');

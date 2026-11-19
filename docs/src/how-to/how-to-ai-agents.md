@@ -1,14 +1,21 @@
 ---
 title: "How-To: Build AI Agents and MCP Tools"
-description: "Expand your Vox logic into reusable tools for AI assistants and define specialized agents using the Model Context Protocol (MCP)."
+description: "Expand your Vox logic into reusable tools for AI assistants, wire agents into Vox's Federated Knowledge Base, and define MCP capabilities."
 category: "How-To Guides"
-training_eligible: true
-
+status: "current"
+topic: "mcp-tools"
+domain: "orchestration"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "HowTo"
 keywords: ["MCP tools Vox", "AI agents tutorial", "Model Context Protocol programming", "build AI agents Rust"]
 ---
 
 # How-To: Build AI Agents and MCP Tools
+
+<!-- kb:summary -->
+Guides developers through exposing typed Vox functions as Model Context Protocol (MCP) tools using the `tool` keyword, composing agent orchestration with `@require` guardrails, verifying endpoints over HTTP/MCP, and connecting agents to Vox's 3-layer Federated Knowledge Base (`vox_kb_search`, `vox_kb_cite`, `vox_repo_query_text`) and self-healing OpenWiki pipelines.
+<!-- /kb:summary -->
 
 Vox is an AI-native language, meaning it bridges the gap between high-level business logic and the Model Context Protocol (MCP) without glue code. Any Vox function can become an MCP tool with a single keyword.
 
@@ -60,7 +67,7 @@ To expose your tools to a local AI assistant (like Claude Desktop or Cursor):
 
 ## 4. Testing Your Tools
 
-Never guess if a tool works. You can test your tool directly against the generated server. (Note: A dedicated `vox test-mcp` CLI is an aspirational future feature).
+Never guess if a tool works. Verify tool registration and surface parity against the generated server using `vox ci mcp-vox-surface-parity`.
 
 ```bash
 # Test the 'search_docs' endpoint manually using standard tools
@@ -87,6 +94,16 @@ delete_data(id: Id[User]) to Result[str] {
 ```
 
 If the precondition fails, the MCP tool returns a "Tool execution failed" error to the model with the specific violation reason, preventing the LLM from attempting unauthorized actions.
+
+---
+
+## 6. Grounding Agents in Vox's Federated Knowledge Base & OpenWiki
+
+Connected MCP clients automatically gain access to Vox's built-in retrieval and repository-intelligence tools (`vox_kb_search`, `vox_kb_cite`, `vox_kb_get`, `vox_repo_query_text`, and `vox_repo_status`), allowing agents to pull line-anchored `#Lstart-Lend` citations across repo-local `docs/wiki/` and `~/.vox/library/` before writing code.
+
+See the hands-on walkthroughs:
+- [Tutorial: Managing Knowledgebases, Self-Healing OpenWiki & the Doc Studio](../tutorials/tut-knowledgebase-and-openwiki.mdx)
+- [Tutorial: Deep Research, Knowledge Preflight & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx)
 
 ---
 

@@ -251,6 +251,209 @@ where
     })
 }
 
+/// Multi-repository isolation and multi-hop PPR retrieval evaluation summary (`KB-04`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MultiRepoEvalReport {
+    pub repos_evaluated: usize,
+    pub queries_evaluated: usize,
+    pub recall_at_5: f64,
+    pub mrr_at_10: f64,
+    pub multi_hop_grounding_rate: f64,
+    pub cross_repo_leakage_count: usize,
+    pub passed: bool,
+}
+
+impl MultiRepoEvalReport {
+    #[must_use]
+    pub fn render_text(&self) -> String {
+        format!(
+            "multi_repo_eval repos={} queries={} recall@5={:.4} mrr@10={:.4} multi_hop_grounding={:.4} leakage={} passed={}\n",
+            self.repos_evaluated,
+            self.queries_evaluated,
+            self.recall_at_5,
+            self.mrr_at_10,
+            self.multi_hop_grounding_rate,
+            self.cross_repo_leakage_count,
+            self.passed
+        )
+    }
+}
+
+struct EvalTempDir(std::path::PathBuf);
+
+impl Drop for EvalTempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Hermetic end-to-end evaluation over two isolated repositories verifying per-repo KB retrieval
+/// (`recall@5`, `mrr@10`), HippoRAG PPR multi-hop grounding over cross-edges, and zero leakage.
+#[cfg(feature = "tantivy-lexical")]
+pub async fn run_hermetic_multi_repo_eval(
+    hasher: &(dyn Fn(&[u8]) -> String + Sync),
+) -> Result<MultiRepoEvalReport> {
+    let unique = format!(
+        "vox-kb-multirepo-eval-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos())
+    );
+    let tmp = EvalTempDir(std::env::temp_dir().join(unique));
+    std::fs::create_dir_all(&tmp.0)?;
+    let repo_a = tmp.0.join("repo-alpha");
+    let repo_b = tmp.0.join("repo-beta");
+    let lex_base = tmp.0.join("lex");
+    std::fs::create_dir_all(repo_a.join("docs/wiki"))?;
+    std::fs::create_dir_all(repo_b.join("docs/wiki"))?;
+
+    std::fs::write(
+        repo_a.join("docs/wiki/auth.md"),
+        "# Alpha Auth\nalpha_session_token validation guide for tenant alpha.\n",
+    )?;
+    std::fs::write(
+        repo_a.join("docs/wiki/ledger.md"),
+        "# Alpha Ledger\nalpha_billing_reconcile workflow details.\n",
+    )?;
+    std::fs::write(
+        repo_b.join("docs/wiki/auth.md"),
+        "# Beta Auth\nbeta_oauth_handshake validation guide for tenant beta.\n",
+    )?;
+    std::fs::write(
+        repo_b.join("docs/wiki/ledger.md"),
+        "# Beta Ledger\nbeta_settlement_batch pipeline details.\n",
+    )?;
+
+    let db = vox_db::VoxDb::open_memory().await?;
+    let deps = crate::library::IndexDeps {
+        hasher,
+        corpus_commit: None,
+        trust_tier: vox_db::ContextTrustTier::Trusted,
+        is_committed_clean: &|_: &str| true,
+    };
+
+    let man_a = crate::kb_ids::KbCorpusManifest::for_tier(
+        &repo_a,
+        "repo-alpha",
+        crate::kb_ids::CorpusTier::Wiki,
+    );
+    let man_b = crate::kb_ids::KbCorpusManifest::for_tier(
+        &repo_b,
+        "repo-beta",
+        crate::kb_ids::CorpusTier::Wiki,
+    );
+    let lex_a = crate::library::lexical::resolve_scoped_index_dir(
+        Some(&lex_base),
+        None,
+        "repo-alpha",
+        "wiki",
+    )?;
+    let lex_b = crate::library::lexical::resolve_scoped_index_dir(
+        Some(&lex_base),
+        None,
+        "repo-beta",
+        "wiki",
+    )?;
+
+    crate::library::index_library_scoped(&db, &repo_a, &lex_a, &man_a, &deps).await?;
+    crate::library::index_library_scoped(&db, &repo_b, &lex_b, &man_b, &deps).await?;
+
+    let queries = [
+        (
+            &lex_a,
+            man_a.corpus_key(),
+            "alpha_session_token",
+            "docs/wiki/auth.md",
+            "beta_",
+        ),
+        (
+            &lex_a,
+            man_a.corpus_key(),
+            "alpha_billing_reconcile",
+            "docs/wiki/ledger.md",
+            "beta_",
+        ),
+        (
+            &lex_b,
+            man_b.corpus_key(),
+            "beta_oauth_handshake",
+            "docs/wiki/auth.md",
+            "alpha_",
+        ),
+        (
+            &lex_b,
+            man_b.corpus_key(),
+            "beta_settlement_batch",
+            "docs/wiki/ledger.md",
+            "alpha_",
+        ),
+    ];
+
+    let mut recall_sum = 0.0_f64;
+    let mut mrr_sum = 0.0_f64;
+    let mut leakage = 0_usize;
+    for (lex, key, q, expected_doc, forbidden_prefix) in &queries {
+        let hits = crate::library::search_scoped_with_taxonomy(&db, lex, key, q, 5, None).await?;
+        let mut seen_docs = Vec::new();
+        for h in &hits {
+            if h.snippet.contains(forbidden_prefix) {
+                leakage += 1;
+            }
+            if !seen_docs.contains(&h.doc_path) {
+                seen_docs.push(h.doc_path.clone());
+            }
+        }
+        if let Some(pos) = seen_docs.iter().position(|d| d == expected_doc) {
+            recall_sum += 1.0;
+            mrr_sum += 1.0 / (pos + 1) as f64;
+        }
+        // Cross-query repo-beta lexical dir with repo-alpha corpus key must yield zero leakage.
+        let other_lex = if *lex == &lex_a { &lex_b } else { &lex_a };
+        let cross_hits =
+            crate::library::search_scoped_with_taxonomy(&db, other_lex, key, q, 5, None).await?;
+        leakage += cross_hits.len();
+    }
+
+    let multihop_graph = serde_json::json!({
+        "nodes": [
+            { "id": "src/auth.rs::issue_jwt", "label": "issue_jwt", "kind": "fn", "community": "c_0" },
+            { "id": "docs/wiki/auth.md", "label": "Authentication Flow", "kind": "doc", "community": "c_0" },
+            { "id": "docs/adr/001-auth.md", "label": "Zero Trust Architecture", "kind": "adr", "community": "c_1" }
+        ],
+        "links": [
+            { "source": "src/auth.rs::issue_jwt", "target": "docs/wiki/auth.md", "kind": "documented_in", "confidence": "EXTRACTED" },
+            { "source": "docs/wiki/auth.md", "target": "docs/adr/001-auth.md", "kind": "governed_by_adr", "confidence": "EXTRACTED" }
+        ]
+    });
+    let (ppr_hits, _) = vox_config::graphify::ppr_and_community_search_graph(
+        &multihop_graph,
+        "repo-alpha-code",
+        "issue_jwt",
+        5,
+    );
+    let grounded = usize::from(ppr_hits.iter().any(|h| h.node_id == "docs/adr/001-auth.md"));
+
+    let q_count = queries.len() as f64;
+    let recall_at_5 = round6(recall_sum / q_count);
+    let mrr_at_10 = round6(mrr_sum / q_count);
+    let multi_hop_grounding_rate = grounded as f64;
+    let passed = leakage == 0
+        && recall_at_5 >= 0.90
+        && mrr_at_10 >= 0.90
+        && multi_hop_grounding_rate >= 0.90;
+
+    Ok(MultiRepoEvalReport {
+        repos_evaluated: 2,
+        queries_evaluated: queries.len(),
+        recall_at_5,
+        mrr_at_10,
+        multi_hop_grounding_rate,
+        cross_repo_leakage_count: leakage,
+        passed,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,5 +626,18 @@ mod tests {
         assert!(!r.keys.contains_key("dev/human") && !r.keys.contains_key("dev/seed"));
         assert_eq!(r.to_json_string().unwrap(), run().to_json_string().unwrap());
         assert!(r.to_json_string().unwrap().contains("\"answer_in_budget\""));
+    }
+
+    #[cfg(feature = "tantivy-lexical")]
+    #[tokio::test]
+    async fn multi_repo_eval_verifies_recall_mrr_multihop_and_zero_leakage() {
+        let hasher = |b: &[u8]| vox_crypto::hex_encode(&vox_crypto::secure_hash(b));
+        let report = run_hermetic_multi_repo_eval(&hasher).await.unwrap();
+        assert!(report.passed, "report failed: {report:?}");
+        assert_eq!(report.repos_evaluated, 2);
+        assert_eq!(report.cross_repo_leakage_count, 0);
+        assert!(report.recall_at_5 >= 0.99);
+        assert!(report.mrr_at_10 >= 0.99);
+        assert!(report.multi_hop_grounding_rate >= 0.99);
     }
 }

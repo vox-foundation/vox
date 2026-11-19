@@ -2890,12 +2890,6 @@ docs:
   - facet-missing-domain
   - facet-missing-summary
   - facet-missing-topic
-- path: docs/src/contributors/vox-deep-research-primer.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
 - path: docs/src/examples/golden.md
   rules:
   - facet-missing-authorship
@@ -2903,18 +2897,6 @@ docs:
   - facet-missing-summary
   - facet-missing-topic
 - path: docs/src/explanation/expl-actors-workflows.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/explanation/expl-ai-orchestration.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/explanation/expl-architecture.md
   rules:
   - facet-missing-authorship
   - facet-missing-domain
@@ -2974,25 +2956,7 @@ docs:
   - facet-missing-domain
   - facet-missing-summary
   - facet-missing-topic
-- path: docs/src/explanation/faq.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/explanation/glossary.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
 - path: docs/src/explanation/mcp_serverless_research.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/explanation/why-vox-for-ai.md
   rules:
   - facet-missing-authorship
   - facet-missing-domain
@@ -3041,12 +3005,6 @@ docs:
   - facet-missing-summary
   - facet-missing-topic
 - path: docs/src/how-to/grand-network-quickstart.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/how-to/how-to-ai-agents.md
   rules:
   - facet-missing-authorship
   - facet-missing-domain
@@ -3155,12 +3113,6 @@ docs:
   - facet-missing-summary
   - facet-missing-topic
 - path: docs/src/how-to/how-to-scale-actors.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/how-to/how-to-scientia-publication.md
   rules:
   - facet-missing-authorship
   - facet-missing-domain
@@ -3430,12 +3382,6 @@ docs:
   - facet-missing-domain
   - facet-missing-summary
   - facet-missing-topic
-- path: docs/src/reference/external-repositories.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
 - path: docs/src/reference/feature-builds.md
   rules:
   - facet-missing-authorship
@@ -3443,12 +3389,6 @@ docs:
   - facet-missing-summary
   - facet-missing-topic
 - path: docs/src/reference/frontend-surface-ownership.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/reference/gui-navigation.md
   rules:
   - facet-missing-authorship
   - facet-missing-domain
@@ -3736,12 +3676,6 @@ docs:
   - facet-missing-domain
   - facet-missing-summary
   - facet-missing-topic
-- path: docs/src/reference/ref-search.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
 - path: docs/src/reference/ref-stdlib-index.md
   rules:
   - facet-missing-authorship
@@ -3815,12 +3749,6 @@ docs:
   - facet-missing-summary
   - facet-missing-topic
 - path: docs/src/reference/scientia-publication-worthiness-rules.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/reference/scientia-ssot-handbook.md
   rules:
   - facet-missing-authorship
   - facet-missing-domain
@@ -3958,31 +3886,7 @@ docs:
   - facet-missing-domain
   - facet-missing-summary
   - facet-missing-topic
-- path: docs/src/tutorials/tut-actor-basics.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/tutorials/tut-first-app.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
 - path: docs/src/tutorials/tut-first-vox-app-checkpoints.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/tutorials/tut-ui-integration.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
-- path: docs/src/tutorials/tut-workflow-durability.md
   rules:
   - facet-missing-authorship
   - facet-missing-domain

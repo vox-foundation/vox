@@ -8,6 +8,7 @@ pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
     apply_scientia_research_fts_cutover(conn).await?;
+    apply_kb_heal_proposals_table(conn).await?;
 
     exec_optional_batch(
         conn,
@@ -131,6 +132,37 @@ CREATE VIRTUAL TABLE IF NOT EXISTS scientia_research_fts USING fts5(
 );
 "#;
     exec_optional_batch(conn, sql).await;
+    Ok(())
+}
+
+/// Phase 468 (`WIKI-04`): Idempotent `kb_heal_proposals` staging table for verified prose heal diffs.
+/// Provisioned as an extension so compiled `baseline_sql()` / `BASELINE_VERSION` remain unchanged.
+pub async fn apply_kb_heal_proposals_table(conn: &Connection) -> Result<(), StoreError> {
+    conn.execute_batch(
+        r#"
+CREATE TABLE IF NOT EXISTS kb_heal_proposals (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL,
+    doc_path TEXT NOT NULL,
+    tier INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    summary TEXT NOT NULL,
+    unified_diff TEXT NOT NULL,
+    original_hash TEXT NOT NULL,
+    patched_markdown TEXT NOT NULL,
+    evidence_citations_json TEXT NOT NULL DEFAULT '[]',
+    gate_report_json TEXT NOT NULL DEFAULT '{}',
+    model_id TEXT,
+    reviewed_by TEXT,
+    review_note TEXT,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_kb_heal_proposals_repo_status
+    ON kb_heal_proposals(repository_id, status, created_at_ms DESC);
+"#,
+    )
+    .await?;
     Ok(())
 }
 

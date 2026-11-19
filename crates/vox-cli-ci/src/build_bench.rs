@@ -336,7 +336,7 @@ pub fn run_build_bench(
         let rows = compute_deltas(&base, &snap);
         let md = format_delta_markdown(&label, &rows);
         print!("{md}");
-        let report_dir = root.join("graphify-out/build-bench");
+        let report_dir = vox_config::paths::repo_ci_maps_cache_dir(root).join("build-bench");
         std::fs::create_dir_all(&report_dir).ok();
         let report = report_dir.join("REPORT.md");
         use std::io::Write;

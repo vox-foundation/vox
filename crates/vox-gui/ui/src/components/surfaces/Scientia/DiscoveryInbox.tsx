@@ -19,6 +19,22 @@ function tierLabel(tier: string): string {
   return tier.replace(/_/g, ' ');
 }
 
+function formatDiscoveryCandidateTitle(r: DiscoveryInboxRow): string {
+  const cleanTokens = r.publication_id
+    .replace(/^(pub|finding|commit)-/i, '')
+    .split(/[-_]+/)
+    .filter((tok) => tok && !/^[0-9a-f]{8,}$/i.test(tok))
+    .map((tok) => tok.charAt(0).toUpperCase() + tok.slice(1));
+  const subject = cleanTokens.length > 0 ? cleanTokens.join(' ') : r.publication_id;
+  if (r.origin === 'research') {
+    return `${subject} · Grounded Research Candidate`;
+  }
+  if (r.signal_codes.length > 0) {
+    return `${subject} · ${r.signal_codes[0]!.replace(/[._]/g, ' ')}`;
+  }
+  return `${subject} · Scholarly Discovery Candidate`;
+}
+
 /** Compact relative-time string for a past epoch-ms timestamp. */
 function relativeTime(ms: number): string {
   const delta = Date.now() - ms;
@@ -58,10 +74,11 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
   // First load shouldn't toast the whole backlog as if it just arrived.
   const primedRef = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-    setLoading(true);
+    const showSpinner = !opts?.silent && !primedRef.current;
+    if (showSpinner) setLoading(true);
     try {
       const next = await listDiscoveryInbox();
       // Announce strong candidates that are new since the last fetch.
@@ -71,7 +88,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
             pushToast({
               tone: 'info',
               title: 'New research candidate',
-              body: `${r.publication_id}${r.signal_codes.length ? ` · ${r.signal_codes.join(', ')}` : ''}`,
+              body: `${formatDiscoveryCandidateTitle(r)} (${r.publication_id})`,
               cause: 'backend-ok',
             });
           }
@@ -83,21 +100,36 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
       primedRef.current = true;
       setRows(next);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Discovery inbox', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-      setRows([]);
+      if (!opts?.silent) {
+        pushToast({ tone: 'warn', title: 'Discovery inbox', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      }
+      if (!primedRef.current) setRows([]);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
       fetchingRef.current = false;
     }
   }, [pushToast]);
 
-  // Initial fetch + 10 s interval fallback.
+  // Initial fetch + visibility-gated 10 s interval fallback.
   useEffect(() => {
-    refresh();
+    void refresh();
     // Embedded mini-render: one initial fetch only, no repeating poll.
     if (embedded) return;
-    const t = setInterval(refresh, 10_000);
-    return () => clearInterval(t);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh({ silent: true });
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const t = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        void refresh({ silent: true });
+      }
+    }, 10_000);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refresh, embedded]);
 
   // Event-driven refresh on discovery-surfaced rows + scientia-queue ping.
@@ -183,39 +215,31 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
     );
     window.dispatchEvent(
       new CustomEvent('vox://navigate-surface', {
-        detail: { view: 'activity', publicationId },
+        detail: { view: 'scientia', publicationId },
       }),
     );
   }, []);
 
   return (
     <section className="space-y-4">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{useLabel('discovery-inbox')}</h2>
-          <p className="font-mono text-xs text-text-muted">
-            Unacknowledged surfaced research candidates. Open one for review, or acknowledge to dismiss.
+          <p className="font-sans text-xs text-text-muted">
+            Unacknowledged surfaced research candidates. Updates automatically via live Scientia queue events.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={loading}
-          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
-        >
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
       </div>
 
-      <div className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle">
+      <div className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-bg-surface">
         <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-          <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
+          <span className="font-display text-xs uppercase tracking-[0.18em] text-text-muted">
             Unacknowledged ({rows.length})
           </span>
         </div>
 
         {rows.length === 0 && !loading && (
-          <div className="px-4 py-10 text-center font-mono text-[11px] text-text-muted">
+          <div className="px-4 py-10 text-center text-xs text-text-muted">
             No unacknowledged research candidates.
           </div>
         )}
@@ -228,26 +252,29 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
               <div
                 key={r.id}
                 role="listitem"
-                className="flex items-start justify-between gap-4 border-b border-border-subtle px-4 py-3"
+                className="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle px-4 py-3 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+                      className={`rounded border px-2 py-0.5 font-sans text-[11px] font-semibold uppercase tracking-wider ${
                         strong
-                          ? 'bg-brass/20 text-brass ring-1 ring-brass/40'
-                          : 'bg-overlay-subtle text-text-muted'
+                          ? 'border-brass/45 bg-bg-elevated text-brass'
+                          : 'border-border-subtle bg-bg-elevated text-text-muted'
                       }`}
                     >
                       {tierLabel(r.intake_tier)}
                     </span>
                     {researchOriginated && (
-                      <span className="rounded-full bg-cyan/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-cyan ring-1 ring-cyan/30">
+                      <span className="rounded border border-(--color-status-info)/40 bg-bg-elevated px-2 py-0.5 font-sans text-[11px] font-medium uppercase tracking-wider text-(--color-status-info)">
                         research
                       </span>
                     )}
-                    <span className="truncate font-mono text-[12px] text-text-secondary">{r.publication_id}</span>
-                    <span className="ml-auto shrink-0 font-mono text-[10px] text-text-muted">
+                    <span className="truncate font-serif text-xs font-semibold text-text-primary">
+                      {formatDiscoveryCandidateTitle(r)}
+                    </span>
+                    <span className="truncate font-mono text-[11px] font-medium text-text-muted">{r.publication_id}</span>
+                    <span className="ml-auto shrink-0 font-mono text-[11px] text-text-muted">
                       {relativeTime(r.surfaced_at_ms)}
                     </span>
                   </div>
@@ -256,7 +283,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                       {r.signal_codes.map((c) => (
                         <span
                           key={c}
-                          className="rounded-sm border border-violet-400/20 bg-violet-400/6 px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
+                          className="rounded border border-brass/30 bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-brass"
                         >
                           {c}
                         </span>
@@ -264,9 +291,10 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                     </div>
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <button
                     type="button"
+                    data-slot="button"
                     data-testid={`promote-candidate-${r.id}`}
                     disabled={busyId === r.id}
                     onClick={async () => {
@@ -298,22 +326,24 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                         setBusyId(null);
                       }
                     }}
-                    className="rounded-lg border border-brass/40 bg-brass/10 px-3 py-1.5 text-[11px] text-brass hover:bg-brass/20 disabled:opacity-40"
+                    className="inline-flex h-8 items-center rounded-lg border border-brass/45 bg-bg-elevated px-3 text-xs font-medium text-brass hover:bg-brass/15 disabled:opacity-40 transition-colors"
                   >
                     Promote to Publication
                   </button>
                   <button
                     type="button"
+                    data-slot="button"
                     onClick={() => openReview(r.publication_id)}
-                    className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+                    className="inline-flex h-8 items-center rounded-lg border border-border-subtle bg-bg-elevated px-3 text-xs font-medium text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors"
                   >
                     Open review
                   </button>
                   <button
                     type="button"
+                    data-slot="button"
                     disabled={busyId === r.id}
                     onClick={() => acknowledge(r.id)}
-                    className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[11px] text-emerald-200 hover:bg-emerald-400/15 disabled:opacity-40"
+                    className="inline-flex h-8 items-center rounded-lg border border-(--color-status-pass)/40 bg-bg-elevated px-3 text-xs font-medium text-(--color-status-pass) hover:border-(--color-status-pass) disabled:opacity-40 transition-colors"
                   >
                     {busyId === r.id ? 'Acknowledging…' : 'Acknowledge'}
                   </button>

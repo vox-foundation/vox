@@ -179,6 +179,10 @@ pub(crate) struct FacetCtx {
     pub(crate) backlog: Backlog,
 }
 
+/// Embedded taxonomy fallback used when linting external repositories without `contracts/documentation/`.
+const EMBEDDED_FACET_TAXONOMY: &str =
+    include_str!("../../../../contracts/documentation/kb-taxonomy.v1.yaml");
+
 impl FacetCtx {
     /// A missing or invalid contract is an error, never "no rules apply" (fail closed).
     pub(crate) fn load(repo_root: &Path) -> Result<FacetCtx, FacetIssue> {
@@ -212,23 +216,52 @@ impl FacetCtx {
         }
         Ok(FacetCtx { taxonomy, backlog })
     }
+
+    /// Strict fail-closed contract load on Vox (`docs/src/` present), with embedded taxonomy
+    /// fallback for external repositories (`docs/wiki/` without `contracts/documentation/`).
+    pub(crate) fn load_or_embedded(repo_root: &Path) -> Result<FacetCtx, FacetIssue> {
+        if repo_root.join("docs/src").exists() || repo_root.join(TAXONOMY_REL).is_file() {
+            return Self::load(repo_root);
+        }
+        let taxonomy = Taxonomy::from_yaml_str(EMBEDDED_FACET_TAXONOMY).map_err(|e| {
+            FacetIssue::ContractUnreadable {
+                path: TAXONOMY_REL.into(),
+                error: e,
+            }
+        })?;
+        Ok(FacetCtx {
+            taxonomy,
+            backlog: Backlog {
+                schema_version: 1,
+                epoch: 1,
+                epoch_note: "embedded external repo default".into(),
+                docs: Vec::new(),
+            },
+        })
+    }
 }
 
-/// Repo-relative `docs/src/**/*.{md,mdx}` path (`/` separators) the facet rules apply to; `None`
+/// Repo-relative `docs/src/**/*.{md,mdx}` or `docs/wiki/**/*.md` path (`/` separators) the facet rules apply to; `None`
 /// for archive, generated, `docs/src/index.mdx` (landing page without H1) and out-of-tree paths.
 pub(crate) fn facet_lint_rel_path(path: &Path, repo_root: &Path) -> Option<String> {
     let full = path.to_string_lossy().replace('\\', "/");
     let rel = match path.strip_prefix(repo_root) {
         Ok(r) => r.to_string_lossy().replace('\\', "/"),
-        // Drive casing or extra prefix segments: anchor on the `docs/src/` segment.
-        Err(_) => full[full.find("docs/src/")?..].to_string(),
+        // Drive casing or extra prefix segments: anchor on `docs/src/` or `docs/wiki/`.
+        Err(_) => {
+            if let Some(idx) = full.find("docs/src/") {
+                full[idx..].to_string()
+            } else {
+                full[full.find("docs/wiki/")?..].to_string()
+            }
+        }
     };
     let rel = rel.trim_start_matches("./");
     let is_authored_doc = (rel.ends_with(".md") && !rel.ends_with(".generated.md"))
         || (rel.ends_with(".mdx")
             && !rel.ends_with(".generated.mdx")
             && rel != "docs/src/index.mdx");
-    let ok = rel.starts_with("docs/src/")
+    let ok = (rel.starts_with("docs/src/") || rel.starts_with("docs/wiki/"))
         && is_authored_doc
         && !rel.split('/').any(|seg| seg == "archive");
     ok.then(|| rel.to_string())

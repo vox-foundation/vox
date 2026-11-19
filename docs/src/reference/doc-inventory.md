@@ -1,6 +1,6 @@
 ---
 title: "Doc inventory verifier (SSOT)"
-description: "Official documentation for Doc inventory verifier (SSOT) for the Vox language. Detailed technical reference, architecture guides, and imp"
+description: "Reference for generating and verifying docs/agents/doc-inventory.json using vox ci doc-inventory Rust gates."
 category: "Language Reference"
 training_eligible: true
 

@@ -10,9 +10,9 @@ use vox_repository::{RepoAccessMode, RepoCatalog, RepositoryDescriptor};
 pub enum CatalogCmd {
     /// Resolve and print the current repo catalog.
     List,
-    /// Add a local workspace-relative path to the catalog.
+    /// Add a local workspace-relative or external repository path to the catalog.
     Add {
-        /// The path to add (must be relative to the workspace root or absolute)
+        /// The path to add (relative to the workspace root or absolute)
         path: String,
         /// The identifier for the repository (e.g. 'my-repo')
         #[arg(long = "id")]
@@ -20,6 +20,9 @@ pub enum CatalogCmd {
         /// The display name for the repository
         #[arg(long)]
         name: Option<String>,
+        /// Index/track the target in read-only mode (external cache under `~/.vox/repos/<id>/`, zero writes inside target repo)
+        #[arg(long = "read-only")]
+        read_only: bool,
     },
     /// Remove a repository from the catalog by its path or id.
     Remove {
@@ -82,45 +85,66 @@ pub async fn run(cmd: CatalogCmd) -> Result<()> {
             path,
             repository_id,
             name,
+            read_only,
         } => {
-            let (manifest, mut catalog) = load_catalog(&repo_root)?;
-            if catalog
-                .repositories
-                .iter()
-                .any(|r| r.root_path == Some(path.clone()))
-            {
-                println!("Path '{}' is already in the catalog.", path);
-                return Ok(());
+            let target_path = if Path::new(&path).is_absolute() {
+                PathBuf::from(&path)
+            } else {
+                repo_root.join(&path)
+            };
+            if target_path.exists() {
+                let resolved = vox_repository::add_repository_to_catalog(
+                    &repo_root,
+                    &target_path,
+                    name.as_deref(),
+                    read_only,
+                )?;
+                println!(
+                    "Added '{}' to repo catalog ({} repositories total, read_only={}).",
+                    path,
+                    resolved.repositories.len(),
+                    read_only
+                );
+            } else {
+                let (manifest, mut catalog) = load_catalog(&repo_root)?;
+                if catalog
+                    .repositories
+                    .iter()
+                    .any(|r| r.root_path == Some(path.clone()))
+                {
+                    println!("Path '{}' is already in the catalog.", path);
+                    return Ok(());
+                }
+                let display_name = name.unwrap_or_else(|| path.clone());
+                catalog.repositories.push(RepositoryDescriptor {
+                    display_name,
+                    repository_id,
+                    root_path: Some(path.clone()),
+                    access_mode: if read_only {
+                        RepoAccessMode::ReadOnlyLocal
+                    } else {
+                        RepoAccessMode::Local
+                    },
+                    read_only,
+                    capabilities: Vec::new(),
+                    default_ref: None,
+                    origin_url: None,
+                    metadata: None,
+                    provider: None,
+                    remote: None,
+                    ..Default::default()
+                });
+                save_catalog(&manifest, &catalog)?;
+                println!("Added '{}' to repo catalog.", path);
             }
-            let display_name = name.unwrap_or_else(|| path.clone());
-            catalog.repositories.push(RepositoryDescriptor {
-                display_name,
-                repository_id,
-                root_path: Some(path.clone()),
-                access_mode: RepoAccessMode::Local,
-                capabilities: Vec::new(),
-                default_ref: None,
-                origin_url: None,
-                metadata: None,
-                provider: None,
-                remote: None,
-                ..Default::default()
-            });
-            save_catalog(&manifest, &catalog)?;
-            println!("Added '{}' to repo catalog.", path);
         }
         CatalogCmd::Remove { target } => {
-            let (manifest, mut catalog) = load_catalog(&repo_root)?;
-            let orig_len = catalog.repositories.len();
-            catalog.repositories.retain(|r| {
-                r.root_path != Some(target.clone())
-                    && r.repository_id.as_deref() != Some(target.as_str())
-            });
-            if catalog.repositories.len() < orig_len {
-                save_catalog(&manifest, &catalog)?;
-                println!("Removed '{}' from repo catalog.", target);
-            } else {
-                println!("Could not find '{}' in the catalog.", target);
+            match vox_repository::remove_repository_from_catalog(&repo_root, &target) {
+                Ok(_) => println!("Removed '{}' from repo catalog.", target),
+                Err(vox_repository::RepoCatalogError::RepositoryNotFound { .. }) => {
+                    println!("Could not find '{}' in the catalog.", target);
+                }
+                Err(e) => return Err(e.into()),
             }
         }
         CatalogCmd::Focus { repository_id } => {
@@ -130,13 +154,13 @@ pub async fn run(cmd: CatalogCmd) -> Result<()> {
                     .repositories
                     .iter()
                     .any(|r| r.repository_id.as_deref() == Some(id));
-                // We permit setting a focus that hasn't been explicitly declared, since it might refer to the root itself.
                 if !exists {
                     println!(
                         "Note: Repository ID '{}' does not match any entry currently listed in the catalog array. Setting it anyway.",
                         id
                     );
                 }
+                let _ = vox_repository::switch_active_repository(&repo_root, id);
             }
             catalog.primary_repository_id = repository_id.clone();
             save_catalog(&manifest, &catalog)?;

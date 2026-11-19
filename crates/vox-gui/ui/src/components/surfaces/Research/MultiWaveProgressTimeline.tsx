@@ -90,16 +90,16 @@ export function MultiWaveProgressTimeline({
   return (
     <div
       data-testid="multi-wave-progress-timeline"
-      className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 font-sans"
+      className="rounded-xl border border-border-subtle bg-bg-surface p-4 font-sans"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-primary">
+          <span className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
             Multi-Wave Deep Research Engine
           </span>
           <span
             data-testid="multi-wave-counter"
-            className="rounded bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass ring-1 ring-brass/20"
+            className="rounded border border-brass/30 bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-brass"
           >
             Wave {Math.max(1, Math.min(currentWave, clampedTotal))} of {clampedTotal}
           </span>
@@ -111,16 +111,16 @@ export function MultiWaveProgressTimeline({
             <span
               className={`font-semibold ${
                 stabilityScore >= 0.85
-                  ? 'text-emerald-400'
+                  ? 'text-(--color-status-pass)'
                   : stabilityScore >= 0.6
-                    ? 'text-amber-400'
-                    : 'text-red-400'
+                    ? 'text-(--color-status-warn)'
+                    : 'text-(--color-status-fail)'
               }`}
             >
               {Math.round(stabilityScore * 100)}%
             </span>
             {earlyExitTriggered && (
-              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300 ring-1 ring-emerald-500/30">
+              <span className="rounded border border-(--color-status-pass)/35 bg-bg-elevated px-2 py-0.5 text-[11px] text-(--color-status-pass)">
                 Early Exit
               </span>
             )}
@@ -135,12 +135,12 @@ export function MultiWaveProgressTimeline({
           const isSkipped = w.status === 'skipped';
 
           const borderColor = isCurrent
-            ? 'border-brass ring-1 ring-brass/30'
+            ? 'border-brass bg-bg-elevated ring-1 ring-brass/30'
             : isDone
-              ? 'border-emerald-500/30 bg-emerald-500/5'
+              ? 'border-(--color-status-pass)/35 bg-bg-elevated'
               : isSkipped
-                ? 'border-border-subtle/50 opacity-60'
-                : 'border-border-subtle';
+                ? 'border-border-subtle/50 bg-bg-panel opacity-65'
+                : 'border-border-subtle bg-bg-panel';
 
           return (
             <div
@@ -151,18 +151,18 @@ export function MultiWaveProgressTimeline({
             >
               <div>
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-[11px] font-medium text-text-primary">
+                  <span className="font-sans text-xs font-semibold text-text-primary">
                     {w.title}
                   </span>
-                  <span className="font-mono text-[10px] shrink-0">
+                  <span className="font-mono text-[11px] shrink-0">
                     {isCurrent && (
-                      <span className="inline-flex items-center gap-1 animate-pulse text-brass">
+                      <span className="inline-flex items-center gap-1 text-brass">
                         <Icon.circleDot className="size-3 shrink-0" aria-hidden="true" />
                         <span>Running</span>
                       </span>
                     )}
                     {isDone && (
-                      <span className="inline-flex items-center gap-1 text-emerald-400">
+                      <span className="inline-flex items-center gap-1 text-(--color-status-pass)">
                         <Icon.check className="size-3 shrink-0" aria-hidden="true" />
                         <span>Complete</span>
                       </span>
@@ -181,11 +181,11 @@ export function MultiWaveProgressTimeline({
                     )}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-text-secondary">{w.description}</p>
+                <p className="mt-1 text-xs leading-relaxed text-text-secondary">{w.description}</p>
               </div>
 
               {w.waveIndex === contradictionWaveIndex && unresolvedContradictions > 0 && (
-                <div className="mt-2 inline-flex items-center gap-1 text-[11px] text-amber-400">
+                <div className="mt-2 inline-flex items-center gap-1 text-[11px] text-(--color-status-warn)">
                   <Icon.alert className="size-3.5 shrink-0" aria-hidden="true" />
                   <span>
                     {unresolvedContradictions} contradiction{unresolvedContradictions > 1 ? 's' : ''} detected

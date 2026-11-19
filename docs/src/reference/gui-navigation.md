@@ -1,12 +1,21 @@
 ---
 title: "GUI navigation"
-description: "Operator console v2 surfaces, shell chrome, OmniSearch entry points, chat layout, and keybinds."
+description: "Vox Axis workbench surfaces, non-modal multi-format Doc Dock, Multi-Repo Switcher, shell chrome, OmniSearch entry points, chat layout, and keybinds."
 category: "Language Reference"
+status: "current"
+topic: "desktop-app"
+domain: "gui"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 ---
 
 # GUI navigation
 
-The operator console compresses legacy sidebar entries into **nine surfaces** plus a **Settings** system row. v2 (June 2026) adds a **configurable dashboard**, a persistent **StatusBar**, federated **OmniSearch**, and **Chat-first** composer placement (see [operator console v2 plan](../../superpowers/plans/2026-06-16-gui-operator-console-v2-configurable-dashboard-omnisearch.md)).
+<!-- kb:summary -->
+Reference map of the Vox Axis (`vox-gui`) desktop operator console covering top-level navigation, persisted workbench tabs, the TopHud and StatusBar multi-repo switcher, federated OmniSearch (`Cmd/Ctrl+K`), chat layout, the `5 -> 2` Vox Concilium and Populi swarm/mesh observatory, and the non-modal multi-format Doc Dock (`Read | Split | Edit`).
+<!-- /kb:summary -->
+
+The operator console organizes all **32 `SURFACE_REGISTRY` views** cleanly across primary navigation domains plus a **Settings** system row, combining a configurable dashboard, persistent `StatusBar` + Multi-Repo Switcher, federated OmniSearch, and Chat-first composer placement (see [Vox Axis Workbench Guide](../how-to/how-to-axis-workbench.md) and [Click-Tax & Research Control SSOT](../architecture/research-click-tax-observability-and-control-ssot-2026.md)).
 
 ## Top-level surfaces
 
@@ -42,9 +51,22 @@ Each **leaf surface** opens as its own workbench tab in the header stack. The si
 ```
 
 - **Pinned by default:** Chat. Dashboard is opened on first run when no saved state exists.
-- **Documentation:** Help docs open as `doc:<path>` tabs via Omnibar (`/help …` queries) or `read_doc_markdown` IPC; in-app `DocReader` renders markdown.
+- **Non-Modal Multi-Format Doc Dock (`DocViewerDrawer` + `DocReader`):** Opens via `Cmd/Ctrl+K` (`/help …`), **`Open`** on any `Memory` citation card, **`Edit in Doc Dock`** in `Research`, or the `vox://open-doc` event bus while leaving the underlying workspace live (`aria-modal="false"`). Toggle **`Split | Wide | Full | Minimize`** and switch **`Read | Split | Edit`** across Markdown/GFM, MDX, AsciiDoc, YAML/TOML, JSON/JSONL, CSV/TSV, and `.vox`/`.rs`/`.ts`/`.sql` source files (`write_doc_markdown`).
 - **Attention budget:** shown only on the Chat tab (composer meter), not as a global strip.
 - **Legacy inner tabs (`ParentSurface` / `SubTabs`)** are retired for primary navigation — use workbench tabs and sidebar parents instead.
+
+## Non-Modal Multi-Format Doc Dock & Multi-Repo Switcher
+
+<div class="vox-media-frame">
+  <img src="/assets/axis/non-modal-doc-studio-formats.webp" alt="Non-modal Doc Studio architecture showing live Memory Research VoxGraph and Terminal workspace beside the Read Split Edit multi-format right dock" width="1600" height="900" loading="lazy" />
+  <div class="vox-media-caption">
+    <strong>Non-Modal Doc Studio (<code>aria-modal="false"</code>)</strong> — <em>Inspect citations, edit OpenWiki layers, or draft Scientia manuscripts via <code>+ New Doc</code> without blocking terminal or search panels.</em>
+  </div>
+</div>
+
+- **Multi-Repo Switcher:** Accessible from `StatusBar` and the **Repository** surface to switch `active_repository_id` live inside `vox-orchestrator-d` across Hybrid (`docs/wiki/`) and `--read-only` (`~/.vox/repos/<id>/`) catalog entries.
+- **Vox Concilium & Populi Observatory (`5 -> 2`):** Consolidates agent trajectory traces (`traceparent`), `#seq` coordination boards, and `FileAffinityMap` lock matrices.
+- **Guides:** [Tutorial: Managing Knowledgebases, Self-Healing OpenWiki & the Doc Studio](../tutorials/tut-knowledgebase-and-openwiki.mdx) · [Tutorial: Deep Research, Knowledge Preflight & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx)
 
 E2E visual audit: `pnpm exec playwright test e2e/workbench-tabs.spec.ts e2e/screenshots.spec.ts --project=chromium`.
 
@@ -60,7 +82,7 @@ Operator surfaces share a fixed header stack inside `AppShell` (sidebar left, ch
 └──────────┴────────────────────────────────────────────────────────────┘
 ```
 
-See plan [Appendix D](../../superpowers/plans/2026-06-16-gui-operator-console-v2-configurable-dashboard-omnisearch.md#appendix-d--chat-vs-global-composer-decision) for the Chat-first composer rationale. Shipped v2 has **no global Loquela dock** — the composer lives only on the Chat surface; Dashboard exposes an **Open Chat** CTA (`data-testid="open-chat-cta"`).
+See [Vox Axis Workbench Guide](../how-to/how-to-axis-workbench.md) for the Chat-first composer and dock controls. Shipped v2 has **no global Loquela dock** — the composer lives only on the Chat surface; Dashboard exposes an **Open Chat** CTA (`data-testid="open-chat-cta"`).
 
 ## Composer placement (Chat vs global dock)
 
@@ -163,13 +185,13 @@ Dockview split/close is implemented in `DockShell` (`dockShellKeybindingForEvent
 
 ## SSOT
 
-Surface hierarchy is defined in `contracts/gui/surface-registry.v1.yaml` and regenerated with `vox ci gui-surface-registry --write`. Shell persistence keys live in `contracts/gui/shell-persistence.v1.yaml`; dashboard widgets in `contracts/gui/dashboard-layout.v1.yaml`; federated OmniSearch kinds in `contracts/gui/omnisearch-index.v1.yaml`.
+Surface hierarchy is defined in `contracts/gui/surface-registry.v1.yaml` and regenerated with `vox ci gui-surface-registry --write`. Shell persistence keys live in `contracts/gui/shell-persistence.v1.yaml`; dashboard widgets in `contracts/gui/dashboard-layout.v1.yaml`; federated OmniSearch kinds in `contracts/gui/omnisearch-index.v1.yaml`. See also [Search & Hybrid Retrieval Reference](ref-search.md).
 
 ## Developer bootstrap
 
 ```bash
 vox ci gui-surface-registry --write
-vox ci config-gui-codegen --write
+vox ci config-gui-codegen --fields --kb-facets
 cd crates/vox-gui/ui && pnpm install && pnpm build
 cargo run -p vox-gui
 vox ci gui-smoke

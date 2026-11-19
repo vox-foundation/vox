@@ -1,6 +1,6 @@
 ---
 title: "Ecosystem & Tooling"
-description: "Official documentation for Ecosystem & Tooling for the Vox language. Detailed technical reference, architecture guides, and implementatio"
+description: "Overview of the vox CLI compiler, bundler, package manager, test runner, and LSP tooling workflow."
 category: "How-To Guides"
 training_eligible: true
 

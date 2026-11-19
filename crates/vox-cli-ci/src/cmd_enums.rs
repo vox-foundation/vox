@@ -98,12 +98,45 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
-    /// Generate or verify OpenWiki L0–L5 and domain subsystem architecture hubs under docs/src/architecture/subsystems/.
+    /// Generate or verify OpenWiki subsystem hubs or repo-agnostic polyglot 5-layer OpenWiki docs.
     #[command(name = "wiki-sync")]
     WikiSync {
-        /// Write generated subsystem hub pages. Without this flag, verify only.
+        /// Write generated subsystem hub or polyglot OpenWiki pages. Without this flag, verify/preview only.
         #[arg(long)]
         write: bool,
+        /// Run the repo-agnostic 5-layer polyglot OpenWiki engine (`docs/wiki/`).
+        #[arg(long)]
+        polyglot: bool,
+        /// Initialize `docs/wiki/` and `.vox/cache/openwiki/manifest.v1.json`.
+        #[arg(long)]
+        init: bool,
+        /// Report polyglot OpenWiki status (pages, auto-regions, staleness).
+        #[arg(long)]
+        status: bool,
+        /// Preview polyglot OpenWiki deterministic diffs without writing files.
+        #[arg(long)]
+        diff: bool,
+        /// Target repository root (defaults to discovered repository).
+        #[arg(long, value_name = "PATH")]
+        repo_root: Option<std::path::PathBuf>,
+        /// External read-only output cache directory under `~/.vox/repos/<id>/cache/openwiki`.
+        #[arg(long = "read-only")]
+        read_only: bool,
+        /// Emit compact JSON output.
+        #[arg(long)]
+        json: bool,
+        /// Execute Tier-1 AST blast-radius auto-heal (and optional Tier-2 proposal review).
+        #[arg(long)]
+        heal: bool,
+        /// Automatically apply pending verified Tier-2 heal proposals in `kb_heal_proposals`.
+        #[arg(long = "auto-apply")]
+        auto_apply: bool,
+        /// Apply a specific staged `kb_heal_proposals` id on disk.
+        #[arg(long = "apply-proposal", value_name = "ID")]
+        apply_proposal: Option<String>,
+        /// Reject a specific staged `kb_heal_proposals` id.
+        #[arg(long = "reject-proposal", value_name = "ID")]
+        reject_proposal: Option<String>,
     },
     /// Generate or verify machine-readable GUI coverage classification report.
     #[command(name = "gui-surface-coverage")]

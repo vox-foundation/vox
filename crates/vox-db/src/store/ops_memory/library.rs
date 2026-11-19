@@ -11,6 +11,39 @@ pub const KB_LIBRARY_CORPUS: &str = "library";
 /// `embeddings.source_type` for library chunk vectors (keyed by `chunk_hash`, never rowid).
 pub const KB_CHUNK_SOURCE_TYPE: &str = "kb_chunk";
 
+fn sanitize_corpus_segment(raw: &str) -> String {
+    raw.trim()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+/// Deterministic corpus key scoping KB documents by `(repository_id, corpus_tier)`.
+pub fn kb_scoped_corpus_key(repository_id: &str, corpus_tier: &str) -> String {
+    let repo = sanitize_corpus_segment(repository_id);
+    let tier = sanitize_corpus_segment(corpus_tier);
+    if repo.is_empty() && tier.is_empty() {
+        return KB_LIBRARY_CORPUS.to_string();
+    }
+    let repo = if repo.is_empty() {
+        "default"
+    } else {
+        repo.as_str()
+    };
+    let tier = if tier.is_empty() {
+        "default"
+    } else {
+        tier.as_str()
+    };
+    format!("kb::repo::{repo}::{tier}")
+}
+
 /// One library document row. No `Default` on purpose: every writer must choose a trust tier.
 #[derive(Debug, Clone)]
 pub struct LibraryDocUpsert<'a> {
@@ -138,7 +171,7 @@ impl crate::VoxDb {
             )));
         }
         let conn = self.conn.clone();
-        let source_uri = format!("{KB_LIBRARY_CORPUS}:{}", doc.rel_path);
+        let source_uri = format!("{}:{}", doc.corpus, doc.rel_path);
         self.transaction(async move {
             conn.execute(
                 "INSERT INTO search_documents \
@@ -506,15 +539,17 @@ impl crate::VoxDb {
 
     /// The library chunk with this hash, if any. Corpus-filtered: a row that exists only in a
     /// non-library corpus is never returned (T-02-10).
-    pub async fn library_chunk_by_hash(
+    /// Look up one library chunk by `chunk_hash` scoped to a specific corpus.
+    pub async fn library_chunk_by_hash_in_corpus(
         &self,
+        corpus: &str,
         hash: &str,
     ) -> Result<Option<LibraryChunkRow>, StoreError> {
         let mut rows = self
             .conn
             .query(
                 &format!("{CHUNK_SELECT} WHERE d.corpus = ?1 AND c.chunk_hash = ?2 LIMIT 1"),
-                params![KB_LIBRARY_CORPUS, hash],
+                params![corpus, hash],
             )
             .await?;
         match rows.next().await? {
@@ -523,22 +558,42 @@ impl crate::VoxDb {
         }
     }
 
-    /// Hydrate library chunks by hash, preserving input order and skipping unknown hashes.
-    // ponytail: one query per hash; callers cap at ~50 hits. Batch with IN (...) if that grows.
-    pub async fn library_chunks_by_hashes(
+    /// Look up one library chunk by `chunk_hash` in the default library corpus.
+    pub async fn library_chunk_by_hash(
         &self,
+        hash: &str,
+    ) -> Result<Option<LibraryChunkRow>, StoreError> {
+        self.library_chunk_by_hash_in_corpus(KB_LIBRARY_CORPUS, hash)
+            .await
+    }
+
+    /// Hydrate library chunks by hash within `corpus`, preserving input order and skipping unknown hashes.
+    // ponytail: one query per hash; callers cap at ~50 hits. Batch with IN (...) if that grows.
+    pub async fn library_chunks_by_hashes_in_corpus(
+        &self,
+        corpus: &str,
         hashes: &[String],
     ) -> Result<Vec<LibraryChunkRow>, StoreError> {
         let mut out = Vec::with_capacity(hashes.len());
         for h in hashes {
-            out.extend(self.library_chunk_by_hash(h).await?);
+            out.extend(self.library_chunk_by_hash_in_corpus(corpus, h).await?);
         }
         Ok(out)
     }
 
-    /// Metadata of one library document by `rel_path`; `None` for unknown or non-library paths.
-    pub async fn library_document_by_path(
+    /// Hydrate library chunks by hash in the default library corpus, preserving input order.
+    pub async fn library_chunks_by_hashes(
         &self,
+        hashes: &[String],
+    ) -> Result<Vec<LibraryChunkRow>, StoreError> {
+        self.library_chunks_by_hashes_in_corpus(KB_LIBRARY_CORPUS, hashes)
+            .await
+    }
+
+    /// Metadata of one document by `rel_path` scoped to `corpus`; `None` for unknown paths.
+    pub async fn library_document_by_path_in_corpus(
+        &self,
+        corpus: &str,
         rel_path: &str,
     ) -> Result<Option<LibraryDocRow>, StoreError> {
         let mut rows = self
@@ -546,7 +601,7 @@ impl crate::VoxDb {
             .query(
                 "SELECT rel_path, title, frontmatter_json, indexed_commit, index_error, \
                  content_hash FROM search_documents WHERE corpus = ?1 AND rel_path = ?2",
-                params![KB_LIBRARY_CORPUS, rel_path],
+                params![corpus, rel_path],
             )
             .await?;
         let Some(r) = rows.next().await? else {
@@ -560,6 +615,15 @@ impl crate::VoxDb {
             index_error: r.get(4)?,
             file_hash: r.get(5)?,
         }))
+    }
+
+    /// Metadata of one library document by `rel_path` in the default library corpus.
+    pub async fn library_document_by_path(
+        &self,
+        rel_path: &str,
+    ) -> Result<Option<LibraryDocRow>, StoreError> {
+        self.library_document_by_path_in_corpus(KB_LIBRARY_CORPUS, rel_path)
+            .await
     }
 
     /// One document's chunks in `chunk_index` order (the card first).
@@ -1078,5 +1142,57 @@ mod tests {
             ]
         );
         assert!(got[0].rowid < got[1].rowid);
+    }
+
+    #[tokio::test]
+    async fn scoped_corpora_isolate_same_rel_path_and_chunks() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let corpus_a = kb_scoped_corpus_key("repo-a", "wiki");
+        let corpus_b = kb_scoped_corpus_key("repo-b", "wiki");
+        let hash_a = "1".repeat(64);
+        let hash_b = "2".repeat(64);
+
+        let mut doc_a = doc("README.md");
+        doc_a.corpus = &corpus_a;
+        doc_a.title = "Repo A Readme";
+        doc_a.file_hash = "filehash_a";
+
+        let mut doc_b = doc("README.md");
+        doc_b.corpus = &corpus_b;
+        doc_b.title = "Repo B Readme";
+        doc_b.file_hash = "filehash_b";
+
+        db.apply_library_document(&doc_a, &[chunk(&hash_a, "Repo A", "body a")])
+            .await
+            .unwrap();
+        db.apply_library_document(&doc_b, &[chunk(&hash_b, "Repo B", "body b")])
+            .await
+            .unwrap();
+
+        let got_a = db
+            .library_document_by_path_in_corpus(&corpus_a, "README.md")
+            .await
+            .unwrap()
+            .expect("doc a");
+        let got_b = db
+            .library_document_by_path_in_corpus(&corpus_b, "README.md")
+            .await
+            .unwrap()
+            .expect("doc b");
+        assert_eq!(got_a.title, "Repo A Readme");
+        assert_eq!(got_b.title, "Repo B Readme");
+
+        let chunks_a = db
+            .library_chunks_by_hashes_in_corpus(&corpus_a, &[hash_a.clone(), hash_b.clone()])
+            .await
+            .unwrap();
+        assert_eq!(chunks_a.len(), 1);
+        assert_eq!(chunks_a[0].chunk_hash, hash_a);
+        assert!(
+            db.library_document_by_path("README.md")
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }

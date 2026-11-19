@@ -39,6 +39,44 @@ pub fn default_index_dir() -> Option<PathBuf> {
     resolve_index_dir(root.expose(), vox_config::paths::data_dir())
 }
 
+fn sanitize_path_segment(raw: &str) -> String {
+    let cleaned: String = raw
+        .trim()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if cleaned.is_empty() {
+        "default".to_string()
+    } else {
+        cleaned
+    }
+}
+
+/// Resolve a Tantivy lexical index directory scoped by `(repository_id, tier)` so multi-repo and
+/// multi-tier shards never share or overwrite each other's index files.
+pub fn resolve_scoped_index_dir(
+    override_dir: Option<&Path>,
+    data_dir: Option<&Path>,
+    repository_id: &str,
+    tier: &str,
+) -> Result<PathBuf> {
+    let base = override_dir
+        .map(PathBuf::from)
+        .or_else(|| data_dir.map(|d| d.join("kb")))
+        .context("neither override_dir nor data_dir provided for scoped KB lexical index")?;
+    Ok(base
+        .join("kb-lexical-v1")
+        .join("repos")
+        .join(sanitize_path_segment(repository_id))
+        .join(sanitize_path_segment(tier)))
+}
+
 pub struct LibraryLexicalIndex {
     index: Index,
 }

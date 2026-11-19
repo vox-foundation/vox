@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "milestone": "v7.9",
+  "workstream": "universal-kb-openwiki-v79",
+  "polyglot_onboarding": {
+    "detected_stacks": [
+      "Go",
+      "Python",
+      "Rust/Cargo",
+      "SQL",
+      "TypeScript/Node",
+      "Vox"
+    ],
+    "hybrid_files_created": [
+      "VOX.md",
+      "AGENTS.md",
+      ".voxignore",
+      ".well-known/llms.txt",
+      ".vox/repositories.yaml",
+      "docs/wiki/"
+    ],
+    "readonly_zero_footprint_verified": true
+  },
+  "graphify": {
+    "node_count": 12,
+    "edge_count": 4,
+    "has_code_doc_cross_edges": true,
+    "ppr_ranked_count": 3
+  },
+  "openwiki_and_self_heal": {
+    "layers_generated": 6,
+    "legacy_mermaid_blocks": 0,
+    "tier1_llm_calls": 0,
+    "tier1_repaired_anchors": 0,
+    "human_prose_preserved": true,
+    "tier2_proposal_staged_and_applied": true
+  },
+  "multi_repo_eval": {
+    "repos_evaluated": 2,
+    "queries_evaluated": 4,
+    "recall_at_5": 1.0,
+    "mrr_at_10": 1.0,
+    "multi_hop_grounding_rate": 1.0,
+    "cross_repo_leakage_count": 0,
+    "passed": true
+  },
+  "cv_flywheel": {
+    "viewports": [
+      "900x600",
+      "1100x720",
+      "1280x800",
+      "1440x900",
+      "1920x1080"
+    ],
+    "themes": [
+      "arcane",
+      "glacier",
+      "slate",
+      "high-contrast"
+    ],
+    "surfaces": [
+      "doc-reader",
+      "memory",
+      "vox-graph",
+      "repository",
+      "bottom-status-bar-repo-switcher"
+    ],
+    "concept_art_plates": [
+      "public/assets/romanesque/v79-concept-openwiki-studio-carrara.jpg",
+      "public/assets/romanesque/v79-concept-openwiki-studio-slate.jpg",
+      "public/assets/romanesque/v79-concept-multirepo-atlas-carrara.jpg",
+      "public/assets/romanesque/v79-concept-multirepo-atlas-slate.jpg"
+    ],
+    "axe_violations": 0,
+    "clipped_interactive_count": 0,
+    "overlapping_control_pairs": 0,
+    "digital_color_leak_count": 0,
+    "light_theme_contrast_leak_count": 0,
+    "raw_emoji_count": 0
+  }
+}

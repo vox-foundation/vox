@@ -1,6 +1,6 @@
 ---
 title: "Zig-Inspired Deployment Architecture"
-description: "Official documentation for Zig-Inspired Deployment Architecture for the Vox language. Detailed technical reference, architecture guides, "
+description: "Design principles behind Vox's single-command target deployment, content-addressed artifact cache, and hermetic container builds."
 category: "Concepts"
 training_eligible: true
 

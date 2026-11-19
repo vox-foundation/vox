@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invokeCmd } from '../../../transport';
 import { IsolationPanel } from './IsolationPanel';
+import { RepositoryCatalogPanel } from './RepositoryCatalogPanel';
 import {
   ISOLATION_STRATEGIES,
   conflictRows,
@@ -187,7 +188,7 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
   ];
 
   return (
-    <section className="@container/surface flex min-h-0 min-w-0 flex-col gap-3.5 rounded-xl border border-[#D4AF37]/40 bg-bg-surface p-3.5 @2xl/surface:p-4">
+    <section className="@container/surface flex min-h-0 min-w-0 flex-col gap-3.5 rounded-xl border border-border-subtle bg-bg-surface p-3.5 @2xl/surface:p-4">
       <RomanSurfaceHeader
         domainTag="WORKSPACE · REPOSITORY"
         title="Repository Polyrepo & JJ VCS Ledger"
@@ -195,6 +196,10 @@ export function RepositoryView({ pushToast, gamifyEnabled, condensed }: Reposito
         waxSealBadge="VCS ACTIVE"
         icon={<GitIcon className="size-5 text-text-primary" />}
         gauges={repoGauges}
+      />
+      <RepositoryCatalogPanel
+        pushToast={pushToast}
+        onRepositoryChanged={() => void refetchIsolation()}
       />
       <BentoGrid preset="hero">
         <BentoCard span="hero-main" className="gap-3">

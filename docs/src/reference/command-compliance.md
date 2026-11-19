@@ -1,6 +1,6 @@
 ---
 title: "Command compliance"
-description: "Official documentation for Command compliance for the Vox language. Detailed technical reference, architecture guides, and implementation"
+description: "Reference for the command-compliance SSOT chain linking catalog.v1.yaml, command-registry.yaml, Clap dispatch, MCP, and docs."
 category: "Language Reference"
 training_eligible: true
 

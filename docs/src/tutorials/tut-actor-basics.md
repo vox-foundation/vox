@@ -4,11 +4,18 @@ description: "Master stateful concurrency in Vox. Learn to define, spawn, and pe
 category: "Tutorials"
 status: "current"
 sort_order: 4
-training_eligible: true
+topic: "actor-runtime"
+domain: "runtime"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "HowTo"
 ---
 
 # Tutorial: Persistent Actors & State
+
+<!-- kb:summary -->
+Explains stateful concurrency in Vox using isolated actors backed by durable runtime checkpoints (`state_load` and `state_save`). Walks through isolated actor message handlers, non-blocking asynchronous messaging patterns, request-response awaits, and how `vox build` lowers actor declarations into `tokio::spawn` tasks and typed Rust `<Actor>State` structs over `vox_actor_runtime`.
+<!-- /kb:summary -->
 
 In Vox, **Actors** are the primary unit of stateful concurrency. Unlike standard functions, an actor has **identity** and **private state**. This tutorial walks through building a persistent counter that survives a system crash.
 
@@ -101,6 +108,8 @@ When you run `vox build`, the compiler lowers actor declarations into structured
 **Next Steps**:
 - [Workflow Durability](tut-workflow-durability.md) — Orchestrate complex, multi-step long-running processes.
 - [Actors & Workflows Explanation](../explanation/expl-actors-workflows.md) — Deep dive into the theory.
+- [Deep Research & Scientia Publication](tut-deep-research-and-scientia.mdx) — Apply durable actor/workflow orchestration to verifiable multi-wave research.
+- [Managing Knowledgebases & Self-Healing OpenWiki](tut-knowledgebase-and-openwiki.mdx) — Auto-document actor/workflow pipelines in Layer 5 OpenWiki hubs.
 - [CLI Reference: vox run](../reference/cli.md#vox-run-file----args) — Run your actor-based applications.
 
 

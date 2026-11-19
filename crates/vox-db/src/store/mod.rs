@@ -93,10 +93,10 @@ pub use ops_harness_decisions::HarnessIssueDecisionRow;
 pub use ops_harness_fix_proposals::{HarnessFixProposalRow, NewFixProposal};
 pub use ops_harness_issues::{HarnessIssueRow, NewHarnessIssue};
 pub use ops_memory::{
-    KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbFindingCounts, KbFindingRow, KbIndexState,
-    KnowledgeHealthInfo, KnowledgeNodeRecord, LegacyKbCounts, LegacyKbEntry, LibraryChunkDiff,
-    LibraryChunkInput, LibraryChunkPos, LibraryChunkRow, LibraryDocRow, LibraryDocUpsert,
-    NewKbFinding, SearchCorpusCounts,
+    KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbFindingCounts, KbFindingRow, KbHealProposalRow,
+    KbIndexState, KnowledgeHealthInfo, KnowledgeNodeRecord, LegacyKbCounts, LegacyKbEntry,
+    LibraryChunkDiff, LibraryChunkInput, LibraryChunkPos, LibraryChunkRow, LibraryDocRow,
+    LibraryDocUpsert, NewKbFinding, NewKbHealProposal, SearchCorpusCounts, kb_scoped_corpus_key,
 };
 pub use ops_model_bench::{ModelBenchmarkSummaryRow, NewModelBenchmarkResult};
 pub use ops_orchestrator::HopperInboxRow;

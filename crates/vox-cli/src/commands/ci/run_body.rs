@@ -121,12 +121,186 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
         CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::CrateApiSync { write } => vox_cli_ci::crate_api_docs::run(&root, write),
-        CiCmd::WikiSync { write } => {
-            vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(&root, write)
-                .map(|paths| {
-                    println!("wiki-sync OK ({} subsystem hub files)", paths.len());
+        CiCmd::WikiSync {
+            write,
+            polyglot,
+            init,
+            status,
+            diff,
+            repo_root,
+            read_only,
+            json,
+            heal,
+            auto_apply,
+            apply_proposal,
+            reject_proposal,
+        } => {
+            let target_root = repo_root.unwrap_or_else(|| root.clone());
+            let ext_override = if read_only {
+                let ctx = vox_repository::discover_repository_or_fallback(&target_root);
+                vox_repository::vox_user_home_dir().ok().map(|h| {
+                    vox_repository::external_repo_cache_root_under(&h, &ctx.repository_id)
+                        .join("cache")
+                        .join("openwiki")
                 })
-                .map_err(|e| anyhow!(e))
+            } else {
+                None
+            };
+            let out_opt = ext_override.as_deref();
+
+            if apply_proposal.is_some() || reject_proposal.is_some() || auto_apply {
+                let db_path = target_root.join(".vox").join("store.db");
+                if let Some(parent) = db_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                let db =
+                    vox_db::VoxDb::connect(vox_db::DbConfig::local(db_path.display().to_string()))
+                        .await?;
+                if let Some(id) = apply_proposal.as_deref() {
+                    let applied = vox_search::promotion::apply_staged_heal_proposal(
+                        &db,
+                        &target_root,
+                        id,
+                        "ci-operator",
+                        Some("Applied via `vox ci wiki-sync --apply-proposal`"),
+                    )
+                    .await?;
+                    println!("Applied heal proposal `{id}` -> {}", applied.display());
+                } else if let Some(id) = reject_proposal.as_deref() {
+                    let ok = db
+                        .kb_heal_proposal_update_status(
+                            id,
+                            "rejected",
+                            Some("ci-operator"),
+                            Some("Rejected via `vox ci wiki-sync --reject-proposal`"),
+                        )
+                        .await?;
+                    println!("Rejected heal proposal `{id}` (found={ok})");
+                } else {
+                    let ctx = vox_repository::discover_repository_or_fallback(&target_root);
+                    let pending = db
+                        .kb_heal_proposals_list(Some(&ctx.repository_id), Some("pending"), 50)
+                        .await?;
+                    let mut count = 0usize;
+                    for row in pending {
+                        let _ = vox_search::promotion::apply_staged_heal_proposal(
+                            &db,
+                            &target_root,
+                            &row.id,
+                            "ci-auto-apply",
+                            Some("Auto-applied passing Tier-2 proposal"),
+                        )
+                        .await?;
+                        count += 1;
+                    }
+                    println!("Auto-applied {count} verified Tier-2 heal proposal(s).");
+                }
+                return Ok(());
+            }
+
+            if heal {
+                let rep = vox_doc_pipeline::pipeline::openwiki::heal_tier1_deterministic(
+                    &target_root,
+                    &[],
+                    write || !read_only,
+                    out_opt,
+                )
+                .map_err(|e| anyhow!(e))?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&rep)?);
+                } else {
+                    println!(
+                        "openwiki tier-1 heal OK (llm_calls={}, impacted={}, updated_pages={}, repaired_anchors={})",
+                        rep.llm_calls,
+                        rep.blast_radius.impacted_docs.len(),
+                        rep.updated_pages.len(),
+                        rep.repaired_anchors
+                    );
+                }
+                return Ok(());
+            }
+
+            let use_polyglot = polyglot
+                || init
+                || status
+                || diff
+                || read_only
+                || !target_root
+                    .join("docs/src/architecture/layers.toml")
+                    .is_file();
+
+            if !use_polyglot {
+                vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(&target_root, write)
+                    .map(|paths| {
+                        println!("wiki-sync OK ({} subsystem hub files)", paths.len());
+                    })
+                    .map_err(|e| anyhow!(e))
+            } else if status {
+                let rep =
+                    vox_doc_pipeline::pipeline::openwiki::openwiki_status(&target_root, out_opt)
+                        .map_err(|e| anyhow!(e))?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&rep)?);
+                } else {
+                    println!(
+                        "openwiki status: initialized={} stale_pages={}/{} stacks={}",
+                        rep.initialized,
+                        rep.stale_pages,
+                        rep.total_pages,
+                        rep.detected_stacks.join(", ")
+                    );
+                }
+                Ok(())
+            } else if diff {
+                let rep =
+                    vox_doc_pipeline::pipeline::openwiki::openwiki_diff(&target_root, out_opt)
+                        .map_err(|e| anyhow!(e))?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&rep)?);
+                } else {
+                    println!(
+                        "openwiki diff: has_changes={} pages={} dir={}",
+                        rep.has_changes,
+                        rep.diffs.len(),
+                        rep.wiki_dir
+                    );
+                }
+                Ok(())
+            } else if init {
+                let rep =
+                    vox_doc_pipeline::pipeline::openwiki::openwiki_init(&target_root, out_opt)
+                        .map_err(|e| anyhow!(e))?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&rep)?);
+                } else {
+                    println!(
+                        "openwiki init OK ({} pages, {} updated) -> {}",
+                        rep.generated_pages.len(),
+                        rep.updated_pages.len(),
+                        rep.output_dir
+                    );
+                }
+                Ok(())
+            } else {
+                let rep = vox_doc_pipeline::pipeline::openwiki::openwiki_build(
+                    &target_root,
+                    write,
+                    out_opt,
+                )
+                .map_err(|e| anyhow!(e))?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&rep)?);
+                } else {
+                    println!(
+                        "openwiki build OK (write={}, {} pages, {} changed) -> {}",
+                        write,
+                        rep.generated_pages.len(),
+                        rep.updated_pages.len(),
+                        rep.output_dir
+                    );
+                }
+                Ok(())
+            }
         }
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry {

@@ -10,7 +10,52 @@ vi.mock('../../../transport', () => ({
     readDocMarkdown: vi
       .fn()
       .mockResolvedValue('---\ntitle: "Where Things Live"\nstatus: "current"\n---\n\n# Where Things Live\n\nBody.'),
-    invokeMcpTool: vi.fn().mockResolvedValue({ is_error: false, result: { success: true } }),
+    invokeMcpTool: vi.fn().mockImplementation((tool: string) => {
+      if (tool === 'vox_search_atlas') {
+        return Promise.resolve({
+          is_error: false,
+          result: {
+            success: true,
+            data: {
+              nodes: [
+                {
+                  id: 'crate:vox-compiler',
+                  label: 'vox-compiler',
+                  kind: 'crate',
+                  layer: 'compiler',
+                  filePath: 'crates/vox-compiler/src/lib.rs',
+                  diffStatus: 'modified',
+                  fanIn: 12,
+                  fanOut: 3,
+                },
+              ],
+              links: [],
+            },
+          },
+        });
+      }
+      if (tool === 'vox_kb_inbox_list') {
+        return Promise.resolve({
+          is_error: false,
+          result: {
+            success: true,
+            data: {
+              findings: [
+                {
+                  id: 'kb-find-9601',
+                  claim: 'VoxDb schema baseline 96 adds kb_findings with mechanical citation checks.',
+                  citation_anchor: 'crates/vox-search/src/kb_inbox.rs:L24-L88',
+                  trust_tier: 'candidate',
+                  confidence: 0.94,
+                  topic: 'database',
+                },
+              ],
+            },
+          },
+        });
+      }
+      return Promise.resolve({ is_error: false, result: { success: true, data: {} } });
+    }),
   },
 }));
 
@@ -47,6 +92,9 @@ describe('Phase 06.6 Cold-Start Time-to-Find Journeys (DISC-15..17, <= 3 interac
     // Interaction 2: Toggle Changed-only diff overlay
     fireEvent.click(screen.getByTestId('atlas-diff-only-toggle'));
     // Interaction 3: Click @ Mention in Chat on vox-compiler
+    await waitFor(() => {
+      expect(screen.getByTestId('atlas-mention-btn-crate:vox-compiler')).toBeDefined();
+    });
     fireEvent.click(screen.getByTestId('atlas-mention-btn-crate:vox-compiler'));
 
     await waitFor(() => {
@@ -68,6 +116,9 @@ describe('Phase 06.6 Cold-Start Time-to-Find Journeys (DISC-15..17, <= 3 interac
     // Interaction 1: Open Findings Inbox tab
     fireEvent.click(screen.getByTestId('kb-tab-inbox'));
     // Interaction 2: Promote candidate finding
+    await waitFor(() => {
+      expect(screen.getByTestId('kb-promote-kb-find-9601')).toBeDefined();
+    });
     fireEvent.click(screen.getByTestId('kb-promote-kb-find-9601'));
     // Interaction 3: Switch to KB Health tab and verify
     fireEvent.click(screen.getByTestId('kb-tab-health'));

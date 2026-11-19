@@ -1,17 +1,23 @@
 ---
 title: "Glossary: Vox Terminology"
-description: "Authoritative vocabulary for the Vox language, runtime, and AI orchestration ecosystem."
+description: "Authoritative vocabulary for the Vox language, runtime, Federated Knowledge Base, OpenWiki, Scientia, Vox Axis, and AI orchestration ecosystem."
 category: "Concepts"
 status: "current"
-training_eligible: true
-
+topic: "language-grammar"
+domain: "language"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "TechArticle"
 ---
 
 # Glossary: Vox Terminology
 
+<!-- kb:summary -->
+Authoritative glossary defining core Vox language primitives, durable execution keywords, compiler representations, and ecosystem subsystems. Covers Actors, Algebraic Data Types, Arca, Codex, Clavis, Distributed Execution Intelligence, the Non-Modal Multi-Format Doc Dock, the 3-Layer Federated Knowledge Base, Graphify cross-edges, Loquela steering, Mens training, OpenWiki self-healing documentation, Populi mesh compute, Scientia publication workflows, TOESTUB auditing, and the Vox Axis operator workbench.
+<!-- /kb:summary -->
+
 ### Actor
-A stateful, autonomous unit of computation that communicates via asynchronous messages. In Vox, actors are modeled as plain functions — one per handler. The runtime manages the mailbox and checkpoints state automatically.
+A stateful, autonomous unit of computation that communicates via isolated message handlers and checkpoints durable state with `state_load` and `state_save` (see [Persistent Actors & State](../tutorials/tut-actor-basics.md)).
 ```vox
 fn CounterActor_Increment(current: int, amount: int) to int {
     return current + amount
@@ -30,17 +36,32 @@ A design philosophy where the programming language and toolchain are built to be
 ### Arca
 The low-level SQL database abstraction and migration layer in the Vox runtime.
 
+### Clavis
+The canonical secrets management boundary (`vox-secrets`) used across CLI, orchestrator, and runtime to resolve API keys and tokens cleanly (`vox_secrets::resolve_secret`), blocking un-audited raw environment secret reads in consumers.
+
 ### Codex
 The unified data and knowledge store in Vox (the logical database environment), acting as a high-level facade over Arca (the physical SQLite/Turso layer).
 
 ### DEI (Distributed Execution Intelligence)
 The Vox orchestrator responsible for task dispatch, agent lifecycle management, file affinity, and runtime telemetry.
 
+### Doc Dock (`DocViewerDrawer` + `DocReader`)
+The non-modal (`aria-modal="false"`), docked right-hand documentation and code studio in **Vox Axis** supporting `Read | Split | Edit` persistence (`write_doc_markdown`), `+ New Doc` creation, Markdown/GFM, MDX, AsciiDoc, YAML, TOML, JSON/JSONL, CSV/TSV, and line-numbered source code while leaving the rest of the engine interactive. See [Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md).
+
 ### Durable Execution
 The ability of a program (specifically a **Workflow**) to persist its state and progress so that it can resume exactly where it left off after an interruption or crash using an interpreted journal.
 
+### Federated Knowledge Base (`vox kb`)
+Vox's 3-layer knowledge architecture partitioning **Vox Baseline Canon** (`docs/src/`), the personal cross-repo **Global Library** (`~/.vox/library/`), and **Repo-Local Knowledge** (`docs/wiki/` + `.vox/cache/`, or zero-footprint `--read-only` shards under `~/.vox/repos/<id>/`) by `(repository_id, corpus_tier)`. See [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx).
+
+### Graphify (`vox-graph-reader`)
+Deterministic AST, SQL schema, API route, and `#Lstart-Lend` documentation extractor that builds **Code <-> Doc <-> Decision** cross-edges (`documented_in`, `cites_symbol`, `governed_by_adr`), computes Leiden communities with zero upfront LLM calls, and powers HippoRAG Personalized PageRank retrieval inside `vox-search`.
+
 ### HIR (High-level Intermediate Representation)
 The semantic representation of Vox source code used for type checking and initial lowering phases.
+
+### Loquela
+The real-time multi-dock chat and steering surface in **Vox Axis** providing Cognitive Clutch (`Alt+1..4`), Risk Posture (`Alt+R`), BPE Compaction (`Alt+C`), and live turn telemetry receipts.
 
 ### MCP (Model Context Protocol)
 An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via the bare `tool` keyword (`@tool` is a hard parse error; the dotted `@mcp.tool` still parses but emits a `vox/decorator/mcp-tool-deprecated` warning).
@@ -52,21 +73,37 @@ tool "Search KB" search_kb(topic: str) to str { return "ok" }
 _Pronounced: 'mens' (Latin for mind)_
 The Vox fine-tuning lane, training pipeline for local model generation, and interpreted workflow runtime layer.
 
+### OpenWiki (`vox ci wiki-sync --polyglot`)
+Vox's repo-agnostic 5-layer system-documentation engine and two-tier self-healing pipeline spanning architecture, APIs, SQL models, UI surfaces, and workflows. Machine-generated sections sit inside protected `<!-- openwiki:auto:start -->` fences refreshed by Tier-1 deterministic AST repair (`--heal`) while Tier-2 grounded LLM prose diffs pass four verification gates before staging. See [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx).
+
 ### Populi
 The Vox control plane and peer-to-peer mesh for distributed execution, serving inferences, and GPU resource orchestration.
 
 ### SCIENTIA
 _Pronounced: 'shee-en-tee-ah' (Latin for knowledge)_
-The research and evidence-gathering framework within the Vox ecosystem for validating AI performance and language ergonomics.
+The verifiable research, evidence-gathering, and 7-stage scholarly manuscript pipeline (`arXiv.org` / Zenodo / OpenReview staging) within the Vox ecosystem. See [Deep Research & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx).
 
 ### TOESTUB
-The architectural quality enforcement system in Vox that prevents "skeleton code" (unimplemented stubs or empty bodies) from leaking into production pipelines and tracks architectural debt.
+The architectural quality enforcement system in Vox (`vox audit code`) that prevents "skeleton code" (unimplemented stubs or empty bodies) and policy drift from leaking into production pipelines.
 
 ### Unit
 The empty type, equivalent to `void` in C/TS or `()` in Rust.
 
+### Vox Axis (`vox-gui`)
+The native Tauri 2 operator desktop workbench featuring 32 catalog-generated views, the `VRBS ROMA` 3D/2.5D codebase simulator, the `AQVAEDUCTUS` hydraulic verification cascade, non-modal Multi-Format Doc Studio, and dual WCAG Carrara/Slate themes.
+
 ### Workflow
-A durable, long-running process expressed as a plain `fn`, supporting orchestrated activities, retries, timeouts, and state persistence via the interpreted runtime (ADR-019).
+A durable, replayable multi-step orchestration process expressed with the bare `workflow` and `activity` keywords backed by the `VoxDbTracker` SQLite/Turso journal ([ADR-019](../adr/019-durable-workflow-journal-contract-v1.md) & [Tutorial: Workflow Durability](../tutorials/tut-workflow-durability.md)).
 ```vox
-fn onboard(user: str) to Result[bool] { return Ok(true) }
+activity verify_user(user: str) to Result[str] {
+    return Ok("onboarded:" + user)
+}
+
+workflow onboard(user: str) to str {
+    let res = verify_user(user)
+    match res {
+        Ok(msg) => msg
+        Error(err) => "failed:" + err
+    }
+}
 ```

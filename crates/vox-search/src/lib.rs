@@ -39,6 +39,7 @@ pub mod parallel_exploration;
 pub mod policy;
 #[cfg(feature = "tavily")]
 pub mod probe;
+pub mod promotion;
 pub mod research;
 mod rrf;
 pub mod safety_governor;

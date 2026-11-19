@@ -6,6 +6,16 @@ pub const TAURI_PACKAGING_HINT_README_REL: &str = "tauri-packaging/README.md";
 
 /// `vox init` — scaffold a new Vox project with a `Vox.toml` manifest.
 pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>) -> Result<()> {
+    run_with_options(name, kind, template, false).await
+}
+
+/// `vox init` with optional hybrid repository harness onboarding (`--harness`).
+pub async fn run_with_options(
+    name: Option<&str>,
+    kind: Option<&str>,
+    template: Option<&str>,
+    harness: bool,
+) -> Result<()> {
     let project_name = name.unwrap_or_else(|| {
         std::env::current_dir()
             .ok()
@@ -19,11 +29,12 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
 
     let cwd = std::env::current_dir()?;
     let scaffold_path = cwd.join(project_name);
-    let summary = vox_project_scaffold::scaffold_vox_project_at(
+    let summary = vox_project_scaffold::scaffold_vox_project_with_options(
         &scaffold_path,
         project_name,
         package_kind,
         template,
+        harness,
     )?;
 
     if matches!(template, Some("mobile-pwa") | Some("tauri-mobile")) {
@@ -66,6 +77,9 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
     println!("  Created Vox.toml");
     println!("  Created src/main.vox");
     println!("  Created .vox_modules/");
+    if harness {
+        println!("  Initialized hybrid Vox harness (VOX.md, AGENTS.md, docs/wiki/, .vox/)");
+    }
     println!();
     match (package_kind, template) {
         (_, Some("chatbot")) | ("chatbot", _) => {

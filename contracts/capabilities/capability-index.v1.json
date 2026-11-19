@@ -75881,7 +75881,7 @@
       "id": "doc.docs/src/reference/gui-navigation.md",
       "kind": "doc",
       "title": "GUI navigation",
-      "summary": "Operator console v2 surfaces, shell chrome, OmniSearch entry points, chat layout, and keybinds.",
+      "summary": "Vox Axis workbench surfaces, non-modal multi-format Doc Dock, Multi-Repo Switcher, shell chrome, OmniSearch entry points, chat layout, and keybinds.",
       "op_id": null,
       "status": null,
       "domain": "docs",

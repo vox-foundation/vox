@@ -38,13 +38,46 @@ pub async fn project_init(state: &ServerState, args: serde_json::Value) -> Strin
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(str::to_string);
+    let harness = args
+        .get("harness")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let read_only = args
+        .get("read_only")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
-    match vox_project_scaffold::scaffold_vox_project_under_repo(
+    if read_only {
+        let target_root = match vox_project_scaffold::resolve_scaffold_target_under_repo(
+            &state.repository.root,
+            target_subdir.as_deref(),
+        ) {
+            Ok(p) => p,
+            Err(e) => {
+                return ToolResult::<serde_json::Value>::err_with_remediation(
+                    e.to_string(),
+                    REM_PROJECT_INIT,
+                )
+                .to_json();
+            }
+        };
+        return match vox_repository::onboard_repository_harness(&target_root, true) {
+            Ok(summary) => ToolResult::ok(summary).to_json(),
+            Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_PROJECT_INIT,
+            )
+            .to_json(),
+        };
+    }
+
+    match vox_project_scaffold::scaffold_vox_project_under_repo_with_options(
         &state.repository.root,
         target_subdir.as_deref(),
         &project_name,
         package_kind,
         template.as_deref(),
+        harness,
     ) {
         Ok(summary) => {
             ToolResult::ok(serde_json::to_value(&summary).expect("ScaffoldSummary serializes"))

@@ -250,7 +250,7 @@ export function RomanTooltip({
 }
 
 /**
- * Sunlit Gold & Cream Carrara Marble Medallion Badge (`<RomanMedallion>`).
+ * Sunlit Gold & Cream Carrara / Cast-Bronze Medallion Badge (`<RomanMedallion>`).
  */
 export function RomanMedallion({
   active = false,
@@ -264,21 +264,19 @@ export function RomanMedallion({
   className?: string;
 }) {
   const dims =
-    size === 'sm' ? 'size-7' : size === 'lg' ? 'size-11' : 'size-8';
+    size === 'sm' ? 'size-7' : size === 'lg' ? 'size-12' : 'size-8';
   return (
     <span
       data-roman-medallion="true"
       style={{
         backgroundImage: active
-          ? 'radial-gradient(circle, rgba(255,250,230,0.92) 0%, rgba(235,210,135,0.88) 68%, rgba(197,155,39,0.92) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)'
-          : 'radial-gradient(circle, rgba(250,246,238,0.94) 0%, rgba(236,226,207,0.92) 72%, rgba(218,202,172,0.94) 100%), url(/assets/romanesque/carrara-seamless-stone.jpg)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+          ? 'radial-gradient(circle at 35% 30%, rgba(255,250,230,0.94) 0%, rgba(235,210,135,0.9) 62%, rgba(184,142,40,0.95) 100%)'
+          : 'radial-gradient(circle at 35% 30%, rgba(250,246,238,0.95) 0%, rgba(236,226,207,0.92) 70%, rgba(212,188,142,0.95) 100%)',
       }}
       className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
         active
-          ? 'vox-animate-brass-glint border-[#9A7014] text-[#1C140C] shadow-[0_3px_10px_rgba(28,20,12,0.28),0_0_12px_rgba(212,175,55,0.45),inset_0_1px_2px_rgba(255,255,255,0.9)]'
-          : 'border-[#B88E28] text-[#2B1E10] shadow-[0_2px_5px_rgba(28,20,12,0.18),inset_0_1px_2px_rgba(255,255,255,0.85)] group-hover:border-[#8C6825] group-hover:scale-105'
+          ? 'vox-animate-brass-glint border-[#9A7014] text-text-primary shadow-[0_3px_10px_rgba(120,83,18,0.28),0_0_12px_rgba(212,175,55,0.45),inset_0_1px_2px_rgba(255,255,255,0.9)]'
+          : 'border-[#B88E28] text-text-primary shadow-[0_2px_5px_rgba(120,83,18,0.18),inset_0_1px_2px_rgba(255,255,255,0.85)] group-hover:border-[#8C6825] group-hover:scale-105'
       } ${className}`}
     >
       {children}
@@ -287,8 +285,44 @@ export function RomanMedallion({
 }
 
 /**
- * Plate 2 Physical Analog Semicircular Brass-Bezel Dial Gauge with Cream Carrara Marble Face,
- * Engraved Tick Marks, and Animated Sweeping Needle (matching `v61_concept_compute_and_market`).
+ * 3D Cast-Bronze / Obsidian Imperium Signet Coin (`<RomanCoinSignet>`)
+ * positioned between semicircular brass chronometer dials in the architectural frieze header.
+ */
+export function RomanCoinSignet({
+  className = '',
+}: {
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <span
+      data-roman-medallion="true"
+      aria-hidden="true"
+      className={`relative inline-flex size-12 sm:size-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#B88E28] bg-bg-elevated p-0.5 shadow-[0_4px_12px_rgba(120,83,18,0.34),inset_0_1px_2px_rgba(255,250,225,0.75)] ${className}`}
+    >
+      <img
+        src="/assets/romanesque/bronze-medallion-emblem.jpg"
+        alt=""
+        aria-hidden="true"
+        className="vox-coin-portrait-carrara size-full rounded-full object-cover"
+      />
+      <img
+        src="/assets/romanesque/v74-medallion-imperium-slate.jpg"
+        alt=""
+        aria-hidden="true"
+        className="vox-coin-portrait-slate size-full rounded-full object-cover"
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-[#F3E5AB]/55"
+      />
+    </span>
+  );
+}
+
+/**
+ * Plate 2 Physical Analog Semicircular Brass-Bezel Chronometer Dial (`<RomanBrassGauge>`)
+ * with Roman-numeral tick scale, metallic brass progress arc, and pivoted needle.
  */
 export function RomanBrassGauge({
   label,
@@ -310,7 +344,7 @@ export function RomanBrassGauge({
   onClick?: () => void;
 }) {
   const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
-  const angleDeg = -86 + clamped * 172;
+  const angleDeg = -84 + clamped * 168;
   const arcColor =
     tone === 'emerald'
       ? 'var(--color-status-pass)'
@@ -330,61 +364,75 @@ export function RomanBrassGauge({
       data-roman-gauge="true"
       aria-pressed={onClick && active !== undefined ? active : undefined}
       onClick={onClick}
-      className={`vox-animate-dial-breathe group relative flex items-center gap-2 rounded-lg border-2 bg-bg-surface px-2.5 py-1 text-text-primary shadow-[0_3px_10px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.25)] transition-[border-color,transform] duration-200 ${
+      className={`vox-chronometer-gauge vox-animate-dial-breathe group relative flex items-center gap-2 rounded-lg border-2 px-2.5 py-1.5 text-text-primary transition-[border-color,transform] duration-200 ${
         active
-          ? 'border-(--color-accent-default) ring-1 ring-(--color-accent-default)/50'
+          ? 'border-(--color-accent-default) ring-1 ring-(--color-accent-default)/55'
           : 'border-border-strong'
       } ${
         onClick ? 'cursor-pointer hover:border-(--color-accent-default) hover:-translate-y-0.5' : 'cursor-default'
       }`}
     >
-      <svg viewBox="0 0 56 32" className="w-13 h-7.5 shrink-0 overflow-visible" aria-hidden="true">
-        {/* Outer cast brass bezel & cream Carrara marble dial face */}
+      <svg viewBox="0 0 76 42" className="w-16 h-9 shrink-0 overflow-visible" aria-hidden="true">
+        {/* Outer cast-brass bevel arch & recessed chronometer dial face */}
         <path
-          d="M 4 28 A 24 24 0 0 1 52 28 Z"
+          d="M 5 37 A 33 33 0 0 1 71 37 Z"
           fill="var(--color-bg-elevated)"
           stroke="var(--color-border-strong)"
-          strokeWidth="2.2"
+          strokeWidth="2.4"
         />
-        {/* Recessed inner track */}
         <path
-          d="M 8 27 A 20 20 0 0 1 48 27"
+          d="M 9 36 A 29 29 0 0 1 67 36"
+          fill="none"
+          stroke="#C59B27"
+          strokeOpacity="0.45"
+          strokeWidth="1"
+        />
+        {/* Recessed track */}
+        <path
+          d="M 12 36 A 26 26 0 0 1 64 36"
           fill="none"
           stroke="var(--color-border-subtle)"
-          strokeWidth="4.2"
+          strokeWidth="4.6"
           strokeLinecap="round"
         />
-        {/* Active progress arc */}
+        {/* Active telemetry arc */}
         <path
-          d="M 8 27 A 20 20 0 0 1 48 27"
+          d="M 12 36 A 26 26 0 0 1 64 36"
           fill="none"
           stroke={arcColor}
-          strokeWidth="4.2"
+          strokeWidth="4.6"
           strokeLinecap="round"
-          strokeDasharray="62.8"
-          strokeDashoffset={62.8 * (1 - clamped)}
+          strokeDasharray="81.7"
+          strokeDashoffset={81.7 * (1 - clamped)}
           className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
-        {/* Engraved Roman dial tick marks */}
-        {[-75, -45, -15, 15, 45, 75].map((deg) => (
-          <g key={deg} transform={`translate(28, 27) rotate(${deg})`}>
-            <line x1="0" y1="-20" x2="0" y2="-23" stroke="var(--color-text-muted)" strokeWidth="1" />
+        {/* Engraved Roman chronometer tick marks */}
+        {[-78, -60, -42, -24, -6, 12, 30, 48, 66, 78].map((deg, idx) => (
+          <g key={deg} transform={`translate(38, 36) rotate(${deg})`}>
+            <line
+              x1="0"
+              y1={idx % 3 === 0 ? -24 : -26}
+              x2="0"
+              y2="-30"
+              stroke="var(--color-text-muted)"
+              strokeWidth={idx % 3 === 0 ? 1.35 : 0.85}
+            />
           </g>
         ))}
-        {/* Animated sweeping needle */}
+        {/* Tapered sweeping brass needle */}
         <g
-          transform={`translate(28, 27) rotate(${angleDeg})`}
+          transform={`translate(38, 36) rotate(${angleDeg})`}
           className="transition-transform duration-700 ease-out"
         >
-          <polygon points="-1.4,0 0,-19 1.4,0" fill={needleColor} />
-          <circle cx="0" cy="0" r="3.2" fill="var(--color-accent-default)" stroke="var(--color-text-primary)" strokeWidth="1" />
+          <polygon points="-1.6,0 0,-25 1.6,0" fill={needleColor} />
+          <circle cx="0" cy="0" r="3.8" fill="#C59B27" stroke="var(--color-text-primary)" strokeWidth="1.1" />
         </g>
       </svg>
       <div className="flex flex-col text-left leading-tight">
-        <span className="font-display text-[8px] font-bold uppercase tracking-[0.14em] text-text-muted">
+        <span className="font-display text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted whitespace-nowrap">
           {label}
         </span>
-        <span className="font-display text-[11px] font-bold text-text-primary whitespace-nowrap">
+        <span className="font-display text-xs font-bold text-text-primary whitespace-nowrap">
           {valueText}
         </span>
       </div>

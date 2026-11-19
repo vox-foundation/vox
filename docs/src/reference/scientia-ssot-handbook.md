@@ -1,15 +1,22 @@
 ---
 title: "SCIENTIA SSOT handbook (glossary, vocabulary, checklists)"
-description: "Single reference for SCIENTIA lifecycle terms, status vocabulary, SSOT routing, anti-drift checklists, operator flows, SLOs, and LLM task conventions."
+description: "Canonical reference for SCIENTIA lifecycle terms, 7-stage scholarly manifest states, SSOT routing, anti-drift checklists, operator flows, SLOs, and LLM task conventions."
 category: "Language Reference"
-training_eligible: true
-
+status: "current"
+topic: "scientia-research"
+domain: "knowledge"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "TechArticle"
 ---
 
 # SCIENTIA SSOT handbook
 
-Companion: [publication readiness audit](../archive/research-2026-q1/scientia-publication-readiness-audit.md), [VoxGiantia publication map](../archive/research-2026-q1/voxgiantia-publication-architecture.md), [how-to publication](../how-to/how-to-scientia-publication.md).
+<!-- kb:summary -->
+Authoritative operator and contributor handbook for the Vox SCIENTIA publication system. Documents canonical manifest and digest vocabulary, the 7-stage scholarly lifecycle, external job and adapter state machines, crate-to-contract SSOT mappings across `vox-db`, `vox-publisher`, CLI, and MCP, Zendodo and OpenReview staging runbooks, and anti-drift verification checklists.
+<!-- /kb:summary -->
+
+Companion: [Tutorial: Deep Research, Knowledge Preflight & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx), [Click-Tax & Research Control SSOT](../architecture/research-click-tax-observability-and-control-ssot-2026.md), [How-To: Publish Scientia Findings](../how-to/how-to-scientia-publication.md).
 
 ## 1. Glossary and canonical lifecycle (T001)
 
@@ -27,7 +34,19 @@ Companion: [publication readiness audit](../archive/research-2026-q1/scientia-pu
 | **Discovery signal** | Typed entry under `scientia_evidence.discovery_signals` (`contracts/scientia/discovery-signal.schema.json`): strength, family, provenance — used for **deterministic** candidate ranking only. |
 | **Machine suggestion** | LLM/heuristic output labeled `machine_suggested` + `requires_human_review` (`contracts/scientia/machine-suggestion-block.schema.json`); never grounds novelty or final claims. |
 
-**Lifecycle (happy path):** `draft` manifest → `publication-prepare` (optional `--discovery-intake-gate` for scientia-only gating; optional `preflight_profile=arxiv-assist` when arXiv handoff is the target) → optional `publication-discovery-refresh-evidence` (or MCP `vox_scientia_publication_discovery_refresh_evidence`) -> merge live Socrates/sidecars and refresh `scientia_evidence` → optional `publication-discovery-scan` / `publication-discovery-explain` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
+**Lifecycle (7-stage scholarly pipeline):**
+
+| Stage | Description |
+|---|---|
+| `draft` | Manifest prepared via `publication-prepare` with `content_sha3_256` and seeded `scientia_evidence` |
+| `doi_reserved` | Pre-reserved DOI / venue identifier recorded on manifest metadata |
+| `orcid_attributed` | Contributor ORCID IDs, SPDX license, and scholarly metadata verified |
+| `approved` | Dual distinct digest-bound approvals recorded (`publication-approve`) |
+| `submitted` | Staging bundle exported (`arxiv-assist` / `zenodo` / `openreview`) and submitted cleanly |
+| `published` | Canonical external identifier / live `arXiv` ID persisted (`publication-arxiv-handoff-record`) |
+| `failed` | Recoverable failure state eligible for idempotent `publication-retry-failed` / job replay |
+
+**Flow (happy path):** `draft` manifest → `publication-prepare` (optional `--discovery-intake-gate` for scientia-only gating; optional `preflight_profile=arxiv-assist` when arXiv handoff is the target) → optional `publication-discovery-refresh-evidence` (or MCP `vox_scientia_publication_discovery_refresh_evidence`) -> merge live Socrates/sidecars and refresh `scientia_evidence` → optional `publication-discovery-scan` / `publication-discovery-explain` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
 
 ## 2. Canonical status vocabulary (T002)
 

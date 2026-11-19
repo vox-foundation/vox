@@ -522,8 +522,17 @@ pub const REPO_AGENTS_DIR: &str = ".vox/agents";
 pub const REPO_AGENTS_GLOB: &str = ".vox/agents/**";
 /// `.vox/cache/` repo subdirectory.
 pub const REPO_CACHE_DIR: &str = ".vox/cache";
+/// `.vox/cache/ci-maps` — CI build/cycle/audit reports relocated out of `graphify-out/`.
+pub const REPO_CI_MAPS_CACHE_DIR: &str = ".vox/cache/ci-maps";
 /// `.vox/cache/graphify/<corpus_id>` — Tier D graphify map cache (see graphify SSOT).
 pub const REPO_GRAPHIFY_CACHE_SUBDIR: &str = "graphify";
+
+/// `.vox/cache/ci-maps` directory for non-Graphify CI reports (`DEP_CYCLES.md`, `build-bench`,
+/// `crate_audit.json`, `edge_weights.json`, `rebuild_causes.json`).
+#[must_use]
+pub fn repo_ci_maps_cache_dir(repo_root: &Path) -> PathBuf {
+    repo_root.join(".vox").join("cache").join("ci-maps")
+}
 /// `.vox/cache/` prefix (with trailing slash; for ignore-list prefix matching).
 pub const REPO_CACHE_DIR_PREFIX: &str = ".vox/cache/";
 /// `.vox/cache/drift` — drift-check cache root.

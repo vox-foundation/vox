@@ -66,11 +66,19 @@ fn load(root: &Path) -> Result<Option<Baseline>, String> {
     parse(&text).map(Some)
 }
 
-/// `(repo-relative path, text)` of every non-archive doc under `docs/src` mentioning `mermaid`.
+/// `(repo-relative path, text)` of every non-archive doc under `docs/src` or `docs/wiki` mentioning `mermaid`.
 fn docs(root: &Path) -> Result<Vec<(String, String)>, MermaidIssue> {
     let mut files = Vec::new();
-    gather_md_files(&root.join("docs/src"), &mut files);
+    let src_dir = root.join("docs/src");
+    if src_dir.is_dir() {
+        gather_md_files(&src_dir, &mut files);
+    }
+    let wiki_dir = root.join("docs/wiki");
+    if wiki_dir.is_dir() {
+        gather_md_files(&wiki_dir, &mut files);
+    }
     files.sort();
+    files.dedup();
     let mut out = Vec::new();
     for f in files {
         let rel = f

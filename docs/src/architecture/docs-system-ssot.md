@@ -75,7 +75,7 @@ Never hand-edit a `*.generated.md`. Fix the generator or its input contract.
 | `docs/src/index.mdx` front page text | `vox ci command-sync` | `README.md` |
 | `reference/plugin-catalog.generated.md`, `distribution-bundles.generated.md` | `vox ci generate-plugin-catalog-docs` | plugin catalog |
 | `api/<crate>.generated.md`, `api/index.generated.md` | `vox ci crate-api-sync` | crate sources |
-| `architecture/subsystems/*.generated.md` | `vox ci wiki-sync` (`vox-doc-pipeline` openwiki) | `docs/src/architecture/layers.toml` + `Cargo.toml` |
+| `architecture/subsystems/*.generated.md` & polyglot `docs/wiki/*.md` | `vox ci wiki-sync` (`--polyglot`, `--heal`) | `docs/src/architecture/layers.toml` + `Cargo.toml` (or polyglot source/manifests) |
 | `.well-known/llms.txt` generated block | `vox ci capability-index` | capability contracts |
 | `.cursorignore`, `.aiignore`, `.aiexclude` | `vox ci sync-ignore-files` | `.voxignore` |
 
@@ -140,7 +140,7 @@ These track Phase 343 (*Docs System SSOT and Automated Drift Control*) status.
 
 ### Open gaps
 
-- <!-- gap: prose-behavior-drift --> **Prose behavior drift and manual governance cadence.** Semantic claims in narrative prose that do not map to a file anchor or CLI command, README status-table judgment calls, and human governance review cadences remain human-reviewed.
+- <!-- gap: prose-behavior-drift --> **Prose behavior drift and manual governance cadence.** Semantic claims in narrative prose now receive Tier-2 four-gate verified proposal assistance via `kb_heal_proposals` (`openwiki_heal` + `vox_search::promotion`), while final application/demotion decisions and governance review cadences remain operator-reviewed.
 
 ### Closed in Phase 343
 

@@ -80,10 +80,13 @@ fn walk_docs(root: &Path, out: &mut Vec<DocEntry>) {
     }
 }
 
-fn repo_docs_root() -> PathBuf {
+fn repo_root_and_lib() -> (PathBuf, Option<PathBuf>) {
     let hint = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let repo = vox_repository::discover_repository_or_fallback(&hint);
-    repo.root.join("docs").join("src")
+    let lib_root = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(|h| PathBuf::from(h).join(".vox").join("library"));
+    (repo.root, lib_root)
 }
 
 fn normalize_path_components(path: &Path) -> Result<PathBuf, String> {
@@ -95,7 +98,7 @@ fn normalize_path_components(path: &Path) -> Result<PathBuf, String> {
             Component::CurDir => {}
             Component::ParentDir => {
                 if !out.pop() {
-                    return Err("doc path must be under docs/src".into());
+                    return Err("doc path escapes allowed workspace root".into());
                 }
             }
             Component::Normal(c) => out.push(c),
@@ -104,7 +107,31 @@ fn normalize_path_components(path: &Path) -> Result<PathBuf, String> {
     Ok(out)
 }
 
-/// Resolve `path` under `docs_root`, rejecting `..` escapes (testable without repo I/O).
+const ALLOWED_DOC_EXTENSIONS: &[&str] = &[
+    "md", "mdx", "markdown", "txt", "adoc", "asciidoc", "json", "jsonl", "yaml", "yml", "toml",
+    "csv", "tsv", "vox", "rs", "ts", "tsx", "sql",
+];
+
+fn validate_doc_leaf_and_ext(resolved: &Path) -> Result<(), String> {
+    if let Some(name) = resolved.file_name().and_then(|n| n.to_str()) {
+        let lower_name = name.to_ascii_lowercase();
+        if lower_name.starts_with(".env") && lower_name != ".env.example" {
+            return Err("access to .env secret files is blocked".into());
+        }
+    }
+    let ext = resolved
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    if !ALLOWED_DOC_EXTENSIONS.contains(&ext.as_str()) {
+        return Err("doc path must have a supported documentation or source extension".into());
+    }
+    Ok(())
+}
+
+/// Resolve `path` strictly under `docs_root`, rejecting `..` escapes (preserved for tests).
+#[cfg(test)]
 pub(crate) fn resolve_path_under_root(docs_root: &Path, path: &str) -> Result<PathBuf, String> {
     let docs_root = normalize_path_components(docs_root)?;
     let candidate = PathBuf::from(path);
@@ -117,14 +144,77 @@ pub(crate) fn resolve_path_under_root(docs_root: &Path, path: &str) -> Result<Pa
     if !resolved.starts_with(&docs_root) {
         return Err("doc path must be under docs/src".into());
     }
-    if resolved.extension().and_then(|e| e.to_str()) != Some("md") {
-        return Err("doc path must be a markdown file".into());
+    validate_doc_leaf_and_ext(&resolved)?;
+    Ok(resolved)
+}
+
+/// Resolve workspace-wide documentation, wiki, contract, source, or `~/.vox/library/` paths.
+pub(crate) fn resolve_workspace_doc_path(
+    repo_root: &Path,
+    user_lib_root: Option<&Path>,
+    path: &str,
+) -> Result<PathBuf, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("doc path must not be empty".into());
     }
+    let slash_norm = trimmed.replace('\\', "/");
+
+    if slash_norm.starts_with("~/") {
+        let lib_rel = slash_norm
+            .strip_prefix("~/.vox/library/")
+            .ok_or_else(|| "home doc path must reside under ~/.vox/library/".to_string())?;
+        let lib_root =
+            user_lib_root.ok_or_else(|| "user library directory unavailable".to_string())?;
+        let norm_lib = normalize_path_components(lib_root)?;
+        let resolved = normalize_path_components(&norm_lib.join(lib_rel))?;
+        if !resolved.starts_with(&norm_lib) {
+            return Err("doc path escapes ~/.vox/library".into());
+        }
+        validate_doc_leaf_and_ext(&resolved)?;
+        return Ok(resolved);
+    }
+
+    let norm_repo = normalize_path_components(repo_root)?;
+    let candidate = PathBuf::from(trimmed);
+    let resolved = if candidate.is_absolute() {
+        let r = normalize_path_components(&candidate)?;
+        let in_lib = user_lib_root
+            .and_then(|l| normalize_path_components(l).ok())
+            .is_some_and(|nl| r.starts_with(&nl));
+        if !r.starts_with(&norm_repo) && !in_lib {
+            return Err(
+                "doc path must reside inside the active workspace or ~/.vox/library".into(),
+            );
+        }
+        r
+    } else if slash_norm.starts_with("docs/")
+        || slash_norm.starts_with("contracts/")
+        || slash_norm.starts_with("crates/")
+        || slash_norm.starts_with("scripts/")
+        || norm_repo.join(trimmed).exists()
+    {
+        let r = normalize_path_components(&norm_repo.join(trimmed))?;
+        if !r.starts_with(&norm_repo) {
+            return Err("doc path escapes workspace root".into());
+        }
+        r
+    } else {
+        let docs_src = norm_repo.join("docs").join("src");
+        let r = normalize_path_components(&docs_src.join(trimmed))?;
+        if !r.starts_with(&norm_repo) {
+            return Err("doc path escapes workspace root".into());
+        }
+        r
+    };
+
+    validate_doc_leaf_and_ext(&resolved)?;
     Ok(resolved)
 }
 
 fn resolve_doc_path(path: &str) -> Result<PathBuf, String> {
-    resolve_path_under_root(&repo_docs_root(), path)
+    let (repo_root, lib_root) = repo_root_and_lib();
+    resolve_workspace_doc_path(&repo_root, lib_root.as_deref(), path)
 }
 
 static DOCS_CACHE: OnceLock<Vec<DocEntry>> = OnceLock::new();
@@ -134,8 +224,11 @@ pub async fn vox_docs_index() -> Result<Vec<DocEntry>, String> {
     Ok(DOCS_CACHE
         .get_or_init(|| {
             let mut out = Vec::new();
-            walk_docs(&repo_docs_root(), &mut out);
-            out.sort_by(|a, b| a.title.cmp(&b.title));
+            let (repo_root, _) = repo_root_and_lib();
+            walk_docs(&repo_root.join("docs").join("src"), &mut out);
+            walk_docs(&repo_root.join("docs").join("wiki"), &mut out);
+            out.sort_by(|a, b| a.title.cmp(&b.title).then_with(|| a.path.cmp(&b.path)));
+            out.dedup_by(|a, b| a.path == b.path);
             out
         })
         .clone())
@@ -145,6 +238,15 @@ pub async fn vox_docs_index() -> Result<Vec<DocEntry>, String> {
 pub async fn read_doc_markdown(path: String) -> Result<String, String> {
     let resolved = resolve_doc_path(&path)?;
     std::fs::read_to_string(&resolved).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn write_doc_markdown(path: String, content: String) -> Result<(), String> {
+    let resolved = resolve_doc_path(&path)?;
+    if let Some(parent) = resolved.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&resolved, content).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -206,5 +308,53 @@ mod tests {
         let root = Path::new("/repo/docs/src");
         let resolved = resolve_path_under_root(root, "reference/cli.md").expect("resolve");
         assert!(resolved.ends_with("reference/cli.md"));
+    }
+
+    #[test]
+    fn resolves_workspace_paths_without_double_docs_src_prefix() {
+        let repo = Path::new("/repo");
+        let lib = Path::new("/home/user/.vox/library");
+
+        let src_doc =
+            resolve_workspace_doc_path(repo, Some(lib), "docs/src/reference/cli.md").expect("src");
+        assert_eq!(src_doc, PathBuf::from("/repo/docs/src/reference/cli.md"));
+
+        let wiki_doc =
+            resolve_workspace_doc_path(repo, Some(lib), "docs/wiki/interfaces-and-apis.md")
+                .expect("wiki");
+        assert_eq!(
+            wiki_doc,
+            PathBuf::from("/repo/docs/wiki/interfaces-and-apis.md")
+        );
+
+        let contract_yaml = resolve_workspace_doc_path(
+            repo,
+            Some(lib),
+            "contracts/documentation/kb-taxonomy.v1.yaml",
+        )
+        .expect("contract");
+        assert_eq!(
+            contract_yaml,
+            PathBuf::from("/repo/contracts/documentation/kb-taxonomy.v1.yaml")
+        );
+
+        let crate_rs =
+            resolve_workspace_doc_path(repo, Some(lib), "crates/vox-gui/src/main.rs").expect("rs");
+        assert_eq!(crate_rs, PathBuf::from("/repo/crates/vox-gui/src/main.rs"));
+
+        let lib_doc =
+            resolve_workspace_doc_path(repo, Some(lib), "~/.vox/library/notes.md").expect("lib");
+        assert_eq!(lib_doc, PathBuf::from("/home/user/.vox/library/notes.md"));
+    }
+
+    #[test]
+    fn rejects_env_secrets_and_traversal_in_workspace_doc_resolver() {
+        let repo = Path::new("/repo");
+        let lib = Path::new("/home/user/.vox/library");
+
+        assert!(resolve_workspace_doc_path(repo, Some(lib), ".env").is_err());
+        assert!(resolve_workspace_doc_path(repo, Some(lib), ".env.local").is_err());
+        assert!(resolve_workspace_doc_path(repo, Some(lib), "../../../etc/passwd").is_err());
+        assert!(resolve_workspace_doc_path(repo, Some(lib), "~/.ssh/id_rsa.txt").is_err());
     }
 }

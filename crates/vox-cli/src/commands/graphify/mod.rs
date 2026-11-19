@@ -156,7 +156,7 @@ pub enum GraphifyCmd {
         #[arg(long)]
         capture: bool,
         /// Write classification JSON here.
-        #[arg(long, default_value = "graphify-out/rebuild_causes.json")]
+        #[arg(long, default_value = ".vox/cache/ci-maps/rebuild_causes.json")]
         out: String,
     },
     /// First-parent repo history: log, focus, forgotten, search, timeline, brief.
@@ -689,7 +689,8 @@ fn capture_fingerprint_log(repo_root: &std::path::Path) -> anyhow::Result<String
         anyhow::bail!("instrumented cargo check failed (see output above) — fix the build first");
     }
     let log_text = String::from_utf8_lossy(&out.stderr).to_string();
-    let log_path = repo_root.join("graphify-out/rebuild_fingerprint.log");
+    let log_path =
+        vox_config::paths::repo_ci_maps_cache_dir(repo_root).join("rebuild_fingerprint.log");
     write_atomic(&log_path, &log_text)?;
     eprintln!("why-rebuilt: raw log -> {}", log_path.display());
     Ok(log_text)
@@ -1033,8 +1034,15 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             )
             .with_context(|| format!("parse {}", graph_path.display()))?;
 
-            // 2. Audit times are OPTIONAL (graphify-out/ is gitignored; absent on fresh checkout).
-            let audit_path = repo_root.join("graphify-out/crate_audit.json");
+            // 2. Audit times are OPTIONAL (.vox/cache/ci-maps/ is gitignored; fall back to legacy graphify-out/).
+            let primary_audit =
+                vox_config::paths::repo_ci_maps_cache_dir(repo_root).join("crate_audit.json");
+            let legacy_audit = repo_root.join("graphify-out/crate_audit.json");
+            let audit_path = if primary_audit.exists() || !legacy_audit.exists() {
+                primary_audit
+            } else {
+                legacy_audit
+            };
             let audit: serde_json::Value = match std::fs::read_to_string(&audit_path) {
                 Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| serde_json::json!([])),
                 Err(_) => {
@@ -1137,7 +1145,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                         "git_sha": resolve_head_sha().ok().flatten(),
                         "corpus_path": corpus.graph_path,
                     });
-                    let out_path = repo_root.join("graphify-out/edge_weights.json");
+                    let out_path = vox_config::paths::repo_ci_maps_cache_dir(repo_root)
+                        .join("edge_weights.json");
                     write_atomic(&out_path, &serde_json::to_string_pretty(&out)?)?;
                     eprintln!(
                         "edge weights -> {} ({} edges, {} candidates; corpus partial — candidates only)",

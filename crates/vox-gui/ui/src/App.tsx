@@ -1190,6 +1190,9 @@ export default function App() {
       if (detail.publicationId != null) {
         try {
           window.localStorage.setItem('vox_discovery_review_seed', detail.publicationId);
+          if (detail.view === 'publications') {
+            window.localStorage.setItem('vox_selected_publication_id', detail.publicationId);
+          }
         } catch { /* localStorage unavailable — surface still switches */ }
       }
       navigateTo(detail.view);
@@ -1197,6 +1200,30 @@ export default function App() {
     window.addEventListener('vox://navigate-surface', onNavigate as EventListener);
     return () => window.removeEventListener('vox://navigate-surface', onNavigate as EventListener);
   }, [navigateTo]);
+
+  // ── Universal in-app non-modal Doc Dock bus (`vox://open-doc`): surfaces such
+  // as Memory hits and Research synthesis reports can open existing workspace
+  // files or seed unsaved Markdown drafts straight into Split mode without leaving
+  // the active surface.
+  useEffect(() => {
+    const onOpenDocEvent = (e: Event) => {
+      const detail = (
+        e as CustomEvent<{
+          path?: string;
+          title?: string;
+          initialContent?: string;
+          initialMode?: 'read' | 'split' | 'edit';
+        }>
+      ).detail;
+      if (!detail?.path) return;
+      openDocTab(detail.path, detail.title, {
+        initialContent: detail.initialContent,
+        initialMode: detail.initialMode,
+      });
+    };
+    window.addEventListener('vox://open-doc', onOpenDocEvent as EventListener);
+    return () => window.removeEventListener('vox://open-doc', onOpenDocEvent as EventListener);
+  }, [openDocTab]);
 
   const hydrateChatSession = useCallback(async (sessionId: string) => {
     if (!sessionId) return;

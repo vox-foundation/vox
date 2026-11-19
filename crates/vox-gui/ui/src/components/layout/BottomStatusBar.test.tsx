@@ -402,4 +402,19 @@ describe('BottomStatusBar cards (chat-surfaces plan 3a)', () => {
       expect.stringMatching(/^Polling/),
     );
   });
+
+  it('renders active repository switcher pill and opens switcher popover navigating to repository studio', () => {
+    const onNavigate = vi.fn();
+    renderBar({
+      onNavigate,
+      activeRepoSummary: { displayName: 'demo-poly', repositoryId: 'demo-1', readOnly: true },
+    });
+    const pill = screen.getByTestId('bottom-status-bar-repo');
+    expect(pill).toHaveTextContent('demo-poly');
+    expect(pill).toHaveTextContent('read-only');
+    fireEvent.click(pill);
+    expect(screen.getByTestId('bottom-status-bar-repo-popover')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('repo-switcher-open-studio-btn'));
+    expect(onNavigate).toHaveBeenCalledWith('repository');
+  });
 });

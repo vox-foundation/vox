@@ -4,6 +4,8 @@ import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
 import { VoxSelect } from '../../ui/Select';
+import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import {
   activityQuery,
   listenActivityAppended,
@@ -102,18 +104,18 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
       case 'TaskCompleted':
       case 'WorkflowStarted':
       case 'WorkflowCompleted':
-        return 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300';
+        return 'border-border-strong bg-bg-elevated text-(--color-status-pass)';
       case 'TaskFailed':
       case 'WorkflowFailed':
-        return 'border-rose-500/30 bg-rose-500/5 text-rose-300';
+        return 'border-border-strong bg-bg-elevated text-(--color-status-fail)';
       case 'BudgetAlert':
       case 'AttentionBudgetAlert':
       case 'ConflictDetected':
-        return 'border-amber-500/40 bg-amber-950/25 text-amber-200';
+        return 'border-border-strong bg-bg-elevated text-(--color-status-warn)';
       case 'CostIncurred':
-        return 'border-[#C59B27]/45 bg-bg-elevated text-text-primary';
+        return 'border-border-strong bg-bg-elevated text-text-primary';
       default:
-        return 'border-[#C59B27]/30 bg-bg-surface text-text-secondary';
+        return 'border-border-strong bg-bg-surface text-text-primary';
     }
   };
 
@@ -151,28 +153,28 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
             <div
               key={row.id}
               data-testid="activity-row"
-              className={`flex items-start gap-4 p-3 rounded-lg border text-xs leading-relaxed transition-colors ${getKindColorClass(
+              className={`vox-marble-tablet flex items-start gap-4 p-3 rounded-lg border text-xs leading-relaxed transition-colors ${getKindColorClass(
                 row.kind
               )}`}
             >
-              <div className="flex items-center justify-center p-1.5 rounded-sm bg-zinc-900/50 border border-zinc-800">
+              <div className="flex items-center justify-center p-1.5 rounded-sm bg-bg-surface border border-border-strong">
                 {getIcon(row.kind)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="font-semibold uppercase tracking-wider text-[10px] opacity-75">
+                  <span className="font-semibold uppercase tracking-wider text-[11px]">
                     {row.kind}
                   </span>
-                  <span className="text-text-muted">
+                  <span className="text-text-secondary">
                     {new Date(row.ts_ms).toLocaleTimeString()}
                   </span>
                   {row.agent_id && (
-                    <span className="px-1.5 py-0.5 rounded-sm bg-bg-base/80 border border-border-subtle text-[10px] text-text-secondary">
+                    <span className="px-2 py-0.5 rounded-sm bg-bg-surface border border-border-strong text-[11px] font-medium text-text-primary">
                       Agent: {row.agent_id}
                     </span>
                   )}
                 </div>
-                <p className="text-text-primary font-medium">{row.summary}</p>
+                <p className="text-text-primary font-semibold">{row.summary}</p>
               </div>
             </div>
           );
@@ -182,35 +184,37 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
             <div
               key={item.key}
               data-testid="activity-row"
-              className={`flex flex-col gap-2 p-3 rounded-lg border text-xs leading-relaxed transition-colors ${getKindColorClass(
+              className={`vox-marble-tablet flex flex-col gap-2 p-3 rounded-lg border text-xs leading-relaxed transition-colors ${getKindColorClass(
                 'CostIncurred'
               )}`}
             >
               <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center p-1.5 rounded-sm bg-bg-base/80 border border-border-subtle">
+                <div className="flex items-center justify-center p-1.5 rounded-sm bg-bg-surface border border-border-strong">
                   {getIcon('CostIncurred')}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-semibold uppercase tracking-wider text-[10px] opacity-75">
+                    <span className="font-semibold uppercase tracking-wider text-[11px]">
                       CostIncurred (Folded)
                     </span>
-                    <span className="text-text-muted">
+                    <span className="text-text-secondary">
                       {new Date(item.rows[0].ts_ms).toLocaleTimeString()}
                     </span>
                     {item.agentId && (
-                      <span className="px-1.5 py-0.5 rounded-sm bg-bg-base/80 border border-border-subtle text-[10px] text-text-secondary">
+                      <span className="px-2 py-0.5 rounded-sm bg-bg-surface border border-border-strong text-[11px] font-medium text-text-primary">
                         Agent: {item.agentId}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <p className="text-text-primary font-medium">
+                    <p className="text-text-primary font-semibold">
                       spent ${item.totalCost.toFixed(4)} ({item.rows.length} calls)
                     </p>
                     <button
+                      type="button"
+                      data-slot="button"
                       onClick={() => toggleExpand(item.key)}
-                      className="px-2 py-0.5 rounded-sm bg-bg-base/80 border border-border-subtle hover:bg-overlay-subtle text-[10px] text-text-secondary hover:text-text-primary font-medium transition-colors"
+                      className="h-7 px-2.5 rounded border border-border-strong bg-bg-surface hover:bg-bg-elevated text-[11px] text-text-primary font-semibold transition-colors"
                       data-testid="fold-toggle"
                     >
                       {isExpanded ? 'Hide' : 'Expand'}
@@ -247,6 +251,7 @@ export interface ActivitySurfaceProps {
 }
 
 export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
+  const embedded = useIsEmbeddedSurface();
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [agentFilter, setAgentFilter] = useState<string>('');
@@ -281,6 +286,16 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
     fetchLogs();
   }, [fetchLogs]);
 
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchLogs();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [fetchLogs]);
+
   // Reactive updates on "vox://activity-appended", which the GUI bridge emits for every activity-loggable
   // event and replay frame (crates/vox-gui/src/commands/event_annotate.rs).
   useEffect(() => {
@@ -306,22 +321,52 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
   const uniqueKinds = Array.from(new Set(rows.map((r) => r.kind))).sort();
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4 text-text-primary rounded-xl border border-[#D4AF37]/35 bg-bg-surface">
-      <div className="flex flex-col gap-1">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-text-primary flex items-center gap-2">
-          <Icon.bolt className="text-brass size-4" />
-          Agent Activity Timeline
-        </h2>
-        <p className="text-xs text-text-secondary">
-          Durable log of high-signal events emitted across agent orchestrations.
-        </p>
-      </div>
+    <div className={`flex flex-col h-full gap-3 ${embedded ? 'p-1.5' : 'p-4'} text-text-primary`}>
+      {embedded ? (
+        <div
+          data-testid="activity-embedded-summary-bar"
+          className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2"
+        >
+          <span className="font-display text-xs font-bold uppercase tracking-wider text-text-primary">
+            Agent Activity Timeline
+          </span>
+          <span className="font-mono text-[11px] text-text-secondary">
+            {rows.length} events · {uniqueAgents.length} agents · Live event-driven sync
+          </span>
+        </div>
+      ) : (
+        <RomanSurfaceHeader
+          domainTag="OPERATIONS · ACTIVITY"
+          title="Agent Activity Timeline"
+          subtitle="Durable log of high-signal events emitted across agent orchestrations."
+          waxSealBadge="TRACE LEDGER"
+          headingLevel={2}
+          icon={<Icon.bolt className="size-5 text-text-primary" />}
+          gauges={[
+            {
+              label: 'EVENTS',
+              valueText: `${rows.length}`,
+              ratio: Math.max(0, Math.min(1, rows.length / 50)),
+              tone: 'gold',
+              purpose: 'Captured orchestration events in current window',
+            },
+            {
+              label: 'AGENTS',
+              valueText: `${uniqueAgents.length}`,
+              ratio: Math.max(0, Math.min(1, uniqueAgents.length / 10)),
+              tone: 'emerald',
+              purpose: 'Distinct active agent actors in timeline',
+            },
+          ]}
+        />
+      )}
 
-      <Glass className="flex items-center gap-3 p-3 flex-wrap border-[#C59B27]/35 bg-bg-surface">
+      <div className="vox-recessed-console-frame flex-1 flex flex-col gap-3 p-3 min-h-0">
+      <Glass className="vox-recessed-tablet flex items-center gap-3 p-3 flex-wrap border-border-strong bg-bg-elevated">
         <div className="flex flex-col gap-1 min-w-[120px]">
           <label
             htmlFor="activity-agent-filter"
-            className="text-[10px] uppercase font-bold tracking-wider text-text-muted"
+            className="text-[11px] uppercase font-bold tracking-wider text-text-muted"
           >
             Agent
           </label>
@@ -334,14 +379,14 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
               { value: '', label: 'All Agents' },
               ...uniqueAgents.map((id) => ({ value: id, label: id })),
             ]}
-            className="bg-bg-base border-border-subtle text-xs text-text-secondary"
+            className="h-8 bg-bg-elevated border-border-subtle text-xs text-text-primary"
           />
         </div>
 
         <div className="flex flex-col gap-1 min-w-[150px]">
           <label
             htmlFor="activity-kind-filter"
-            className="text-[10px] uppercase font-bold tracking-wider text-text-muted"
+            className="text-[11px] uppercase font-bold tracking-wider text-text-muted"
           >
             Event Type
           </label>
@@ -354,26 +399,24 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
               { value: '', label: 'All Kinds' },
               ...uniqueKinds.map((kind) => ({ value: kind, label: kind })),
             ]}
-            className="bg-bg-base border-border-subtle text-xs text-text-secondary"
+            className="h-8 bg-bg-elevated border-border-subtle text-xs text-text-primary"
           />
         </div>
 
-        <div className="flex items-end h-full mt-auto">
-          <button
-            onClick={fetchLogs}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-bg-surface border border-border-subtle hover:bg-overlay-subtle disabled:opacity-50 text-xs font-medium text-text-primary transition-colors"
-          >
-            <Icon.refresh className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+        <div
+          data-testid="activity-live-sync-pill"
+          title="Automatically syncs on vox://activity-appended and tab focus without manual polling"
+          className="inline-flex h-8 items-center gap-1.5 rounded border border-border-subtle bg-bg-surface px-2.5 font-mono text-[11px] text-text-secondary mt-auto"
+        >
+          <span className="size-2 rounded-full bg-(--color-status-pass)" aria-hidden="true" />
+          <span>{loading ? 'Syncing…' : `Live auto-sync · ${rows.length} events`}</span>
         </div>
       </Glass>
 
       <div className="flex-1 overflow-y-auto pr-1">
         {loading && rows.length === 0 ? (
           <div className="flex justify-center items-center py-20">
-            <Icon.alert className="animate-spin text-zinc-600 size-8" />
+            <Icon.alert className="animate-spin text-text-muted size-8" />
           </div>
         ) : rows.length === 0 ? (
           <EmptyState
@@ -384,6 +427,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
         ) : (
           <ActivityTimeline rows={rows} />
         )}
+      </div>
       </div>
     </div>
   );

@@ -70,8 +70,16 @@ fn phase_194_and_196_sidebar_and_playground_contracts() {
         root.join("crates/vox-gui/ui/src/components/surfaces/DocReader/DocReader.tsx"),
     )
     .expect("read DocReader.tsx");
+    let doc_reader_panels_src = fs::read_to_string(
+        root.join("crates/vox-gui/ui/src/components/surfaces/DocReader/DocReaderPanels.tsx"),
+    )
+    .expect("read DocReaderPanels.tsx");
     assert!(!doc_reader_src.contains("<select"));
-    assert!(doc_reader_src.contains("kb-pinned-guides-bar"));
+    assert!(!doc_reader_panels_src.contains("<select"));
+    assert!(
+        doc_reader_src.contains("kb-pinned-guides-bar")
+            || doc_reader_panels_src.contains("kb-pinned-guides-bar")
+    );
 }
 
 #[test]

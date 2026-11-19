@@ -96,6 +96,8 @@ export interface GuiDomAuditMetrics {
   animationMotionDeltaPct?: number;
   discoveredSubTabLabels?: readonly string[];
   discoveredPopoverTriggers?: readonly string[];
+  surfaceToolbarHeightSpreadPx?: number;
+  unreadableSmallFontCount?: number;
   terminalStartupSpamCount?: number;
   xtermHelperLeakCount?: number;
   terminalFontProportionalLeakCount?: number;

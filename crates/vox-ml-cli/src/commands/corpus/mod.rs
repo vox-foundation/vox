@@ -466,6 +466,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             Ok(())
         }
         CorpusAction::ExtractGsd { dir, output } => {
+            let _ = vox_corpus::corpus::extract_gsd::extract_and_write_all_learnings(&dir);
             let config = vox_corpus::corpus::extract_gsd::ExtractGsdConfig {
                 root: dir,
                 ..Default::default()

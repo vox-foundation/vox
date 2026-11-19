@@ -56,19 +56,20 @@ export function ResearchClaimAccordion({
   const supportedCount = claims.filter((c) => c.verdict?.toLowerCase() === 'supported').length;
 
   return (
-    <div className="research-claim-accordion rounded-xl border border-border-subtle bg-overlay-subtle">
+    <div className="research-claim-accordion rounded-xl border border-border-subtle bg-bg-surface">
       <button
         type="button"
+        data-slot="accordion-trigger"
         aria-expanded={expanded}
         onClick={toggleExpanded}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-text-secondary hover:bg-overlay-subtle"
+        className="flex h-9 w-full items-center justify-between gap-2 px-3 text-left font-sans text-xs font-semibold tracking-wide text-text-secondary hover:bg-bg-elevated transition-colors"
       >
         <span>
           {claims.length} claim{claims.length === 1 ? '' : 's'} verified · {contestedCount} contested
           {contradictedCount > 0 ? ` · ${contradictedCount} contradicted` : ''} · {sourceCount}{' '}
           source{sourceCount === 1 ? '' : 's'}
         </span>
-        <span className="inline-flex items-center font-mono text-xs text-text-muted" aria-hidden="true">
+        <span className="inline-flex items-center text-xs text-text-muted" aria-hidden="true">
           {expanded ? (
             <Icon.chevronUp className="size-3.5 shrink-0" />
           ) : (
@@ -83,18 +84,18 @@ export function ResearchClaimAccordion({
               key={claim.claimId}
               id={`claim-${claim.claimId}`}
               role="listitem"
-              className={`rounded-lg border border-border-subtle bg-overlay-subtle p-3 transition-colors ${
+              className={`rounded-lg border border-border-subtle bg-bg-elevated p-3 transition-colors ${
                 claim.claimId === highlightedClaimId ? 'ring-2 ring-brass' : ''
               }`}
             >
               <div className="mb-1 flex items-center gap-2">
                 <VerdictBadge verdict={claim.verdict} />
-                <span className="font-mono text-[10px] text-text-muted">
+                <span className="font-mono text-[11px] text-text-muted">
                   confidence {Math.round(claim.confidence * 100)}%
                 </span>
               </div>
-              <div className="text-sm text-text-secondary">{claim.text}</div>
-              <div className="mt-1 font-mono text-[10px] text-text-muted">
+              <div className="font-serif text-sm text-text-primary leading-relaxed">{claim.text}</div>
+              <div className="mt-1 text-xs text-text-muted">
                 {claim.resampleStability >= 0.5
                   ? `Stable across resamples (${Math.round(claim.resampleStability * 100)}%)`
                   : 'Verdict flipped in resampling — treat with care'}

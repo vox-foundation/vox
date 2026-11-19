@@ -53,6 +53,9 @@ Shared Vox project scaffolding for **`vox init`** and MCP **`vox_project_init`**
 | `resolve_scaffold_target_under_repo` | Resolve target directory strictly under `workspace_repo_root` (empty / missing `target_subdir` → workspace root). |
 | `scaffold_vox_project_at` | Scaffold under an **absolute** directory (e.g. CLI current dir). Creates the directory tree if needed. |
 | `scaffold_vox_project_under_repo` | Scaffold under `workspace_repo_root` or a strict repo-relative subdirectory (for MCP). |
+| `scaffold_vox_project_with_options_and_home` | Scaffold at `root` and optionally initialize the Vox hybrid repository harness (`VOX.md`, `AGENTS.md`, `docs/wiki/`, `.vox/`). |
+| `scaffold_vox_project_with_options` | Scaffold at `root` with optional Vox hybrid harness initialization. |
+| `scaffold_vox_project_under_repo_with_options` | Scaffold under `workspace_repo_root` or a strict repo-relative subdirectory, optionally initializing the Vox hybrid harness. |
 
 ## Dependency Topology
 
@@ -91,4 +94,7 @@ graph {
 | `fn` | `resolve_scaffold_target_under_repo` | `pub fn resolve_scaffold_target_under_repo(` | [`crates/vox-project-scaffold/src/lib.rs#L366`](../../../crates/vox-project-scaffold/src/lib.rs#L366) | Resolve target directory strictly under `workspace_repo_root` (empty / missing `target_subdir` → workspace root). |
 | `fn` | `scaffold_vox_project_at` | `pub fn scaffold_vox_project_at(` | [`crates/vox-project-scaffold/src/lib.rs#L402`](../../../crates/vox-project-scaffold/src/lib.rs#L402) | Scaffold under an **absolute** directory (e.g. CLI current dir). Creates the directory tree if needed. |
 | `fn` | `scaffold_vox_project_under_repo` | `pub fn scaffold_vox_project_under_repo(` | [`crates/vox-project-scaffold/src/lib.rs#L483`](../../../crates/vox-project-scaffold/src/lib.rs#L483) | Scaffold under `workspace_repo_root` or a strict repo-relative subdirectory (for MCP). |
+| `fn` | `scaffold_vox_project_with_options_and_home` | `pub fn scaffold_vox_project_with_options_and_home(` | [`crates/vox-project-scaffold/src/lib.rs#L495`](../../../crates/vox-project-scaffold/src/lib.rs#L495) | Scaffold at `root` and optionally initialize the Vox hybrid repository harness (`VOX.md`, `AGENTS.md`, `docs/wiki/`, `.vox/`). |
+| `fn` | `scaffold_vox_project_with_options` | `pub fn scaffold_vox_project_with_options(` | [`crates/vox-project-scaffold/src/lib.rs#L526`](../../../crates/vox-project-scaffold/src/lib.rs#L526) | Scaffold at `root` with optional Vox hybrid harness initialization. |
+| `fn` | `scaffold_vox_project_under_repo_with_options` | `pub fn scaffold_vox_project_under_repo_with_options(` | [`crates/vox-project-scaffold/src/lib.rs#L544`](../../../crates/vox-project-scaffold/src/lib.rs#L544) | Scaffold under `workspace_repo_root` or a strict repo-relative subdirectory, optionally initializing the Vox hybrid harness. |
 

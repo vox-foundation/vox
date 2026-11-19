@@ -152,9 +152,61 @@ tool "Check deployment target health from the Axis Workbench" check_target(env_n
 }
 ```
 
-## 6. Using the Built-In Documentation & Findings Reader (`DocReader`)
+## 6. Federated Knowledge Base, Non-Modal Multi-Format Doc Studio & Deep Research Flywheel
 
-Open the **Documentation Reader** (`DocReader.tsx`) from the sidebar or Omnibar to:
-- Jump directly to **Pinned Core Architecture Guides** (`Where Things Live`, `5-Minute Quickstart`, `Subsystem Architecture Atlas L0–L5`, `AgentOS & Orchestrator SSOT`).
-- Filter the knowledge base by **Topic** and **Domain** pill selectors using hybrid Tantivy BM25 + HNSW Reciprocal Rank Fusion (RRF).
-- Review candidate research findings in the **Findings Inbox** and promote verified `[path:Lstart-Lend]` claims through the 5-stage Socrates gate.
+Vox Axis unites live research, federated corpus search, passive discovery auto-sync, and multi-format documentation editing without trapping you inside modal overlays:
+
+- **Non-Modal Multi-Format Doc Dock (`DocViewerDrawer` + `DocReader`):** Opens on the right with `aria-modal="false"` so the underlying workspace stays 100% interactive. Toggle **`Read | Split | Edit`** modes, adjust **`Width: Split | Wide | Full`** or **`Minimize`**, author templated files via **`+ New Doc`**, and render GFM tables, checklists, GitHub alerts, YAML frontmatter facet pills, `kb:summary` banners, **AsciiDoc**, **JSON/JSONL**, **YAML/TOML**, **CSV/TSV**, and line-numbered source code (`.vox`, `.rs`, `.ts`, `.tsx`, `.sql`).
+- **Federated Memory Search (`MemoryView`):** Toggle **`Repo-Local`**, **`Global Library` (`~/.vox/library/`)**, and **`Vox Baseline`** shards simultaneously, tune retrieval depth with the **`Top-K Depth`** rotary dial, and trigger single-row **`Expand`**, **`Research`**, **`Open`** (straight into the non-modal Doc Dock), or **`Pin`** actions per citation card.
+- **Above-the-Fold Deep Research & Steer (`ResearchView`):** Completed syntheses lead with the `HeadlineVerdictBanner` and rendered report at the top, expose subquery/domain observability and **`+1 Wave Refinement`** steering, offer 1-click **`Index Now`** vs. **`Save to KB`** quarantine routing, and include **`Edit in Doc Dock`** for instant Split-mode publication drafting.
+- **Passive Live Discovery (`Activity` / `Discovery`) & `VoxGraph` Index (`Search Index`):** Passive event + `visibilitychange` `Live auto-sync` eliminates manual refresh clicks while surfacing 1-click jumps across **Memory**, **Research**, **Publications**, and **Search Index** RRF/node diagnostics.
+
+<div class="vox-showcase-grid">
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/doc-reader-arcane.webp" alt="Non-modal DocViewerDrawer docked on the right beside MemoryView with Read Split Edit modes and GFM/frontmatter rendering" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">Doc Dock · Split / Wide / Full</span>
+      <h3 class="vox-showcase-title">Non-Modal Multi-Format Doc Studio</h3>
+      <p class="vox-showcase-desc">
+        Inspect or edit Markdown, MDX, AsciiDoc, JSON, YAML, TOML, CSV, and code side-by-side while keeping <code>Memory</code>, <code>Research</code>, or <code>Terminal</code> live on the left.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/memory-arcane.webp" alt="MemoryView showing 3-layer Federated KB controls, Top-K Depth rotary dial, provenance tags, and unwrapped citation action rows" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">memory · Federated KB</span>
+      <h3 class="vox-showcase-title">3-Layer Retrieval &amp; In-App <code>Open</code> Routing</h3>
+      <p class="vox-showcase-desc">
+        Search across Repo-Local, Global Library, and Baseline canon with provenance pills (<code>Memory Shard</code>, <code>Code Chunk</code>, <code>Codex Canon</code>) and instant Doc Dock handoff.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/research-arcane.webp" alt="ResearchView with above-the-fold Synthesis Report, Domain Mode selector, Archetype presets, and Edit in Doc Dock button" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge vox-showcase-badge--gold">research · Multi-Wave Steer</span>
+      <h3 class="vox-showcase-title">Deep Research &amp; Scoped Persistence</h3>
+      <p class="vox-showcase-desc">
+        Start from Statistical Archetypes + Live KB Preflight, switch <code>Mode: General | CodeGen | Scholarly | Shopping</code>, steer <code>+1 Wave Refinement</code>, or send directly to <code>Edit in Doc Dock</code>.
+      </p>
+    </div>
+  </div>
+
+  <div class="vox-showcase-card">
+    <img src="/assets/axis/discovery-arcane.webp" alt="Discovery chronicle view with passive Live auto-sync and direct jumps to Research, Memory, and Publications" width="1280" height="800" loading="lazy" />
+    <div class="vox-showcase-body">
+      <span class="vox-showcase-badge">activity · Discovery Flywheel</span>
+      <h3 class="vox-showcase-title">Zero-Polling Chronicle &amp; Flywheel Jumps</h3>
+      <p class="vox-showcase-desc">
+        Tracks candidate syntheses, claims, and publication events via passive <code>Live auto-sync</code> with single-header ergonomics and instant cross-surface navigation.
+      </p>
+    </div>
+  </div>
+</div>
+
+Step-by-step tutorials:
+- **[Deep Research, Knowledge Preflight & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx)**
+- **[Managing Knowledgebases, Self-Healing OpenWiki & the Doc Studio](../tutorials/tut-knowledgebase-and-openwiki.mdx)**

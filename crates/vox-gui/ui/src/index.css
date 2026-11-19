@@ -409,13 +409,11 @@
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
   }
 
-  /* Stylized 3D Riveted Brass & Carved Carrara Marble Action Buttons inside surfaces */
+  /* Stylized Carved Carrara Marble & Burnished Brass Action Buttons inside surfaces */
   html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) :is(main, [role="dialog"]) button:not([role="tab"]):not([data-roman-gauge="true"]):not([disabled]):not([data-slot]):not([role="switch"]):not([role="checkbox"]):not([role="radio"]):not([role="combobox"]):not([role="menuitem"]):not([role="option"]):not(.xterm):not(.xterm *):not([data-terminal-mono="true"]):not([data-terminal-mono="true"] *):not([data-terminal-well="true"]):not([data-terminal-well="true"] *) {
     position: relative;
     background-color: #FAF5E8 !important;
     background-image:
-      radial-gradient(circle at 5px 50%, rgba(184, 134, 11, 0.55) 1.2px, transparent 1.8px),
-      radial-gradient(circle at calc(100% - 5px) 50%, rgba(184, 134, 11, 0.55) 1.2px, transparent 1.8px),
       linear-gradient(180deg, rgba(252, 249, 242, 0.96) 0%, rgba(238, 228, 208, 0.96) 100%) !important;
     border-color: rgba(197, 155, 39, 0.78) !important;
     color: #1C140C !important;
@@ -1052,7 +1050,7 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
    render with their exact contract palette across all surfaces, portals, and dialogs.
    ────────────────────────────────────────────────────────────────────────── */
 :is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) .vox-backdrop-marble,
-:is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) [data-roman-pillar="true"] {
+:is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) [data-roman-pillar="true"]:not([data-roman-relief-pillar="true"]) {
   display: none !important;
 }
 
@@ -1071,14 +1069,14 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
 }
 
 :is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) :is(
-  .vox-marble-tablet,
+  .vox-marble-tablet:not(.vox-recessed-tablet):not(.vox-recessed-console-frame),
   aside,
-  header,
+  header:not([data-roman-frieze-relief="true"]),
   footer,
-  [data-roman-frieze="true"],
+  [data-roman-frieze="true"]:not([data-roman-frieze-relief="true"]),
   main section > header:not([data-roman-frieze="true"]),
-  main details > summary,
-  main [role="tablist"],
+  main details > summary:not(.vox-brass-drawer-summary),
+  main [role="tablist"]:not(.vox-segmented-brass-bar),
   .vox-sidebar-header,
   .vox-sidebar-item-active
 ) {
@@ -1097,10 +1095,11 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
 }
 
 :is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) [data-roman-medallion="true"] {
-  background: var(--color-bg-elevated) !important;
-  border-color: var(--color-accent-default) !important;
-  color: var(--color-accent-default) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+  background-color: #1B2127 !important;
+  background-image: none !important;
+  border-color: #C59B27 !important;
+  color: #F3E5AB !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 240, 190, 0.25) !important;
   animation: none !important;
 }
 
@@ -1206,7 +1205,7 @@ html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-co
   color: var(--color-text-primary) !important;
 }
 
-:is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) :is(main, [role="dialog"]) button:not([role="tab"]):not([data-roman-gauge="true"]):not([disabled]):not([data-slot]):not([role="switch"]):not([role="checkbox"]):not([role="radio"]):not([role="combobox"]):not([role="menuitem"]):not([role="option"]):not(.xterm):not(.xterm *):not([data-terminal-mono="true"]):not([data-terminal-mono="true"] *):not([data-terminal-well="true"]):not([data-terminal-well="true"] *) {
+:is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) :is(main, [role="dialog"]) button:not([role="tab"]):not([data-roman-gauge="true"]):not([data-roman-plaque="true"]):not([disabled]):not([data-slot]):not([role="switch"]):not([role="checkbox"]):not([role="radio"]):not([role="combobox"]):not([role="menuitem"]):not([role="option"]):not(.xterm):not(.xterm *):not([data-terminal-mono="true"]):not([data-terminal-mono="true"] *):not([data-terminal-well="true"]):not([data-terminal-well="true"] *) {
   background-color: var(--color-bg-elevated) !important;
   background-image: none !important;
   border-color: var(--color-border-strong) !important;
@@ -1323,4 +1322,324 @@ html body[data-scroll-locked] {
   margin-right: 0 !important;
   padding-right: 0 !important;
   overflow: hidden !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Milestone v8.3 — Concept-Art Architectural Materiality System
+   (`v81-concept-scientia-research-{carrara,slate}` & `v81-concept-kb-codex-{carrara,slate}`)
+   Provides sculpted bas-relief frieze banners, cast-brass beveled plaques,
+   pipe-segmented brass bars, enameled malachite/crimson verdict buttons,
+   and deeply recessed parchment/basalt master-inspector tablets.
+   ────────────────────────────────────────────────────────────────────────── */
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) [data-roman-frieze-relief="true"].vox-roman-frieze-banner {
+  background-color: #EFE5D3 !important;
+  background-image:
+    linear-gradient(90deg, rgba(250, 246, 238, 0.72) 0%, rgba(246, 239, 224, 0.56) 45%, rgba(250, 246, 238, 0.72) 100%),
+    url('/assets/romanesque/v83-frieze-entablature-carrara.jpg') !important;
+  background-size: 100% 100%, cover !important;
+  background-position: center, center !important;
+  border: 2px solid #B88E28 !important;
+  box-shadow:
+    0 8px 22px rgba(28, 20, 12, 0.22),
+    inset 0 2px 0 rgba(255, 255, 255, 0.94),
+    inset 0 -2px 0 rgba(158, 123, 47, 0.45) !important;
+}
+
+:is(html[data-theme="void"], html[data-theme="slate"]) [data-roman-frieze-relief="true"].vox-roman-frieze-banner {
+  background-color: #13171B !important;
+  background-image:
+    linear-gradient(90deg, rgba(16, 20, 24, 0.72) 0%, rgba(20, 25, 30, 0.48) 50%, rgba(16, 20, 24, 0.72) 100%),
+    url('/assets/romanesque/v83-frieze-entablature-slate.jpg') !important;
+  background-size: 100% 100%, cover !important;
+  background-position: center, center !important;
+  border: 1.5px solid #B88E28 !important;
+  color: #F3E5AB !important;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(212, 175, 55, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.65) !important;
+}
+
+:is(html[data-theme="void"], html[data-theme="slate"]) [data-roman-frieze-relief="true"] h1,
+:is(html[data-theme="void"], html[data-theme="slate"]) [data-roman-frieze-relief="true"] h2 {
+  color: #F8FAFC !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8) !important;
+}
+
+:is(html[data-theme="void"], html[data-theme="slate"]) [data-roman-frieze-relief="true"] p {
+  color: #E2E8F0 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* Medallion coin portrait inside RomanSurfaceHeader */
+.vox-coin-portrait-carrara {
+  display: block;
+}
+.vox-coin-portrait-slate {
+  display: none;
+}
+:is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) .vox-coin-portrait-carrara {
+  display: none;
+}
+:is(html[data-theme="void"], html[data-theme="slate"], html[data-theme="high-contrast"]) .vox-coin-portrait-slate {
+  display: block;
+}
+
+/* Fluted pillar dark mode basalt shaft override */
+:is(html[data-theme="void"], html[data-theme="slate"]) [data-roman-relief-pillar="true"] [data-pillar-shaft="true"] {
+  background-image: repeating-linear-gradient(90deg, #1E252B 0px, #2A343C 2px, #12161A 3.5px, #252E35 5px) !important;
+  border-color: rgba(197, 155, 39, 0.6) !important;
+}
+
+/* Semicircular Brass Chronometer Gauge Card */
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) [data-roman-gauge="true"].vox-chronometer-gauge {
+  background: linear-gradient(180deg, #FDFBF5 0%, #EFE4CC 100%) !important;
+  border: 2px solid #B88E28 !important;
+  box-shadow:
+    inset 0 2px 6px rgba(120, 83, 18, 0.16),
+    0 3px 10px rgba(28, 20, 12, 0.22) !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) [data-roman-gauge="true"].vox-chronometer-gauge {
+  background: linear-gradient(180deg, #1B2127 0%, #111519 100%) !important;
+  border: 1.5px solid #C59B27 !important;
+  color: #F3E5AB !important;
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.75),
+    0 4px 12px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Outer Recessed Architectural Console Frame + Sunken Tablets */
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-recessed-console-frame {
+  background-color: #EFE5D3 !important;
+  background-image:
+    linear-gradient(180deg, rgba(247, 241, 229, 0.96) 0%, rgba(235, 224, 202, 0.96) 100%),
+    url('/assets/romanesque/carrara-seamless-stone.jpg') !important;
+  background-size: cover !important;
+  border: 2px solid #B88E28 !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 8px 24px rgba(28, 20, 12, 0.18),
+    inset 0 2px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -2px 0 rgba(158, 123, 47, 0.35) !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-recessed-console-frame {
+  background-color: #15191D !important;
+  background-image: linear-gradient(180deg, #181D22 0%, #111519 100%) !important;
+  border: 1.5px solid #9A7B2C !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.58),
+    inset 0 1px 0 rgba(212, 175, 55, 0.22) !important;
+}
+
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-recessed-tablet {
+  background-color: #FAF6EE !important;
+  background-image: linear-gradient(180deg, #FCF9F2 0%, #F4ECDC 100%) !important;
+  border: 1.5px solid #C59B27 !important;
+  border-radius: 10px !important;
+  box-shadow:
+    inset 0 2px 8px rgba(120, 83, 18, 0.14),
+    0 2px 6px rgba(255, 255, 255, 0.72) !important;
+  color: #1C140C !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-recessed-tablet {
+  background-color: #12161A !important;
+  background-image: linear-gradient(180deg, #161B20 0%, #101418 100%) !important;
+  border: 1.5px solid #3F4C56 !important;
+  border-radius: 10px !important;
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, 0.72),
+    0 1px 0 rgba(212, 175, 55, 0.14) !important;
+  color: #F1F5F9 !important;
+}
+
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-recessed-subwell {
+  background: linear-gradient(180deg, #EFE5D3 0%, #E6D8BE 100%) !important;
+  border: 1.5px solid #B88E28 !important;
+  box-shadow: inset 0 2px 6px rgba(120, 83, 18, 0.18), 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-recessed-subwell {
+  background: linear-gradient(180deg, #1B2127 0%, #14181D 100%) !important;
+  border: 1.5px solid #8C6E26 !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Tactile Beveled Cast-Brass Plaque Buttons (`[RUN]`, `[MEMORY]`, `[RECALL]`, drawers) */
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) button.vox-brass-plaque-btn:not([disabled]),
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-brass-plaque-btn {
+  background-color: #DFC06C !important;
+  background-image: linear-gradient(180deg, #F8ECC2 0%, #E5C773 48%, #BE942A 100%) !important;
+  border: 1.5px solid #8C6214 !important;
+  color: #1C140C !important;
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  text-shadow: 0 1px 0 rgba(255, 252, 235, 0.7) !important;
+  box-shadow:
+    0 2px 6px rgba(28, 20, 12, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1.5px 0 rgba(120, 83, 18, 0.45) !important;
+}
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) button.vox-brass-plaque-btn[aria-pressed="true"]:not([disabled]),
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-brass-plaque-btn[data-active="true"] {
+  background-image: linear-gradient(180deg, #FBEFA8 0%, #D9AE38 50%, #A87D16 100%) !important;
+  border-color: #6B4A08 !important;
+  box-shadow:
+    0 3px 10px rgba(140, 98, 20, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1.5px 0 rgba(90, 60, 8, 0.55) !important;
+}
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) button.vox-brass-plaque-btn[aria-pressed="false"]:not([disabled]) {
+  background-image: linear-gradient(180deg, #FAF4E6 0%, #EADDC2 52%, #D7C49C 100%) !important;
+  border-color: #B88E28 !important;
+  color: #3E2F1D !important;
+}
+
+:is(html[data-theme="void"], html[data-theme="slate"]) button.vox-brass-plaque-btn:not([disabled]),
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-brass-plaque-btn {
+  background-color: #1B2228 !important;
+  background-image: linear-gradient(180deg, #273038 0%, #171D22 100%) !important;
+  border: 1.5px solid #C59B27 !important;
+  color: #F3E5AB !important;
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(212, 175, 55, 0.25),
+    inset 0 -1.5px 0 rgba(0, 0, 0, 0.7) !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) button.vox-brass-plaque-btn[aria-pressed="true"]:not([disabled]),
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-brass-plaque-btn[data-active="true"] {
+  background-image: linear-gradient(180deg, #3A3220 0%, #241F13 100%) !important;
+  border-color: #E2BE5B !important;
+  color: #FEF3C7 !important;
+  box-shadow:
+    0 0 12px rgba(212, 175, 55, 0.28),
+    inset 0 1px 0 rgba(253, 230, 138, 0.35) !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) button.vox-brass-plaque-btn[aria-pressed="false"]:not([disabled]) {
+  background-image: linear-gradient(180deg, #1E252B 0%, #14191D 100%) !important;
+  border-color: #475569 !important;
+  color: #CBD5E1 !important;
+}
+
+/* Pipe-Segmented Cast-Brass Tab Bar (`[FAST | DEEP]`, `[SYNTHESIS | DAG & CLAIMS | DIAGNOSTICS]`) */
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-segmented-brass-bar {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px !important;
+  border: 1.5px solid #8C6214 !important;
+  background-color: #EBD8A7 !important;
+  background-image: linear-gradient(180deg, #F6E6BA 0%, #DEC06E 100%) !important;
+  padding: 0 !important;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(28, 20, 12, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-segmented-brass-bar {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px !important;
+  border: 1.5px solid #B88E28 !important;
+  background-color: #161B20 !important;
+  background-image: linear-gradient(180deg, #21282F 0%, #14191D 100%) !important;
+  padding: 0 !important;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(212, 175, 55, 0.22) !important;
+}
+
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-segmented-brass-bar > button {
+  border-radius: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-left: 0 !important;
+  border-right: 1px solid rgba(140, 98, 20, 0.55) !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-segmented-brass-bar > button:last-child {
+  border-right: 0 !important;
+}
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-segmented-brass-bar > button[aria-selected="true"] {
+  background: linear-gradient(180deg, #FCEEA8 0%, #D4A936 100%) !important;
+  color: #1C140C !important;
+  font-weight: 700 !important;
+}
+html:not([data-theme="void"]):not([data-theme="slate"]):not([data-theme="high-contrast"]) .vox-segmented-brass-bar > button[aria-selected="false"] {
+  background: linear-gradient(180deg, #FAF3E2 0%, #EDE1C8 100%) !important;
+  color: #3E2F1D !important;
+}
+
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-segmented-brass-bar > button {
+  border-radius: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-left: 0 !important;
+  border-right: 1px solid rgba(197, 155, 39, 0.35) !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-segmented-brass-bar > button:last-child {
+  border-right: 0 !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-segmented-brass-bar > button[aria-selected="true"] {
+  background: linear-gradient(180deg, #3B3321 0%, #241E12 100%) !important;
+  color: #FEF3C7 !important;
+  font-weight: 700 !important;
+}
+:is(html[data-theme="void"], html[data-theme="slate"]) .vox-segmented-brass-bar > button[aria-selected="false"] {
+  background: transparent !important;
+  color: #CBD5E1 !important;
+}
+
+/* Enameled Malachite Green (`CORROBORATED`) & Imperial Crimson (`CONTESTED`) Verdict Plaques */
+button.vox-enameled-emerald-btn,
+.vox-enameled-emerald-btn {
+  background-color: #1B5E3A !important;
+  background-image: linear-gradient(180deg, #247A4C 0%, #1B5E3A 55%, #134429 100%) !important;
+  border: 1.5px solid #C59B27 !important;
+  color: #FAF6EE !important;
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 3px 8px rgba(20, 83, 45, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+button.vox-enameled-crimson-btn,
+.vox-enameled-crimson-btn {
+  background-color: #7F1D1D !important;
+  background-image: linear-gradient(180deg, #992222 0%, #7F1D1D 55%, #5B1212 100%) !important;
+  border: 1.5px solid #C59B27 !important;
+  color: #FAF6EE !important;
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 3px 8px rgba(127, 29, 29, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Chiseled Bronze `INVARIANT` Plaque (Knowledge Codex Reader) */
+.vox-invariant-plaque {
+  background-color: #6B4C12 !important;
+  background-image: linear-gradient(180deg, #8C6825 0%, #634614 60%, #4A330D 100%) !important;
+  border: 1.5px solid #D4AF37 !important;
+  color: #FDF8EC !important;
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 2px 6px rgba(28, 20, 12, 0.35), inset 0 1px 0 rgba(255, 244, 200, 0.35) !important;
+}
+
+/* Graduated Brass Slide Rule Track */
+.vox-slide-rule-track {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(184, 134, 11, 0.72) 0px,
+    rgba(184, 134, 11, 0.72) 1px,
+    transparent 1px,
+    transparent 8px
+  );
 }

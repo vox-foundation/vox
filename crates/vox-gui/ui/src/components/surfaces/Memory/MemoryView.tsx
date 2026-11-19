@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useVirtualList } from '../../../hooks/useVirtualList';
 import { shardSparkColor } from '../../../lib/visualTokens';
-import { invokeCmd, voxTransport } from '../../../transport';
+import { invokeCmd, listenScientiaQueue, voxTransport } from '../../../transport';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { useLabel } from '../../../hooks/useLanguage';
 import { BentoCard, BentoGrid, BentoScrollRegion } from '../../ui/BentoGrid';
 import { Icon } from '../../ui/Icons';
 import { VoxSelect } from '../../ui/Select';
 import { Sparkline } from '../../ui/Sparkline';
 import { RomanSurfaceHeader } from '../../ui/RomanSurfaceHeader';
+import { RomanRotaryKnob } from '../../ui/RomanRotaryKnob';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
 import { attachItemsFromHits, AttachItem } from '../../../lib/loquelaContext';
 import { MEMORY_RECALL_DEBOUNCE_MS } from '../../../config/constants';
@@ -45,44 +47,22 @@ const MEM_CORPORA = [
 
 type MemCorpusId = typeof MEM_CORPORA[number]['id'];
 
-function CorpusChip({
-  corpus,
-  active,
-  onToggle,
-}: {
-  corpus: (typeof MEM_CORPORA)[number];
-  active: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={active}
-      aria-label={`Scope: ${corpus.name}`}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] transition ${
-        active
-          ? 'border-white/15 bg-overlay-subtle text-text-primary'
-          : 'border-border-subtle bg-overlay-subtle text-text-muted'
-      }`}
-    >
-      <span aria-hidden="true" className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
-      {corpus.name}
-    </button>
-  );
-}
-
 function HitCard({
   hit,
   query,
+  index,
   onPin,
   onOpen,
+  onResearchTopic,
 }: {
   hit: UnifiedHit;
   query: string;
+  index: number;
   onPin: () => void;
   onOpen: () => void;
+  onResearchTopic: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const kindIcon: Record<string, React.ReactNode> = {
     code:   <Icon.file className="size-3.5" />,
     text:   <Icon.catalog className="size-3.5" />,
@@ -92,62 +72,125 @@ function HitCard({
   };
 
   const isOpenable = hit.locator.kind === 'file' || hit.locator.kind === 'web';
-  // Bridge: use path as the src display; score as relevance; snippet as text.
   const src = hit.path ?? hit.source;
+  const citationKindLabel =
+    hit.kind === 'code' || hit.kind === 'policy' ? 'SHARD CITATION · HNSW' : 'CODEX CITATION · SYNC';
+  const provenanceLayer =
+    hit.source === 'memory'
+      ? {
+          label: 'Memory Shard',
+          tip: 'Indexed from session memory shards (~/.vox/memory + vector HNSW)',
+        }
+      : hit.source === 'chunk'
+        ? {
+            label: 'Code Chunk',
+            tip: 'Indexed AST/source code chunk from repository crates',
+          }
+        : {
+            label: 'Codex Canon',
+            tip: 'Indexed from repository SSOT documentation and promoted KB findings',
+          };
 
   const segments = renderHighlights(hit.snippet, query);
 
   return (
     <div
-      className={`group flex items-start gap-3 rounded-lg border border-[#D4AF37]/35 bg-bg-surface p-3 hover:border-[#D4AF37]/60 transition ${isOpenable ? 'cursor-pointer' : ''}`}
+      className={`vox-recessed-tablet group flex flex-col gap-2 rounded-lg p-3 transition-colors hover:border-brass ${isOpenable ? 'cursor-pointer' : ''}`}
       onClick={isOpenable ? onOpen : undefined}
     >
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-bg-elevated text-[#D4AF37]">
-        {kindIcon[hit.kind] ?? <Icon.file className="size-3.5" />}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-[#F3E5AB] truncate">{src}</span>
-          {/* Show score instead of line number (no line field in UnifiedHit). */}
-          <span className="font-mono text-[9px] text-[#D4AF37]/80">
+      <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded border border-border-strong bg-bg-elevated text-text-primary">
+            {kindIcon[hit.kind] ?? <Icon.file className="size-3.5" />}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-display text-[11px] font-bold uppercase tracking-[0.12em] text-brass">
+                {citationKindLabel}
+              </span>
+              <span
+                title={provenanceLayer.tip}
+                className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0 font-mono text-[11px] font-medium text-text-secondary cursor-help"
+              >
+                {provenanceLayer.label}
+              </span>
+            </div>
+            <div className="font-mono text-xs font-semibold text-text-primary truncate">{src}</div>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className="font-mono text-xs font-bold tabular-nums text-text-primary">
             {(hit.score * 100).toFixed(1)}%
           </span>
-        </div>
-        <div className="mt-1 text-[12px] leading-relaxed text-[#D6CEBF] line-clamp-2">
-          {segments.map((seg, i) =>
-            seg.mark ? (
-              <mark key={i} className="bg-[#D4AF37]/25 text-[#F3E5AB] rounded-sm px-0.5">{seg.text}</mark>
-            ) : (
-              <span key={i}>{seg.text}</span>
-            )
-          )}
+          <div className="h-2 w-24 overflow-hidden rounded-full border border-border-strong bg-bg-surface">
+            <div
+              className="h-full bg-brass"
+              style={{ width: `${Math.max(4, Math.min(100, hit.score * 100))}%` }}
+            />
+          </div>
         </div>
       </div>
-      <div className="flex flex-col items-end gap-1">
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-bg-elevated">
-          <div
-            className="h-full bg-linear-to-r from-[#B45309] via-[#D4AF37] to-[#F3E5AB]"
-            style={{ width: `${hit.score * 100}%` }}
-          />
-        </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-          {isOpenable && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onOpen(); }}
-              className="rounded-sm border border-[#D4AF37]/30 bg-bg-elevated/80 px-1.5 py-0.5 font-mono text-[9px] text-[#D6CEBF] hover:bg-[#78350F]/40 hover:text-[#F3E5AB]"
-            >
-              <Icon.link aria-hidden="true" className="size-2.5 inline mr-0.5" />open
-            </button>
-          )}
+
+      <div
+        className={`font-serif text-[13px] leading-relaxed text-text-secondary ${
+          expanded ? 'whitespace-pre-wrap' : 'line-clamp-2'
+        }`}
+      >
+        {segments.map((seg, i) =>
+          seg.mark ? (
+            <mark key={i} className="bg-brass/25 text-text-primary rounded-sm px-0.5">{seg.text}</mark>
+          ) : (
+            <span key={i}>{seg.text}</span>
+          )
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-1 pt-0.5">
+        <button
+          type="button"
+          data-slot="button"
+          data-roman-plaque="true"
+          data-testid={`expand-hit-${index}`}
+          aria-expanded={expanded}
+          onClick={e => { e.stopPropagation(); setExpanded(prev => !prev); }}
+          className="vox-brass-plaque-btn inline-flex h-7 items-center gap-1 rounded px-2 text-[11px] transition-colors"
+        >
+          <span>{expanded ? 'Collapse' : 'Expand'}</span>
+        </button>
+        <button
+          type="button"
+          data-slot="button"
+          data-roman-plaque="true"
+          data-testid={`research-hit-${index}`}
+          title="Launch deep Research on this memory hit"
+          onClick={e => { e.stopPropagation(); onResearchTopic(); }}
+          className="vox-brass-plaque-btn inline-flex h-7 items-center gap-1 rounded px-2 text-[11px] transition-colors"
+        >
+          <Icon.search aria-hidden="true" className="size-3" />
+          <span>Research</span>
+        </button>
+        {isOpenable && (
           <button
             type="button"
-            onClick={e => { e.stopPropagation(); onPin(); }}
-            className="rounded-sm border border-[#D4AF37]/30 bg-bg-elevated/80 px-1.5 py-0.5 font-mono text-[9px] text-[#F3E5AB] hover:bg-[#78350F]/40"
+            data-slot="button"
+            data-roman-plaque="true"
+            onClick={e => { e.stopPropagation(); onOpen(); }}
+            className="vox-brass-plaque-btn inline-flex h-7 items-center gap-1 rounded px-2 text-[11px] transition-colors"
           >
-            <Icon.pin aria-hidden="true" className="size-2.5 inline mr-0.5" />pin
+            <Icon.link aria-hidden="true" className="size-3" />
+            <span>Open</span>
           </button>
-        </div>
+        )}
+        <button
+          type="button"
+          data-slot="button"
+          data-roman-plaque="true"
+          onClick={e => { e.stopPropagation(); onPin(); }}
+          className="vox-brass-plaque-btn inline-flex h-7 items-center gap-1 rounded px-2 text-[11px] transition-colors"
+        >
+          <Icon.pin aria-hidden="true" className="size-3" />
+          <span>Pin</span>
+        </button>
       </div>
     </div>
   );
@@ -171,11 +214,15 @@ interface MemoryViewProps {
 }
 
 export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
+  const embedded = useIsEmbeddedSurface();
   const [memStatus, setMemStatus] = useState<MemoryStatusPayload | null>(null);
   const [query, setQuery] = useState('');
   // Scope uses the corpus vocabulary aligned with vox_search_query.
   // Default: all three memory/knowledge/chunk corpora active.
   const [scope, setScope] = useState<MemCorpusId[]>(['memory', 'knowledge', 'chunk']);
+  const [layerScope, setLayerScope] = useState<
+    'all' | 'repo_local' | 'global_library' | 'vox_baseline'
+  >('all');
   const [topK, setTopK] = useState(8);
   // Auto-recall is a persisted GUI preference (gui.memory.autoRecall), hydrated
   // from the workspace db via get_gui_preference and written back on toggle —
@@ -191,6 +238,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const [nodeTypeFilter, setNodeTypeFilter] = useState<string>('all');
   const [page, setPage] = useState<number>(0);
   const [loadingNodes, setLoadingNodes] = useState(false);
+  const nodesPrimedRef = useRef(false);
 
   // Ingest state
   const [ingestUrl, setIngestUrl] = useState('');
@@ -199,13 +247,16 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const [ingestContent, setIngestContent] = useState('');
   const [ingestSourceUrl, setIngestSourceUrl] = useState('');
   const [ingestingText, setIngestingText] = useState(false);
+  const [ingestScope, setIngestScope] = useState<'repo_local' | 'global_library'>('repo_local');
 
   // Health state
   const [health, setHealth] = useState<KbHealthDto | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
+  const healthPrimedRef = useRef(false);
 
-  const fetchNodes = useCallback(async (selectedType: string, selectedPage: number) => {
-    setLoadingNodes(true);
+  const fetchNodes = useCallback(async (selectedType: string, selectedPage: number, opts?: { silent?: boolean }) => {
+    const showSpinner = !opts?.silent && !nodesPrimedRef.current;
+    if (showSpinner) setLoadingNodes(true);
     try {
       const typeArg = selectedType === 'all' ? null : selectedType;
       const res = await invokeCmd<KnowledgeNodeRow[]>('list_knowledge_nodes', {
@@ -214,10 +265,13 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         limit: 50,
       });
       setNodes(res);
+      nodesPrimedRef.current = true;
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Failed to load nodes', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      if (!opts?.silent) {
+        pushToast({ tone: 'warn', title: 'Failed to load nodes', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      }
     } finally {
-      setLoadingNodes(false);
+      if (showSpinner) setLoadingNodes(false);
     }
   }, [pushToast]);
 
@@ -225,26 +279,39 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     try {
       await invokeCmd('delete_knowledge_node', { id });
       pushToast({ tone: 'ok', title: 'Node deleted', body: `Node ${id} deleted`, cause: 'backend-ok' });
-      void fetchNodes(nodeTypeFilter, page);
+      void fetchNodes(nodeTypeFilter, page, { silent: true });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Delete failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
-  const fetchHealth = useCallback(async () => {
-    setLoadingHealth(true);
+  const fetchHealth = useCallback(async (opts?: { silent?: boolean }) => {
+    const showSpinner = !opts?.silent && !healthPrimedRef.current;
+    if (showSpinner) setLoadingHealth(true);
     try {
       const res = await invokeCmd<KbHealthDto>('get_kb_health');
       setHealth(res);
+      healthPrimedRef.current = true;
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Failed to fetch KB health', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      if (!opts?.silent) {
+        pushToast({ tone: 'warn', title: 'Failed to fetch KB health', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      }
     } finally {
-      setLoadingHealth(false);
+      if (showSpinner) setLoadingHealth(false);
     }
   }, [pushToast]);
 
-  // Side-door content lands in the findings inbox, not the searchable KB (D-05 interim copy).
-  const toastFiled = (res: FindingFiled, what: string) => {
+  const toastFiled = (res: FindingFiled | string, what: string) => {
+    if (typeof res === 'string') {
+      const scopeLabel = ingestScope === 'global_library' ? 'Global Library' : 'Repo-Local';
+      pushToast({
+        tone: 'ok',
+        title: `Indexed into ${scopeLabel} KB`,
+        body: `${what} (${res}) is now searchable and queued for audit review.`,
+        cause: 'backend-ok',
+      });
+      return;
+    }
     if (res.status === 'duplicate') {
       pushToast({ tone: 'ok', title: 'Already pending review', body: `${what} is already in the review inbox.`, cause: 'backend-ok' });
     } else {
@@ -256,9 +323,14 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     if (!ingestUrl.trim()) return;
     setIngestingUrl(true);
     try {
-      const res = await invokeCmd<FindingFiled>('ingest_url', { url: ingestUrl.trim() });
+      const res = await invokeCmd<FindingFiled | string>('ingest_url', {
+        url: ingestUrl.trim(),
+        targetScope: ingestScope,
+      });
       toastFiled(res, 'The page');
       setIngestUrl('');
+      void invokeCmd<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
+      void fetchNodes(nodeTypeFilter, page, { silent: true });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Scrape failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -270,15 +342,18 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     if (!ingestContent.trim()) return;
     setIngestingText(true);
     try {
-      const res = await invokeCmd<FindingFiled>('ingest_text', {
+      const res = await invokeCmd<FindingFiled | string>('ingest_text', {
         title: ingestTitle.trim(),
         content: ingestContent.trim(),
         sourceUrl: ingestSourceUrl.trim() || null,
+        targetScope: ingestScope,
       });
       toastFiled(res, 'The text');
       setIngestTitle('');
       setIngestContent('');
       setIngestSourceUrl('');
+      void invokeCmd<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
+      void fetchNodes(nodeTypeFilter, page, { silent: true });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Store failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -322,10 +397,42 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   });
 
   useEffect(() => {
-    invokeCmd<MemoryStatusPayload>('get_memory_status')
-      .then(setMemStatus)
-      .catch((err) => pushToast({ tone: 'error', title: 'Memory status unavailable', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
-  }, [pushToast]);
+    let statusPrimed = false;
+    const syncMemory = () => {
+      invokeCmd<MemoryStatusPayload>('get_memory_status')
+        .then((res) => {
+          statusPrimed = true;
+          setMemStatus(res);
+        })
+        .catch((err) => {
+          if (!statusPrimed) {
+            pushToast({ tone: 'error', title: 'Memory status unavailable', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+          }
+        });
+    };
+    syncMemory();
+    if (embedded) return;
+    const refreshActiveTab = () => {
+      if (document.visibilityState === 'hidden') return;
+      syncMemory();
+      if (activeTab === 'browse') void fetchNodes(nodeTypeFilter, page, { silent: true });
+      if (activeTab === 'health') void fetchHealth({ silent: true });
+    };
+    const intervalId = window.setInterval(refreshActiveTab, 15_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshActiveTab();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    let unlisten: (() => void) | undefined;
+    listenScientiaQueue(refreshActiveTab)
+      .then((fn) => { unlisten = fn; })
+      .catch(() => { /* outside Tauri — visibility poll covers it */ });
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+      unlisten?.();
+    };
+  }, [pushToast, embedded, activeTab, nodeTypeFilter, page, fetchNodes, fetchHealth]);
 
   // Hydrate the persisted auto-recall preference on mount.
   useEffect(() => {
@@ -431,6 +538,20 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   };
 
   const openHit = async (hit: UnifiedHit) => {
+    const fileTarget = hit.locator.value || hit.path || '';
+    if (
+      hit.locator.kind === 'file' &&
+      /\.(md|mdx|markdown|txt|adoc|asciidoc|json|jsonl|yaml|yml|toml|csv|tsv|vox|rs|ts|tsx|sql)$/i.test(
+        fileTarget,
+      )
+    ) {
+      window.dispatchEvent(
+        new CustomEvent('vox://open-doc', {
+          detail: { path: fileTarget, title: hit.title ?? undefined },
+        }),
+      );
+      return;
+    }
     if (hit.locator.kind === 'file' || hit.locator.kind === 'web') {
       try {
         await voxTransport.openLocator(hit.locator);
@@ -441,14 +562,14 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   };
 
   return (
-    <div className="@container/surface flex min-h-0 min-w-0 flex-col gap-4">
-      {/* Roman Surface Header Frieze */}
+    <div className="@container/surface flex min-h-0 min-w-0 flex-col gap-3">
+      {/* Roman Bas-Relief Surface Header Frieze with Dual Chronometers & Central Coin Signet */}
       <RomanSurfaceHeader
         domainTag="KNOWLEDGE · MEMORY"
         title="Codex Vector Shards & Context Ledger"
         subtitle="Inspect persistent vector index shards, embedding density, and context retrieval telemetry."
         waxSealBadge="CODEX SYNCED"
-        icon={<Icon.memory className="size-5 text-[#F3E5AB]" />}
+        icon={<Icon.memory className="size-5 text-text-primary" />}
         gauges={[
           {
             label: 'SHARDS',
@@ -493,322 +614,530 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           },
         ]}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={toggleAutoRecall}
               aria-pressed={recallOn}
+              data-slot="button"
+              data-roman-plaque="true"
               title={recallOn ? 'Auto-recall on — queries recall as you type' : 'Auto-recall off — press Enter or Recall'}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[10px] transition ${
-                recallOn
-                  ? 'border-[#D4AF37]/60 bg-[#78350F]/40 text-[#FEF3C7]'
-                  : 'border-[#D4AF37]/25 bg-bg-surface/80 text-[#D6CEBF] hover:text-[#F3E5AB]'
-              }`}
+              className="vox-brass-plaque-btn inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs transition-colors"
             >
-              <Icon.eye aria-hidden="true" className="size-3" /> Auto-recall
+              <Icon.eye aria-hidden="true" className="size-3.5" />
+              <span>Auto-recall</span>
             </button>
             <button
               type="button"
+              data-slot="button"
+              data-roman-plaque="true"
               onClick={() =>
                 invokeCmd('mnemosyne_reindex')
                   .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex', cause: 'backend-ok' }))
                   .catch((err) => pushToast({ tone: 'error', title: 'Reindex failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
               }
-              className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/25 bg-bg-surface/80 px-2 py-1.5 font-mono text-[10px] text-[#D6CEBF] hover:text-[#F3E5AB]"
+              className="vox-brass-plaque-btn inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs transition-colors"
             >
-              <Icon.refresh aria-hidden="true" className="size-3" /> Reindex
+              <Icon.refresh aria-hidden="true" className="size-3.5" />
+              <span>Reindex</span>
+            </button>
+            <button
+              type="button"
+              data-slot="button"
+              data-roman-plaque="true"
+              data-testid="memory-to-research-btn"
+              onClick={() => {
+                try {
+                  if (query.trim()) {
+                    window.localStorage.setItem('vox_research_seed_query', query.trim());
+                  }
+                } catch {
+                  /* localStorage unavailable */
+                }
+                window.dispatchEvent(
+                  new CustomEvent('vox://navigate-surface', {
+                    detail: { view: 'research' },
+                  }),
+                );
+              }}
+              className="vox-brass-plaque-btn inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs transition-colors"
+            >
+              <Icon.search aria-hidden="true" className="size-3.5" />
+              <span>To Research</span>
             </button>
           </div>
         }
       />
 
-      {/* Navigation Tabs + Search Query Container */}
-      <BentoCard className="border-[#D4AF37]/25 bg-bg-surface/90 p-4 @2xl/surface:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4AF37]/20 pb-3">
-          <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-[#F3E5AB]">
-              Mnemosyne
-            </h2>
-            <span className="text-[11px] text-[#D6CEBF]">
-              · {scope.length} corpora active · {(totalEntries ?? 0).toLocaleString()} indexed entries
-            </span>
+      {/* Unified Sculpted Command Console Bar (Search + 4 Brass Corpus/Recall Plaques + Section Segmented Bar) */}
+      <div className="vox-recessed-console-frame p-3 space-y-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-[13rem] flex-1 items-center gap-2 rounded-md border border-border-strong bg-bg-surface px-3 h-9 text-text-primary shadow-[inset_0_1px_4px_rgba(120,83,18,0.12)]">
+            <Icon.search aria-hidden="true" className="size-4 shrink-0 text-brass" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && recall()}
+              aria-label="Recall query"
+              placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
+              className="h-8 min-w-[90px] flex-1 bg-transparent font-serif text-sm font-medium text-text-primary placeholder:text-text-muted outline-hidden"
+            />
+          </div>
+
+          <button
+            type="button"
+            data-slot="button"
+            data-roman-plaque="true"
+            onClick={() => recall()}
+            disabled={!query.trim() || recalling}
+            className="vox-brass-plaque-btn inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-xs transition-all disabled:opacity-55"
+          >
+            <Icon.bolt aria-hidden="true" className="size-3.5 shrink-0" />
+            <span>{recalling ? 'Recalling…' : 'Recall'}</span>
+          </button>
+
+          <div role="tablist" aria-label="Knowledge Base sections" className="vox-segmented-brass-bar shrink-0">
+            {(['search', 'browse', 'ingest', 'health'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                data-slot="tab"
+                aria-selected={activeTab === tab}
+                data-testid={`tab-${tab}`}
+                onClick={() => setActiveTab(tab)}
+                className="inline-flex h-9 items-center px-3 font-display text-xs font-semibold uppercase tracking-wider transition-colors"
+              >
+                {tab === 'search' ? 'Search' : tab === 'browse' ? 'Nodes' : tab === 'ingest' ? 'Ingest' : 'Health'}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* 3-Layer Federated KB Scope Selector (Repo-Local, Global Library, Vox Baseline Canon) */}
         <div
-          style={{
-            backgroundImage:
-              "linear-gradient(180deg, rgba(248, 243, 232, 0.96) 0%, rgba(235, 226, 208, 0.94) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-          className="vox-marble-tablet mt-3 flex flex-wrap items-center gap-1.5 rounded-xl border-2 border-[#C59B27]/85 p-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
+          role="group"
+          aria-label="Federated KB layer scope"
+          data-testid="kb-layer-scope-bar"
+          className="vox-recessed-tablet flex flex-wrap items-center justify-between gap-2 px-3 py-2"
         >
-          {(['search', 'browse', 'ingest', 'health'] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              data-testid={`tab-${tab}`}
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-md px-3 py-1 font-display text-xs font-bold uppercase tracking-wider transition ${
-                activeTab === tab
-                  ? 'border border-[#8C6825] bg-bg-elevated text-text-primary shadow-xs'
-                  : 'text-[#4A381D] hover:bg-white/60 hover:text-[#1C140C]'
-              }`}
-            >
-              {tab === 'search' ? 'Search & Recall' : tab === 'browse' ? 'Browse Nodes' : tab === 'ingest' ? 'Ingest Content' : 'KB Health'}
-            </button>
-          ))}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-text-secondary mr-1">
+              KB Layer
+            </span>
+            {([
+              { id: 'all', label: 'All Layers', corpora: ['memory', 'knowledge', 'chunk'] as MemCorpusId[] },
+              { id: 'repo_local', label: 'Repo-Local', corpora: ['memory', 'knowledge', 'chunk'] as MemCorpusId[] },
+              { id: 'global_library', label: 'Global Library', corpora: ['memory', 'knowledge'] as MemCorpusId[] },
+              { id: 'vox_baseline', label: 'Vox Baseline Canon', corpora: ['knowledge'] as MemCorpusId[] },
+            ] as const).map((layer) => {
+              const active = layerScope === layer.id;
+              return (
+                <button
+                  key={layer.id}
+                  type="button"
+                  data-slot="button"
+                  data-roman-plaque="true"
+                  aria-pressed={active}
+                  data-testid={`kb-layer-${layer.id}`}
+                  onClick={() => {
+                    setLayerScope(layer.id);
+                    setScope([...layer.corpora]);
+                  }}
+                  className={`vox-brass-plaque-btn inline-flex h-8 items-center rounded-md px-2.5 text-[11px] transition-colors ${
+                    active ? 'ring-2 ring-brass/70' : 'opacity-80'
+                  }`}
+                >
+                  <span>{layer.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="font-mono text-[11px] text-text-muted">
+            {layerScope === 'vox_baseline'
+              ? 'Canon baseline (docs/src)'
+              : layerScope === 'global_library'
+                ? 'Cross-repo library (~/.vox/library)'
+                : layerScope === 'repo_local'
+                  ? 'Repo-isolated corpus (docs/wiki + local DB)'
+                  : 'Federated: Canon + Global + Repo'}
+          </span>
         </div>
 
-        {activeTab === 'search' && (
-          <>
-            {/* Search bar */}
-            <div
-              style={{
-                backgroundImage:
-                  "linear-gradient(180deg, rgba(250, 246, 238, 0.96) 0%, rgba(239, 231, 214, 0.95) 100%), url('/assets/romanesque/travertine-parchment-tablet.jpg')",
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-              className="vox-marble-tablet mt-4 flex flex-wrap items-center gap-2 rounded-xl border-2 border-[#C59B27]/85 px-3 py-2 text-[#1C140C] shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.92)]"
-            >
-              <Icon.search aria-hidden="true" className="size-3.5 shrink-0 text-[#6B5125]" />
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && recall()}
-                aria-label="Recall query"
-                placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
-                className="min-w-[140px] flex-1 bg-transparent text-[13px] font-medium text-[#1C140C] placeholder:text-[#7A6136] outline-hidden"
-              />
-              <span className="font-mono text-[10px] font-semibold text-[#5C441E]">top</span>
-              <input
-                type="number" min={1} max={50} value={topK}
-                onChange={e => setTopK(parseInt(e.target.value) || 8)}
-                aria-label="Number of top hits"
-                className="w-12 rounded-sm border border-[#A67C1E] bg-[#FDFBF7] px-1.5 py-0.5 text-center font-mono text-[11px] font-bold text-[#1C140C] outline-hidden"
-              />
-              <button
-                type="button"
-                onClick={() => recall()}
-                disabled={!query.trim() || recalling}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] font-bold uppercase tracking-widest transition ${
-                  query.trim()
-                    ? 'border-[#8C6825] bg-bg-elevated text-text-primary'
-                    : 'border-[#A67C1E]/60 bg-[#E6DBC4] text-[#6B5125] cursor-not-allowed'
-                }`}
-              >
-                {recalling ? '…' : 'Recall'}
-              </button>
-            </div>
+        {/* 2-Column Recessed Architectural Console for Search & Recall */}
+        {activeTab === 'search' && (() => {
+          const avgSpark = Array.from({ length: 12 }, (_, idx) => {
+            if (shards.length === 0) return 3 + Math.round(Math.sin(idx * 0.7) * 2 + 2);
+            const sh = shards[idx % shards.length]!;
+            const pts = sh.spark ?? [2, 4, 3, 5];
+            return pts[idx % pts.length] ?? 2;
+          });
+          const primaryWaveD = avgSpark
+            .map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * 22 + 8).toFixed(1)} ${(48 - Math.min(40, v * 4)).toFixed(1)}`)
+            .join(' ');
+          const secondaryWaveD = avgSpark
+            .map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * 22 + 8).toFixed(1)} ${(44 - Math.min(34, v * 3.1 + ((i % 3) * 2))).toFixed(1)}`)
+            .join(' ');
+          const taxonomyRows = [
+            { id: 'memory' as const, name: 'Architecture Specs · Memory', entries: corpora[0]?.entries ?? 0, last: false },
+            { id: 'chunk' as const, name: 'Rust Crates · Chunk', entries: corpora[2]?.entries ?? 0, last: false },
+            { id: 'knowledge' as const, name: 'Codex Docs · Knowledge', entries: corpora[1]?.entries ?? 0, last: true },
+          ];
 
-            {/* Scope chips — corpus vocabulary: memory / knowledge / chunk */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Scope</span>
-              {corpora.map(c => (
-                <CorpusChip
-                  key={c.id}
-                  corpus={c}
-                  active={scope.includes(c.id)}
-                  onToggle={() => toggleScope(c.id)}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </BentoCard>
+          return (
+            <div className="grid grid-cols-1 @3xl/surface:grid-cols-12 gap-4 items-start">
+              {/* LEFT RECESSED TABLET: CORPUS TAXONOMY, TOP-K KNOB & MEMORY SHARDS */}
+              <div className="vox-recessed-tablet @3xl/surface:col-span-4 p-4 space-y-4">
+                <div className="flex flex-col items-center gap-1.5">
+                  <h3 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-text-primary text-center">
+                    Corpus Taxonomy &amp; HNSW Shards
+                  </h3>
+                  <div className="vox-rule w-full" aria-hidden="true" />
+                </div>
 
-      {/* Search Tab Content */}
-      {activeTab === 'search' && (
-        <BentoGrid preset="hero">
-          {/* Recent recalls */}
-          <BentoCard span="hero-rail" className="gap-3 p-4 @2xl/surface:p-5">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Recent recalls</h3>
-              <Icon.clock className="size-3.5 shrink-0 text-text-muted" />
-            </div>
-            {recentRecalls.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-[11px] text-text-muted">
-                No recall queries recorded in this session.
-              </div>
-            ) : (
-              <BentoScrollRegion
-                ref={recallsRef}
-                ariaLabel="Recent recall queries"
-                style={{
-                  height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
-                }}
-              >
-                <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
-                  {recallsVL.virtualItems.map(vItem => {
-                    const r = recentRecalls[vItem.index];
+                {/* Hierarchical Taxonomy Tree with SVG Brass Connectors */}
+                <div className="rounded-lg border border-border-strong bg-bg-surface p-2.5 space-y-1">
+                  <div className="font-display text-[11px] font-bold uppercase tracking-wider text-brass px-1 pb-1">
+                    Corpora · {scope.length}/{MEM_CORPORA.length} Active
+                  </div>
+                  {taxonomyRows.map((row) => {
+                    const isOn = scope.includes(row.id);
+                    const rowDesc =
+                      row.id === 'memory'
+                        ? 'Architecture notes, durable rules, and session context embeddings'
+                        : row.id === 'chunk'
+                          ? 'Indexed workspace Rust/TypeScript AST code chunks and symbol maps'
+                          : 'Canonical reference docs (vox_baseline), personal library, and wiki syntheses';
                     return (
-                      <div
-                        key={String(vItem.key)}
-                        ref={recallsVL.virtualizer.measureElement}
-                        data-index={vItem.index}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          transform: `translateY(${vItem.start}px)`,
-                          width: '100%',
-                          paddingBottom: RECALL_GAP,
-                        }}
+                      <button
+                        key={row.id}
+                        type="button"
+                        title={rowDesc}
+                        onClick={() => toggleScope(row.id)}
+                        className={`flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors ${
+                          isOn
+                            ? 'border-brass/65 bg-bg-elevated text-text-primary font-semibold'
+                            : 'border-transparent bg-transparent text-text-secondary hover:bg-bg-elevated/60'
+                        }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => { setQuery(r.q); recall(r.q); }}
-                          aria-label={`Re-run recall: ${r.q}`}
-                          className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
-                            <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
-                          </div>
-                          <Icon.chevR className="size-3 text-text-muted shrink-0" />
-                        </button>
-                      </div>
+                        <span className="flex items-center gap-2 min-w-0">
+                          <svg viewBox="0 0 14 16" className="size-3.5 shrink-0 text-brass" aria-hidden="true">
+                            <line x1="5" y1="0" x2="5" y2={row.last ? 9 : 16} stroke="currentColor" strokeWidth="1.4" />
+                            <line x1="5" y1="9" x2="13" y2="9" stroke="currentColor" strokeWidth="1.4" />
+                          </svg>
+                          <span className="truncate font-serif text-xs">{row.name}</span>
+                        </span>
+                        <span className="shrink-0 font-mono text-[11px] text-brass">
+                          {(row.entries ?? 0).toLocaleString()}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
-              </BentoScrollRegion>
-            )}
-          </BentoCard>
 
-          {/* Hits */}
-          <BentoCard span="hero-main" className="gap-3 p-4 @2xl/surface:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">
-                Citations {hits.length > 0 && <span className="text-text-muted">· {hits.length}</span>}
-              </h3>
-              {hits.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => pinHits(hits)}
-                  className="inline-flex items-center gap-1 rounded-md border border-[#D4AF37]/40 bg-[#78350F]/20 px-2 py-1 font-mono text-[10px] text-[#F3E5AB] hover:bg-[#78350F]/40"
+                {/* Physical Knurled Brass TOP-K Knob */}
+                <div
+                  className="vox-recessed-subwell rounded-xl p-3 space-y-2"
+                  title="Top-K controls how many highest-ranking vector + lexical chunks merge into retrieval context; 8–15 balances precision vs token budget"
                 >
-                  <Icon.pin aria-hidden="true" className="size-3" /> Pin all to context
-                </button>
-              )}
-            </div>
-            <BentoScrollRegion
-              ariaLabel="Recall citations"
-              aria-live="polite"
-              aria-busy={recalling}
-              className="max-h-[360px] space-y-2 pr-1"
-            >
-              {recalling &&
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-12 rounded-md border border-border-subtle bg-overlay-subtle relative overflow-hidden">
-                    <span className="absolute inset-0 -translate-x-full animate-vox-shimmer bg-linear-to-r from-transparent via-white/5 to-transparent" />
+                  <div className="flex items-center justify-around gap-3">
+                    <RomanRotaryKnob
+                      ariaLabel="Top-K retrieval depth"
+                      label="Top-K Depth"
+                      value={topK}
+                      min={1}
+                      max={50}
+                      step={1}
+                      detents={[5, 8, 15, 25, 50]}
+                      size="lg"
+                      formatValue={(v) => `${v} hits`}
+                      onValueChange={(v) => setTopK(v)}
+                    />
+                    <div className="flex flex-col items-end text-right gap-1">
+                      <span className="font-display text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                        Vector Dim
+                      </span>
+                      <span className="font-mono text-sm font-bold text-text-primary">
+                        {memStatus?.embedding_dim ?? 768}d
+                      </span>
+                      <span className="font-mono text-[11px] text-brass">
+                        {(totalEntries ?? 0).toLocaleString()} vectors
+                      </span>
+                    </div>
                   </div>
-                ))}
-              {!recalling && hits.length === 0 && (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-subtle bg-overlay-subtle py-10 text-center">
-                  <Icon.memory className="size-6 text-text-muted mb-2" />
-                  <div className="font-display text-[12px] tracking-wider text-text-muted">No recall yet</div>
-                  <div className="font-mono text-[10px] text-text-muted">Type a query or click a recent recall</div>
+                  <p className="font-serif text-[11px] leading-snug text-text-muted text-center">
+                    Turn dial to adjust retrieval chunk count (8–15 recommended for synthesis).
+                  </p>
                 </div>
-              )}
-              {!recalling &&
-                hits.map((h, i) => (
-                  <HitCard
-                    key={i}
-                    hit={h}
-                    query={query}
-                    onOpen={() => openHit(h)}
-                    onPin={() => pinHits([h])}
-                  />
-                ))}
-            </BentoScrollRegion>
-          </BentoCard>
 
-          {/* Memory shards */}
-          <BentoCard span="full" className="gap-3 p-4 @2xl/surface:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">{useLabel('mem-shards')}</h3>
-              <span className="font-mono text-[10px] text-text-muted">
-                {(memStatus?.shards ?? []).length} live · HNSW
-                {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}
-              </span>
-            </div>
-            {shards.length === 0 ? (
-              <div
-                ref={shardsRef}
-                className="rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-[11px] text-text-muted"
-              >
-                No active HNSW vector shards mounted in this workspace session.
-              </div>
-            ) : (
-              <BentoScrollRegion
-                ref={shardsRef}
-                ariaLabel="Memory vector shards"
-                className="max-h-[600px]"
-              >
-                <div style={{ height: shardsVL.totalSize, position: 'relative' }}>
-                  {shardsVL.virtualItems.map(vItem => {
-                    const rowStart = vItem.index * SHARD_COLS;
-                    const rowShards = shards.slice(rowStart, rowStart + SHARD_COLS);
-                    return (
-                      <div
-                        key={String(vItem.key)}
-                        ref={shardsVL.virtualizer.measureElement}
-                        data-index={vItem.index}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          transform: `translateY(${vItem.start}px)`,
-                          width: '100%',
-                          paddingBottom: SHARD_ROW_GAP,
-                        }}
-                      >
-                        <div className="grid grid-cols-1 gap-3 @sm/surface:grid-cols-2 @2xl/surface:grid-cols-3 @5xl/surface:grid-cols-6">
-                          {rowShards.map(s => (
+                {/* Recent Recalls Ledger */}
+                <div className="rounded-lg border border-border-strong bg-bg-surface p-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-display text-xs font-bold uppercase tracking-[0.14em] text-text-secondary">
+                      Recent recalls
+                    </h3>
+                    <Icon.clock className="size-3.5 shrink-0 text-text-muted" />
+                  </div>
+                  {recentRecalls.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-3 text-center font-mono text-[11px] text-text-muted">
+                      No recall queries recorded in this session.
+                    </div>
+                  ) : (
+                    <BentoScrollRegion
+                      ref={recallsRef}
+                      ariaLabel="Recent recall queries"
+                      style={{
+                        height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 210),
+                      }}
+                    >
+                      <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
+                        {recallsVL.virtualItems.map(vItem => {
+                          const r = recentRecalls[vItem.index];
+                          return (
                             <div
-                              key={s.id}
-                              className={`min-w-0 overflow-hidden rounded-xl border p-3 transition hover:border-white/15 ${
-                                s.hot   ? 'border-brass/30 bg-brass/4' :
-                                s.dirty ? 'border-amber-400/30 bg-amber-400/4' :
-                                          'border-border-subtle bg-overlay-subtle'
-                              }`}
+                              key={String(vItem.key)}
+                              ref={recallsVL.virtualizer.measureElement}
+                              data-index={vItem.index}
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                transform: `translateY(${vItem.start}px)`,
+                                width: '100%',
+                                paddingBottom: RECALL_GAP,
+                              }}
                             >
-                              <div className="flex flex-wrap items-center justify-between gap-1">
-                                <span className="truncate font-mono text-[11px] text-text-secondary">shard-{s.id}</span>
-                                {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
-                                {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
-                              </div>
-                              <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
-                                <div className="min-w-0 rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
-                                  <div className="uppercase tracking-widest text-text-muted">Depth</div>
-                                  <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{s.depth}</div>
+                              <button
+                                type="button"
+                                onClick={() => { setQuery(r.q); recall(r.q); }}
+                                aria-label={`Re-run recall: ${r.q}`}
+                                className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-bg-surface px-3 py-2 text-left hover:border-brass/50 hover:bg-bg-elevated transition-colors"
+                              >
+                                <div className="min-w-0">
+                                  <div className="truncate text-xs font-medium text-text-primary">{r.q}</div>
+                                  <div className="font-mono text-[11px] text-text-muted">{r.n} hits · {r.when} ago</div>
                                 </div>
-                                <div className="min-w-0 rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
-                                  <div className="uppercase tracking-widest text-text-muted">Entries</div>
-                                  <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{(s.entries ?? 0).toLocaleString()}</div>
-                                </div>
-                              </div>
-                              <div className="mt-2 h-8 min-w-0 overflow-hidden">
-                                <Sparkline
-                                  data={s.spark}
-                                  color={shardSparkColor(s)}
-                                  width={160}
-                                  height={28}
-                                />
+                                <Icon.chevR className="size-3.5 text-text-muted shrink-0" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </BentoScrollRegion>
+                  )}
+                </div>
+
+                {/* Bottom Framed Memory Shards & Dual-Waveform Oscilloscope Chart */}
+                <div className="vox-recessed-subwell rounded-xl p-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-display text-xs font-bold uppercase tracking-[0.14em] text-text-primary">
+                      {useLabel('mem-shards')}
+                    </h3>
+                    <span className="font-mono text-[11px] text-text-secondary">
+                      {(memStatus?.shards ?? []).length} live · HNSW
+                    </span>
+                  </div>
+                  <div
+                    data-cv-chart="true"
+                    className="rounded-md border border-border-strong bg-bg-surface p-2"
+                  >
+                    <svg viewBox="0 0 264 56" className="w-full h-14 overflow-visible" aria-hidden="true">
+                      {[14, 28, 42].map((y) => (
+                        <line key={y} x1="4" y1={y} x2="260" y2={y} stroke="var(--color-border-subtle)" strokeWidth="0.7" strokeDasharray="3 3" />
+                      ))}
+                      <path d={secondaryWaveD} fill="none" stroke="var(--color-status-pass)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d={primaryWaveD} fill="none" stroke="#C59B27" strokeWidth="2.0" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT RECESSED TABLET: MNEMOSYNE · CITATIONS GRID & CODEX READER */}
+              <div className="vox-recessed-tablet @3xl/surface:col-span-8 p-4 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2.5">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <h2 className="font-display text-sm font-bold uppercase tracking-[0.14em] text-text-primary">
+                      Mnemosyne · Citations &amp; Codex Reader
+                    </h2>
+                    <span className="font-mono text-xs text-text-secondary">
+                      {hits.length > 0 ? `${hits.length} matched hits` : `${(totalEntries ?? 0).toLocaleString()} indexed entries`}
+                    </span>
+                  </div>
+                  {hits.length > 0 && (
+                    <button
+                      type="button"
+                      data-slot="button"
+                      data-roman-plaque="true"
+                      onClick={() => pinHits(hits)}
+                      className="vox-brass-plaque-btn inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs transition-colors"
+                    >
+                      <Icon.pin aria-hidden="true" className="size-3" />
+                      <span>Pin all to context</span>
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="mb-2 font-display text-xs font-bold uppercase tracking-[0.16em] text-text-secondary">
+                    Citations {hits.length > 0 && <span className="text-text-muted">· {hits.length}</span>}
+                  </h3>
+                  <BentoScrollRegion
+                    ariaLabel="Recall citations"
+                    aria-live="polite"
+                    aria-busy={recalling}
+                    className="max-h-[340px] pr-1"
+                  >
+                    {recalling && (
+                      <div className="grid grid-cols-1 @xl/surface:grid-cols-2 gap-2.5">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="h-24 rounded-lg border border-border-subtle bg-overlay-subtle relative overflow-hidden">
+                            <span className="absolute inset-0 -translate-x-full animate-vox-shimmer bg-linear-to-r from-transparent via-white/5 to-transparent" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {!recalling && hits.length === 0 && (
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-bg-surface py-8 text-center">
+                        <Icon.memory className="size-6 text-brass mb-1.5" />
+                        <div className="font-display text-xs font-semibold tracking-wider text-text-primary">No recall yet</div>
+                        <div className="font-serif text-xs text-text-secondary mt-0.5">Type a query or click a recent recall</div>
+                      </div>
+                    )}
+                    {!recalling && hits.length > 0 && (
+                      <div className="grid grid-cols-1 @2xl/surface:grid-cols-2 gap-2.5">
+                        {hits.map((h, i) => (
+                          <HitCard
+                            key={i}
+                            hit={h}
+                            query={query}
+                            index={i}
+                            onOpen={() => openHit(h)}
+                            onPin={() => pinHits([h])}
+                            onResearchTopic={() => {
+                              const seed = (query.trim() || h.path || h.source || h.snippet.slice(0, 120)).trim();
+                              try {
+                                window.localStorage.setItem('vox_research_seed_query', seed);
+                              } catch {
+                                /* ignore storage unavailable */
+                              }
+                              window.dispatchEvent(
+                                new CustomEvent('vox://navigate-surface', { detail: { view: 'research' } }),
+                              );
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </BentoScrollRegion>
+                </div>
+
+                {/* Codex Specification Reader & Chiseled Bronze INVARIANT Plaque */}
+                <details className="group vox-recessed-subwell rounded-xl px-3.5 py-2.5">
+                  <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 select-none">
+                    <div className="flex items-center gap-2">
+                      <span className="vox-invariant-plaque inline-flex items-center rounded px-2.5 py-0.5 text-[11px]">
+                        INVARIANT
+                      </span>
+                      <span className="font-display text-xs font-bold uppercase tracking-[0.12em] text-text-primary">
+                        Codex Specification · Hybrid HNSW &amp; RRF Grounding
+                      </span>
+                    </div>
+                    <span
+                      className="font-mono text-[11px] text-text-secondary"
+                      title="Reciprocal Rank Fusion merges keyword BM25 matches and dense vector similarity using constant smoothing k=60"
+                    >
+                      BM25 + {memStatus?.embedding_dim ?? 768}d Vector RRF (k=60)
+                    </span>
+                  </summary>
+                  <p className="mt-2.5 border-t border-border-strong/45 pt-2 font-serif text-xs leading-relaxed text-text-secondary">
+                    Recall merges dense HNSW vector shards with Tantivy BM25 lexical indices via Reciprocal Rank Fusion (<code className="font-mono font-semibold text-text-primary">rrf_k=60</code>), preserving file-locator ground truth across workspace rules, code chunks, and verified research nodes.
+                  </p>
+                </details>
+
+                {/* Live HNSW Shard Ledger Strip */}
+                <details open className="group rounded-lg border border-border-strong bg-bg-surface p-3 space-y-3">
+                  <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 select-none font-display text-xs font-bold uppercase tracking-[0.14em] text-text-secondary">
+                    <span>Mounted Vector Shards ({(memStatus?.shards ?? []).length} HNSW Partitions)</span>
+                    <Icon.chevR className="size-3.5 text-text-muted transition-transform rotate-90 group-open:-rotate-90" aria-hidden="true" />
+                  </summary>
+                  {shards.length === 0 ? (
+                    <div
+                      ref={shardsRef}
+                      className="rounded-lg border border-dashed border-border-subtle bg-bg-surface p-4 text-center text-xs text-text-muted"
+                    >
+                      No active HNSW vector shards mounted in this workspace session.
+                    </div>
+                  ) : (
+                    <BentoScrollRegion
+                      ref={shardsRef}
+                      ariaLabel="Memory vector shards"
+                      className="max-h-[340px]"
+                    >
+                      <div style={{ height: shardsVL.totalSize, position: 'relative' }}>
+                        {shardsVL.virtualItems.map(vItem => {
+                          const rowStart = vItem.index * SHARD_COLS;
+                          const rowShards = shards.slice(rowStart, rowStart + SHARD_COLS);
+                          return (
+                            <div
+                              key={String(vItem.key)}
+                              ref={shardsVL.virtualizer.measureElement}
+                              data-index={vItem.index}
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                transform: `translateY(${vItem.start}px)`,
+                                width: '100%',
+                                paddingBottom: SHARD_ROW_GAP,
+                              }}
+                            >
+                              <div className="grid grid-cols-1 gap-2.5 @sm/surface:grid-cols-2 @2xl/surface:grid-cols-3 @5xl/surface:grid-cols-4">
+                                {rowShards.map(s => (
+                                  <div
+                                    key={s.id}
+                                    data-slot="shard-card"
+                                    className={`min-w-0 overflow-hidden rounded-lg border p-2.5 transition-colors hover:border-brass/50 ${
+                                      s.hot   ? 'border-brass/50 bg-bg-elevated' :
+                                      s.dirty ? 'border-(--color-status-warn)/40 bg-bg-elevated' :
+                                                'border-border-subtle bg-bg-surface'
+                                    }`}
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-1">
+                                      <span className="truncate font-mono text-xs font-medium text-text-primary">shard-{s.id}</span>
+                                      {s.hot   && <span className="rounded-full border border-brass/35 bg-bg-surface px-2 py-0.5 font-display text-[11px] uppercase tracking-wider text-brass">hot</span>}
+                                      {s.dirty && <span className="rounded-full border border-(--color-status-warn)/35 bg-bg-surface px-2 py-0.5 font-display text-[11px] uppercase tracking-wider text-(--color-status-warn)">dirty</span>}
+                                    </div>
+                                    <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-[11px]">
+                                      <div className="min-w-0 rounded border border-border-subtle bg-bg-elevated px-2 py-1">
+                                        <div className="font-sans text-[11px] uppercase tracking-wider text-text-muted">Depth</div>
+                                        <div className="mt-0.5 font-mono text-xs text-text-primary">{s.depth}</div>
+                                      </div>
+                                      <div className="min-w-0 rounded border border-border-subtle bg-bg-elevated px-2 py-1">
+                                        <div className="font-sans text-[11px] uppercase tracking-wider text-text-muted">Entries</div>
+                                        <div className="mt-0.5 font-mono text-xs text-text-primary">{(s.entries ?? 0).toLocaleString()}</div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 h-8 min-w-0 overflow-hidden">
+                                      <Sparkline
+                                        data={s.spark}
+                                        color={shardSparkColor(s)}
+                                        width={160}
+                                        height={28}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              </BentoScrollRegion>
-            )}
-          </BentoCard>
-        </BentoGrid>
-      )}
+                    </BentoScrollRegion>
+                  )}
+                </details>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Browse Tab */}
       {activeTab === 'browse' && (
@@ -833,17 +1162,6 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 className="w-full @sm/surface:w-44 border-border-subtle bg-overlay-subtle text-xs text-text-secondary"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void fetchNodes(nodeTypeFilter, page)}
-                disabled={loadingNodes}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary transition"
-              >
-                <Icon.refresh className={`size-3 ${loadingNodes ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-            </div>
           </div>
 
           <BentoScrollRegion ariaLabel="Knowledge graph nodes table" className="max-h-[520px]">
@@ -866,15 +1184,15 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                   {nodes.map((n) => (
                     <tr key={n.id} className="hover:bg-overlay-subtle/40 transition">
                       <td className="py-2.5 pr-3 font-mono">
-                        <div className="font-semibold text-text-primary text-[12px]">{n.label}</div>
-                        <div className="text-[10px] text-text-muted truncate max-w-xs">{n.id}</div>
+                        <div className="font-semibold text-text-primary text-xs">{n.label}</div>
+                        <div className="text-[11px] text-text-muted truncate max-w-xs">{n.id}</div>
                       </td>
                       <td className="py-2.5 pr-3">
-                        <span className="rounded-full bg-brass/10 px-2 py-0.5 text-[10px] text-brass">
+                        <span className="rounded border border-brass/35 bg-bg-elevated px-2 py-0.5 text-[11px] text-brass">
                           {n.node_type || 'untyped'}
                         </span>
                       </td>
-                      <td className="py-2.5 pr-3 text-text-secondary line-clamp-2 max-w-md">
+                      <td className="py-2.5 pr-3 text-xs text-text-secondary line-clamp-2 max-w-md">
                         {n.snippet}
                       </td>
                       <td className="py-2.5 pr-3 text-text-muted whitespace-nowrap text-[11px]">
@@ -883,10 +1201,11 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                       <td className="py-2.5 text-right whitespace-nowrap">
                         <button
                           type="button"
+                          data-slot="button"
                           data-testid={`delete-node-${n.id}`}
                           onClick={() => void deleteNode(n.id)}
                           title="Delete knowledge node and associated edges"
-                          className="inline-flex items-center gap-1 rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-500/20 transition"
+                          className="inline-flex h-8 items-center gap-1 rounded border border-(--color-status-fail)/35 bg-bg-elevated px-2.5 text-xs text-(--color-status-fail) hover:border-(--color-status-fail) transition-colors"
                         >
                           <Icon.trash className="size-3" />
                           Delete
@@ -902,18 +1221,20 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-3 text-xs text-text-muted">
             <button
               type="button"
+              data-slot="button"
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 disabled:opacity-40"
+              className="h-8 rounded border border-border-subtle bg-bg-elevated px-3 text-xs font-medium text-text-primary disabled:opacity-40"
             >
               Previous
             </button>
             <span>Page {page + 1}</span>
             <button
               type="button"
+              data-slot="button"
               disabled={nodes.length < 50}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 disabled:opacity-40"
+              className="h-8 rounded border border-border-subtle bg-bg-elevated px-3 text-xs font-medium text-text-primary disabled:opacity-40"
             >
               Next
             </button>
@@ -923,7 +1244,25 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
 
       {/* Ingest Tab */}
       {activeTab === 'ingest' && (
-        <BentoGrid preset="balanced" className="@3xl/surface:grid-cols-2 @5xl/surface:grid-cols-2">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-bg-surface px-3 py-2 text-xs">
+            <span className="font-mono text-xs text-text-secondary">Target Knowledgebase Scope:</span>
+            <button
+              type="button"
+              data-slot="button"
+              data-testid="memory-ingest-scope-toggle"
+              aria-pressed={ingestScope === 'global_library'}
+              onClick={() =>
+                setIngestScope((prev) => (prev === 'repo_local' ? 'global_library' : 'repo_local'))
+              }
+              className="h-8 rounded border border-brass/50 bg-bg-elevated px-3 font-mono text-[11px] font-semibold text-text-primary hover:bg-brass/15"
+            >
+              {ingestScope === 'repo_local'
+                ? 'Scope: Repo-Local (docs/wiki/)'
+                : 'Scope: Global Library (~/.vox/library/)'}
+            </button>
+          </div>
+          <BentoGrid preset="balanced" className="@3xl/surface:grid-cols-2 @5xl/surface:grid-cols-2">
           <BentoCard className="p-4 @2xl/surface:p-5">
             <h3 className="font-display text-[14px] font-semibold text-text-primary flex items-center gap-2">
               <Icon.globe className="size-4 shrink-0 text-brass" />
@@ -1006,6 +1345,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             </div>
           </BentoCard>
         </BentoGrid>
+        </div>
       )}
 
       {/* Health Tab */}
@@ -1018,21 +1358,12 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 Runtime database metrics, SQLite FTS5 search index status, and node type breakdown.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void fetchHealth()}
-              disabled={loadingHealth}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary transition"
-            >
-              <Icon.refresh className={`size-3 ${loadingHealth ? 'animate-spin' : ''}`} />
-              Refresh Health
-            </button>
           </div>
 
           {loadingHealth ? (
             <div className="py-8 text-center text-xs text-text-muted">Inspecting knowledge base health…</div>
           ) : !health ? (
-            <div className="py-8 text-center text-xs text-text-muted">No health data available. Click Refresh to probe.</div>
+            <div className="py-8 text-center text-xs text-text-muted">Auto-probing knowledge base health…</div>
           ) : (
             <div className="space-y-5">
               <BentoGrid preset="triad">
@@ -1053,7 +1384,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 <div className="min-w-0 rounded-xl border border-border-subtle bg-overlay-subtle p-4">
                   <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">FTS5 Search Index</div>
                   <div className="mt-1 flex items-center gap-2">
-                    <span className={`size-2.5 shrink-0 rounded-full ${health.fts_available ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                    <span className={`size-2.5 shrink-0 rounded-full ${health.fts_available ? 'bg-(--color-status-pass)' : 'bg-(--color-status-fail)'}`} />
                     <span className="font-semibold text-sm text-text-primary">
                       {health.fts_available ? 'Ready & Available' : 'Offline / Degraded'}
                     </span>

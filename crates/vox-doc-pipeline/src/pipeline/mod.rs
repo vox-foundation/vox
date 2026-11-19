@@ -15,6 +15,8 @@ pub mod mermaid;
 mod mermaid_base_gate;
 mod mermaid_gate;
 pub mod openwiki;
+pub mod openwiki_heal;
+pub mod openwiki_polyglot;
 pub mod openwiki_symbols;
 mod render_manifest;
 pub mod types;
@@ -45,7 +47,36 @@ fn suggestion_hint(value: &str, candidates: &[&str]) -> String {
 /// One-line remediation hint per error kind. Printed in the grouped summary so a
 /// human — or a fan-out of fix agents — knows the canonical workflow for each class
 /// of failure without spelunking the linter source.
-fn workflow_for_kind(kind: &LintKind) -> &'static str {
+/// Canonical hard-error classifier shared across lint and Tier-2 heal gates.
+pub(crate) fn is_hard_lint_error(e: &LintError) -> bool {
+    matches!(&e.kind, LintKind::Facet(i) if i.is_hard())
+        || matches!(&e.kind, LintKind::Diagram(i) if i.is_hard())
+        || matches!(&e.kind, LintKind::LegacyMermaid(_))
+        || matches!(
+            e.kind,
+            LintKind::UnclosedCodeFence
+                | LintKind::ShortCodeFence { .. }
+                | LintKind::GenericDescription
+                | LintKind::UnknownCategory { .. }
+                | LintKind::UnknownStatus { .. }
+                | LintKind::UnknownSchemaType { .. }
+                | LintKind::BrokenIncludeFile { .. }
+                | LintKind::BrokenIncludeAnchor { .. }
+                | LintKind::WholeFileIncludeHasTrainingHeader { .. }
+                | LintKind::MissingTrainingRationale
+                | LintKind::HandAuthoredLastUpdated
+                | LintKind::HandAuthoredLastVerified
+                | LintKind::DocTestFailed { .. }
+                | LintKind::DuplicateFrontmatter { .. }
+                | LintKind::ReadmeSyncDrift { .. }
+                | LintKind::ReadmeSyncMissingBlock { .. }
+                | LintKind::ReadmeSyncMissingAnchor { .. }
+                | LintKind::ReadmeSyncSourceMissing { .. }
+                | LintKind::InvalidMermaid { .. }
+        )
+}
+
+pub(crate) fn workflow_for_kind(kind: &LintKind) -> &'static str {
     match kind {
         LintKind::UnknownCategory { .. } => {
             "set `category:` to a canonical label (SSOT: contracts/documentation/docs-sidebar-section-order.v1.json)"
@@ -265,11 +296,20 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     let _check_mode = args.contains(&"--check".to_string());
     let _lint_only = args.contains(&"--lint-only".to_string());
 
-    let docs_src = root.join("docs/src");
-    if !docs_src.exists() {
-        eprintln!("Error: docs/src/ not found under {}.", root.display());
+    let has_docs_src = root.join("docs/src").exists();
+    let docs_src = if has_docs_src {
+        root.join("docs/src")
+    } else if root.join("docs/wiki").exists() {
+        root.join("docs/wiki")
+    } else if root.join("docs").exists() {
+        root.join("docs")
+    } else {
+        eprintln!(
+            "Error: docs/src/ or docs/wiki/ not found under {}.",
+            root.display()
+        );
         return 1;
-    }
+    };
 
     // Backlog ratchet tools. Handled before `FacetCtx::load`: seeding must work with no backlog.
     let tool = |r: Result<String, String>| match r {
@@ -481,7 +521,7 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     if !args.contains(&"--mermaid-only".to_string()) {
         // Taxonomy + backlog load once, before the parallel file pass. A missing or invalid
         // contract is one hard error (fail closed), never "no facet rules apply".
-        let facet_ctx = match facets::FacetCtx::load(root) {
+        let facet_ctx = match facets::FacetCtx::load_or_embedded(root) {
             Ok(ctx) => Some(ctx),
             Err(issue) => {
                 lint_errors.push(LintError {
@@ -514,11 +554,13 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
         // behind an unscoped run — and gating it was the reason the local
         // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
         // drift, only CI did.
-        lint::lint_readme_sync_paths(
-            &root.join("README.md"),
-            &docs_src.join("index.mdx"),
-            &mut lint_errors,
-        );
+        if has_docs_src {
+            lint::lint_readme_sync_paths(
+                &root.join("README.md"),
+                &docs_src.join("index.mdx"),
+                &mut lint_errors,
+            );
+        }
     }
     // Always scans the whole docs/src tree so files nobody changed are still held to the baseline.
     mermaid_gate::lint(root, &mut lint_errors);
@@ -706,36 +748,7 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
             }
         }
 
-        let hard_errors = lint_errors
-            .iter()
-            .filter(|e| {
-                matches!(&e.kind, LintKind::Facet(i) if i.is_hard())
-                    || matches!(&e.kind, LintKind::Diagram(i) if i.is_hard())
-                    || matches!(&e.kind, LintKind::LegacyMermaid(_))
-                    || matches!(
-                        e.kind,
-                        LintKind::UnclosedCodeFence
-                            | LintKind::ShortCodeFence { .. }
-                            | LintKind::GenericDescription
-                            | LintKind::UnknownCategory { .. }
-                            | LintKind::UnknownStatus { .. }
-                            | LintKind::UnknownSchemaType { .. }
-                            | LintKind::BrokenIncludeFile { .. }
-                            | LintKind::BrokenIncludeAnchor { .. }
-                            | LintKind::WholeFileIncludeHasTrainingHeader { .. }
-                            | LintKind::MissingTrainingRationale
-                            | LintKind::HandAuthoredLastUpdated
-                            | LintKind::HandAuthoredLastVerified
-                            | LintKind::DocTestFailed { .. }
-                            | LintKind::DuplicateFrontmatter { .. }
-                            | LintKind::ReadmeSyncDrift { .. }
-                            | LintKind::ReadmeSyncMissingBlock { .. }
-                            | LintKind::ReadmeSyncMissingAnchor { .. }
-                            | LintKind::ReadmeSyncSourceMissing { .. }
-                            | LintKind::InvalidMermaid { .. }
-                    )
-            })
-            .count();
+        let hard_errors = lint_errors.iter().filter(|e| is_hard_lint_error(e)).count();
         print_grouped_summary(&lint_errors);
 
         if hard_errors > 0 {

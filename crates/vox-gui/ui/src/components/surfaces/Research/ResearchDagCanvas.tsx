@@ -37,16 +37,58 @@ const PADDING_X = 40;
 const PADDING_Y = 40;
 
 const STATUS_CONFIG = {
-  verified: { bg: '#064e3b', border: '#10b981', badgeBg: '#047857', badgeText: '#ecfdf5', label: 'Verified' },
-  contradicted: { bg: '#450a0a', border: '#ef4444', badgeBg: '#b91c1c', badgeText: '#fff1f2', label: 'Contradicted' },
-  pending: { bg: '#1c1917', border: '#78716c', badgeBg: '#44403c', badgeText: '#f5f5f4', label: 'Pending' },
+  verified: {
+    bg: 'var(--color-bg-surface)',
+    border: 'var(--color-status-pass)',
+    badgeBg: 'var(--color-bg-elevated)',
+    badgeText: 'var(--color-status-pass)',
+    label: 'Verified',
+  },
+  contradicted: {
+    bg: 'var(--color-bg-surface)',
+    border: 'var(--color-status-fail)',
+    badgeBg: 'var(--color-bg-elevated)',
+    badgeText: 'var(--color-status-fail)',
+    label: 'Contradicted',
+  },
+  pending: {
+    bg: 'var(--color-bg-surface)',
+    border: 'var(--color-border-strong)',
+    badgeBg: 'var(--color-bg-elevated)',
+    badgeText: 'var(--color-text-secondary)',
+    label: 'Pending',
+  },
 } as const;
 
 const KIND_CONFIG: Record<string, { bg: string; border: string; badgeBg: string; badgeText: string; label: string }> = {
-  query: { bg: '#2e1065', border: '#a855f7', badgeBg: '#6b21a8', badgeText: '#faf5ff', label: 'Query' },
-  subquery: { bg: '#1e1b4b', border: '#6366f1', badgeBg: '#3730a3', badgeText: '#eef2ff', label: 'Subquery' },
-  source_domain: { bg: '#083344', border: '#06b6d4', badgeBg: '#0e7490', badgeText: '#ecfeff', label: 'Source' },
-  sandbox_probe: { bg: '#042f2e', border: '#14b8a6', badgeBg: '#0f766e', badgeText: '#f0fdfa', label: 'Sandbox' },
+  query: {
+    bg: 'var(--color-bg-elevated)',
+    border: 'var(--color-accent-default)',
+    badgeBg: 'var(--color-bg-surface)',
+    badgeText: 'var(--color-text-primary)',
+    label: 'Query',
+  },
+  subquery: {
+    bg: 'var(--color-bg-surface)',
+    border: 'var(--color-accent-default)',
+    badgeBg: 'var(--color-bg-elevated)',
+    badgeText: 'var(--color-accent-default)',
+    label: 'Subquery',
+  },
+  source_domain: {
+    bg: 'var(--color-bg-surface)',
+    border: 'var(--color-status-info)',
+    badgeBg: 'var(--color-bg-elevated)',
+    badgeText: 'var(--color-status-info)',
+    label: 'Source',
+  },
+  sandbox_probe: {
+    bg: 'var(--color-bg-surface)',
+    border: 'var(--color-status-warn)',
+    badgeBg: 'var(--color-bg-elevated)',
+    badgeText: 'var(--color-status-warn)',
+    label: 'Sandbox',
+  },
 };
 
 function computeDagLayout(nodes: DagNode[]) {
@@ -98,7 +140,7 @@ function DagSvgGraph({
   const { nodeCoords, canvasWidth, canvasHeight } = useMemo(() => computeDagLayout(nodes), [nodes]);
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-subtle bg-black/40 p-2">
+    <div className="overflow-x-auto rounded-lg border border-border-subtle bg-bg-elevated p-3">
       <svg
         role="region"
         aria-label={ariaLabel}
@@ -110,10 +152,10 @@ function DagSvgGraph({
         <desc>Dynamic acyclic graph showing evidence waves, claim status, and relational edge arrows</desc>
         <defs>
           <marker id="arrow-supports" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--color-status-pass)" />
           </marker>
           <marker id="arrow-contradicts" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444" />
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--color-status-fail)" />
           </marker>
         </defs>
         <g aria-label="DAG Edges">
@@ -133,8 +175,8 @@ function DagSvgGraph({
                 key={`${edge.srcId}-${edge.dstId}-${edge.relation}`}
                 d={d}
                 fill="none"
-                stroke={isContradiction ? '#ef4444' : '#10b981'}
-                strokeWidth="2"
+                stroke={isContradiction ? 'var(--color-status-fail)' : 'var(--color-status-pass)'}
+                strokeWidth="1.75"
                 strokeDasharray={isContradiction ? '4 4' : undefined}
                 markerEnd={isContradiction ? 'url(#arrow-contradicts)' : 'url(#arrow-supports)'}
                 className="transition-opacity duration-200"
@@ -176,21 +218,21 @@ function DagSvgGraph({
                   rx={8}
                   ry={8}
                   fill={statusCfg.bg}
-                  stroke={isSelected ? '#d4af37' : statusCfg.border}
+                  stroke={isSelected ? 'var(--color-accent-default)' : statusCfg.border}
                   strokeWidth={isSelected ? '2.5' : '1.5'}
                   className="transition-colors duration-150"
                 />
-                <text x={12} y={24} fill="#f3f4f6" fontSize="12" fontWeight="600" className="pointer-events-none select-none font-sans">
+                <text x={12} y={24} fill="var(--color-text-primary)" fontSize="12" fontWeight="600" className="pointer-events-none select-none font-sans">
                   {displayLabel}
                 </text>
                 <g transform="translate(12, 34)">
-                  <rect width={78} height={18} rx={4} ry={4} fill={statusCfg.badgeBg} />
-                  <text x={39} y={13} fill={statusCfg.badgeText} fontSize="10" fontWeight="700" textAnchor="middle" className="pointer-events-none select-none font-mono uppercase tracking-wider">
+                  <rect width={84} height={18} rx={4} ry={4} fill={statusCfg.badgeBg} stroke={statusCfg.border} strokeWidth="0.75" />
+                  <text x={42} y={13} fill={statusCfg.badgeText} fontSize="10" fontWeight="700" textAnchor="middle" className="pointer-events-none select-none font-display uppercase tracking-wider">
                     {statusCfg.label}
                   </text>
                 </g>
-                <text x={NODE_WIDTH - 12} y={46} fill="#9ca3af" fontSize="10" fontWeight="500" textAnchor="end" className="pointer-events-none select-none font-mono">
-                  w{node.wave}
+                <text x={NODE_WIDTH - 12} y={46} fill="var(--color-text-muted)" fontSize="11" fontWeight="500" textAnchor="end" className="pointer-events-none select-none font-sans">
+                  W{node.wave}
                 </text>
               </g>
             );
@@ -258,25 +300,27 @@ export function ResearchDagCanvas({ nodes, edges, className = '' }: ResearchDagC
   return (
     <div className={`space-y-2 ${className}`}>
       {isClustered ? (
-        <div data-testid="dag-clustered-container" className="space-y-2 rounded-lg border border-border-subtle bg-black/30 p-3">
+        <div data-testid="dag-clustered-container" className="space-y-2 rounded-lg border border-border-subtle bg-bg-surface p-3">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="font-mono text-[11px] text-text-secondary">
+            <span className="text-xs text-text-secondary">
               Clustered DAG ({nodes.length} nodes across {waveClusters.length} waves; collapsed above {CLUSTER_THRESHOLD} nodes)
             </span>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
+                data-slot="button"
                 data-testid="dag-expand-all-waves"
                 onClick={() => setExpandedWaves(new Set(waveClusters.map((c) => c.wave)))}
-                className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-secondary hover:text-text-primary"
+                className="h-8 rounded border border-border-subtle bg-bg-elevated px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
               >
                 Expand all
               </button>
               <button
                 type="button"
+                data-slot="button"
                 data-testid="dag-collapse-all-waves"
                 onClick={() => setExpandedWaves(new Set())}
-                className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-secondary hover:text-text-primary"
+                className="h-8 rounded border border-border-subtle bg-bg-elevated px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
               >
                 Collapse all
               </button>
@@ -290,26 +334,27 @@ export function ResearchDagCanvas({ nodes, edges, className = '' }: ResearchDagC
                 <div
                   key={wave}
                   data-testid={`dag-wave-cluster-${wave}`}
-                  className="rounded-lg border border-border-subtle bg-overlay-subtle"
+                  className="rounded-lg border border-border-subtle bg-bg-panel"
                 >
                   <button
                     type="button"
+                    data-slot="accordion-trigger"
                     data-testid={`dag-wave-toggle-${wave}`}
                     aria-expanded={isExpanded}
                     onClick={() => toggleWave(wave)}
-                    className="flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-black/20"
+                    className="flex h-9 w-full flex-wrap items-center justify-between gap-2 px-3 text-left text-xs hover:bg-bg-elevated transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <Icon.branch className="size-3.5 text-brass shrink-0" aria-hidden="true" />
                       <span className="font-mono font-semibold text-text-primary">Wave {wave}</span>
-                      <span className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
+                      <span className="rounded bg-bg-elevated border border-border-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
                         {waveNodes.length} nodes
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 font-mono text-[10px]">
-                      <span className="text-emerald-400">{verified} verified</span>
+                    <div className="flex items-center gap-2 font-mono text-[11px]">
+                      <span className="text-(--color-status-pass)">{verified} verified</span>
                       <span className="text-text-muted">{pending} pending</span>
-                      {contradicted > 0 && <span className="text-red-400">{contradicted} contradicted</span>}
+                      {contradicted > 0 && <span className="text-(--color-status-fail)">{contradicted} contradicted</span>}
                       {isExpanded ? (
                         <Icon.chevronUp className="size-3.5 text-text-muted shrink-0" aria-hidden="true" />
                       ) : (
@@ -343,32 +388,33 @@ export function ResearchDagCanvas({ nodes, edges, className = '' }: ResearchDagC
       )}
 
       {selectedNode && (
-        <div data-testid="dag-node-inspector" className="rounded-lg border border-brass/30 bg-overlay-subtle p-3 text-xs space-y-1.5">
+        <div data-testid="dag-node-inspector" className="rounded-lg border border-brass/30 bg-bg-elevated p-3 text-xs space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="rounded bg-brass/20 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-brass">
+              <span className="rounded bg-brass/20 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider text-brass">
                 {selectedNode.kind ?? 'claim'}
               </span>
               {selectedNode.verdict && (
                 <span className="font-mono text-[11px] text-text-secondary">Verdict: {selectedNode.verdict}</span>
               )}
               {selectedNode.confidence != null && (
-                <span className="font-mono text-[11px] text-emerald-300">
+                <span className="font-mono text-[11px] text-(--color-status-pass)">
                   {Math.round(selectedNode.confidence * 100)}% confidence
                 </span>
               )}
             </div>
             <button
               type="button"
+              data-slot="button"
               onClick={() => setSelectedNodeId(null)}
-              className="font-mono text-[10px] text-text-muted hover:text-text-secondary"
+              className="h-7 rounded border border-border-subtle bg-bg-surface px-2 text-[11px] font-medium text-text-secondary hover:text-text-primary transition-colors"
             >
               Close
             </button>
           </div>
-          <div className="text-text-primary leading-relaxed">{selectedNode.label}</div>
+          <div className="text-sm font-serif text-text-primary leading-relaxed">{selectedNode.label}</div>
           {(selectedNode.snippet || selectedNode.excerpt) && (
-            <div className="rounded border border-border-subtle bg-black/30 p-2 font-mono text-[11px] text-text-secondary">
+            <div className="rounded border border-border-subtle bg-bg-surface p-2 text-xs text-text-secondary leading-relaxed">
               {selectedNode.snippet ?? selectedNode.excerpt}
             </div>
           )}

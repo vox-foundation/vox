@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v8.3 — (`unified-research-kb-publication-flywheel-v83`) — Unified Active Research, Federated KB & Autonomous Discovery-to-Publication Flywheel",
+  "phases": [
+    {
+      "number": "489",
+      "name": "Workstream Initialization & Closed-Loop Research ↔ Federated KB ↔ Publication SSOT",
+      "status": "completed"
+    },
+    {
+      "number": "490",
+      "name": "Unified KB Ingest Scope & Dual Findings Quarantine Bridge",
+      "status": "completed"
+    },
+    {
+      "number": "491",
+      "name": "Research-to-Discovery Promotion Prefix & EmpiricalScience Class Fidelity",
+      "status": "completed"
+    },
+    {
+      "number": "492",
+      "name": "Closed-Loop Publication → KB Synthesis Back-Indexing (pub:{id})",
+      "status": "completed"
+    },
+    {
+      "number": "493",
+      "name": "Cross-Surface GUI Journey, 3-Layer Scope Selector & Studio Handoff",
+      "status": "completed"
+    },
+    {
+      "number": "494",
+      "name": "Rust, TypeScript, Vitest, Doc-Lint & Playwright CV Flywheel Verification",
+      "status": "completed"
+    }
+  ],
+  "next": {
+    "command": "/gsd-complete-milestone",
+    "label": "Milestone v8.3 Complete",
+    "reason": "All Phases 489-494 verified across vox-doc-pipeline, vox-scientia, vox-orchestrator-mcp, vox-gui, Vitest, and Playwright CV Flywheel."
+  },
+  "updated_at": "2026-11-18T08:46:00.000Z"
+}

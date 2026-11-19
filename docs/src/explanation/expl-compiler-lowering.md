@@ -1,6 +1,6 @@
 ---
 title: "Explanation: Compiler Lowering Phases"
-description: "Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,"
+description: "Walkthrough of how the Vox compiler lowers `.vox` source from lexer and AST through HIR, WebIR validation, and Rust/TypeScript emitters."
 category: "Concepts"
 training_eligible: true
 

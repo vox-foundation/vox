@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v8.4 — (`research-ux-journey-and-power-v84`) — Research User Journeys, Statistical Archetypes, Self-Documenting Controls & KB Preflight",
+  "phases": [
+    {
+      "number": "495",
+      "name": "Workstream Initialization & Research UX / Statistical Archetypes SSOT",
+      "status": "completed"
+    },
+    {
+      "number": "496",
+      "name": "Prune Redundant & Unwired UI Chrome Across KB, Research & Studio Drawer",
+      "status": "completed"
+    },
+    {
+      "number": "497",
+      "name": "Self-Documenting Surface Explanations & Technical Metric Legends",
+      "status": "completed"
+    },
+    {
+      "number": "498",
+      "name": "Statistical Research Archetype Launchpad & Differentiated Workspace Tabs",
+      "status": "completed"
+    },
+    {
+      "number": "499",
+      "name": "Live Federated KB Prior-Art Preflight & Gap-Synthesis Bridge",
+      "status": "completed"
+    },
+    {
+      "number": "500",
+      "name": "TypeScript, Vitest, Doc-Lint & Playwright CV Flywheel Verification",
+      "status": "completed"
+    }
+  ],
+  "next": {
+    "command": "/gsd-complete-milestone",
+    "label": "Milestone v8.4 Complete",
+    "reason": "All Phases 495-500 verified across vox-doc-pipeline, tsc --noEmit, Vitest (9/9, 77/77), and Playwright CV Flywheel (16/16)."
+  },
+  "updated_at": "2026-11-18T21:56:00.000Z"
+}

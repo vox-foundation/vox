@@ -17,6 +17,7 @@ import type { RoutingHealth, RoutingSummary } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { StatusBarCluster } from '../common/StatusBarCluster';
 import { NotificationCenter } from '../common/NotificationCenter';
+import { RepoSwitcherPill, type ActiveRepoBadgeSummary } from './RepoSwitcherPill';
 import type { Notice } from '../../lib/noticeStore';
 
 type KpiState = typeof INITIAL_KPIS;
@@ -47,6 +48,7 @@ export interface BottomStatusBarProps {
   /** Every toast and engine problem the app has kept; the bell is the last item when both are given. */
   notices?: Notice[];
   onMarkAllNoticesRead?: () => void;
+  activeRepoSummary?: ActiveRepoBadgeSummary | null;
 }
 
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
@@ -143,6 +145,7 @@ export function BottomStatusBar({
   onOpenResearchDrawer,
   notices,
   onMarkAllNoticesRead,
+  activeRepoSummary = null,
 }: BottomStatusBarProps) {
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
@@ -336,6 +339,7 @@ export function BottomStatusBar({
         </button>
       )}
       <StatusBarCluster onOpenDrawer={onOpenResearchDrawer} />
+      <RepoSwitcherPill activeRepoSummary={activeRepoSummary} onNavigate={onNavigate} />
       <div className="relative shrink-0">
         <button
           ref={triggerRef}

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -222,10 +224,15 @@ describe('VoxGraphStatusPanel', () => {
       },
     });
     // The tool reports failure in-band (`success: false`), it does not throw.
-    mockInvoke.mockResolvedValue({
-      tool: 'vox_search_set_ttl',
-      is_error: true,
-      result: { success: false, error: 'write ttl: permission denied' },
+    mockInvoke.mockImplementation((_cmd: string, payload?: { tool?: string }) => {
+      if (payload?.tool === 'vox_search_set_ttl') {
+        return Promise.resolve({
+          tool: 'vox_search_set_ttl',
+          is_error: true,
+          result: { success: false, error: 'write ttl: permission denied' },
+        });
+      }
+      return Promise.resolve(undefined);
     });
     renderWithClient(<VoxGraphStatusPanel />);
 
@@ -287,27 +294,99 @@ describe('VoxGraphStatusPanel', () => {
     expect(screen.getByText(/Loading code graph status/i)).toBeDefined();
   });
 
-  it('renders CodeAtlasCanvas with viewport budget, branch diff overlay, active agent badges, and @ mention chip (Phases 26-30)', async () => {
+  it('renders live CodeAtlasCanvas with viewport budget, blast badge, L3_Docs cross-edges, and error handling without hardcoded mocks', async () => {
+    const atlasSrc = readFileSync(join(import.meta.dirname, 'CodeAtlasCanvas.tsx'), 'utf8');
+    expect(atlasSrc).not.toContain('DEFAULT_ATLAS_NODES');
+    expect(atlasSrc).not.toContain('DEFAULT_ATLAS_EDGES');
+
     mockUse.mockReturnValue({
       isLoading: false,
       isError: false,
       data: { default_corpus_id: 'repo-code-graph', corpora: [STALE_CORPUS] },
     });
+    mockInvoke.mockImplementation((cmd: string, payload?: { tool?: string }) => {
+      if (cmd === 'invoke_mcp_tool' && payload?.tool === 'vox_search_atlas') {
+        return Promise.resolve({
+          tool: 'vox_search_atlas',
+          is_error: false,
+          result: {
+            success: true,
+            data: {
+              nodes: [
+                {
+                  id: 'crate:vox-compiler',
+                  label: 'vox-compiler',
+                  kind: 'crate',
+                  layer: 'L1-compiler',
+                  file_path: 'crates/vox-compiler/src/lib.rs',
+                  diff_status: 'modified',
+                  active_agent_id: 'agent:compiler-verifier',
+                  fan_in: 14,
+                  fan_out: 5,
+                  blast_s: 4,
+                },
+                {
+                  id: 'doc:openwiki-readme',
+                  label: 'docs/wiki/README.md',
+                  kind: 'openwiki',
+                  layer: 'L3-docs',
+                  file_path: 'docs/wiki/README.md',
+                  diff_status: 'added',
+                  fan_in: 1,
+                  fan_out: 2,
+                },
+              ],
+              links: [
+                {
+                  id: 'e-doc',
+                  source: 'crate:vox-compiler',
+                  target: 'doc:openwiki-readme',
+                  kind: 'DocumentedIn',
+                },
+              ],
+            },
+          },
+        });
+      }
+      return Promise.resolve(undefined);
+    });
     renderWithClient(<VoxGraphStatusPanel />);
 
     expect(screen.getByTestId('code-atlas-canvas')).toBeDefined();
     expect(screen.getByTestId('atlas-budget-pill').textContent).toContain('/400 nodes');
-    expect(screen.getByTestId('atlas-agent-badge-crate:vox-compiler').textContent).toContain(
-      'agent:compiler-verifier',
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('atlas-agent-badge-crate:vox-compiler').textContent).toContain(
+        'agent:compiler-verifier',
+      );
+      expect(screen.getByTestId('atlas-blast-badge-crate:vox-compiler').textContent).toContain('blast:4');
+    });
 
-    // Trigger @ Mention in Chat (Phase 30)
     fireEvent.click(screen.getByTestId('atlas-mention-btn-crate:vox-compiler'));
     await waitFor(() => {
       expect(screen.getByTestId('atlas-last-mention-chip').textContent).toContain(
         '@file:crates/vox-compiler/src/lib.rs',
       );
     });
+  });
+
+  it('surfaces error banner in CodeAtlasCanvas when vox_search_atlas reports is_error', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { default_corpus_id: 'repo-code-graph', corpora: [STALE_CORPUS] },
+    });
+    mockInvoke.mockImplementation((cmd: string, payload?: { tool?: string }) => {
+      if (cmd === 'invoke_mcp_tool' && payload?.tool === 'vox_search_atlas') {
+        return Promise.resolve({
+          tool: 'vox_search_atlas',
+          is_error: true,
+          result: { success: false, error: 'stale graph extractor version' },
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+    expect(await screen.findByTestId('atlas-error-banner')).toHaveTextContent(/stale graph extractor version/);
   });
 
   it('surfaces sanitized error alert when vox_search_rebuild returns is_error: true and supports keyboard shard selection', async () => {

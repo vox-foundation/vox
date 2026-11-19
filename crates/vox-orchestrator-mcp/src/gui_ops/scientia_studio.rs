@@ -10,13 +10,18 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use vox_scientia::class_routing::{
-    FindingClass, atlas_gate_applies_to, builtin_class_defaults, critic_allowed_for,
+    FindingClass, PublicationTier, arxiv_subject_catalog, atlas_gate_applies_to,
+    builtin_class_defaults, critic_allowed_for, default_arxiv_categories_for_class,
     effective_critic_allowed, negative_result_quota_for, recommended_venues_for,
-    reply_window_days_for, venue_critic_policy_for,
+    reply_window_days_for, valid_spdx_licenses, venue_critic_policy_for,
 };
 use vox_scientia::critic_gate::VenueCatalog;
 use vox_scientia::review::flywheel_advance_from_db;
-use vox_scientia::review_flow::{publication_session_id, resolve_manifest_or_promote};
+use vox_scientia::review_flow::{
+    AdvancePublicationStageRequest, ClassifyPublicationPatch, advance_publication_stage_in_db,
+    classify_publication_in_db, evaluate_arxiv_readiness_from_db, publication_session_id,
+    resolve_manifest_or_promote,
+};
 
 use crate::gui_ops::{api_db, enforce_route};
 use crate::http_gateway::GatewayState;
@@ -35,19 +40,46 @@ pub struct FlywheelAdvanceQuery {
     pub target_stage: Option<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct ClassifyPublicationQuery {
+    pub candidate_class: Option<String>,
+    pub publication_tier: Option<String>,
+    pub arxiv_primary_category: Option<String>,
+    pub arxiv_secondary_categories: Option<String>,
+    pub acm_ccs: Option<String>,
+    pub keywords: Option<String>,
+    pub license_spdx: Option<String>,
+    pub orcid: Option<String>,
+    pub ror_affiliation: Option<String>,
+    pub prereserved_doi: Option<String>,
+    pub arxiv_id: Option<String>,
+    pub abstract_text: Option<String>,
+    pub autofill_imrad: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct StageAdvanceQuery {
+    pub target_stage: Option<String>,
+    pub orcid: Option<String>,
+    pub prereserved_doi: Option<String>,
+    pub arxiv_id: Option<String>,
+    pub autofill_imrad: Option<bool>,
+    pub reason: Option<String>,
+}
+
+fn split_csv(raw: Option<String>) -> Option<Vec<String>> {
+    raw.map(|s| {
+        s.split(',')
+            .map(|part| part.trim().to_string())
+            .filter(|part| !part.is_empty())
+            .collect()
+    })
+}
+
 fn parse_candidate_class(raw: Option<&str>) -> Option<FindingClass> {
-    let trimmed = raw.map(str::trim).filter(|s| !s.is_empty())?;
-    let normalized = match trimmed.to_ascii_lowercase().as_str() {
-        "algorithmic_improvement" | "algorithmicimprovement" => "algorithmic_improvement",
-        "reproducibility_infra" | "reproducibilityinfra" => "reproducibility_infra",
-        "policy_governance" | "policygovernance" => "policy_governance",
-        "telemetry_trust" | "telemetrytrust" => "telemetry_trust",
-        "model_capability_atlas" | "modelcapabilityatlas" => "model_capability_atlas",
-        "provider_reliability_atlas" | "providerreliabilityatlas" => "provider_reliability_atlas",
-        "other" => "other",
-        _ => trimmed,
-    };
-    FindingClass::from_str(normalized)
+    raw.map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(FindingClass::from_str)
 }
 
 fn extract_primary_source_url(citations_json: Option<&str>) -> Option<String> {
@@ -146,8 +178,16 @@ pub async fn get_venue_recommend(
     let catalog = VenueCatalog::load_from_repo(&gs.server_state().repository.root).ok();
     let venue_id = q.venue_id.as_deref().filter(|s| !s.trim().is_empty());
     let policy = venue_critic_policy_for(&defaults, class, venue_id, catalog.as_ref());
+    let (default_arxiv_primary, default_arxiv_secondary) =
+        default_arxiv_categories_for_class(class);
+    let recommended_tier = PublicationTier::recommended_for_class(class);
     ok(json!({
         "candidate_class": class.as_str(),
+        "candidate_class_label": class.label(),
+        "recommended_tier": recommended_tier.as_str(),
+        "recommended_tier_label": recommended_tier.label(),
+        "default_arxiv_primary_category": default_arxiv_primary,
+        "default_arxiv_secondary_categories": default_arxiv_secondary,
         "recommended_venues": recommended_venues_for(&defaults, class),
         "reply_window_days": reply_window_days_for(&defaults, class),
         "negative_result_quota": negative_result_quota_for(&defaults, class),
@@ -155,6 +195,132 @@ pub async fn get_venue_recommend(
         "effective_critic_allowed": effective_critic_allowed(&defaults, class, venue_id, catalog.as_ref()),
         "venue_critic_policy": policy.as_str(),
         "atlas_gate_applies": atlas_gate_applies_to(class),
+    }))
+}
+
+/// `GET /api/v2/scientia/publications/{id}/arxiv-readiness`
+pub async fn get_publication_arxiv_readiness(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    match evaluate_arxiv_readiness_from_db(&db, &publication_id).await {
+        Ok(report) => ok(report),
+        Err(e) => err("readiness_error", &format!("{e:#}")),
+    }
+}
+
+/// `GET` / `POST /api/v2/scientia/publications/{id}/classify`
+pub async fn post_publication_classify(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+    Query(q): Query<ClassifyPublicationQuery>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let patch = ClassifyPublicationPatch {
+        candidate_class: q.candidate_class,
+        publication_tier: q.publication_tier,
+        arxiv_primary_category: q.arxiv_primary_category,
+        arxiv_secondary_categories: split_csv(q.arxiv_secondary_categories),
+        acm_ccs: split_csv(q.acm_ccs),
+        msc_classes: None,
+        keywords: split_csv(q.keywords),
+        license_spdx: q.license_spdx,
+        orcid: q.orcid,
+        ror_affiliation: q.ror_affiliation,
+        prereserved_doi: q.prereserved_doi,
+        arxiv_id: q.arxiv_id,
+        abstract_text: q.abstract_text,
+        autofill_imrad: q.autofill_imrad,
+    };
+    match classify_publication_in_db(&db, &publication_id, patch).await {
+        Ok(report) => ok(report),
+        Err(e) => err("classify_error", &format!("{e:#}")),
+    }
+}
+
+/// `GET` / `POST /api/v2/scientia/publications/{id}/stage-advance`
+pub async fn post_publication_stage_advance(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+    Query(q): Query<StageAdvanceQuery>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let req = AdvancePublicationStageRequest {
+        target_stage: q.target_stage,
+        orcid: q.orcid,
+        prereserved_doi: q.prereserved_doi,
+        arxiv_id: q.arxiv_id,
+        autofill_imrad: q.autofill_imrad,
+        reason: q.reason,
+    };
+    match advance_publication_stage_in_db(&db, &publication_id, req).await {
+        Ok(report) => ok(report),
+        Err(e) => err("stage_advance_error", &format!("{e:#}")),
+    }
+}
+
+/// `GET /api/v2/scientia/arxiv-categories`
+pub async fn get_arxiv_categories(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let tiers: Vec<Value> = PublicationTier::all()
+        .iter()
+        .map(|t| {
+            json!({
+                "id": t.as_str(),
+                "label": t.label(),
+                "requires_full_imrad": t.requires_full_imrad(),
+                "minimum_citations": t.minimum_citations(),
+            })
+        })
+        .collect();
+    let classes: Vec<Value> = FindingClass::all()
+        .iter()
+        .map(|c| {
+            let (p, secs) = default_arxiv_categories_for_class(*c);
+            json!({
+                "id": c.as_str(),
+                "label": c.label(),
+                "default_arxiv_primary": p,
+                "default_arxiv_secondary": secs,
+            })
+        })
+        .collect();
+    ok(json!({
+        "arxiv_categories": arxiv_subject_catalog(),
+        "publication_tiers": tiers,
+        "finding_classes": classes,
+        "spdx_licenses": valid_spdx_licenses(),
     }))
 }
 
@@ -459,9 +625,22 @@ pub fn api_v2_router() -> Router<GatewayState> {
             get(get_publication_claims),
         )
         .route("/scientia/venue-recommend", get(get_venue_recommend))
+        .route("/scientia/arxiv-categories", get(get_arxiv_categories))
         .route(
             "/scientia/publications/{id}/flywheel-advance",
             get(post_flywheel_advance).post(post_flywheel_advance),
+        )
+        .route(
+            "/scientia/publications/{id}/arxiv-readiness",
+            get(get_publication_arxiv_readiness),
+        )
+        .route(
+            "/scientia/publications/{id}/classify",
+            get(post_publication_classify).post(post_publication_classify),
+        )
+        .route(
+            "/scientia/publications/{id}/stage-advance",
+            get(post_publication_stage_advance).post(post_publication_stage_advance),
         )
         .route("/scientia/v76-audit-diff", get(get_v76_audit_diff))
 }
@@ -675,6 +854,98 @@ mod tests {
             out["data"]["bugs"].as_array().map(Vec::len),
             Some(9),
             "{out}"
+        );
+    }
+
+    #[tokio::test]
+    async fn studio_classify_stage_advance_readiness_and_venue_aliases_work() {
+        let (gs, db) = gateway_with_memory_db().await;
+        db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+            publication_id: "pub-arxiv-studio-1",
+            content_type: "paper",
+            source_ref: None,
+            title: "Autonomous Stage & arXiv Readiness Control",
+            author: "Ada Lovelace",
+            abstract_text: None,
+            body_markdown: "Throughput increased 28% across 10 trials.",
+            citations_json: Some(
+                r#"[{"title":"Benchmark Paper","url":"https://doi.org/10.1000/bench"}]"#,
+            ),
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: "beefcafe",
+            state: "draft",
+        })
+        .await
+        .expect("seed");
+
+        let rec = body(
+            get_venue_recommend(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Query(VenueRecommendQuery {
+                    candidate_class: Some("paper".into()),
+                    venue_id: None,
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(rec["data"]["candidate_class"], "empirical_science", "{rec}");
+        assert_eq!(
+            rec["data"]["default_arxiv_primary_category"], "cs.AI",
+            "{rec}"
+        );
+
+        let classified = body(
+            post_publication_classify(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path("pub-arxiv-studio-1".into()),
+                Query(ClassifyPublicationQuery {
+                    candidate_class: Some("algorithmic_improvement".into()),
+                    publication_tier: Some("arxiv_preprint".into()),
+                    arxiv_primary_category: Some("cs.SE".into()),
+                    autofill_imrad: Some(true),
+                    ..Default::default()
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(classified["data"]["arxiv_ready"], true, "{classified}");
+        assert_eq!(classified["data"]["todo_stub_count"], 0, "{classified}");
+
+        let advanced = body(
+            post_publication_stage_advance(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path("pub-arxiv-studio-1".into()),
+                Query(StageAdvanceQuery {
+                    target_stage: Some("published".into()),
+                    orcid: Some("0000-0002-1825-0097".into()),
+                    ..Default::default()
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(advanced["data"]["current_stage"], "published", "{advanced}");
+        assert!(
+            advanced["data"]["prereserved_doi"].is_string(),
+            "{advanced}"
+        );
+        assert!(advanced["data"]["arxiv_id"].is_string(), "{advanced}");
+
+        let cats = body(get_arxiv_categories(State(gs), peer(), HeaderMap::new()).await).await;
+        assert!(
+            cats["data"]["arxiv_categories"]
+                .as_array()
+                .is_some_and(|a| !a.is_empty()),
+            "{cats}"
         );
     }
 }

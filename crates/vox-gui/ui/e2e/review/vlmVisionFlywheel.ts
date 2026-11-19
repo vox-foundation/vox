@@ -52,14 +52,33 @@ export function conceptArtPlateForSurface(surfaceId: string, activeTheme?: strin
   if (id.includes('oratio') || id.includes('populi') || id.includes('mesh') || id.includes('mens')) {
     return `${CONCEPT_ART_DIR}/v74-concept-studio-telemetry-${variant}.jpg`;
   }
+  if (id.includes('kb-codex')) {
+    return `${CONCEPT_ART_DIR}/v81-concept-kb-codex-${variant}.jpg`;
+  }
+  if (
+    id.includes('research') || id.includes('scientia') || id.includes('publications') || id === 'activity'
+  ) {
+    return `${CONCEPT_ART_DIR}/v81-concept-scientia-research-${variant}.jpg`;
+  }
+  if (
+    id.includes('doc-reader') || id.includes('openwiki') || id.includes('kb-studio') ||
+    id.includes('memory')
+  ) {
+    return `${CONCEPT_ART_DIR}/v79-concept-openwiki-studio-${variant}.jpg`;
+  }
+  if (
+    id.includes('vox-graph') || id.includes('vox-search') || id.includes('code-atlas') ||
+    id.includes('repository') || id.includes('multirepo')
+  ) {
+    return `${CONCEPT_ART_DIR}/v79-concept-multirepo-atlas-${variant}.jpg`;
+  }
   if (
     id.includes('console') || id.includes('terminal') || id.includes('chat') ||
     id.includes('catalog') || id.includes('mercatus') || id.includes('approvals') ||
-    id.includes('gsd') || id.includes('vox-search') || id.includes('vox-graph') ||
-    id.includes('policies') || id.includes('models') || id.includes('scientia') ||
-    id.includes('publications') || id.includes('memory') || id.includes('repository') ||
+    id.includes('gsd') ||
+    id.includes('policies') || id.includes('models') ||
     id.includes('coderabbit') || id.includes('skills') || id.includes('settings') ||
-    id.includes('research') || id.includes('sub-agents') || id.includes('activity')
+    id.includes('sub-agents')
   ) {
     return `${CONCEPT_ART_DIR}/v74-concept-bento-workbench-${variant}.jpg`;
   }
@@ -302,13 +321,15 @@ export async function evaluateVlmSurfaceCritique(
   screenshotPngBuffer: Buffer,
   dom: GuiDomAuditMetrics,
   outDir: string,
+  overrideConceptPlate?: string,
 ): Promise<VlmSurfaceCritique> {
   const activeTheme = await page.evaluate(
     () => (document.documentElement.getAttribute('data-theme') ?? 'arcane').toLowerCase(),
   );
   const isSlateTheme =
     activeTheme === 'void' || activeTheme === 'slate' || activeTheme === 'high-contrast';
-  const referenceConceptArtPlate = conceptArtPlateForSurface(surfaceId, activeTheme);
+  const referenceConceptArtPlate =
+    overrideConceptPlate ?? conceptArtPlateForSurface(surfaceId, activeTheme);
   const visionSignals = await extractChromaticSpatialVisionSignals(
     page,
     screenshotPngBuffer,

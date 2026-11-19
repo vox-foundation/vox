@@ -189,25 +189,25 @@ export function DocPublishModal({
         </div>
 
         {loadError && (
-          <div className="mt-3 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-400">
+          <div className="mt-3 p-3 rounded-lg border border-(--color-status-fail)/35 bg-bg-elevated text-xs text-(--color-status-fail)">
             Failed to generate draft: {loadError}
           </div>
         )}
 
         {publishError && (
-          <div className="mt-3 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-400">
+          <div className="mt-3 p-3 rounded-lg border border-(--color-status-fail)/35 bg-bg-elevated text-xs text-(--color-status-fail)">
             Failed to publish document: {publishError}
           </div>
         )}
 
         {loading ? (
-          <div className="py-16 text-center text-sm text-text-muted animate-pulse">
+          <div className="py-16 text-center text-sm text-text-muted">
             Generating Architecture SSOT draft from session {sessionId}…
           </div>
         ) : (
           <div className="flex flex-col flex-1 min-h-0 space-y-4 pt-4">
             {/* Slug & Filename configuration */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-overlay-subtle border border-border-subtle p-3 rounded-lg">
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-bg-surface border border-border-subtle p-3 rounded-lg">
               <div className="flex-1 w-full flex items-center gap-2">
                 <label htmlFor="doc-slug-input" className="text-xs text-text-muted font-medium shrink-0">
                   Slug:
@@ -218,11 +218,11 @@ export function DocPublishModal({
                   value={slug}
                   onChange={(e) => setSlug(sanitizeSlug(e.target.value))}
                   placeholder="document-slug"
-                  className="flex-1 rounded border border-border-subtle bg-black/40 px-2.5 py-1.5 text-xs text-text-secondary outline-none focus:border-brass/50 font-mono"
+                  className="h-8 flex-1 rounded border border-border-subtle bg-bg-elevated px-2.5 text-xs text-text-primary outline-none focus:border-brass/50 font-mono"
                 />
               </div>
               <div className="text-[11px] font-mono text-text-muted shrink-0">
-                Target: <span className="text-brass/90">docs/src/architecture/{targetFilename}</span>
+                Target: <span className="text-brass">docs/src/architecture/{targetFilename}</span>
               </div>
             </div>
 
@@ -230,10 +230,11 @@ export function DocPublishModal({
             <div className="flex items-center gap-2 border-b border-border-subtle pb-2">
               <button
                 type="button"
+                data-slot="tab"
                 onClick={() => setActiveTab('preview')}
-                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                className={`h-8 px-3 text-xs rounded transition-colors ${
                   activeTab === 'preview'
-                    ? 'border border-brass/40 bg-brass/15 text-brass font-medium'
+                    ? 'border border-brass/40 bg-bg-elevated text-brass font-medium'
                     : 'text-text-muted hover:text-text-secondary'
                 }`}
               >
@@ -241,10 +242,11 @@ export function DocPublishModal({
               </button>
               <button
                 type="button"
+                data-slot="tab"
                 onClick={() => setActiveTab('raw')}
-                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                className={`h-8 px-3 text-xs rounded transition-colors ${
                   activeTab === 'raw'
-                    ? 'border border-brass/40 bg-brass/15 text-brass font-medium'
+                    ? 'border border-brass/40 bg-bg-elevated text-brass font-medium'
                     : 'text-text-muted hover:text-text-secondary'
                 }`}
               >
@@ -252,17 +254,18 @@ export function DocPublishModal({
               </button>
               <button
                 type="button"
+                data-slot="tab"
                 onClick={() => setActiveTab('validation')}
-                className={`px-3 py-1.5 text-xs rounded transition-colors flex items-center gap-1.5 ${
+                className={`h-8 px-3 text-xs rounded transition-colors flex items-center gap-1.5 ${
                   activeTab === 'validation'
-                    ? 'border border-brass/40 bg-brass/15 text-brass font-medium'
+                    ? 'border border-brass/40 bg-bg-elevated text-brass font-medium'
                     : 'text-text-muted hover:text-text-secondary'
                 }`}
               >
                 <span>Validation</span>
                 <span
                   className={`inline-block w-2 h-2 rounded-full ${
-                    allChecksPass ? 'bg-emerald-400' : 'bg-amber-400'
+                    allChecksPass ? 'bg-(--color-status-pass)' : 'bg-(--color-status-warn)'
                   }`}
                 />
               </button>
@@ -271,7 +274,7 @@ export function DocPublishModal({
             {/* Tab Contents */}
             <div className="flex-1 min-h-[300px] max-h-[460px] overflow-y-auto">
               {activeTab === 'preview' && (
-                <div className="p-4 bg-black/20 rounded-lg border border-border-subtle overflow-y-auto">
+                <div className="p-4 bg-bg-surface rounded-lg border border-border-subtle overflow-y-auto">
                   <ResearchReportMarkdown markdown={content || '(No markdown content)'} />
                 </div>
               )}
@@ -283,22 +286,22 @@ export function DocPublishModal({
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     rows={18}
-                    className="w-full h-full min-h-[320px] font-mono text-xs p-3 rounded-lg border border-border-subtle bg-black/40 text-text-secondary outline-none focus:border-brass/40 resize-none leading-relaxed"
+                    className="w-full h-full min-h-[320px] font-mono text-xs p-3 rounded-lg border border-border-subtle bg-bg-elevated text-text-primary outline-none focus:border-brass/50 resize-none leading-relaxed"
                   />
                 </div>
               )}
 
               {activeTab === 'validation' && (
-                <div className="p-4 bg-black/20 rounded-lg border border-border-subtle space-y-4">
+                <div className="p-4 bg-bg-surface rounded-lg border border-border-subtle space-y-4">
                   <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                       Frontmatter Validation
                     </h3>
                     <span
-                      className={`text-[11px] px-2 py-0.5 rounded font-mono ${
+                      className={`text-[11px] px-2 py-0.5 rounded font-mono bg-bg-elevated border ${
                         allChecksPass
-                          ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
-                          : 'text-amber-400 bg-amber-500/10 border border-amber-500/30'
+                          ? 'text-(--color-status-pass) border-(--color-status-pass)/35'
+                          : 'text-(--color-status-warn) border-(--color-status-warn)/35'
                       }`}
                     >
                       {allChecksPass ? 'All Checks Passed' : 'Checks Failing'}
@@ -309,16 +312,16 @@ export function DocPublishModal({
                     {checks.map((c) => (
                       <li
                         key={c.id}
-                        className="flex items-center justify-between p-2.5 rounded bg-overlay-subtle border border-border-subtle text-xs"
+                        className="flex items-center justify-between p-2.5 rounded bg-bg-elevated border border-border-subtle text-xs"
                       >
                         <span className="text-text-secondary">{c.label}</span>
                         {c.valid ? (
-                          <span className="text-emerald-400 font-mono flex items-center gap-1">
+                          <span className="text-(--color-status-pass) font-mono flex items-center gap-1">
                             <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
                             <span>Passed</span>
                           </span>
                         ) : (
-                          <span className="text-red-400 font-mono flex items-center gap-1">
+                          <span className="text-(--color-status-fail) font-mono flex items-center gap-1">
                             <Icon.close className="size-3.5 shrink-0" aria-hidden="true" />
                             <span>Missing or Invalid</span>
                           </span>
@@ -328,7 +331,7 @@ export function DocPublishModal({
                   </ul>
 
                   {!allChecksPass && (
-                    <div className="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded">
+                    <div className="text-xs text-(--color-status-warn) bg-bg-elevated border border-(--color-status-warn)/35 p-2.5 rounded">
                       Ensure the document starts with YAML frontmatter containing <code>title</code>,{' '}
                       <code>description</code>, a valid <code>category</code> (e.g. &quot;Architecture SSOTs&quot;), and{' '}
                       a valid <code>status</code> (&quot;current&quot;, &quot;research&quot;, &quot;roadmap&quot;, &quot;deprecated&quot;, or &quot;legacy&quot;).
@@ -342,9 +345,10 @@ export function DocPublishModal({
             <div className="flex items-center justify-between pt-3 border-t border-border-subtle mt-2">
               <button
                 type="button"
+                data-slot="button"
                 onClick={handleReset}
                 disabled={!originalDraft || publishing}
-                className="rounded border border-border-subtle px-3 py-1.5 text-xs text-text-muted hover:text-text-secondary hover:border-border-base transition-colors disabled:opacity-50"
+                className="h-8 rounded border border-border-subtle bg-bg-elevated px-3 text-xs text-text-muted hover:text-text-secondary hover:border-border-default transition-colors disabled:opacity-50"
               >
                 Reset
               </button>
@@ -352,18 +356,20 @@ export function DocPublishModal({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  data-slot="button"
                   onClick={onClose}
                   disabled={publishing}
-                  className="rounded border border-border-subtle px-3 py-1.5 text-xs text-text-muted hover:text-text-secondary hover:border-border-base transition-colors disabled:opacity-50"
+                  className="h-8 rounded border border-border-subtle bg-bg-elevated px-3 text-xs text-text-muted hover:text-text-secondary hover:border-border-default transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
+                  data-slot="button"
                   onClick={handlePublish}
                   disabled={publishing || !slug.trim() || loading || !allChecksPass}
                   title={!allChecksPass ? 'Cannot publish: frontmatter validation checks failing' : undefined}
-                  className="rounded border border-brass/40 bg-brass/20 hover:bg-brass/30 text-brass px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  className="h-8 rounded border border-brass/50 bg-brass/20 hover:bg-brass/30 text-brass px-4 text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {publishing ? 'Publishing…' : 'Approve & Publish'}
                 </button>

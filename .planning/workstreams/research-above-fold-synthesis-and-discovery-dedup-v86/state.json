@@ -1,0 +1,48 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v8.6 — (`research-above-fold-synthesis-and-discovery-dedup-v86`) — Above-the-Fold Synthesis First, Discovery Dedup & Non-Modal Multi-Format Doc Editor/Parser",
+  "phases": [
+    {
+      "number": "507",
+      "name": "Workstream Initialization & SSOT Section 7",
+      "status": "completed"
+    },
+    {
+      "number": "508",
+      "name": "Discovery Double-Header Elimination, Auto-Refresh & Semantic Tokens",
+      "status": "completed"
+    },
+    {
+      "number": "509",
+      "name": "Above-the-Fold Synthesis First, Past-Session Search & Domain Mode Pill in ResearchView",
+      "status": "completed"
+    },
+    {
+      "number": "510",
+      "name": "Single-Row HitCard Actions, Provenance Pill & Collapsible INVARIANT in MemoryView",
+      "status": "completed"
+    },
+    {
+      "number": "511",
+      "name": "Non-Modal Docked DocViewer & Multi-Format Markdown Editor/Parser",
+      "status": "completed"
+    },
+    {
+      "number": "512",
+      "name": "Extended TypeScript & 18-File Vitest Verification",
+      "status": "completed"
+    },
+    {
+      "number": "513",
+      "name": "Dual-Theme CV Flywheel Audit, Refreshed Screenshot Verification & Closeout",
+      "status": "completed"
+    }
+  ],
+  "next": {
+    "command": "/gsd-complete-milestone",
+    "label": "Milestone v8.6 shipped and verified",
+    "reason": "All 7 phases (507-513) and 28/28 requirements passed tsc, cargo test -p vox-gui docs_index (7/7), 19-file Vitest (133/133), and Playwright dual-theme CV Flywheel (16/16)."
+  },
+  "updated_at": "2026-11-18T15:56:00.000Z"
+}

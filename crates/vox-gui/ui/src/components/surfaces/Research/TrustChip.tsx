@@ -4,14 +4,14 @@ export type TrustSignal =
   | { kind: 'uncorroborated' };
 
 const TRUST_STYLE: Record<string, string> = {
-  formal: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
-  retracted: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30',
-  corroborated: 'bg-cyan/10 text-cyan ring-1 ring-cyan/30',
-  uncorroborated: 'bg-overlay-subtle text-text-muted ring-1 ring-border-subtle/30',
+  formal: 'bg-bg-elevated text-(--color-status-pass) border border-(--color-status-pass)/35',
+  retracted: 'bg-bg-elevated text-(--color-status-fail) border border-(--color-status-fail)/35',
+  corroborated: 'bg-bg-elevated text-brass border border-brass/35',
+  uncorroborated: 'bg-bg-surface text-text-muted border border-border-subtle',
 };
 
 function chip(cls: string, label: string) {
-  return <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>;
+  return <span className={`inline-flex items-center rounded px-2 py-0.5 font-sans text-[11px] font-medium tracking-wide ${cls}`}>{label}</span>;
 }
 
 /**

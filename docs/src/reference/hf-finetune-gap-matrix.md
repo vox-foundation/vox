@@ -1,6 +1,6 @@
 ---
 title: "HF fine-tune gap matrix (SSOT ↔ code)"
-description: "Official documentation for HF fine-tune gap matrix (SSOT ↔ code) for the Vox language. Detailed technical reference, architecture guides,"
+description: "Tracking matrix mapping Hugging Face fine-tuning parity gaps and resolved Candle/Burn LoRA milestones across Mens modules."
 category: "Language Reference"
 training_eligible: true
 

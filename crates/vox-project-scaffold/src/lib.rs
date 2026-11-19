@@ -491,6 +491,68 @@ pub fn scaffold_vox_project_under_repo(
     scaffold_vox_project_at(&root, project_name, package_kind, template)
 }
 
+/// Scaffold at `root` and optionally initialize the Vox hybrid repository harness (`VOX.md`, `AGENTS.md`, `docs/wiki/`, `.vox/`).
+pub fn scaffold_vox_project_with_options_and_home(
+    root: &Path,
+    project_name: &str,
+    package_kind: &str,
+    template: Option<&str>,
+    with_harness: bool,
+    home_dir: Option<&Path>,
+) -> Result<ScaffoldSummary> {
+    let mut summary = scaffold_vox_project_at(root, project_name, package_kind, template)?;
+    if with_harness {
+        let harness = match home_dir {
+            Some(home) => vox_repository::onboard_repository_harness_with_home(root, false, home)?,
+            None => vox_repository::onboard_repository_harness(root, false)?,
+        };
+        let canonical_root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+        for created in harness.created_paths {
+            let created_path = Path::new(&created);
+            let rel = created_path
+                .strip_prefix(&canonical_root)
+                .or_else(|_| created_path.strip_prefix(root))
+                .map(|p| p.to_string_lossy().replace('\\', "/"))
+                .unwrap_or(created);
+            if !summary.created_relative_paths.contains(&rel) {
+                summary.created_relative_paths.push(rel);
+            }
+        }
+    }
+    Ok(summary)
+}
+
+/// Scaffold at `root` with optional Vox hybrid harness initialization.
+pub fn scaffold_vox_project_with_options(
+    root: &Path,
+    project_name: &str,
+    package_kind: &str,
+    template: Option<&str>,
+    with_harness: bool,
+) -> Result<ScaffoldSummary> {
+    scaffold_vox_project_with_options_and_home(
+        root,
+        project_name,
+        package_kind,
+        template,
+        with_harness,
+        None,
+    )
+}
+
+/// Scaffold under `workspace_repo_root` or a strict repo-relative subdirectory, optionally initializing the Vox hybrid harness.
+pub fn scaffold_vox_project_under_repo_with_options(
+    workspace_repo_root: &Path,
+    target_subdir: Option<&str>,
+    project_name: &str,
+    package_kind: &str,
+    template: Option<&str>,
+    with_harness: bool,
+) -> Result<ScaffoldSummary> {
+    let root = resolve_scaffold_target_under_repo(workspace_repo_root, target_subdir)?;
+    scaffold_vox_project_with_options(&root, project_name, package_kind, template, with_harness)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -626,5 +688,39 @@ mod tests {
             assert!(!src.contains("@workflow_def"));
             assert!(!src.contains("->"));
         }
+    }
+
+    #[test]
+    fn scaffold_with_harness_creates_vox_and_wiki_layout() {
+        let project = TempDir::new().unwrap();
+        let home = TempDir::new().unwrap();
+        std::fs::create_dir_all(project.path().join(".git")).unwrap();
+
+        let summary = scaffold_vox_project_with_options_and_home(
+            project.path(),
+            "harness-app",
+            "application",
+            Some("default"),
+            true,
+            Some(home.path()),
+        )
+        .expect("scaffold with harness");
+
+        assert!(project.path().join("Vox.toml").is_file());
+        assert!(project.path().join("src/main.vox").is_file());
+        assert!(project.path().join("VOX.md").is_file());
+        assert!(project.path().join("AGENTS.md").is_file());
+        assert!(project.path().join(".voxignore").is_file());
+        assert!(project.path().join(".well-known/llms.txt").is_file());
+        assert!(project.path().join("docs/wiki/README.md").is_file());
+        assert!(project.path().join(".vox/repositories.yaml").is_file());
+        assert!(project.path().join(".vox/cache/kb").is_dir());
+        assert!(summary.created_relative_paths.iter().any(|p| p == "VOX.md"));
+        assert!(
+            summary
+                .created_relative_paths
+                .iter()
+                .any(|p| p == "docs/wiki/README.md")
+        );
     }
 }

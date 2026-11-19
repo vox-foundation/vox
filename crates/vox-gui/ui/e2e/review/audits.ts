@@ -85,6 +85,8 @@ export interface DomQualityReport {
   bracketedLabelCount: number;
   statusBarClippedSegmentCount: number;
   sidebarTruncatedLabelCount: number;
+  surfaceToolbarHeightSpreadPx: number;
+  unreadableSmallFontCount: number;
   discoveredSubTabLabels: string[];
   discoveredPopoverTriggers: string[];
 }
@@ -162,23 +164,37 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     if (window.getComputedStyle(s).appearance !== 'none' && !s.dataset.unifiedKnob) unstyledNativeSelectCount++;
   }
 
+  const activeTheme = (docEl.dataset.theme || 'arcane').toLowerCase();
+  const isLightModeTheme =
+    activeTheme === 'arcane' || activeTheme === 'glacier' || activeTheme === 'travertine';
   let lightThemeContrastLeakCount = 0;
   if (docEl.dataset.theme !== 'travertine') {
-    for (const el of Array.from(document.querySelectorAll<HTMLElement>('main span, main div, main button'))) {
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('main span, main div, main button, main p'))) {
       if (isTerminalWellEl(el)) continue;
       const r = el.getBoundingClientRect();
-      if (r.width < 20 || r.height < 14 || (el.textContent || '').trim().length === 0) continue;
-      if (el.closest('.react-flow__controls, [data-theme-preview], [data-roman-frieze="true"], [data-roman-gauge="true"], .vox-marble-tablet')) continue;
+      if (r.width < 12 || r.height < 12 || (el.textContent || '').trim().length === 0) continue;
+      if (el.closest('.react-flow__controls, [data-theme-preview], [data-roman-frieze="true"], [data-roman-gauge="true"], [data-roman-wax-seal="true"], [data-roman-medallion="true"], .vox-marble-tablet')) continue;
       const style = window.getComputedStyle(el);
       const m = style.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
       const fgMatch = style.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      const fgRed = fgMatch ? Number(fgMatch[1]) : 255;
+      const fgGreen = fgMatch ? Number(fgMatch[2]) : 255;
+      const fgBlue = fgMatch ? Number(fgMatch[3]) : 255;
+      const fgLuma = fgMatch ? 0.2126 * fgRed + 0.7152 * fgGreen + 0.0722 * fgBlue : 255;
       if (m) {
         const red = Number(m[1]), green = Number(m[2]), blue = Number(m[3]);
         const alpha = m[4] !== undefined ? Number(m[4]) : 1;
-        const fgLuma = fgMatch ? 0.2126 * Number(fgMatch[1]) + 0.7152 * Number(fgMatch[2]) + 0.0722 * Number(fgMatch[3]) : 255;
         const isWarmMarble = red >= green && green >= blue && red - blue >= 10;
-        if (alpha > 0.65 && red > 215 && green > 215 && blue > 215 && !isWarmMarble && fgLuma > 110) {
+        if (!isLightModeTheme && alpha > 0.65 && red > 215 && green > 215 && blue > 215 && !isWarmMarble && fgLuma > 110) {
           lightThemeContrastLeakCount++;
+        } else if (isLightModeTheme && (alpha <= 0.1 || (0.2126 * red + 0.7152 * green + 0.0722 * blue) > 180)) {
+          const isCreamHex =
+            (fgRed === 243 && fgGreen === 229 && fgBlue === 171) ||
+            (fgRed === 214 && fgGreen === 206 && fgBlue === 191) ||
+            (fgRed === 200 && fgGreen === 185 && fgBlue === 158);
+          if (isCreamHex) {
+            lightThemeContrastLeakCount++;
+          }
         }
       }
     }
@@ -408,21 +424,65 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     return chroma >= 0.14 && ((hue >= 192 && hue <= 212) || (hue >= 158 && hue <= 168));
   };
 
+  const wavePaletteLeaks = new Set([
+    'rgb(46, 16, 101)', 'rgb(30, 27, 75)', 'rgb(8, 51, 68)',
+    'rgb(4, 47, 46)', 'rgb(6, 78, 59)', 'rgb(107, 33, 168)',
+    'rgb(55, 48, 163)', 'rgb(14, 116, 144)', 'rgb(15, 118, 110)',
+    'rgb(103, 232, 249)', 'rgb(196, 181, 253)', 'rgb(167, 139, 250)',
+  ]);
+
   let digitalColorLeakCount = 0;
-  for (const el of Array.from(document.querySelectorAll<HTMLElement>('main section, main article, main div, main button, main span'))) {
+  for (const el of Array.from(document.querySelectorAll<Element>('main section, main article, main div, main button, main span, main svg rect'))) {
     if (isTerminalWellEl(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 16 || r.height < 12) continue;
     const st = window.getComputedStyle(el);
     const bg = st.backgroundColor, fg = st.color;
+    const fillAttr = el.tagName.toLowerCase() === 'rect' ? (el.getAttribute('fill') || '').toLowerCase() : '';
+    const hasWaveHex =
+      wavePaletteLeaks.has(bg) || wavePaletteLeaks.has(fg) ||
+      ['#2e1065', '#1e1b4b', '#083344', '#042f2e', '#064e3b', '#6b21a8', '#3730a3', '#0e7490'].includes(fillAttr);
+    const isTranslucentBlackCard =
+      /^rgba\(\s*0,\s*0,\s*0,\s*0\.[1-6]/.test(bg) && !el.classList.contains('fixed') && el.getAttribute('role') !== 'presentation';
     if (
       bg === 'rgb(12, 18, 27)' || bg === 'rgb(14, 19, 26)' ||
       fg === 'rgb(34, 211, 238)' || fg === 'rgb(6, 182, 212)' ||
       (!isSlateTheme && fg === 'rgb(16, 185, 129)') ||
       fg === 'rgb(52, 211, 153)' || fg === 'rgb(110, 231, 183)' ||
+      hasWaveHex ||
+      isTranslucentBlackCard ||
       isNeonDigitalOklch(fg) || isNeonDigitalOklch(bg)
     ) {
       digitalColorLeakCount++;
+    }
+  }
+
+  let surfaceToolbarHeightSpreadPx = 0;
+  const barSelectors = 'main [role="tablist"], main [role="group"], main [data-testid="kb-library-tabs"]';
+  for (const bar of Array.from(document.querySelectorAll<HTMLElement>(barSelectors))) {
+    const items = Array.from(bar.querySelectorAll<HTMLElement>('button, [role="tab"], input')).filter((el) => {
+      if (isXtermHelper(el)) return false;
+      const st = window.getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 12 && r.height > 8;
+    });
+    if (items.length >= 2) {
+      const heights = items.map((c) => Math.round(c.getBoundingClientRect().height));
+      const spread = Math.max(...heights) - Math.min(...heights);
+      if (spread > surfaceToolbarHeightSpreadPx) surfaceToolbarHeightSpreadPx = spread;
+    }
+  }
+
+  let unreadableSmallFontCount = 0;
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>('main button, main p, main td, main th, main [role="tab"]'))) {
+    if (isTerminalWellEl(el) || el.closest('.sr-only, [data-allow-small-font="true"]')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 12 || r.height < 10 || (el.textContent || '').trim().length === 0) continue;
+    const st = window.getComputedStyle(el);
+    if (st.display === 'none' || st.visibility === 'hidden') continue;
+    const fs = parseFloat(st.fontSize || '');
+    if (Number.isFinite(fs) && fs > 0 && fs < 10.5) {
+      unreadableSmallFontCount++;
     }
   }
 
@@ -432,6 +492,7 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     unlitLandmarkCount, missingDockPanelIds, viewportCoverageRatio, composerToolbarRowCount,
     composerToolbarHeightPx, duplicateControlGroupCount, skeletonCount, rawBacktickCount,
     digitalColorLeakCount, chartPanelFillRatio, bracketedLabelCount, statusBarClippedSegmentCount,
-    sidebarTruncatedLabelCount, discoveredSubTabLabels, discoveredPopoverTriggers,
+    sidebarTruncatedLabelCount, surfaceToolbarHeightSpreadPx, unreadableSmallFontCount,
+    discoveredSubTabLabels, discoveredPopoverTriggers,
   };
 }

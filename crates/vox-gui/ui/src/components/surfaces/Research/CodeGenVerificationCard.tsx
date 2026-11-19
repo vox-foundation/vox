@@ -22,19 +22,19 @@ export function CodeGenVerificationCard({
   return (
     <div
       data-testid="codegen-verification-card"
-      className={`mt-3 rounded-xl border p-4 space-y-2 ${
+      className={`mt-3 rounded-xl border p-4 space-y-2 bg-bg-surface ${
         verification.passed
-          ? 'border-emerald-500/30 bg-emerald-500/[0.05]'
-          : 'border-amber-500/30 bg-amber-500/[0.05]'
+          ? 'border-(--color-status-pass)/40'
+          : 'border-(--color-status-warn)/40'
       }`}
     >
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span
-            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
+            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider bg-bg-elevated ${
               verification.passed
-                ? 'bg-emerald-500/20 text-emerald-300'
-                : 'bg-amber-500/20 text-amber-300'
+                ? 'border-(--color-status-pass)/35 text-(--color-status-pass)'
+                : 'border-(--color-status-warn)/35 text-(--color-status-warn)'
             }`}
           >
             {verification.passed ? (
@@ -61,7 +61,7 @@ export function CodeGenVerificationCard({
       </div>
 
       {verification.diagnostics && verification.diagnostics.length > 0 && (
-        <pre className="max-h-32 overflow-auto rounded border border-border-subtle bg-black/50 p-2 font-mono text-[11px] text-amber-200/90">
+        <pre className="max-h-32 overflow-auto rounded border border-border-subtle bg-bg-elevated p-2 font-mono text-[11px] text-(--color-status-warn)">
           {verification.diagnostics.join('\n')}
         </pre>
       )}

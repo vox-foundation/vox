@@ -47,11 +47,11 @@ export function ShoppingDecisionCard({
   return (
     <div
       data-testid="shopping-decision-card"
-      className="mt-3 rounded-xl border border-brass/30 bg-brass/[0.04] p-4 space-y-3"
+      className="mt-3 rounded-xl border border-brass/35 bg-bg-surface p-4 space-y-3"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="rounded bg-brass/20 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-brass">
+          <span className="rounded border border-brass/35 bg-bg-elevated px-2 py-0.5 font-sans text-[11px] font-medium uppercase tracking-wider text-brass">
             Shopping Matrix
           </span>
           <span className="font-display text-xs uppercase tracking-wider text-text-primary">
@@ -59,7 +59,7 @@ export function ShoppingDecisionCard({
           </span>
         </div>
         {rec && (
-          <span className="inline-flex items-center gap-1 font-mono text-xs text-emerald-300">
+          <span className="inline-flex items-center gap-1 font-mono text-xs text-(--color-status-pass)">
             <Icon.star className="size-3.5 shrink-0" aria-hidden="true" />
             <span>Pick: {rec}</span>
           </span>
@@ -74,13 +74,13 @@ export function ShoppingDecisionCard({
             return (
               <span
                 key={label}
-                className="rounded border border-border-subtle bg-black/30 px-2 py-0.5 font-mono text-[10px] text-text-secondary"
+                className="rounded border border-border-subtle bg-bg-elevated px-2.5 py-0.5 font-sans text-[11px] text-text-secondary"
               >
                 {label}
                 {weight != null && (
                   <>
                     {' '}
-                    <span className="text-brass">{Math.round(weight * 100)}%</span>
+                    <span className="font-mono text-brass">{Math.round(weight * 100)}%</span>
                   </>
                 )}
               </span>
@@ -94,10 +94,10 @@ export function ShoppingDecisionCard({
           {options.map((opt, idx) => (
             <div
               key={opt.name}
-              className={`rounded-lg border p-3 ${
+              className={`rounded-lg border p-3 bg-bg-panel ${
                 idx === 0
-                  ? 'border-emerald-600/40 bg-emerald-500/[0.06]'
-                  : 'border-border-subtle bg-bg-elevated'
+                  ? 'border-(--color-status-pass)/40 bg-bg-elevated'
+                  : 'border-border-subtle'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -112,13 +112,13 @@ export function ShoppingDecisionCard({
                 </span>
               </div>
               {opt.pros && opt.pros.length > 0 && (
-                <div className="mt-1.5 text-[11px] text-emerald-300/90">
+                <div className="mt-1.5 text-xs text-(--color-status-pass)">
                   + {opt.pros.slice(0, 2).join(' · ')}
                 </div>
               )}
               {opt.cons && opt.cons.length > 0 && (
-                <div className="mt-0.5 text-[11px] text-rose-300/80">
-                  − {opt.cons.slice(0, 2).join(' · ')}
+                <div className="mt-0.5 text-xs text-(--color-status-fail)">
+                  - {opt.cons.slice(0, 2).join(' · ')}
                 </div>
               )}
             </div>

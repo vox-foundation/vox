@@ -1,6 +1,6 @@
 ---
 title: "Changelog"
-description: "Official documentation for Changelog for the Vox language. Detailed technical reference, architecture guides, and implementation patterns"
+description: "Chronological changelog summarizing Vox language releases, compiler diagnostics, structured output features, and orchestrator updates."
 category: "Language Reference"
 training_eligible: true
 

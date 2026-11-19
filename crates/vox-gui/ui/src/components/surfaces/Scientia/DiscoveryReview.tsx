@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../../ui/Icons';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
-import { listenScientiaQueue } from '../../../transport';
+import { invokeCmd, listenScientiaQueue } from '../../../transport';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import {
   listReviewQueue,
@@ -21,9 +21,9 @@ import { computeWorthinessAxes } from '../../../api/scientia';
 
 function verdictTone(verdict: string | null): string {
   const v = (verdict ?? '').toLowerCase();
-  if (v.includes('support')) return 'text-emerald-300/90';
-  if (v.includes('refut') || v.includes('contradict')) return 'text-rose-300/90';
-  if (v.includes('novel')) return 'text-violet-300/90';
+  if (v.includes('support')) return 'text-(--color-status-pass)';
+  if (v.includes('refut') || v.includes('contradict')) return 'text-(--color-status-fail)';
+  if (v.includes('novel')) return 'text-brass';
   return 'text-text-muted';
 }
 
@@ -69,6 +69,55 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
   // after the refetch removes them from the live queue.
   const detailCache = useRef<Map<number, ClaimAwaitingReview>>(new Map());
   const fetchingRef = useRef(false);
+  const lastLoadedPubRef = useRef('');
+  const [recentManifests, setRecentManifests] = useState<
+    Array<{ publication_id: string; title?: string | null }>
+  >([]);
+
+  useEffect(() => {
+    if (embedded) return;
+    let cancelled = false;
+    invokeCmd<Array<{ publication_id: string; title?: string | null }> | null>(
+      'list_publication_manifests',
+      { limit: 6 },
+    )
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows)) setRecentManifests(rows);
+      })
+      .catch(() => {
+        /* ignore offline or mock */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [embedded]);
+
+  useEffect(() => {
+    const onOpenStudio = (ev: Event) => {
+      const pid = (ev as CustomEvent<{ publicationId?: string }>).detail?.publicationId?.trim();
+      if (pid) {
+        setPubId(pid);
+      }
+    };
+    window.addEventListener('vox://scientia-open-studio', onOpenStudio as EventListener);
+    return () =>
+      window.removeEventListener('vox://scientia-open-studio', onOpenStudio as EventListener);
+  }, []);
+
+  const openInPublicationsStudio = useCallback(() => {
+    const id = pubId.trim();
+    if (!id) return;
+    try {
+      window.localStorage.setItem('vox_selected_publication_id', id);
+    } catch {
+      /* localStorage unavailable */
+    }
+    window.dispatchEvent(
+      new CustomEvent('vox://navigate-surface', {
+        detail: { view: 'publications', publicationId: id },
+      }),
+    );
+  }, [pubId]);
 
   const worthinessAxes = useMemo(() => {
     const supportedCount = queue.filter((c) => (c.verdict ?? '').toLowerCase().includes('support')).length;
@@ -85,35 +134,54 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
     });
   }, [queue, novelty?.verdict_kind, replayScore]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     const id = pubId.trim();
     if (!id) {
       setQueue([]);
+      lastLoadedPubRef.current = '';
       return;
     }
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-    setLoading(true);
+    const isInitialForPub = lastLoadedPubRef.current !== id;
+    const showSpinner = !opts?.silent && isInitialForPub;
+    if (showSpinner) setLoading(true);
     try {
       const rows = await listReviewQueue(id);
       for (const r of rows) detailCache.current.set(r.claim_id, r);
+      lastLoadedPubRef.current = id;
       setQueue(rows);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Review queue', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-      setQueue([]);
+      if (!opts?.silent) {
+        pushToast({ tone: 'warn', title: 'Review queue', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      }
+      if (isInitialForPub) setQueue([]);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
       fetchingRef.current = false;
     }
   }, [pubId, pushToast]);
 
-  // Initial fetch + 10 s interval fallback; cleared on unmount / pub change.
+  // Initial fetch + visibility-gated 10 s interval fallback; cleared on unmount / pub change.
   useEffect(() => {
-    refresh();
+    void refresh();
     // Embedded mini-render: one initial fetch only, no repeating poll.
     if (embedded) return;
-    const t = setInterval(refresh, 10_000);
-    return () => clearInterval(t);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh({ silent: true });
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const t = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        void refresh({ silent: true });
+      }
+    }, 10_000);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refresh, embedded]);
 
   // Event-driven refresh — refetch on the F2 scientia-queue ping. Interval above
@@ -123,7 +191,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
     if (embedded) return;
     let unlisten: (() => void) | undefined;
     listenScientiaQueue(() => {
-      void refresh();
+      void refresh({ silent: true });
     })
       .then((fn) => {
         unlisten = fn;
@@ -250,24 +318,56 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
             Human-gated review of extracted claims before nanopublication. Nothing is published to any network.
           </p>
         </div>
-        <label className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Publication</span>
+        <label className="flex flex-wrap items-center gap-2">
+          <span className="font-sans text-[11px] font-semibold uppercase tracking-wider text-text-muted">Publication</span>
           <input
             value={pubId}
             onChange={(e) => setPubId(e.target.value)}
             placeholder="publication id"
-            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
+            className="h-9 rounded-lg border border-border-subtle bg-bg-elevated px-3 font-mono text-xs text-text-primary placeholder:text-text-muted focus:border-brass/50 focus:outline-hidden"
           />
           <button
             type="button"
-            onClick={refresh}
-            disabled={loading}
-            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
+            data-slot="button"
+            data-roman-plaque="true"
+            data-testid="open-publications-studio-btn"
+            onClick={openInPublicationsStudio}
+            disabled={!pubId.trim()}
+            title="Advance lifecycle stages, run 12-point arXiv readiness gates, and export tar.gz bundle in Publications Studio"
+            className="vox-brass-plaque-btn inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold transition-colors disabled:opacity-40"
           >
-            {loading ? 'Loading…' : 'Refresh'}
+            <Icon.book className="size-3.5 shrink-0" aria-hidden="true" />
+            <span>Open in Publications Studio</span>
           </button>
         </label>
       </div>
+
+      {recentManifests.length > 0 && (
+        <div
+          data-testid="review-manifest-quick-picker"
+          role="group"
+          aria-label="Recent manuscripts quick picker"
+          className="flex flex-wrap items-center gap-1.5"
+        >
+          <span className="font-display text-[11px] font-semibold uppercase tracking-wider text-text-muted mr-1">
+            Quick Pick
+          </span>
+          {recentManifests.map((m) => (
+            <button
+              key={m.publication_id}
+              type="button"
+              data-slot="button"
+              data-roman-plaque="true"
+              onClick={() => setPubId(m.publication_id)}
+              className={`vox-brass-plaque-btn inline-flex h-8 max-w-[260px] items-center truncate rounded px-2.5 font-mono text-[11px] transition-colors ${
+                pubId.trim() === m.publication_id ? 'ring-2 ring-brass/70' : 'opacity-85'
+              }`}
+            >
+              <span className="truncate">{m.title ?? m.publication_id}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 6-Axis Worthiness Radar & Direct Publication Flywheel Drawer */}
       <WorthinessRadarPanel
@@ -283,22 +383,22 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
         }}
       />
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: '360px 1fr' }}>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
         {/* LIST */}
-        <div className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle">
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-bg-surface">
           <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
+            <span className="font-display text-xs uppercase tracking-[0.16em] text-text-muted">
               Awaiting Review ({queue.length})
             </span>
           </div>
           <div className="flex flex-col" aria-live="polite">
             {!pubId.trim() && (
-              <div className="px-4 py-8 text-center font-mono text-[11px] text-text-muted">
+              <div className="px-4 py-8 text-center text-xs text-text-muted">
                 Enter a publication id to load its review queue.
               </div>
             )}
             {pubId.trim() && queue.length === 0 && !loading && (
-              <div className="px-4 py-8 text-center font-mono text-[11px] text-text-muted">
+              <div className="px-4 py-8 text-center text-xs text-text-muted">
                 No claims awaiting review.
               </div>
             )}
@@ -307,6 +407,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               return (
                 <button
                   type="button"
+                  data-slot="claim-row"
                   key={c.claim_id}
                   aria-pressed={active}
                   onClick={() => {
@@ -314,22 +415,21 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                     setReason('');
                     setSuggestions([]);
                   }}
-                  className={`relative border-b border-border-subtle px-4 py-3 text-left transition ${
-                    active ? 'bg-overlay-subtle' : 'hover:bg-overlay-subtle'
+                  className={`relative border-b border-border-subtle px-4 py-3 text-left transition-colors ${
+                    active ? 'bg-bg-elevated' : 'hover:bg-bg-elevated/60'
                   }`}
                 >
                   {active && (
                     <span
                       className="absolute left-0 top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-r bg-brass"
-                      style={{ boxShadow: '0 0 12px 2px rgba(212,175,55,.5)' }}
                     />
                   )}
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[11px] text-text-muted">#{c.claim_id}</span>
-                    <span className={`font-mono text-[10px] ${verdictTone(c.verdict)}`}>{c.verdict ?? 'unverified'}</span>
+                    <span className={`font-mono text-[11px] font-medium ${verdictTone(c.verdict)}`}>{c.verdict ?? 'unverified'}</span>
                   </div>
-                  <div className="mt-1 text-[12.5px] leading-snug text-text-secondary">{c.text}</div>
-                  <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-text-muted">
+                  <div className="mt-1 font-serif text-[13px] leading-snug text-text-primary">{c.text}</div>
+                  <div className="mt-1.5 flex items-center gap-2 font-mono text-[11px] text-text-muted">
                     {c.confidence != null && (
                       <span className="inline-flex items-center gap-1 text-brass">
                         <Icon.star className="size-3 shrink-0" aria-hidden="true" />
@@ -395,62 +495,66 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               )}
 
               <div>
-                <label className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Reason (optional)</label>
+                <label className="font-sans text-[11px] font-semibold uppercase tracking-wider text-text-muted">Reason (optional)</label>
                 <textarea
                   rows={2}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Why approve / reject / defer…"
-                  className="mt-1 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
+                  className="mt-1 w-full rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-brass/50 focus:outline-hidden"
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  data-slot="button"
                   disabled={busy}
                   onClick={() => decide('approved')}
-                  className="flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-[12px] text-emerald-200 hover:bg-emerald-400/15 disabled:opacity-40"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-(--color-status-pass)/40 bg-bg-elevated px-4 text-xs font-semibold text-(--color-status-pass) hover:border-(--color-status-pass) disabled:opacity-40 transition-colors"
                 >
                   <Icon.check className="size-3.5 shrink-0" aria-hidden="true" /> Approve
                 </button>
                 <button
                   type="button"
+                  data-slot="button"
                   disabled={busy}
                   onClick={() => decide('rejected')}
-                  className="flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-400/[0.07] px-4 py-2 text-[12px] text-rose-200 hover:bg-rose-400/10 disabled:opacity-40"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-(--color-status-fail)/40 bg-bg-elevated px-4 text-xs font-semibold text-(--color-status-fail) hover:border-(--color-status-fail) disabled:opacity-40 transition-colors"
                 >
                   <Icon.close className="size-3.5 shrink-0" aria-hidden="true" /> Reject
                 </button>
                 <button
                   type="button"
+                  data-slot="button"
                   disabled={busy}
                   onClick={() => decide('deferred')}
-                  className="flex items-center gap-1.5 rounded-lg border border-border-subtle bg-overlay-subtle px-4 py-2 text-[12px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-subtle bg-bg-elevated px-4 text-xs font-medium text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
                 >
                   <Icon.pause className="size-3.5 shrink-0" aria-hidden="true" /> Defer
                 </button>
                 <button
                   type="button"
+                  data-slot="button"
                   disabled={busy}
                   onClick={doSuggest}
-                  className="ml-auto flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-400/[0.07] px-4 py-2 text-[12px] text-violet-200 hover:bg-violet-400/10 disabled:opacity-40"
+                  className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-brass/45 bg-bg-elevated px-4 text-xs font-medium text-brass hover:bg-brass/15 disabled:opacity-40 transition-colors"
                 >
                   <Icon.spark className="size-3.5 shrink-0" aria-hidden="true" /> Suggest evidence improvements (LLM)
                 </button>
               </div>
 
               {suggestions.length > 0 && (
-                <div className="rounded-xl border border-violet-400/20 bg-violet-400/4 p-4">
-                  <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-violet-300/80">
+                <div className="rounded-xl border border-brass/35 bg-bg-elevated p-4">
+                  <div className="mb-2 font-display text-xs uppercase tracking-wider text-brass">
                     Evidence suggestions
                   </div>
                   <div className="space-y-2">
                     {suggestions.map((s, i) => (
-                      <div key={i} className="font-mono text-[11px]">
-                        <span className="text-violet-300/90">[{s.kind}]</span>{' '}
-                        <span className="text-text-secondary">{s.summary}</span>
-                        <div className="text-text-muted">{s.rationale}</div>
+                      <div key={i} className="text-xs leading-relaxed">
+                        <span className="font-mono text-brass">[{s.kind}]</span>{' '}
+                        <span className="font-medium text-text-primary">{s.summary}</span>
+                        <div className="text-text-secondary">{s.rationale}</div>
                       </div>
                     ))}
                   </div>
@@ -458,22 +562,23 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               )}
 
               {isApproved && (
-                <div className="rounded-xl border border-brass/20 bg-brass/4 p-4">
-                  <div className="inline-flex items-center gap-1.5 font-mono text-[11px] text-emerald-300/90">
+                <div className="rounded-xl border border-brass/35 bg-bg-elevated p-4">
+                  <div className="inline-flex items-center gap-1.5 font-mono text-xs text-(--color-status-pass)">
                     <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
                     <span>Approved by you · approval token bound to this claim</span>
                   </div>
-                  <div className="mt-3 flex items-center gap-3">
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
                     <button
                       type="button"
+                      data-slot="button"
                       disabled={busy}
                       onClick={() => setConfirmOpen(true)}
-                      className="flex items-center gap-2 rounded-lg border border-brass/40 bg-brass/15 px-4 py-2 text-[12px] text-brass hover:bg-brass/25 disabled:opacity-40"
+                      className="inline-flex h-9 items-center gap-2 rounded-lg border border-brass/45 bg-brass/15 px-4 text-xs font-semibold text-brass hover:bg-brass/25 disabled:opacity-40"
                     >
                       <Icon.arrowUp className="size-3.5 shrink-0" aria-hidden="true" /> Nanopublish (offline)
                     </button>
-                    <span className="font-mono text-[10px] text-text-muted">
-                      builds + signs + offline-validates, stores locally · no network
+                    <span className="text-xs text-text-muted">
+                      builds, signs, and offline-validates locally with no network transfer
                     </span>
                   </div>
                 </div>

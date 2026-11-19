@@ -53,4 +53,19 @@ describe('DiscoverySurface', () => {
     expect(screen.getByTestId('preset-review')).toBeInTheDocument();
     expect(window.localStorage.getItem(DISCOVERY_PRESET_SEED_KEY)).toBeNull();
   });
+
+  it('exposes 1-click flywheel jumps to Research, Memory, and Publications (v8.6)', () => {
+    const events: CustomEvent[] = [];
+    const onNav = (e: Event) => events.push(e as CustomEvent);
+    window.addEventListener('vox://navigate-surface', onNav);
+    try {
+      render(<DiscoverySurface pushToast={noopToast} />);
+      fireEvent.click(screen.getByTestId('discovery-jump-research'));
+      fireEvent.click(screen.getByTestId('discovery-jump-memory'));
+      fireEvent.click(screen.getByTestId('discovery-jump-publications'));
+      expect(events.map((e) => e.detail?.view)).toEqual(['research', 'memory', 'publications']);
+    } finally {
+      window.removeEventListener('vox://navigate-surface', onNav);
+    }
+  });
 });

@@ -60,6 +60,16 @@
       "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/llm-verify-cache.v1.json\"]",
       "estimated_tokens": 80
     },
+    "4a8db9affefe4e417c2ee5ded493fe2e05a09098127efeb8fa94b3c2b79d8c03::c33c46f0f198cb5092c3eacbe32a0b652a71bf54b854a40470bc92d0f1e59b03": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 83,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L83]"
+      ],
+      "rationale": "Verified prose claim anchored to [\".github/workflows/docs-drift-refresh.yml\", \".github/workflows/docs-self-heal.yml\", \"bot/docs-drift-refresh\", \"crates/vox-doc-pipeline/src/claims/self_heal_bot.rs\"]",
+      "estimated_tokens": 80
+    },
     "626987aa36b225fd5dc69bac1c1750947352df1976dbe3af4e024fa3a7f623cd::c366d89c67a96e56288b2fa85155375e53adceb1b7fc4b579cc2b5cecf2d2531": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 69,
@@ -211,7 +221,7 @@
       "estimated_tokens": 80
     }
   },
-  "cache_hits": 114,
-  "cache_misses": 21,
-  "tokens_spent": 1680
+  "cache_hits": 143,
+  "cache_misses": 22,
+  "tokens_spent": 1760
 }

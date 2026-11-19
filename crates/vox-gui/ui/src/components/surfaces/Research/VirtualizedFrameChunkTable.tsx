@@ -79,21 +79,21 @@ export function VirtualizedFrameChunkTable({
   return (
     <div
       data-testid="virtualized-frame-chunk-table"
-      className="rounded-xl border border-border-subtle bg-overlay-subtle p-3 space-y-2"
+      className="rounded-xl border border-border-subtle bg-bg-surface p-3 space-y-2"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
           <Icon.matrix className="size-3.5 text-brass shrink-0" aria-hidden="true" />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-text-primary">
+          <span className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
             DataFrame Stream Preview
           </span>
           {page.stream_id && (
-            <span className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-text-muted">
+            <span className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px] text-text-muted">
               {page.stream_id}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
+        <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted">
           <span>
             {rows.length} loaded
             {total_rows != null ? ` / ${total_rows} total` : ''}
@@ -101,10 +101,11 @@ export function VirtualizedFrameChunkTable({
           {has_more && onLoadNextChunk && (
             <button
               type="button"
+              data-slot="button"
               data-testid="frame-chunk-load-more"
               disabled={loadingMore}
               onClick={() => onLoadNextChunk(offset + rows.length, limit)}
-              className="rounded border border-brass/40 bg-brass/10 px-2 py-0.5 text-[10px] text-brass hover:bg-brass/20 disabled:opacity-50"
+              className="h-7 rounded border border-brass/40 bg-bg-elevated px-2.5 font-sans text-[11px] font-medium text-brass hover:bg-brass/15 disabled:opacity-50"
             >
               {loadingMore ? 'Streaming…' : 'Load next chunk'}
             </button>
@@ -113,15 +114,15 @@ export function VirtualizedFrameChunkTable({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border-subtle py-6 text-center font-mono text-[11px] text-text-muted">
+        <div className="rounded-lg border border-dashed border-border-subtle py-6 text-center text-xs text-text-muted">
           No frame rows available in stream chunk.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border-subtle bg-black/30">
+        <div className="overflow-x-auto rounded-lg border border-border-subtle bg-bg-panel">
           <div
             role="row"
             style={{ gridTemplateColumns: colTemplate }}
-            className="grid border-b border-border-subtle bg-black/50 px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted"
+            className="grid border-b border-border-subtle bg-bg-elevated px-2 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-text-muted"
           >
             <div>#</div>
             {columns.map((col) => (
@@ -165,9 +166,9 @@ export function VirtualizedFrameChunkTable({
                       transform: `translateY(${vItem.start}px)`,
                       gridTemplateColumns: colTemplate,
                     }}
-                    className="grid items-center border-b border-border-subtle/40 px-2 font-mono text-[11px] text-text-secondary hover:bg-white/[0.03]"
+                    className="grid items-center border-b border-border-subtle/40 px-2 font-mono text-[11px] text-text-secondary hover:bg-bg-elevated"
                   >
-                    <div className="text-[10px] text-text-muted">{offset + vItem.index}</div>
+                    <div className="text-[11px] text-text-muted">{offset + vItem.index}</div>
                     {columns.map((_, colIdx) => {
                       const text = formatCell(row[colIdx]);
                       return (

@@ -84,7 +84,9 @@ pub async fn dispatch(
         "vox_repo_status" => Ok(repo_catalog_tools::repo_status(state).await),
         "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
         "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),
-        "vox_repo_catalog_refresh" => Ok(repo_catalog_tools::repo_catalog_refresh(state).await),
+        "vox_repo_catalog_refresh" => {
+            Ok(repo_catalog_tools::repo_catalog_refresh(state, args).await)
+        }
         "vox_repo_query_text" => {
             Ok(repo_catalog_tools::repo_query_text(state, serde_json::from_value(args)?).await)
         }
