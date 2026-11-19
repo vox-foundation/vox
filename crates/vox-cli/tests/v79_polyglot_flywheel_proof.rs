@@ -154,7 +154,7 @@ async fn v79_end_to_end_polyglot_onboarding_and_self_heal_proof() {
     let graph_val: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&graph_out).unwrap()).unwrap();
     let reader = GraphifyReader::from_ref(&graph_val).expect("load graphify reader");
-    let has_doc_edge = graph_val["links"].as_array().map_or(false, |links| {
+    let has_doc_edge = graph_val["links"].as_array().is_some_and(|links| {
         links.iter().any(|e| {
             matches!(
                 e.get("kind").and_then(|v| v.as_str()),

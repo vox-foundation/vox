@@ -323,7 +323,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
                     onClick={(e) => e.stopPropagation()}
                     className="mt-3 space-y-2 border-t border-border-subtle pt-3"
                   >
-                    <summary className="cursor-pointer font-sans text-[11px] font-semibold uppercase tracking-wider text-(--color-status-warn) select-none">
+                    <summary className="cursor-pointer font-sans text-[11px] font-semibold uppercase tracking-[0.08em] text-(--color-status-warn) select-none">
                       Stale Diagnostics &amp; Rebuild Actions
                     </summary>
                     <div className="pt-1 text-[11px] text-text-secondary">

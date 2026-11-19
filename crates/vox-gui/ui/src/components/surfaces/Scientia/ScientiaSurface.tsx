@@ -46,7 +46,7 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
       <RomanSurfaceHeader
         domainTag="KNOWLEDGE · SCIENTIA"
         title="Scientia Epistemic Discovery & Verification Ledger"
-        subtitle="Track machine-verified research claims, novelty evidence, and publication readiness."
+        subtitle="Publication pipeline queue snapshot · Track machine-verified research claims, novelty evidence, and publication readiness."
         waxSealBadge="EPISTEMIC LEDGER"
         icon={<ScientiaIcon className="size-5 text-text-primary" />}
         gauges={[

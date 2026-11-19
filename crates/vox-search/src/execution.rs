@@ -1038,8 +1038,10 @@ mod tests {
             SearchCorpus::GraphifyStructural,
             SearchCorpus::RepoInventory,
         ];
-        let mut policy = SearchPolicy::default();
-        policy.prefer_rrf_merge = true;
+        let policy = SearchPolicy {
+            prefer_rrf_merge: true,
+            ..Default::default()
+        };
 
         let ctx = SearchRuntimeContext::new(
             root.to_path_buf(),

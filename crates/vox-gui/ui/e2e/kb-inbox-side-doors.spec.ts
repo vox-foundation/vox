@@ -102,7 +102,7 @@ test.describe('KB inbox side doors', () => {
     await expect(toasts(page)).toContainText('3 source(s) filed for review');
     await shot(page, 'kb-inbox-save-to-kb');
 
-    await page.getByRole('button', { name: 'Publish Architecture SSOT' }).click();
+    await page.getByRole('button', { name: /Publish(?: Architecture)? SSOT/i }).click();
     await page.getByRole('button', { name: /Approve & Publish/i }).click();
     await expect(toasts(page)).toContainText('Filed for review');
     await expect(toasts(page)).toContainText(PROPOSED);

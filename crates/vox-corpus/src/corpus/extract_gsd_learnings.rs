@@ -343,7 +343,8 @@ fn extract_phase_learnings(
         (!entry.has_state, "STATE.md"),
     ]
     .into_iter()
-    .filter_map(|(flag, name)| flag.then(|| name.to_string()))
+    .filter(|&(flag, _)| flag)
+    .map(|(_, name)| name.to_string())
     .collect();
     GsdPhaseLearnings {
         phase_number: entry.phase_number.clone(),

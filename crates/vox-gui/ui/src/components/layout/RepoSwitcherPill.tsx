@@ -148,8 +148,8 @@ export function RepoSwitcherPill({
         className="inline-flex items-center gap-1 rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-secondary hover:border-brass/50 hover:text-text-primary transition"
       >
         <Icon.branch className="size-3 shrink-0 text-brass" aria-hidden="true" />
-        <span className="max-w-[14ch] truncate">{summary.displayName}</span>
-        <span className="rounded bg-bg-elevated px-1 text-[9px] uppercase text-text-muted">
+        <span className="max-w-[14ch] truncate max-[479px]:sr-only">{summary.displayName}</span>
+        <span className="rounded bg-bg-elevated px-1 text-[9px] uppercase text-text-muted max-[639px]:hidden">
           {summary.readOnly ? 'read-only' : 'hybrid'}
         </span>
       </button>

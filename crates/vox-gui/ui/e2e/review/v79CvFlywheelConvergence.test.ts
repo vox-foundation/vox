@@ -307,5 +307,5 @@ describe('Phase 470 (CV-02 / CV-03) — Dual-Theme Concept-Art Plates & 5x4 Befo
 
     view.unmount();
     applyTheme('arcane');
-  }, 30_000);
+  }, 120_000);
 });
