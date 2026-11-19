@@ -66,49 +66,62 @@ function SessionRow({
   }
 
   return (
-    <div role="tab" aria-selected={isActive} tabIndex={isActive ? 0 : -1}
-         onClick={() => onSessionChange(s.session_id)}
-         onDoubleClick={() => setEditing(true)}
-         onKeyDown={e => {
-           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSessionChange(s.session_id); }
-           else if (showArchive && e.key === 'Delete') { e.preventDefault(); onArchiveSession(s.session_id); }
-         }}
-         className={`flex items-start justify-between gap-1.5 rounded-md px-2 py-1.5 text-[11px] leading-snug cursor-pointer transition group ${
-           isActive
-             ? 'border-l-2 border-brass bg-brass/15 text-text-primary font-semibold shadow-2xs'
-             : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
-         }`}>
-      <span data-allow-ellipsis="true" title={s.title} className="min-w-0 flex-1 line-clamp-2 wrap-break-word">{s.title}</span>
-      <span className="mt-0.5 flex items-center gap-1 shrink-0">
-        {hasPendingIssue && (
-          <span
-            data-testid={`session-issue-badge-${s.session_id}`}
-            role="img"
-            aria-label="Harness issue detected"
-            title="Harness issue detected"
-            className="size-1.5 shrink-0 rounded-full bg-amber-400"
-          />
-        )}
-        {taskCount > 0 && (
-          <span
-            onClick={e => { e.stopPropagation(); onTaskBadgeClick(s.session_id); }}
-            className="rounded-full bg-overlay-subtle px-1.5 text-[10px] text-text-muted"
-          >
-            {taskCount}
-          </span>
-        )}
-        {showArchive && (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label="Archive"
-            onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
-            className="opacity-0 group-hover:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
-          >
-            Archive
-          </span>
-        )}
-      </span>
+    <div
+      data-testid={`session-row-${s.session_id}`}
+      onDoubleClick={() => setEditing(true)}
+      className={`flex items-start justify-between gap-1.5 rounded-md px-2 py-1.5 text-[11px] leading-snug transition group ${
+        isActive
+          ? 'border-l-2 border-brass bg-brass/15 text-text-primary font-semibold shadow-2xs'
+          : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
+      }`}
+    >
+      <div role="tablist" className="min-w-0 flex-1 flex">
+        <div
+          role="tab"
+          aria-selected={isActive}
+          tabIndex={isActive ? 0 : -1}
+          onClick={() => onSessionChange(s.session_id)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSessionChange(s.session_id); }
+            else if (showArchive && e.key === 'Delete') { e.preventDefault(); onArchiveSession(s.session_id); }
+          }}
+          className="min-w-0 flex-1 cursor-pointer outline-hidden"
+        >
+          <span data-allow-ellipsis="true" title={s.title} className="block line-clamp-2 wrap-break-word">{s.title}</span>
+        </div>
+      </div>
+      {(hasPendingIssue || taskCount > 0 || showArchive) && (
+        <span className="mt-0.5 flex items-center gap-1 shrink-0">
+          {hasPendingIssue && (
+            <span
+              data-testid={`session-issue-badge-${s.session_id}`}
+              role="img"
+              aria-label="Harness issue detected"
+              title="Harness issue detected"
+              className="size-1.5 shrink-0 rounded-full bg-amber-400"
+            />
+          )}
+          {taskCount > 0 && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onTaskBadgeClick(s.session_id); }}
+              className="rounded-full bg-overlay-subtle px-1.5 text-[10px] text-text-muted hover:text-text-primary"
+            >
+              {taskCount}
+            </button>
+          )}
+          {showArchive && (
+            <button
+              type="button"
+              aria-label="Archive"
+              onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
+            >
+              Archive
+            </button>
+          )}
+        </span>
+      )}
     </div>
   );
 }
@@ -135,7 +148,7 @@ function RepoGroup({
       {repo !== 'Other' && (
         <div className="px-2 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-text-muted">{repo}</div>
       )}
-      <div role="tablist" className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5">
         {visible.map(s => (
           <SessionRow
             key={s.session_id}

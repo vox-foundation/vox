@@ -1,5 +1,18 @@
 # Milestones
 
+## v9.0 Frontpage GUI Tour Refresh, Early Interactive Carousel, Load-Time Optimization & CV Flywheel (Shipped: 2026-11-19)
+
+**Phases completed:** 3 phases (`Phases 533–533.2`), 16/16 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`533.2-REVIEW.md`](workstreams/frontpage-gui-tour-loadtime-cv-v90/533.2-REVIEW.md), [`533.2-REVIEW-FIX.md`](workstreams/frontpage-gui-tour-loadtime-cv-v90/533.2-REVIEW-FIX.md))  
+**Archive:** [`v9.0-ROADMAP.md`](workstreams/frontpage-gui-tour-loadtime-cv-v90/milestones/v9.0-ROADMAP.md) | [`v9.0-REQUIREMENTS.md`](workstreams/frontpage-gui-tour-loadtime-cv-v90/milestones/v9.0-REQUIREMENTS.md) | [`v9.0-MILESTONE-AUDIT.md`](workstreams/frontpage-gui-tour-loadtime-cv-v90/milestones/v9.0-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Vox Axis Source Fixes & 16 Clean `16:10` Captures (`Phases 533–533.1`):** Fixed rightmost DAG node clipping (`ResearchDagCanvas.tsx`), inline markdown bold rendering (`ArenaComparisonCard.tsx`), 4-row inspector clipping (`ImperiumInspector.tsx`), and nested ARIA interactive roles (`SessionSidebarSection.tsx`, `session-rail-actions.spec.ts`), then recaptured `16` glitch-free `1280×800` Axis surfaces (`LIVE` status bar, `33-surface` chrome, `0` toast overlays, `axeViolations: 0`, `outerOverflowPx: 0`) plus rebuilt animated WebP tours (`vox_language_suite_tour.webp` `4.52 MiB -> 376.3 KiB`, `axis_hero_tour.webp` `1.07 MiB -> 413.9 KiB`) and static hero frame (`vox_hero_banner.webp` `812.7 KiB -> 86.7 KiB`).
+- **Measured Load-Time & Payload Reduction (`Phase 533`):** Eliminated eager below-fold downloads, added hero `<link rel="preload" fetchpriority="high">` + intrinsic aspect attributes, and produced graphical benchmark comparison ([`voxlang-frontpage-loadtime-before-after.webp`](../docs/src/assets/voxlang-frontpage-loadtime-before-after.webp)): `10 Mbps` WAN initial `window.load` fell `-94.5%` (`5,824.3 ms -> 318.8 ms`), `LCP` fell `-86.9%` (`2,436 ms -> 320 ms`), initial eager image transfer fell `-98.7%` (`7,048,418 B -> 89,028 B`), full-scroll image footprint fell `-90.5%` (`9,081,540 B -> 859,682 B` after Phase `533.1` carousel consolidation), with `CLS = 0`.
+- **Early Interactive `<VoxGuiTourCarousel />`, Alignment Fixes & Doc Quality (`Phases 533.1–533.2`):** Defeated Starlight `.sl-markdown-content` sibling margin leaks via `not-content` + uniform flexbox buttons/tabs (`VoxPlayground.astro`, `VoxLeaderboardArena.astro`, `reader-layout.css`, `<= 2px` row variance), promoted 9-surface `<VoxGuiTourCarousel />` above `#why-vox`, equalized onboarding & `<CardGrid>` row cards, deduplicated redundant prose/diagrams across `index.mdx`, `how-to-*`, and flagship tutorials, and resolved `CR-01..07` across CLI/serde JSON examples, WAI-ARIA `tabpanel` semantics, Fail-Closed Axe checks, and portable test output paths.
+
+---
+
 ## v8.9 Adversarial `voxlang.org` Audit, `.mdx` / HTML Backtick Fixes, Bespoke Infographics & Deep Cross-Link Overhaul (Shipped: 2026-11-18)
 
 **Phases completed:** 7 phases (`Phases 526–532`), 28/28 requirements verified (`100%`) — `/gsd-code-review --fix` applied ([`532-REVIEW.md`](workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/532-REVIEW.md), [`532-REVIEW-FIX.md`](workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/532-REVIEW-FIX.md))

@@ -14,7 +14,7 @@ const {
   data-endpoint={endpointUrl}
   data-snapshot={JSON.stringify(snapshotData)}
 >
-  <section class="vox-arena-shell" aria-label="Vox Verified Global Leaderboard Arena">
+  <section class="vox-arena-shell not-content" aria-label="Vox Verified Global Leaderboard Arena">
     <header class="vox-arena-header">
       <div class="vox-arena-title-group">
         <div class="vox-arena-eyebrow">
@@ -454,8 +454,18 @@ const {
     gap: 0.5rem;
     align-items: flex-end;
   }
+  .vox-arena-shell button {
+    margin: 0;
+    font-family: inherit;
+    line-height: 1;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
   .vox-arena-window-pills {
     display: flex;
+    align-items: center;
     gap: 0.25rem;
     background: #141418;
     padding: 0.2rem;
@@ -463,12 +473,14 @@ const {
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
   .window-pill {
+    height: 26px;
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: #9b9a94;
     font-size: 0.75rem;
-    padding: 0.25rem 0.6rem;
+    padding: 0 0.6rem;
     border-radius: 6px;
+    white-space: nowrap;
     cursor: pointer;
   }
   .window-pill.active {
@@ -487,17 +499,20 @@ const {
   }
   .vox-arena-tabs {
     display: flex;
+    align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
     margin: 1rem 0;
   }
   .arena-tab {
+    height: 32px;
     background: #141418;
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: #9b9a94;
     border-radius: 8px;
-    padding: 0.45rem 0.85rem;
+    padding: 0 0.85rem;
     font-size: 0.8rem;
+    white-space: nowrap;
     cursor: pointer;
   }
   .arena-tab.active {
@@ -556,12 +571,14 @@ const {
     border: 1px solid rgba(16, 185, 129, 0.3);
   }
   .proof-badge-btn {
+    height: 28px;
     background: rgba(16, 185, 129, 0.1);
     border: 1px solid rgba(16, 185, 129, 0.35);
     color: #10b981;
     border-radius: 6px;
-    padding: 0.25rem 0.55rem;
+    padding: 0 0.55rem;
     font-size: 0.75rem;
+    white-space: nowrap;
     cursor: pointer;
   }
   .sparkline {
@@ -571,6 +588,7 @@ const {
   .proof-inspector-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    align-items: stretch;
     gap: 1rem;
   }
   .proof-card {
@@ -578,6 +596,9 @@ const {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     padding: 1rem;
+    margin: 0;
+    height: 100%;
+    box-sizing: border-box;
   }
   .mono-hash {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -612,14 +633,27 @@ const {
     margin: 0.2rem 0 0;
     font-size: 0.8rem;
   }
+  .drawer-close-btn {
+    height: 28px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #f4f3ee;
+    border-radius: 6px;
+    padding: 0 0.65rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    cursor: pointer;
+  }
   .verify-sig-btn {
+    height: 32px;
     background: #10b981;
     color: #0c0c0e;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 6px;
-    padding: 0.4rem 0.8rem;
+    padding: 0 0.85rem;
     font-size: 0.78rem;
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
   }
   .verify-sig-result {

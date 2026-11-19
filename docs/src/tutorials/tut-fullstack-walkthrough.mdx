@@ -24,8 +24,8 @@ import VoxPlayground from '../../../docs-astro/src/components/VoxPlayground.astr
 This interactive tutorial walks through building a complete full-stack module in a single `.vox` file and inspecting the four compiler outputs it generates in lockstep: Turso/SQLite schema definitions, typed Rust Axum route handlers with `Result[T]` error propagation, reactive TypeScript/React components, and JSON-Schema Model Context Protocol (MCP) agent tools.
 {/* /kb:summary */}
 
-<Aside type="tip" title="Zero-Drift Full-Stack Architecture">
-  In traditional stacks, adding a single field requires editing a SQL migration, a backend struct, an API handler, and a frontend TypeScript interface. In Vox, you declare the domain model once and inspect all four generated targets side by side.
+<Aside type="tip" title="Single-Source Schema Projection">
+  One `table` declaration compiles straight to SQL DDL, Rust structs, HTTP handlers, and TypeScript clients without hand-maintained DTO copies.
 </Aside>
 
 ## Step-by-Step Build Path
@@ -202,15 +202,15 @@ Once your full-stack `.vox` app grows beyond a single module, run `vox ci wiki-s
 
 <CardGrid>
   <Card title="Knowledgebases &amp; OpenWiki" icon="open-book">
-    Learn how 5-layer OpenWiki, Graphify Personalized PageRank, and the non-modal Doc Studio keep docs in sync in [Managing Knowledgebases &amp; Self-Healing OpenWiki](tut-knowledgebase-and-openwiki.mdx).
+    Sync 5-layer OpenWiki hubs and author docs side-by-side in [Knowledgebases &amp; OpenWiki](tut-knowledgebase-and-openwiki.mdx).
   </Card>
   <Card title="Deep Research &amp; Scientia" icon="magnifier">
-    Run Prior-Art Preflight, steer `+1 Wave Refinement`, and stage `arXiv.org` bundles in [Deep Research, Preflight &amp; Scientia Publication](tut-deep-research-and-scientia.mdx).
+    Run Prior-Art Preflight, steer waves, and stage `arXiv.org` bundles in [Deep Research &amp; Scientia](tut-deep-research-and-scientia.mdx).
   </Card>
-  <Card title="Task-list build" icon="rocket">
-    The step-by-step task app is [First Full-Stack App](tut-first-app.md). Install stays in [Installing Vox](../reference/installation.md). The 60-second path is [Getting Started](tut-getting-started.md).
+  <Card title="Task-List App Tutorial" icon="rocket">
+    Build mutations and routes step by step in [First Full-Stack App](tut-first-app.md) or revisit [Getting Started](tut-getting-started.md).
   </Card>
   <Card title="Durable Workflows" icon="setting">
-    Learn how `activity` and `workflow` blocks journal every step ordinal in [Durable Workflows](tut-workflow-durability.md). Look up syntax details in [Syntax Reference](../reference/ref-syntax.md).
+    Journal activity ordinals, signals, and timers cleanly in [Durable Workflows](tut-workflow-durability.md) and [Syntax Reference](../reference/ref-syntax.md).
   </Card>
 </CardGrid>
