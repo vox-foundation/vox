@@ -27,7 +27,7 @@ graph {
   node K: "3. 3-Layer Federated KB (MemoryView)"
   node P: "4. Scientia Studio (PublicationsView)"
 
-  R -> Q: "finding-{sid}-{digest} + EmpiricalScience"
+  R -> Q: "Promote finding + Claims"
   K -> R: "Context Retrieval & Grounding"
   K -> Q: "file_gui_finding (target_scope)"
   Q -> P: "Open in Studio (vox://navigate-surface)"
