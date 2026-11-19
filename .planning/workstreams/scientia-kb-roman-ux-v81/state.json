@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v8.1 — (`scientia-kb-roman-ux-v81`) — Research & Knowledge Base Romanesque/Slate UX Overhaul, Progressive Disclosure, Click-Tax Reduction & Concept-Art CV Flywheel",
+  "phases": [
+    {
+      "number": "477",
+      "name": "Critical Baseline Audit, Stricter DOM/CV Detectors & Before Screenshot Capture",
+      "status": "completed"
+    },
+    {
+      "number": "478",
+      "name": "Zero-Emoji Concept Art Generation & Romanesque SVG Medallions",
+      "status": "completed"
+    },
+    {
+      "number": "479",
+      "name": "Overhaul Research Surfaces (`ResearchView`, `ResearchDagCanvas`, Tables, Inspector & Drawer)",
+      "status": "completed"
+    },
+    {
+      "number": "480",
+      "name": "Overhaul Scientia, Publications & Discovery Surfaces",
+      "status": "completed"
+    },
+    {
+      "number": "481",
+      "name": "Overhaul Knowledge Base Surfaces (`MemoryView`, `VoxGraphStatusPanel`, `DocReader`)",
+      "status": "completed"
+    },
+    {
+      "number": "482",
+      "name": "Verification, CV Flywheel Convergence (`CV_STAGE=after`) & `/gsd-ui-review` Before/After Audit",
+      "status": "completed"
+    }
+  ],
+  "next": {
+    "command": "/gsd-ui-review",
+    "label": "Milestone v8.1 Complete",
+    "reason": "All Phases 477-482 verified with 16/16 Playwright CV Flywheel convergence, 16-file Vitest pass, and 482-UI-REVIEW.md signed off."
+  },
+  "updated_at": "2026-11-18T07:20:00.000Z"
+}

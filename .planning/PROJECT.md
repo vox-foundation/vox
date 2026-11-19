@@ -39,6 +39,48 @@ Vox is a mature, actively-developed cross-platform Rust workspace (138+ crates) 
 
 The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree (`/Users/brbrainerd/dev/vox`) or federated sibling repositories with zero LLM split-brain, while remaining **100% functional offline/standalone** with zero dependency on `vox-ops` and **100% transparent, disableable, strongly-typed telemetry**.
 
+## Completed Milestone: v8.9 (`adversarial-docs-graphics-crosslink-overhaul-v89`) — Complete & Shipped (`Phases 526–532`, `28/28` requirements, shipped 2026-11-18)
+
+Remediated every defect surfaced in adversarial review of `docs-astro/dist/` and `docs/src/`: fixed `.mdx` duplicate `<h1>` stripping in `remarkStripTitleH1` (`SKIP_TYPES` skipping `mdxjsEsm` and `mdxFlowExpression`) with unit test coverage, eliminated raw backtick leaks across `docs/src/index.mdx`, `how-to-axis-workbench.md`, `how-to-scientia-publication.md`, and `tut-deep-research-and-scientia.mdx`, and fixed quoted CLI arg tokenization in `scripts/docs/tutorial-verify.vox`. Generated and staged 3 dual-theme Carrara/Slate/Brass `.webp` architectural infographics (`scientia-research-arxiv-flywheel.webp` via `image-generator`; `federated-kb-openwiki-arch.webp` and `non-modal-doc-studio-formats.webp` via Playwright Chromium + Sharp fallback after `429 RESOURCE_EXHAUSTED`, all visually inspected), deepened `tut-deep-research-and-scientia.mdx` and `tut-knowledgebase-and-openwiki.mdx`, modernized `tut-getting-started.md`, `tut-first-app.md`, `tut-ui-integration.md`, and `tut-actor-basics.md`, rewrote/upgraded `ref-search.md`, `gui-navigation.md`, `external-repositories.md`, `scientia-ssot-handbook.md`, `ref-syntax.md`, `glossary.md`, `faq.md`, `why-vox-for-ai.md`, `expl-architecture.md`, `expl-ai-orchestration.md`, and `vox-deep-research-primer.md`, fixed 16 truncated frontmatter `description:` strings, and added `docs-astro/tests/build-output/v89-quality.spec.ts`. Verified via `--tighten-facet-backlog` (`662 -> 649 docs`), `./target/debug/vox-doc-pipeline --lint-only` (`vox-doc-pipeline lint complete — no hard errors.`), `./target/debug/vox run --mode interp scripts/docs/tutorial-verify.vox` (`7/7` tutorials `commands=pass snippets=pass install=pass links=pass`), `pnpm --dir docs-astro build` (`933` static pages, `All internal links are valid.`), `node --test docs-astro/tests/unit/*.test.mjs` (`1084/1084` passed), and Playwright `tests/build-output tests/suite-portal-showcase.spec.ts` (`43 passed, 1 skipped` in `dates.spec.ts`).
+
+### Previously Completed Milestone: v8.8 (`voxlang-tutorials-kb-openwiki-docs-v88`) — Complete & Shipped (`Phases 520–525`, `24/24` requirements, shipped 2026-11-18)
+
+Brought `voxlang.org` (`docs/src/` and `docs-astro/`) fully up to date with shipped `v7.9–v8.7` capabilities: converted 10 verified dual-theme `v8.7` Axis GUI captures into `.webp` showcases (`docs/src/assets/axis/` & `docs-astro/public/assets/axis/`), authored interactive Starlight `.mdx` flagship tutorials ([`tut-deep-research-and-scientia.mdx`](../docs/src/tutorials/tut-deep-research-and-scientia.mdx) & [`tut-knowledgebase-and-openwiki.mdx`](../docs/src/tutorials/tut-knowledgebase-and-openwiki.mdx)) with verified compiling `.vox` playground labs, upgraded `tut-getting-started.md`, `tut-fullstack-walkthrough.mdx`, `tut-workflow-durability.md`, `how-to-axis-workbench.md`, `how-to-scientia-publication.md`, `how-to-ai-agents.md`, `how-to/index.md`, and `docs/src/index.mdx` (preserving `why_vox` parity), tightened resolved facet backlog rows (`665 -> 662 docs`, `0` hard errors/warnings), and verified all `933` static pages + internal links in `pnpm --dir docs-astro build`.
+
+### Previously Completed Milestone: v8.7 (`workspace-doc-dock-and-e2e-closure-v87`) — Complete & Shipped (`Phases 514–519`, `24/24` requirements, shipped 2026-11-18)
+
+Closed workspace-wide non-modal Doc Dock integration: added `resolve_workspace_doc_path` in `docs_index.rs` across `docs/src`, `docs/wiki`, repo root, `contracts`, `crates`, `scripts`, and `~/.vox/library/` (blocking `.env*` secrets & `..` traversal while fixing `docs/src/docs/src/` double-prefixing and supporting `.rs`/`.ts`/`.tsx`/`.sql`), added a universal `vox://open-doc` event bus in `useDocViewer.ts` and `App.tsx` supporting unsaved synthesis draft seeding and `+ New Doc` templates in `DocReader.tsx`, routed `MemoryView` `HitCard` `Open` clicks and `ResearchView` `Edit in Doc Dock` / KB preflight hits straight into the non-modal dock, and repaired `coldStartJourneys.test.tsx`.
+
+### Previously Completed Milestone: v8.6 (`research-above-fold-synthesis-and-discovery-dedup-v86`) — Complete & Shipped (`Phases 507–513`, `28/28` requirements, shipped 2026-11-18)
+
+Promoted synthesized research reports and verdict banners above the fold in `ResearchView` alongside past-session keyword filtering (`research-history-filter-input`) and 1-click Domain Mode cycling (`research-domain-mode-pill`), eliminated the stacked marble frieze header and manual Refresh button in `DiscoverySurface` / `ActivitySurface` via `EmbeddedSurfaceProvider` and `visibilitychange` sync, tightened `MemoryView` citation action bars onto single unwrapped rows with provenance pills and a collapsible `INVARIANT` card, and converted `DocViewerDrawer` + `DocReader` into a non-modal docked pane (`aria-modal="false"`) with full GFM/frontmatter/callouts/checklists/AsciiDoc/JSON/YAML/TOML/CSV/code parsing and `Read | Split | Edit` persistence (`write_doc_markdown`).
+
+### Previously Completed Milestone: v8.5 (`research-click-tax-observability-and-control-v85`) — Complete & Shipped (`Phases 501–506`, `24/24` requirements, shipped 2026-11-18)
+
+Eliminated click tax across `Research`, `Memory`, `Scientia`, `Claims`, `Search Index`, and `Publications`, compressed above-the-fold chrome so synthesis reports lead cleanly, exposed research subquery/domain/pruning observability + mid-flight `+1 Wave Refinement` steering, unified scoped direct KB indexing (`Repo-Local KB` / `Global Library` + `Index Now`) vs. Findings quarantine (`Save to KB`), upgraded `MemoryView` search cards (`Expand`/`Collapse` + `Research Topic`) and `VoxGraphStatusPanel` live shard diagnostics + `Search Shard in Memory`, and eliminated raw ID copy-pasting via 1-click quick pickers and clickable action rows across `ClaimsView`, `DiscoveryReview`, and `ScientiaDashboard`.
+
+### Previously Completed Milestone: v8.4 (`research-ux-journey-and-power-v84`) — Complete & Shipped (`Phases 495–500`, `24/24` requirements, shipped 2026-11-18)
+
+Optimized the Research, Federated KB, Discovery Review, and Publications Studio user journeys around statistical researcher archetypes, pruned redundant chrome, made every technical control self-documenting, and added Live KB Prior-Art Preflight plus an interactive epistemic Confidence Gate.
+
+### Previously Completed Milestone: v8.3 (`unified-research-kb-publication-flywheel-v83`) — Complete & Shipped (`Phases 489–494`, `24/24` requirements, shipped 2026-11-18)
+
+Closed the end-to-end loop across active `ResearchView`, 3-layer federated KB (`vox_baseline`, `~/.vox/library/`, and repo-local `docs/wiki/`), and autonomous `Scientia` discovery-to-publication (`PublicationsView`) so tools operate cleanly standalone or in tandem.
+
+### Previously Completed Milestone: v8.2 (`scientia-arxiv-publication-control-v82`) — Complete & Shipped (`Phases 483–488`, `24/24` requirements, shipped 2026-11-18)
+
+See Completed Milestone `v8.2` below.
+
+## Completed Milestone: v8.2 — Scientia Publication Classification, 7-Stage Lifecycle Control & `arXiv.org`-Quality Manuscript Synthesis (`Phases 483–488`, `24/24` requirements, shipped 2026-11-18)
+
+**Workstream:** `.planning/workstreams/scientia-arxiv-publication-control-v82/` (alongside sibling workstreams `scientia-kb-roman-ux-v81` Phases 477–482, `universal-kb-openwiki-v79` Phases 465–470, and `axis-terminal-sota-v80` Phases 471–476).
+**Goal:** Overhaul how Vox Scientia classifies, controls, gates, synthesizes, and stages scientific publications across all 7 lifecycle stages (`draft -> doi_reserved -> orcid_attributed -> approved -> submitted -> published` + `failed`), resolving broken `paper`/`scientia`/`benchmark_report` venue routing, introducing multi-dimensional `PublicationTier` + `arXiv.org` subject taxonomy + SPDX license + ORCID/DOI metadata, generating zero-stub scholarly `arXiv.org` LaTeX + `references.bib` + validated `.tar.gz` bundles, and delivering an interactive Romanesque (`arcane`) / Slate (`void`) Publication Control Studio in `PublicationsView.tsx` and `DirectPublicationDrawer.tsx`.
+
+## Completed Milestone: v8.1 — Research & Knowledge Base Romanesque/Slate UX Overhaul, Progressive Disclosure, Click-Tax Reduction & Concept-Art CV Flywheel (`Phases 477–482`, `24/24` requirements, shipped 2026-11-18)
+
+**Workstream:** `.planning/workstreams/scientia-kb-roman-ux-v81/` (alongside sibling workstreams `universal-kb-openwiki-v79` Phases 465–470 and `axis-terminal-sota-v80` Phases 471–476).
+**Goal:** Eliminate generic "Gemini-like" dark/purple/indigo/cyan/black-alpha palette leaks, unreadable micro-fonts, inconsistent button heights/framing, flat vertical card sprawl, and high click tax across Vox Research (`research`, `scientia`, `publications`, `activity`/Discovery) and Knowledge Base (`memory`, `vox-search`/VoxGraph, `DocReader`) surfaces across dual Romanesque (`arcane`) & Slate (`void`) themes, verified via zero-emoji Concept Art plates, `@ngi/platform-ssot` CV Flywheel convergence, and `/gsd-ui-review` Before/After audits.
+
 ## Completed Milestone: v7.6 — Unified Light ↔ Deep Research Continuum, Extreme-Data Streaming, Socrates/Novelty Verification, Direct Publication Flywheel & Vox Concilium / Populi Swarm Observatory (`Phases 447–455`, `38/38` requirements, shipped 2026-11-16)
 
 **Goal:** Unify Chat RAG (`Loquela`), multi-wave Deep Research (`vox-research-shim`), out-of-core streaming (`vox-orchestrator-mcp`, `std.frame`), calibrated 3-tier verification & Novelty × Utility continuous discovery (`vox-scientia`, `vox-publisher`, `vox-similarity`), DB-hydrated Direct Publication (`> Nanopublication`), decoupled OpenRouter reasoning/synthesis budgets + `flock`-aware daemon DB proxying (`LIVE-09..12`), and W3C `traceparent` + `#seq` **Vox Concilium & Populi** causal swarm observability (`CONC-01..08`).
@@ -555,4 +597,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-16 after shipping v7.6 milestone via /gsd-complete-milestone*
+*Last updated: 2026-11-18 after shipping v8.9 milestone via /gsd-complete-milestone*

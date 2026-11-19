@@ -1,5 +1,65 @@
 # Project Retrospective
 
+## Milestone: v8.9 (`adversarial-docs-graphics-crosslink-overhaul-v89`) — Adversarial `voxlang.org` Overhaul, Bespoke Infographics & Pre-Merge Review Closure
+
+**Shipped:** 2026-11-18 | **Phases:** 7 (`Phases 526–532`) | **Requirements:** 28/28 (`100%`)
+**Workstream:** `.planning/workstreams/adversarial-docs-graphics-crosslink-overhaul-v89/`
+
+### What Was Built
+- **`.mdx` Engine, Backtick Hygiene & Tutorial Verifier (`Phase 526`):** Updated `remarkStripTitleH1` (`SKIP_TYPES` skipping `mdxjsEsm` and `mdxFlowExpression`) with unit tests, eliminated raw backtick leaks across `docs/src/index.mdx`, `how-to-axis-workbench.md`, `how-to-scientia-publication.md`, and `tut-deep-research-and-scientia.mdx`, and fixed quoted arg parsing in `scripts/docs/tutorial-verify.vox`.
+- **Architectural Infographics & Flagship/Corpus Documentation (`Phases 527–531`):** Generated and staged 3 dual-theme `.webp` infographics (`scientia-research-arxiv-flywheel.webp`, `federated-kb-openwiki-arch.webp`, `non-modal-doc-studio-formats.webp`), deepened `tut-deep-research-and-scientia.mdx` and `tut-knowledgebase-and-openwiki.mdx`, refreshed 14 sibling tutorials/reference/explanation/contributor guides, fixed truncated frontmatter descriptions, tightened the facet backlog (`662 -> 649`), and added `docs-astro/tests/build-output/v89-quality.spec.ts`.
+- **Pre-Merge Code Review & Workspace Green Sweep (`Phase 532`):** Remediated `CR-01..10` (adding `VoxDb::set_publication_queue_stage` via TDD, removing 5 direct `.connection()` queries outside `vox-db`, fixing `vox audit arch` dynlib pattern allowlist, `db-schema-coverage` test SQL literal, `docs_cli_claims`, `docs_orphan_pages` on `ref-search.md`, `DocReader.tsx` honesty parameter, Vitest assertions/timeouts, `baseline-version-policy.yaml` digest, and 2 `vox-scientia` Clippy lints).
+
+### What Worked
+- **Built-HTML Regression Specs (`v89-quality.spec.ts`) + Full-Repo `vox ci ssot-drift` Before PR:** Testing the actual rendered Astro HTML (`<h1>` uniqueness, zero literal backtick leaks, image asset resolution, internal links) alongside `ssot-drift` and `-D warnings` Clippy caught structural, link-graph, and SQL-surface regressions locally before CI.
+
+---
+
+## Milestone: v7.9 (`universal-kb-openwiki-v79`) — Universal Multi-Repo Knowledgebase, Graphify Associative Retrieval & Tiered Self-Healing OpenWiki
+
+**Shipped:** 2026-11-17 | **Completed Phases:** `6` (`Phases 465–470`) | **Requirements:** `24/24` (`100%`)
+**Workstream:** `.planning/workstreams/universal-kb-openwiki-v79/`
+
+### What Was Built
+- **Phase 465 (`REPO-01..04`, `KB-01..02`):** Added `ReadOnlyLocal` & `WriteFile` access modes, `ActiveRepoContext`, `~/.vox/library` + `~/.vox/repos/<id>` storage isolation, `--harness`/`--read-only` CLI/MCP onboarding (`vox init --harness`, `vox repo init/add/switch`), `kb_scoped_corpus_key` `(repository_id, corpus_tier)` DB partitioning (`source_uri` uniqueness across repos), and dynamic `KbCorpusManifest` discovery in `vox-search`.
+- **Phase 466 (`KB-03..04`, `GRAPH-01..04`):** Relocated CI maps from `graphify-out/` to `.vox/cache/ci-maps/`, implemented polyglot Go/SQL/HTTP/CLI/Markdown extraction + `CrossEdgeKind` (`DocumentedIn`, `CitesSymbol`, `GovernedByAdr`, `TouchedByDecision`) in `vox-graph-reader` (`95/95` tests, all modules `< 500` lines), wired HippoRAG PPR + Leiden community retrieval into `vox-search` (`284` tests), and shipped bidirectional `kb_findings`/`MemPalace` promotion + `vox kb eval --multi-repo`.
+- **Phase 467 (`WIKI-01..02`):** Built repo-agnostic 5-layer OpenWiki synthesis (`openwiki_polyglot.rs`), non-destructive `<!-- openwiki:auto:start/end -->` region merging (`merge_openwiki_auto_regions`), OKF frontmatter + `vox-diagram` topologies (`0` legacy Mermaid), external-repo `--lint-only`, and `vox ci wiki-sync` / `vox repo --wiki` CLI + `vox_repo_catalog_refresh` MCP parity.
+
+### What Worked
+- **Non-Destructive Auto-Region Fences (`merge_openwiki_auto_regions`) + `(repository_id, corpus_tier)` URI Scoping:** Isolating `source_uri` as `{corpus}:{rel_path}` prevented silent `UNIQUE(source_uri)` collisions across repos, while HTML comment fences preserved human prose across deterministic OpenWiki rebuilds.
+
+---
+
+## Milestone: v7.7 (`mens-hf-hub-autosync-v77`) — Hugging Face Hub Auto-Sync, Model Cards v3, Free Inference Providers & Playground Space
+
+**Status:** Active (`Phases 453–457.2` complete, `7/8` phases; `Phase 458` awaiting larger Metal runs)
+**Workstream:** `.planning/workstreams/mens-hf-hub-autosync-v77/`
+
+### What Was Built
+- **Phases 453–454 (`HF-RES-01..02`, `HF-SYNC-01..05`):** Published `hf-model-cards-and-inference-providers-research-2026.md`, generalized `hub_repo.rs`/`hub_sync.rs` across the Nov 2026 multi-family ladder (`Qwen3-0.6B`, `Qwen3.5-{2B,4B,9B}`, `Qwen3.8-27B`) + legacy pins, enabled zero-reupload card/`.eval_results` updates via `is_card_collateral`, propagated Clavis tokens, sanitized cache paths, and added `ensure_mens_collection`.
+- **Phases 455–457 (`HF-PKG-01..04`, `HF-CARD-01..04`, `HF-SPACE-01..04`):** Added native BF16 `recombine_hf_causal_lm` (`Qwen3_5ForCausalLM`, zero 2x F32 bloat) in `vox-quantize`, zero-alloc Candle-to-PEFT export (`peft_export.rs`), `Modelfile`/`chat_template.jinja` bundling, raster JPEG hub banners (zero SVGs), dynamic `ladder_index.json` Playground Space (`vox-mens-playground`) with `alpha / sqrt(rank)` rsLoRA WebGPU merging, and HF Router / Featherless AI fallback.
+- **Phases 457.1–457.2 (`HF-ONBOARD-01..04`, `HF-CANARY-01..04`):** Replaced insider jargon with plain-English What/Why/How copy & `## Vox and Python` onboarding, blocked ungated (`!gate_current`) card pushes (`CardPushPlan::SkipUngated`), fixed systemless `<think>` ChatML formatting in `training_text.rs`, upgraded `builtin_system_prompt()` + `target/dogfood_v4/train.jsonl` (`1,902` rows), and drove `Vox Mens 0.8B` (`v2`) held-out `pass@1` from `46.2%` (`24/52`) to `73.1%` (`38/52`) with `24.2%` pooled collateral accuracy (`384` items, `64` gains / `11` losses).
+
+### What Worked
+- **Fail-Closed Gate Guard on Hub Cards (`CardPushPlan::SkipUngated`) + `0.8B` Canary Remediation Before `27B` Push:** Catching the systemless `<think>` ChatML mismatch and semicolon/option-indexing drift on the fast `0.8B` canary prevented shipping flawed prompt/template artifacts across the multi-hour `2B`–`27B` rungs.
+
+---
+
+## Milestone: v7.6 (`scientia-deep-research-v76`) — Unified Light ↔ Deep Research Continuum, Extreme-Data Streaming, Socrates/Novelty Verification, Publication Flywheel & Concilium Observatory
+
+**Shipped:** 2026-11-16
+**Phases:** 9 (`Phases 447–455`) | **Plans:** 14 | **Requirements:** 38/38 (`100%`)
+
+### What Was Built
+- **Phases 447–452 (`AUDT-01..04`, `DISC-01..04`, `CONT-01..04`, `STRM-01..04`, `VERI-01..04`, `PUBL-01..04`, `STUD-01..02`):** Delivered baseline contracts, unified Light ↔ Deep Research Continuum with Socrates grounding & KV caching, extreme-data streaming onto an Epistemic Canvas, calibrated Anti-Ouroboros verification & discovery, direct Scientia publication flywheel & studio GUI, and inline diff + audit closure.
+- **Phase 453 (`LIVE-09..12`):** Separated `reasoning_max_tokens` from visible `Synthesis` budget (`12,000` visible + `4,000` reasoning cap), preserved byte spans in `claim_extractor` (`mask_non_prose_regions`), added `prior_art_max_lexical_overlap` discovery scoring, and isolated daemon DB mutations behind `flock`-aware `daemon_db_proxy.rs`.
+- **Phases 454–455 (`CONC-01..08`):** Added causal swarm event stamping (`CausalSwarmStamp`), persistent `#seq` sequence board (`vox-db::ops_a2a`), `/api/v2/concilium/*` HTTP gateway routes, and consolidated `AgentFlow`, `SubAgentsView`, and `AgentTrajectoryBraid` onto `<ConciliumView />` (`W3C traceparent` swimlanes + `#seq` bulletin) and `<PopuliTopologyView />` (`1,574` Rust unit tests + `50` Vitest tests passing).
+
+### What Worked
+- **Reasoning-Budget Separation & Span-Preserving Claim Masking (`Phase 453`):** Separating `reasoning_max_tokens` prevented thinking traces from truncating visible citations, while masking code blocks without altering byte offsets preserved `SpanChecker` precision.
+
+---
+
 ## Milestone: v7.5 — Roman Scriptorium Warp-Class Agentic Terminal, Stateful PTY Engine, Bidirectional Chat Harness & CV Flywheel Convergence
 
 **Shipped:** 2026-11-15
@@ -36,6 +96,31 @@
 ### What Worked
 - **Downward-Only MCP Authorization + Sequence-Guarded Rollbacks (`--fix`):** Fresh-context adversarial review caught caller-widening in `authorize_wave3_call` (`CR-01`), uncontained worktree/external-session paths (`CR-02`), and out-of-order optimistic rollback races (`WR-02`), all closed with unit and Playwright E2E regression tests (`live-controls-v74.spec.ts` Test 5).
 - **Imperative `useGroupRef()` Layout Hydration (`MasterDetailWorkbench`):** Synchronizing `react-resizable-panels` layout imperatively instead of remounting via React `key` preserved child scroll/input state across async preference hydration.
+
+---
+
+## Milestone: v7.3 (`mens-nov2026-v73`) — Nov 2026 Dense MENS QLoRA Ladder Calibration, Multi-Spoke Corpus, Training & Evaluation
+
+**Status:** Active (`Phases 425–428` complete; executing `Phase 429` paired evaluations) | **Completed Phases:** `4` (`Phases 425–428`)
+**Workstream:** `.planning/workstreams/mens-nov2026-v73/`
+
+### What Was Built
+- **Phases 425–426 (`MENS-NOV26-PREFLIGHT-01..04`, `PREP-01..03`):** Resolved Stage D pre-flight code seams (`generation_config.json`/`special_tokens_map.json` download, `is_text_tower_weight_key` vision/MTP shard filtering, multi-family `compare_json_path` & `size_select`, `HubAction::Download --cache-only`), prefetched text-only Qwen3.5/Qwen3.8 snapshots, and regenerated compiler-verified spoke mixes.
+- **Phases 427–428 (`MENS-NOV26-CAL-01..03`, `TRAIN-01..04`):** Fitted real `candle-metal` `act_bytes_per_lht` slopes and measured Metal QLoRA peak floors in `mens/config/gpu-specs.yaml` (`floor_measured: true`); executed 1 uncapped epoch (`1,411` micro-steps, `177` optimizer steps, `1,285,323` packed tokens, `0` skipped batches) across `Qwen3.5-2B` (`20.45` GiB peak, val loss `0.6801`), `Qwen3.5-4B` (`39.78` GiB, `0.6232`), `Qwen3.5-9B` (`49.00` GiB, `0.6141`), and `Qwen3.8-27B` (`45.38` GiB with activation checkpointing, `0.5060`).
+
+### What Worked
+- **Full-Attention Activation Checkpointing (`Phase 428`):** Activation checkpointing cut `Qwen3.8-27B` Metal training peak from the `73,503` MiB uncheckpointed calibration floor down to `46,467` MiB (`45.38` GiB) — lower than `9B`'s uncheckpointed peak (`50,174` MiB).
+
+---
+
+## Milestone: v7.1 — Public Release Readiness, Zero-Red Gate Convergence & Codebase Hygiene
+
+**Shipped:** 2026-11-13
+**Phases:** 6 (`Phases 413–418`) | **Plans:** 6 | **Requirements:** 24/24 (`100%`)
+
+### What Was Built
+- **Phases 413–415 (`HYGIENE-GATE-01..06`, `ROOT-01..04`, `FED-01..03`):** Excluded Edition-2021 `patches/**` from Edition-2024 `rustfmt` sweeps, reconciled `layers.toml` / `fan-in-snapshot.v1.json` / `crate-edges.allow.v1.json`, routed `VOX_REPO_ROOT` through `vox_repository::core`, purged stray root artifacts, fixed the CWD-relative `mens/` path bug in `vox-ml-cli` (`12/12` tests), and aligned the 4-repo federation (`4/4` repos, `56` contracts, `404`-node symbol graph).
+- **Phases 416–418 (`HYGIENE-AUDIT-01..04`, `TEST-01..03`, `DOCS-01..04`):** Burned down `arch/workspace_drift` (`544+ -> 0`) and `vox-drift-check` warnings (`41 -> 0`) across `117` crates, closed `.planning/WINDOWS.md` (`open_count: 0`), brought `101` `#[ignore]` tests to `0` violations under `vox ci ignored-test-age --mode enforce`, refreshed `0.6.0` release governance docs (`voxup` `111/111`), and published `contracts/reports/v71-public-readiness-scorecard.v1.json`.
 
 ---
 
@@ -205,3 +290,20 @@
 | **v5.6** | 2026-11-13 | 11 | 22 | Reasoning Where the Lane Needs It |
 | **v5.7** | 2026-11-13 | 12 | 35 | Vox ↔ Python Bridge, Tolerant CLI, Docs Parity/SSOT, Gated Qwen3 Training & MENS Crucible Studio |
 | **v6.9** | 2026-11-12 | 2 | 3 | Build Velocity, Structural DAG Decoupling, Apple Silicon Linker Optimization & MENS Multi-Spoke Corpus/QLoRA Pipeline |
+| **v7.1** | 2026-11-13 | 6 | 6 | Public Release Readiness, Zero-Red Gate Convergence, 4-Repo Federation Reconciliation & Release Governance (`24/24` reqs) |
+| **v7.3** | Active (`425–428` done) | 4 / 6 | 4 / 6 | Nov 2026 Dense MENS QLoRA Ladder Calibration (`2B/4B/9B/27B` uncapped Metal runs) & Paired Gate Evaluation |
+| **v7.4** | 2026-11-14 | 6 | 6 | Axis Live Control Wiring, Zero-Emoji Vector Semiotics, shadcn/Tailwind v4 Upgrade & Bento CV Flywheel (`24/24` reqs) |
+| **v7.5** | 2026-11-15 | 7 | 29 | Roman Scriptorium Warp-Class Agentic Terminal, Stateful PTY, Chat Harness, CV Flywheel & Build Contention Elimination |
+| **v7.6** | 2026-11-16 | 9 | 14 | Unified Light ↔ Deep Research Continuum, Extreme-Data Streaming, Scientia Flywheel & Concilium Swarm Observatory (`38/38` reqs) |
+| **v7.7** | Active (`453–457.2` done) | 7 / 8 | 7 / 8 | HF Hub Auto-Sync, Model Cards v3, Free Inference Providers, Space Playground & `0.8B v2` Canary (`73.1% pass@1`) |
+| **v7.9** | 2026-11-17 | 6 | 6 | Universal Multi-Repo KB Isolation, Polyglot Graphify PPR/Cross-Edges, Tiered OpenWiki Self-Heal & OpenWiki Studio |
+| **v8.0** | 2026-11-17 | 6 | 6 | Axis Terminal SOTA (`Notify` PTY, Nushell, VoxLang REPL, Spoke 9 & `terminal-bench.v1.json`) |
+| **v8.1** | 2026-11-18 | 6 | — | Research & KB Romanesque / Slate UX Overhaul, Progressive Disclosure & Concept-Art CV Flywheel |
+| **v8.2** | 2026-11-18 | 6 | — | Scientia Publication Classification, 7-Stage Lifecycle & `arXiv.org` Control Studio |
+| **v8.3** | 2026-11-18 | 6 | — | Unified Research, 3-Layer Federated KB & Scientia Publication Flywheel |
+| **v8.4** | 2026-11-18 | 6 | — | Research UX Journey, 4 Statistical Archetypes, Live KB Preflight & Confidence Gate |
+| **v8.5** | 2026-11-18 | 6 | — | Research Click-Tax Elimination, Wave Steering & Unified KB Scoping |
+| **v8.6** | 2026-11-18 | 7 | — | Above-Fold Research Synthesis, Discovery Chrome Dedup & Non-Modal Doc Studio |
+| **v8.7** | 2026-11-18 | 6 | — | Workspace-Wide Non-Modal Doc Dock (`vox://open-doc`) & Multi-Surface E2E Closure |
+| **v8.8** | 2026-11-18 | 6 | — | `voxlang.org` Tutorials, Federated KB/OpenWiki & Axis Guide Upgrade |
+| **v8.9** | 2026-11-18 | 7 | — | Adversarial `voxlang.org` Overhaul, Bespoke `.webp` Infographics, Regression Specs & Pre-Merge Review Closure |

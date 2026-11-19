@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v8.5 — (`research-click-tax-observability-and-control-v85`) — Click Tax Elimination, Research Observability & Direct Storage / Search Control",
+  "phases": [
+    {
+      "number": "501",
+      "name": "Workstream Initialization & Visual Click-Tax / Observability / Control SSOT",
+      "status": "completed"
+    },
+    {
+      "number": "502",
+      "name": "Above-the-Fold Chrome Compression & Research Process Observability / Steering",
+      "status": "completed"
+    },
+    {
+      "number": "503",
+      "name": "Search & Storage Control in MemoryView & VoxSearchView",
+      "status": "completed"
+    },
+    {
+      "number": "504",
+      "name": "Zero-ID-Typing Click-Tax Elimination in ClaimsView, DiscoveryReview & ScientiaDashboard",
+      "status": "completed"
+    },
+    {
+      "number": "505",
+      "name": "TypeScript & Extended Vitest Control/Steering/Expansion Suites",
+      "status": "completed"
+    },
+    {
+      "number": "506",
+      "name": "Visual CV Flywheel Gate, Screenshot Audit & Milestone Closeout",
+      "status": "completed"
+    }
+  ],
+  "next": {
+    "command": "/gsd-complete-milestone",
+    "label": "Milestone v8.5 shipped and verified",
+    "reason": "All 6 phases (501-506) and 24/24 requirements passed tsc, 11-file Vitest (101/101), and Playwright dual-theme CV Flywheel (16/16)."
+  },
+  "updated_at": "2026-11-18T15:21:00.000Z"
+}
