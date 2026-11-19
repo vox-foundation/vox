@@ -211,6 +211,7 @@ test.describe('Phase 533.1 — voxlang.org Carousel, Row Alignments & Dual-Theme
           '.carousel-theme-btn',
           '.carousel-nav-btn',
           '.carousel-counter',
+          '.carousel-brand-label',
           '.carousel-badge',
           '.carousel-title',
           '.carousel-desc',
@@ -234,9 +235,86 @@ test.describe('Phase 533.1 — voxlang.org Carousel, Row Alignments & Dual-Theme
       });
       expect(contrastFailures, `WCAG contrast failures in ${theme} theme`).toEqual([]);
 
-      // 5. Button alignment & equal row card height check on /
-      const homeAlignFailures = await auditRowAlignments(page, `/ (${theme})`);
+      // 5. Button alignment, zero label clipping & equal row card height check on / (1440x900)
+      const homeAlignFailures = await auditRowAlignments(page, `/ (${theme}, 1440x900)`);
       expect(homeAlignFailures, `Alignment failures on / (${theme}):\n${homeAlignFailures.join('\n')}`).toEqual([]);
+
+      const assertNoClippedControls = async (vpLabel: string) => {
+        const clipped = await page.evaluate((ctx) => {
+          const selectors = [
+            '.vox-home-actions a',
+            '.playground-tab',
+            '.target-tab',
+            '.secondary-tab',
+            '.carousel-tab',
+            '.carousel-theme-btn',
+            '.carousel-nav-btn',
+          ];
+          const hits: string[] = [];
+          for (const sel of selectors) {
+            for (const el of Array.from(document.querySelectorAll(sel))) {
+              const rect = el.getBoundingClientRect();
+              if (rect.width === 0 || rect.height === 0) continue;
+              if (el.scrollWidth > el.clientWidth + 2) {
+                hits.push(
+                  `${ctx} [${sel}] "${(el.textContent || '').trim()}" scrollWidth=${el.scrollWidth} > clientWidth=${el.clientWidth}`,
+                );
+              }
+            }
+          }
+          return hits;
+        }, vpLabel);
+        expect(clipped, `Clipped button/tab labels at ${vpLabel}`).toEqual([]);
+      };
+
+      const assertHeroAndTiersSingleRow = async (vpLabel: string) => {
+        const rowFailures = await page.evaluate((ctx) => {
+          const errs: string[] = [];
+          const heroBtns = Array.from(document.querySelectorAll('.vox-home-actions a')).map((el) =>
+            el.getBoundingClientRect(),
+          );
+          if (heroBtns.length >= 2) {
+            const firstTop = heroBtns[0].top;
+            for (const r of heroBtns) {
+              if (Math.abs(r.top - firstTop) > 2) {
+                errs.push(`${ctx} hero CTAs wrapped across rows (top ${firstTop.toFixed(1)} vs ${r.top.toFixed(1)})`);
+                break;
+              }
+            }
+          }
+          const tiers = Array.from(document.querySelectorAll('.vox-progressive-tiers .vox-tier-card')).map((el) =>
+            el.getBoundingClientRect(),
+          );
+          if (tiers.length === 3) {
+            const top0 = tiers[0].top;
+            const h0 = tiers[0].height;
+            for (const r of tiers) {
+              if (Math.abs(r.top - top0) > 2) {
+                errs.push(`${ctx} tier cards wrapped into multiple rows (${top0.toFixed(1)} vs ${r.top.toFixed(1)})`);
+              }
+              if (Math.abs(r.height - h0) > 2) {
+                errs.push(`${ctx} tier card height mismatch (${h0.toFixed(1)} vs ${r.height.toFixed(1)})`);
+              }
+            }
+          }
+          return errs;
+        }, vpLabel);
+        expect(rowFailures, `Hero/tier single-row check failed at ${vpLabel}`).toEqual([]);
+      };
+
+      await assertNoClippedControls(`${theme} 1440x900`);
+      await assertHeroAndTiersSingleRow(`${theme} 1440x900`);
+
+      // Anti-redundancy gate: prevent "one .vox file" slogan repetition across /
+      const sloganRepeatCount = await page.evaluate(() => {
+        const text = document.querySelector('main')?.innerText ?? '';
+        const matches = text.match(/one\s+\.vox\s+(?:file|module)|single-file\s+full-stack|in\s+one\s+\.vox/gi);
+        return matches ? matches.length : 0;
+      });
+      expect(
+        sloganRepeatCount,
+        `Too many repetitions of single-file slogan on / (${sloganRepeatCount})`,
+      ).toBeLessThanOrEqual(2);
 
       const outDir = join(process.cwd(), 'test-results/review-bundle');
       mkdirSync(outDir, { recursive: true });
@@ -257,6 +335,24 @@ test.describe('Phase 533.1 — voxlang.org Carousel, Row Alignments & Dual-Theme
         path: join(outDir, `suite-portal-carousel-${theme}.png`),
         fullPage: false,
       });
+
+      // 5b. Check 1280x800 laptop viewport (single-row CTAs, 3-column tiers, zero clipping) & capture AFTER shots
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const laptopAlignFailures = await auditRowAlignments(page, `/ (${theme}, 1280x800)`);
+      expect(laptopAlignFailures, `Alignment failures on / 1280x800 (${theme}):\n${laptopAlignFailures.join('\n')}`).toEqual([]);
+      await assertNoClippedControls(`${theme} 1280x800`);
+      await assertHeroAndTiersSingleRow(`${theme} 1280x800`);
+      await page.screenshot({
+        path: join(outDir, `after-hero-1280-${theme}.png`),
+        fullPage: false,
+      });
+      await tiers.scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: join(outDir, `after-tiers-1280-${theme}.png`),
+        fullPage: false,
+      });
+      await page.setViewportSize({ width: 1440, height: 900 });
 
       // 6. CV & Alignment Flywheel on key workbench & tutorial pages
       for (const route of [

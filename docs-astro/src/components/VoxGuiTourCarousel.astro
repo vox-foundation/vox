@@ -2,7 +2,7 @@
 const slides = [
   {
     id: 'urbs',
-    tab: '1. VRBS ROMA',
+    tab: '1. Topology',
     badge: 'gamify · Spatial Graph',
     title: 'Codebase Topology & Churn Map',
     desc: 'Maps Cargo, TypeScript, Python, and Go dependency layers (L0–L5), Tarjan SCCs, and git churn onto interactive crate districts.',
@@ -28,7 +28,7 @@ const slides = [
   },
   {
     id: 'chat',
-    tab: '3. Multi-Dock Chat',
+    tab: '3. Multi-Dock',
     badge: 'chat · Alt+1..4',
     title: 'Tiled Chat, Consensus & Turn Receipts',
     desc: 'Run Focus, Split Code, Multi-Agent, or Tactical Map layouts with cognitive clutch knobs, BPE token budgets, and HMAC tool receipts.',
@@ -41,7 +41,7 @@ const slides = [
   },
   {
     id: 'harness',
-    tab: '4. Verification Gate',
+    tab: '4. Sluice Gate',
     badge: 'harness · AQVAEDUCTUS',
     title: '3-Tier Routing & 4-Stage Sluice Checks',
     desc: 'Routes tasks across Fast Local MENS, Balanced Hybrid, and Deep Frontier tiers gated by AST parse, typecheck, toestub, and tests.',
@@ -54,7 +54,7 @@ const slides = [
   },
   {
     id: 'research',
-    tab: '5. Deep Research',
+    tab: '5. Research',
     badge: 'research · Dual Theme',
     title: 'KB Preflight, Subquery Audit & Wave Steer',
     desc: 'Run Prior-Art Preflight against local shards before web search, inspect subqueries, steer +1 Wave Refinement, and scope KB indexing.',
@@ -67,7 +67,7 @@ const slides = [
   },
   {
     id: 'memory',
-    tab: '6. Federated KB',
+    tab: '6. Memory KB',
     badge: 'memory · Dual Theme',
     title: '3-Layer Hybrid BM25 + HNSW + PageRank',
     desc: 'Query Repo-Local docs/wiki/, ~/.vox/library/, and Vox Baseline canon with provenance pills and 1-click Open into the Doc Dock.',
@@ -93,7 +93,7 @@ const slides = [
   },
   {
     id: 'publications',
-    tab: '8. Scientia arXiv',
+    tab: '8. Scientia',
     badge: 'publications · 7 Stages',
     title: 'Digest-Bound Approvals & arXiv.org Bundles',
     desc: 'Track draft -> DOI -> ORCID -> dual SHA3 approvals -> validated main.tex + references.bib .tar.gz bundles across 7 lifecycle stages.',
@@ -106,7 +106,7 @@ const slides = [
   },
   {
     id: 'themes',
-    tab: '9. Theme Contract',
+    tab: '9. Themes',
     badge: 'settings · 4 WCAG Profiles',
     title: 'Enforced Light & Dark Token Contract',
     desc: 'Switch live between Carrara Light, Travertine Daylight, Minimalist Slate Dark, and AAA High-Contrast; statically gated by vox-code-audit.',
@@ -131,6 +131,40 @@ const first = slides[0];
     tabindex="0"
   >
     <div class="carousel-header">
+      <div class="carousel-topbar">
+        <div class="carousel-brand">
+          <span class="carousel-brand-label">Vox Axis Surface Tour</span>
+          <span class="carousel-counter" data-carousel-counter>1 / {slides.length}</span>
+        </div>
+
+        <div class="carousel-controls">
+          <button
+            type="button"
+            class="carousel-theme-btn"
+            data-carousel-theme-toggle
+            aria-pressed="false"
+          >
+            Theme: Light
+          </button>
+          <button
+            type="button"
+            class="carousel-nav-btn"
+            data-carousel-prev
+            aria-label="Previous surface"
+          >
+            ← Prev
+          </button>
+          <button
+            type="button"
+            class="carousel-nav-btn"
+            data-carousel-next
+            aria-label="Next surface"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+
       <div class="carousel-tabs" role="tablist" aria-label="Vox Axis Workbench surfaces">
         {slides.map((s, idx) => (
           <button
@@ -145,34 +179,6 @@ const first = slides[0];
             {s.tab}{s.darkSrc ? ' ◐' : ''}
           </button>
         ))}
-      </div>
-
-      <div class="carousel-controls">
-        <button
-          type="button"
-          class="carousel-theme-btn"
-          data-carousel-theme-toggle
-          aria-pressed="false"
-        >
-          Theme: Light
-        </button>
-        <button
-          type="button"
-          class="carousel-nav-btn"
-          data-carousel-prev
-          aria-label="Previous surface"
-        >
-          ← Prev
-        </button>
-        <span class="carousel-counter" data-carousel-counter>1 / {slides.length}</span>
-        <button
-          type="button"
-          class="carousel-nav-btn"
-          data-carousel-next
-          aria-label="Next surface"
-        >
-          Next →
-        </button>
       </div>
     </div>
 
@@ -240,13 +246,11 @@ const first = slides[0];
 
   .carousel-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.65rem;
-    padding: 0.65rem 0.9rem;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.65rem 0.85rem;
     background: linear-gradient(180deg, #111726 0%, #0c111d 100%);
     border-bottom: 1px solid rgba(71, 85, 105, 0.38);
-    flex-wrap: wrap;
   }
 
   :root[data-theme='light'] .carousel-header {
@@ -254,19 +258,44 @@ const first = slides[0];
     border-bottom-color: #cbd5e1;
   }
 
+  .carousel-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .carousel-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .carousel-brand-label {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.01em;
+  }
+
+  :root[data-theme='light'] .carousel-brand-label {
+    color: #0f172a;
+  }
+
   .carousel-tabs {
     display: flex;
     align-items: center;
-    gap: 0.32rem;
+    gap: 0.28rem;
     flex-wrap: wrap;
   }
 
   .carousel-tab {
-    height: 30px;
-    padding: 0 0.6rem;
-    font-size: 0.72rem;
+    height: 27px;
+    padding: 0 0.52rem;
+    font-size: 0.71rem;
     font-weight: 600;
-    border-radius: 0.38rem;
+    border-radius: 0.36rem;
     border: 1px solid rgba(71, 85, 105, 0.45);
     background: rgba(15, 23, 42, 0.72);
     color: #cbd5e1;
@@ -309,11 +338,11 @@ const first = slides[0];
   }
 
   .carousel-theme-btn {
-    height: 30px;
-    padding: 0 0.65rem;
-    font-size: 0.72rem;
+    height: 28px;
+    padding: 0 0.6rem;
+    font-size: 0.71rem;
     font-weight: 600;
-    border-radius: 0.38rem;
+    border-radius: 0.36rem;
     border: 1px solid rgba(245, 158, 11, 0.48);
     background: rgba(245, 158, 11, 0.14);
     color: #fde68a;
@@ -338,11 +367,11 @@ const first = slides[0];
   }
 
   .carousel-nav-btn {
-    height: 30px;
-    padding: 0 0.65rem;
-    font-size: 0.72rem;
+    height: 28px;
+    padding: 0 0.58rem;
+    font-size: 0.71rem;
     font-weight: 600;
-    border-radius: 0.38rem;
+    border-radius: 0.36rem;
     border: 1px solid rgba(71, 85, 105, 0.48);
     background: rgba(15, 23, 42, 0.72);
     color: #e2e8f0;
@@ -367,15 +396,15 @@ const first = slides[0];
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 30px;
-    padding: 0 0.55rem;
+    height: 26px;
+    padding: 0 0.5rem;
     font-family: var(--font-mono, monospace);
-    font-size: 0.72rem;
+    font-size: 0.71rem;
     font-weight: 700;
     color: #cbd5e1;
     background: rgba(15, 23, 42, 0.55);
     border: 1px solid rgba(71, 85, 105, 0.35);
-    border-radius: 0.38rem;
+    border-radius: 0.36rem;
     box-sizing: border-box;
     white-space: nowrap;
   }

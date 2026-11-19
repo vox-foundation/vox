@@ -275,7 +275,7 @@ function installTourMockOverrides(): void {
           decision_preview: {
             selected_model: 'anthropic/claude-sonnet',
             discovery_state: 'confirmed',
-            alternatives: ['google/gemini-2.5-pro', 'mens/vox-qwen3-8b'],
+            alternatives: ['google/gemini-pro', 'mens/vox-qwen3-8b'],
             rejection_reasons: [],
             intelligence_score: 0.94,
             efficiency_score: 0.85,

@@ -504,11 +504,11 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 /* Homepage Hero & Progressive Onboarding Cards — Dual Theme Contrast (Dark & Light) */
 .vox-home-hero {
   text-align: center;
-  padding: 2.25rem 1rem 1.5rem;
+  padding: 1.75rem 1.25rem 1.25rem;
   background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.14), transparent 72%);
   border: 1px solid rgba(56, 189, 248, 0.2);
   border-radius: 14px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.4rem;
 }
 
 :root[data-theme='light'] .vox-home-hero {
@@ -521,13 +521,14 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.55rem;
+  min-height: 2.5rem;
   background: var(--sl-color-accent);
   color: #05080f !important;
-  padding: 0.5rem 1.15rem;
+  padding: 0.45rem 1rem;
   border: 1.5px solid transparent;
   border-radius: 8px;
   font-weight: 700;
+  font-size: 0.9rem;
   line-height: 1.2;
   white-space: nowrap;
   box-sizing: border-box;
@@ -542,10 +543,16 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 
 .vox-progressive-tiers {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+  grid-template-columns: 1fr;
   align-items: stretch;
-  gap: 1.15rem;
-  margin: 1rem 0 1.65rem;
+  gap: 0.95rem;
+  margin: 0.9rem 0 1.55rem;
+}
+
+@media (min-width: 1024px) {
+  .vox-progressive-tiers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .vox-progressive-tiers > * {
@@ -554,14 +561,15 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 
 .vox-tier-card {
   border-radius: 14px;
-  padding: 1.35rem;
+  padding: 1.1rem 1.15rem;
   height: 100%;
+  min-width: 0;
   margin: 0 !important;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.9rem;
+  gap: 0.75rem;
 }
 
 .vox-tier-card--cyan {
@@ -586,8 +594,8 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-tier-title {
-  margin: 0 0 0.4rem;
-  font-size: 1.12rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.02rem;
   font-weight: 700;
   color: #f8fafc;
   letter-spacing: -0.01em;
@@ -606,9 +614,9 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-tier-body {
-  margin: 0 0 0.85rem;
-  font-size: 0.88rem;
-  line-height: 1.5;
+  margin: 0 0 0.65rem;
+  font-size: 0.84rem;
+  line-height: 1.48;
   color: #cbd5e1;
 }
 
@@ -623,41 +631,44 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   color: #7dd3fc;
   font-family: var(--sl-font-mono, monospace);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .vox-tier-code--amber {
   color: #fbbf24;
   font-family: var(--sl-font-mono, monospace);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .vox-tier-code--emerald {
   color: #6ee7b7;
   font-family: var(--sl-font-mono, monospace);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .vox-tier-list--cyan {
   margin: 0;
-  padding-left: 1.15rem;
-  font-size: 0.82rem;
-  line-height: 1.58;
+  padding-left: 1.05rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
   color: #bae6fd;
 }
 
 .vox-tier-list--amber {
   margin: 0;
-  padding-left: 1.15rem;
-  font-size: 0.82rem;
-  line-height: 1.58;
+  padding-left: 1.05rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
   color: #fde68a;
 }
 
 .vox-tier-list--emerald {
   margin: 0;
-  padding-left: 1.15rem;
-  font-size: 0.82rem;
-  line-height: 1.58;
+  padding-left: 1.05rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
   color: #d1fae5;
 }
 
@@ -691,6 +702,7 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   border-radius: 8px;
   font-weight: 700;
   font-size: 0.85rem;
+  white-space: nowrap;
   text-decoration: none;
   box-shadow: 0 2px 14px rgba(14, 165, 233, 0.28);
 }
@@ -708,6 +720,7 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.85rem;
+  white-space: nowrap;
   text-decoration: none;
 }
 
@@ -724,6 +737,7 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.85rem;
+  white-space: nowrap;
   text-decoration: none;
 }
 
@@ -870,11 +884,11 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-home-lead {
-  font-size: 1.1rem;
-  line-height: 1.65;
+  font-size: 1.06rem;
+  line-height: 1.6;
   color: #e2e8f0;
-  max-width: 50rem;
-  margin: 0 auto 0.75rem;
+  max-width: 44rem;
+  margin: 0 auto 0.65rem;
 }
 
 :root[data-theme='light'] .vox-home-lead {
@@ -882,11 +896,11 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-home-sublead {
-  font-size: 0.96rem;
-  line-height: 1.6;
+  font-size: 0.92rem;
+  line-height: 1.58;
   color: #cbd5e1;
-  max-width: 48rem;
-  margin: 0 auto 1.35rem;
+  max-width: 42rem;
+  margin: 0 auto 1.15rem;
 }
 
 :root[data-theme='light'] .vox-home-sublead {
@@ -896,10 +910,10 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 .vox-home-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
   justify-content: center;
   flex-wrap: wrap;
-  margin: 0 0 1.35rem;
+  margin: 0 0 1.15rem;
 }
 
 .vox-home-actions > * {
@@ -910,13 +924,14 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.55rem;
+  min-height: 2.5rem;
   border: 1.5px solid #38bdf8;
   background: rgba(56, 189, 248, 0.1);
   color: #f8fafc !important;
-  padding: 0.5rem 1.15rem;
+  padding: 0.45rem 1rem;
   border-radius: 8px;
   font-weight: 600;
+  font-size: 0.9rem;
   line-height: 1.2;
   white-space: nowrap;
   box-sizing: border-box;
@@ -935,13 +950,14 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.55rem;
+  min-height: 2.5rem;
   border: 1.5px solid rgba(245, 158, 11, 0.7);
   background: rgba(245, 158, 11, 0.14);
   color: #fef3c7 !important;
-  padding: 0.5rem 1.15rem;
+  padding: 0.45rem 1rem;
   border-radius: 8px;
   font-weight: 600;
+  font-size: 0.9rem;
   line-height: 1.2;
   white-space: nowrap;
   box-sizing: border-box;
@@ -959,13 +975,14 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.55rem;
+  min-height: 2.5rem;
   border: 1.5px solid var(--sl-color-hairline);
   background: rgba(15, 23, 42, 0.45);
   color: #e2e8f0 !important;
-  padding: 0.5rem 1.15rem;
+  padding: 0.45rem 1rem;
   border-radius: 8px;
   font-weight: 500;
+  font-size: 0.9rem;
   line-height: 1.2;
   white-space: nowrap;
   box-sizing: border-box;
@@ -980,17 +997,33 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
 }
 
 .vox-home-banner-frame {
-  margin: 0.5rem auto 0;
+  margin: 0.35rem auto 0;
   max-width: 100%;
   border-radius: 12px;
   overflow: hidden;
+  background: #070a12;
   border: 1.5px solid rgba(197, 155, 39, 0.55);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 :root[data-theme='light'] .vox-home-banner-frame {
-  border-color: rgba(180, 130, 25, 0.65);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  background: #070a12;
+  border-color: rgba(180, 130, 25, 0.72);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+main:has(.vox-home-hero) .sl-markdown-content > h2 {
+  margin-top: 2.25rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid var(--sl-color-hairline-light);
+}
+
+main:has(.vox-home-hero) .sl-markdown-content table th,
+main:has(.vox-home-hero) .sl-markdown-content table td {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.86rem;
+  line-height: 1.48;
+  vertical-align: top;
 }
 
 .vox-home-banner-frame img,
