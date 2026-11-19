@@ -194,21 +194,23 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
           {proposals.map((p) => (
             <div key={p.id} role="listitem" className="rounded-md border border-border-subtle p-3">
               <div className="text-xs font-mono text-text-muted">{p.target_path}</div>
-              <pre className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-[10px] text-text-secondary">
+              <pre className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded border border-border-subtle bg-bg-elevated p-2 font-mono text-[11px] text-text-secondary">
                 {p.proposed_diff}
               </pre>
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
+                  data-slot="button"
                   onClick={() => resolveProposal(p.id, true)}
-                  className="rounded-sm border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
+                  className="h-8 rounded border border-brass/45 bg-bg-elevated px-3 text-xs font-medium text-brass hover:bg-brass/15"
                 >
-                  Approve & apply
+                  Approve &amp; apply
                 </button>
                 <button
                   type="button"
+                  data-slot="button"
                   onClick={() => resolveProposal(p.id, false)}
-                  className="rounded-sm border border-border-subtle px-2 py-1 text-xs text-text-muted"
+                  className="h-8 rounded border border-border-subtle bg-bg-elevated px-3 text-xs font-medium text-text-muted hover:text-text-primary"
                 >
                   Reject
                 </button>

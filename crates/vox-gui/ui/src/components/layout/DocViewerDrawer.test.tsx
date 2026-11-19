@@ -15,50 +15,49 @@ describe('DocViewerDrawer', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders the doc title, a close button, and passes path to DocReader', () => {
+  it('renders a non-modal docked workspace with title, width/minimize controls, and close button', () => {
     render(
       <DocViewerDrawer doc={{ path: 'docs/foo.md', title: 'Foo Guide' }} onClose={vi.fn()} />,
     );
-    expect(screen.getByText('Foo Guide')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close doc' })).toBeInTheDocument();
+    const dock = screen.getByRole('dialog', { name: 'Foo Guide' });
+    expect(dock).toBeInTheDocument();
+    expect(dock.getAttribute('aria-modal')).toBe('false');
+    expect(document.querySelector('[data-slot="drawer-backdrop"]')).toBeNull();
+    expect(screen.getByTestId('doc-reader-stub')).toHaveTextContent('docs/foo.md');
+    expect(screen.getByTestId('doc-dock-width-btn')).toHaveTextContent('Width: Split');
+    expect(screen.getByTestId('doc-dock-minimize-btn')).toHaveTextContent('Minimize');
+  });
+
+  it('cycles docked width modes and supports minimizing without losing the doc state', () => {
+    render(
+      <DocViewerDrawer doc={{ path: 'docs/foo.md', title: 'Foo Guide' }} onClose={vi.fn()} />,
+    );
+    const widthBtn = screen.getByTestId('doc-dock-width-btn');
+    fireEvent.click(widthBtn);
+    expect(widthBtn).toHaveTextContent('Width: Wide');
+    fireEvent.click(widthBtn);
+    expect(widthBtn).toHaveTextContent('Width: Full');
+
+    const minBtn = screen.getByTestId('doc-dock-minimize-btn');
+    fireEvent.click(minBtn);
+    expect(screen.queryByTestId('doc-reader-stub')).toBeNull();
+    expect(minBtn).toHaveTextContent('Expand');
+
+    fireEvent.click(minBtn);
     expect(screen.getByTestId('doc-reader-stub')).toHaveTextContent('docs/foo.md');
   });
 
-  it('calls onClose when the close button is clicked', () => {
-    const onClose = vi.fn();
-    render(
-      <DocViewerDrawer doc={{ path: 'docs/foo.md', title: 'Foo Guide' }} onClose={onClose} />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Close doc' }));
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls onClose when Escape is pressed', () => {
+  it('calls onClose when the close button or Escape key is pressed', () => {
     const onClose = vi.fn();
     render(
       <DocViewerDrawer doc={{ path: 'docs/foo.md', title: 'Foo Guide' }} onClose={onClose} />,
     );
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Close doc' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('calls onClose when the scrim is clicked', () => {
-    const onClose = vi.fn();
-    render(
-      <DocViewerDrawer doc={{ path: 'docs/foo.md', title: 'Foo Guide' }} onClose={onClose} />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /close doc overlay/i }));
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('moves focus into the drawer on open', () => {
-    render(
-      <DocViewerDrawer doc={{ path: 'docs/foo.md', title: 'Foo Guide' }} onClose={vi.fn()} />,
-    );
-    expect(screen.getByRole('button', { name: 'Close doc' })).toHaveFocus();
-  });
-
-  it('restores focus to the trigger element after close', () => {
+  it('moves focus into the dock on open and restores focus to the trigger element after close', () => {
     function Harness() {
       const [open, setOpen] = React.useState(false);
       return (

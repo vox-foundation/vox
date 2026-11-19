@@ -116,43 +116,45 @@ export function VirtualizedClaimsTable({
     >
       <button
         type="button"
+        data-slot="accordion-trigger"
         data-testid="virtualized-claims-toggle"
         aria-expanded={expanded}
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-text-secondary hover:bg-overlay-subtle"
+        className="flex h-9 w-full items-center justify-between gap-2 px-3 text-left font-sans text-xs font-semibold tracking-wide text-text-secondary hover:bg-bg-elevated transition-colors"
       >
         <span>
           {displayTotal} claim{displayTotal === 1 ? '' : 's'} verified · {counts.contested} contested
           {counts.contradicted > 0 ? ` · ${counts.contradicted} contradicted` : ''} · {sourceCount}{' '}
           source{sourceCount === 1 ? '' : 's'}
         </span>
-        <span className="inline-flex items-center font-mono text-xs text-text-muted" aria-hidden="true">
+        <span className="inline-flex items-center text-xs text-text-muted" aria-hidden="true">
           {expanded ? <Icon.chevronUp className="size-3.5 shrink-0" /> : <Icon.chevronDown className="size-3.5 shrink-0" />}
         </span>
       </button>
 
       {expanded && (
-        <div className="border-t border-border-subtle p-3 space-y-2">
+        <div className="border-t border-border-subtle p-3 space-y-2 bg-bg-surface">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div role="group" aria-label="Filter claims by verdict" className="flex flex-wrap items-center gap-1">
+            <div role="group" aria-label="Filter claims by verdict" className="flex flex-wrap items-center gap-1.5">
               {(['all', 'supported', 'contested', 'contradicted'] as const).map((filterKey) => (
                 <button
                   key={filterKey}
                   type="button"
+                  data-slot="chip"
                   data-testid={`claims-filter-${filterKey}`}
                   aria-pressed={verdictFilter === filterKey}
                   onClick={() => setVerdictFilter(filterKey)}
-                  className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                  className={`h-7 rounded border px-2.5 font-sans text-[11px] font-medium uppercase tracking-wider transition-colors ${
                     verdictFilter === filterKey
-                      ? 'border border-brass/40 bg-brass/20 text-brass'
-                      : 'border border-border-subtle bg-black/20 text-text-muted hover:text-text-secondary'
+                      ? 'border-brass/50 bg-brass/20 text-brass'
+                      : 'border-border-subtle bg-bg-elevated text-text-muted hover:text-text-secondary'
                   }`}
                 >
                   {filterKey}
                 </button>
               ))}
             </div>
-            <span className="font-mono text-[10px] text-text-muted">
+            <span className="font-mono text-[11px] text-text-muted">
               Showing {filteredClaims.length} of {displayTotal}
             </span>
           </div>
@@ -201,23 +203,23 @@ export function VirtualizedClaimsTable({
                     >
                       <div
                         id={`claim-${claim.claimId}`}
-                        className={`flex h-full flex-col justify-between rounded-lg border border-border-subtle bg-black/25 px-3 py-2 transition-colors ${
+                        className={`flex h-full flex-col justify-between rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 transition-colors ${
                           isHighlighted ? 'ring-2 ring-brass' : ''
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2 min-w-0">
                           <div className="flex items-center gap-2 min-w-0">
                             <VerdictBadge verdict={claim.verdict} />
-                            <span className="truncate text-xs text-text-primary" title={claim.text}>
+                            <span className="truncate text-xs font-medium text-text-primary" title={claim.text}>
                               {claim.text}
                             </span>
                           </div>
-                          <span className="shrink-0 font-mono text-[10px] text-text-muted">
+                          <span className="shrink-0 font-mono text-[11px] text-text-muted">
                             {Math.round(claim.confidence * 100)}% conf · {Math.round(claim.resampleStability * 100)}% stab
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 min-w-0 text-[10px]">
+                        <div className="flex items-center justify-between gap-2 min-w-0 text-[11px]">
                           {primaryCitation ? (
                             <div className="flex items-center gap-2 min-w-0">
                               <SafeExternalLink
@@ -227,7 +229,7 @@ export function VirtualizedClaimsTable({
                               <TrustChip signal={primaryCitation.trust} />
                             </div>
                           ) : (
-                            <span className="font-mono text-text-muted">No direct citations</span>
+                            <span className="text-text-muted">No direct citations</span>
                           )}
                           {claim.citations.length > 1 && (
                             <span className="shrink-0 font-mono text-text-muted">
@@ -247,10 +249,11 @@ export function VirtualizedClaimsTable({
             <div className="flex justify-end pt-1">
               <button
                 type="button"
+                data-slot="button"
                 data-testid="load-more-claims-btn"
                 disabled={loadingMore}
                 onClick={onLoadMore}
-                className="rounded border border-brass/40 bg-brass/10 px-3 py-1 font-mono text-[11px] text-brass hover:bg-brass/20 disabled:opacity-50"
+                className="h-8 rounded border border-brass/40 bg-bg-elevated px-3 text-xs font-medium text-brass hover:bg-brass/15 disabled:opacity-50"
               >
                 {loadingMore ? 'Loading claims…' : 'Load more claims'}
               </button>

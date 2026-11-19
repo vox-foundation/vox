@@ -443,6 +443,7 @@ async fn real_backend_data_surfaces_kb_research_scientia_atlas_mesh_and_telemetr
             title: "Phase 83 Architecture Note".to_string(),
             content: "Vox enforces a strict 5-layer crate dependency architecture.".to_string(),
             source_url: Some("https://vox.dev/docs/architecture".to_string()),
+            target_scope: None,
         },
     )
     .await;

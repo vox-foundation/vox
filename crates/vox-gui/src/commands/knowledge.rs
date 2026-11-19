@@ -46,20 +46,49 @@ pub(crate) async fn delete_node_impl<B: BackendCalls>(b: &B, id: String) -> Resu
     Ok(())
 }
 
+#[cfg(test)]
 pub(crate) async fn ingest_text_impl<B: BackendCalls>(
     b: &B,
     title: String,
     content: String,
     source_url: Option<String>,
 ) -> Result<String, String> {
-    let args = json!({ "title": title, "content": content, "source_url": source_url });
+    ingest_text_with_scope_impl(b, title, content, source_url, None).await
+}
+
+pub(crate) async fn ingest_text_with_scope_impl<B: BackendCalls>(
+    b: &B,
+    title: String,
+    content: String,
+    source_url: Option<String>,
+    target_scope: Option<String>,
+) -> Result<String, String> {
+    let args = json!({
+        "title": title,
+        "content": content,
+        "source_url": source_url,
+        "target_scope": target_scope,
+    });
     tool_data(INGEST_TEXT_TOOL, b.call_tool(INGEST_TEXT_TOOL, args).await?)
 }
 
+#[cfg(test)]
 pub(crate) async fn ingest_url_impl<B: BackendCalls>(b: &B, url: String) -> Result<String, String> {
+    ingest_url_with_scope_impl(b, url, None).await
+}
+
+pub(crate) async fn ingest_url_with_scope_impl<B: BackendCalls>(
+    b: &B,
+    url: String,
+    target_scope: Option<String>,
+) -> Result<String, String> {
     tool_data(
         INGEST_URL_TOOL,
-        b.call_tool(INGEST_URL_TOOL, json!({ "url": url })).await?,
+        b.call_tool(
+            INGEST_URL_TOOL,
+            json!({ "url": url, "target_scope": target_scope }),
+        )
+        .await?,
     )
 }
 
@@ -103,16 +132,25 @@ pub async fn ingest_text(
     title: String,
     content: String,
     source_url: Option<String>,
+    target_scope: Option<String>,
 ) -> Result<String, String> {
-    ingest_text_impl(&backend.current().await, title, content, source_url).await
+    ingest_text_with_scope_impl(
+        &backend.current().await,
+        title,
+        content,
+        source_url,
+        target_scope,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn ingest_url(
     backend: State<'_, Arc<BackendState>>,
     url: String,
+    target_scope: Option<String>,
 ) -> Result<String, String> {
-    ingest_url_impl(&backend.current().await, url).await
+    ingest_url_with_scope_impl(&backend.current().await, url, target_scope).await
 }
 
 #[tauri::command]

@@ -43,6 +43,21 @@ export interface PublicationManifest {
   state: string;
   created_at_ms: number;
   updated_at_ms: number;
+  title?: string | null;
+  author?: string | null;
+  abstract_text?: string | null;
+  candidate_class?: string | null;
+  publication_tier?: string | null;
+  arxiv_primary_category?: string | null;
+  arxiv_secondary_categories?: string[] | null;
+  license_spdx?: string | null;
+  orcid?: string | null;
+  ror_affiliation?: string | null;
+  prereserved_doi?: string | null;
+  arxiv_id?: string | null;
+  readiness_score?: number | null;
+  arxiv_ready?: boolean | null;
+  flywheel_stages_done?: string[] | null;
 }
 
 /** Bucket manifests by `state`, preserving every canonical stage (empty allowed). */
@@ -50,7 +65,8 @@ export function groupByStage(manifests: PublicationManifest[]): Record<string, P
   const groups: Record<string, PublicationManifest[]> = {};
   for (const s of PUBLICATION_STAGES) groups[s] = [];
   for (const m of manifests) {
-    (groups[m.state] ??= []).push(m);
+    const key = m.state === 'archived' ? 'published' : m.state;
+    (groups[key] ??= []).push(m);
   }
   return groups;
 }

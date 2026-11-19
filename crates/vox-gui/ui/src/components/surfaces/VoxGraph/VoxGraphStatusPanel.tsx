@@ -46,10 +46,11 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
     <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
+        data-slot="button"
         disabled={busy}
         aria-label={`Rebuild ${corpusId}`}
         onClick={handleRebuild}
-        className="rounded-md border border-(--color-status-warn)/30 bg-(--color-status-warn)/10 px-2.5 py-1 text-[11px] font-medium text-(--color-status-warn) transition-colors hover:bg-(--color-status-warn)/20 disabled:opacity-50"
+        className="inline-flex h-8 items-center rounded-md border border-(--color-status-warn)/40 bg-bg-elevated px-3 text-xs font-medium text-(--color-status-warn) transition-colors hover:border-(--color-status-warn) disabled:opacity-50"
       >
         {busy ? 'Rebuilding…' : 'Rebuild'}
       </button>
@@ -108,7 +109,11 @@ function TtlEditor({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <label htmlFor="vg-ttl-days" className="text-[11px] uppercase tracking-[0.08em] text-text-muted">
+        <label
+          htmlFor="vg-ttl-days"
+          title="Maximum days before a graph shard is flagged stale and queued for incremental rebuild"
+          className="text-[11px] uppercase tracking-[0.08em] text-text-muted cursor-help"
+        >
           TTL (days)
         </label>
         <input
@@ -125,14 +130,15 @@ function TtlEditor({
             setWrotePath(null);
             setError(null);
           }}
-          className="h-7 w-20 rounded-md border border-border-subtle bg-bg-elevated px-2 font-mono text-[11px] text-text-primary disabled:opacity-50"
+          className="h-8 w-20 rounded-md border border-border-subtle bg-bg-elevated px-2.5 font-mono text-xs text-text-primary disabled:opacity-50"
         />
         <button
           type="button"
+          data-slot="button"
           disabled={busy}
           aria-label="Save TTL"
           onClick={handleSave}
-          className="h-7 rounded-md border border-border-subtle bg-bg-surface px-3 text-[11px] font-medium text-text-primary transition-colors hover:bg-overlay-subtle disabled:opacity-50"
+          className="inline-flex h-8 items-center rounded-md border border-border-subtle bg-bg-surface px-3 text-xs font-medium text-text-primary transition-colors hover:border-brass/45 hover:bg-bg-elevated disabled:opacity-50"
         >
           {busy ? 'Saving…' : 'Save'}
         </button>
@@ -237,7 +243,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
           value={shardSearch}
           onChange={(e) => setShardSearch(e.target.value)}
           placeholder="Filter index shards by title or corpus ID…"
-          className="w-full rounded-md border border-border-subtle bg-bg-surface px-2.5 py-1.5 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass focus:outline-hidden"
+          className="h-8 w-full rounded-md border border-border-subtle bg-bg-surface px-3 font-mono text-xs text-text-primary placeholder:text-text-muted focus:border-brass focus:outline-hidden"
         />
       </div>
 
@@ -252,9 +258,9 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
                 onClick={() => setSelectedCorpusId(c.corpus_id)}
                 className={`vox-marble-tablet group cursor-pointer rounded-lg border p-4 transition-colors duration-200 ${
                   c.is_fresh
-                    ? 'border-(--color-status-pass)/20 bg-(--color-status-pass)/4 hover:border-(--color-status-pass)/40'
-                    : 'border-(--color-status-warn)/20 bg-(--color-status-warn)/4 hover:border-(--color-status-warn)/40'
-                } ${isSelected ? 'ring-1 ring-brass/60' : ''}`}
+                    ? 'border-(--color-gold-500)/45 bg-bg-elevated hover:border-(--color-gold-400)'
+                    : 'border-(--color-status-warn)/55 bg-bg-elevated hover:border-(--color-status-warn)'
+                } ${isSelected ? 'ring-1 ring-(--color-gold-400)' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -312,8 +318,15 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
                 </div>
 
                 {!c.is_fresh && (
-                  <div className="mt-3 space-y-2 border-t border-border-subtle pt-3">
-                    <div className="text-[11px] text-text-secondary">
+                  <details
+                    open
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-3 space-y-2 border-t border-border-subtle pt-3"
+                  >
+                    <summary className="cursor-pointer font-sans text-[11px] font-semibold uppercase tracking-wider text-(--color-status-warn) select-none">
+                      Stale Diagnostics &amp; Rebuild Actions
+                    </summary>
+                    <div className="pt-1 text-[11px] text-text-secondary">
                       <span className="text-text-muted text-[11px] block uppercase">Stale Reasons</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {(c.stale_reasons ?? []).map((r) => (
@@ -335,7 +348,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
                         vox graph rebuild --corpus {c.corpus_id}
                       </code>
                     </div>
-                  </div>
+                  </details>
                 )}
               </div>
             );
@@ -353,20 +366,51 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
     >
       <div className="flex flex-col gap-3">
         {selectedCorpus && (
-          <div className="rounded-xl border border-border-subtle bg-bg-surface p-3.5 font-mono text-[11px]">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2">
-              <span className="font-display text-xs tracking-[0.13em] text-brass uppercase">
+          <div className="vox-marble-tablet rounded-xl border border-(--color-gold-500)/50 bg-bg-elevated p-3.5 font-mono text-[11px]">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-strong pb-2">
+              <span className="font-display text-xs font-semibold tracking-[0.13em] text-text-primary uppercase">
                 {`Selected Shard: ${selectedCorpus.title} (${selectedCorpus.corpus_id})`}
               </span>
-              <span className="text-text-secondary">
-                {`Health: ${selectedCorpus.is_fresh ? 'Fresh' : 'Stale'}`}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  data-slot="button"
+                  data-roman-plaque="true"
+                  data-testid="vg-search-in-memory-btn"
+                  title="Open the Memory recall surface to query indexed artifacts from this shard"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent('vox://navigate-surface', { detail: { view: 'memory' } }),
+                    )
+                  }
+                  className="vox-brass-plaque-btn inline-flex h-7 items-center gap-1 rounded px-2.5 text-[11px] font-medium text-text-primary transition-colors"
+                >
+                  Search Shard in Memory
+                </button>
+                <span className="font-semibold text-text-primary">
+                  {`Health: ${selectedCorpus.is_fresh ? 'Fresh' : 'Stale'}`}
+                </span>
+              </div>
             </div>
-            <div className="mt-2.5 grid grid-cols-2 gap-2 text-text-secondary @xl/surface:grid-cols-4">
-              <div>{`Graph File: ${selectedCorpus.graph_exists ? 'Present' : 'Missing'}`}</div>
-              <div>{`Manifest: ${selectedCorpus.manifest_exists ? 'Present' : 'Missing'}`}</div>
-              <div>{`Manifest SHA: ${selectedCorpus.manifest_git_sha ?? 'unbuilt'}`}</div>
-              <div>{`HEAD SHA: ${selectedCorpus.head_git_sha ?? 'unknown'}`}</div>
+            <div
+              data-testid="vg-shard-diagnostics-grid"
+              className="mt-2.5 grid grid-cols-2 gap-2 text-text-secondary @xl/surface:grid-cols-4"
+            >
+              {selectedCorpus.graph_exists && selectedCorpus.manifest_exists ? (
+                <>
+                  <div>{`Graph File: Present`}</div>
+                  <div>{`Manifest: Present`}</div>
+                  <div>{`Manifest SHA: ${selectedCorpus.manifest_git_sha ?? 'unbuilt'}`}</div>
+                  <div>{`HEAD SHA: ${selectedCorpus.head_git_sha ?? 'unknown'}`}</div>
+                </>
+              ) : (
+                <>
+                  <div>{'Disk Cache: Live RRF / Pending Rebuild'}</div>
+                  <div>{`Live Nodes: ${(selectedCorpus.node_count ?? 0).toLocaleString()}`}</div>
+                  <div>{`Live Edges: ${(selectedCorpus.edge_count ?? 0).toLocaleString()}`}</div>
+                  <div>{`HEAD SHA: ${selectedCorpus.head_git_sha ?? 'unknown'}`}</div>
+                </>
+              )}
             </div>
             {(selectedCorpus.warnings ?? []).length > 0 && (
               <div className="mt-2 border-t border-border-subtle pt-2 text-(--color-status-warn)">
@@ -436,27 +480,27 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
       />
 
       <BentoGrid preset="triad">
-        <BentoCard className="py-2.5">
-          <div className="font-display text-[11px] tracking-[0.13em] text-brass uppercase">
+        <BentoCard className="vox-marble-tablet border-(--color-gold-500)/45 bg-bg-elevated py-2.5">
+          <div className="font-display text-[11px] font-semibold tracking-[0.13em] text-text-primary uppercase">
             Shard Coverage
           </div>
-          <div className="mt-1 font-mono text-xs text-text-primary">
+          <div className="mt-1 font-mono text-xs font-medium text-text-primary">
             {`${displayedCorpora.length} visible · ${freshCorporaCount} fresh · ${staleCorporaCount} stale`}
           </div>
         </BentoCard>
-        <BentoCard className="py-2.5">
-          <div className="font-display text-[11px] tracking-[0.13em] text-text-primary uppercase">
+        <BentoCard className="vox-marble-tablet border-(--color-gold-500)/45 bg-bg-elevated py-2.5">
+          <div className="font-display text-[11px] font-semibold tracking-[0.13em] text-text-primary uppercase">
             Graph Topology
           </div>
-          <div className="mt-1 font-mono text-xs text-text-secondary">
+          <div className="mt-1 font-mono text-xs font-medium text-text-primary">
             {`${totalNodes.toLocaleString()} indexed nodes · ${totalEdges.toLocaleString()} edges`}
           </div>
         </BentoCard>
-        <BentoCard className="py-2.5">
-          <div className="font-display text-[11px] tracking-[0.13em] text-(--color-status-pass) uppercase">
+        <BentoCard className="vox-marble-tablet border-(--color-gold-500)/45 bg-bg-elevated py-2.5">
+          <div className="font-display text-[11px] font-semibold tracking-[0.13em] text-(--color-status-pass) uppercase">
             Hybrid Retrieval
           </div>
-          <div className="mt-1 font-mono text-xs text-text-secondary">
+          <div className="mt-1 font-mono text-xs font-medium text-text-primary">
             Tantivy BM25 + Vector RRF Fusion
           </div>
         </BentoCard>

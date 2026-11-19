@@ -64,21 +64,21 @@ export function JudgeInspector({
   return (
     <div
       data-testid="judge-inspector"
-      className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 space-y-3"
+      className="rounded-lg border border-border-subtle bg-bg-surface p-3 space-y-3"
     >
-      <div className="flex items-center justify-between">
-        <h3 className="font-display text-[12px] uppercase tracking-wide text-text-primary">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-xs uppercase tracking-wide text-text-primary">
           Epistemic Judge Inspector
         </h3>
-        <span className="text-[11px] text-text-muted">
+        <span className="text-xs text-text-muted">
           Verification metrics, claim verdict distribution, and grounding details
         </span>
       </div>
 
       {/* Metric Badges */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="flex flex-col rounded-lg border border-border-subtle bg-black/40 p-2.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+        <div className="flex flex-col rounded-lg border border-border-subtle bg-bg-elevated p-2.5">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
             Confidence Tier
           </span>
           <span
@@ -89,8 +89,8 @@ export function JudgeInspector({
           </span>
         </div>
 
-        <div className="flex flex-col rounded-lg border border-border-subtle bg-black/40 p-2.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+        <div className="flex flex-col rounded-lg border border-border-subtle bg-bg-elevated p-2.5">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
             Source Count
           </span>
           <span
@@ -101,8 +101,8 @@ export function JudgeInspector({
           </span>
         </div>
 
-        <div className="flex flex-col rounded-lg border border-border-subtle bg-black/40 p-2.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+        <div className="flex flex-col rounded-lg border border-border-subtle bg-bg-elevated p-2.5">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
             Citation Precision
           </span>
           <span
@@ -115,26 +115,26 @@ export function JudgeInspector({
       </div>
 
       {/* Claims Verdict Distribution */}
-      <div className="rounded-lg border border-border-subtle bg-black/30 p-3 space-y-2">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+      <div className="rounded-lg border border-border-subtle bg-bg-panel p-3 space-y-2">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
           Claims Verdict Distribution
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div className="flex items-center justify-between rounded border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 font-mono text-xs">
-            <span className="text-emerald-400">Supported</span>
-            <span data-testid="count-supported" className="font-bold text-emerald-300">
+          <div className="flex items-center justify-between rounded border border-(--color-status-pass)/35 bg-bg-elevated px-2.5 py-1.5 text-xs">
+            <span className="font-medium text-(--color-status-pass)">Supported</span>
+            <span data-testid="count-supported" className="font-mono font-bold text-(--color-status-pass)">
               {supportedCount}
             </span>
           </div>
-          <div className="flex items-center justify-between rounded border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 font-mono text-xs">
-            <span className="text-amber-400">Contested</span>
-            <span data-testid="count-contested" className="font-bold text-amber-300">
+          <div className="flex items-center justify-between rounded border border-(--color-status-warn)/35 bg-bg-elevated px-2.5 py-1.5 text-xs">
+            <span className="font-medium text-(--color-status-warn)">Contested</span>
+            <span data-testid="count-contested" className="font-mono font-bold text-(--color-status-warn)">
               {contestedCount}
             </span>
           </div>
-          <div className="flex items-center justify-between rounded border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 font-mono text-xs">
-            <span className="text-rose-400">Refuted</span>
-            <span data-testid="count-refuted" className="font-bold text-rose-300">
+          <div className="flex items-center justify-between rounded border border-(--color-status-fail)/35 bg-bg-elevated px-2.5 py-1.5 text-xs">
+            <span className="font-medium text-(--color-status-fail)">Refuted</span>
+            <span data-testid="count-refuted" className="font-mono font-bold text-(--color-status-fail)">
               {refutedCount}
             </span>
           </div>
@@ -142,20 +142,20 @@ export function JudgeInspector({
       </div>
 
       {/* Chain-of-Thought Rationale & Grounding Details */}
-      <div className="rounded-lg border border-border-subtle bg-black/30 p-3 space-y-2">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          Chain-of-Thought Rationale & Grounding Details
+      <div className="rounded-lg border border-border-subtle bg-bg-panel p-3 space-y-2">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
+          Chain-of-Thought Rationale &amp; Grounding Details
         </div>
         <div
           data-testid="judge-rationale"
-          className="text-[12px] leading-relaxed text-text-secondary bg-black/40 border border-border-subtle rounded p-2.5 font-sans"
+          className="text-xs leading-relaxed text-text-secondary bg-bg-elevated border border-border-subtle rounded p-2.5 font-sans"
         >
           {computedRationale}
         </div>
 
         {claimList.length > 0 && (
           <div className="space-y-1.5 pt-1">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
               Grounding Claims ({claimList.length})
             </div>
             <div className="space-y-1 max-h-[220px] overflow-auto">
@@ -171,17 +171,17 @@ export function JudgeInspector({
                 return (
                   <div
                     key={id}
-                    className="rounded border border-border-subtle bg-black/40 p-2 text-[11px]"
+                    className="rounded border border-border-subtle bg-bg-elevated p-2.5 text-xs"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-mono text-text-primary font-semibold">Claim {id}</span>
-                      <span className="font-mono text-text-muted text-[10px]">
+                      <span className="font-mono text-text-muted text-[11px]">
                         {verdict}
                         {conf ? ` · conf: ${conf}` : ''}
                         {stab ? ` · stability: ${stab}` : ''}
                       </span>
                     </div>
-                    <p className="text-text-secondary text-[12px]">{claim?.text}</p>
+                    <p className="text-text-secondary text-xs leading-relaxed">{claim?.text}</p>
                   </div>
                 );
               })}

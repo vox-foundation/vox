@@ -272,27 +272,27 @@ export function ResearchEngineDrawer({
         {/* Zero-Key Guarantee Banner */}
         <div
           data-testid="zero-key-guarantee"
-          className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2"
+          className="rounded-xl border border-(--color-status-pass)/35 bg-bg-surface p-4 space-y-2"
         >
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-emerald-400 font-bold text-sm">
+            <span className="inline-flex items-center gap-1 text-(--color-status-pass) font-bold text-sm">
               <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
               <span>Zero-Key Guarantee</span>
             </span>
-            <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+            <span className="rounded border border-(--color-status-pass)/35 bg-bg-elevated px-2 py-0.5 text-[11px] font-mono text-(--color-status-pass)">
               Built-In
             </span>
           </div>
-          <p className="text-xs text-emerald-200/90 leading-relaxed">
+          <p className="text-xs text-text-secondary leading-relaxed">
             Vox includes full out-of-the-box keyless research. Wikipedia, OpenAlex (academic papers),
             arXiv (scientific preprints), and SearXNG meta-search run with zero keys required and zero
             tracking.
           </p>
-          <div className="flex flex-wrap gap-1.5 pt-1 text-[10px] font-mono text-emerald-400">
-            <span className="rounded border border-emerald-500/20 bg-black/30 px-2 py-0.5">Wikipedia</span>
-            <span className="rounded border border-emerald-500/20 bg-black/30 px-2 py-0.5">OpenAlex</span>
-            <span className="rounded border border-emerald-500/20 bg-black/30 px-2 py-0.5">arXiv</span>
-            <span className="rounded border border-emerald-500/20 bg-black/30 px-2 py-0.5">SearXNG</span>
+          <div className="flex flex-wrap gap-1.5 pt-1 text-[11px] font-mono text-(--color-status-pass)">
+            <span className="rounded border border-(--color-status-pass)/25 bg-bg-elevated px-2 py-0.5">Wikipedia</span>
+            <span className="rounded border border-(--color-status-pass)/25 bg-bg-elevated px-2 py-0.5">OpenAlex</span>
+            <span className="rounded border border-(--color-status-pass)/25 bg-bg-elevated px-2 py-0.5">arXiv</span>
+            <span className="rounded border border-(--color-status-pass)/25 bg-bg-elevated px-2 py-0.5">SearXNG</span>
           </div>
         </div>
 
@@ -325,19 +325,19 @@ export function ResearchEngineDrawer({
                       <div className="font-semibold text-sm text-text-primary flex items-center gap-1.5">
                         {offer.name}
                         {hasKey && (
-                          <span className="rounded border border-brass/40 bg-brass/10 px-1.5 py-0.5 text-[10px] font-mono text-brass">
+                          <span className="rounded border border-brass/40 bg-bg-elevated px-2 py-0.5 text-[11px] font-mono text-brass">
                             Active
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-brass/90 font-medium mt-0.5">
+                      <div className="text-xs text-brass font-medium mt-0.5">
                         {offer.quota_summary}
                         {!offer.requires_credit_card && ' · No credit card required'}
                       </div>
                     </div>
                     <SafeExternalLink
                       url={offer.signup_url}
-                      className="inline-flex items-center gap-1 rounded border border-brass/40 bg-brass/10 hover:bg-brass/20 text-brass px-2.5 py-1 text-[11px] font-medium transition-colors"
+                      className="inline-flex h-8 items-center gap-1 rounded border border-brass/40 bg-bg-elevated hover:bg-brass/15 text-brass px-2.5 text-xs font-medium transition-colors"
                     >
                       <span>Claim Free Key</span>
                       <Icon.externalLink className="size-3 shrink-0" aria-hidden="true" />
@@ -368,7 +368,7 @@ export function ResearchEngineDrawer({
                         aria-valuemin={0}
                         aria-valuemax={quota.units_limit}
                         aria-label={`Monthly quota usage for ${offer.name}`}
-                        className="h-1.5 w-full overflow-hidden rounded-full bg-black/40 border border-border-subtle"
+                        className="h-1.5 w-full overflow-hidden rounded-full bg-bg-panel border border-border-subtle"
                       >
                         <div
                           className="h-full bg-brass transition-[width] duration-300"
@@ -389,13 +389,14 @@ export function ResearchEngineDrawer({
                       onChange={(e) =>
                         setKeyInputs((prev) => ({ ...prev, [offer.provider_id]: e.target.value }))
                       }
-                      className="flex-1 rounded-lg border border-border-subtle bg-black/40 px-3 py-1.5 text-xs text-text-primary outline-none focus:border-brass/50 font-mono"
+                      className="h-8 flex-1 rounded-lg border border-border-subtle bg-bg-elevated px-3 text-xs text-text-primary outline-none focus:border-brass/50 font-mono"
                     />
                     <button
                       type="button"
+                      data-slot="button"
                       disabled={saving || !keyInputs[offer.provider_id]?.trim()}
                       onClick={() => handleSaveKey(offer.provider_id)}
-                      className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors disabled:opacity-40"
+                      className="h-8 rounded-lg border border-border-subtle bg-bg-elevated px-3 text-xs font-medium text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors disabled:opacity-40"
                     >
                       Save Key
                     </button>
@@ -419,10 +420,11 @@ export function ResearchEngineDrawer({
             </div>
             <button
               type="button"
+              data-slot="button"
               data-testid="test-all-providers-btn"
               disabled={testingAll}
               onClick={handleTestAll}
-              className="rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs font-medium text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors disabled:opacity-50"
+              className="h-8 rounded-lg border border-border-subtle bg-bg-elevated px-3 text-xs font-medium text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors disabled:opacity-50"
             >
               {testingAll ? 'Testing…' : 'Test All Providers'}
             </button>
@@ -434,20 +436,20 @@ export function ResearchEngineDrawer({
               return (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs"
+                  className="flex items-center justify-between rounded-lg border border-border-subtle bg-bg-surface px-3 py-2 text-xs"
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-text-primary">{p.name}</span>
-                    <span className="text-[10px] text-text-muted font-mono">
+                    <span className="text-[11px] text-text-muted font-mono">
                       {p.is_keyless ? 'Keyless' : p.has_key ? 'Key active' : 'Key missing'}
                     </span>
                     {probeRes && (
                       <span
                         data-testid={`probe-result-${p.id}`}
-                        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-mono ${
+                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-mono bg-bg-elevated border ${
                           probeRes.success
-                            ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                            : 'border border-red-500/30 bg-red-500/10 text-red-400'
+                            ? 'border-(--color-status-pass)/35 text-(--color-status-pass)'
+                            : 'border-(--color-status-fail)/35 text-(--color-status-fail)'
                         }`}
                       >
                         {probeRes.success ? (
@@ -471,7 +473,7 @@ export function ResearchEngineDrawer({
                     onChange={(e) =>
                       setEnabledMap((prev) => ({ ...prev, [p.id]: e.target.checked }))
                     }
-                    className="rounded border-border-subtle bg-black/40 text-brass focus:ring-brass/40 size-4"
+                    className="rounded border-border-subtle bg-bg-elevated text-brass focus:ring-brass/40 size-4"
                   />
                 </div>
               );
@@ -480,7 +482,7 @@ export function ResearchEngineDrawer({
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <div>
-              <label htmlFor="drawer-fast-timeout" className="block text-[11px] font-medium text-text-secondary mb-1">
+              <label htmlFor="drawer-fast-timeout" className="block text-xs font-medium text-text-secondary mb-1">
                 Fast Lane Timeout (ms)
               </label>
               <input
@@ -491,11 +493,11 @@ export function ResearchEngineDrawer({
                 min={500}
                 max={10000}
                 step={250}
-                className="w-full rounded-lg border border-border-subtle bg-black/40 px-3 py-1.5 text-xs text-text-primary outline-none focus:border-brass/50 font-mono"
+                className="h-8 w-full rounded-lg border border-border-subtle bg-bg-elevated px-3 text-xs text-text-primary outline-none focus:border-brass/50 font-mono"
               />
             </div>
             <div>
-              <label htmlFor="drawer-deep-timeout" className="block text-[11px] font-medium text-text-secondary mb-1">
+              <label htmlFor="drawer-deep-timeout" className="block text-xs font-medium text-text-secondary mb-1">
                 Deep Lane Timeout (ms)
               </label>
               <input
@@ -506,7 +508,7 @@ export function ResearchEngineDrawer({
                 min={5000}
                 max={60000}
                 step={1000}
-                className="w-full rounded-lg border border-border-subtle bg-black/40 px-3 py-1.5 text-xs text-text-primary outline-none focus:border-brass/50 font-mono"
+                className="h-8 w-full rounded-lg border border-border-subtle bg-bg-elevated px-3 text-xs text-text-primary outline-none focus:border-brass/50 font-mono"
               />
             </div>
           </div>
@@ -515,7 +517,7 @@ export function ResearchEngineDrawer({
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-4 border-t border-border-subtle">
           {saveSuccess ? (
-            <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+            <span className="inline-flex items-center gap-1 text-xs text-(--color-status-pass) font-medium">
               <Icon.check className="size-3.5 shrink-0" aria-hidden="true" />
               <span>Configuration Saved</span>
             </span>
@@ -525,16 +527,18 @@ export function ResearchEngineDrawer({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              data-slot="button"
               onClick={onClose}
-              className="rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors"
+              className="h-8 rounded-lg border border-border-subtle bg-bg-elevated px-3 text-xs text-text-muted hover:text-text-secondary transition-colors"
             >
               Cancel
             </button>
             <button
               type="button"
+              data-slot="button"
               disabled={saving}
               onClick={handleSaveSettings}
-              className="rounded-lg border border-brass/40 bg-brass/20 hover:bg-brass/30 text-brass px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+              className="h-8 rounded-lg border border-brass/50 bg-brass/20 hover:bg-brass/30 text-brass px-4 text-xs font-semibold transition-colors disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save Policies'}
             </button>

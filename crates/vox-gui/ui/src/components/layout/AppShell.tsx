@@ -5,6 +5,7 @@ import { Sidebar, type SidebarMode } from './Sidebar';
 import { SurfaceScrollHost } from './SurfaceScrollHost';
 import { BreadcrumbBar } from './BreadcrumbBar';
 import { BottomStatusBar } from './BottomStatusBar';
+import type { ActiveRepoBadgeSummary } from './RepoSwitcherPill';
 import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
 import type { DashboardData } from '../../types/dashboard';
 import type { PolicyBadge } from './Sidebar';
@@ -73,6 +74,7 @@ export interface AppShellProps {
   onUnarchiveSession?: (sessionId: string) => void;
   onToggleArchivedSessions?: () => void;
   onTaskBadgeClick?: (sessionId: string) => void;
+  activeRepoSummary?: ActiveRepoBadgeSummary | null;
 }
 
 export function AppShell({
@@ -124,6 +126,7 @@ export function AppShell({
   onUnarchiveSession,
   onToggleArchivedSessions,
   onTaskBadgeClick,
+  activeRepoSummary = null,
 }: AppShellProps) {
   // Below 960px (e.g. 900x600 compact desktop/split-screen) collapse to the 64px icon rail while keeping stored mode.
   const narrow = useNarrowViewport(960);
@@ -211,6 +214,7 @@ export function AppShell({
         onOpenResearchDrawer={onOpenResearchDrawer}
         notices={notices}
         onMarkAllNoticesRead={onMarkAllNoticesRead}
+        activeRepoSummary={activeRepoSummary}
       />
       </div>
     </TooltipProvider>

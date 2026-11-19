@@ -643,6 +643,10 @@ class VoxTransport {
     return safeInvoke('read_doc_markdown', { path });
   }
 
+  writeDocMarkdown(path: string, content: string): Promise<void> {
+    return safeInvoke('write_doc_markdown', { path, content });
+  }
+
   /** Recent chat harness eval runs (Harness Health surface). */
   harnessEvalHistory(limit = 50): Promise<HarnessEvalRunDto[]> {
     return safeInvoke('harness_eval_history', { limit });
@@ -2112,6 +2116,60 @@ export function scientiaPublicationFlywheelAdvance<T = unknown>(
   return safeInvoke<T>('scientia_publication_flywheel_advance', {
     publicationId,
     targetStage: targetStage ?? null,
+  });
+}
+
+export function scientiaPublicationArxivBundle<T = unknown>(publicationId: string): Promise<T> {
+  return safeInvoke<T>('scientia_publication_arxiv_bundle', { publicationId });
+}
+
+export function scientiaPublicationArxivReadiness<T = unknown>(publicationId: string): Promise<T> {
+  return safeInvoke<T>('scientia_publication_arxiv_readiness', { publicationId });
+}
+
+export function scientiaPublicationClassify<T = unknown>(args: {
+  publicationId: string;
+  candidateClass?: string | null;
+  publicationTier?: string | null;
+  arxivPrimaryCategory?: string | null;
+  arxivSecondaryCategories?: string | null;
+  licenseSpdx?: string | null;
+  orcid?: string | null;
+  rorAffiliation?: string | null;
+  prereservedDoi?: string | null;
+  arxivId?: string | null;
+  autofillImrad?: boolean | null;
+}): Promise<T> {
+  return safeInvoke<T>('scientia_publication_classify', {
+    publicationId: args.publicationId,
+    candidateClass: args.candidateClass ?? null,
+    publicationTier: args.publicationTier ?? null,
+    arxivPrimaryCategory: args.arxivPrimaryCategory ?? null,
+    arxivSecondaryCategories: args.arxivSecondaryCategories ?? null,
+    licenseSpdx: args.licenseSpdx ?? null,
+    orcid: args.orcid ?? null,
+    rorAffiliation: args.rorAffiliation ?? null,
+    prereservedDoi: args.prereservedDoi ?? null,
+    arxivId: args.arxivId ?? null,
+    autofillImrad: args.autofillImrad ?? null,
+  });
+}
+
+export function scientiaPublicationStageAdvance<T = unknown>(args: {
+  publicationId: string;
+  targetStage?: string | null;
+  orcid?: string | null;
+  prereservedDoi?: string | null;
+  arxivId?: string | null;
+  autofillImrad?: boolean | null;
+}): Promise<T> {
+  return safeInvoke<T>('scientia_publication_stage_advance', {
+    publicationId: args.publicationId,
+    targetStage: args.targetStage ?? null,
+    orcid: args.orcid ?? null,
+    prereservedDoi: args.prereservedDoi ?? null,
+    arxivId: args.arxivId ?? null,
+    autofillImrad: args.autofillImrad ?? null,
   });
 }
 

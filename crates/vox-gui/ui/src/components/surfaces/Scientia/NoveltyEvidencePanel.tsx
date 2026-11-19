@@ -91,24 +91,24 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
       </div>
 
       {/* prior art */}
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-text-muted">Closest prior art</div>
+      <div className="mb-1.5 font-display text-xs uppercase tracking-wider text-text-muted">Closest prior art</div>
       {assessment.prior_art.length === 0 ? (
-        <div className="rounded-lg border border-border-subtle px-3 py-2 font-mono text-[11px] text-text-muted">
+        <div className="rounded-lg border border-border-subtle px-3 py-2 text-xs text-text-muted">
           No prior-art hits.
         </div>
       ) : (
         <ul className="space-y-1.5">
           {assessment.prior_art.map((h, i) => (
-            <li key={`${h.work_uri}-${i}`} className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2">
+            <li key={`${h.work_uri}-${i}`} className="rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2">
               <a
                 href={h.work_uri}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[12.5px] text-text-secondary underline decoration-dotted hover:text-brass"
+                className="text-xs font-medium text-text-primary underline decoration-dotted hover:text-brass"
               >
                 {h.title || h.work_uri}
               </a>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 font-mono text-[10px] text-text-muted">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 font-mono text-[11px] text-text-muted">
                 {h.year != null && <span>{h.year}</span>}
                 {h.cited_by_count != null && <span>{h.cited_by_count} citations</span>}
                 {h.semantic_score != null && <span className="text-brass">sim {num(h.semantic_score)}</span>}
@@ -121,18 +121,18 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
       {/* conflicts */}
       {assessment.conflicts.length > 0 && (
         <div className="mt-4">
-          <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-rose-300/80">
+          <div className="mb-1.5 font-display text-xs uppercase tracking-wider text-(--color-status-fail)">
             Evidence conflicts
           </div>
           <div className="space-y-2">
             {assessment.conflicts.map((c, i) => (
-              <div key={i} className="rounded-lg border border-rose-400/20 bg-rose-400/4 px-3 py-2 font-mono text-[11px]">
-                <div className="mb-1 text-rose-200/90">
+              <div key={i} className="rounded-lg border border-(--color-status-fail)/35 bg-bg-elevated px-3 py-2.5 font-mono text-xs">
+                <div className="mb-1 font-semibold text-(--color-status-fail)">
                   conflict score {num(c.conflict_score)}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-emerald-300/80">Supporting ({c.supporting.length})</div>
+                    <div className="text-(--color-status-pass)">Supporting ({c.supporting.length})</div>
                     {c.supporting.map((h, j) => (
                       <div key={j} className="truncate text-text-muted" title={h.excerpt ?? h.work_uri}>
                         {h.work_uri}
@@ -140,7 +140,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
                     ))}
                   </div>
                   <div>
-                    <div className="text-rose-300/80">Contradicting ({c.contradicting.length})</div>
+                    <div className="text-(--color-status-fail)">Contradicting ({c.contradicting.length})</div>
                     {c.contradicting.map((h, j) => (
                       <div key={j} className="truncate text-text-muted" title={h.excerpt ?? h.work_uri}>
                         {h.work_uri}

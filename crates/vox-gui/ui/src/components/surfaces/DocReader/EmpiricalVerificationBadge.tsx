@@ -49,6 +49,7 @@ export function EmpiricalVerificationBadge({
         <div className="fixed inset-0 z-50 flex justify-end">
           <button
             type="button"
+            data-slot="drawer-backdrop"
             aria-label="Close backdrop"
             className="fixed inset-0 bg-black/50 backdrop-blur-xs cursor-default w-full h-full border-0 p-0"
             onClick={() => setDrawerOpen(false)}
@@ -81,7 +82,7 @@ export function EmpiricalVerificationBadge({
             </div>
 
             <div className="mt-4 space-y-4 text-xs font-mono text-text-secondary">
-              <div className="p-3 rounded bg-black/30 border border-border-subtle">
+              <div className="p-3 rounded bg-bg-elevated border border-border-subtle">
                 <div className="font-semibold text-text-primary mb-1">Empirical Reproducibility</div>
                 <p>
                   This document was synthesized from empirical test runs verified by compiler sandbox

@@ -62,19 +62,20 @@ export function WorthinessRadarPanel({
     <div
       data-testid="scientia-worthiness-meter"
       data-slot="worthiness-radar-panel"
-      className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 space-y-3"
+      className="rounded-xl border border-border-subtle bg-bg-surface p-4 space-y-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2.5">
-          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-text-muted">
+          <span className="font-display text-xs uppercase tracking-[0.16em] text-text-muted">
             {title}
           </span>
           <div
             data-testid="novelty-utility-gate-pill"
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] ${
+            title="Two-stage autonomous promotion gate: Novelty (prior-art distance N) x Utility (empirical claim support & replayability U) = Composite Score (>= 65% required for promotion)"
+            className={`inline-flex items-center gap-1.5 rounded-full border bg-bg-elevated px-2.5 py-0.5 font-mono text-[11px] ${
               gate.passed
-                ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'
-                : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+                ? 'border-(--color-status-pass)/40 text-(--color-status-pass)'
+                : 'border-(--color-status-warn)/40 text-(--color-status-warn)'
             }`}
           >
             {gate.passed ? (
@@ -92,18 +93,21 @@ export function WorthinessRadarPanel({
         </div>
         {actions && <div className="flex flex-wrap items-center gap-1.5">{actions}</div>}
       </div>
+      <p data-testid="worthiness-formula-legend" className="font-serif text-[11px] text-text-secondary">
+        Gate formula: Novelty (prior-art distance) x Utility (corroborated claims &amp; replayability). Composite scores ≥ 65% clear autonomous Scientia promotion.
+      </p>
 
       <div
         className={
           compact
-            ? 'grid grid-cols-1 gap-3 lg:grid-cols-[180px_1fr]'
-            : 'grid grid-cols-1 gap-4 lg:grid-cols-[210px_1fr]'
+            ? 'grid grid-cols-1 gap-3 lg:grid-cols-[190px_1fr]'
+            : 'grid grid-cols-1 gap-4 lg:grid-cols-[220px_1fr]'
         }
       >
-        <div className="flex items-center justify-center rounded-lg border border-border-subtle bg-black/30 p-2">
+        <div className="flex items-center justify-center rounded-lg border border-border-subtle bg-bg-elevated p-2">
           <svg
             data-testid="worthiness-radar-svg"
-            viewBox="0 0 220 220"
+            viewBox="-14 -8 248 236"
             role="img"
             aria-label="6-Axis Scientia Worthiness Radar"
             className={compact ? 'h-40 w-40' : 'h-44 w-44'}
@@ -138,7 +142,7 @@ export function WorthinessRadarPanel({
                     y={ly}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    className="fill-[#D6CEBF] font-mono text-[8px]"
+                    className="fill-text-secondary font-sans text-[11px] font-medium"
                   >
                     {axis.label.slice(0, 10)}
                   </text>
@@ -148,8 +152,8 @@ export function WorthinessRadarPanel({
             <polygon
               data-testid="worthiness-radar-polygon"
               points={dataPolygon}
-              fill="rgba(212, 175, 55, 0.24)"
-              stroke="#D4AF37"
+              fill="rgba(197, 155, 39, 0.24)"
+              stroke="var(--color-accent-default)"
               strokeWidth="2"
             />
             {axes.map((axis, idx) => {
@@ -160,9 +164,9 @@ export function WorthinessRadarPanel({
                   cx={px}
                   cy={py}
                   r="3.2"
-                  fill="#F3E5AB"
-                  stroke="#D4AF37"
-                  strokeWidth="1.2"
+                  fill="var(--color-bg-elevated)"
+                  stroke="var(--color-accent-default)"
+                  strokeWidth="1.5"
                 />
               );
             })}
@@ -175,35 +179,35 @@ export function WorthinessRadarPanel({
             return (
               <div
                 key={axis.axis}
-                className="rounded-lg border border-border-subtle bg-black/30 p-2.5"
+                className="rounded-lg border border-border-subtle bg-bg-elevated p-2.5"
               >
-                <div className="flex items-center justify-between font-mono text-[10px]">
-                  <span className="truncate text-text-secondary">{axis.label}</span>
+                <div className="flex items-center justify-between font-mono text-[11px]">
+                  <span className="truncate font-sans font-medium text-text-primary">{axis.label}</span>
                   <span
                     className={
                       pct >= 70
-                        ? 'text-emerald-400'
+                        ? 'text-(--color-status-pass) font-semibold'
                         : pct >= 45
-                          ? 'text-brass'
-                          : 'text-amber-400'
+                          ? 'text-brass font-semibold'
+                          : 'text-(--color-status-warn) font-semibold'
                     }
                   >
                     {pct}%
                   </span>
                 </div>
-                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-bg-panel border border-border-subtle">
                   <div
                     className={`h-full rounded-full ${
                       pct >= 70
-                        ? 'bg-emerald-400'
+                        ? 'bg-(--color-status-pass)'
                         : pct >= 45
                           ? 'bg-brass'
-                          : 'bg-amber-400'
+                          : 'bg-(--color-status-warn)'
                     }`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="mt-1 truncate font-mono text-[9px] text-text-muted">
+                <div className="mt-1 truncate font-sans text-[11px] text-text-muted">
                   {axis.description}
                 </div>
               </div>

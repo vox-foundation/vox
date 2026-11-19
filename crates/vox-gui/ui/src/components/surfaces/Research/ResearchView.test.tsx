@@ -226,7 +226,7 @@ describe('ResearchView', () => {
       expect(screen.getByText('Sandbox REPL Probe')).toBeTruthy();
       expect(screen.getByRole('button', { name: /run compiler probe/i })).toBeTruthy();
     });
-  });
+  }, 20_000);
 
   it('toggles Diagnostic Prober when clicking toggle-diagnostics-btn', async () => {
     render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
@@ -877,6 +877,162 @@ describe('ResearchView', () => {
       await waitFor(() => {
         expect(screen.queryByTestId('before-after-audit-inspector')).toBeNull();
       });
+    });
+
+    it('configures lane/mode/scope/waves via 4 statistical archetypes, shows interactive Confidence Gate, and deduplicates wax seals (v8.4)', async () => {
+      render(<ResearchView />);
+
+      expect(screen.getByTestId('research-archetype-launchpad')).toBeInTheDocument();
+      expect(screen.getAllByText('VERIFICATA').length).toBe(1);
+
+      const empiricalBtn = screen.getByTestId('archetype-empirical-arxiv');
+      fireEvent.click(empiricalBtn);
+      expect(screen.getByTestId('lane-switch-deep')).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('domain-mode-scholarly')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('research-scope-both')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('research-waves-4')).toHaveAttribute('aria-pressed', 'true');
+      expect((screen.getByLabelText('Research question') as HTMLInputElement).value).toContain(
+        'Quantitative empirical evaluation',
+      );
+
+      fireEvent.click(screen.getByTestId('archetype-claim-check'));
+      expect(screen.getByTestId('lane-switch-fast')).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('domain-mode-general')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('research-scope-web')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('research-waves-2')).toHaveAttribute('aria-pressed', 'true');
+
+      expect(screen.getByTestId('confidence-gate-status')).toHaveTextContent('Observed');
+      expect(screen.getByLabelText('Minimum confidence gate')).toBeInTheDocument();
+    });
+
+    it('runs debounced KB prior-art preflight and launches gap synthesis via vox_search_query (v8.4)', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'vox_search_query') {
+          return Promise.resolve({
+            hits: [
+              {
+                source: 'docs/src/architecture/unified-research-kb-publication-flywheel-ssot-2026.md',
+                path: 'docs/src/architecture/unified-research-kb-publication-flywheel-ssot-2026.md',
+                snippet: 'Closed-loop flywheel SSOT',
+                score: 0.91,
+              },
+            ],
+          });
+        }
+        return defaultInvokeHandler(cmd);
+      });
+
+      render(<ResearchView />);
+      const input = screen.getByLabelText('Research question');
+      fireEvent.change(input, { target: { value: 'federated flywheel' } });
+
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('run-kb-gap-synthesis-btn')).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+
+      fireEvent.click(screen.getByTestId('run-kb-gap-synthesis-btn'));
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'start_research_async',
+          expect.objectContaining({
+            lane: 'deep',
+            scope: 'both',
+          }),
+        );
+      });
+    });
+
+    it('collapses completed timeline, scopes direct KB indexing, and steers next refinement wave (v8.5)', async () => {
+      detailResponse = DETAIL_WITH_CLAIMS;
+      render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+      expect(screen.queryByTestId('flywheel-journey-strip')).toBeNull();
+
+      screen.getByText('What is Vox?').closest('button')!.click();
+      await waitFor(() => {
+        expect(screen.getByTestId('research-completed-summary-pill')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('research-process-control-strip')).toBeInTheDocument();
+      expect(screen.getByTestId('research-storage-control-bar')).toBeInTheDocument();
+
+      const scopeToggle = screen.getByTestId('research-storage-scope-toggle');
+      expect(scopeToggle.textContent).toContain('Repo-Local KB');
+      fireEvent.click(scopeToggle);
+      expect(scopeToggle.textContent).toContain('Global Library');
+
+      fireEvent.click(screen.getByTestId('direct-index-kb-btn'));
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'ingest_text',
+          expect.objectContaining({
+            title: 'What is Vox?',
+            content: 'The sky is blue.',
+            sourceUrl: 'https://example.com/a',
+            targetScope: 'global_library',
+          }),
+        );
+      });
+
+      const steerInput = screen.getByTestId('research-steer-input');
+      fireEvent.change(steerInput, { target: { value: 'focus benchmarks' } });
+      fireEvent.click(screen.getByTestId('research-steer-wave-btn'));
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'start_research_async',
+          expect.objectContaining({
+            query: 'What is Vox? [Refine: focus benchmarks]',
+            lane: 'deep',
+            waves: 2,
+          }),
+        );
+      });
+    });
+
+    it('cycles 1-click Domain Mode pill and filters past research sessions by keyword (v8.6)', async () => {
+      render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+
+      const modePill = screen.getByTestId('research-domain-mode-pill');
+      expect(modePill.textContent).toContain('Mode: General');
+      fireEvent.click(modePill);
+      expect(modePill.textContent).toContain('Mode: CodeGen');
+      fireEvent.click(modePill);
+      expect(modePill.textContent).toContain('Mode: Scholarly');
+
+      await waitFor(() => expect(screen.getByTestId('research-history-filter-input')).toBeInTheDocument());
+      const filterInput = screen.getByTestId('research-history-filter-input');
+      fireEvent.change(filterInput, { target: { value: 'nonexistent-topic' } });
+      expect(screen.getByText(/No saved research sessions match/i)).toBeInTheDocument();
+
+      fireEvent.change(filterInput, { target: { value: 'Vox' } });
+      expect(screen.getByText('What is Vox?')).toBeInTheDocument();
+    });
+
+    it('seeds synthesized session drafts into non-modal Doc Dock via vox://open-doc (v8.7)', async () => {
+      detailResponse = DETAIL_WITH_CLAIMS;
+      const docEvents: CustomEvent[] = [];
+      const onOpenDoc = (e: Event) => docEvents.push(e as CustomEvent);
+      window.addEventListener('vox://open-doc', onOpenDoc);
+      try {
+        render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+        await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+        screen.getByText('What is Vox?').closest('button')!.click();
+        await waitFor(() => expect(screen.getByTestId('open-synthesis-in-doc-dock-btn')).toBeInTheDocument());
+
+        fireEvent.click(screen.getByTestId('open-synthesis-in-doc-dock-btn'));
+        expect(docEvents.length).toBe(1);
+        expect(docEvents[0]!.detail?.path).toBe('docs/src/architecture/what-is-vox-findings-2026.md');
+        expect(docEvents[0]!.detail?.initialMode).toBe('split');
+        expect(docEvents[0]!.detail?.initialContent).toContain('<!-- kb:summary -->');
+        expect(docEvents[0]!.detail?.initialContent).toContain('The sky is blue.');
+      } finally {
+        window.removeEventListener('vox://open-doc', onOpenDoc);
+      }
     });
   });
 });

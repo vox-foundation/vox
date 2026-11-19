@@ -88,7 +88,7 @@ export function SandboxReplModal({
                 value: lang.value,
                 label: lang.label,
               }))}
-              className="w-36 border-border-subtle bg-black/50 text-xs text-text-primary"
+              className="h-8 w-36 border-border-subtle bg-bg-elevated text-xs text-text-primary"
             />
           </div>
 
@@ -103,36 +103,37 @@ export function SandboxReplModal({
               onChange={(e) => setCode(e.target.value)}
               rows={8}
               placeholder="// Write code here to probe in the sandbox..."
-              className="w-full rounded-lg border border-border-subtle bg-black/60 p-3 font-mono text-xs text-text-primary outline-none focus:border-brass/40 resize-y"
+              className="w-full rounded-lg border border-border-subtle bg-bg-elevated p-3 font-mono text-xs text-text-primary outline-none focus:border-brass/50 resize-y"
             />
           </div>
 
           <div className="flex items-center justify-between pt-1">
             <button
               type="button"
+              data-slot="button"
               onClick={handleRunProbe}
               disabled={running}
-              className="rounded-lg border border-brass/40 bg-brass/10 px-4 py-2 text-xs font-medium text-brass hover:bg-brass/20 disabled:opacity-50 transition-colors"
+              className="h-8 rounded-lg border border-brass/40 bg-bg-elevated px-4 text-xs font-semibold text-brass hover:bg-brass/15 disabled:opacity-50 transition-colors"
             >
               {running ? 'Running Probe…' : 'Run Compiler Probe'}
             </button>
           </div>
 
           {error && (
-            <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-400">
+            <div className="p-3 rounded-lg border border-(--color-status-fail)/35 bg-bg-elevated text-xs text-(--color-status-fail)">
               Execution Error: {error}
             </div>
           )}
 
           {outcome && (
-            <div className="mt-4 space-y-2 rounded-lg border border-border-subtle bg-black/40 p-3">
+            <div className="mt-4 space-y-2 rounded-lg border border-border-subtle bg-bg-surface p-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-text-secondary">Probe Result:</span>
                 <span
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold uppercase ${
+                  className={`px-2 py-0.5 rounded border text-[11px] font-mono font-semibold uppercase bg-bg-elevated ${
                     outcome.passed
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      ? 'text-(--color-status-pass) border-(--color-status-pass)/35'
+                      : 'text-(--color-status-fail) border-(--color-status-fail)/35'
                   }`}
                 >
                   {outcome.passed ? 'Passed' : 'Failed'}
@@ -142,7 +143,7 @@ export function SandboxReplModal({
               {outcome.stdout && (
                 <div>
                   <div className="text-[11px] font-medium text-text-muted mb-1">Standard Output:</div>
-                  <pre className="max-h-36 overflow-auto rounded bg-black/60 p-2 font-mono text-[11px] text-text-secondary">
+                  <pre className="max-h-36 overflow-auto rounded border border-border-subtle bg-bg-elevated p-2 font-mono text-[11px] text-text-secondary">
                     {outcome.stdout}
                   </pre>
                 </div>
@@ -150,8 +151,8 @@ export function SandboxReplModal({
 
               {outcome.stderr && (
                 <div>
-                  <div className="text-[11px] font-medium text-rose-400 mb-1">Standard Error:</div>
-                  <pre className="max-h-36 overflow-auto rounded bg-red-950/20 border border-red-900/30 p-2 font-mono text-[11px] text-rose-300">
+                  <div className="text-[11px] font-medium text-(--color-status-fail) mb-1">Standard Error:</div>
+                  <pre className="max-h-36 overflow-auto rounded bg-bg-elevated border border-(--color-status-fail)/35 p-2 font-mono text-[11px] text-(--color-status-fail)">
                     {outcome.stderr}
                   </pre>
                 </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RomanMedallion, RomanBrassGauge, RomanTooltip } from './RomanTooltip';
+import { RomanMedallion, RomanBrassGauge, RomanTooltip, RomanCoinSignet } from './RomanTooltip';
 
 export interface RomanSurfaceGaugeSpec {
   label: string;
@@ -51,6 +51,7 @@ export function RomanFlutedPillar({
     return (
       <div
         data-roman-pillar="true"
+        data-roman-relief-pillar="true"
         data-pillar-side={side}
         data-pillar-variant="laurel"
         aria-hidden="true"
@@ -113,12 +114,13 @@ export function RomanFlutedPillar({
   return (
     <div
       data-roman-pillar="true"
+      data-roman-relief-pillar="true"
       data-pillar-side={side}
       data-pillar-variant="column"
       aria-hidden="true"
       className={`pointer-events-none flex w-4 sm:w-5 shrink-0 flex-col items-center justify-between select-none ${className}`}
     >
-      {/* Ionic Volute & Acanthus Capital in Carved White Carrara Marble */}
+      {/* Ionic Volute & Acanthus Capital in Carved Carrara Marble / Basalt */}
       <svg viewBox="0 0 28 14" className="w-full h-3.5 shrink-0 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
         <defs>
           <linearGradient id={`marble-cap-${side}`} x1="0" y1="0" x2="1" y2="0">
@@ -137,8 +139,9 @@ export function RomanFlutedPillar({
         <rect x="4" y="9.5" width="20" height="3.5" rx="1" fill={`url(#marble-cap-${side})`} stroke="#9E7B2F" strokeWidth="0.8" />
       </svg>
 
-      {/* Fluted Carrara Marble Shaft */}
+      {/* Fluted Architectural Shaft (Carrara in Light, Basalt in Dark) */}
       <div
+        data-pillar-shaft="true"
         className="w-3 sm:w-3.5 flex-1 border-x border-[#9E7B2F]/65 shadow-[inset_0_0_4px_rgba(0,0,0,0.22)]"
         style={{
           backgroundImage:
@@ -146,7 +149,7 @@ export function RomanFlutedPillar({
         }}
       />
 
-      {/* Attic Molded Marble Plinth Base */}
+      {/* Attic Molded Plinth Base */}
       <svg viewBox="0 0 28 10" className="w-full h-2.5 shrink-0 drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
         <rect x="3" y="1" width="22" height="3.5" rx="1" fill="#EFE7D8" stroke="#9E7B2F" strokeWidth="0.8" />
         <rect x="1" y="5" width="26" height="4" rx="1" fill="#DFD2BC" stroke="#8C6825" strokeWidth="0.9" />
@@ -198,13 +201,8 @@ export function RomanSurfaceHeader({
   return (
     <header
       data-roman-frieze="true"
-      style={{
-        backgroundImage:
-          'linear-gradient(115deg, rgba(255,252,245,0) 35%, rgba(255,248,225,0.48) 50%, rgba(255,252,245,0) 65%), linear-gradient(90deg, rgba(250,246,238,0.92) 0%, rgba(242,233,218,0.82) 48%, rgba(250,246,238,0.92) 100%), url(/assets/romanesque/carrara-acanthus-header-band.jpg)',
-        backgroundSize: '240% 100%, 100% 100%, cover',
-        backgroundPosition: 'center, center, center',
-      }}
-      className={`vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-2.5 py-2 shadow-[0_6px_18px_rgba(28,20,12,0.22),inset_0_2px_0_rgba(255,255,255,0.95),inset_0_-2px_0_rgba(168,132,47,0.45)] ${className}`}
+      data-roman-frieze-relief="true"
+      className={`vox-roman-frieze-banner vox-animate-marble-sheen relative overflow-hidden rounded-xl border-2 border-[#C59B27] px-2.5 py-2.5 shadow-[0_6px_18px_rgba(120,83,18,0.22),inset_0_2px_0_rgba(255,255,255,0.92),inset_0_-2px_0_rgba(168,132,47,0.45)] ${className}`}
     >
       {/* Top & bottom burnished gold cornice fillets */}
       <div
@@ -217,15 +215,15 @@ export function RomanSurfaceHeader({
       />
 
       <div className="relative flex items-stretch justify-between gap-2.5">
-        {/* Left Domain-Varied Romanesque Relief */}
+        {/* Left Architectural Relief Pilaster */}
         <RomanFlutedPillar side="left" variant={reliefVariant} />
 
-        {/* Central White Carrara Marble Frieze Content */}
+        {/* Central Sculpted Frieze Entablature Content */}
         <div className="flex flex-1 flex-wrap items-center justify-between gap-3 py-1">
           <div className="flex min-w-0 items-center gap-3">
             <RomanMedallion active size="lg">
               {icon ?? (
-                <span className="font-display text-xs font-bold tracking-wider text-[#1C140C]">
+                <span className="font-display text-xs font-bold tracking-wider text-text-primary">
                   {domainTag.slice(0, 2).toUpperCase()}
                 </span>
               )}
@@ -234,15 +232,15 @@ export function RomanSurfaceHeader({
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   data-roman-brass-plaque="true"
-                  className="inline-flex items-center gap-1 rounded border border-[#785312] bg-linear-to-b from-[#F2D67B] via-[#D4AF37] to-[#9A741C] px-2.5 py-0.5 font-display text-[9px] font-bold uppercase tracking-[0.16em] text-[#1A1205] shadow-[0_2px_5px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,250,225,0.85)]"
+                  className="inline-flex items-center gap-1 rounded border border-[#785312] bg-linear-to-b from-[#F2D67B] via-[#D4AF37] to-[#9A741C] px-2.5 py-0.5 font-display text-[11px] font-bold uppercase tracking-[0.14em] text-[#3B2608] shadow-[0_2px_5px_rgba(120,83,18,0.32),inset_0_1px_0_rgba(255,250,225,0.85)]"
                 >
-                  <span className="size-1 rounded-full bg-[#3A2707]" aria-hidden="true" />
+                  <span className="size-1 rounded-full bg-[#3B2608]" aria-hidden="true" />
                   <span>{domainTag}</span>
-                  <span className="size-1 rounded-full bg-[#3A2707]" aria-hidden="true" />
+                  <span className="size-1 rounded-full bg-[#3B2608]" aria-hidden="true" />
                 </span>
                 <HeadingTag
-                  className="font-display text-sm sm:text-base font-bold tracking-[0.06em] text-[#1C140C] truncate"
-                  style={{ textShadow: '0 1px 0 rgba(255, 255, 255, 0.85)' }}
+                  className="font-display text-base sm:text-lg font-bold tracking-[0.06em] text-text-primary truncate"
+                  style={{ textShadow: '0 1px 0 rgba(255, 255, 255, 0.72)' }}
                 >
                   {title}
                 </HeadingTag>
@@ -260,8 +258,8 @@ export function RomanSurfaceHeader({
               </div>
               {subtitle && (
                 <p
-                  className="mt-0.5 font-serif text-[11.5px] font-medium leading-snug text-[#3B2E1E] line-clamp-1"
-                  style={{ textShadow: '0 1px 0 rgba(255, 255, 255, 0.7)' }}
+                  className="mt-0.5 font-serif text-xs font-medium leading-snug text-[#3B2E1E] line-clamp-1"
+                  style={{ textShadow: '0 1px 0 rgba(255, 255, 255, 0.65)' }}
                 >
                   {subtitle}
                 </p>
@@ -270,22 +268,42 @@ export function RomanSurfaceHeader({
           </div>
 
           {(gauges && gauges.length > 0) || actions ? (
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              {gauges?.map((g) => (
-                <RomanBrassGauge
-                  key={g.label}
-                  label={g.label}
-                  valueText={g.valueText}
-                  ratio={g.ratio}
-                  tone={g.tone}
-                  purpose={g.purpose}
-                  actionHint={g.actionHint}
-                  active={g.active}
-                  onClick={g.onClick}
-                />
-              ))}
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              {gauges && gauges.length >= 2 ? (
+                <>
+                  <RomanBrassGauge {...gauges[0]!} />
+                  <RomanCoinSignet label={`${domainTag} Cast-Bronze Signet`} />
+                  {gauges.slice(1).map((g) => (
+                    <RomanBrassGauge
+                      key={g.label}
+                      label={g.label}
+                      valueText={g.valueText}
+                      ratio={g.ratio}
+                      tone={g.tone}
+                      purpose={g.purpose}
+                      actionHint={g.actionHint}
+                      active={g.active}
+                      onClick={g.onClick}
+                    />
+                  ))}
+                </>
+              ) : (
+                gauges?.map((g) => (
+                  <RomanBrassGauge
+                    key={g.label}
+                    label={g.label}
+                    valueText={g.valueText}
+                    ratio={g.ratio}
+                    tone={g.tone}
+                    purpose={g.purpose}
+                    actionHint={g.actionHint}
+                    active={g.active}
+                    onClick={g.onClick}
+                  />
+                ))
+              )}
               {actions && (
-                <div className="vox-header-actions-tray flex flex-wrap items-center gap-1.5 rounded-lg border-1.5 border-[#B88E28] bg-linear-to-b from-[#FAF6EE] to-[#EFE6D5] px-2 py-1 text-[#1C140C] shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_2px_6px_rgba(28,20,12,0.16)]">
+                <div className="vox-header-actions-tray flex flex-wrap items-center gap-1.5 rounded-lg border-1.5 border-[#B88E28] bg-bg-surface/90 px-2 py-1 text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_2px_6px_rgba(120,83,18,0.16)]">
                   {actions}
                 </div>
               )}
@@ -293,7 +311,7 @@ export function RomanSurfaceHeader({
           ) : null}
         </div>
 
-        {/* Right Domain-Varied Romanesque Relief */}
+        {/* Right Architectural Relief Pilaster */}
         <RomanFlutedPillar side="right" variant={reliefVariant} />
       </div>
     </header>

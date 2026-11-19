@@ -56,7 +56,7 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
       return (
         <span
           data-testid="status-badge-200"
-          className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-mono text-emerald-400"
+          className="rounded border border-(--color-status-pass)/35 bg-bg-elevated px-2 py-0.5 text-[11px] font-mono text-(--color-status-pass)"
         >
           HTTP {status}
         </span>
@@ -66,7 +66,7 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
       return (
         <span
           data-testid="status-badge-unconfigured"
-          className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-mono text-amber-400"
+          className="rounded border border-(--color-status-warn)/35 bg-bg-elevated px-2 py-0.5 text-[11px] font-mono text-(--color-status-warn)"
         >
           Unconfigured (HTTP 0)
         </span>
@@ -75,7 +75,7 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
     return (
       <span
         data-testid="status-badge-error"
-        className="rounded border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-mono text-red-400"
+        className="rounded border border-(--color-status-fail)/35 bg-bg-elevated px-2 py-0.5 text-[11px] font-mono text-(--color-status-fail)"
       >
         Error (HTTP {status})
       </span>
@@ -85,18 +85,18 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
   return (
     <div
       data-testid="live-source-prober"
-      className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 space-y-3"
+      className="rounded-lg border border-border-subtle bg-bg-surface p-3 space-y-3"
     >
-      <div className="flex items-center justify-between">
-        <h3 className="font-display text-[12px] uppercase tracking-wide text-text-primary">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-xs uppercase tracking-wide text-text-primary">
           Live Source Prober
         </h3>
-        <span className="text-[11px] text-text-muted">
+        <span className="text-xs text-text-muted">
           Inspect source engine latency and availability
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
           value={query}
@@ -107,7 +107,7 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
           onKeyDown={(e) => {
             if (e.key === 'Enter') void handleProbe();
           }}
-          className="min-w-[200px] flex-1 rounded-lg border border-border-subtle bg-black/40 px-3 py-1.5 text-sm text-text-secondary outline-hidden focus:border-brass/40"
+          className="h-9 min-w-[200px] flex-1 rounded-lg border border-border-subtle bg-bg-elevated px-3 text-sm text-text-primary outline-hidden focus:border-brass/50"
         />
 
         <VoxSelect
@@ -119,22 +119,23 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
             value: p.id,
             label: p.label,
           }))}
-          className="w-40 rounded-lg border-border-subtle bg-black/40 text-sm text-text-secondary"
+          className="h-9 w-40 rounded-lg border-border-subtle bg-bg-elevated text-sm text-text-primary"
         />
 
         <button
           type="button"
+          data-slot="button"
           data-testid="probe-submit-btn"
           onClick={handleProbe}
           disabled={loading || !query.trim()}
-          className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-1.5 text-sm text-brass hover:bg-brass/20 disabled:opacity-50"
+          className="h-9 rounded-lg border border-brass/40 bg-bg-elevated px-4 text-xs font-semibold text-brass hover:bg-brass/15 disabled:opacity-50"
         >
           {loading ? 'Probing…' : 'Probe Provider'}
         </button>
       </div>
 
       {errorMessage && (
-        <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-[12px] text-red-300">
+        <div className="rounded border border-(--color-status-fail)/35 bg-bg-elevated p-2 text-xs text-(--color-status-fail)">
           {errorMessage}
         </div>
       )}
@@ -144,11 +145,11 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
           {results.map((r, i) => (
             <div
               key={`${r.provider}-${i}`}
-              className="rounded-lg border border-border-subtle bg-black/30 p-3 space-y-2"
+              className="rounded-lg border border-border-subtle bg-bg-panel p-3 space-y-2"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-semibold capitalize text-text-primary">
+                  <span className="font-sans text-sm font-semibold capitalize text-text-primary">
                     {r.provider}
                   </span>
                   {getStatusBadge(r.http_status)}
@@ -156,13 +157,13 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
                 <div className="flex items-center gap-2">
                   <span
                     data-testid="latency-badge"
-                    className="rounded border border-border-subtle bg-black/40 px-2 py-0.5 font-mono text-[11px] text-text-secondary"
+                    className="rounded border border-border-subtle bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-text-secondary"
                   >
                     {r.latency_ms} ms
                   </span>
                   <span
                     data-testid="hit-count-badge"
-                    className="rounded border border-border-subtle bg-black/40 px-2 py-0.5 font-mono text-[11px] text-text-secondary"
+                    className="rounded border border-border-subtle bg-bg-elevated px-2 py-0.5 font-mono text-[11px] text-text-secondary"
                   >
                     {r.hit_count} hits
                   </span>
@@ -172,7 +173,7 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
               {(r.remediation_tip || r.http_status === 0 || !r.success || r.hit_count === 0) && (
                 <div
                   data-testid="remediation-banner"
-                  className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-300"
+                  className="rounded border border-(--color-status-warn)/35 bg-bg-elevated p-2 text-xs text-(--color-status-warn)"
                 >
                   <span className="font-semibold">Remediation: </span>
                   {r.remediation_tip ??
@@ -183,12 +184,12 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
 
               {r.sample_titles && r.sample_titles.length > 0 && (
                 <div className="pt-1">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-text-muted mb-1">
                     Sample Titles
                   </div>
                   <ul className="list-disc list-inside space-y-0.5" data-testid="sample-titles-list">
                     {r.sample_titles.map((title, idx) => (
-                      <li key={idx} className="truncate text-[11px] text-text-secondary">
+                      <li key={idx} className="truncate text-xs text-text-secondary">
                         {title}
                       </li>
                     ))}

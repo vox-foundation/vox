@@ -43,53 +43,66 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
 
   return (
     <div className="flex min-h-0 flex-col gap-3 p-4">
-      {tab !== 'dashboard' && (
-        <RomanSurfaceHeader
-          domainTag="KNOWLEDGE · SCIENTIA"
-          title="Scientia Epistemic Discovery & Verification Ledger"
-          subtitle="Track machine-verified research claims, novelty evidence, and publication readiness."
-          waxSealBadge="EPISTEMIC LEDGER"
-          icon={<ScientiaIcon className="size-5 text-[#F3E5AB]" />}
-        />
-      )}
-      <div role="tablist" aria-label="Findings sections" className="flex flex-wrap gap-1">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            data-testid={`scientia-tab-${t.id}`}
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={`rounded-md px-3 py-1.5 font-display text-[11px] uppercase tracking-[0.16em] transition ${
-              tab === t.id
-                ? 'border border-[#C59B27]/55 bg-bg-elevated text-text-primary font-semibold shadow-xs'
-                : 'border border-transparent text-text-secondary hover:border-[#C59B27]/35 hover:bg-bg-surface hover:text-text-primary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <RomanSurfaceHeader
+        domainTag="KNOWLEDGE · SCIENTIA"
+        title="Scientia Epistemic Discovery & Verification Ledger"
+        subtitle="Track machine-verified research claims, novelty evidence, and publication readiness."
+        waxSealBadge="EPISTEMIC LEDGER"
+        icon={<ScientiaIcon className="size-5 text-text-primary" />}
+        gauges={[
+          {
+            label: 'SURFACE',
+            valueText: TABS.find((t) => t.id === tab)?.label.toUpperCase() ?? 'LEDGER',
+            ratio: (TABS.findIndex((t) => t.id === tab) + 1) / TABS.length,
+            tone: 'gold',
+            purpose: 'Active Scientia discovery verification stage',
+          },
+          {
+            label: 'VERIFICATION',
+            valueText: '95% CI',
+            ratio: 0.95,
+            tone: 'emerald',
+            purpose: 'Epistemic Bayesian calibration and novelty audit gate',
+          },
+        ]}
+      />
+      <div className="vox-recessed-console-frame p-3 space-y-3">
+        <div role="tablist" aria-label="Findings sections" className="vox-segmented-brass-bar flex-wrap w-fit max-w-full">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              data-slot="tab"
+              data-testid={`scientia-tab-${t.id}`}
+              aria-selected={tab === t.id}
+              onClick={() => setTab(t.id)}
+              className="inline-flex h-9 items-center px-3.5 font-display text-xs uppercase tracking-[0.12em] transition-colors"
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {tab === 'dashboard' ? (
+          <ScientiaDashboard {...props} hideHeader />
+        ) : tab === 'inbox' ? (
+          <div className="pt-1">
+            <DiscoveryInbox {...props} />
+          </div>
+        ) : tab === 'studio' ? (
+          <div className="pt-1">
+            <DiscoveryReview {...props} />
+          </div>
+        ) : tab === 'claims' ? (
+          <ClaimsView {...props} />
+        ) : tab === 'audit' ? (
+          <div className="pt-1">
+            <BeforeAfterAuditInspector />
+          </div>
+        ) : (
+          <HarnessIssuesPanel {...props} />
+        )}
       </div>
-      {tab === 'dashboard' ? (
-        <ScientiaDashboard {...props} />
-      ) : tab === 'inbox' ? (
-        <div className="pt-1">
-          <DiscoveryInbox {...props} />
-        </div>
-      ) : tab === 'studio' ? (
-        <div className="pt-1">
-          <DiscoveryReview {...props} />
-        </div>
-      ) : tab === 'claims' ? (
-        <ClaimsView {...props} />
-      ) : tab === 'audit' ? (
-        <div className="pt-1">
-          <BeforeAfterAuditInspector />
-        </div>
-      ) : (
-        <HarnessIssuesPanel {...props} />
-      )}
     </div>
   );
 }

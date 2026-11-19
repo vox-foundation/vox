@@ -21,8 +21,8 @@ export interface RomanRotaryKnobProps {
 
 const SIZE_PX: Record<NonNullable<RomanRotaryKnobProps['size']>, number> = {
   sm: 36,
-  md: 48,
-  lg: 60,
+  md: 54,
+  lg: 72,
 };
 
 const SWEEP_PX = 140;
@@ -126,9 +126,20 @@ const RomanRotaryKnob = React.forwardRef<HTMLDivElement, RomanRotaryKnobProps>(
     const activePath = describeArc(24, 24, 18.5, START_DEG, angleDeg);
 
     return (
-      <div className={cn('inline-flex flex-col items-center gap-1 select-none', disabled && 'opacity-50', className)}>
+      <div className={cn('inline-flex flex-col items-center gap-1.5 select-none', disabled && 'opacity-50', className)}>
         {label && (
-          <span className="font-display text-[10px] tracking-wider text-text-muted uppercase">{label}</span>
+          <div className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="size-2 rounded-full border border-[#785312]"
+              style={{
+                backgroundColor: ratio > 0 ? '#1B5E3A' : '#C59B27',
+              }}
+            />
+            <span className="font-display text-[11px] font-bold tracking-[0.12em] text-text-primary uppercase">
+              {label}
+            </span>
+          </div>
         )}
         <div
           ref={ref}
@@ -143,7 +154,7 @@ const RomanRotaryKnob = React.forwardRef<HTMLDivElement, RomanRotaryKnobProps>(
           aria-valuetext={formatted}
           aria-disabled={disabled || undefined}
           style={{ width: px, height: px }}
-          className="relative flex cursor-ns-resize items-center justify-center rounded-full touch-none outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed"
+          className="relative flex cursor-ns-resize items-center justify-center rounded-full touch-none outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed drop-shadow-[0_3px_6px_rgba(120,83,18,0.28)]"
           onPointerDown={(e) => {
             if (disabled || e.button !== 0) return;
             e.preventDefault();
@@ -214,15 +225,23 @@ const RomanRotaryKnob = React.forwardRef<HTMLDivElement, RomanRotaryKnobProps>(
         >
           <svg viewBox="0 0 48 48" className="size-full overflow-visible" aria-hidden="true">
             <defs>
-              <radialGradient id={gradId} cx="50%" cy="35%" r="65%">
-                <stop offset="0%" stopColor="var(--color-bg-surface)" />
-                <stop offset="100%" stopColor="var(--color-bg-elevated)" />
+              <radialGradient id={gradId} cx="42%" cy="32%" r="68%">
+                <stop offset="0%" stopColor="#FDF4CE" />
+                <stop offset="48%" stopColor="#D9B45A" />
+                <stop offset="85%" stopColor="#9A741C" />
+                <stop offset="100%" stopColor="#6B4C12" />
               </radialGradient>
+              <linearGradient id={`${gradId}-bezel`} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#F2D67B" />
+                <stop offset="50%" stopColor="#B88E28" />
+                <stop offset="100%" stopColor="#6B4C12" />
+              </linearGradient>
             </defs>
-            {Array.from({ length: 11 }, (_, idx) => {
-              const tickDeg = START_DEG + (idx / 10) * SWEEP_DEG;
-              const p1 = polarToCartesian(24, 24, 21.2, tickDeg);
-              const p2 = polarToCartesian(24, 24, 22.8, tickDeg);
+            {/* Precision outer graduation tick ring */}
+            {Array.from({ length: 15 }, (_, idx) => {
+              const tickDeg = START_DEG + (idx / 14) * SWEEP_DEG;
+              const p1 = polarToCartesian(24, 24, 21.0, tickDeg);
+              const p2 = polarToCartesian(24, 24, idx % 7 === 0 ? 23.8 : 22.8, tickDeg);
               return (
                 <line
                   key={idx}
@@ -230,8 +249,8 @@ const RomanRotaryKnob = React.forwardRef<HTMLDivElement, RomanRotaryKnobProps>(
                   y1={p1.y}
                   x2={p2.x}
                   y2={p2.y}
-                  stroke="var(--color-border-strong)"
-                  strokeWidth={idx % 5 === 0 ? 1.4 : 0.9}
+                  stroke={idx % 7 === 0 ? '#9A7014' : 'var(--color-border-strong)'}
+                  strokeWidth={idx % 7 === 0 ? 1.5 : 0.9}
                   strokeLinecap="round"
                 />
               );
@@ -239,50 +258,82 @@ const RomanRotaryKnob = React.forwardRef<HTMLDivElement, RomanRotaryKnobProps>(
             {detents?.map((d) => {
               const dRatio = safeMax === safeMin ? 0 : (d - safeMin) / (safeMax - safeMin);
               const dPoint = polarToCartesian(24, 24, 22, START_DEG + dRatio * SWEEP_DEG);
-              return <circle key={d} cx={dPoint.x} cy={dPoint.y} r={1.3} fill="var(--color-primary)" />;
+              return <circle key={d} cx={dPoint.x} cy={dPoint.y} r={1.4} fill="#C59B27" />;
             })}
+            {/* Recessed dial arc track */}
             <path
               d={trackPath}
               fill="none"
               stroke="var(--color-border-subtle)"
-              strokeWidth={2.4}
+              strokeWidth={2.6}
               strokeLinecap="round"
             />
             {activePath && (
               <path
                 d={activePath}
                 fill="none"
-                stroke="var(--color-primary)"
-                strokeWidth={2.6}
+                stroke="#C59B27"
+                strokeWidth={2.8}
                 strokeLinecap="round"
               />
             )}
+            {/* Outer knurled cast-brass collar */}
             <circle
               cx="24"
               cy="24"
-              r="14.2"
-              fill={`url(#${gradId})`}
-              stroke="var(--color-border-strong)"
-              strokeWidth={1.35}
+              r="15.8"
+              fill="none"
+              stroke={`url(#${gradId}-bezel)`}
+              strokeWidth={2.4}
+              strokeDasharray="2.2 1.4"
             />
+            {/* Brushed brass physical rotary dial cap */}
+            <circle
+              cx="24"
+              cy="24"
+              r="13.8"
+              fill={`url(#${gradId})`}
+              stroke="#785312"
+              strokeWidth={1.3}
+            />
+            <circle
+              cx="24"
+              cy="24"
+              r="11.2"
+              fill="none"
+              stroke="#FAF3DC"
+              strokeOpacity="0.45"
+              strokeWidth={0.8}
+            />
+            {/* Engraved pointer groove & central rivet */}
             <g transform={`rotate(${angleDeg.toFixed(2)} 24 24)`}>
               <line
                 x1="24"
-                y1="20"
+                y1="21"
                 x2="24"
-                y2="12"
-                stroke="var(--color-primary)"
-                strokeWidth={2}
+                y2="11.2"
+                stroke="#4A330D"
+                strokeWidth={2.5}
                 strokeLinecap="round"
               />
-              <circle cx="24" cy="24" r="2.2" fill="var(--color-text-primary)" />
+              <line
+                x1="24"
+                y1="20.5"
+                x2="24"
+                y2="11.6"
+                stroke="#FFF7D6"
+                strokeOpacity="0.65"
+                strokeWidth={0.9}
+                strokeLinecap="round"
+              />
+              <circle cx="24" cy="24" r="2.4" fill="#4A330D" stroke="#F3E5AB" strokeWidth={0.7} />
             </g>
           </svg>
         </div>
         {showReadout && (
           <span
             data-slot="roman-rotary-knob-readout"
-            className="font-mono text-[11px] font-medium tabular-nums text-text-secondary"
+            className="rounded border border-border-strong bg-bg-elevated px-2 py-0.5 font-display text-[11px] font-bold tabular-nums text-text-primary shadow-xs"
           >
             {formatted}
           </span>

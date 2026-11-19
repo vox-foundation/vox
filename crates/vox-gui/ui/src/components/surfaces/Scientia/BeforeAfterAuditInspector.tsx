@@ -118,7 +118,7 @@ export function BeforeAfterAuditInspector({
     <div
       data-testid="before-after-audit-inspector"
       data-slot="before-after-audit-inspector"
-      className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 space-y-4"
+      className="rounded-xl border border-border-subtle bg-bg-surface p-4 space-y-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -127,17 +127,17 @@ export function BeforeAfterAuditInspector({
           </span>
           <span
             data-testid="audit-stage-pill"
-            className="inline-flex items-center gap-1 rounded-full border border-brass/40 bg-brass/10 px-2.5 py-0.5 font-mono text-[10px] text-brass"
+            className="inline-flex items-center gap-1 rounded border border-brass/40 bg-bg-elevated px-2.5 py-0.5 font-mono text-[11px] text-brass"
           >
             <Icon.scale className="size-3 shrink-0" aria-hidden="true" />
             <span>{data?.before_stage ?? 'before'} to {data?.after_stage ?? 'after'}</span>
           </span>
           <span
             data-testid="audit-bug-closure-pill"
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-mono text-[10px] ${
+            className={`inline-flex items-center gap-1 rounded border bg-bg-elevated px-2.5 py-0.5 font-mono text-[11px] ${
               bugs.length > 0 && resolvedBugsCount === bugs.length
-                ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'
-                : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+                ? 'border-(--color-status-pass)/40 text-(--color-status-pass)'
+                : 'border-(--color-status-warn)/40 text-(--color-status-warn)'
             }`}
           >
             <Icon.check className="size-3 shrink-0" aria-hidden="true" />
@@ -146,10 +146,11 @@ export function BeforeAfterAuditInspector({
         </div>
         <button
           type="button"
+          data-slot="button"
           data-testid="refresh-audit-diff-btn"
           disabled={loading}
           onClick={() => { void loadDiff(); }}
-          className="inline-flex items-center gap-1 rounded border border-border-subtle bg-bg-elevated px-2.5 py-1 font-mono text-[10px] text-text-secondary hover:text-text-primary hover:border-brass/40 disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded border border-border-subtle bg-bg-elevated px-3 font-sans text-xs font-medium text-text-secondary hover:text-text-primary hover:border-brass/45 disabled:opacity-50"
         >
           <Icon.refresh className="size-3 shrink-0" aria-hidden="true" />
           <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
@@ -159,20 +160,20 @@ export function BeforeAfterAuditInspector({
       {lessons && (
         <div
           data-testid="lessons-summary-bar"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-black/30 px-3 py-2 font-mono text-[11px]"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 font-mono text-[11px]"
         >
           <div className="flex flex-wrap items-center gap-3 text-text-secondary">
             <span>Quarantined Findings: <strong className="text-text-primary">{lessons.quarantined_findings_count}</strong></span>
-            <span>Corroborated Promotions: <strong className="text-emerald-300">{lessons.corroborated_promotions_count}</strong></span>
+            <span>Corroborated Promotions: <strong className="text-(--color-status-pass)">{lessons.corroborated_promotions_count}</strong></span>
             <span>Proposed Rules (.proposed): <strong className="text-brass">{lessons.proposed_effort_rules_count}</strong></span>
             <span>Auto-DPO Pairs: <strong className="text-text-primary">{lessons.auto_dpo_pairs_minted}</strong></span>
           </div>
           <span
             data-testid="unreviewed-ssot-mutations-pill"
-            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] ${
+            className={`inline-flex items-center gap-1 rounded border bg-bg-surface px-2 py-0.5 text-[11px] ${
               lessons.unreviewed_ssot_mutations === 0
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                : 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                ? 'border-(--color-status-pass)/40 text-(--color-status-pass)'
+                : 'border-(--color-status-fail)/40 text-(--color-status-fail)'
             }`}
           >
             <Icon.shield className="size-3 shrink-0" aria-hidden="true" />
@@ -187,13 +188,14 @@ export function BeforeAfterAuditInspector({
             <button
               key={mode}
               type="button"
+              data-slot="chip"
               data-testid={`diff-filter-${mode}`}
               aria-pressed={diffMode === mode}
               onClick={() => setDiffMode(mode)}
-              className={`rounded px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+              className={`h-8 rounded border px-2.5 font-sans text-xs font-medium uppercase tracking-wider transition-colors ${
                 diffMode === mode
-                  ? 'border border-brass/50 bg-brass/20 text-brass font-semibold'
-                  : 'border border-border-subtle bg-black/20 text-text-muted hover:text-text-secondary'
+                  ? 'border-brass/50 bg-brass/20 text-brass font-semibold'
+                  : 'border-border-subtle bg-bg-elevated text-text-muted hover:text-text-primary'
               }`}
             >
               {mode === 'all' ? 'All' : 'Changes Only'}
@@ -203,13 +205,14 @@ export function BeforeAfterAuditInspector({
         <div role="group" aria-label="Filter by evaluation axis" className="flex flex-wrap items-center gap-1">
           <button
             type="button"
+            data-slot="chip"
             data-testid="axis-filter-all"
             aria-pressed={axisFilter === 'all'}
             onClick={() => setAxisFilter('all')}
-            className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+            className={`h-8 rounded border px-2.5 font-sans text-xs font-medium uppercase tracking-wider transition-colors ${
               axisFilter === 'all'
-                ? 'border border-brass/50 bg-brass/20 text-brass'
-                : 'border border-border-subtle bg-black/20 text-text-muted hover:text-text-secondary'
+                ? 'border-brass/50 bg-brass/20 text-brass font-semibold'
+                : 'border-border-subtle bg-bg-elevated text-text-muted hover:text-text-primary'
             }`}
           >
             All Axes
@@ -218,13 +221,14 @@ export function BeforeAfterAuditInspector({
             <button
               key={a.axis}
               type="button"
+              data-slot="chip"
               data-testid={`axis-filter-${a.axis}`}
               aria-pressed={axisFilter === a.axis}
               onClick={() => setAxisFilter(a.axis)}
-              className={`rounded px-2 py-0.5 font-mono text-[10px] transition-colors ${
+              className={`h-8 rounded border px-2.5 font-mono text-xs transition-colors ${
                 axisFilter === a.axis
-                  ? 'border border-brass/50 bg-brass/20 text-brass'
-                  : 'border border-border-subtle bg-black/20 text-text-muted hover:text-text-secondary'
+                  ? 'border-brass/50 bg-brass/20 text-brass font-semibold'
+                  : 'border-border-subtle bg-bg-elevated text-text-muted hover:text-text-primary'
               }`}
             >
               {a.axis}
@@ -240,19 +244,19 @@ export function BeforeAfterAuditInspector({
             <div
               key={axis.axis}
               data-testid={`audit-axis-card-${axis.axis}`}
-              className="rounded-lg border border-border-subtle bg-black/30 p-3 space-y-1.5"
+              className="rounded-lg border border-border-subtle bg-bg-elevated p-3 space-y-1.5"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-display text-[11px] font-semibold text-text-primary">{axis.label}</span>
+                <span className="truncate font-display text-xs font-semibold text-text-primary">{axis.label}</span>
                 <div className="flex items-center gap-1 shrink-0">
                   <span
                     data-testid={`axis-ni-pill-${axis.axis}`}
-                    className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase ${
+                    className={`rounded border bg-bg-surface px-1.5 py-0.5 font-mono text-[11px] uppercase ${
                       axis.ni_verdict === 'non_inferior'
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                        ? 'border-(--color-status-pass)/40 text-(--color-status-pass)'
                         : axis.ni_verdict === 'inferior'
-                          ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
-                          : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                          ? 'border-(--color-status-fail)/40 text-(--color-status-fail)'
+                          : 'border-(--color-status-warn)/40 text-(--color-status-warn)'
                     }`}
                   >
                     {niVerdictBadgeLabel(axis.ni_verdict)}
@@ -260,23 +264,23 @@ export function BeforeAfterAuditInspector({
                   {axis.superior && (
                     <span
                       data-testid={`axis-superior-pill-${axis.axis}`}
-                      className="rounded border border-brass/50 bg-brass/20 px-1.5 py-0.5 font-mono text-[9px] uppercase text-brass"
+                      className="rounded border border-brass/50 bg-brass/15 px-1.5 py-0.5 font-mono text-[11px] uppercase text-brass"
                     >
                       Superior
                     </span>
                   )}
                 </div>
               </div>
-              <div className="font-mono text-[10px] text-text-muted truncate">{axis.metric}</div>
+              <div className="font-mono text-[11px] text-text-muted truncate">{axis.metric}</div>
               <div className="flex items-center justify-between font-mono text-xs">
                 <span className="text-text-secondary">
                   {formatMetricNumber(axis.before_value)} to {formatMetricNumber(axis.after_value)}
                 </span>
-                <span className={favorable ? 'text-emerald-300 font-semibold' : 'text-rose-300'}>
+                <span className={favorable ? 'text-(--color-status-pass) font-semibold' : 'text-(--color-status-fail) font-semibold'}>
                   {formatSignedDelta(axis.delta)}
                 </span>
               </div>
-              <div data-testid={`axis-ci-bounds-${axis.axis}`} className="font-mono text-[10px] text-text-muted">
+              <div data-testid={`axis-ci-bounds-${axis.axis}`} className="font-mono text-[11px] text-text-muted">
                 95% CI [{formatMetricNumber(axis.ci_low)}, {formatMetricNumber(axis.ci_high)}]
               </div>
             </div>
@@ -284,45 +288,45 @@ export function BeforeAfterAuditInspector({
         })}
       </div>
 
-      <div data-testid="audit-bug-matrix" className="space-y-1.5">
-        <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+      <details open={!compact} data-testid="audit-bug-matrix" className="space-y-1.5">
+        <summary className="cursor-pointer font-display text-xs uppercase tracking-wider text-text-muted select-none">
           9-Probe Live Bug Reproduction Matrix
-        </div>
-        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+        </summary>
+        <div className="grid grid-cols-1 gap-1.5 pt-1 sm:grid-cols-2 lg:grid-cols-3">
           {bugs.map((bug) => (
             <div
               key={bug.id}
               data-testid={`bug-status-${bug.id}`}
-              className="flex items-center justify-between gap-2 rounded border border-border-subtle bg-black/25 px-2.5 py-1.5 font-mono text-[10px]"
+              className="flex items-center justify-between gap-2 rounded border border-border-subtle bg-bg-elevated px-2.5 py-1.5 font-mono text-[11px]"
             >
               <div className="min-w-0 truncate">
-                <div className="truncate text-text-secondary" title={bug.id}>{bug.id}</div>
-                <div className="text-[9px] text-text-muted">{String(bug.before)} to {String(bug.after)}</div>
+                <div className="truncate text-text-primary" title={bug.id}>{bug.id}</div>
+                <div className="text-[11px] text-text-muted">{String(bug.before)} to {String(bug.after)}</div>
               </div>
               <span
-                className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] uppercase ${
+                className={`inline-flex shrink-0 items-center gap-1 rounded border bg-bg-surface px-1.5 py-0.5 text-[11px] uppercase ${
                   bug.resolved
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                    : 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                    ? 'border-(--color-status-pass)/40 text-(--color-status-pass)'
+                    : 'border-(--color-status-fail)/40 text-(--color-status-fail)'
                 }`}
               >
                 {bug.resolved ? (
-                  <Icon.check className="size-2.5 shrink-0" aria-hidden="true" />
+                  <Icon.check className="size-3 shrink-0" aria-hidden="true" />
                 ) : (
-                  <Icon.alert className="size-2.5 shrink-0" aria-hidden="true" />
+                  <Icon.alert className="size-3 shrink-0" aria-hidden="true" />
                 )}
                 <span>{bug.resolved ? 'Resolved' : 'Open'}</span>
               </span>
             </div>
           ))}
         </div>
-      </div>
+      </details>
 
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between font-mono text-[10px] text-text-muted">
+      <details open className="space-y-1.5">
+        <summary className="flex cursor-pointer items-center justify-between font-mono text-[11px] text-text-muted select-none">
           <span className="uppercase tracking-wider">Virtualized Receipt Diff Hunks</span>
           <span>Showing {filteredHunks.length} of {hunks.length} lines</span>
-        </div>
+        </summary>
         <div
           ref={scrollRef}
           role="region"
@@ -330,7 +334,7 @@ export function BeforeAfterAuditInspector({
           aria-label="Virtualized audit receipt diff hunks"
           data-testid="audit-diff-viewport"
           style={{ height: Math.min(viewportHeight, Math.max(ROW_HEIGHT * 2, filteredHunks.length * ROW_HEIGHT)) }}
-          className="overflow-y-auto rounded-lg border border-border-subtle bg-black/40 font-mono text-[11px]"
+          className="overflow-y-auto rounded-lg border border-border-subtle bg-bg-panel font-mono text-[11px]"
         >
           <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
             {virtualItems.map((vItem) => {
@@ -339,9 +343,9 @@ export function BeforeAfterAuditInspector({
               const prefix = line.tag === 'delete' ? '-' : line.tag === 'insert' ? '+' : ' ';
               const rowTone =
                 line.tag === 'delete'
-                  ? 'bg-rose-500/15 text-rose-200'
+                  ? 'bg-bg-elevated text-(--color-status-fail)'
                   : line.tag === 'insert'
-                    ? 'bg-emerald-500/15 text-emerald-200'
+                    ? 'bg-bg-elevated text-(--color-status-pass)'
                     : 'text-text-secondary';
               return (
                 <div
@@ -358,8 +362,8 @@ export function BeforeAfterAuditInspector({
                   }}
                   className={`flex items-center gap-2 px-2.5 whitespace-pre overflow-hidden ${rowTone}`}
                 >
-                  <span className="w-8 shrink-0 text-right text-[9px] text-text-muted select-none">{line.old_line ?? ''}</span>
-                  <span className="w-8 shrink-0 text-right text-[9px] text-text-muted select-none">{line.new_line ?? ''}</span>
+                  <span className="w-8 shrink-0 text-right text-[11px] text-text-muted select-none">{line.old_line ?? ''}</span>
+                  <span className="w-8 shrink-0 text-right text-[11px] text-text-muted select-none">{line.new_line ?? ''}</span>
                   <span className="w-3 shrink-0 font-bold select-none">{prefix}</span>
                   <span className="truncate">{line.text}</span>
                 </div>
@@ -367,7 +371,7 @@ export function BeforeAfterAuditInspector({
             })}
           </div>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 const BANNER_STYLE: Record<'contested' | 'high' | 'mixed' | 'refuted', string> = {
-  high: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
-  mixed: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30',
-  contested: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30',
-  refuted: 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30',
+  high: 'bg-bg-elevated border-(--color-status-pass)/40 text-(--color-status-pass)',
+  mixed: 'bg-bg-elevated border-(--color-status-warn)/40 text-(--color-status-warn)',
+  contested: 'bg-bg-elevated border-(--color-status-fail)/40 text-(--color-status-fail)',
+  refuted: 'bg-bg-elevated border-(--color-status-fail)/50 text-(--color-status-fail)',
 };
 
 /**
@@ -51,11 +51,11 @@ export function HeadlineVerdictBanner({
 
   return (
     <div
-      className={`headline-verdict-banner mb-2 flex items-center justify-between rounded-xl border border-border-subtle px-3 py-2 font-mono text-[11px] uppercase tracking-wide ${BANNER_STYLE[tone]}`}
+      className={`headline-verdict-banner mb-2 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs font-medium tracking-wide ${BANNER_STYLE[tone]}`}
     >
       <span>{message}</span>
       {confidenceTier && (
-        <span className="opacity-75 text-[10px] lowercase tracking-normal">
+        <span className="font-mono text-[11px] text-text-secondary">
           tier: {confidenceTier}
         </span>
       )}

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { extractClaims, listPublicationClaims } from '../../../api/scientia';
+import { listPublicationManifests } from './archiveApi';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
 
@@ -22,20 +23,20 @@ import { SafeExternalLink } from '../Research/SafeExternalLink';
 export { SafeExternalLink };
 
 const VERDICT_STYLE: Record<string, string> = {
-  supported: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
-  contested: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30',
-  contradicted: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30',
-  refuted: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30',
-  abstain: 'bg-overlay-subtle text-text-secondary ring-1 ring-border-subtle/30',
-  unverified: 'bg-overlay-subtle text-text-secondary ring-1 ring-border-subtle/30',
+  supported: 'bg-bg-elevated text-(--color-status-pass) border border-(--color-status-pass)/40',
+  contested: 'bg-bg-elevated text-(--color-status-warn) border border-(--color-status-warn)/40',
+  contradicted: 'bg-bg-elevated text-(--color-status-fail) border border-(--color-status-fail)/40',
+  refuted: 'bg-bg-elevated text-(--color-status-fail) border border-(--color-status-fail)/40',
+  abstain: 'bg-bg-surface text-text-secondary border border-border-subtle',
+  unverified: 'bg-bg-surface text-text-secondary border border-border-subtle',
 };
 
 export function VerdictBadge({ verdict }: { verdict: string | null }) {
   const label = verdict ?? 'pending';
   const key = verdict ? verdict.toLowerCase() : '';
-  const cls = key ? VERDICT_STYLE[key] ?? VERDICT_STYLE.abstain : 'bg-overlay-subtle text-text-muted ring-1 ring-white/10';
+  const cls = key ? VERDICT_STYLE[key] ?? VERDICT_STYLE.abstain : 'bg-bg-surface text-text-muted border border-border-subtle';
   return (
-    <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>
+    <span className={`inline-flex items-center rounded px-2 py-0.5 font-sans text-[11px] font-semibold uppercase tracking-wider ${cls}`}>{label}</span>
   );
 }
 
@@ -52,22 +53,46 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
   const [claims, setClaims] = useState<ClaimRow[] | null>(initialClaims ?? null);
   const [filter, setFilter] = useState<VerdictFilter>('all');
   const [busy, setBusy] = useState(false);
+  const [recentManifests, setRecentManifests] = useState<
+    Array<{ publication_id: string; state: string }>
+  >([]);
 
   const toast = pushToast ?? (() => {});
 
-  const loadClaims = async () => {
-    if (!publicationId.trim()) return;
-    setBusy(true);
-    try {
-      const out = await listPublicationClaims(publicationId.trim());
-      setClaims(out.claims ?? []);
-    } catch (err) {
-      toast({ tone: 'warn', title: 'Load claims failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-      setClaims([]);
-    } finally {
-      setBusy(false);
-    }
-  };
+  useEffect(() => {
+    if (initialClaims !== undefined) return;
+    let cancelled = false;
+    listPublicationManifests(6)
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows)) setRecentManifests(rows);
+      })
+      .catch(() => {
+        /* ignore when offline or outside backend */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialClaims]);
+
+  const loadClaimsFor = useCallback(
+    async (targetId: string) => {
+      const id = targetId.trim();
+      if (!id) return;
+      setBusy(true);
+      try {
+        const out = await listPublicationClaims(id);
+        setClaims(out.claims ?? []);
+      } catch (err) {
+        toast({ tone: 'warn', title: 'Load claims failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+        setClaims([]);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [toast],
+  );
+
+  const loadClaims = async () => loadClaimsFor(publicationId);
 
   const extract = async () => {
     if (!publicationId.trim()) return;
@@ -98,10 +123,10 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
   });
 
   return (
-    <section className="space-y-4">
-      <div>
+    <section className="vox-marble-tablet space-y-4 rounded-xl border border-border-strong bg-bg-surface p-4 shadow-xs">
+      <div className="border-b border-border-subtle pb-3">
         <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{useLabel('sci-claims')}</h2>
-        <p className="font-mono text-xs text-text-muted">Atomic claim extraction + verification ledger</p>
+        <p className="mt-0.5 font-sans text-xs text-text-secondary">Atomic claim extraction and verification ledger</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -110,11 +135,12 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
           value={publicationId}
           onChange={(e) => setPublicationId(e.target.value)}
           placeholder="publication id"
-          className="min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-hidden"
+          className="h-9 min-w-[16rem] flex-1 rounded-lg border border-border-strong bg-bg-elevated px-3 font-mono text-sm text-text-primary focus:border-brass focus:outline-hidden"
         />
         <button
           type="button"
-          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
+          data-slot="button"
+          className="h-9 rounded-lg border border-border-strong bg-bg-elevated px-3.5 text-xs font-semibold uppercase tracking-wider text-text-primary hover:bg-brass/15 disabled:opacity-60 transition-colors"
           disabled={busy || !publicationId.trim()}
           onClick={extract}
         >
@@ -122,7 +148,8 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
         </button>
         <button
           type="button"
-          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
+          data-slot="button"
+          className="h-9 rounded-lg border border-border-strong bg-bg-elevated px-3.5 text-xs font-semibold uppercase tracking-wider text-text-primary hover:border-brass disabled:opacity-60 transition-colors"
           disabled={busy || !publicationId.trim()}
           onClick={loadClaims}
         >
@@ -130,18 +157,76 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
         </button>
       </div>
 
+      {recentManifests.length > 0 && (
+        <div
+          data-testid="claims-manifest-quick-picker"
+          className="flex flex-wrap items-center gap-1.5"
+          role="group"
+          aria-label="Recent manuscripts quick picker"
+        >
+          <span className="font-display text-[11px] font-semibold uppercase tracking-wider text-text-muted mr-1">
+            Recent Manuscripts
+          </span>
+          {recentManifests.map((m) => (
+            <button
+              key={m.publication_id}
+              type="button"
+              data-slot="button"
+              data-roman-plaque="true"
+              onClick={() => {
+                setPublicationId(m.publication_id);
+                void loadClaimsFor(m.publication_id);
+              }}
+              className={`vox-brass-plaque-btn inline-flex h-8 items-center rounded px-2.5 font-mono text-[11px] transition-colors ${
+                publicationId === m.publication_id ? 'ring-2 ring-brass/70' : 'opacity-85'
+              }`}
+            >
+              <span>{m.publication_id}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {claims === null && (
-        <div className="font-mono text-xs text-text-muted">
-          Enter a publication id, then Extract (runs the pipeline) or Load (reads persisted claims).
+        <div className="space-y-3">
+          <div className="text-xs font-medium text-text-secondary">
+            Enter a publication id, then Extract (runs the pipeline) or Load (reads persisted claims).
+          </div>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="rounded-lg border border-border-strong bg-bg-elevated p-3">
+              <div className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
+                1. VeriScore Extraction
+              </div>
+              <p className="mt-1 font-sans text-xs leading-relaxed text-text-secondary">
+                Splits manuscript sections into atomic, falsifiable empirical propositions.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border-strong bg-bg-elevated p-3">
+              <div className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
+                2. MiniCheck Audit
+              </div>
+              <p className="mt-1 font-sans text-xs leading-relaxed text-text-secondary">
+                Cross-verifies numeric metrics and spans against grounded workspace sources.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border-strong bg-bg-elevated p-3">
+              <div className="font-display text-xs font-semibold uppercase tracking-wider text-text-primary">
+                3. Archival Ledger
+              </div>
+              <p className="mt-1 font-sans text-xs leading-relaxed text-text-secondary">
+                Filters verdicts by Supported, Contested, or Unverified before DOI issuance.
+              </p>
+            </div>
+          </div>
         </div>
       )}
       {claims !== null && claims.length === 0 && (
-        <div className="font-mono text-xs text-text-muted">No claims recorded for this publication yet.</div>
+        <div className="text-xs text-text-muted">No claims recorded for this publication yet.</div>
       )}
       {claims !== null && claims.length > 0 && (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle/50 pb-2">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2">
+            <div className="font-mono text-xs uppercase tracking-wider text-text-muted">
               {visibleClaims.length} of {claims.length} claim{claims.length === 1 ? '' : 's'}
             </div>
             <div className="flex items-center gap-1" role="tablist" aria-label="Verdict filters">
@@ -150,12 +235,13 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
                   key={tab}
                   type="button"
                   role="tab"
+                  data-slot="tab"
                   aria-selected={filter === tab}
                   onClick={() => setFilter(tab)}
-                  className={`rounded-md px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                  className={`h-8 rounded-md border px-2.5 text-xs font-medium uppercase tracking-wider transition-colors ${
                     filter === tab
-                      ? 'bg-cyan/20 text-cyan border border-cyan/40'
-                      : 'bg-overlay-subtle text-text-muted hover:text-text-primary border border-border-subtle/40'
+                      ? 'bg-brass/20 text-brass border-brass/50 font-semibold'
+                      : 'bg-bg-elevated text-text-muted hover:text-text-primary border-border-subtle'
                   }`}
                 >
                   {tab}
@@ -164,33 +250,33 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
             </div>
           </div>
           {visibleClaims.length === 0 ? (
-            <div className="font-mono text-xs text-text-muted py-2">
+            <div className="text-xs text-text-muted py-2">
               No claims matching verdict filter "{filter}".
             </div>
           ) : (
             <div className="space-y-2" role="list" aria-live="polite">
               {visibleClaims.map((c) => (
-                <div key={c.claim_id} role="listitem" className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
-                  <div className="mb-1 flex items-center gap-2">
+                <div key={c.claim_id} role="listitem" className="rounded-xl border border-border-subtle bg-bg-surface p-3.5">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-2">
                     <VerdictBadge verdict={c.verdict} />
                     {c.confidence != null && (
-                      <span className="font-mono text-[10px] text-text-muted">conf {c.confidence.toFixed(2)}</span>
+                      <span className="font-mono text-[11px] text-text-muted">conf {c.confidence.toFixed(2)}</span>
                     )}
                     {c.verifiability_score != null && (
-                      <span className="font-mono text-[10px] text-text-muted">vscore {c.verifiability_score.toFixed(2)}</span>
+                      <span className="font-mono text-[11px] text-text-muted">vscore {c.verifiability_score.toFixed(2)}</span>
                     )}
                     {c.is_numeric && (
-                      <span className="rounded bg-cyan/10 px-1 font-mono text-[9px] uppercase tracking-wider text-cyan">numeric</span>
+                      <span className="rounded border border-brass/35 bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-wider text-brass">numeric</span>
                     )}
                     {c.verifier_model && (
-                      <span className="ml-auto font-mono text-[9px] text-text-muted">{c.verifier_model}</span>
+                      <span className="ml-auto font-mono text-[11px] text-text-muted">{c.verifier_model}</span>
                     )}
                   </div>
-                  <div className="text-sm text-text-secondary">{c.text}</div>
+                  <div className="font-serif text-sm text-text-primary leading-relaxed">{c.text}</div>
                   {c.source_url && (
                     <div className="mt-1.5 flex items-center gap-1.5">
-                      <span className="font-mono text-[10px] text-text-muted">source:</span>
-                      <SafeExternalLink url={c.source_url} className="font-mono text-xs text-cyan hover:underline" />
+                      <span className="text-xs text-text-muted">source:</span>
+                      <SafeExternalLink url={c.source_url} className="font-mono text-xs text-brass hover:underline" />
                     </div>
                   )}
                 </div>

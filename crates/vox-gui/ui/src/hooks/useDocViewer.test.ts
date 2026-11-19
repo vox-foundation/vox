@@ -41,4 +41,20 @@ describe('useDocViewer', () => {
     });
     expect(result.current.activeDoc?.title).toBe('some-guide');
   });
+
+  it('openDoc forwards initialContent and initialMode for unsaved synthesis or + New Doc seeding (v8.7)', () => {
+    const { result } = renderHook(() => useDocViewer());
+    act(() => {
+      result.current.openDoc('docs/src/architecture/note-findings-2026.md', 'Draft Note', {
+        initialContent: '# Draft Note\n\nBody',
+        initialMode: 'split',
+      });
+    });
+    expect(result.current.activeDoc).toEqual({
+      path: 'docs/src/architecture/note-findings-2026.md',
+      title: 'Draft Note',
+      initialContent: '# Draft Note\n\nBody',
+      initialMode: 'split',
+    });
+  });
 });

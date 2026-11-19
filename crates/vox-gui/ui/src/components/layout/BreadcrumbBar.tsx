@@ -112,7 +112,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
           </React.Fragment>
         ))}
         {!availability.available && availability.reason && (
-          <span data-testid="breadcrumb-unavailable" className="font-display text-[10px] uppercase tracking-[0.14em] text-[#991B1B] font-semibold">
+          <span data-testid="breadcrumb-unavailable" className="font-display text-[11px] uppercase tracking-[0.14em] text-[#991B1B] font-semibold">
             · {UNAVAILABLE_REASON_LABEL[availability.reason]}
           </span>
         )}
@@ -151,7 +151,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
                       onNavigate(subKey);
                     }
                   }}
-                  className={`rounded-md px-2.5 py-1 font-display text-[10px] uppercase tracking-wider transition whitespace-nowrap ${
+                  className={`rounded-md px-2.5 py-1 font-display text-[11px] uppercase tracking-wider transition whitespace-nowrap ${
                     isCurrent
                       ? 'border-1.5 border-[#9A7014] bg-linear-to-b from-[#F3E5AB] via-[#DFC878] to-[#C9A642] text-[#1C140C] font-bold shadow-[0_2px_6px_rgba(28,20,12,0.22),inset_0_1px_0_rgba(255,255,255,0.88)]'
                       : 'border border-[#9E7B2F]/55 bg-[#FAF6EE]/95 text-[#2B1E10] font-semibold hover:border-[#8C6825] hover:bg-[#EFE6D5] hover:text-[#1C140C]'

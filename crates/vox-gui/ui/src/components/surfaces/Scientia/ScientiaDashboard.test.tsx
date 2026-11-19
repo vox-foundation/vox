@@ -37,10 +37,14 @@ describe('ScientiaDashboard', () => {
     invokeMock.mockClear();
   });
 
-  it('Refresh control is an explicit type="button"', async () => {
+  it('auto-fetches queue snapshot on mount and keeps every button explicit type="button"', async () => {
     render(<LanguageProvider><ScientiaDashboard pushToast={vi.fn()} /></LanguageProvider>);
-    const btn = await screen.findByRole('button', { name: /refresh/i });
-    expect(btn.getAttribute('type')).toBe('button');
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('scientia_dashboard_snapshot', undefined);
+    });
+    for (const btn of screen.queryAllByRole('button')) {
+      expect(btn.getAttribute('type')).toBe('button');
+    }
   });
 
   it('includes the archive status summary panel', async () => {

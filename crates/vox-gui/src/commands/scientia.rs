@@ -171,6 +171,96 @@ pub(crate) async fn scientia_publication_flywheel_advance_impl<B: BackendCalls>(
     api_data(b.api_v2_get(&path).await?)
 }
 
+pub(crate) async fn scientia_publication_arxiv_bundle_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+) -> Result<serde_json::Value, String> {
+    api_data(
+        b.api_v2_get(&publication_path(publication_id, "arxiv-bundle"))
+            .await?,
+    )
+}
+
+pub(crate) async fn scientia_publication_arxiv_readiness_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+) -> Result<serde_json::Value, String> {
+    api_data(
+        b.api_v2_get(&publication_path(publication_id, "arxiv-readiness"))
+            .await?,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn scientia_publication_classify_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+    candidate_class: Option<&str>,
+    publication_tier: Option<&str>,
+    arxiv_primary_category: Option<&str>,
+    arxiv_secondary_categories: Option<&str>,
+    license_spdx: Option<&str>,
+    orcid: Option<&str>,
+    ror_affiliation: Option<&str>,
+    prereserved_doi: Option<&str>,
+    arxiv_id: Option<&str>,
+    autofill_imrad: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    let base = publication_path(publication_id, "classify");
+    let clean = |v: Option<&str>| {
+        v.map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToString::to_string)
+    };
+    let path = path_with_query(
+        &base,
+        &[
+            ("candidate_class", clean(candidate_class)),
+            ("publication_tier", clean(publication_tier)),
+            ("arxiv_primary_category", clean(arxiv_primary_category)),
+            (
+                "arxiv_secondary_categories",
+                clean(arxiv_secondary_categories),
+            ),
+            ("license_spdx", clean(license_spdx)),
+            ("orcid", clean(orcid)),
+            ("ror_affiliation", clean(ror_affiliation)),
+            ("prereserved_doi", clean(prereserved_doi)),
+            ("arxiv_id", clean(arxiv_id)),
+            ("autofill_imrad", autofill_imrad.map(|v| v.to_string())),
+        ],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+pub(crate) async fn scientia_publication_stage_advance_impl<B: BackendCalls>(
+    b: &B,
+    publication_id: &str,
+    target_stage: Option<&str>,
+    orcid: Option<&str>,
+    prereserved_doi: Option<&str>,
+    arxiv_id: Option<&str>,
+    autofill_imrad: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    let base = publication_path(publication_id, "stage-advance");
+    let clean = |v: Option<&str>| {
+        v.map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToString::to_string)
+    };
+    let path = path_with_query(
+        &base,
+        &[
+            ("target_stage", clean(target_stage)),
+            ("orcid", clean(orcid)),
+            ("prereserved_doi", clean(prereserved_doi)),
+            ("arxiv_id", clean(arxiv_id)),
+            ("autofill_imrad", autofill_imrad.map(|v| v.to_string())),
+        ],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
 pub(crate) async fn scientia_v76_audit_diff_impl<B: BackendCalls>(
     b: &B,
 ) -> Result<serde_json::Value, String> {
@@ -295,6 +385,77 @@ pub async fn scientia_publication_flywheel_advance(
         &backend.current().await,
         &publication_id,
         target_stage.as_deref(),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_arxiv_bundle(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_arxiv_bundle_impl(&backend.current().await, &publication_id).await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_arxiv_readiness(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_arxiv_readiness_impl(&backend.current().await, &publication_id).await
+}
+
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub async fn scientia_publication_classify(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+    candidate_class: Option<String>,
+    publication_tier: Option<String>,
+    arxiv_primary_category: Option<String>,
+    arxiv_secondary_categories: Option<String>,
+    license_spdx: Option<String>,
+    orcid: Option<String>,
+    ror_affiliation: Option<String>,
+    prereserved_doi: Option<String>,
+    arxiv_id: Option<String>,
+    autofill_imrad: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_classify_impl(
+        &backend.current().await,
+        &publication_id,
+        candidate_class.as_deref(),
+        publication_tier.as_deref(),
+        arxiv_primary_category.as_deref(),
+        arxiv_secondary_categories.as_deref(),
+        license_spdx.as_deref(),
+        orcid.as_deref(),
+        ror_affiliation.as_deref(),
+        prereserved_doi.as_deref(),
+        arxiv_id.as_deref(),
+        autofill_imrad,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn scientia_publication_stage_advance(
+    backend: State<'_, Arc<BackendState>>,
+    publication_id: String,
+    target_stage: Option<String>,
+    orcid: Option<String>,
+    prereserved_doi: Option<String>,
+    arxiv_id: Option<String>,
+    autofill_imrad: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    scientia_publication_stage_advance_impl(
+        &backend.current().await,
+        &publication_id,
+        target_stage.as_deref(),
+        orcid.as_deref(),
+        prereserved_doi.as_deref(),
+        arxiv_id.as_deref(),
+        autofill_imrad,
     )
     .await
 }
@@ -448,6 +609,21 @@ mod tests {
             state: state.into(),
             created_at_ms: 1,
             updated_at_ms: ts,
+            title: None,
+            author: None,
+            abstract_text: None,
+            candidate_class: None,
+            publication_tier: None,
+            arxiv_primary_category: None,
+            arxiv_secondary_categories: None,
+            license_spdx: None,
+            orcid: None,
+            ror_affiliation: None,
+            prereserved_doi: None,
+            arxiv_id: None,
+            readiness_score: None,
+            arxiv_ready: None,
+            flywheel_stages_done: None,
         }
     }
 
@@ -640,5 +816,67 @@ mod tests {
         assert_eq!(diff["after_stage"], "after");
         assert_eq!(diff["after_available"], true);
         assert_eq!(diff["lessons_summary"]["unreviewed_ssot_mutations"], 0);
+    }
+
+    #[tokio::test]
+    async fn arxiv_readiness_classify_stage_advance_and_bundle_hit_daemon_routes() {
+        let b = FakeBackend::new()
+            .on_get(
+                "/scientia/publications/pub%2F1/arxiv-readiness",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "readiness_score": 91, "arxiv_ready": true } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/classify?candidate_class=algorithmic_improvement&publication_tier=arxiv_preprint&arxiv_primary_category=cs.SE&autofill_imrad=true",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "arxiv_primary_category": "cs.SE", "readiness_score": 100 } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/stage-advance?target_stage=doi_reserved&autofill_imrad=true",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "current_stage": "doi_reserved" } })),
+            )
+            .on_get(
+                "/scientia/publications/pub%2F1/arxiv-bundle",
+                Ok(json!({ "v": 1, "data": { "publication_id": "pub/1", "bytes_len": 2048, "references_bib": "@misc{vox}" } })),
+            );
+
+        let r = scientia_publication_arxiv_readiness_impl(&b, "pub/1")
+            .await
+            .unwrap();
+        assert_eq!(r["readiness_score"], 91);
+
+        let c = scientia_publication_classify_impl(
+            &b,
+            "pub/1",
+            Some("algorithmic_improvement"),
+            Some("arxiv_preprint"),
+            Some("cs.SE"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(true),
+        )
+        .await
+        .unwrap();
+        assert_eq!(c["arxiv_primary_category"], "cs.SE");
+
+        let s = scientia_publication_stage_advance_impl(
+            &b,
+            "pub/1",
+            Some("doi_reserved"),
+            None,
+            None,
+            None,
+            Some(true),
+        )
+        .await
+        .unwrap();
+        assert_eq!(s["current_stage"], "doi_reserved");
+
+        let bundle = scientia_publication_arxiv_bundle_impl(&b, "pub/1")
+            .await
+            .unwrap();
+        assert_eq!(bundle["bytes_len"], 2048);
     }
 }

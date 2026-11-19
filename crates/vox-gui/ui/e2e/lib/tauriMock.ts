@@ -1194,7 +1194,38 @@ export function installTauriMock(viewKey: string): void {
             },
           ];
         case 'read_doc_markdown':
-          return `# ${String(args?.path ?? 'doc')}\n\nMock documentation body for visual audit.`;
+          return [
+            '---',
+            `title: "CLI & Documentation Workspace (${String(args?.path ?? 'docs/src/reference/cli.md')})"`,
+            'category: "reference"',
+            'status: "current"',
+            'domain: "documentation"',
+            '---',
+            '',
+            `# ${String(args?.path ?? 'docs/src/reference/cli.md')}`,
+            '',
+            '<!-- kb:summary -->',
+            'Interactive non-modal workspace document supporting GitHub Flavored Markdown tables, callouts, checklists, frontmatter cards, AsciiDoc headings, JSON/YAML/TOML configs, CSV grids, and direct workspace persistence.',
+            '<!-- /kb:summary -->',
+            '',
+            '> [!NOTE]',
+            '> Non-modal dock keeps navigation, Research, Memory, and Agent harness controls usable alongside open docs.',
+            '',
+            '| Subcommand | Layer | Purpose |',
+            '|---|---|---|',
+            '| `vox check` | `vox-compiler` | Typecheck `.vox` sources & scripts |',
+            '| `vox scientia` | `vox-scientia` | Discover claims & publish manuscripts |',
+            '| `vox search` | `vox-search` | Hybrid BM25 + HNSW RRF recall |',
+            '',
+            '- [x] Non-modal docked layout without backdrop dimmer',
+            '- [x] Full Markdown + structured data parser & live Split Editor',
+            '',
+            '```vox',
+            'fn verify_workspace() -> bool { true }',
+            '```',
+          ].join('\n');
+        case 'write_doc_markdown':
+          return null;
         case 'get_command_metadata': return { safety_class: 'read_only', confirmation_policy: 'none' };
         case 'list_gui_runs': return Array.from({ length: 5 }, (_, i) => ({
           run_id: `gui-run-${i + 1}`, workflow_name: ['gui.harness.submit', 'gui.policy.doubt', 'gui.search', 'gui.research', 'gui.repo'][i],

@@ -11,6 +11,37 @@ const invokeMock = vi.fn((cmd: string, _args?: unknown) => {
       artifacts: { replayability: 0.97, ro_crate_digest: 'sha3-256:999' },
     });
   }
+  if (cmd === 'scientia_publication_classify') {
+    return Promise.resolve({
+      publication_id: 'pub-studio-1',
+      title: 'Studio Test',
+      current_stage: 'draft',
+      candidate_class: 'empirical_science',
+      candidate_class_label: 'Empirical Science',
+      publication_tier: 'arxiv_preprint',
+      publication_tier_label: 'arXiv.org Preprint',
+      arxiv_primary_category: 'cs.AI',
+      arxiv_secondary_categories: ['cs.SE'],
+      keywords: [],
+      acm_ccs: [],
+      msc_classes: [],
+      license_spdx: 'CC-BY-4.0',
+      readiness_score: 92,
+      arxiv_ready: true,
+      todo_stub_count: 0,
+      citation_count: 1,
+      results_row_count: 1,
+      bundle_tar_gz_bytes: 2200,
+      bundle_validation_passed: true,
+      validation_findings: [],
+      checks: [],
+      stage_gates: [],
+      main_tex_preview: '\\documentclass[11pt,a4paper]{article}',
+      references_bib_preview: '@misc{vox_artifact_pub_studio_1}',
+      arxiv_metadata_json: '{}',
+      upload_checklist_md: '# Checklist',
+    });
+  }
   return Promise.resolve([]);
 });
 
@@ -73,5 +104,38 @@ describe('DiscoveryReview', () => {
         invokeMock.mock.calls.some(([cmd]) => cmd === 'scientia_publication_flywheel_advance'),
       ).toBe(true);
     });
+
+    fireEvent.click(screen.getByTestId('drawer-autofill-imrad-btn'));
+    await waitFor(() => {
+      expect(
+        invokeMock.mock.calls.some(([cmd]) => cmd === 'scientia_publication_classify'),
+      ).toBe(true);
+    });
+  });
+
+  it('syncs publication id from vox://scientia-open-studio and navigates to Publications Studio', async () => {
+    const events: CustomEvent[] = [];
+    const onNav = (e: Event) => events.push(e as CustomEvent);
+    window.addEventListener('vox://navigate-surface', onNav);
+    try {
+      render(<DiscoveryReview pushToast={vi.fn()} />);
+      window.dispatchEvent(
+        new CustomEvent('vox://scientia-open-studio', {
+          detail: { publicationId: 'pub-handoff-99' },
+        }),
+      );
+      const input = screen.getByPlaceholderText('publication id') as HTMLInputElement;
+      await waitFor(() => expect(input.value).toBe('pub-handoff-99'));
+
+      fireEvent.click(screen.getByTestId('open-publications-studio-btn'));
+      expect(
+        events.some(
+          (ev) =>
+            ev.detail?.view === 'publications' && ev.detail?.publicationId === 'pub-handoff-99',
+        ),
+      ).toBe(true);
+    } finally {
+      window.removeEventListener('vox://navigate-surface', onNav);
+    }
   });
 });
