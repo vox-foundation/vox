@@ -228,6 +228,23 @@ fn main() {
     );
 }
 
+/// `float(x)` must lower to a numeric cast like `int(x)` does (was: bare
+/// `float(..)` call plus a bogus `float.clone()(..)` callee → E0425, which broke
+/// the nightly differential gate on `list_accumulator_idioms.vox`).
+#[test]
+fn float_cast_lowers_to_numeric_cast() {
+    assert_compiles(
+        r#"
+fn ratio(num: int, den: int) to float {
+    return float(num) / float(den)
+}
+fn main() {
+    print(str(ratio(1, 4)))
+}
+"#,
+    );
+}
+
 /// Regression net for the `crate-build-audit.vox` compiled-mode family:
 /// - string-keyed JSON `get`/subscript must lower to `VoxJson::get(String)`
 ///   (was: `(j).get((k) as usize).cloned()` → E0308/E0605/E0599);

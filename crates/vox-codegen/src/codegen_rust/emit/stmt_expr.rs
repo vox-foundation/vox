@@ -1418,6 +1418,13 @@ where
             "(({}) as i64)",
             emit(&args[0].value, OwnershipMode::Owned)
         )),
+        // `float(x)` numeric conversion — interpreter widens ints (`n as f64`) and
+        // passes floats through; `as f64` matches both. String parsing has no
+        // type-directed emission here yet (same stance as `int`).
+        ("float", 1) => Some(format!(
+            "(({}) as f64)",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
         ("assert", 1) => {
             if let HirExpr::Binary(HirBinOp::Is, l, r, _) = &args[0].value {
                 // Apply the same borrowing-`.get` vs `Some(..)` normalization as
