@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-19T09:49:50.119949+00:00",
+  "generated_at": "2026-11-20T14:59:29.097482+00:00",
   "deficits": [
     {
       "fingerprint": "75cebf1c1455d83f6865c67c20a7f368620177ec1aef994d0ef27051a2283d9e",
@@ -118,57 +118,57 @@
       "raw_text": "vox-typeck"
     },
     {
-      "fingerprint": "cf1323ef511c17327df08b9e650f4905a1c0a84d69ab12ed05b4f315261e818a",
+      "fingerprint": "76c7599142370cef579862bd13c3db384a2a80bdb5d4221398f92164c04be9f8",
       "page_path": "README.md",
       "raw_text": "crates/vox-populi/tests/hf_metadata_rules.rs"
     },
     {
-      "fingerprint": "7eeced06b72c9cab0023f11aa774c1f984e5080542d71e6c812c28f411d4ce6b",
+      "fingerprint": "3a6360ce3c11b7176841c2295ebd0eb15e68682fdff1efdd534bbf5498573fcf",
       "page_path": "README.md",
       "raw_text": "vox mens hub download"
     },
     {
-      "fingerprint": "5babe9fbb869ddb47b140f227bc771cee4369881077f1648830345b31e8effaf",
+      "fingerprint": "7185632749aca42344bbecd9c96bb4fd98e4847662cec94d7903b05f32b78921",
       "page_path": "README.md",
       "raw_text": "vox py {bind, doctor, sync}"
     },
     {
-      "fingerprint": "eba2f4d7e07bd491b1f06035b860ec887408b14a7777735571cfdc817081a128",
+      "fingerprint": "d0f9a88f28be1db923ab269b46a6c6b9ff9519925cfd50a1f7fce87ae12c0b84",
       "page_path": "README.md",
       "raw_text": "vox secrets doctor"
     },
     {
-      "fingerprint": "0cee3f4a154ce162f79288a5b1ebb063f050d62cc1baeade268250d6ad81e94e",
+      "fingerprint": "89ab7ab4c26cacf346b17c8da6485e45d1969df7ec773b93d4c93ff1b59657cc",
       "page_path": "README.md",
       "raw_text": "vox-mcp-dispatch"
     },
     {
-      "fingerprint": "381eea5ea13f014a352665a652539e5202604cfb116d57c511ef6c6d496e64b9",
+      "fingerprint": "855e128ff6b27f6aa2d8ad72345d499318f8986d5e6f6b00bcbedbc456502102",
       "page_path": "README.md",
       "raw_text": "vox-ops-telemetry-ingest"
     },
     {
-      "fingerprint": "017786cb52ef39eb82bb0349b0abfd8bf18db24a323b37fd6ac66eaab1c9a682",
+      "fingerprint": "7fe26a05b84b200079b9288e5c112078990842c88d1035c0b22077ec75f852f8",
       "page_path": "README.md",
       "raw_text": "vox-plugin-cloud"
     },
     {
-      "fingerprint": "a9ced1bd47484f7838f3887b9162cf7de0e83f58a45cba60d646891b39bb7030",
+      "fingerprint": "b18b7ea5f5404da2f320bc9c52458a08a14adc1b2efd6b903e8b352e5253f007",
       "page_path": "README.md",
       "raw_text": "vox-pm"
     },
     {
-      "fingerprint": "3667371fcefc9cd502dae0ced62ec3e60a2048cb0df2a06b1b570b9cec7789bf",
+      "fingerprint": "5eb1e63a91551f83e58e8dc8e25efc9cde129da6180dc898b71b413b3a169255",
       "page_path": "README.md",
       "raw_text": "vox-scientia-core"
     },
     {
-      "fingerprint": "d37b52b9e39006ea4b26d896afa667153bc83cf57e2888947391f321476c3490",
+      "fingerprint": "b2a2414af9f4f29935ef8adf479be285ad1f7df9d598ca390a0eb1f841806fb6",
       "page_path": "README.md",
       "raw_text": "vox-search-core"
     },
     {
-      "fingerprint": "58822694a5b195dcec7c19fef815b18b4e80559632fa6770be1d0e9766707ea7",
+      "fingerprint": "05b3736a9e2b96ffaa77cf1ae2879620679e8e00dfce93df27b3b11c0286b341",
       "page_path": "README.md",
       "raw_text": "vox-vscode"
     },
@@ -1023,6 +1023,16 @@
       "raw_text": "vox-mental-tracker"
     },
     {
+      "fingerprint": "892c3923640facedbad1c6107396f546d6a3b4154e314548bd885a551cbfe613",
+      "page_path": "docs/src/architecture/axis-harness-river-design-2026.md",
+      "raw_text": "vox-oratio"
+    },
+    {
+      "fingerprint": "c00c743e19c0f555578779a2a60d4754dc1a678f88f1eec0b9c9bf0024b3fb32",
+      "page_path": "docs/src/architecture/axis-harness-river-design-2026.md",
+      "raw_text": "vox-oratio"
+    },
+    {
       "fingerprint": "4a2cbc29670f6a6e37e9e24569568eb324461b2cd21e30f2269514716638e878",
       "page_path": "docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md",
       "raw_text": "VOX_INGEST_DATABASE_URL"
@@ -1818,6 +1828,41 @@
       "raw_text": "crates/vox-cli/src/commands/model/eval.rs"
     },
     {
+      "fingerprint": "00d1659001fc4f53aebaac7de483f3ff86926a112f45e55b081fab5c08856ef3",
+      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
+      "raw_text": "vox-lang"
+    },
+    {
+      "fingerprint": "3bd1747fc6e3e4c260415038efa1a2c4ae09d31d9e9f2620e750ea00de83dd16",
+      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
+      "raw_text": "vox-lang"
+    },
+    {
+      "fingerprint": "7ec1c359dfb484cf695780ccc11ed6d4c49d99703e533edd5ab5048701dfb03e",
+      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
+      "raw_text": "vox-lang"
+    },
+    {
+      "fingerprint": "8c8e4734ce0fec826e59a64a94eb82fc4ad02b59f8e80d3a4851009792e51f5f",
+      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
+      "raw_text": "vox-lang"
+    },
+    {
+      "fingerprint": "d9b393ff9f01262264c4f4f9947ae5df154df79228038f71a93f003760905e8d",
+      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
+      "raw_text": "vox-lang"
+    },
+    {
+      "fingerprint": "f4d3bbe04039ed1c2e146864b90bcb6b30331fd872745d77760bb65841aadf7f",
+      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
+      "raw_text": "vox-lang"
+    },
+    {
+      "fingerprint": "34ddea6a8fb106fe80f35f602540bf1b4b48cf42f8f94924af193c8e847db6d9",
+      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
+      "raw_text": "vox_corpus::mix"
+    },
+    {
       "fingerprint": "e3a31d4d6f5392cdf4161c63bd06e919fa38f1ab15f4e12110eb1ae9f293d59f",
       "page_path": "docs/src/architecture/mens-m4-live-demo-2026-09-12.md",
       "raw_text": "VOX_LOCAL_ENDPOINT_DEFAULT"
@@ -2558,6 +2603,46 @@
       "raw_text": "crates/vox-ro-crate/src/ai_disclosure.rs"
     },
     {
+      "fingerprint": "09843ad9e1f03f68a573c69cb7e68631c4bd319f75e3f2e2f6d83a9b30ba5667",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
+      "fingerprint": "21d05e65daef505461c564798ffd514f4107233241b54559c5f50225ba834495",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
+      "fingerprint": "2c9b05b4e213ff30661a96db2702ee6bd42f5c24ef5e8e7c3a28d1ac8e369862",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
+      "fingerprint": "30f6e9a73d769387d3094b51fb98d4e296f6c20f7ed7124a92481c314bae949c",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
+      "fingerprint": "6e89b53164a00e627409d64ad1fc14829a5d372f38f776fadcf6d6ba51e4265f",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
+      "fingerprint": "a2dc5111e4891ea31781e8030b2d318ccce4d73fec551a59774382c78c31e3de",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
+      "fingerprint": "c22574421d52fac25a430af012355d12ca37ad5dc6dd7bff4b649a5eecbcb64b",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
+      "fingerprint": "f0f35e9e2c0586e87e4d55c04b405e45cee0845bdb5e435611b3371996d54550",
+      "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
       "fingerprint": "fa59dd5eb66c314c488dfb65c284fcf3cfbb187f132cbd90d0e1a654d6d8586d",
       "page_path": "docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
       "raw_text": "vox-gamify-scientia-bridge"
@@ -3053,6 +3138,11 @@
       "raw_text": "vox-checksum-manifest"
     },
     {
+      "fingerprint": "e27c6ff53f7ba50cb3f0326ead6d414eb9743531cb23e5f0d4b290116edbc30b",
+      "page_path": "docs/src/architecture/v1-release-criteria.md",
+      "raw_text": "vox-lang"
+    },
+    {
       "fingerprint": "1084b4fb16c8c6e827270a689ebd1e2e5cb97a81417e581f9bab1ecd8850a1df",
       "page_path": "docs/src/architecture/vox-dashboard-design-brief-2026.md",
       "raw_text": "crates/vox-dashboard/app/src/app.vox"
@@ -3338,9 +3428,19 @@
       "raw_text": "vox-checksum-manifest"
     },
     {
+      "fingerprint": "0daa9c0145f55efeb29fb311abdb2893c8af97421fe34f4ded2a4c5c57b6f736",
+      "page_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "vox-claim-extractor"
+    },
+    {
       "fingerprint": "108dc8c5d2744f21c8b59da7a9861d234deea5415b731811f589e51d3bbc0db1",
       "page_path": "docs/src/architecture/where-things-live.md",
       "raw_text": "vox-inspect-bridge"
+    },
+    {
+      "fingerprint": "a3eef1db305c21ae64590ab0d9a825b8525dc62e661c732e039a3a44012e1acc",
+      "page_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "vox-install-policy"
     },
     {
       "fingerprint": "8f79e352ba78d3b2087344d9b56f95e6dd8da20ae0f3b1ce39f30f68d7a06f6c",
@@ -3428,6 +3528,16 @@
       "raw_text": "vox train --provider local"
     },
     {
+      "fingerprint": "408ad355cb5ea3d4090f034627550f2da12da0f98be5b3827dbc66f4b1e4610c",
+      "page_path": "docs/src/ci/crate-hardening-matrix.md",
+      "raw_text": "vox-codex"
+    },
+    {
+      "fingerprint": "2eeec24d373cf43329f4156d3568424c48bb737ff545822dee69a06ac019f9d9",
+      "page_path": "docs/src/ci/crate-hardening-matrix.md",
+      "raw_text": "vox-codex-api"
+    },
+    {
       "fingerprint": "ab4e7f1473a9e3e4893a5a8d41d2a079262e80b26031d29d11875ebda5597733",
       "page_path": "docs/src/ci/crate-hardening-matrix.md",
       "raw_text": "vox-mens"
@@ -3476,6 +3586,11 @@
       "fingerprint": "ab6bf60ac8c20041b80d8aa4ae3de65773bb99def3332969765a1233b09fc6b1",
       "page_path": "docs/src/ci/workflow-enumeration.md",
       "raw_text": "vox corpus eval --print-summary"
+    },
+    {
+      "fingerprint": "3dc07ba9d7dda071a86eb91a899e954673a420bbd2b4cfe7e906948ed8d5570c",
+      "page_path": "docs/src/ci/workflow-enumeration.md",
+      "raw_text": "vox-ci-guards"
     },
     {
       "fingerprint": "2174a9ccfeacd5eaedd284c7c8a4a69d29034002f0ab63abf40a746bc572ce8b",
@@ -3708,6 +3823,11 @@
       "raw_text": "vox deploy-infra"
     },
     {
+      "fingerprint": "7cf51ebfafcaec1672000de61667b38be5eb53e92645749c9179a62008ca1617",
+      "page_path": "docs/src/how-to/external-app-bootstrap.md",
+      "raw_text": "vox-db-client"
+    },
+    {
       "fingerprint": "2e3e9047881bb47be8d81976412b5e30d693c31869f1dd3314e4241141132c20",
       "page_path": "docs/src/how-to/grand-network-quickstart.md",
       "raw_text": "vox populi attest --help"
@@ -3833,6 +3953,11 @@
       "raw_text": "vox status --refresh-catalog   # Refresh before showing provider status"
     },
     {
+      "fingerprint": "2197f2e00ee4b6ad9d53cac851c01d73554468396498026b8c5302e9c7309906",
+      "page_path": "docs/src/how-to/how-to-model-routing.md",
+      "raw_text": "vox-arca"
+    },
+    {
       "fingerprint": "affcc3bfb2bf06e4ce8e97f9b31e0a1da6ee63a92d24c9d3102bb01096ab3db4",
       "page_path": "docs/src/how-to/how-to-model-routing.md",
       "raw_text": "vox_actor_runtime::model_resolution::resolve_chat_provider_route"
@@ -3881,6 +4006,11 @@
       "fingerprint": "af82c3ab642c570ae830aa6555193773caaefc5c37c8e7c8eaa69ca5981d8a6e",
       "page_path": "docs/src/how-to/how-to-train-mens-macos-metal.md",
       "raw_text": "vox mens eval-collateral-damage \\"
+    },
+    {
+      "fingerprint": "b193a5e4452e2e35f593dd9b3c63b655955261c5cce4d9c327029ca67c0f5ea9",
+      "page_path": "docs/src/how-to/how-to-train-mens-macos-metal.md",
+      "raw_text": "vox-schola"
     },
     {
       "fingerprint": "05a1fc216c83818e2b81c1c394bde32cffaa2c0bb22060c9f3c18047d3151f95",
@@ -3983,6 +4113,16 @@
       "raw_text": "vox ci clavis-parity"
     },
     {
+      "fingerprint": "afca093199f63246ed72ee4cf5ea8c8011d465eab3331e79f98d1f3603e1b94f",
+      "page_path": "docs/src/reference/build-profiles.md",
+      "raw_text": "vox-plugin-gamify"
+    },
+    {
+      "fingerprint": "3e041b1b366a84595dd1e543755c81d6bb25f4b611e1ecc0b2ae90159bca64bd",
+      "page_path": "docs/src/reference/codex-http-api.md",
+      "raw_text": "vox-codex-api"
+    },
+    {
       "fingerprint": "4ac29bc6e7128431bfab2534845912b688980b119658990d8906e5a43279bc06",
       "page_path": "docs/src/reference/command-compliance.md",
       "raw_text": "crates/vox-cli/src/command_contract.rs"
@@ -4036,6 +4176,11 @@
       "fingerprint": "4f2dd544e28ed20e391182d6b611845f0c9e638a26333320f7c430fe0461aa93",
       "page_path": "docs/src/reference/mens-qlora-data-strategy.md",
       "raw_text": "crates/vox-cli/src/training/datagen.rs"
+    },
+    {
+      "fingerprint": "f558eadce1cae5b3c559882763ace4d5c8f3977cdfef951e22b7e89f5b78927d",
+      "page_path": "docs/src/reference/mens-serving-ssot.md",
+      "raw_text": "vox-schola"
     },
     {
       "fingerprint": "f7193776ad93b89125f99ed06006b310825dfe91d06e282524c178f3240ec8fb",
@@ -4118,6 +4263,26 @@
       "raw_text": "vox train"
     },
     {
+      "fingerprint": "a9b09af71736e72fe677f3f83141b234f2ddd013fb612d5c3a350f0445e98935",
+      "page_path": "docs/src/reference/mens-training.md",
+      "raw_text": "vox-lang"
+    },
+    {
+      "fingerprint": "6920502a02e6a2e1f305d2ece3b71be92ad591ed9239c1448b33a7ad7f92199a",
+      "page_path": "docs/src/reference/mens-training.md",
+      "raw_text": "vox-schola"
+    },
+    {
+      "fingerprint": "8bf2b27d0f2eacb869c3383ef483ec7243e495c17a1a10ada49680c78654fdf1",
+      "page_path": "docs/src/reference/mens-training.md",
+      "raw_text": "vox-schola"
+    },
+    {
+      "fingerprint": "fcb2e3a255c4d777b17977a0faef362517cf8673310c61d23e83ddb961e123b9",
+      "page_path": "docs/src/reference/mens-training.md",
+      "raw_text": "vox-schola"
+    },
+    {
       "fingerprint": "f4edcfd5a854cb3002be2cdac04acd14de72ccd4ac37a5bd5e442668a3ef4a95",
       "page_path": "docs/src/reference/migration-0.5-to-0.6.md",
       "raw_text": "docs/src/architecture/v0.6-core-ssot.md"
@@ -4158,6 +4323,11 @@
       "raw_text": "crates/vox-orchestrator/src/mcp_tools/tools/oratio_tools.rs"
     },
     {
+      "fingerprint": "f1bd2c01f29b8d87f01b9c2555e3582a320fdd82c33484e8337c900cbed19b79",
+      "page_path": "docs/src/reference/oratio-speech.md",
+      "raw_text": "vox-codex-api"
+    },
+    {
       "fingerprint": "6a82a1aae6063b0ab98916d682084044972545956fa6a68efa7214c04364cb10",
       "page_path": "docs/src/reference/oratio-speech.md",
       "raw_text": "vox-tools"
@@ -4181,6 +4351,11 @@
       "fingerprint": "f889b162003fc5723357a30d8e75d648eb8ee978eafe2aba6634a983f414b832",
       "page_path": "docs/src/reference/oratio-speech.md",
       "raw_text": "vox_oratio::transcribe_path"
+    },
+    {
+      "fingerprint": "631dcb5cf4b39249eb90645e08563fe39348ac6ef0f75d38bf4370f306909204",
+      "page_path": "docs/src/reference/orchestration-unified.md",
+      "raw_text": "vox-socrates-policy"
     },
     {
       "fingerprint": "3e176f526c2d902d2247a1b1dcbde32088f822292f3aa2cb12ef81a9a1b1d84e",
@@ -4313,6 +4488,26 @@
       "raw_text": "crates/vox-db/src/retrieval.rs"
     },
     {
+      "fingerprint": "13be16be9a46fe22dd86fcd2f01e4177fba4a48c080e4e7107d716858697e5bf",
+      "page_path": "docs/src/reference/socrates-protocol.md",
+      "raw_text": "vox-socrates-policy"
+    },
+    {
+      "fingerprint": "822ae6b83423d350c65c8f8f040853e733c0b30442f67e4b3387e489b21a27e8",
+      "page_path": "docs/src/reference/socrates-protocol.md",
+      "raw_text": "vox-socrates-policy"
+    },
+    {
+      "fingerprint": "cadb7d02e5fa4f43ad36970d3f31df6267185a032cd6d58a9d61c19d54c2ba8c",
+      "page_path": "docs/src/reference/socrates-protocol.md",
+      "raw_text": "vox-socrates-policy"
+    },
+    {
+      "fingerprint": "d7a16118f1f90f5567539f62817d93b8c3ef14c77d22e0659de967d06b3245d5",
+      "page_path": "docs/src/reference/socrates-protocol.md",
+      "raw_text": "vox-socrates-policy"
+    },
+    {
       "fingerprint": "7abbea159b1b7ca1f487cd4244e8ab1bddd5ef028a61e3b48436aed4f75474bd",
       "page_path": "docs/src/reference/socrates-protocol.md",
       "raw_text": "vox_search::MemorySearchEngine::hybrid_search"
@@ -4373,9 +4568,24 @@
       "raw_text": "crates/vox-cli/src/templates.rs"
     },
     {
+      "fingerprint": "5d7be41c477affaeffd61b1b716a51a6612102cd69a9783c606b2aed49e746e7",
+      "page_path": "docs/src/reference/vox-web-stack.md",
+      "raw_text": "vox-codegen-html"
+    },
+    {
+      "fingerprint": "8df9a264e6ba80c01a425e4a764398fb5e90b433b1fcfa2af68bbee2ebfed603",
+      "page_path": "docs/src/reference/vox-web-stack.md",
+      "raw_text": "vox-ssg"
+    },
+    {
       "fingerprint": "a3cbe8678002ce7f1edc8fda31297f3415b28a4f8d87cbdbf4ceed9237ac38e3",
       "page_path": "docs/src/reference/vscode-mcp-compat.md",
       "raw_text": "vox-vscode"
+    },
+    {
+      "fingerprint": "fc3f3dee7e389151cecbfd02f6b938dd5a21e9882ecf7722abdb54ea0844d2e1",
+      "page_path": "docs/src/reference/webhook_integration.md",
+      "raw_text": "vox-webhook"
     }
   ]
 }
