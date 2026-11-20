@@ -6736,6 +6736,14 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.llms-verified",
+      "cli_path": [
+        "ci",
+        "llms-verified"
+      ],
+      "implicit": true
+    },
+    {
       "capability_id": "cli.ci.manifest",
       "cli_path": [
         "ci",
@@ -7201,6 +7209,14 @@
       "description_model": "CLI operation `vox ci query-all-guard`",
       "side_effect_class": "read_only",
       "curated": true
+    },
+    {
+      "capability_id": "cli.ci.readme-assets",
+      "cli_path": [
+        "ci",
+        "readme-assets"
+      ],
+      "implicit": true
     },
     {
       "capability_id": "cli.ci.release-build",

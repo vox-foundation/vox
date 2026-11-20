@@ -10917,6 +10917,54 @@
       }
     },
     {
+      "id": "cli.ci.llms-verified",
+      "kind": "cli",
+      "title": "Ci Llms-verified",
+      "summary": "CLI operation `vox ci llms-verified`",
+      "op_id": "ci.llms-verified",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "llms-verified"
+        ],
+        "invocation": "vox ci llms-verified",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.ci.manifest",
       "kind": "cli",
       "title": "Ci Manifest",
@@ -12743,6 +12791,54 @@
         "basis": "graph-key",
         "ambiguous": false,
         "reason": null
+      }
+    },
+    {
+      "id": "cli.ci.readme-assets",
+      "kind": "cli",
+      "title": "Ci Readme-assets",
+      "summary": "CLI operation `vox ci readme-assets`",
+      "op_id": "ci.readme-assets",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "readme-assets"
+        ],
+        "invocation": "vox ci readme-assets",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
       }
     },
     {

@@ -151,6 +151,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `kill_stuck_tests` | — |
 | `knip_gui` | — |
 | `line_endings` | — |
+| `llms_verified` | — |
 | `model_routing_check` | — |
 | `no_plugin_cdylib_as_compile_dep` | — |
 | `no_tauri_in_core` | — |
@@ -171,6 +172,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `preview_trust_audit` | — |
 | `profile_parity` | — |
 | `publish_dry_run` | — |
+| `readme_assets` | — |
 | `release_draft_guard` | — |
 | `required_context_guard` | — |
 | `retirement_audit` | — |
