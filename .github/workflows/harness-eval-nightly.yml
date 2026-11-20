@@ -68,7 +68,11 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: ./target/release/vox harness eval --live --samples 3
 
+      # A failed gate still paid for its samples and is exactly the run the history
+      # needs: `eval --live` records the run before it exits non-zero, so publish
+      # (and the results PR below) must not be skipped by that failure.
       - name: Publish results to git-tracked history
+        if: ${{ !cancelled() }}
         run: ./target/release/vox harness publish
 
       # Keep the already-paid-for results even if the PR path below fails.
@@ -86,6 +90,7 @@ jobs:
       # run (docs/harness-eval-history/runs/<run_id>.jsonl): concurrent results PRs never
       # conflict, which a shared append-only file did (GitHub's merge ignores merge=union).
       - name: Open a results PR and enqueue it
+        if: ${{ !cancelled() }}
         env:
           # A PR opened with GITHUB_TOKEN does not trigger other workflows, so the required
           # check would never run on it; the PAT does. Passed via env, never inline.
