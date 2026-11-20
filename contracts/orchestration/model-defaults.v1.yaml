@@ -109,3 +109,9 @@ defaults:
     model: "~google/gemini-flash-latest"
     rationale: "L2 auto-classifier backup (moved from model-pins classifier.fallback): JSON-schema mode."
     verified_on: "2026-10-30 (live OpenRouter ~alias list)"
+  - role: distill_teacher
+    models:
+      - "~deepseek/deepseek-pro-latest"
+      - "qwen/qwen3-coder"
+    rationale: "MENS v9.4 verified-corpus distillation teachers, in preference order (CAP-27B-02): permissively licensed (MIT / Apache-2.0) frontier coders. The first is a live latest-per-family alias replacing the pinned deepseek-chat id; the second keeps the previously hardcoded qwen3-coder slug unchanged (no -latest alias verified for it)."
+    verified_on: "2026-11-20 (first: same alias as role judge, seen in the live OpenRouter ~alias list 2026-10-30; second: carried over from v94_teacher_distill.rs unverified; neither re-queried today)"

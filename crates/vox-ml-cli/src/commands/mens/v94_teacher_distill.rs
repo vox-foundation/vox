@@ -95,8 +95,13 @@ fn is_mit_or_apache_slug(slug: &str) -> bool {
 fn candidate_models() -> Vec<String> {
     let prefs = vox_actor_runtime::model_resolution::RouteResolutionInput::default();
     let mut cands = Vec::new();
-    // Prefer explicitly MIT frontier coder models first per CAP-27B-02 decision.
-    for fixed in ["deepseek/deepseek-chat", "qwen/qwen3-coder"] {
+    // Prefer explicitly MIT frontier coder models first per CAP-27B-02 decision. The
+    // teacher id comes from the model-defaults contract, never a literal here.
+    let teacher = vox_config::model_defaults::all()
+        .iter()
+        .find(|d| d.role == "distill_teacher")
+        .map_or(&[][..], |d| d.models);
+    for fixed in teacher {
         cands.push(fixed.to_string());
     }
     let cfg = prefs.openrouter_model.trim();
