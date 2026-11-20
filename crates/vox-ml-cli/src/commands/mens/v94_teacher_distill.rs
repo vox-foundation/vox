@@ -238,7 +238,6 @@ async fn probe_working_backend() -> Result<(Arc<FacadeBackend>, String, String, 
     );
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn solve_one_seed(
     backend: Arc<FacadeBackend>,
     seed: DistillSeed,

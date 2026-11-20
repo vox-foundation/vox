@@ -209,7 +209,6 @@ pub fn build_packed_mask_and_doc_ids(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn forward_masked_ce<M: ForwardCeGraph>(
     model: &M,
     ids: &[u32],
@@ -257,7 +256,6 @@ pub fn forward_masked_ce<M: ForwardCeGraph>(
 /// detached-boundary 256-row chunked `lm_head` backward when `HeadCeMode::Checkpointed`)
 /// or `ForwardCeGraph::forward_packed_hidden_eager` so attention stays block-diagonal
 /// per document and RoPE positions reset cleanly at every document boundary.
-#[allow(clippy::too_many_arguments)]
 pub fn forward_packed_masked_ce<M: ForwardCeGraph>(
     model: &M,
     samples: &[PackedSampleRef<'_>],
@@ -380,7 +378,6 @@ fn chunked_masked_cross_entropy_sum(
     total.ok_or_else(|| anyhow::anyhow!("chunked_masked_cross_entropy_sum: no active mask rows"))
 }
 
-#[allow(clippy::too_many_arguments)]
 fn run_masked_ce_with_head<M: ForwardCeGraph>(
     model: &M,
     ids: &[u32],

@@ -164,7 +164,6 @@ impl MultiTermCoeffs {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn predict_bytes_with_chunk_rows(
         &self,
         resident_weight_bytes: u64,
