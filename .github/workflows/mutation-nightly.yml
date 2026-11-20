@@ -94,7 +94,7 @@ jobs:
           cargo mutants -p vox-compiler --no-times --jobs "$JOBS" \
             --exclude-re "py_array_stats_run|py_frame_report_run|array_materialize_tests" \
             --shard "${SHARD_INDEX}/${SHARD_TOTAL}" \
-            -- -E 'not (binary(emission_ladder_test) | test(py_array_stats_run) | test(py_frame_report_run))' \
+            -- -E 'not (binary(emission_ladder_test) | binary(py_array_stats_run) | binary(py_frame_report_run))' \
             > "$LOG" 2>&1 &
           MUTANTS_PID=$!
 
