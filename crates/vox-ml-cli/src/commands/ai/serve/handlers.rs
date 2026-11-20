@@ -165,9 +165,8 @@ pub async fn do_generate(
             reply: reply_tx,
         };
         let tx = state.tx.clone();
-        let send_ok = tokio::task::spawn_blocking(move || tx.send(ir))
+        let send_ok = tokio::task::spawn_blocking(move || tx.send(ir).is_ok())
             .await
-            .map(|r: Result<(), std::sync::mpsc::SendError<InferenceRequest>>| r.is_ok())
             .unwrap_or(false);
         if !send_ok {
             return (

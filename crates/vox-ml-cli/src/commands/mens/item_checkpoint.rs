@@ -352,15 +352,6 @@ impl ItemCheckpoint {
         self.done.contains_key(&item) || self.seed.contains_key(&item)
     }
 
-    /// Return the recorded (or seeded) generation text for `prompt_json` if present.
-    pub(crate) fn get(&self, prompt_json: &str) -> Option<&str> {
-        let item = item_hash(prompt_json);
-        self.done
-            .get(&item)
-            .or_else(|| self.seed.get(&item))
-            .map(String::as_str)
-    }
-
     /// Record (and fsync) `resp` as the generation for `prompt_json`, exactly as
     /// [`Self::infer`] records one it generated.
     pub(crate) fn record(&mut self, prompt_json: &str, resp: &str) -> Result<()> {

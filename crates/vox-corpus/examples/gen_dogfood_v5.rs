@@ -395,10 +395,10 @@ impl<'a> Tracer<'a> {
                             return Ok(r);
                         }
                     }
-                    if let (Some(a), Some(st)) = (acc, start) {
-                        if series.len() >= 2 {
-                            self.last_loop = Some((a, st, series));
-                        }
+                    if let (Some(a), Some(st)) = (acc, start)
+                        && series.len() >= 2
+                    {
+                        self.last_loop = Some((a, st, series));
                     }
                 }
             }
@@ -452,9 +452,9 @@ fn trace(fs: &[F], note: &str, misnamed: bool, lead: &str) -> Result<(String, i6
     if misnamed {
         body.push_str("- I followed the code as written, not what the function names suggest. ✓\n");
     }
-    let _ = write!(
+    let _ = writeln!(
         body,
-        "- Re-read the final `return` of `main`: it produced {ans}. ✓\n"
+        "- Re-read the final `return` of `main`: it produced {ans}. ✓"
     );
     let _ = write!(body, "Final answer: {ans}");
     Ok((body, ans))

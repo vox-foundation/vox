@@ -48,7 +48,7 @@ struct DistillSeed {
 }
 
 fn seed_prompt(seed: &DistillSeed, idx: usize) -> String {
-    if seed.require_exact_types || idx % 2 == 0 {
+    if seed.require_exact_types || idx.is_multiple_of(2) {
         format!(
             "Implement in Vox:\n\n{}\n\nRequired declarations/signatures:\n{}",
             seed.spec_prose, seed.signature

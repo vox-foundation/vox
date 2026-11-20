@@ -42,6 +42,7 @@ pub(crate) fn sort_prepared_benches_lexicographic(prepared: &mut [PreparedBench]
     });
 }
 
+#[cfg(test)]
 pub(crate) fn prepare_bench_item(
     bench: &Path,
     manifest_index: usize,

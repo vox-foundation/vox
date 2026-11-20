@@ -151,7 +151,7 @@ fn write_manifest(path: &Path, description: &str, tasks: &[V2OwnedTask]) -> Resu
     Ok(())
 }
 
-fn pick_stratified<'a>(pool: &'a [V2OwnedTask], count: usize) -> Vec<V2OwnedTask> {
+fn pick_stratified(pool: &[V2OwnedTask], count: usize) -> Vec<V2OwnedTask> {
     let n = pool.len();
     if count >= n {
         return pool.to_vec();

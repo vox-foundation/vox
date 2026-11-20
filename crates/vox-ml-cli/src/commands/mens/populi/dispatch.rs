@@ -1178,23 +1178,22 @@ mod collateral_gate_tests {
 
     fn test_req(dir: &Path) -> vox_eval::collateral_evidence::CollateralRequirement {
         let path = report_path(dir);
-        if let Ok(raw) = std::fs::read_to_string(&path) {
-            if let Ok(report) = serde_json::from_str::<serde_json::Value>(&raw) {
-                if let Some(pins_val) = report.get("slice_blake3").and_then(|v| v.as_object()) {
-                    let mut slices = std::collections::HashMap::new();
-                    for (k, v) in pins_val {
-                        if let Some(s) = v.as_str() {
-                            slices.insert(k.clone(), s.to_string());
-                        }
-                    }
-                    return vox_eval::collateral_evidence::CollateralRequirement {
-                        slices,
-                        rule: vox_eval::reasoning_slice::PAIRED_RULE.to_string(),
-                        alpha: ALPHA,
-                        grader: vox_eval::qwen_reasoning::GRADER_ID.to_string(),
-                    };
+        if let Ok(raw) = std::fs::read_to_string(&path)
+            && let Ok(report) = serde_json::from_str::<serde_json::Value>(&raw)
+            && let Some(pins_val) = report.get("slice_blake3").and_then(|v| v.as_object())
+        {
+            let mut slices = std::collections::HashMap::new();
+            for (k, v) in pins_val {
+                if let Some(s) = v.as_str() {
+                    slices.insert(k.clone(), s.to_string());
                 }
             }
+            return vox_eval::collateral_evidence::CollateralRequirement {
+                slices,
+                rule: vox_eval::reasoning_slice::PAIRED_RULE.to_string(),
+                alpha: ALPHA,
+                grader: vox_eval::qwen_reasoning::GRADER_ID.to_string(),
+            };
         }
         let mut slices = std::collections::HashMap::new();
         for name in SLICE_NAMES {

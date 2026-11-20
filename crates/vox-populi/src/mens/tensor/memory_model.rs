@@ -607,6 +607,7 @@ fn resolve_cache_dequantized(
 
 /// Pure QLoRA resident-weight projection matching the Metal/CUDA trainer's
 /// `cache_dequantized` threshold (`non_embed_params <= 10B`).
+#[cfg(test)]
 fn project_qlora_shape(
     raw_shape: ModelShape,
     cfg: &RawConfig,
@@ -1479,13 +1480,13 @@ mod load_default_check {
         let pred27_lean =
             metal.predict_bytes_with_recipe(&p27, 1024, &TrainingRecipe::current_default());
         assert!(
-            pred27_lean >= 43_278_282_682 && pred27_lean <= 47_600_000_000,
+            (43_278_282_682..=47_600_000_000).contains(&pred27_lean),
             "27B lean pred={pred27_lean} must match ~43.28 GB measured"
         );
         let pred27_r32 =
             metal.predict_bytes_with_recipe(&p27, 1024, &TrainingRecipe::legacy_lm_head_r32());
         assert!(
-            pred27_r32 >= 77_073_260_172 && pred27_r32 <= 85_000_000_000,
+            (77_073_260_172..=85_000_000_000).contains(&pred27_r32),
             "27B r32 lm_head pred={pred27_r32} must cover 77.07 GB measured"
         );
         let r64_chunked = TrainingRecipe::high_capacity_r64_chunked();
@@ -1516,7 +1517,7 @@ mod load_default_check {
         let pred32 =
             metal.predict_bytes_with_recipe(&p32, 1024, &TrainingRecipe::current_default());
         assert!(
-            pred32 >= 40_000_000_000 && pred32 <= 52_000_000_000,
+            (40_000_000_000..=52_000_000_000).contains(&pred32),
             "Qwen3-32B lean QLoRA estimate should sit ~43 GB (comfortably < 72 GB), got {pred32}"
         );
         assert_eq!(derive_floor_mb(43_278_282_682), 42_512);

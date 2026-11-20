@@ -111,6 +111,7 @@ fn report_json(r: &CollateralDamageReport, n: Option<usize>) -> serde_json::Valu
     v
 }
 
+#[cfg(test)]
 fn default_eval_settings() -> vox_eval::decode_protocol::DecodeSettings {
     vox_eval::decode_protocol::DecodeSettings::default()
 }
@@ -121,6 +122,7 @@ fn default_eval_settings() -> vox_eval::decode_protocol::DecodeSettings {
 /// `score_bench` is a parameter so tests can drive a degradation without a GPU —
 /// and, more importantly, so `post` has exactly one source. A scorer error is
 /// propagated: a model that cannot be loaded must never leave a report behind.
+#[cfg(test)]
 pub(crate) fn run_collateral_damage_with(
     pre_score_path: &Path,
     run_dir: &Path,
@@ -249,6 +251,7 @@ pub(crate) fn validate_fail_fast_order(order: &[String]) -> Result<()> {
 ///
 /// The baseline may be partial (only the slices a sliced compare scored);
 /// reaching a slice it does not name is an error, before that slice is scored.
+#[cfg(test)]
 pub(crate) fn run_collateral_damage_fail_fast_with(
     pre_score_path: &Path,
     run_dir: &Path,
@@ -676,14 +679,16 @@ fn slice_verdict(
         (init.as_str(), think, &v.think_initiation),
     ] {
         // `!(x <= tol)` so a NaN score is refused too.
-        if !((score.value - m.post).abs() <= 1e-9) {
+        let post_gap = (score.value - m.post).abs();
+        if post_gap.is_nan() || post_gap > 1e-9 {
             anyhow::bail!(
                 "{key}: scorer value {} disagrees with its own items ({}); refusing",
                 score.value,
                 m.post
             );
         }
-        if !((pre[key] - m.pre).abs() <= 1e-9) {
+        let pre_gap = (pre[key] - m.pre).abs();
+        if pre_gap.is_nan() || pre_gap > 1e-9 {
             anyhow::bail!(
                 "{key}: baseline {} says {} but the base re-scored per item gives {} \
                  (another grader, token cap or base?); regenerate the baseline",
@@ -848,6 +853,15 @@ pub(crate) fn sequential_outcomes(
     Ok((acc_outcomes, think_outcomes, contiguous_len))
 }
 
+/// When collateral prefill may stop early: the fail-fast switch, the McNemar alpha and the
+/// optional sequential rule travel together, so they are one argument.
+#[derive(Clone, Copy)]
+pub(crate) struct FailFastGate<'a> {
+    pub enabled: bool,
+    pub alpha: f64,
+    pub seq_rule: Option<&'a vox_eval::sequential_mcnemar::SequentialRule>,
+}
+
 /// Prefill adapter reasoning slices in `order` into checkpoints with fail-fast cancellation.
 pub(crate) fn prefill_collateral_adapter(
     ck_root: &Path,
@@ -857,13 +871,16 @@ pub(crate) fn prefill_collateral_adapter(
     base: &Path,
     adapter: &Path,
     order: &[String],
-    fail_fast: bool,
-    alpha: f64,
+    gate: FailFastGate<'_>,
     settings: &vox_eval::decode_protocol::DecodeSettings,
     force_restart_adapter: bool,
-    seq_rule: Option<&vox_eval::sequential_mcnemar::SequentialRule>,
     adapter_infer: &mut dyn FnMut(&str) -> Result<String>,
 ) -> Result<()> {
+    let FailFastGate {
+        enabled: fail_fast,
+        alpha,
+        seq_rule,
+    } = gate;
     let mut benches: Vec<(String, Vec<ReasoningItem>)> = Vec::with_capacity(order.len());
     for name in order {
         let file = bench_root.join(name).join("reasoning.jsonl");
@@ -996,6 +1013,7 @@ pub(crate) fn prefill_collateral_adapter(
 
 /// Testable core of collateral prefill: runs base prefill, then adapter prefill
 /// with fail-fast cancellation.
+#[cfg(test)]
 pub(crate) fn prefill_collateral_with(
     ck_root: &Path,
     bench_root: &Path,
@@ -1004,11 +1022,9 @@ pub(crate) fn prefill_collateral_with(
     base: &Path,
     adapter: &Path,
     order: &[String],
-    fail_fast: bool,
-    alpha: f64,
+    gate: FailFastGate<'_>,
     settings: &vox_eval::decode_protocol::DecodeSettings,
     force: crate::commands::mens::item_checkpoint::ForceRestart,
-    seq_rule: Option<&vox_eval::sequential_mcnemar::SequentialRule>,
     base_infer: &mut dyn FnMut(&str) -> Result<String>,
     adapter_infer: &mut dyn FnMut(&str) -> Result<String>,
 ) -> Result<()> {
@@ -1029,11 +1045,9 @@ pub(crate) fn prefill_collateral_with(
         base,
         adapter,
         order,
-        fail_fast,
-        alpha,
+        gate,
         settings,
         force.for_adapter(),
-        seq_rule,
         adapter_infer,
     )?;
     Ok(())
@@ -1124,11 +1138,13 @@ pub fn run_collateral_damage(
             &base,
             &post_adapter_path,
             &run_order,
-            !no_fail_fast,
-            alpha,
+            FailFastGate {
+                enabled: !no_fail_fast,
+                alpha,
+                seq_rule: seq_rule.as_ref(),
+            },
             &settings,
             force.for_adapter(),
-            seq_rule.as_ref(),
             adapter_infer,
         )
     })??;
@@ -2403,14 +2419,16 @@ mod tests {
             &base,
             &adapter,
             &order,
-            false, // fail_fast off
-            ALPHA,
+            FailFastGate {
+                enabled: false,
+                alpha: ALPHA,
+                seq_rule: None,
+            },
             &settings,
             crate::commands::mens::item_checkpoint::ForceRestart {
                 adapter: false,
                 base: false,
             },
-            None,
             &mut base_infer,
             &mut adapter_infer,
         )
@@ -2539,14 +2557,16 @@ mod tests {
             &base,
             &adapter,
             &order,
-            true, // fail_fast on
-            ALPHA,
+            FailFastGate {
+                enabled: true,
+                alpha: ALPHA,
+                seq_rule: None,
+            },
             &settings,
             crate::commands::mens::item_checkpoint::ForceRestart {
                 adapter: false,
                 base: false,
             },
-            None,
             &mut base_infer,
             &mut adapter_infer,
         )
@@ -2676,14 +2696,16 @@ mod tests {
             &base,
             &adapter,
             &order,
-            false,
-            ALPHA,
+            FailFastGate {
+                enabled: false,
+                alpha: ALPHA,
+                seq_rule: None,
+            },
             &settings,
             crate::commands::mens::item_checkpoint::ForceRestart {
                 adapter: false,
                 base: false,
             },
-            None,
             &mut base_infer,
             &mut adapter_infer,
         )
@@ -2718,14 +2740,16 @@ mod tests {
             &base,
             &adapter,
             &order,
-            false,
-            ALPHA,
+            FailFastGate {
+                enabled: false,
+                alpha: ALPHA,
+                seq_rule: None,
+            },
             &settings,
             crate::commands::mens::item_checkpoint::ForceRestart {
                 adapter: true,
                 base: false,
             },
-            None,
             &mut restart_base_infer,
             &mut restart_adapter_infer,
         )
@@ -2804,10 +2828,10 @@ mod tests {
                         .nth(1)
                         .and_then(|s| s.split(|c: char| !c.is_ascii_digit()).next())
                         .unwrap_or("");
-                    if let Ok(idx) = id_str.parse::<usize>() {
-                        if idx < 11 {
-                            return "0".into();
-                        }
+                    if let Ok(idx) = id_str.parse::<usize>()
+                        && idx < 11
+                    {
+                        return "0".into();
                     }
                 }
                 "42".into()
@@ -2830,14 +2854,16 @@ mod tests {
             &base,
             &adapter,
             &order,
-            true, // fail_fast on
-            ALPHA,
+            FailFastGate {
+                enabled: true,
+                alpha: ALPHA,
+                seq_rule: Some(&rule),
+            },
             &settings,
             crate::commands::mens::item_checkpoint::ForceRestart {
                 adapter: false,
                 base: false,
             },
-            Some(&rule),
             &mut base_infer,
             &mut adapter_infer,
         )
@@ -2914,10 +2940,10 @@ mod tests {
                         .nth(1)
                         .and_then(|s| s.split(|c: char| !c.is_ascii_digit()).next())
                         .unwrap_or("");
-                    if let Ok(idx) = id_str.parse::<usize>() {
-                        if idx < 11 {
-                            return "0".into();
-                        }
+                    if let Ok(idx) = id_str.parse::<usize>()
+                        && idx < 11
+                    {
+                        return "0".into();
                     }
                 }
                 "42".into()
@@ -2939,14 +2965,16 @@ mod tests {
             &base,
             &adapter,
             &order,
-            true,
-            ALPHA,
+            FailFastGate {
+                enabled: true,
+                alpha: ALPHA,
+                seq_rule: Some(&rule),
+            },
             &settings,
             crate::commands::mens::item_checkpoint::ForceRestart {
                 adapter: false,
                 base: false,
             },
-            Some(&rule),
             &mut base_infer,
             &mut adapter_infer,
         )

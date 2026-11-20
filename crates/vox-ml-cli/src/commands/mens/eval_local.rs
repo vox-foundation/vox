@@ -449,11 +449,11 @@ fn eval_local_report(
     #[cfg(feature = "gpu")]
     let _eval_session: Option<String> = None;
 
-    let model_hint = resolve_eval_model_hint(&model);
+    let model_hint = resolve_eval_model_hint(model);
     let mut prepared: Vec<PreparedBench> = benchmarks
         .iter()
         .enumerate()
-        .map(|(i, item)| prepare_bench_item_for_model(&bench, i, item, model_hint.as_deref()))
+        .map(|(i, item)| prepare_bench_item_for_model(bench, i, item, model_hint.as_deref()))
         .collect();
     sort_prepared_benches_lexicographic(&mut prepared);
 
@@ -501,7 +501,7 @@ fn eval_local_report(
                             let completion = vox_eval::qwen_reasoning::answer_region(&raw);
                             let v = verify_completion_with_harness(
                                 completion,
-                                &bench,
+                                bench,
                                 &file,
                                 &id,
                                 manifest_index,

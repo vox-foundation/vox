@@ -220,8 +220,9 @@ fn solve_linear_system<const N: usize>(mut a: [[f64; N]; N], mut b: [f64; N]) ->
         for r in (col + 1)..N {
             let factor = a[r][col] / diag;
             a[r][col] = 0.0;
-            for c in (col + 1)..N {
-                a[r][c] -= factor * a[col][c];
+            let pivot = a[col];
+            for (c, p) in pivot.iter().enumerate().skip(col + 1) {
+                a[r][c] -= factor * p;
             }
             b[r] -= factor * b[col];
         }
@@ -257,11 +258,11 @@ fn solve_nnls_5(rows: &[([f64; 5], f64)]) -> Option<[f64; 5]> {
             }
         }
         // Embedded identity for inactive columns so solve_linear_system<5> solves the k×k subset.
-        for i in 0..5 {
+        for (i, row) in ata.iter_mut().enumerate() {
             if i >= k {
-                ata[i][i] = 1.0;
+                row[i] = 1.0;
             } else {
-                ata[i][i] += 1e-9;
+                row[i] += 1e-9;
             }
         }
         let Some(sol) = solve_linear_system(ata, aty) else {

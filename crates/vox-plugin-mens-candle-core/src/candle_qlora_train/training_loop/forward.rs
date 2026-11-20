@@ -948,8 +948,10 @@ mod tests {
         let prefix_len = 270usize; // > 256 -> chunk 0 completely skipped, chunks 1 & 2 active
         let sample_weight = 1.75f64;
         let grad_accum_steps = 3usize;
-        let mut cfg = LoraTrainingConfig::default();
-        cfg.qlora_ce_last_k = 0;
+        let cfg = LoraTrainingConfig {
+            qlora_ce_last_k: 0,
+            ..Default::default()
+        };
 
         // 1. Eager reference
         let eager_res = forward_masked_ce(

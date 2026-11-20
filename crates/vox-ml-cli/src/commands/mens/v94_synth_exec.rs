@@ -73,7 +73,7 @@ impl TaskBuilder {
 }
 
 fn format_prompt(idx: usize, prose: &str, signature: &str) -> String {
-    if idx % 2 == 0 {
+    if idx.is_multiple_of(2) {
         let lead = match (idx / 2) % 4 {
             0 => "Implement in Vox:",
             1 => "Write a self-contained Vox solution:",
@@ -1919,10 +1919,10 @@ fn gen_string_parsing(tb: &mut TaskBuilder) {
                     continue;
                 }
                 let mut kv = t.split(eq);
-                if let (Some(k), Some(v), None) = (kv.next(), kv.next(), kv.next()) {
-                    if k.trim().starts_with(pfx) {
-                        total += v.trim().parse::<i64>().unwrap_or(0) * mult;
-                    }
+                if let (Some(k), Some(v), None) = (kv.next(), kv.next(), kv.next())
+                    && k.trim().starts_with(pfx)
+                {
+                    total += v.trim().parse::<i64>().unwrap_or(0) * mult;
                 }
             }
             total
@@ -2181,10 +2181,10 @@ fn gen_matrix_grid(tb: &mut TaskBuilder) {
                 }
                 let c = g[0].len();
                 let mut s = 0i64;
-                for i in 0..r {
-                    for j in 0..c {
+                for (i, row) in g.iter().enumerate() {
+                    for (j, &v) in row.iter().enumerate().take(c) {
                         if i == 0 || i == r - 1 || j == 0 || j == c - 1 {
-                            s += g[i][j];
+                            s += v;
                         }
                     }
                 }
@@ -2363,9 +2363,9 @@ fn gen_matrix_grid(tb: &mut TaskBuilder) {
             }
             let (r, c) = (g.len(), g[0].len());
             let mut dp = vec![0i64; c];
-            for i in 0..r {
-                for j in 0..c {
-                    let cell = g[i][j] + step_cost;
+            for (i, row) in g.iter().enumerate().take(r) {
+                for (j, &v) in row.iter().enumerate().take(c) {
+                    let cell = v + step_cost;
                     dp[j] = match (i, j) {
                         (0, 0) => cell,
                         (0, _) => dp[j - 1] + cell,

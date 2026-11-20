@@ -163,13 +163,15 @@ mod tests {
             .collect();
 
         let build_pair = |grad_checkpointing: bool| {
-            let mut cfg = LoraTrainingConfig::default();
-            cfg.seq_len = 24;
-            cfg.grad_accum = 2;
-            cfg.gradient_checkpointing = grad_checkpointing;
-            cfg.lora_exclude_lm_head = false;
-            cfg.rank = 2;
-            cfg.alpha = 4.0;
+            let cfg = LoraTrainingConfig {
+                seq_len: 24,
+                grad_accum: 2,
+                gradient_checkpointing: grad_checkpointing,
+                lora_exclude_lm_head: false,
+                rank: 2,
+                alpha: 4.0,
+                ..Default::default()
+            };
             let mut train_cfg = build_train_cfg(&cfg, 4);
             train_cfg.adapter_config.learning_rate = 1e-3;
             train_cfg.adapter_config.gradient_accumulation_steps = 2;
