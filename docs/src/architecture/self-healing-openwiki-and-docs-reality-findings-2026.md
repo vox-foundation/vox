@@ -25,7 +25,7 @@ Despite strong architectural claims across tutorials and research docs, the live
 | Surface / Artifact | Observed State | Implication |
 |---|---|---|
 | Daemon KB (`vox kb status`) | `KB Library: not indexed` (`0` entries, `0` inbox findings); `~/Library/Application Support/vox/kb/library` untouched since `2026-10-05` | Agent/GUI KB queries have no fresh local library index |
-| Repo-local DB ([`.vox/store.db`](../../../.vox/store.db)) | `schema_version = 99`, `0` rows in `kb_index_state`, `search_documents`, `search_document_chunks`, `kb_findings`, `kb_entries`, `knowledge_nodes`; `kb_heal_proposals` missing | Split-brain CLI proposal DB has never been populated or migrated |
+| Repo-local DB (`.vox/store.db`, a gitignored local file) | `schema_version = 99`, `0` rows in `kb_index_state`, `search_documents`, `search_document_chunks`, `kb_findings`, `kb_entries`, `knowledge_nodes`; `kb_heal_proposals` missing | Split-brain CLI proposal DB has never been populated or migrated |
 | Global Library (`~/.vox/library/`) | `0` files | Cross-project promoted knowledge layer is empty |
 | OpenWiki split-brain (`docs/wiki/` vs. `docs/src/`) | `docs/wiki/` does not exist (`vox ci wiki-sync --status` → `initialized: false`, `6/6` pages missing/stale), while `docs/src/` (`docs-astro` → `voxlang.org`) is the true canonical documentation database | `v7.9` invented a parallel `docs/wiki/` tree instead of wiring OpenWiki self-healing directly onto `docs/src/` (and `<canonical_docs_root>` on external repos) |
 | Freshness ledger ([`ledger.v1.json`](../../../contracts/reports/docs-freshness/ledger.v1.json)) | Frozen at `2026-10-14` (`b64377d402`); claims `810` verified, `0` drifting, `0` broken | Weekly refresh workflow failed to keep the ledger current |
