@@ -329,10 +329,14 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
                 Some(crate::commands::audit::AuditSubcommand::EffortRoute(route)) => {
                     crate::commands::audit_route::run(route).await?;
                 }
+                // Guard-running audits (code/arch/retirement/docs/...) must not
+                // judge the tree with a stale binary, same as `vox ci`.
                 Some(other) => {
+                    crate::freshness::enforce_for_ci(&crate::commands::ci::repo_root())?;
                     crate::commands::audit::run_audit_subcommand(&other)?;
                 }
                 None => {
+                    crate::freshness::enforce_for_ci(&crate::commands::ci::repo_root())?;
                     crate::commands::audit::run(&args)?;
                 }
             }

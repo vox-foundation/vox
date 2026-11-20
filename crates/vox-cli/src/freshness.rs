@@ -11,7 +11,8 @@
 //! it catches *same-version* staleness (`0.6.0+build.601` vs
 //! `0.6.0+build.1917`) that a semver compare misses.
 //!
-//! Scope: enforcement runs only on `vox ci *` (the diagnostic surface) and as a
+//! Scope: enforcement runs only on `vox ci *` and the guard-running `vox audit`
+//! subcommands (everything except the AI-judged `effort`/`effort-route`), and as a
 //! non-fatal `vox doctor` check. We deliberately do not add a git subprocess to
 //! every `vox` invocation.
 
