@@ -557,6 +557,29 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
         });
     }
 
+    // Pure file reads (<1s, no build): catch docs-site failures that otherwise only
+    // surface after a 13-minute docs-quality CI run.
+    if is_heavy
+        || changed_files.iter().any(|f| {
+            f == "README.md"
+                || f == "docs/src/index.mdx"
+                || f == "docs/src/.well-known/llms.txt"
+                || f.starts_with("contracts/reports/docs-freshness/")
+                || f.starts_with("crates/vox-doc-pipeline/")
+        })
+    {
+        v.push(OwnedStep {
+            label: "vox ci llms-verified".into(),
+            scope: None,
+            run: Box::new(|r| vox_cli_ci::llms_verified::run(r, false)),
+        });
+        v.push(OwnedStep {
+            label: "vox ci readme-assets".into(),
+            scope: None,
+            run: Box::new(vox_cli_ci::readme_assets::run),
+        });
+    }
+
     let spoke_relevant = changed_files.iter().any(|f| {
         f.starts_with("mens/") || f.starts_with("contracts/") || f.starts_with("crates/vox-populi/")
     });

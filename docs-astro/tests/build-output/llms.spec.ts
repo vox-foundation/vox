@@ -124,6 +124,15 @@ test.describe('Build Output: LLMS exclusion (HONEST-02, DEPLOY-03)', () => {
       return null;
     }
 
+    // Non-verified pages are tolerated only under this exact heading. Fast pre-push twin
+    // of this rule: `vox ci llms-verified` (crates/vox-cli-ci/src/llms_verified.rs) —
+    // keep the two identical (it moves entries here with `--write`).
+    const REVIEW_HEADING = '## Needs review (not yet verified)';
+    const inReviewSection = (index: number): boolean => {
+      const headings = [...content.slice(0, index).matchAll(/^## .*$/gm)];
+      return headings.length > 0 && headings[headings.length - 1][0].trimEnd() === REVIEW_HEADING;
+    };
+
     while ((m = linkRegex.exec(content)) !== null) {
       const label = m[1];
       const url = m[2].trim();
@@ -155,7 +164,7 @@ test.describe('Build Output: LLMS exclusion (HONEST-02, DEPLOY-03)', () => {
       } else {
         const { page } = resolved;
         // 3. Must be verified
-        if (page.state !== 'verified') {
+        if (page.state !== 'verified' && !inReviewSection(m.index)) {
           nonVerifiedUrls.push(`${label} (${url}) -> state: '${page.state}' (must be 'verified')`);
         }
         // 4. Must not be Internals

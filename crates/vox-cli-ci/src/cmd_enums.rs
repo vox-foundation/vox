@@ -1022,6 +1022,16 @@ pub enum CiCmd {
         #[arg(long)]
         paths: Option<std::path::PathBuf>,
     },
+    /// Every curated llms.txt link must be a `verified` page in the docs-freshness ledger.
+    #[command(name = "llms-verified")]
+    LlmsVerified {
+        /// Move non-verified entries under the Needs-review heading (and back once verified).
+        #[arg(long)]
+        write: bool,
+    },
+    /// README / docs index must embed raster images only (no srcset, source, or .svg images).
+    #[command(name = "readme-assets")]
+    ReadmeAssets,
     /// Run knip unused-export gate for `crates/vox-gui/ui`.
     #[command(name = "knip-gui")]
     KnipGui {

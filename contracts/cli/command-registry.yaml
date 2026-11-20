@@ -2780,6 +2780,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - llms-verified
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - manifest
   status: active
   latin_ns: null
@@ -3237,6 +3249,18 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - readme-assets
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
   handler_rust: null
 - surface: vox-cli
   path:

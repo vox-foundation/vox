@@ -1000,6 +1000,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             &root,
             vox_cli_ci::evidence_asset_ban::EvidenceAssetBanArgs { allowlist, paths },
         ),
+        CiCmd::LlmsVerified { write } => vox_cli_ci::llms_verified::run(&root, write),
+        CiCmd::ReadmeAssets => vox_cli_ci::readme_assets::run(&root),
         CiCmd::KnipGui { check } => vox_cli_ci::knip_gui::run(&root, check),
         CiCmd::TransferBudgetReport {
             write,
