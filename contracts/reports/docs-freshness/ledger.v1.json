@@ -117142,15 +117142,15 @@
       "title": "Clinical export (app-owned)",
       "category": "How-To Guides",
       "status": "current",
-      "state": "drifting",
-      "last_verified_commit": "c2edb14aee6bba41c4bee98005be01cf1f968290",
+      "state": "verified",
+      "last_verified_commit": "3f9bfa4852cb4c462ad9378d94404b42dd9ebbf4",
       "anchors": [
         {
           "id": "claim:docs/src/how-to/external-app-bootstrap.md",
           "kind": "path",
           "target": "docs/src/how-to/external-app-bootstrap.md",
           "content_hash": "7e381555da32f691692f323b448cc361060487fec187b1213df4387d5b1b4817",
-          "verified_hash": "7900b7bed77a7b93931bba3b681173d7ed198227a6077461d4767c9175d85953",
+          "verified_hash": "7e381555da32f691692f323b448cc361060487fec187b1213df4387d5b1b4817",
           "source": "extracted_claim"
         }
       ],
@@ -130787,8 +130787,8 @@
       "title": "Reference: `vox` CLI (minimal compiler binary)",
       "category": "Language Reference",
       "status": "current",
-      "state": "drifting",
-      "last_verified_commit": "c2edb14aee6bba41c4bee98005be01cf1f968290",
+      "state": "verified",
+      "last_verified_commit": "3f9bfa4852cb4c462ad9378d94404b42dd9ebbf4",
       "anchors": [
         {
           "id": "claim:crates/vox-cli",
@@ -132539,7 +132539,7 @@
           "kind": "crate",
           "target": "vox-orchestrator-mcp",
           "content_hash": "7d74cfaa1b47e73eab626e41ed3d672a891c095ffb0b2c6b857a57162a0629c1",
-          "verified_hash": "f6b255170cd14d140ddcae9dd37891a2a40afffd36ed68e4d1920157f67f7e5c",
+          "verified_hash": "7d74cfaa1b47e73eab626e41ed3d672a891c095ffb0b2c6b857a57162a0629c1",
           "source": "extracted_claim"
         },
         {
@@ -133467,7 +133467,7 @@
           "kind": "path",
           "target": "docs/src/ci/runner-contract.md",
           "content_hash": "47652c157f5ccd0776555601496518186814369e4ffca8c9ad34cc817c3b9bed",
-          "verified_hash": "6630732b7bc004d3549bbe695d542b086db9fca0f1d81151736836b79b97221e",
+          "verified_hash": "47652c157f5ccd0776555601496518186814369e4ffca8c9ad34cc817c3b9bed",
           "source": "extracted_claim"
         },
         {
@@ -144781,8 +144781,8 @@
       "title": "MCP tool registry contract",
       "category": "Language Reference",
       "status": "current",
-      "state": "drifting",
-      "last_verified_commit": "c2edb14aee6bba41c4bee98005be01cf1f968290",
+      "state": "verified",
+      "last_verified_commit": "3f9bfa4852cb4c462ad9378d94404b42dd9ebbf4",
       "anchors": [
         {
           "id": "claim:contracts/mcp/tool-registry.canonical.yaml",
@@ -144821,7 +144821,7 @@
           "kind": "crate",
           "target": "vox-orchestrator-mcp",
           "content_hash": "7d74cfaa1b47e73eab626e41ed3d672a891c095ffb0b2c6b857a57162a0629c1",
-          "verified_hash": "f6b255170cd14d140ddcae9dd37891a2a40afffd36ed68e4d1920157f67f7e5c",
+          "verified_hash": "7d74cfaa1b47e73eab626e41ed3d672a891c095ffb0b2c6b857a57162a0629c1",
           "source": "extracted_claim"
         },
         {
@@ -153249,8 +153249,8 @@
   },
   "metrics": {
     "total_pages": 1210,
-    "verified_count": 178,
-    "drifting_count": 271,
+    "verified_count": 181,
+    "drifting_count": 268,
     "broken_count": 193,
     "unanchored_count": 0,
     "historical_count": 568
