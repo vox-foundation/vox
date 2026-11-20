@@ -42,7 +42,7 @@ Do not use: revolutionary, seamless, seamlessly, blazing, blazingly, cutting-edg
 ## Which page owns what
 
 | Content | Frontpage (voxlang.org) | README (repository) |
-|:---|:---|:---|
+| :--- | :--- | :--- |
 | Audience | Someone deciding whether to look further | Someone building, changing or auditing the repository |
 | Owns | What Vox is, the playground, the two tours, the "Why Vox" explanation, a short status summary | Build and install steps, the full status tables and log, repository layout, contributing, citations, licence |
 | Does not repeat | Repository layout, the full status matrix, the change log | Interactive demos and the slide-by-slide tours |
