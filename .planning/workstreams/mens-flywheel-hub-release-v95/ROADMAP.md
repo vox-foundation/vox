@@ -2,7 +2,7 @@
 
 **Workstream:** `.planning/workstreams/mens-flywheel-hub-release-v95/`
 **Milestone:** v9.5 — MENS Flywheel, Truthful Lanes & Trustworthy Hub Releases
-**Requirements:** [`REQUIREMENTS.md`](REQUIREMENTS.md) (`67` v1 requirements, all mapped)
+**Requirements:** [`REQUIREMENTS.md`](REQUIREMENTS.md) (`69` v1 requirements, all mapped)
 **Research:** [`research/SUMMARY.md`](research/SUMMARY.md), [`research/ARCHITECTURE.md`](research/ARCHITECTURE.md) (file ownership, build order), [`research/PITFALLS.md`](research/PITFALLS.md) (ordering constraints)
 **Handoff:** [`mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md`](../../../docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md)
 **Numbering:** Phases `553–564`. Numbers `551–552` are retired (removed from the previous workstream) and are not reused.
@@ -24,7 +24,7 @@ released.
 
 ## Hard Rules (apply to every phase)
 
-- **One GPU job at a time**, under the Phase 553 lock. No GPU job starts while `PID 34157` is alive. Never rebuild
+- **One GPU job at a time**, under the Phase 553 lock. No GPU job starts while another agent's GPU job is running (earlier `PID 34157`; the 27B v5 retrain `task-27125` stopped at step 5 on 2026-11-20 and stays stopped). Never rebuild
   `target/release` or reinstall the Metal plugin dylib while it runs; use isolated target dirs.
 - **Ladder order:** retraining goes 0.8B → 2B → 4B → 9B → 27B. A size starts only after the size below it is classified
   non-regressed, and the 27B preflight and CAP-27B-04 are the milestone's last training job.
@@ -40,7 +40,7 @@ released.
 | Wave | Phases (run concurrently) | Each phase starts after | GPU in this wave |
 |------|---------------------------|-------------------------|------------------|
 | W0 | 553 | — | none |
-| W1 | 554 · 555 · 556 · 557 | 553 | none, except 556's one Spike B WebGPU smoke run (short, lock-held, after `PID 34157`) |
+| W1 | 554 · 555 · 556 · 557 | 553 | none, except 556's one Spike B WebGPU smoke run (short, lock-held, when the GPU is free) |
 | W2 | 558 · 559 · 560 · 561 | 558: 555 + 557 · 559: 554 + 557 · 560: 554 + 555 + 557 · 561: 554 + 555 + 556 | 559's parity, "before" and extension evals (short to medium), then 560's live episodes (short); 561's browser checks in gaps |
 | W3 | 562, with 564's code groups (and 561 if still open) | 562: 558 + 559 · 564 code: 557 + 559 + 560 + 561 | 562's canary, then rungs 0.8B → 2B → 4B → 9B (each measured as it runs) |
 | W4 | 563, with 564 still open | 562 (9B rung non-regressed) | long, 563 holds the lock; the last training job |
@@ -61,7 +61,7 @@ released.
 | 563 | 562 | 564 (code) | long |
 | 564 | 557, 559, 560, 561 (code); 562, 563 (releases) | 562, 563 | short (`hub pull` smoke tests) |
 
-**GPU queue (strictly serial, one lock, nothing while `PID 34157` is alive):** `PID 34157` exits → 556 Spike B WebGPU
+**GPU queue (strictly serial, one lock, nothing while another agent's GPU job runs):** the GPU is free → 556 Spike B WebGPU
 smoke run → 559 Metal prefix-cache parity → 559 "before" evals (published 0.8B, 2B, 4B, 9B adapters and their bases;
 stored completions reused) → 559 extension-slice evals for any pair the benchmark cannot separate → 560 live agent
 episodes → 562 Tier-1 canary (0.8B, 2B) → 562 rung 0.8B (train, anchor check, full eval) → rung 2B → rung 4B → rung 9B →
@@ -82,8 +82,8 @@ releases) fit between rungs or before 563's preflight, never during a training r
 - [ ] **Phase 554: Eval Timing, Failure Funnel & Prefix-Cache CPU Spike** (`TIME-01..03`, `TIME-05..06`, `FUNL-01..03`, `FUNL-05`) — every eval report shows where time went and where completions fail; cache design settled on CPU
 - [ ] **Phase 555: Truthful Lanes & Run Stamping** (`LANE-01..05`, `LANE-07`, `FUNL-04`) — "lane" means one thing per place, one canonical vox-lang mix, every run records spoke/backend/slices/health
 - [ ] **Phase 556: Honest Hub & Space Hygiene** (`HUB-04`, `HUB-06`, `HUB-07`, `CARD-06`, `SPACE-01`, `SPACE-02`, `SPACE-05`) — public Space, cards and repos stop misleading now, with no new weights; Space feasibility spike
-- [ ] **Phase 557: Sealed Blind Slice, Pre-Registered Statistic & Contamination Firewall** (`PROOF-01`, `PROOF-02`, `DATA-01`) — the proof cannot be gamed before any new data exists
-- [ ] **Phase 558: Verified Data Harvest & Capped Distillation** (`DATA-02..04`) — 0-USD harvest, then at most 12 USD of licensed distillation, every row verified and attributed
+- [ ] **Phase 557: Sealed Blind Slice, Pre-Registered Statistic & Contamination Firewall** (`PROOF-01`, `PROOF-02`, `PROOF-08`, `DATA-01`) — the proof cannot be gamed before any new data exists
+- [ ] **Phase 558: Verified Data Harvest & Capped Distillation** (`DATA-02..04`, `DATA-06`) — 0-USD harvest, then at most 12 USD of licensed distillation, every row verified and attributed
 - [ ] **Phase 559: Cached Decode, Discriminating Evals & Ladder Baselines** (`TIME-04`, `LADR-01`, `DISC-01..05`) — before any retrain: every published size has a comparable "before", the benchmark is shown to separate adjacent sizes, every model has a budgeted eval that fits it
 - [ ] **Phase 560: Live Spoke Gates** (`SPOK-01..05`) — every trained spoke is gated on live agent episodes, not hub evidence
 - [ ] **Phase 561: Evidence-Bound Cards & In-Browser 0.8B Space** (`LANE-06`, `CARD-01..05`, `SPACE-03`, `SPACE-04`, `SPACE-06`) — cards and Space say only what evidence supports; 0.8B runs live in the browser
@@ -102,8 +102,9 @@ releases) fit between rungs or before 563's preflight, never during a training r
   2. While the GPU lock is held, a second GPU job waits or refuses instead of starting (shown with stand-in jobs, no Metal use), a test fails when the lock check is removed, and every eval and train report header records whether another GPU job was running.
   3. Schema tests for the four frozen contracts (plugin generate-response fields, `exec_error_kind` enum, run-record keys, failure-funnel schema) pass, and fail when any field is renamed or dropped.
   4. A frozen proof manifest pins the benchmark files, verifier revision and decode protocol, and `contracts/reports/mens-v95-baselines-rescored.json` re-scores on CPU every stored baseline used for a later claim against it, listing each verdict that changed from its original report.
+  5. The failed v4 27B adapter (435 MB, today only in another agent's volatile scratch folder `qwen38_27b_v4_failed_gate`) and its collateral report, evidence and train record are copied to `mens/runs/qwen3.8-27b-v4-failed-gate/` with BLAKE3 hashes recorded in the proof manifest, and training refuses an `--output-dir` that already holds a finished adapter unless it is a resume of that same run (a test fails when the refusal is removed). Why: the v5 retrain reused v4's run folder and `--force-restart` deleted v4's weights and epoch checkpoints.
 **Parallel groups:** Serial first: BASE-01 (one executor owns the whole pending tree, and pre-registers the `mod` lines for this milestone's new modules — `eval_timing`, `eval_funnel`, `eval_spoke_live`, `proof_stats`, `eval_discrimination`, `ladder_queue`, `proof_report` — in `crates/vox-ml-cli/src/commands/mens/mod.rs`). Then at once: (a) GPU lock — new lock helper plus the header field in the eval/train report writers; (b) contracts — new schema files and schema tests under `contracts/mens/`; (c) proof manifest — manifest file under `mens/config/` plus a CPU re-score driver. The phase runs alone: it gates every other phase.
-**GPU:** none (`PID 34157` is not touched; the lock is tested with stand-in jobs).
+**GPU:** none (no running job is touched; the lock is tested with stand-in jobs).
 **Agents:** plan + verify on Opus; execute on Sonnet 5.5.
 **Plans**: TBD
 
@@ -147,7 +148,7 @@ releases) fit between rungs or before 563's preflight, never during a training r
   4. The Space page headlines `heldout_bench_v2` evidence loaded from a pinned commit SHA (not `main`), labels v1 as superseded, and shows a visible source label (recorded, live in-browser, live local serve, live base model) on every output; recorded output is never shown as live.
   5. `contracts/reports/mens-v95-space-contract-before-after.json` lists every URL and filename the Space fetches that is missing today and none after; the nonce-prompt Playwright spec reports SKIP, not pass, when WebGPU or a live path is unavailable; Spike B writes `contracts/reports/mens-v95-space-onnx-spike.json` with a go/no-go for SPACE-03 (export path, runtime support for the hybrid architecture, download size, CORS from `*.hf.space`).
 **Parallel groups:** (G-sync) `crates/vox-populi/src/mens/{hub_sync,hub_cards_push}.rs`, deletion of `crates/vox-populi/templates/hub/space/{app.py.tmpl,requirements.txt.tmpl}`, NOTICE/attribution templates; (G-card-text) `crates/vox-populi/src/mens/hub_card/**` and its golden tests, `docs/src/reference/mens-models.md`; (G-space) `crates/vox-populi/templates/hub/space/{index.html.tmpl,README.md.tmpl}`, the Space contract test, a Playwright spec under `docs-astro/tests/`; (Spike B) throwaway code in `~/dev/_scratch/`, only the report is committed. Inside the phase, G-space migrates the Space's evidence readers before G-sync pushes the atomic cleanup commit. Runs in parallel with 554, 555 and 557.
-**GPU:** short, Spike B only: its single in-browser WebGPU run takes the GPU lock and waits for `PID 34157` to exit; everything else is GPU-free.
+**GPU:** short, Spike B only: its single in-browser WebGPU run takes the GPU lock and waits until no other GPU job runs; everything else is GPU-free.
 **Agents:** plan + verify on Opus; execute on Sonnet 5.5.
 **Plans**: TBD
 **UI hint**: yes
@@ -155,12 +156,13 @@ releases) fit between rungs or before 563's preflight, never during a training r
 ### Phase 557: Sealed Blind Slice, Pre-Registered Statistic & Contamination Firewall
 **Goal**: Before any new training data exists, the proof cannot be gamed: a blind slice is sealed, the comparison, its statistic and the verdict rule are fixed in writing, and code refuses training rows that overlap any benchmark.
 **Depends on**: Phase 553
-**Requirements**: PROOF-01, PROOF-02, DATA-01
+**Requirements**: PROOF-01, PROOF-02, PROOF-08, DATA-01
 **Success Criteria** (what must be TRUE):
   1. A 40–50-task blind v3 slice passes reference self-verification and fails wrong-return stubs; only its hash is committed, in a commit that precedes every data-generation commit; its items appear in no generation prompt, training file or public repo.
   2. A committed pre-registration file names the primary comparison (paired exact McNemar on `heldout_bench_v2`), the interval method (Wilson or bootstrap), the minimum detectable difference and power, and the Improved / Neutral / Regressed rule that every later rung and release verdict uses; the statistics code reproduces hand-checked McNemar and Wilson examples in unit tests.
   3. The firewall rejects a planted exact copy, an n-gram overlap and a near-duplicate of a v1, v2 and v3 item; each check's test fails when that check is removed; an import-boundary test fails if generation or distillation code can read benchmark items.
-  4. `contracts/reports/mens-v95-firewall-audit.json` runs the firewall over the existing `verified_vox_codegen_v2.jsonl` (3,338 rows) and lists every row it now rejects.
+  4. `contracts/reports/mens-v95-firewall-audit.json` runs the firewall over the existing `verified_vox_codegen_v2.jsonl` (3,338 rows) and `target/dogfood_v5/train.jsonl` (2,249 rows) and lists every row it now rejects.
+  5. A fresh 128-item `vox_think`-style slice (trace, debug and invariant families, every answer execution-verified) is sealed by hash before any further reasoning-trace generation, is registered in the firewall, and becomes the collateral gate's primary `vox_think` slice in a new policy file; the current `mens/data/vox_think` slice stays as a secondary result labelled "seen during data design" (v5 was built from its six v4 losses).
 **Parallel groups:** (G-seal) blind v3 authoring and its committed hash (items kept out of public repos); (G-prereg) pre-registration file under `mens/config/` and new `crates/vox-ml-cli/src/commands/mens/proof_stats.rs` (statistics plus the verdict rule); (G-firewall) `crates/vox-ml-cli/src/commands/mens/{eval_gate/leakage,v94_teacher_distill,v94_eval_corpus}.rs`, `crates/vox-ml-cli/src/commands/corpus/source_pool.rs` (its v3 tests run after G-seal). Runs in parallel with 554, 555 and 556.
 **GPU:** none.
 **Agents:** plan + verify on Opus; execute on Sonnet 5.5.
@@ -169,11 +171,12 @@ releases) fit between rungs or before 563's preflight, never during a training r
 ### Phase 558: Verified Data Harvest & Capped Distillation
 **Goal**: The canonical vox-lang mix gains verified rows at near-zero cost — local harvest first, then at most 12 USD of licensed teacher distillation — with every row executed, attributed and counted.
 **Depends on**: Phase 555 (slice stamps, canonical mix), Phase 557 (sealed slice, firewall)
-**Requirements**: DATA-02, DATA-03, DATA-04
+**Requirements**: DATA-02, DATA-03, DATA-04, DATA-06
 **Success Criteria** (what must be TRUE):
   1. The 0-USD local harvest adds verified rows from fixed workspace `.vox` files, multi-construct files and compiler repair traces; `contracts/reports/mens-v95-data-harvest.json` gives rows per `data_slice` before and after, and the firewall result for every added row.
   2. Paid distillation runs only through the LLM facade with MIT/Apache-licensed teachers, checks the 12 USD cap before each request and stops at it, and stores the resolved teacher model id, cost and slice on every row; `contracts/reports/mens-v95-distill-spend-ledger.json` totals at most 12 USD, counting failed attempts and repair turns.
   3. Every added row passes execution verification and anti-stub checks, failed-then-fixed attempts are kept as repair-trace rows, and mix resolution stops with an error when the synthetic share exceeds the ceiling or a human-written anchor is missing.
+  4. Reasoning-trace rows (DATA-06) show per-step state and end with a check pass, and their answers are execution-verified. The mix reports think share and mean trace length per family, and a lint flags traces far shorter than the base model's on the same family. `contracts/reports/mens-v95-reasoning-trace-audit.json` re-audits `dogfood_v5` against 557's fresh slice and flags its 128 kept terse math-replay rows, then records whether they are regenerated verbose (self-distilled from the base, answer-verified) or kept with a stated reason.
 **Parallel groups:** (G-harvest) the workspace `.vox` files being fixed, new multi-construct files, a harvest `.vox` driver under `scripts/`; (G-distill) `crates/vox-ml-cli/src/commands/mens/v94_teacher_distill.rs` (or a successor module) and the spend ledger, LLM facade only; (G-ceiling) `crates/vox-corpus/src/corpus/mix/mod.rs` resolver and `mens/config/mix-vox-lang.yaml`. Runs in parallel with 559, 560 and 561. Its mix is the one every rung in 562 and 563 trains on.
 **GPU:** none (network spend only, capped at 12 USD).
 **Agents:** plan + verify on Opus; execute on Sonnet 5.5.
@@ -181,7 +184,7 @@ releases) fit between rungs or before 563's preflight, never during a training r
 
 ### Phase 559: Cached Decode, Discriminating Evals & Ladder Baselines
 **Goal**: Before any size is retrained, every published adapter and its base have a "before" that is comparable with its "after", the benchmark is shown to tell adjacent sizes apart (or is extended, or says plainly that it cannot), and every hub size, spoke and auxiliary model has an eval that fits it within a wall-time budget.
-**Depends on**: Phase 554 (timing, funnel, fast policy, Spike A), Phase 557 (declared power and verdict rule, sealed slice, firewall); GPU jobs also wait for `PID 34157` to exit
+**Depends on**: Phase 554 (timing, funnel, fast policy, Spike A), Phase 557 (declared power and verdict rule, sealed slice, firewall); GPU jobs also wait for any other agent's GPU job to end
 **Requirements**: TIME-04, LADR-01, DISC-01, DISC-02, DISC-03, DISC-04, DISC-05
 **Success Criteria** (what must be TRUE):
   1. `contracts/reports/mens-v95-prefix-cache-parity-metal.json` shows prefix-cached and uncached greedy decode token-identical on all 166 + 64 items (otherwise the cache ships only behind a new decode-protocol tag), and gives cold vs warm eval wall time from interleaved clean-load runs as the measured speed-up.
@@ -190,13 +193,13 @@ releases) fit between rungs or before 563's preflight, never during a training r
   4. For every pair v2 cannot separate, `contracts/reports/mens-v95-bench-extension.json` records verified tasks added at that difficulty band in a separately versioned, private slice. No task comes from blind v3 or any training row, and each passes the firewall in both directions. The slice is pinned by a proof-manifest revision committed before the first ladder training run, and the report states for each pair whether it now separates, or plainly that it does not; `heldout_bench_v2` and its pre-registered comparison are unchanged.
   5. A committed anchor subset ranks the models the same as the full benchmark on runs not used to choose it (`contracts/reports/mens-v95-anchor-subset.json`), and a committed eval matrix names, for every hub size and every spoke or auxiliary model in `domain-profiles.yaml`, its eval type, dataset, n, detectable difference and a wall-time budget per size (a test fails when a model has no row; a row without a dataset says so instead of inventing an n). `contracts/reports/mens-v95-eval-budgets.json` compares measured wall time with each budget, met through item caching, prefix-cached decode, the fast sequential policy and the anchor subset, and flags every overrun.
 **Parallel groups:** (G-prefix) `crates/vox-plugin-mens-candle-metal/src/{inference,model,batch_decode}.rs` and `crates/vox-plugin-mens-candle-cuda/src/{inference,model}.rs` (one owner for both backends; CUDA by `cargo check` only); (G-disc) new `crates/vox-ml-cli/src/commands/mens/eval_discrimination.rs` (item discrimination, adjacent-pair power through 557's `proof_stats.rs`, anchor selection and held-out agreement) and the anchor subset file under `mens/config/`; (G-matrix) new `mens/config/eval-matrix.yaml`, its coverage test and the budget check in `crates/vox-ml-cli/src/commands/mens/eval_timing.rs`; (G-extend) extension-slice authoring (items kept out of public repos), its hash and the proof-manifest revision under `mens/config/`, and its registration in `eval_gate/leakage.rs`; (Operator) one agent runs the GPU jobs in order from a `.vox` driver: Metal parity → "before" evals → extension-slice evals. G-disc's first pass on the existing completions starts at once on CPU; anchor selection, G-extend and the budgets report wait for the "before" evals. CLI variants for this phase's reports are added by 560's G-spoke-live, the single W2 owner of `populi/action_populi_enum.rs` and `dispatch.rs`. Runs in parallel with 558, 560 and 561.
-**GPU:** short to medium — serial lock-held jobs (parity, the eight "before" evals with 9B the longest, then any extension-slice evals), none before `PID 34157` exits; each eval's wall time is recorded, not assumed.
+**GPU:** short to medium — serial lock-held jobs (parity, the eight "before" evals with 9B the longest, then any extension-slice evals), none while another agent's GPU job runs; each eval's wall time is recorded, not assumed.
 **Agents:** plan + verify on Opus; execute on Sonnet 5.5.
 **Plans**: TBD
 
 ### Phase 560: Live Spoke Gates
 **Goal**: Every trained spoke is gated on live agent episodes run against a local model instead of on hub evidence, and spoke base pointers move only for bases that passed.
-**Depends on**: Phase 554 (timing), Phase 555 (run stamping, spokes on cards), Phase 557 (statistic declared before the runs); GPU jobs also wait for `PID 34157` and for 559's jobs ahead of them in the queue
+**Depends on**: Phase 554 (timing), Phase 555 (run stamping, spokes on cards), Phase 557 (statistic declared before the runs); GPU jobs also wait for any other agent's GPU job and for 559's jobs ahead of them in the queue
 **Requirements**: SPOK-01, SPOK-02, SPOK-03, SPOK-04, SPOK-05
 **Success Criteria** (what must be TRUE):
   1. `eval-spoke` runs the 72-episode suite against a live local model as two sequential passes (base, then candidate) and writes `contracts/reports/mens-v95-spoke-<spoke>-before-after.json` with tool-selection accuracy, argument-schema validity, tool-call format compliance, recovery after a tool error, and timing.
@@ -245,8 +248,9 @@ releases) fit between rungs or before 563's preflight, never during a training r
 **Success Criteria** (what must be TRUE):
   1. A 30-minute `seq=2048` preflight on `Qwen3.8-27B`, on the same canonical mix the full run uses, writes `contracts/reports/mens-v95-27b-preflight.json` with peak memory, a finite initial loss and the gradient norm, and the full run refuses to start without a passing preflight.
   2. CAP-27B-04 trains to completion (not step-capped) on the canonical vox-lang mix rather than `--fast-corpus`, and its training manifest records spoke, backend and `data_slice_histogram`.
-  3. `contracts/reports/mens-v95-27b-before-after.json` scores before (the base model, plus the existing r16 adapter) and after on all 166 `heldout_bench_v2` tasks, any extension slice 559 added for the 9B/27B pair, and the blind v3 slice, with paired counts, funnel, timing and collateral results under the frozen proof manifest.
+  3. `contracts/reports/mens-v95-27b-before-after.json` scores before (the base model, plus the existing r16 adapter, and the v4 adapter from 553's durable copy, already Regressed on the collateral `vox_think` slice at 122/128 vs 128/128, p = 0.0156) and after on all 166 `heldout_bench_v2` tasks, any extension slice 559 added for the 9B/27B pair, and the blind v3 slice, with paired counts, funnel, timing and collateral results under the frozen proof manifest.
   4. The preflight and full-run report headers show that no other GPU job ran at the same time, and `contracts/reports/mens-v95-ladder-queue.json` shows CAP-27B-04 as the milestone's last training job, started after the 9B rung was classified non-regressed, with its measured wall time in place of the estimate.
+  5. Collateral damage is gated on 557's fresh `vox_think` slice as well as `gsm8k_think` and `math500_think`, with the old slice reported as secondary. The released checkpoint is chosen by a rule committed before any gate result is seen (lowest held-out validation loss; under it the v4 run picks epoch 2, 0.4065 vs 0.4127), so a failed gate is never rescued by switching epochs. Any 27B training started before the 9B rung is classified (such as the stopped v5 attempt) is recorded as exploratory and cannot be released.
 **Parallel groups:** one operator executor (27B "before" evals if not already stored, then the preflight, the full run and its evals, through 562's `.vox` ladder driver); the only code is the preflight-receipt check in `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`. Runs in parallel with 564's code groups; nothing else may take the GPU lock until it ends.
 **GPU:** long — CAP-27B-04 (about 30 h of training by the handoff's estimate, re-estimated from the measured rungs) plus the v2 and v3 evals, holding the lock throughout.
 **Agents:** plan + verify on Opus; execute on Sonnet 5.5.
@@ -261,7 +265,7 @@ releases) fit between rungs or before 563's preflight, never during a training r
   2. One generated report per hub rung and per trained spoke (`contracts/reports/mens-v95-release-proof-<rung-or-spoke>.json`) states the verdict (Improved / Neutral / Regressed, by the pre-registered rule), the paired counts, the interval and the cost in GPU-hours; pairing a step-capped run with a full one yields "not comparable", never a verdict.
   3. `contracts/reports/mens-v95-ladder-table.json` puts all five sizes, before and after, on one table with paired intervals between adjacent sizes and marks every difference that is not significant; the `vox-mens-index` card renders that table from that file.
   4. Only Improved adapters move `main` and receive the next `v<N>` tag; a release is refused when the evidence hashes do not match the weights being uploaded, when the adapter regresses against the previous tag, or when the Space proof receipt is missing; the release path has no ungated bypass, and each refusal's test fails when its guard is removed.
-  5. `vox-mens-index` publishes a release map (tag → full commit SHA → benchmark hash → headline metrics → verdict) that includes Neutral and Regressed attempts, each release's weights, card and evidence land in one Hub commit, and a real `hub pull` by that commit SHA into a clean directory loads the adapter and generates text in a smoke test.
+  5. `vox-mens-index` publishes a release map (tag → full commit SHA → benchmark hash → headline metrics → verdict) that includes Neutral and Regressed attempts (the first Regressed entry is the v4 27B: held-out gain but failed collateral `vox_think`, never uploaded), each release's weights, card and evidence land in one Hub commit, and a real `hub pull` by that commit SHA into a clean directory loads the adapter and generates text in a smoke test.
 **Parallel groups:** Serial first: (G-floors) the new floors policy file under `mens/config/`, in its own commit. Then at once: (G-proof) new `crates/vox-ml-cli/src/commands/mens/proof_report.rs`, the per-rung/per-spoke reports and the ladder table; (G-release) `crates/vox-populi/src/mens/hub_sync.rs` gate/stage/tag path and `crates/vox-ml-cli/src/commands/mens/hub.rs` (`--allow-ungated` off the release path); (G-index) `crates/vox-populi/src/mens/hub_card/index_facts.rs` and the index templates under `crates/vox-populi/templates/hub/` (release map and ladder table). The code groups start once 557, 559, 560 and 561 are done and run alongside 562 and 563. Each rung is released after its proof report exists: 0.8B–9B may go out between 562's last rung and 563's preflight, and the 27B after 563; the phase closes with the 27B verdict.
 **GPU:** short — the `hub pull` smoke tests, taken in a gap before 563's preflight for 0.8B–9B and after 563 for the 27B.
 **Agents:** plan + verify on Opus; execute on Sonnet 5.5.
@@ -269,7 +273,7 @@ releases) fit between rungs or before 563's preflight, never during a training r
 
 ## Coverage
 
-`67/67` v1 requirements mapped, each to exactly one phase (see the Traceability table in [`REQUIREMENTS.md`](REQUIREMENTS.md)).
+`69/69` v1 requirements mapped, each to exactly one phase (see the Traceability table in [`REQUIREMENTS.md`](REQUIREMENTS.md)).
 Deferred v2 items (`ARCH-01..03`, `DATA-05`, `SPACE-07`, `HUB-08`) are not scheduled.
 
 ## Progress

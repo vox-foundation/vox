@@ -1,16 +1,20 @@
 ---
 gsd_state_version: "1.0"
 milestone: v9.5
-milestone_name: MENS Flywheel, Truthful Lanes & Trustworthy Hub Releases
+current_phase: 553
+current_phase_name: "first of 12: Phases 553–564"
 status: planning
-last_updated: "2026-11-20T11:50:20Z"
+stopped_at: Roadmap revised; next step `/gsd-plan-phase 553`
+last_updated: "2026-11-20T12:57:51.459Z"
 last_activity: 2026-11-20
+last_activity_desc: Roadmap revised on owner feedback (12 phases, 67/67 requirements mapped)
+state_head: 66593b6b801bc1589c6f09e2643d23f7ad526817
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 0
+milestone_name: MENS Flywheel, Truthful Lanes & Trustworthy Hub Releases
 ---
 
 # Project State
@@ -80,6 +84,14 @@ jobs. Rung durations are measured into `contracts/reports/mens-v95-ladder-queue.
 ### Pending Todos
 
 None yet.
+
+### Roadmap Evolution
+
+- Phase 553 edited: 27B v4 collateral failure + dogfood_v5 audit (PROOF-08, DATA-06)
+- Phase 557 edited: 27B v4 collateral failure + dogfood_v5 audit (PROOF-08, DATA-06)
+- Phase 558 edited: 27B v4 collateral failure + dogfood_v5 audit (PROOF-08, DATA-06)
+- Phase 563 edited: 27B v4 collateral failure + dogfood_v5 audit (PROOF-08, DATA-06)
+- Phase 564 edited: 27B v4 collateral failure + dogfood_v5 audit (PROOF-08, DATA-06)
 
 ## Session Continuity
 

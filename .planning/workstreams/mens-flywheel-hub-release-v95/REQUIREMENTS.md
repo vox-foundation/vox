@@ -69,6 +69,7 @@ GPU work is one job at a time and never starts while `PID 34157` is alive.
 - [ ] **PROOF-05**: CAP-27B-04 runs to completion and is scored before/after on all 166 `heldout_bench_v2` tasks and the blind v3 slice, with funnel, timing and collateral results.
 - [ ] **PROOF-06**: One generated before/after report per hub rung and per trained spoke states the verdict (Improved / Neutral / Regressed), the paired counts, the interval and the cost in GPU-hours, and never compares a step-capped run with a full one.
 - [ ] **PROOF-07**: `heldout_bench_v2` gate floors are calibrated per model size from measured data in their own reviewed change.
+- [ ] **PROOF-08**: A fresh 128-item `vox_think`-style reasoning slice (same families: trace, debug, invariant) is authored and sealed (hash committed) before any further reasoning-trace data is generated, and the collateral gate uses it as the primary `vox_think` slice. Why: `dogfood_v5` was designed from the six v4 27B losses on the current `mens/data/vox_think` slice, so that slice can no longer show whether a fix generalises; it stays as a secondary, labelled result.
 
 ### Ladder retrain order (LADR)
 
@@ -98,6 +99,7 @@ each kind of model needs the kind of eval that fits it.
 - [ ] **DATA-02**: A 0-USD local harvest adds verified rows from fixed workspace `.vox` files, multi-construct files and compiler repair traces.
 - [ ] **DATA-03**: Paid teacher distillation is hard-capped at 12 USD, runs only through the LLM facade with MIT/Apache-licensed teachers, records the resolved teacher model id, cost and slice per row, and produces a spend ledger report.
 - [ ] **DATA-04**: Every added row passes execution verification and anti-stub checks; failed-then-fixed attempts are kept as repair-trace rows; a synthetic-share ceiling with human-written anchors is enforced by the mix.
+- [ ] **DATA-06**: Reasoning-trace rows keep the base model's error-correcting style: each `<think>` trace shows per-step state and ends with a check pass, its final answer is execution-verified, and the mix reports think share and mean trace length per family. `dogfood_v5` (2,249 rows) is re-audited through the DATA-01 firewall against the PROOF-08 slice before any rung trains on it, and its 128 kept terse math-replay rows (about 178 chars each) are flagged. Why: the v4 27B adapter failed the collateral `vox_think` gate (128/128 → 122/128, exact McNemar p = 0.0156) because SFT on terse traces (about 3x shorter than base) removed the base's self-checking; it lost no knowledge.
 
 ### Hugging Face releases (HUB)
 
@@ -193,6 +195,7 @@ discrimination (see `ROADMAP.md`).
 | PROOF-05 | Phase 563 | Pending |
 | PROOF-06 | Phase 564 | Pending |
 | PROOF-07 | Phase 564 | Pending |
+| PROOF-08 | Phase 557 | Pending |
 | LADR-01 | Phase 559 | Pending |
 | LADR-02 | Phase 562 | Pending |
 | LADR-03 | Phase 562 | Pending |
@@ -207,6 +210,7 @@ discrimination (see `ROADMAP.md`).
 | DATA-02 | Phase 558 | Pending |
 | DATA-03 | Phase 558 | Pending |
 | DATA-04 | Phase 558 | Pending |
+| DATA-06 | Phase 558 | Pending |
 | HUB-01 | Phase 564 | Pending |
 | HUB-02 | Phase 564 | Pending |
 | HUB-03 | Phase 564 | Pending |
@@ -228,10 +232,10 @@ discrimination (see `ROADMAP.md`).
 | SPACE-06 | Phase 561 | Pending |
 
 **Coverage:**
-- v1 requirements: 67 total
-- Mapped to phases: 67
+- v1 requirements: 69 total
+- Mapped to phases: 69
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-20*
-*Last updated: 2026-11-20 after roadmap revision (LADR and DISC mapped, phases 553–564)*
+*Last updated: 2026-11-20 after the v4 27B collateral failure (PROOF-08, DATA-06 added)*
