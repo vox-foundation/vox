@@ -40,6 +40,14 @@
       "rationale": "Verified prose claim anchored to [\"docs-astro/public/_redirects\"]",
       "estimated_tokens": 80
     },
+    "1a5d7bbefb902155a4f57cc92f0dcc5b712b3664c7a29aee058e2630ffd34e82::ee1d4269c1c0a820fe5cb06ca5edc16de7ab9d472f8621aba69ad8b5b5044ce5": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 98,
+      "verdict": "uncertain",
+      "evidence_citations": [],
+      "rationale": "no file/crate anchors to ground; semantic entailment not evaluated",
+      "estimated_tokens": 0
+    },
     "1a9e5345435de6bc607d5b5248dcac94abd455ce80ceec7596bef7094800b534::1371cf6f141b59fa270dc0ca81d6cca3f411fc0dd363967f2845056c19452b17": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 67,
@@ -66,6 +74,26 @@
       "verdict": "uncertain",
       "evidence_citations": [],
       "rationale": "anchors not resolvable to evidence: [\"voxlang.org\"]; see reality audit",
+      "estimated_tokens": 0
+    },
+    "364ec7b5321d7d710fea0a5697634a116769074aeb134acd7c402814221c1524::5ad35489fc0a25b8d5aae1f0575bed1a423a71fded0e19a1ceaf2d8a96c47324": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 90,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[contracts/reports/docs-freshness/llm-verify-cache.v1.json:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "364ec7b5321d7d710fea0a5697634a116769074aeb134acd7c402814221c1524::ddb7f4225bd5f22ac1ddb90c8a56647dd45d7756c72f03ee18d3dd048d1027ed": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 90,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[contracts/reports/docs-freshness/llm-verify-cache.v1.json:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
       "estimated_tokens": 0
     },
     "47125780ce4f0ecf56d29aa2cf4ece758ef6c55c5259def9820fe7d62f7886a9::811a9ff009779da0e122bef07b7aba1a372932d5646057e1d467cf223073feb4": {
@@ -118,6 +146,16 @@
       "rationale": "Verified prose claim anchored to [\".github/workflows/docs-drift-refresh.yml\", \".github/workflows/docs-self-heal.yml\", \"bot/docs-drift-refresh\", \"crates/vox-doc-pipeline/src/claims/self_heal_bot.rs\"]",
       "estimated_tokens": 80
     },
+    "4a8db9affefe4e417c2ee5ded493fe2e05a09098127efeb8fa94b3c2b79d8c03::d47b7724fb632f508e84657f506e70b8c499e24ec859c8d4c73381854a911512": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 95,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[crates/vox-doc-pipeline/src/claims/self_heal_bot.rs:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
     "4a8db9affefe4e417c2ee5ded493fe2e05a09098127efeb8fa94b3c2b79d8c03::fd0fc4148ae1d91d80c540f12ec53d3b48e2eb2e4814efeb456dd4151d4f7c16": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 87,
@@ -126,6 +164,14 @@
         "[crates/vox-doc-pipeline/src/claims/self_heal_bot.rs:L1-L25]"
       ],
       "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "597849bac0ea5db8ee41dc3f585a1c974e0848de155f8b2a90f1ef17d8e38be5::7d0947c44f23eed6982cdbbd9bd9db4218bc92dcdd57ea8e05ca25cef1f256d2": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 97,
+      "verdict": "uncertain",
+      "evidence_citations": [],
+      "rationale": "no file/crate anchors to ground; semantic entailment not evaluated",
       "estimated_tokens": 0
     },
     "626987aa36b225fd5dc69bac1c1750947352df1976dbe3af4e024fa3a7f623cd::c366d89c67a96e56288b2fa85155375e53adceb1b7fc4b579cc2b5cecf2d2531": {
@@ -137,6 +183,14 @@
       ],
       "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/golden-drift-eval-set.v1.json\"]",
       "estimated_tokens": 80
+    },
+    "65b288d1bc3cdf3544112df3acf130f655f2769bb151db3c2cd68b64b13231f1::439b8a353232f18a679aaeb22117d5b2102e99b8644db7e001ade4c7fe0aa3c8": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 87,
+      "verdict": "uncertain",
+      "evidence_citations": [],
+      "rationale": "no file/crate anchors to ground; semantic entailment not evaluated",
+      "estimated_tokens": 0
     },
     "6fd1eb5f5cf5815f852a9785a46a7bb9f390da7b5f90b5cc48d24d3412d1d9b6::3c6ac2835d267e3813b6265beb301180e7398fe13f5d9f7ea4414c90676fc825": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
@@ -168,6 +222,35 @@
       "rationale": "Verified prose claim anchored to [\"crates/vox-doc-pipeline/src/claims/llm_verifier.rs\"]",
       "estimated_tokens": 80
     },
+    "72bfa46670a322d7547f2fe268cdde41cf680c1749eab16a00081609ba086e7b::f2ce80f14873331143c5eb8da90194f104afc47514a3af2e9b19a92c4ca6d869": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 89,
+      "verdict": "uncertain",
+      "evidence_citations": [],
+      "rationale": "no file/crate anchors to ground; semantic entailment not evaluated",
+      "estimated_tokens": 0
+    },
+    "80d374b759030927c98277c7eadb5cff83c244311087587cf9a47203898dfb10::57f5da3d313da6339f67c8d2743b82814a227ca7d00900cde8f09d76c4677c15": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 91,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[contracts/reports/docs-freshness/golden-drift-eval-set.v2.json:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "958c05933b85d84bda5f46bc4f40238aca27d4cf4cbe0725f7f51c1f01fdbb86::047f6ed9b083490452cca3f83d2fb204b53df36a6f4c3850740f7c231acb36ef": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 88,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[crates/vox-cli-research/src/audit_claim_judge.rs:L1-L25]",
+        "[crates/vox-doc-pipeline/Cargo.toml:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
     "95bc3d71e861507db5f608958fcd4493792c8efe3845c3632d718cd7c71cc4ee::8acf51a12f0781d46b1ede0a05e95a8879091318e3f1c2e2a0962bcb44736382": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 54,
@@ -188,6 +271,40 @@
       ],
       "rationale": "Verified prose claim anchored to [\"crates/vox-cli-ci/src/crate_api_docs.rs\", \"crates/vox-doc-pipeline/src/pipeline/openwiki_symbols.rs\", \"src/lib.rs\", \"src/main.rs\"]",
       "estimated_tokens": 80
+    },
+    "9d5099b5207d43ba895e0af27a9e9d0e2d3b9285ec26612a7bdd30d9519daef4::40efdfadd70bfc2d1c2c0388982b729792435401a5e4e68d73638e5bf652c356": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 73,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[crates/vox-doc-pipeline/src/pipeline/openwiki_polyglot.rs:L1-L25]",
+        "[crates/vox-orchestrator-mcp/src/repo_catalog_tools.rs:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "9d5099b5207d43ba895e0af27a9e9d0e2d3b9285ec26612a7bdd30d9519daef4::972bd9735dc65345bcd7d20455d30b32a9c9ab526b1ccaab1e1aaf9071052e05": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 73,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[crates/vox-doc-pipeline/src/pipeline/openwiki_polyglot.rs:L1-L25]",
+        "[crates/vox-orchestrator-mcp/src/repo_catalog_tools.rs:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "a4c6747337f9d8dbfebfed36068bebaaf6218cead1a04e7e2e42a90c1514b62d::7a68c85ec6b2d4fb363b2e2ea8892dcb4dff646ae18f80bd75e7e655564e297a": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 85,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[crates/vox-doc-pipeline/src/claims/golden_mine.rs:L1-L25]",
+        "[crates/vox-doc-pipeline/src/claims/llm_verifier.rs:L1-L25]",
+        "[crates/vox-doc-pipeline/src/claims/self_heal_bot.rs:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
     },
     "ac1f27c933cf4fdfb2b62ffd95632991901ccfdc4cf6dfcec9c7a15b1989e1e2::93e0f337bd344d0fbb7a3a191a23eb77623fa9de540e9b12c3f680a684c3a711": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
@@ -220,6 +337,34 @@
     "b137f20bc006218ea69dfdaf2d08bad7ac863d3d399dc79bae21a9b2a87f292e::742469d1d9023e86cb104fbd20e9bcb7f6cc4b405b6a90cc81978e209dcaf91f": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 72,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[contracts/cli/command-registry.yaml:L1-L25]",
+        "[crates/vox-cli/Cargo.toml:L1-L25]",
+        "[crates/vox-doc-pipeline/src/claims/resolver.rs:L1-L25]",
+        "[crates/vox-graph-reader/Cargo.toml:L1-L25]",
+        "[crates/vox-plugin-catalog/catalog.toml:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "b137f20bc006218ea69dfdaf2d08bad7ac863d3d399dc79bae21a9b2a87f292e::83259a63dacb66ce41ce171121393e28ac5143df18f4e8a390c8b872a1c13746": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 78,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[contracts/cli/command-registry.yaml:L1-L25]",
+        "[crates/vox-cli/Cargo.toml:L1-L25]",
+        "[crates/vox-doc-pipeline/src/claims/resolver.rs:L1-L25]",
+        "[crates/vox-graph-reader/Cargo.toml:L1-L25]",
+        "[crates/vox-plugin-catalog/catalog.toml:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "b137f20bc006218ea69dfdaf2d08bad7ac863d3d399dc79bae21a9b2a87f292e::c122b894970c44562f2196ed42c443d45a91b4c6ad9146bb2232c74f71baee56": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 78,
       "verdict": "uncertain",
       "evidence_citations": [
         "[contracts/cli/command-registry.yaml:L1-L25]",
@@ -289,6 +434,17 @@
       "rationale": "no file/crate anchors to ground; semantic entailment not evaluated",
       "estimated_tokens": 0
     },
+    "cb740f50fe878f859abe37cdf9a2f14b27f958ab6ebb7cebd14c093e71146130::3a39557d815c15681f9fbe26d74e3aede3d09fb1b4e321a68973f80a14a67ebf": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 81,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[contracts/reports/docs-freshness/ledger.v1.json:L1-L25]",
+        "[docs-astro/public/_redirects:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
     "cb740f50fe878f859abe37cdf9a2f14b27f958ab6ebb7cebd14c093e71146130::4c3f64cca27abe19639a7c7748682ae14b4593ec38a786d0209bb9001eca8458": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 75,
@@ -313,6 +469,19 @@
     "d0b81a0bb0bd510029709ba513878b07c989741adbc075f19ae2cc6cc257c3ed::8e6a53173da43c746dba168e9bd3e2d1068ba615bcf60ea559683e4a91b03961": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 74,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[AGENTS.md:L1-L25]",
+        "[README.md:L1-L25]",
+        "[contracts/reports/docs-freshness/baseline.v1.json:L1-L5]",
+        "[contracts/reports/docs-freshness/corpus-ratchet.v1.json:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
+    "d0b81a0bb0bd510029709ba513878b07c989741adbc075f19ae2cc6cc257c3ed::da9f19a00d5fa1be40c29121ccbcb6aab36526ca6f958770977bd584410132e1": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 80,
       "verdict": "uncertain",
       "evidence_citations": [
         "[AGENTS.md:L1-L25]",
@@ -482,6 +651,17 @@
       "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
       "estimated_tokens": 0
     },
+    "f177c81e8bf60ae2652be1b5f2b07b99687ddf905c60fae1d4ed514ff4c17638::8a9d33a7f2f60ea4f2cb64137eb250920c8ae75e67f8ffb3b0990ffe54748e8d": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 66,
+      "verdict": "uncertain",
+      "evidence_citations": [
+        "[crates/vox-doc-pipeline/src/pipeline/openwiki.rs:L1-L25]",
+        "[docs/src/architecture/layers.toml:L1-L25]"
+      ],
+      "rationale": "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)",
+      "estimated_tokens": 0
+    },
     "f177c81e8bf60ae2652be1b5f2b07b99687ddf905c60fae1d4ed514ff4c17638::9d73d30b9a29a3dc438a17e82af5860b3581837502e0b696fa3dc080b2a4c9f1": {
       "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
       "line": 50,
@@ -503,7 +683,7 @@
       "estimated_tokens": 80
     }
   },
-  "cache_hits": 220,
-  "cache_misses": 50,
+  "cache_hits": 249,
+  "cache_misses": 67,
   "tokens_spent": 2240
 }

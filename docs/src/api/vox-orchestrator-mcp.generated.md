@@ -64,6 +64,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
 | [`vox-diagram`](./vox-diagram.generated.md) | Normal |
+| [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Normal |
 | [`vox-foundation`](./vox-foundation.generated.md) | Normal |
 | [`vox-gamify`](./vox-gamify.generated.md) | Normal |
 | [`vox-grammar-export`](./vox-grammar-export.generated.md) | Normal |

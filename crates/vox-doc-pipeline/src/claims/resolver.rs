@@ -698,12 +698,11 @@ impl GroundTruthRegistry {
         {
             return true;
         }
-        if let Some((first, rest)) = subpath.split_once("::") {
-            if let Some(ext_crate) = idx.external_reexports.get(first)
-                && self.resolve_crate_symbol(ext_crate, rest, depth + 1)
-            {
-                return true;
-            }
+        if let Some((first, rest)) = subpath.split_once("::")
+            && let Some(ext_crate) = idx.external_reexports.get(first)
+            && self.resolve_crate_symbol(ext_crate, rest, depth + 1)
+        {
+            return true;
         }
         for glob_pref in &idx.glob_prefixes {
             let candidate = format!("{glob_pref}::{subpath}");

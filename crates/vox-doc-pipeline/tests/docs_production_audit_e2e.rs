@@ -60,11 +60,14 @@ fn phase_194_and_196_sidebar_and_playground_contracts() {
     let playground_src =
         fs::read_to_string(root.join("docs-astro/src/components/VoxPlayground.astro"))
             .expect("read VoxPlayground.astro");
-    assert!(playground_src.contains("data-target-id=\"runtime\""));
-    assert!(playground_src.contains("data-target-id=\"sql\""));
-    assert!(playground_src.contains("data-target-id=\"rust\""));
-    assert!(playground_src.contains("data-target-id=\"tsx\""));
-    assert!(playground_src.contains("compileVoxTargets"));
+    // Target tabs are data-driven (`TARGETS` -> `data-target-id={t.id}`) since the v9.3 redesign.
+    assert!(playground_src.contains("data-target-id={t.id}"));
+    for id in ["runtime", "sql", "rust", "client", "ui", "mcp"] {
+        assert!(
+            playground_src.contains(&format!("{{ id: '{id}'")),
+            "playground missing target `{id}`"
+        );
+    }
 
     let doc_reader_src = fs::read_to_string(
         root.join("crates/vox-gui/ui/src/components/surfaces/DocReader/DocReader.tsx"),
@@ -115,16 +118,15 @@ fn phase_199_to_201_show_dont_tell_and_concept_art_b_craft() {
     assert!(!index_mdx.contains("Tier 1:"));
     assert!(!index_mdx.contains("Tier 2:"));
     assert!(!index_mdx.contains("Tier 3:"));
-    assert!(index_mdx.contains("60s:"));
-    assert!(index_mdx.contains("5-Min:"));
-    assert!(index_mdx.contains("15-Min:"));
-    assert!(index_mdx.contains("Run that now"));
+    assert!(index_mdx.contains("1 minute:"));
+    assert!(index_mdx.contains("5 minutes:"));
+    assert!(index_mdx.contains("15 minutes:"));
+    assert!(index_mdx.contains("## Three ways in"));
 
     let playground_src =
         fs::read_to_string(root.join("docs-astro/src/components/VoxPlayground.astro"))
             .expect("read VoxPlayground.astro");
     assert!(playground_src.contains("editor-line-gutter"));
-    assert!(playground_src.contains("secondary-line-gutter"));
     assert!(playground_src.contains("code-highlight-layer"));
     assert!(playground_src.contains("highlightCodeBlock"));
 }

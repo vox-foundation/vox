@@ -1593,7 +1593,7 @@ mod tests {
                 .contains("zephyrquantum")
         );
 
-        assert_eq!(ensure_kb_indexed_if_stale(&state_a).await.unwrap(), false);
+        assert!(!ensure_kb_indexed_if_stale(&state_a).await.unwrap());
 
         let global_lib = tmp.path().join("global_lib");
         tokio::fs::create_dir_all(&global_lib).await.unwrap();

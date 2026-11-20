@@ -291,12 +291,11 @@ fn is_ignored_dir_name(
 fn module_group(rel_path: &str) -> String {
     let mut segs = rel_path.split('/');
     let first = segs.next().unwrap_or("");
-    if matches!(first, "crates" | "packages" | "apps" | "services" | "libs") {
-        if let Some(second) = segs.next() {
-            if rel_path.matches('/').count() >= 2 {
-                return format!("{first}/{second}");
-            }
-        }
+    if matches!(first, "crates" | "packages" | "apps" | "services" | "libs")
+        && let Some(second) = segs.next()
+        && rel_path.matches('/').count() >= 2
+    {
+        return format!("{first}/{second}");
     }
     if rel_path.contains('/') {
         first.to_string()

@@ -70,6 +70,8 @@ graph {
     vox_cli_ci -> vox_doc_pipeline
     node vox_cli_research: "vox-cli-research"
     vox_cli_research -> vox_doc_pipeline
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_doc_pipeline
 }
 ```
 
@@ -80,13 +82,14 @@ graph {
 | [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)
 
 | Kind | Symbol | Signature | Source | Description |
 |---|---|---|---|---|
-| `fn` | `claims::scan_file` | `pub fn scan_file(` | [`crates/vox-doc-pipeline/src/claims/mod.rs#L53`](../../../crates/vox-doc-pipeline/src/claims/mod.rs#L53) | Scan a single documentation file and resolve all extracted mentions. |
-| `fn` | `claims::scan_corpus` | `pub fn scan_corpus(` | [`crates/vox-doc-pipeline/src/claims/mod.rs#L66`](../../../crates/vox-doc-pipeline/src/claims/mod.rs#L66) | Scan the entire documentation corpus (or filtered paths) and resolve all mentions. |
+| `fn` | `claims::scan_file` | `pub fn scan_file(` | [`crates/vox-doc-pipeline/src/claims/mod.rs#L54`](../../../crates/vox-doc-pipeline/src/claims/mod.rs#L54) | Scan a single documentation file and resolve all extracted mentions. |
+| `fn` | `claims::scan_corpus` | `pub fn scan_corpus(` | [`crates/vox-doc-pipeline/src/claims/mod.rs#L67`](../../../crates/vox-doc-pipeline/src/claims/mod.rs#L67) | Scan the entire documentation corpus (or filtered paths) and resolve all mentions. |
 | `fn` | `pipeline::lint_in` | `pub fn lint_in(root: &Path, args: &[String]) -> i32` | [`crates/vox-doc-pipeline/src/pipeline/mod.rs#L289`](../../../crates/vox-doc-pipeline/src/pipeline/mod.rs#L289) | Run the doc pipeline in-process against `root`, returning the process exit code the caller would have used (`0` success, `1` failure) instead of calling `std::process::exit` directly — so it can be called from another binary's own `main` (e.g. `vox ci pre-push`) without tearing down that process, and unit-tested without touching the real repo tree.  Every path read is joined under `root`; this never reads the process cwd (`std::env::current_dir` / a bare relative `Path::new("docs/src")`), which matters because `vox ci pre-push` runs this concurrently with its own heartbeat thread and must not call `std::env::set_current_dir` (a process-global mutation) to point it at the repo root. |
 | `fn` | `pipeline::run` | `pub fn run()` | [`crates/vox-doc-pipeline/src/pipeline/mod.rs#L785-L790`](../../../crates/vox-doc-pipeline/src/pipeline/mod.rs#L785-L790) | Run the doc pipeline: lint source markdown and optionally export corpus.  SUMMARY.md and feed.xml are no longer generated here — the Starlight site builds the sidebar and RSS from frontmatter directly at Astro build time. |
 
