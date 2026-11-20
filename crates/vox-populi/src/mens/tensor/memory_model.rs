@@ -40,6 +40,7 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow, bail};
 
 use super::accel_budget::AccelBudget;
+use super::calibration::MultiTermCoeffs;
 
 /// The two real Vox training backends. MLX is intentionally absent — it is
 /// an external reference measurement in `docs/src/architecture/measurements/`,
@@ -107,6 +108,126 @@ impl CalSource {
 pub struct MemoryModel {
     pub act_bytes_per_lht: f64,
     pub source: CalSource,
+    pub multi_term: Option<MultiTermCoeffs>,
+}
+
+/// Recipe knobs that materially alter Metal QLoRA peak memory on top of model geometry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TrainingRecipe {
+    pub rank: u32,
+    pub lora_exclude_lm_head: bool,
+    pub cache_dequantized: Option<bool>,
+    pub sequence_packing: bool,
+    /// Row chunk size when `lm_head` + cross-entropy projection runs chunk-by-chunk
+    /// inside detached-boundary gradient checkpointing (`Some(256)` on modern trainer).
+    pub chunked_lm_head_rows: Option<u64>,
+}
+
+impl TrainingRecipe {
+    /// Current lean QLoRA recipe (`r=16`, `--lora-exclude-lm-head`, `--sequence-packing`).
+    pub fn current_default() -> Self {
+        Self {
+            rank: 16,
+            lora_exclude_lm_head: true,
+            cache_dequantized: None,
+            sequence_packing: true,
+            chunked_lm_head_rows: Some(256),
+        }
+    }
+
+    /// Earlier heavy calibration recipe (`r=32`, unchunked `lm_head` LoRA included, unpacked).
+    pub fn legacy_lm_head_r32() -> Self {
+        Self {
+            rank: 32,
+            lora_exclude_lm_head: false,
+            cache_dequantized: None,
+            sequence_packing: false,
+            chunked_lm_head_rows: None,
+        }
+    }
+
+    /// Phase 550 high-capacity local recipe (`r=64`, rsLoRA, `lm_head` LoRA included
+    /// with 256-row detached chunked CE, packed sequences).
+    pub fn high_capacity_r64_chunked() -> Self {
+        Self {
+            rank: 64,
+            lora_exclude_lm_head: false,
+            cache_dequantized: None,
+            sequence_packing: true,
+            chunked_lm_head_rows: Some(256),
+        }
+    }
+}
+
+/// Full geometry + resident-weight profile for recipe-aware peak prediction.
+#[derive(Debug, Clone)]
+pub struct ModelMemoryProfile {
+    pub shape: ModelShape,
+    pub raw_artifact_bytes: u64,
+    pub resident_weight_bytes: u64,
+    pub vocab_size: u64,
+    pub attn_width: u32,
+    pub cache_dequantized: bool,
+    pub total_text_params: Option<u64>,
+    pub is_moe: bool,
+}
+
+impl ModelMemoryProfile {
+    /// Inspect `dir/config.json` and `*.safetensors` JSON headers (without loading tensors)
+    /// to build an accurate dense/MoE resident-weight and activation profile.
+    pub fn from_model_dir_with_recipe(dir: &Path, recipe: &TrainingRecipe) -> Result<Self> {
+        let raw_shape = ModelShape::from_model_dir(dir)?;
+        let config_path = dir.join("config.json");
+        let raw = std::fs::read_to_string(&config_path)
+            .with_context(|| format!("reading {}", config_path.display()))?;
+        let cfg: RawConfig = serde_json::from_str(&raw)
+            .with_context(|| format!("parsing {}", config_path.display()))?;
+        let header_info = safetensors_header_text_params_and_bytes(dir);
+        let text_params = header_info.map(|(p, _)| p);
+        Ok(Self::from_raw_parts(raw_shape, &cfg, text_params, recipe))
+    }
+
+    /// Build a profile from an already-parsed [`ModelShape`], config metadata, optional
+    /// safetensors text-tower parameter count, and a [`TrainingRecipe`].
+    pub fn from_raw_parts(
+        raw_shape: ModelShape,
+        cfg: &RawConfig,
+        total_text_params: Option<u64>,
+        recipe: &TrainingRecipe,
+    ) -> Self {
+        let raw_artifact_bytes = raw_shape.artifact_bytes;
+        let cache_dequantized =
+            resolve_cache_dequantized(&raw_shape, cfg, total_text_params, recipe.cache_dequantized);
+        let projected = project_qlora_shape_with_params(
+            raw_shape,
+            cfg,
+            total_text_params,
+            Some(cache_dequantized),
+        );
+        let vocab_size = cfg
+            .vocab_size
+            .or_else(|| cfg.text_config.as_ref().and_then(|t| t.vocab_size))
+            .unwrap_or(151_936);
+        let attn_width = resolve_attn_width(cfg, projected.hidden);
+        let is_moe = moe_expert_count(cfg) > 1;
+        Self {
+            resident_weight_bytes: projected.artifact_bytes,
+            shape: projected,
+            raw_artifact_bytes,
+            vocab_size,
+            attn_width,
+            cache_dequantized,
+            total_text_params,
+            is_moe,
+        }
+    }
+}
+
+/// Derive a `gpu-specs.yaml` floor in MiB from a measured peak byte count (`ceil(peak_mib * 1.03)`).
+#[must_use]
+pub fn derive_floor_mb(peak_bytes: u64) -> u32 {
+    let peak_mib = peak_bytes as f64 / 1_048_576.0;
+    (peak_mib * 1.03).ceil() as u32
 }
 
 impl MemoryModel {
@@ -120,6 +241,30 @@ impl MemoryModel {
             * tokens_per_step as f64;
         shape.artifact_bytes + activations.round() as u64
     }
+
+    /// Predict peak bytes using calibrated multi-term coefficients when present, falling
+    /// back to the legacy single-slope [`Self::predict_bytes`] when absent (e.g. seeded CUDA).
+    pub fn predict_bytes_with_recipe(
+        &self,
+        profile: &ModelMemoryProfile,
+        tokens_per_step: u64,
+        recipe: &TrainingRecipe,
+    ) -> u64 {
+        if let Some(mt) = &self.multi_term {
+            return mt.predict_bytes_with_chunk_rows(
+                profile.resident_weight_bytes,
+                profile.shape.layers,
+                profile.shape.hidden,
+                profile.attn_width,
+                profile.vocab_size,
+                tokens_per_step,
+                profile.cache_dequantized,
+                recipe.lora_exclude_lm_head,
+                recipe.chunked_lm_head_rows,
+            );
+        }
+        self.predict_bytes(&profile.shape, tokens_per_step)
+    }
 }
 
 /// Shape facts read from a model directory: never fitted, always read.
@@ -131,17 +276,35 @@ pub struct ModelShape {
 }
 
 #[derive(serde::Deserialize)]
-struct RawTextConfig {
+pub struct RawTextConfig {
     num_hidden_layers: Option<u32>,
     hidden_size: Option<u32>,
     #[serde(default)]
     vocab_size: Option<u64>,
     #[serde(default)]
     tie_word_embeddings: Option<bool>,
+    #[serde(default)]
+    num_experts: Option<u64>,
+    #[serde(default)]
+    num_local_experts: Option<u64>,
+    #[serde(default)]
+    n_routed_experts: Option<u64>,
+    #[serde(default)]
+    moe_intermediate_size: Option<u64>,
+    #[serde(default)]
+    intermediate_size: Option<u64>,
+    #[serde(default)]
+    num_attention_heads: Option<u32>,
+    #[serde(default)]
+    head_dim: Option<u32>,
+    #[serde(default)]
+    linear_num_value_heads: Option<u32>,
+    #[serde(default)]
+    linear_value_head_dim: Option<u32>,
 }
 
 #[derive(serde::Deserialize)]
-struct RawConfig {
+pub struct RawConfig {
     #[serde(default)]
     num_hidden_layers: Option<u32>,
     #[serde(default)]
@@ -150,6 +313,24 @@ struct RawConfig {
     vocab_size: Option<u64>,
     #[serde(default)]
     tie_word_embeddings: Option<bool>,
+    #[serde(default)]
+    num_experts: Option<u64>,
+    #[serde(default)]
+    num_local_experts: Option<u64>,
+    #[serde(default)]
+    n_routed_experts: Option<u64>,
+    #[serde(default)]
+    moe_intermediate_size: Option<u64>,
+    #[serde(default)]
+    intermediate_size: Option<u64>,
+    #[serde(default)]
+    num_attention_heads: Option<u32>,
+    #[serde(default)]
+    head_dim: Option<u32>,
+    #[serde(default)]
+    linear_num_value_heads: Option<u32>,
+    #[serde(default)]
+    linear_value_head_dim: Option<u32>,
     #[serde(default)]
     text_config: Option<RawTextConfig>,
 }
@@ -219,7 +400,14 @@ impl ModelShape {
             None
         };
 
-        Ok(project_qlora_shape(raw_shape, &cfg, cache_override))
+        let header_text_params =
+            safetensors_header_text_params_and_bytes(dir).map(|(params, _)| params);
+        Ok(project_qlora_shape_with_params(
+            raw_shape,
+            &cfg,
+            header_text_params,
+            cache_override,
+        ))
     }
 
     /// Build shape facts from HF Hub API metadata (`expand=["config","safetensors"]`)
@@ -273,18 +461,169 @@ fn layers_and_hidden(cfg: RawConfig) -> Result<(u32, u32)> {
     }
 }
 
+/// Read only the 8-byte LE header length + JSON header from every `*.safetensors` file in `dir`
+/// to count exact text-tower parameters and byte sizes without reading tensor payloads.
+/// Returns `None` if no valid safetensors headers are present (e.g. synthetic zero-filled test fixtures).
+pub fn safetensors_header_text_params_and_bytes(dir: &Path) -> Option<(u64, u64)> {
+    use std::io::Read as _;
+
+    let entries = std::fs::read_dir(dir).ok()?;
+    let mut total_params = 0u64;
+    let mut total_bytes = 0u64;
+    let mut saw_valid_header = false;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("safetensors") {
+            continue;
+        }
+        let mut f = std::fs::File::open(&path).ok()?;
+        let mut len_buf = [0u8; 8];
+        if f.read_exact(&mut len_buf).is_err() {
+            return None;
+        }
+        let header_len = u64::from_le_bytes(len_buf);
+        if header_len == 0 || header_len > 64 * 1024 * 1024 {
+            return None;
+        }
+        let mut header_bytes = vec![0u8; header_len as usize];
+        if f.read_exact(&mut header_bytes).is_err() {
+            return None;
+        }
+        let Ok(header_map) =
+            serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&header_bytes)
+        else {
+            return None;
+        };
+        saw_valid_header = true;
+        for (key, meta) in header_map {
+            if key == "__metadata__" || vox_hf_layout::is_vision_or_mtp_key(&key) {
+                continue;
+            }
+            if let Some(shape) = meta.get("shape").and_then(|s| s.as_array()) {
+                let elems = shape.iter().filter_map(|d| d.as_u64()).product::<u64>();
+                total_params = total_params.saturating_add(elems);
+            }
+            if let Some(offsets) = meta.get("data_offsets").and_then(|o| o.as_array())
+                && offsets.len() == 2
+                && let (Some(a), Some(b)) = (offsets[0].as_u64(), offsets[1].as_u64())
+            {
+                total_bytes = total_bytes.saturating_add(b.saturating_sub(a));
+            }
+        }
+    }
+
+    saw_valid_header.then_some((total_params, total_bytes))
+}
+
+fn moe_expert_count(cfg: &RawConfig) -> u64 {
+    let tc = cfg.text_config.as_ref();
+    cfg.num_experts
+        .or_else(|| tc.and_then(|t| t.num_experts))
+        .or(cfg.num_local_experts)
+        .or_else(|| tc.and_then(|t| t.num_local_experts))
+        .or(cfg.n_routed_experts)
+        .or_else(|| tc.and_then(|t| t.n_routed_experts))
+        .unwrap_or(0)
+}
+
+fn resolve_attn_width(cfg: &RawConfig, hidden: u32) -> u32 {
+    let tc = cfg.text_config.as_ref();
+    let lin_heads = cfg
+        .linear_num_value_heads
+        .or_else(|| tc.and_then(|t| t.linear_num_value_heads));
+    let lin_dim = cfg
+        .linear_value_head_dim
+        .or_else(|| tc.and_then(|t| t.linear_value_head_dim));
+    if let (Some(h), Some(d)) = (lin_heads, lin_dim)
+        && h > 0
+        && d > 0
+    {
+        return h.saturating_mul(d);
+    }
+    let attn_heads = cfg
+        .num_attention_heads
+        .or_else(|| tc.and_then(|t| t.num_attention_heads));
+    let head_dim = cfg.head_dim.or_else(|| tc.and_then(|t| t.head_dim));
+    if let (Some(h), Some(d)) = (attn_heads, head_dim)
+        && h > 0
+        && d > 0
+    {
+        return h.saturating_mul(d);
+    }
+    hidden
+}
+
+fn resolve_cache_dequantized(
+    raw_shape: &ModelShape,
+    cfg: &RawConfig,
+    header_text_params: Option<u64>,
+    cache_override: Option<bool>,
+) -> bool {
+    if let Some(explicit) = cache_override {
+        return explicit;
+    }
+    let tc = cfg.text_config.as_ref();
+    let vocab_size = cfg
+        .vocab_size
+        .or_else(|| tc.and_then(|t| t.vocab_size))
+        .unwrap_or(0);
+    let tie = cfg
+        .tie_word_embeddings
+        .or_else(|| tc.and_then(|t| t.tie_word_embeddings))
+        .unwrap_or(false);
+    let embed_copies = if tie { 1u64 } else { 2u64 };
+    let embed_params = vocab_size
+        .saturating_mul(raw_shape.hidden as u64)
+        .saturating_mul(embed_copies);
+
+    let non_embed_params = if let Some(text_params) = header_text_params.filter(|&p| p > 0) {
+        text_params.saturating_sub(embed_params)
+    } else {
+        let dense = (raw_shape.layers as u64)
+            .saturating_mul(12)
+            .saturating_mul(raw_shape.hidden as u64)
+            .saturating_mul(raw_shape.hidden as u64);
+        let experts = moe_expert_count(cfg);
+        if experts > 1 {
+            let moe_inter = cfg
+                .moe_intermediate_size
+                .or_else(|| tc.and_then(|t| t.moe_intermediate_size))
+                .or(cfg.intermediate_size)
+                .or_else(|| tc.and_then(|t| t.intermediate_size))
+                .unwrap_or(raw_shape.hidden as u64);
+            let expert_params = (raw_shape.layers as u64)
+                .saturating_mul(experts)
+                .saturating_mul(3)
+                .saturating_mul(raw_shape.hidden as u64)
+                .saturating_mul(moe_inter);
+            dense.saturating_add(expert_params)
+        } else {
+            dense
+        }
+    };
+    non_embed_params <= 10_000_000_000
+}
+
 /// Pure QLoRA resident-weight projection matching the Metal/CUDA trainer's
-/// `cache_dequantized` threshold (`approx_linear_params <= 10B`).
+/// `cache_dequantized` threshold (`non_embed_params <= 10B`).
+#[cfg(test)]
 fn project_qlora_shape(
     raw_shape: ModelShape,
     cfg: &RawConfig,
     cache_override: Option<bool>,
 ) -> ModelShape {
-    let approx_linear_params = (raw_shape.layers as u64)
-        .saturating_mul(12)
-        .saturating_mul(raw_shape.hidden as u64)
-        .saturating_mul(raw_shape.hidden as u64);
-    let cache_dequantized = cache_override.unwrap_or(approx_linear_params <= 10_000_000_000);
+    project_qlora_shape_with_params(raw_shape, cfg, None, cache_override)
+}
+
+fn project_qlora_shape_with_params(
+    raw_shape: ModelShape,
+    cfg: &RawConfig,
+    header_text_params: Option<u64>,
+    cache_override: Option<bool>,
+) -> ModelShape {
+    let cache_dequantized =
+        resolve_cache_dequantized(&raw_shape, cfg, header_text_params, cache_override);
     if cache_dequantized {
         return raw_shape;
     }
@@ -377,6 +716,8 @@ struct RawLaneRow {
     gradient_checkpointing: bool,
     act_bytes_per_lht: f64,
     source: String,
+    #[serde(default)]
+    multi_term: Option<MultiTermCoeffs>,
 }
 
 const SCHEMA: &str = "vox.mens.memory-model.v1";
@@ -408,6 +749,7 @@ impl MemoryModels {
                 MemoryModel {
                     act_bytes_per_lht: row.act_bytes_per_lht,
                     source,
+                    multi_term: row.multi_term,
                 },
             );
         }
@@ -1023,6 +1365,162 @@ mod load_default_check {
             "projected 27B QLoRA resident bytes should be ~19.28 GB, got {}",
             proj27.artifact_bytes
         );
+    }
+
+    #[test]
+    fn qwen36_35b_a3b_moe_config_selects_uncached_nf4_not_cached_bf16() {
+        let moe_cfg: RawConfig = serde_json::from_str(
+            r#"{
+                "text_config": {
+                    "num_hidden_layers": 40,
+                    "hidden_size": 2048,
+                    "vocab_size": 248320,
+                    "tie_word_embeddings": false,
+                    "num_experts": 256,
+                    "moe_intermediate_size": 512
+                }
+            }"#,
+        )
+        .unwrap();
+        let raw_moe = ModelShape {
+            artifact_bytes: 72_000_000_000,
+            layers: 40,
+            hidden: 2048,
+        };
+        let prof = ModelMemoryProfile::from_raw_parts(
+            raw_moe,
+            &moe_cfg,
+            None,
+            &TrainingRecipe::current_default(),
+        );
+        assert!(prof.is_moe);
+        assert!(
+            !prof.cache_dequantized,
+            "35B-A3B MoE must NOT select cache_dequantized=true via 12*L*H^2"
+        );
+        assert!(
+            prof.resident_weight_bytes < 25_000_000_000,
+            "expected NF4-projected resident bytes <25 GB, got {}",
+            prof.resident_weight_bytes
+        );
+    }
+
+    #[test]
+    fn safetensors_header_reader_excludes_vision_keys_and_triggers_nf4_above_10b() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("config.json"),
+            r#"{"num_hidden_layers":40,"hidden_size":2048,"vocab_size":248320,"tie_word_embeddings":false}"#,
+        )
+        .unwrap();
+        let header = serde_json::json!({
+            "__metadata__": {"format": "pt"},
+            "model.visual.patch_embed.weight": {"dtype": "BF16", "shape": [1000, 1000], "data_offsets": [0, 2000000]},
+            "model.language_model.layers.0.mlp.experts.gate_up_proj": {"dtype": "BF16", "shape": [12000, 1000000], "data_offsets": [2000000, 4000000]}
+        });
+        let header_bytes = serde_json::to_vec(&header).unwrap();
+        let mut blob = Vec::new();
+        blob.extend_from_slice(&(header_bytes.len() as u64).to_le_bytes());
+        blob.extend_from_slice(&header_bytes);
+        std::fs::write(dir.path().join("model.safetensors"), &blob).unwrap();
+
+        let (text_params, _) =
+            safetensors_header_text_params_and_bytes(dir.path()).expect("valid safetensors");
+        assert_eq!(
+            text_params, 12_000_000_000,
+            "vision tensor must be skipped while 12B text params are counted"
+        );
+        let prof = ModelMemoryProfile::from_model_dir_with_recipe(
+            dir.path(),
+            &TrainingRecipe::current_default(),
+        )
+        .unwrap();
+        assert!(!prof.cache_dequantized);
+    }
+
+    #[test]
+    fn multi_term_contract_matches_calibration_and_sizes_27b_and_32b_honestly() {
+        use super::super::calibration::{MultiTermCalibrationRecord, fit_multi_term_lane};
+
+        let raw = include_str!(
+            "../../../../../docs/src/architecture/measurements/2026-11-19-candle-metal-multi-term-calibration.json"
+        );
+        let doc: serde_json::Value = serde_json::from_str(raw).unwrap();
+        let recs: Vec<MultiTermCalibrationRecord> =
+            serde_json::from_value(doc["records"].clone()).unwrap();
+        let fitted = fit_multi_term_lane(&recs).unwrap();
+
+        let models = MemoryModels::load_default().unwrap();
+        let metal = models
+            .get(&CalKey::new(Lane::CandleMetal, true).unwrap())
+            .unwrap();
+        let mt = metal
+            .multi_term
+            .expect("shipped candle-metal row must carry multi_term coeffs");
+        assert!((mt.fixed_bytes - fitted.fixed_bytes).abs() < 1.0);
+        assert!((mt.act_bytes_per_lht - fitted.act_bytes_per_lht).abs() < 1e-6);
+        assert!((mt.cached_attn_bytes_per_lwt - fitted.cached_attn_bytes_per_lwt).abs() < 1e-6);
+        assert!((mt.lm_head_lora_bytes_per_vt - fitted.lm_head_lora_bytes_per_vt).abs() < 1e-6);
+
+        // Qwen3.8-27B lean (r16, --lora-exclude-lm-head) at seq_len=1024 -> ~43.28 GB (vs 73.8 GB old).
+        let cfg27: RawConfig = serde_json::from_str(
+            r#"{"text_config":{"num_hidden_layers":64,"hidden_size":5120,"vocab_size":248320,"tie_word_embeddings":false,"linear_num_value_heads":48,"linear_value_head_dim":128}}"#,
+        )
+        .unwrap();
+        let p27 = ModelMemoryProfile::from_raw_parts(
+            ModelShape {
+                artifact_bytes: 55_563_006_776,
+                layers: 64,
+                hidden: 5120,
+            },
+            &cfg27,
+            None,
+            &TrainingRecipe::current_default(),
+        );
+        let pred27_lean =
+            metal.predict_bytes_with_recipe(&p27, 1024, &TrainingRecipe::current_default());
+        assert!(
+            (43_278_282_682..=47_600_000_000).contains(&pred27_lean),
+            "27B lean pred={pred27_lean} must match ~43.28 GB measured"
+        );
+        let pred27_r32 =
+            metal.predict_bytes_with_recipe(&p27, 1024, &TrainingRecipe::legacy_lm_head_r32());
+        assert!(
+            (77_073_260_172..=85_000_000_000).contains(&pred27_r32),
+            "27B r32 lm_head pred={pred27_r32} must cover 77.07 GB measured"
+        );
+        let r64_chunked = TrainingRecipe::high_capacity_r64_chunked();
+        let pred27_r64_chunked_2k = metal.predict_bytes_with_recipe(&p27, 2048, &r64_chunked);
+        let mut r64_unchunked = r64_chunked;
+        r64_unchunked.chunked_lm_head_rows = None;
+        let pred27_r64_unchunked_2k = metal.predict_bytes_with_recipe(&p27, 2048, &r64_unchunked);
+        assert!(
+            pred27_r64_unchunked_2k - pred27_r64_chunked_2k >= 50_000_000_000,
+            "256-row chunked lm_head should avoid >50 GB logits spike at seq_len=2048: chunked={pred27_r64_chunked_2k} vs unchunked={pred27_r64_unchunked_2k}"
+        );
+
+        // Qwen3-32B dense capacity estimate (~65.5 GB BF16 -> ~19.1 GB NF4 + activations = ~43.1 GB).
+        let cfg32: RawConfig = serde_json::from_str(
+            r#"{"num_hidden_layers":64,"hidden_size":5120,"num_attention_heads":64,"head_dim":128,"vocab_size":151936,"tie_word_embeddings":false}"#,
+        )
+        .unwrap();
+        let p32 = ModelMemoryProfile::from_raw_parts(
+            ModelShape {
+                artifact_bytes: 65_500_000_000,
+                layers: 64,
+                hidden: 5120,
+            },
+            &cfg32,
+            None,
+            &TrainingRecipe::current_default(),
+        );
+        let pred32 =
+            metal.predict_bytes_with_recipe(&p32, 1024, &TrainingRecipe::current_default());
+        assert!(
+            (40_000_000_000..=52_000_000_000).contains(&pred32),
+            "Qwen3-32B lean QLoRA estimate should sit ~43 GB (comfortably < 72 GB), got {pred32}"
+        );
+        assert_eq!(derive_floor_mb(43_278_282_682), 42_512);
     }
 }
 

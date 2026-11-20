@@ -244,8 +244,11 @@ async fn one_peer_cannot_cancel_another_peers_job() {
     // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     let cancel = common::send_cancel_from(b, &server, JobId(9)).await;
+    // B holds no job 9, so its cancel is only recorded as a tombstone under (B, 9)
+    // (cancel-before-run support). It must not touch A's (A, 9) job: the DONE
+    // assertion below is the isolation proof.
     assert!(
-        matches!(cancel, JobResponse::Failed(ref m) if m.contains("no such running job")),
+        matches!(cancel, JobResponse::Failed(ref m) if m.contains("cancellation recorded")),
         "{cancel:?}"
     );
     let done = a_job.await.unwrap();

@@ -5,7 +5,7 @@
 //! imports from them. Every handler reads only the corpus-filtered vox-db readers and the
 //! Tantivy index; none touches the file system with a caller-supplied path (AP-15).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use schemars::JsonSchema;
@@ -13,9 +13,10 @@ use serde::Deserialize;
 use serde_json::json;
 use vox_db::kb_text::SanitizedText;
 use vox_db::{KB_LIBRARY_CORPUS, LibraryChunkRow, VoxDb};
+use vox_search::kb_ids::{CorpusTier, KbCorpusManifest};
 use vox_search::library::{
-    IndexDeps, IndexReport, LibraryHit, Taxonomy, index_library, lexical, load_taxonomy,
-    search_with_taxonomy, status,
+    IndexDeps, IndexReport, LibraryHit, Taxonomy, index_library, index_library_scoped, lexical,
+    load_taxonomy, search_scoped_with_taxonomy, status_scoped,
 };
 
 use crate::params::ToolResult;
@@ -103,15 +104,138 @@ fn hit_json(h: &LibraryHit) -> serde_json::Value {
     })
 }
 
-/// Search the Library index in `dir`. `taxonomy_warning` is set when synonyms could not be applied.
+fn manifest_has_sources(manifest: &KbCorpusManifest) -> bool {
+    !manifest.root_dirs.is_empty() || !manifest.root_files.is_empty()
+}
+
+struct ResolvedLibraryScope {
+    corpus_key: String,
+    lexical_dir: PathBuf,
+}
+
+async fn resolve_library_scope(
+    db: &VoxDb,
+    repo_root: &Path,
+) -> Result<ResolvedLibraryScope, String> {
+    let manifest = KbCorpusManifest::discover_for_repo(repo_root);
+    if manifest_has_sources(&manifest) {
+        let scoped_key = manifest.corpus_key();
+        let scoped_state = db
+            .get_kb_index_state(&scoped_key)
+            .await
+            .map_err(|e| format!("kb index state lookup failed: {e}"))?;
+        if scoped_state.is_none() && manifest.tier == CorpusTier::DocsSrc {
+            let legacy_state = db
+                .get_kb_index_state(KB_LIBRARY_CORPUS)
+                .await
+                .map_err(|e| format!("legacy kb index state lookup failed: {e}"))?;
+            if legacy_state.is_some()
+                && let Some(legacy_dir) = lexical::default_index_dir()
+            {
+                return Ok(ResolvedLibraryScope {
+                    corpus_key: KB_LIBRARY_CORPUS.to_string(),
+                    lexical_dir: legacy_dir,
+                });
+            }
+        }
+        let Some(lexical_dir) =
+            lexical::default_scoped_index_dir(&manifest.repository_id, manifest.tier.as_str())
+        else {
+            return Err("no Library index directory could be resolved".into());
+        };
+        return Ok(ResolvedLibraryScope {
+            corpus_key: scoped_key,
+            lexical_dir,
+        });
+    }
+
+    let Some(lexical_dir) = lexical::default_index_dir() else {
+        return Err("no Library index directory could be resolved".into());
+    };
+    Ok(ResolvedLibraryScope {
+        corpus_key: KB_LIBRARY_CORPUS.to_string(),
+        lexical_dir,
+    })
+}
+
+/// Ensure the discovered corpus under `repo_root` is indexed into `db` and Tantivy when
+/// missing or stale (`HEAD != corpus_commit`). Returns `Ok(true)` if a reindex ran.
+pub async fn ensure_kb_indexed_for_repo(db: &VoxDb, repo_root: &Path) -> Result<bool, String> {
+    let manifest = KbCorpusManifest::discover_for_repo(repo_root);
+    if !manifest_has_sources(&manifest) {
+        return Ok(false);
+    }
+    let head = head_commit(repo_root).await;
+    let scoped_key = manifest.corpus_key();
+    let existing = db
+        .get_kb_index_state(&scoped_key)
+        .await
+        .map_err(|e| format!("kb index state lookup failed: {e}"))?;
+    let state_opt = if existing.is_none() && manifest.tier == CorpusTier::DocsSrc {
+        db.get_kb_index_state(KB_LIBRARY_CORPUS)
+            .await
+            .map_err(|e| format!("legacy kb index state lookup failed: {e}"))?
+    } else {
+        existing
+    };
+    let is_stale = match (&state_opt, &head) {
+        (None, _) => true,
+        (Some(st), Some(h)) => st.corpus_commit.as_deref() != Some(h.as_str()),
+        (Some(_), None) => false,
+    };
+    if !is_stale {
+        return Ok(false);
+    }
+    let Some(dir) =
+        lexical::default_scoped_index_dir(&manifest.repository_id, manifest.tier.as_str())
+    else {
+        return Err("no Library index directory could be resolved".into());
+    };
+    match reindex_scoped_at(db, repo_root, &dir, &manifest, head).await {
+        Ok(_) => Ok(true),
+        Err(e) if e == "reindex already running" => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
+/// Trigger incremental KB reindex for `state.repository.root` only when missing or stale.
+pub async fn ensure_kb_indexed_if_stale(state: &ServerState) -> Result<bool, String> {
+    let db = require_db(state)?;
+    ensure_kb_indexed_for_repo(&db, &state.repository.root).await
+}
+
+/// Index `~/.vox/library` (or any explicit global library root) under `CorpusTier::GlobalLibrary`
+/// into its isolated Tantivy/VoxDb shard when the directory exists.
+pub async fn ensure_global_library_indexed(db: &VoxDb, lib_root: &Path) -> Result<bool, String> {
+    if !lib_root.is_dir() {
+        return Ok(false);
+    }
+    let manifest = KbCorpusManifest::for_tier(lib_root, "global", CorpusTier::GlobalLibrary);
+    if !manifest_has_sources(&manifest) {
+        return Ok(false);
+    }
+    let Some(dir) =
+        lexical::default_scoped_index_dir(&manifest.repository_id, manifest.tier.as_str())
+    else {
+        return Err("no GlobalLibrary index directory could be resolved".into());
+    };
+    match reindex_scoped_at(db, lib_root, &dir, &manifest, None).await {
+        Ok(r) => Ok(r.docs_seen > 0),
+        Err(e) if e == "reindex already running" => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
+/// Search the Library index in `dir` scoped to `corpus_key`.
 async fn search_in(
     db: &VoxDb,
     dir: &Path,
+    corpus_key: &str,
     query: &str,
     limit: usize,
     taxonomy: Result<&Taxonomy, &anyhow::Error>,
 ) -> String {
-    match search_with_taxonomy(db, dir, query, limit, taxonomy.ok()).await {
+    match search_scoped_with_taxonomy(db, dir, corpus_key, query, limit, taxonomy.ok()).await {
         Ok(hits) => {
             let mut payload = json!({
                 "lexical_backend": lexical::LEXICAL_BACKEND,
@@ -138,18 +262,18 @@ pub async fn kb_search(state: &ServerState, params: KbSearchParams) -> String {
         Ok(db) => db,
         Err(e) => return err_json(e, REM_KB_DB),
     };
-    let Some(dir) = lexical::default_index_dir() else {
-        return err_json(
-            "no Library index directory could be resolved",
-            REM_KB_REINDEX,
-        );
+    let _ = ensure_kb_indexed_for_repo(&db, &state.repository.root).await;
+    let scope = match resolve_library_scope(&db, &state.repository.root).await {
+        Ok(s) => s,
+        Err(e) => return err_json(e, REM_KB_REINDEX),
     };
     // Availability over synonyms: a missing or broken taxonomy degrades to a plain search, and
     // `search_in` reports it in `taxonomy_warning`.
     let taxonomy = load_taxonomy(&state.repository.root);
     search_in(
         &db,
-        &dir,
+        &scope.lexical_dir,
+        &scope.corpus_key,
         query,
         clamp_limit(params.limit),
         taxonomy.as_ref(),
@@ -187,6 +311,28 @@ pub(crate) async fn reindex_at(
         is_committed_clean: &|rel: &str| clean.contains(rel),
     };
     index_library(db, repo_root, lexical_dir, &deps)
+        .await
+        .map_err(|e| format!("reindex failed: {e:#}"))
+}
+
+async fn reindex_scoped_at(
+    db: &VoxDb,
+    repo_root: &Path,
+    lexical_dir: &Path,
+    manifest: &KbCorpusManifest,
+    corpus_commit: Option<String>,
+) -> Result<IndexReport, String> {
+    let Ok(_guard) = KB_REINDEX_LOCK.try_lock() else {
+        return Err("reindex already running".into());
+    };
+    let clean = committed_clean_docs_for_manifest(repo_root, manifest).await;
+    let deps = IndexDeps {
+        hasher: &hasher,
+        corpus_commit,
+        trust_tier: vox_db::tier_for_curated(false),
+        is_committed_clean: &|rel: &str| clean.contains(rel),
+    };
+    index_library_scoped(db, repo_root, lexical_dir, manifest, &deps)
         .await
         .map_err(|e| format!("reindex failed: {e:#}"))
 }
@@ -238,11 +384,15 @@ fn report_json(r: &IndexReport) -> serde_json::Value {
 /// `repo_root` is the git top-level. In a subdirectory checkout nothing matches, so every file
 /// is Untrusted. Any git failure (missing git, not a checkout, no HEAD) yields an empty set:
 /// fail-closed.
-async fn committed_clean_docs(repo_root: &Path) -> std::collections::HashSet<String> {
+async fn committed_clean_docs_for_roots(
+    repo_root: &Path,
+    roots: &[String],
+) -> std::collections::HashSet<String> {
     let git = crate::git_exec::GitExec::new(repo_root);
     let mut tracked = std::collections::HashSet::new();
     let mut dirty = std::collections::HashSet::new();
-    for root in vox_search::kb_ids::KB_CORPUS_ROOTS {
+    for root in roots {
+        let root = root.as_str();
         for (args, set) in [
             (
                 [
@@ -290,6 +440,27 @@ async fn committed_clean_docs(repo_root: &Path) -> std::collections::HashSet<Str
     tracked
 }
 
+async fn committed_clean_docs(repo_root: &Path) -> std::collections::HashSet<String> {
+    let roots: Vec<String> = vox_search::kb_ids::KB_CORPUS_ROOTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    committed_clean_docs_for_roots(repo_root, &roots).await
+}
+
+async fn committed_clean_docs_for_manifest(
+    repo_root: &Path,
+    manifest: &KbCorpusManifest,
+) -> std::collections::HashSet<String> {
+    let roots: Vec<String> = manifest
+        .root_dirs
+        .iter()
+        .chain(manifest.root_files.iter())
+        .cloned()
+        .collect();
+    committed_clean_docs_for_roots(repo_root, &roots).await
+}
+
 /// `HEAD` of the repository, or `None` when git is unavailable or the root is not a checkout.
 async fn head_commit(root: &Path) -> Option<String> {
     let out = crate::git_exec::GitExec::new(root)
@@ -300,20 +471,35 @@ async fn head_commit(root: &Path) -> Option<String> {
     (out.exit_code == 0 && !sha.is_empty()).then(|| sha.to_string())
 }
 
-/// `vox_kb_reindex`: rebuild the Library from `<repo root>/docs/src`; returns the index report.
+/// `vox_kb_reindex`: rebuild the Library from discovered repository docs roots; returns the index report.
 pub async fn kb_reindex(state: &ServerState) -> String {
     let db = match require_db(state) {
         Ok(db) => db,
         Err(e) => return err_json(e, REM_KB_DB),
     };
-    let Some(dir) = lexical::default_index_dir() else {
-        return err_json(
-            "no Library index directory could be resolved",
-            "Set VOX_SEARCH_TANTIVY_ROOT or ensure the Vox data directory is available.",
-        );
-    };
     let root = &state.repository.root;
-    match reindex_at(&db, root, &dir, head_commit(root).await).await {
+    let commit = head_commit(root).await;
+    let manifest = KbCorpusManifest::discover_for_repo(root);
+    let res = if manifest_has_sources(&manifest) {
+        let Some(dir) =
+            lexical::default_scoped_index_dir(&manifest.repository_id, manifest.tier.as_str())
+        else {
+            return err_json(
+                "no Library index directory could be resolved",
+                "Set VOX_SEARCH_TANTIVY_ROOT or ensure the Vox data directory is available.",
+            );
+        };
+        reindex_scoped_at(&db, root, &dir, &manifest, commit).await
+    } else {
+        let Some(dir) = lexical::default_index_dir() else {
+            return err_json(
+                "no Library index directory could be resolved",
+                "Set VOX_SEARCH_TANTIVY_ROOT or ensure the Vox data directory is available.",
+            );
+        };
+        reindex_at(&db, root, &dir, commit).await
+    };
+    match res {
         Ok(r) => ok_clean(report_json(&r)).to_json(),
         Err(e) => err_json(
             e,
@@ -357,6 +543,22 @@ pub(crate) fn validate_doc_path(path: &str) -> Result<&str, String> {
     Ok(path)
 }
 
+fn validate_doc_path_for_manifest<'a>(
+    path: &'a str,
+    manifest: &KbCorpusManifest,
+) -> Result<&'a str, String> {
+    if path.len() > MAX_PATH_BYTES {
+        return Err(format!("invalid path: longer than {MAX_PATH_BYTES} bytes"));
+    }
+    if !manifest_has_sources(manifest) {
+        return validate_doc_path(path);
+    }
+    if !manifest.includes_rel_path(path) {
+        return Err("invalid path: not a Library corpus path for this repository".into());
+    }
+    Ok(path)
+}
+
 /// Exactly 64 lowercase hex characters. Errors start with `invalid chunk_hash`.
 pub(crate) fn validate_chunk_hash(hash: &str) -> Result<&str, String> {
     if hash.len() == 64 && hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
@@ -385,13 +587,16 @@ fn json_or_string(raw: &str) -> serde_json::Value {
     serde_json::from_str(raw).unwrap_or_else(|_| json!(raw))
 }
 
-async fn get_by_path(db: &VoxDb, path: &str) -> String {
-    let doc = match db.library_document_by_path(path).await {
+async fn get_by_path(db: &VoxDb, corpus_key: &str, path: &str) -> String {
+    let doc = match db
+        .library_document_by_path_in_corpus(corpus_key, path)
+        .await
+    {
         Ok(Some(d)) => d,
         Ok(None) => return err_json(format!("not indexed: {path}"), REM_KB_REINDEX),
         Err(e) => return err_json(format!("library lookup failed: {e}"), REM_KB_REINDEX),
     };
-    let chunks = match db.library_doc_chunks(KB_LIBRARY_CORPUS, path).await {
+    let chunks = match db.library_doc_chunks(corpus_key, path).await {
         Ok(c) => c,
         Err(e) => return err_json(format!("library lookup failed: {e}"), REM_KB_REINDEX),
     };
@@ -417,8 +622,8 @@ async fn get_by_path(db: &VoxDb, path: &str) -> String {
     .to_json()
 }
 
-async fn get_by_hash(db: &VoxDb, hash: &str) -> String {
-    match db.library_chunk_by_hash(hash).await {
+async fn get_by_hash(db: &VoxDb, corpus_key: &str, hash: &str) -> String {
+    match db.library_chunk_by_hash_in_corpus(corpus_key, hash).await {
         Ok(Some(c)) => {
             let mut chunk = chunk_meta(&c);
             chunk["body"] = json!(c.body);
@@ -438,18 +643,27 @@ async fn get_by_hash(db: &VoxDb, hash: &str) -> String {
 /// `vox_kb_get`: one indexed Library document or chunk, reconstructed from the index only.
 pub async fn kb_get(state: &ServerState, params: KbGetParams) -> String {
     match (params.path.as_deref(), params.chunk_hash.as_deref()) {
-        (Some(p), None) => match validate_doc_path(p) {
-            Err(e) => err_json(e, REM_PATH),
-            Ok(p) => match require_db(state) {
-                Err(e) => err_json(e, REM_KB_DB),
-                Ok(db) => get_by_path(&db, p).await,
-            },
-        },
+        (Some(p), None) => {
+            let manifest = KbCorpusManifest::discover_for_repo(&state.repository.root);
+            match validate_doc_path_for_manifest(p, &manifest) {
+                Err(e) => err_json(e, REM_PATH),
+                Ok(p) => match require_db(state) {
+                    Err(e) => err_json(e, REM_KB_DB),
+                    Ok(db) => match resolve_library_scope(&db, &state.repository.root).await {
+                        Ok(scope) => get_by_path(&db, &scope.corpus_key, p).await,
+                        Err(e) => err_json(e, REM_KB_REINDEX),
+                    },
+                },
+            }
+        }
         (None, Some(h)) => match validate_chunk_hash(h) {
             Err(e) => err_json(e, REM_HASH),
             Ok(h) => match require_db(state) {
                 Err(e) => err_json(e, REM_KB_DB),
-                Ok(db) => get_by_hash(&db, h).await,
+                Ok(db) => match resolve_library_scope(&db, &state.repository.root).await {
+                    Ok(scope) => get_by_hash(&db, &scope.corpus_key, h).await,
+                    Err(e) => err_json(e, REM_KB_REINDEX),
+                },
             },
         },
         _ => err_json(
@@ -469,12 +683,22 @@ pub async fn kb_cite(state: &ServerState, params: KbCiteParams) -> String {
         Ok(db) => db,
         Err(e) => return err_json(e, REM_KB_DB),
     };
-    let c = match db.library_chunk_by_hash(hash).await {
+    let scope = match resolve_library_scope(&db, &state.repository.root).await {
+        Ok(s) => s,
+        Err(e) => return err_json(e, REM_KB_REINDEX),
+    };
+    let c = match db
+        .library_chunk_by_hash_in_corpus(&scope.corpus_key, hash)
+        .await
+    {
         Ok(Some(c)) => c,
         Ok(None) => return err_json(format!("not indexed: chunk {hash}"), REM_KB_REINDEX),
         Err(e) => return err_json(format!("library lookup failed: {e}"), REM_KB_REINDEX),
     };
-    let indexed_commit = match db.library_document_by_path(&c.doc_path).await {
+    let indexed_commit = match db
+        .library_document_by_path_in_corpus(&scope.corpus_key, &c.doc_path)
+        .await
+    {
         Ok(d) => d.and_then(|d| d.indexed_commit),
         Err(_) => None,
     };
@@ -530,17 +754,15 @@ pub async fn kb_status(state: &ServerState) -> String {
         Ok(c) => c,
         Err(e) => return err_json(e, REM_KB_REINDEX),
     };
-    let Some(dir) = lexical::default_index_dir() else {
-        return err_json(
-            "no Library index directory could be resolved",
-            REM_KB_REINDEX,
-        );
+    let scope = match resolve_library_scope(&db, &state.repository.root).await {
+        Ok(s) => s,
+        Err(e) => return err_json(e, REM_KB_REINDEX),
     };
-    let st = match status(&db, &dir).await {
+    let st = match status_scoped(&db, &scope.lexical_dir, &scope.corpus_key).await {
         Ok(st) => st,
         Err(e) => return err_json(format!("library status failed: {e}"), REM_KB_REINDEX),
     };
-    let index_dir = dir.to_string_lossy().into_owned();
+    let index_dir = scope.lexical_dir.to_string_lossy().into_owned();
     let Some(s) = st.state else {
         return ok_clean(json!({
             "indexed": false,
@@ -1281,5 +1503,114 @@ mod tests {
         assert!(r.docs_unchanged >= 1, "{r:?}");
         assert_eq!(tier_of(&library_tiers(&db).await, "clean.md"), Untrusted);
         assert!(report_json(&r).get("docs_untrusted").is_some());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn multirepo_kb_reindex_status_and_search_isolate_external_repos() {
+        let tmp = tempfile::tempdir().unwrap();
+        set_index_root(&tmp.path().join("idx"));
+
+        let repo_a = tmp.path().join("repo_a");
+        let repo_b = tmp.path().join("repo_b");
+        tokio::fs::create_dir_all(repo_a.join("docs"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(repo_b.join("docs/src"))
+            .await
+            .unwrap();
+        tokio::fs::write(
+            repo_a.join("docs/guide.md"),
+            "# External Guide\n\n## Alpha\nzephyrquantum unique marker in external docs root.\n",
+        )
+        .await
+        .unwrap();
+        tokio::fs::write(
+            repo_b.join("docs/src/spec.md"),
+            "# Primary Spec\n\n## Beta\nheliosreactor unique marker in primary docs_src root.\n",
+        )
+        .await
+        .unwrap();
+
+        let db = Arc::new(VoxDb::open_memory().await.unwrap());
+        let mut state_a = ServerState::new_test()
+            .await
+            .with_db_initialized(db.clone())
+            .await;
+        state_a.repository.root = repo_a;
+        let mut state_b = ServerState::new_test().await.with_db_initialized(db).await;
+        state_b.repository.root = repo_b;
+
+        let reindex_a = tool(&state_a, "vox_kb_reindex", json!({})).await;
+        assert_eq!(reindex_a["success"], true, "{reindex_a}");
+        assert_eq!(reindex_a["data"]["docs_seen"], 1, "{reindex_a}");
+
+        let reindex_b = tool(&state_b, "vox_kb_reindex", json!({})).await;
+        assert_eq!(reindex_b["success"], true, "{reindex_b}");
+        assert_eq!(reindex_b["data"]["docs_seen"], 1, "{reindex_b}");
+
+        let status_a = tool(&state_a, "vox_kb_status", json!({})).await;
+        assert_eq!(status_a["data"]["indexed"], true, "{status_a}");
+        assert_eq!(status_a["data"]["consistent"], true, "{status_a}");
+
+        let status_b = tool(&state_b, "vox_kb_status", json!({})).await;
+        assert_eq!(status_b["data"]["indexed"], true, "{status_b}");
+        assert_eq!(status_b["data"]["consistent"], true, "{status_b}");
+
+        let search_a_hit = tool(&state_a, "vox_kb_search", json!({"query": "zephyrquantum"})).await;
+        assert_eq!(search_a_hit["success"], true, "{search_a_hit}");
+        let hits_a = search_a_hit["data"]["hits"].as_array().unwrap();
+        assert_eq!(hits_a.len(), 1, "{search_a_hit}");
+        assert_eq!(hits_a[0]["doc_path"], "docs/guide.md", "{search_a_hit}");
+
+        let search_a_cross =
+            tool(&state_a, "vox_kb_search", json!({"query": "heliosreactor"})).await;
+        assert_eq!(
+            search_a_cross["data"]["hits"].as_array().unwrap().len(),
+            0,
+            "{search_a_cross}"
+        );
+
+        let search_b_hit = tool(&state_b, "vox_kb_search", json!({"query": "heliosreactor"})).await;
+        let hits_b = search_b_hit["data"]["hits"].as_array().unwrap();
+        assert_eq!(hits_b.len(), 1, "{search_b_hit}");
+        assert_eq!(hits_b[0]["doc_path"], "docs/src/spec.md", "{search_b_hit}");
+
+        let search_b_cross =
+            tool(&state_b, "vox_kb_search", json!({"query": "zephyrquantum"})).await;
+        assert_eq!(
+            search_b_cross["data"]["hits"].as_array().unwrap().len(),
+            0,
+            "{search_b_cross}"
+        );
+
+        let get_a = tool(&state_a, "vox_kb_get", json!({"path": "docs/guide.md"})).await;
+        assert_eq!(get_a["success"], true, "{get_a}");
+        assert!(
+            get_a["data"]["markdown"]
+                .as_str()
+                .unwrap()
+                .contains("zephyrquantum")
+        );
+
+        assert!(!ensure_kb_indexed_if_stale(&state_a).await.unwrap());
+
+        let global_lib = tmp.path().join("global_lib");
+        tokio::fs::create_dir_all(&global_lib).await.unwrap();
+        tokio::fs::write(
+            global_lib.join("note.md"),
+            "# Global Note\n\n## G\nastralmegakernel global library marker.\n",
+        )
+        .await
+        .unwrap();
+        assert!(
+            ensure_global_library_indexed(state_a.db.as_ref().unwrap(), &global_lib)
+                .await
+                .unwrap()
+        );
+        for st in [&state_a, &state_b] {
+            let leak = tool(st, "vox_kb_search", json!({"query": "astralmegakernel"})).await;
+            assert_eq!(leak["data"]["hits"].as_array().unwrap().len(), 0, "{leak}");
+        }
     }
 }

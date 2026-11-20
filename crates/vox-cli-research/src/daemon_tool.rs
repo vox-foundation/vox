@@ -14,7 +14,7 @@ use vox_foundation::protocol::orch_daemon_method;
 /// split-brain gap T2.1 fixed for the GUI: a `vox dei doubt`/`vox dei submit` run from a
 /// terminal is visible to the GUI's Approvals/DEI views (and vice versa), rather than mutating
 /// a state the daemon never sees.
-pub(crate) async fn daemon_client() -> Result<vox_orchestrator::orch_daemon::OrchDaemonClient> {
+pub async fn daemon_client() -> Result<vox_orchestrator::orch_daemon::OrchDaemonClient> {
     let ensure = OrchestratorDaemonEnsure::default();
     ensure
         .client()
@@ -46,7 +46,7 @@ pub(crate) fn unwrap_tool_envelope(envelope: serde_json::Value) -> Result<serde_
 /// Mirrors `vox-orchestrator-mcp::daemon_route::call_tool_via_daemon` (T2.2's stdio-MCP
 /// pattern) but returns the already-parsed `data` payload, since every call site wants the
 /// inner value rather than the raw envelope.
-pub(crate) async fn tool_call(
+pub async fn tool_call(
     client: &vox_orchestrator::orch_daemon::OrchDaemonClient,
     name: &str,
     args: serde_json::Value,

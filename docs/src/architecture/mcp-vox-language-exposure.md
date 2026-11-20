@@ -7,14 +7,14 @@ status: "current"
 
 # MCP Vox language exposure
 
-Workspace MCP tools declared with `@tool` (formerly `@mcp.tool`) and resources declared with `@mcp.resource` in `.vox` source are **federated into `vox-mcp`** at bind time (Option A). The orchestrator exposes a single `tools/list` + `call_tool` + `resources/list` + `resources/read` plane that merges:
+Workspace MCP tools declared with `@tool` (formerly `@mcp.tool`) and resources declared with `@mcp.resource` in `.vox` source are **federated into `vox-orchestrator-mcp`** at bind time (Option A). The orchestrator exposes a single `tools/list` + `call_tool` + `resources/list` + `resources/read` plane that merges:
 
 1. **Static catalog tools** from `contracts/operations/catalog.v1.yaml` → `vox_mcp_registry::TOOL_REGISTRY`
 2. **Federated workspace tools/resources** from `WorkspaceMcpLoader` scanning globs in `contracts/mcp/workspace-mcp-surface.v1.yaml`
 3. **Skill macro tools** from installed skills (`vox_skill_*` tier-2)
 4. **Skill SEP-2640 resources** (`skill://index.json`, `skill://{id}/SKILL.md`)
 
-Per-crate generated stdio MCP servers (`emit_mcp_server` in `vox-codegen`) remain for **embedded app binaries** only; agents attached to the repo should use **`vox-mcp`** as the single orchestrator surface.
+Per-crate generated stdio MCP servers (`emit_mcp_server` in `vox-codegen`) remain for **embedded app binaries** only; agents attached to the repo should use **`vox-orchestrator-mcp`** as the single orchestrator surface.
 
 ## Federation flow
 

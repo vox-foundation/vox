@@ -9,9 +9,9 @@ schema_type: "TechArticle"
 
 # Speech-to-code pipeline
 
-End-to-end flow: **audio or transcript** → **Oratio** (`vox-oratio`, optional peak normalize + contextual phrase rerank) → optional **routing intents** (token-aware classifier) → **MCP** tools (**`vox_speech_to_code`** orchestrates transcribe + `vox_generate_code`; or use `vox_oratio_*` + `vox_generate_code` separately; `validate_file` for explicit checks) → **full frontend validation** (including **HIR**) via `vox_lsp::validate_document_with_hir` → **MENS** training data (`asr_refine`, `speech_to_code` mix formats).
+End-to-end flow: **audio or transcript** → **Oratio** (`vox-speech`, optional peak normalize + contextual phrase rerank) → optional **routing intents** (token-aware classifier) → **MCP** tools (**`vox_speech_to_code`** orchestrates transcribe + `vox_generate_code`; or use `vox_oratio_*` + `vox_generate_code` separately; `validate_file` for explicit checks) → **full frontend validation** (including **HIR**) via `vox_lsp::validate_document_with_hir` → **MENS** training data (`asr_refine`, `speech_to_code` mix formats).
 
-**Ingress:** HTTP **`vox-audio-ingress`** (`/api/audio/transcribe` JSON path body, `/api/audio/transcribe/upload` multipart) plus edge capture doc: [`speech-capture-architecture.md`](speech-capture-architecture.md).
+**Ingress:** HTTP **`vox-speech`** (`/api/audio/transcribe` JSON path body, `/api/audio/transcribe/upload` multipart) plus edge capture doc: [`speech-capture-architecture.md`](speech-capture-architecture.md).
 
 ### Failure-oriented notes
 

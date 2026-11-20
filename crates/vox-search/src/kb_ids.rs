@@ -95,24 +95,24 @@ impl KbCorpusManifest {
     #[must_use]
     pub fn discover_for_repo_with_id(repo_root: &Path, repository_id: impl Into<String>) -> Self {
         let mut root_dirs = Vec::new();
-        for dir in ["docs/src", "docs/wiki", "docs"] {
-            if repo_root.join(dir).is_dir() {
-                root_dirs.push(dir.to_string());
-            }
-        }
+        let tier = if repo_root.join("docs/src").is_dir() {
+            root_dirs.push("docs/src".to_string());
+            CorpusTier::DocsSrc
+        } else if repo_root.join("docs/wiki").is_dir() {
+            root_dirs.push("docs/wiki".to_string());
+            CorpusTier::Wiki
+        } else if repo_root.join("docs").is_dir() {
+            root_dirs.push("docs".to_string());
+            CorpusTier::RootDocs
+        } else {
+            CorpusTier::RootDocs
+        };
         let mut root_files = Vec::new();
         for file in DEFAULT_ROOT_DOC_CANDIDATES {
             if repo_root.join(file).is_file() {
                 root_files.push((*file).to_string());
             }
         }
-        let tier = if repo_root.join("docs/src").is_dir() {
-            CorpusTier::DocsSrc
-        } else if repo_root.join("docs/wiki").is_dir() {
-            CorpusTier::Wiki
-        } else {
-            CorpusTier::RootDocs
-        };
         Self {
             repository_id: repository_id.into(),
             tier,
@@ -148,6 +148,9 @@ impl KbCorpusManifest {
                 }
             }
             CorpusTier::RootDocs => {
+                if repo_root.join("docs").is_dir() && !repo_root.join("docs/src").is_dir() {
+                    root_dirs.push("docs".to_string());
+                }
                 for file in DEFAULT_ROOT_DOC_CANDIDATES {
                     if repo_root.join(file).is_file() {
                         root_files.push((*file).to_string());
@@ -584,5 +587,44 @@ mod tests {
                 ("Guide › Install", 2, "## Install\nbody\n"),
             ]
         );
+    }
+
+    #[test]
+    fn discover_for_repo_exclusive_precedence_and_external_docs() {
+        let base = std::env::temp_dir().join(format!("vox-kb-ids-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+
+        // 1. Both docs/src and docs/ -> exclusive docs/src (never double-walks docs/)
+        let repo_both = base.join("both");
+        std::fs::create_dir_all(repo_both.join("docs/src")).unwrap();
+        std::fs::create_dir_all(repo_both.join("docs/superpowers")).unwrap();
+        std::fs::write(repo_both.join("README.md"), "# R\n").unwrap();
+        let m_both = KbCorpusManifest::discover_for_repo_with_id(&repo_both, "both-id");
+        assert_eq!(m_both.root_dirs, vec!["docs/src".to_string()]);
+        assert_eq!(m_both.tier, CorpusTier::DocsSrc);
+        assert!(m_both.includes_rel_path("docs/src/a.md"));
+        assert!(!m_both.includes_rel_path("docs/superpowers/plan.md"));
+
+        // 2. External repo with docs/ (no docs/src/) -> docs/ + root_files under RootDocs
+        let repo_ext = base.join("ext");
+        std::fs::create_dir_all(repo_ext.join("docs")).unwrap();
+        std::fs::write(repo_ext.join("README.md"), "# Ext\n").unwrap();
+        let m_ext = KbCorpusManifest::discover_for_repo_with_id(&repo_ext, "ext-id");
+        assert_eq!(m_ext.root_dirs, vec!["docs".to_string()]);
+        assert_eq!(m_ext.root_files, vec!["README.md".to_string()]);
+        assert_eq!(m_ext.tier, CorpusTier::RootDocs);
+        assert!(m_ext.includes_rel_path("docs/guide.md"));
+        assert!(m_ext.includes_rel_path("README.md"));
+
+        // 3. External repo with only root Markdown -> empty root_dirs, populated root_files
+        let repo_root_only = base.join("root-only");
+        std::fs::create_dir_all(&repo_root_only).unwrap();
+        std::fs::write(repo_root_only.join("README.md"), "# Root\n").unwrap();
+        let m_root = KbCorpusManifest::discover_for_repo_with_id(&repo_root_only, "root-id");
+        assert!(m_root.root_dirs.is_empty());
+        assert_eq!(m_root.root_files, vec!["README.md".to_string()]);
+        assert_eq!(m_root.tier, CorpusTier::RootDocs);
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

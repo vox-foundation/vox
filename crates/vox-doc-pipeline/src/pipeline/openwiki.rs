@@ -11,16 +11,17 @@ use crate::pipeline::openwiki_symbols::render_subsystem_index_markdown;
 
 pub use crate::pipeline::openwiki_heal::{
     BlastRadiusReport, ImpactedDocTarget, Tier1HealReport, Tier2GateReport,
-    Tier2ProseHealCandidate, apply_heal_patch_to_file, demote_doc_to_legacy,
-    heal_tier1_deterministic, render_unified_diff, repair_shifted_line_anchors_in_markdown,
-    resolve_blast_radius, synthesize_grounded_prose_patch, verify_tier2_candidate_four_gates,
+    Tier2ProseHealCandidate, apply_heal_patch_to_file, apply_retired_symbol_fixes,
+    demote_doc_to_legacy, heal_tier1_deterministic, plan_retired_symbol_fixes, render_unified_diff,
+    repair_shifted_line_anchors_in_markdown, resolve_blast_radius, synthesize_grounded_prose_patch,
+    synthesize_line_scoped_fix, verify_tier2_candidate_four_gates,
 };
 pub use crate::pipeline::openwiki_polyglot::{
     OpenWikiBuildReport, OpenWikiDiffReport, OpenWikiPageDiff, OpenWikiPageSpec,
     OpenWikiPageStatus, OpenWikiStatusReport, PolyglotModuleRecord, PolyglotSymbolAnchor,
     PolyglotWikiSnapshot, extract_openwiki_auto_regions, extract_polyglot_wiki_snapshot,
-    merge_openwiki_auto_regions, openwiki_build, openwiki_diff, openwiki_init, openwiki_status,
-    render_polyglot_openwiki_pages,
+    merge_openwiki_auto_regions, openwiki_build, openwiki_diff, openwiki_init, openwiki_pages_dir,
+    openwiki_pages_rel, openwiki_status, render_polyglot_openwiki_pages,
 };
 
 /// Canonical subsystem layer descriptor (`L0..L5`) from `docs/src/architecture/layers.toml` (`WIKI-01`).

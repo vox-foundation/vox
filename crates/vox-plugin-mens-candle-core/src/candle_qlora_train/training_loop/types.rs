@@ -29,6 +29,18 @@ pub enum TryEncodeOutcome {
     SkipShortSeq,
 }
 
+/// Result of chunked `lm_head` + cross-entropy forward/backward under detached boundaries.
+///
+/// Computing and backpropagating `lm_head` one 256-row chunk at a time avoids
+/// retaining `[seq_len, vocab]` logits/autograd buffers for `248,320`-vocab models.
+pub struct DetachedHeadBackward {
+    /// Accumulated gradients for trainable `lm_head` Vars (or empty `GradStore` when `lm_head` is frozen).
+    pub head_grads: Option<candle_core::backprop::GradStore>,
+    /// Cotangent `dL/d(final_hidden)` of shape `[batch, seq_len, d_model]`, already scaled by
+    /// `effective_sample_weight / (mask_sum * grad_accum_steps)`.
+    pub d_final_hidden: candle_core::Tensor,
+}
+
 pub enum MaskedCeForward<Seg> {
     NoSupervision,
     NonFinite {
@@ -36,11 +48,12 @@ pub enum MaskedCeForward<Seg> {
         mask_sum: f32,
     },
     Finite {
-        loss: candle_core::Tensor,
+        loss: Option<candle_core::Tensor>,
         loss_scalar: f32,
         supervised_tokens: u64,
         theoretical_tokens: u64,
         syntax_weight_sum: f32,
         segments: Option<Vec<Seg>>,
+        detached_head: Option<DetachedHeadBackward>,
     },
 }

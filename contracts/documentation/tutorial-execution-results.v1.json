@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "generated_by": "scripts/docs/tutorial-test-runner.vox",
-  "executed_at_commit": "8ad718f705575b5dc50ee84380ed0bb521b79348",
+  "executed_at_commit": "c2edb14aee6bba41c4bee98005be01cf1f968290",
   "tutorials": [
     {
       "slug": "tut-first-app",

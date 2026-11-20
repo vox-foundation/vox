@@ -102,6 +102,7 @@ pub fn preflight_masked_ce_finite(
                 enc.sample_weight,
                 None,
                 config,
+                super::forward::HeadCeMode::NoGradPreflight,
                 device,
             )
         })?;
@@ -191,68 +192,23 @@ pub fn run_validation_pass(
                 config.seq_len,
             );
             if ids.len() >= 2 {
-                let step_loss = candle_core::with_no_grad(|| -> Option<f32> {
-                    let prompt_len = prefix_len.saturating_sub(trunc_offset);
-                    let ids_len = ids.len();
-                    let ce_last_k = if config.qlora_ce_last_k == 0 {
-                        ids_len
-                    } else {
-                        config.qlora_ce_last_k
-                    };
-                    let last_k_start = ids_len.saturating_sub(ce_last_k);
-                    let mask_vec: Vec<f32> = (0..ids_len - 1)
-                        .map(|i| {
-                            let target_idx = i + 1;
-                            if target_idx >= prompt_len && target_idx >= last_k_start {
-                                1.0f32
-                            } else {
-                                0.0
-                            }
-                        })
-                        .collect();
-                    let mask_sum_cpu: f32 = mask_vec.iter().copied().sum();
-                    if mask_sum_cpu <= 0.0 || !mask_sum_cpu.is_finite() {
-                        return None;
-                    }
-                    let input_ids = candle_core::Tensor::new(&ids[..ids.len() - 1], device)
-                        .and_then(|t| t.unsqueeze(0))
-                        .ok()?;
-                    let targets = candle_core::Tensor::new(&ids[1..], device)
-                        .and_then(|t| t.unsqueeze(0))
-                        .ok()?;
-                    let logits = model.forward(&input_ids).ok()?.flatten_to(1).ok()?;
-                    let targets_flat = targets.flatten_all().ok()?;
-                    let mask = candle_core::Tensor::from_vec(mask_vec, ids_len - 1, device).ok()?;
-                    let log_sm = candle_nn::ops::log_softmax(&logits, 1).ok()?;
-                    let tgt_uns = targets_flat.unsqueeze(1).ok()?;
-                    let logprobs = log_sm
-                        .gather(&tgt_uns, 1)
-                        .and_then(|t| t.flatten_all())
-                        .ok()?;
-                    let loss = logprobs
-                        .broadcast_mul(&mask)
-                        .and_then(|m| m.sum_all())
-                        .and_then(|sum_m| {
-                            sum_m.broadcast_div(&mask.sum_all().unwrap_or_else(|_| {
-                                candle_core::Tensor::new(1f32, device).unwrap()
-                            }))
-                        })
-                        .ok()?;
-                    match loss.rank() {
-                        0 => loss.to_scalar::<f32>().ok(),
-                        1 => loss.dim(0).ok().and_then(|d0| {
-                            if d0 == 1 {
-                                loss.squeeze(0).ok()?.to_scalar::<f32>().ok()
-                            } else {
-                                None
-                            }
-                        }),
-                        _ => None,
-                    }
-                });
+                let step_loss = candle_core::with_no_grad(|| {
+                    super::forward::forward_masked_ce(
+                        model,
+                        &ids,
+                        prefix_len,
+                        trunc_offset,
+                        1.0,
+                        None,
+                        config,
+                        super::forward::HeadCeMode::NoGradPreflight,
+                        device,
+                    )
+                })
+                .ok();
                 let _ = device.synchronize();
-                if let Some(loss_val) = step_loss {
-                    val_loss_sum += -loss_val as f64;
+                if let Some(MaskedCeForward::Finite { loss_scalar, .. }) = step_loss {
+                    val_loss_sum += loss_scalar as f64;
                     val_steps += 1;
                 }
             }

@@ -29,6 +29,8 @@ pub(crate) struct PreparedBench {
     pub(crate) context_files: Vec<String>,
     pub(crate) prompt: String,
     pub(crate) semantic_expected_contains: Vec<String>,
+    /// Optional oracle-only Vox test harness executed after compiling a candidate.
+    pub(crate) test_harness: Option<String>,
 }
 
 /// Sort prompts lexicographically so consecutive inferences share common prefixes (KV / prefix-cache friendly).
@@ -40,6 +42,7 @@ pub(crate) fn sort_prepared_benches_lexicographic(prepared: &mut [PreparedBench]
     });
 }
 
+#[cfg(test)]
 pub(crate) fn prepare_bench_item(
     bench: &Path,
     manifest_index: usize,
@@ -158,6 +161,12 @@ pub(crate) fn prepare_bench_item_for_model(
         })
         .unwrap_or_default();
 
+    let test_harness: Option<String> = bench_item["test_harness"]
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+
     PreparedBench {
         manifest_index,
         id,
@@ -167,6 +176,7 @@ pub(crate) fn prepare_bench_item_for_model(
         context_files,
         prompt,
         semantic_expected_contains,
+        test_harness,
     }
 }
 
@@ -351,5 +361,26 @@ mod tests {
     #[test]
     fn the_heldout_budget_fits_a_full_answer() {
         assert_eq!(super::HELDOUT_MAX_TOKENS, 1024);
+    }
+
+    #[test]
+    fn prepared_bench_extracts_test_harness_without_leaking_into_prompt() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let item = json!({
+            "id": "fn_add_h",
+            "category": "function",
+            "description": "Write fn add(a: int, b: int) to int.",
+            "semantic_expected_contains": ["fn add"],
+            "test_harness": "fn __vox_eval_harness() to str { assert(add(1, 2) == 3)\n return \"ok\" }"
+        });
+        let p =
+            super::prepare_bench_item_for_model(dir.path(), 0, &item, Some("Qwen/Qwen3.5-0.8B"));
+        assert!(
+            p.test_harness
+                .as_deref()
+                .is_some_and(|h| h.contains("__vox_eval_harness"))
+        );
+        assert!(!p.prompt.contains("__vox_eval_harness"));
+        assert!(!p.prompt.contains("assert(add(1, 2) == 3)"));
     }
 }

@@ -68,7 +68,7 @@ Vox separates durable shared engineering standards from repo-specific architectu
 |---|---|---|---|
 | **Layer 1: Vox Baseline Canon** | `docs/src/` (canonical Vox canon) | Built-in / read-only baseline | Language grammar, durable workflows, `VoxDb`, MCP contracts, governance ADRs |
 | **Layer 2: Global Library** | `~/.vox/library/` | User-global across every repo | Cross-project playbooks, promoted findings, reusable checklists &amp; standards |
-| **Layer 3: Repo-Local Wiki** | `docs/wiki/` + `.vox/cache/` (or `--read-only` `~/.vox/repos/<id>/`) | Tracked Markdown + gitignored shards | Repo OpenWiki 5-layer hubs, local architecture decisions, symbol citations |
+| **Layer 3: Repo-Local Wiki** | the repo's docs root (`docs/src/` on Vox, else `docs/wiki/` if present, else `docs/`) + `.vox/cache/` (or `--read-only` `~/.vox/repos/<id>/`) | Tracked Markdown + gitignored shards | Repo OpenWiki 5-layer hubs, local architecture decisions, symbol citations |
 
 <Aside type="note" title="Zero-Footprint Read-Only Onboarding">
   Need to search, map, and generate an OpenWiki for an upstream third-party repository without writing `.vox/` or `docs/wiki/` files into its checkout? Pass `--read-only` when initializing or adding it — all indexes and OpenWiki caches stay isolated under `~/.vox/repos/<id>/`.
@@ -176,7 +176,7 @@ Vox separates durable shared engineering standards from repo-specific architectu
    Run OpenWiki generation to synthesize five structured system layers for your codebase — covering module architecture, CLI/HTTP/MCP/API interfaces, SQL/VoxDb data models, GUI surfaces, and workflows/runbooks — complete with validated `vox-diagram` topologies:
 
    ```bash
-   # Preview or initialize docs/wiki/ structure + .vox/cache/openwiki/manifest.v1.json
+   # Preview or initialize the OpenWiki pages in the repo's docs root (docs/src/openwiki/ on Vox) + .vox/cache/openwiki/manifest.v1.json
    vox ci wiki-sync --polyglot --init
 
    # Write/refresh all 5 OpenWiki layers deterministically

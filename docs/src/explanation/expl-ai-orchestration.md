@@ -22,11 +22,11 @@ Vox was built from the ground up to blur the lines between traditional applicati
 
 The Model Context Protocol establishes a standard way for AI assistants (like Claude Desktop, Cursor, or your own models) -> safely discover and interact with local data sources and tools.
 
-Vox seamlessly generates MCP servers from workspace logic and federates `tool` declarations into the shipped `vox-mcp` orchestrator surface. See [MCP and Vox language exposure](../architecture/mcp-vox-language-exposure.md) for federation, collision rules, and parity gates.
+Vox seamlessly generates MCP servers from workspace logic and federates `tool` declarations into the shipped `vox-orchestrator-mcp` orchestrator surface. See [MCP and Vox language exposure](../architecture/mcp-vox-language-exposure.md) for federation, collision rules, and parity gates.
 
 ### `tool` (Keyword)
 
-The bare `tool` keyword tells the Vox compiler to expose a function on the workspace MCP surface. At orchestrator bind time, `WorkspaceMcpLoader` scans configured `.vox` globs, merges `AppContractModule.mcp_tools` into `vox-mcp` `tools/list`, and dispatches calls through the interpreter bridge.
+The bare `tool` keyword tells the Vox compiler to expose a function on the workspace MCP surface. At orchestrator bind time, `WorkspaceMcpLoader` scans configured `.vox` globs, merges `AppContractModule.mcp_tools` into `vox-orchestrator-mcp` `tools/list`, and dispatches calls through the interpreter bridge.
 
 ```vox
 tool "Calculate the shipping cost including surge pricing" calculate_shipping(weight: float, zip_code: str) to float {

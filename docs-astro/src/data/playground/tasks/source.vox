@@ -1,0 +1,25 @@
+table Task {
+    title: str
+    done:  bool
+}
+
+query get_tasks() to int {
+    return len(db.Task.all())
+}
+
+tool "Done" complete_task(id: Id[Task]) to Result[str] {
+    db.Task.delete(id)?
+    return Ok("done")
+}
+
+component TaskBoard() {
+    view: column(raw_class="task-card") {
+        heading(level=3) { "Active Tasks" }
+        text() { "Typed task board with Result[T]" }
+    }
+}
+
+fn main() {
+    let open = get_tasks()
+    print("Open tasks: " + str(open))
+}

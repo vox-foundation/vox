@@ -27,7 +27,7 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 
 | Tier | Train | Infer | Mens node | Notes |
 |------|--------|--------|-----------|--------|
-| **Workstation** | `vox mens train` (Burn / Candle) | `vox mens serve`, Ollama, cloud OpenAI-compatible | Yes (`vox-mcp`, `vox run`, `vox populi`) | Default SSOT paths. |
+| **Workstation** | `vox mens train` (Burn / Candle) | `vox mens serve`, Ollama, cloud OpenAI-compatible | Yes (`vox-orchestrator-mcp`, `vox run`, `vox populi`) | Default SSOT paths. |
 | **Mobile native** | **Off-device** (`mobile_edge` contract / preset) | LiteRT-LM, Core ML, vendor SDKs | Yes — HTTP control plane + [`NodeRecord`](../../../crates/vox-populi/src/lib.rs) | Register capabilities from the app; see mens env vars below. |
 | **Browser** | Off-device | WebGPU + WASM (when available) | Optional (HTTP client to mens) | Browser WASM is not Vox script isolation (the interpreter is the sandbox; see [ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). |
 
@@ -89,7 +89,7 @@ Further context: [HF finetune capability matrix](../archive/research-2026-q1/hf-
 
 Desktop MCP and CLI default to a **local Ollama** URL for **workstation** use only. Mobile apps should set an explicit profile (environment) so routing does not assume `localhost:11434`.
 
-**`vox-mcp` HTTP inference:** local Ollama calls and cloud→Ollama fallback are enabled only when the profile is **`desktop_ollama`** or **`lan_gateway`**. Other profiles skip Ollama probes and reject `ProviderType::Ollama` with a clear error unless you switch profile or model.
+**`vox-orchestrator-mcp` HTTP inference:** local Ollama calls and cloud→Ollama fallback are enabled only when the profile is **`desktop_ollama`** or **`lan_gateway`**. Other profiles skip Ollama probes and reject `ProviderType::Ollama` with a clear error unless you switch profile or model.
 
 | Profile | Meaning |
 |---------|---------|

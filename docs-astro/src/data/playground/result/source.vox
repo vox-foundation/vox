@@ -1,0 +1,21 @@
+table ServiceEndpoint {
+    host: str
+    port: int
+}
+
+query parse_port(raw: int) to Result[int] {
+    if raw < 1024 {
+        return Error("Port must be >= 1024 (got " + str(raw) + ")")
+    }
+    return Ok(raw)
+}
+
+component PortStatus() {
+    view: text() { "Listening on :8080 (Verified)" }
+}
+
+fn main() to Result[str] {
+    let port = parse_port(8080)?
+    print("Listening on port: " + str(port))
+    return Ok("healthy")
+}

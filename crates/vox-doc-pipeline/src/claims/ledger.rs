@@ -248,15 +248,14 @@ pub fn generate_freshness_ledger(
         let (title, category, status, owner, review_cadence, fm_anchors) =
             parse_frontmatter_anchors(&content);
 
-        let is_historical_page = status == "archived"
-            || status == "deprecated"
-            || status == "legacy"
-            || category == "archive"
+        let is_historical_page = matches!(
+            status.as_str(),
+            "archived" | "deprecated" | "legacy" | "superseded" | "research" | "roadmap"
+        ) || category == "archive"
             || rel_path.contains("/archive/");
-        let is_prescriptive_reader_page = super::gate::is_reader_facing_page(&rel_path)
+        let is_active_current_page = !is_historical_page
             && status == "current"
-            && !rel_path.ends_with(".generated.md")
-            && !rel_path.ends_with("/changelog.md");
+            && super::gate::is_active_corpus_page(&rel_path);
 
         let mut anchors = Vec::new();
         let mut broken_mentions = Vec::new();
@@ -276,7 +275,7 @@ pub fn generate_freshness_ledger(
             };
 
             if is_broken {
-                if is_prescriptive_reader_page {
+                if is_active_current_page {
                     broken_mentions.push(anchor_target.clone());
                 }
                 continue;
@@ -305,7 +304,7 @@ pub fn generate_freshness_ledger(
             let resolution = registry.resolve_mention(&mention);
             match resolution.status {
                 ResolutionStatus::Missing | ResolutionStatus::Retired => {
-                    if resolution.is_actionable_deficit() && is_prescriptive_reader_page {
+                    if resolution.is_actionable_deficit() && is_active_current_page {
                         broken_mentions.push(mention.raw_text.clone());
                     }
                 }

@@ -532,9 +532,12 @@ async fn kb_resources_and_tools_via_daemon() {
         .await
         .unwrap();
 
-    let state = ServerState::new_full(load_config())
+    let mut state = ServerState::new_full(load_config())
         .with_db_initialized(db)
         .await;
+    // `vox_kb_search` scopes the index to `state.repository.root`; point it at the temp corpus
+    // so it does not auto-index (and then search) the checkout the test runs in.
+    state.repository.root = repo.clone();
     let orch = state.orchestrator.clone();
     let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

@@ -72,6 +72,9 @@ impl BaselineFile {
     }
 }
 
+/// Shrink-only deficit ratchet covering active non-reader-facing docs and root guides.
+pub type CorpusRatchetFile = BaselineFile;
+
 /// Check if a page path is reader-facing (tutorials, reference, how-to, explanation, concepts).
 /// Excludes machine-generated reference pages (`*.generated.md`) and historical changelogs (`/changelog.md`).
 pub fn is_reader_facing_page(page_path: &str) -> bool {
@@ -86,6 +89,30 @@ pub fn is_reader_facing_page(page_path: &str) -> bool {
         || norm.contains("/concepts/")
 }
 
+/// Check if a page path belongs to the active maintained documentation corpus
+/// (`docs/src/` non-archive/non-generated Markdown plus root `README.md` and `AGENTS.md`).
+pub fn is_active_corpus_page(page_path: &str) -> bool {
+    let norm = page_path.replace('\\', "/");
+    if norm == "README.md" || norm == "AGENTS.md" {
+        return true;
+    }
+    if !norm.starts_with("docs/src/") && !norm.contains("/docs/src/") {
+        return false;
+    }
+    if !(norm.ends_with(".md") || norm.ends_with(".mdx")) {
+        return false;
+    }
+    if norm.ends_with(".generated.md")
+        || norm.ends_with("/changelog.md")
+        || norm.contains("/archive/")
+        || norm.contains(".planning/")
+        || norm.contains("docs/superpowers/")
+    {
+        return false;
+    }
+    true
+}
+
 #[derive(Debug, Clone)]
 pub struct DriftGateResult {
     pub passed: bool,
@@ -95,34 +122,31 @@ pub struct DriftGateResult {
     pub resolved_baselined_count: usize,
 }
 
-/// Evaluate the tighten-only drift gate.
-/// Rules:
-/// 1. Only blocks merges for defects on reader-facing `status: current` documents.
-/// 2. Deficits already present in `baseline.v1.json` are permitted (grandfathered).
-/// 3. Deficits covered by active unexpired suppressions are permitted.
-/// 4. Any NEW unsuppressed deficit fails the gate.
-/// 5. Any expired suppression fails the gate.
-pub fn evaluate_drift_gate(
+fn evaluate_scoped_gate<F>(
     findings: &[RealityAuditFinding],
+    page_in_scope: F,
     baseline: &BaselineFile,
+    ratchet: Option<&CorpusRatchetFile>,
     suppressions: &SuppressionsFile,
     today: NaiveDate,
-) -> DriftGateResult {
+) -> DriftGateResult
+where
+    F: Fn(&str) -> bool,
+{
     let mut new_deficits = Vec::new();
     let mut active_baselined_count = 0;
 
     let suppression_errors = suppressions.validate(today).err().unwrap_or_default();
 
     for f in findings {
-        let is_reader_facing = f.doc_paths.iter().any(|p| is_reader_facing_page(p));
-        if !is_reader_facing {
-            // Internals, architecture, archive pages are report-only and do not block
+        if !f.doc_paths.iter().any(|p| page_in_scope(p)) {
             continue;
         }
 
         let fp = f.fingerprint.as_deref().unwrap_or(&f.id);
-        // Check if grandfathered in baseline
-        if baseline.contains_deficit(fp, &f.doc_paths, &f.claim_ids) {
+        let is_baselined = baseline.contains_deficit(fp, &f.doc_paths, &f.claim_ids)
+            || ratchet.is_some_and(|r| r.contains_deficit(fp, &f.doc_paths, &f.claim_ids));
+        if is_baselined {
             active_baselined_count += 1;
             continue;
         }
@@ -152,9 +176,12 @@ pub fn evaluate_drift_gate(
         .iter()
         .map(|f| f.fingerprint.clone().unwrap_or_else(|| f.id.clone()))
         .collect();
-    let resolved_baselined_count = baseline
-        .deficits
-        .iter()
+    let mut tracked_deficits: Vec<&GrandfatheredDeficit> = baseline.deficits.iter().collect();
+    if let Some(r) = ratchet {
+        tracked_deficits.extend(r.deficits.iter());
+    }
+    let resolved_baselined_count = tracked_deficits
+        .into_iter()
         .filter(|d| !active_fps.contains(&d.fingerprint))
         .count();
 
@@ -167,6 +194,48 @@ pub fn evaluate_drift_gate(
         active_baselined_count,
         resolved_baselined_count,
     }
+}
+
+/// Evaluate the tighten-only drift gate for reader-facing pages.
+/// Rules:
+/// 1. Only blocks merges for defects on reader-facing `status: current` documents.
+/// 2. Deficits already present in `baseline.v1.json` are permitted (grandfathered).
+/// 3. Deficits covered by active unexpired suppressions are permitted.
+/// 4. Any NEW unsuppressed deficit fails the gate.
+/// 5. Any expired suppression fails the gate.
+pub fn evaluate_drift_gate(
+    findings: &[RealityAuditFinding],
+    baseline: &BaselineFile,
+    suppressions: &SuppressionsFile,
+    today: NaiveDate,
+) -> DriftGateResult {
+    evaluate_scoped_gate(
+        findings,
+        is_reader_facing_page,
+        baseline,
+        None,
+        suppressions,
+        today,
+    )
+}
+
+/// Evaluate the expanded tighten-only ratchet gate across all active documentation pages
+/// (`docs/src/` non-archive/non-generated Markdown plus `README.md` and `AGENTS.md`).
+pub fn evaluate_corpus_ratchet(
+    findings: &[RealityAuditFinding],
+    baseline: &BaselineFile,
+    ratchet: &CorpusRatchetFile,
+    suppressions: &SuppressionsFile,
+    today: NaiveDate,
+) -> DriftGateResult {
+    evaluate_scoped_gate(
+        findings,
+        is_active_corpus_page,
+        baseline,
+        Some(ratchet),
+        suppressions,
+        today,
+    )
 }
 
 #[cfg(test)]
@@ -311,5 +380,75 @@ mod tests {
         assert!(res.passed);
         assert_eq!(res.new_deficits.len(), 0);
         assert_eq!(res.active_baselined_count, 1);
+    }
+
+    #[test]
+    fn corpus_ratchet_gates_active_non_reader_pages() {
+        assert!(is_active_corpus_page("docs/src/architecture/foo.md"));
+        assert!(is_active_corpus_page("docs/src/adr/001.md"));
+        assert!(is_active_corpus_page("README.md"));
+        assert!(is_active_corpus_page("AGENTS.md"));
+        assert!(!is_active_corpus_page("docs/src/archive/old.md"));
+        assert!(!is_active_corpus_page(
+            "docs/src/reference/env-vars.generated.md"
+        ));
+        assert!(!is_active_corpus_page("docs/src/reference/changelog.md"));
+
+        let today = NaiveDate::from_ymd_opt(2026, 11, 19).unwrap();
+        let baseline = BaselineFile {
+            schema_version: 1,
+            generated_at: "2026-11-19T00:00:00Z".to_string(),
+            deficits: Vec::new(),
+        };
+        let ratcheted_finding = sample_finding(
+            "doc-deficit-1001",
+            "fp-arch-old",
+            "docs/src/architecture/legacy-map.md",
+            "vox-arca",
+        );
+        let new_arch_finding = sample_finding(
+            "doc-deficit-1002",
+            "fp-arch-new",
+            "docs/src/architecture/foo.md",
+            "vox audit docs-reality",
+        );
+        let mut ratchet = CorpusRatchetFile {
+            schema_version: 1,
+            generated_at: "2026-11-19T00:00:00Z".to_string(),
+            deficits: vec![GrandfatheredDeficit {
+                fingerprint: "fp-arch-old".to_string(),
+                page_path: "docs/src/architecture/legacy-map.md".to_string(),
+                raw_text: "vox-arca".to_string(),
+            }],
+        };
+        let suppressions = SuppressionsFile {
+            schema_version: 1,
+            suppressions: Vec::new(),
+        };
+
+        let res_ok = evaluate_corpus_ratchet(
+            std::slice::from_ref(&ratcheted_finding),
+            &baseline,
+            &ratchet,
+            &suppressions,
+            today,
+        );
+        assert!(res_ok.passed);
+        assert!(res_ok.new_deficits.is_empty());
+
+        let res_fail = evaluate_corpus_ratchet(
+            &[ratcheted_finding, new_arch_finding],
+            &baseline,
+            &ratchet,
+            &suppressions,
+            today,
+        );
+        assert!(!res_fail.passed);
+        assert_eq!(res_fail.new_deficits.len(), 1);
+
+        let mut active_fps = HashSet::new();
+        active_fps.insert("fp-arch-new".to_string());
+        assert_eq!(ratchet.tighten(&active_fps), 1);
+        assert!(ratchet.deficits.is_empty());
     }
 }

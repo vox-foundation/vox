@@ -38,7 +38,7 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 
 ## Axum JSON error envelope (API handlers)
 
-Normative shape: [Wire Format v1 SSOT §6](../architecture/wire-format-v1-ssot.md#6-error-envelope) — `{ ok: false, code, message, request_id?, details? }`, implemented in **`vox-http-envelope`** and emitted from generated Axum handlers for serialization failures, query decode failures, and mutation DB errors where applicable.
+Normative shape: [Wire Format v1 SSOT §6](../architecture/wire-format-v1-ssot.md#6-error-envelope) — `{ ok: false, code, message, request_id?, details? }`, implemented in **`vox-http-client`** and emitted from generated Axum handlers for serialization failures, query decode failures, and mutation DB errors where applicable.
 
 Legacy paths may still return ad hoc JSON on some branches; prefer the envelope for new handlers and uniform client parsing (`vox-client.ts` error bodies).
 

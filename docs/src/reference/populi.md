@@ -44,7 +44,7 @@ Optional future work: correlate mesh task outcomes with Ludus `remote_task_*`-st
 | `VOX_MESH_SCOPE_ID` | Opaque cluster / tenancy id. When set on **`vox populi serve`**, **`POST /v1/populi/join`** and **`POST /v1/populi/heartbeat`** require the JSON [`NodeRecord`](../../../crates/vox-populi/src/lib.rs) `scope_id` field to match. Clients pick it up from the same env when building records via **`node_record_for_current_process`**. Use the **same** value for every process that should share a mens; omit for backward-compatible local-only dev. |
 | `VOX_MESH_CODEX_TELEMETRY` | When `1` / `true`, append Codex `populi_control_event` rows (see [orchestration unified SSOT](orchestration-unified.md)). |
 | `VOX_MESH_MAX_STALE_MS` | Optional client-side staleness threshold (e.g. MCP mens snapshots); compare with `last_seen_unix_ms` from the control plane (see [orchestration unified SSOT](orchestration-unified.md)). |
-| `VOX_MESH_HTTP_JOIN` | When `0` / `false`, skip MCP **`vox-mcp`** HTTP **`POST /v1/populi/join`** even if a client-suitable control URL is set. Default: join when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all `http(s)://` base. |
+| `VOX_MESH_HTTP_JOIN` | When `0` / `false`, skip MCP **`vox-orchestrator-mcp`** HTTP **`POST /v1/populi/join`** even if a client-suitable control URL is set. Default: join when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all `http(s)://` base. |
 | `VOX_MESH_HTTP_HEARTBEAT_SECS` | Interval for MCP background **`POST /v1/populi/heartbeat`** after a successful join (`0` = join only, no loop). Default **30**. Uses **`VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS`** (min 500ms, default **15000**) for request timeouts. |
 | `VOX_MESH_HTTP_MAX_BODY_BYTES` | Optional cap on JSON request bodies for the HTTP control plane (allowed range per process **2 KiB … 8 MiB**; default **512 KiB**). Oversized bodies get **413 Payload Too Large**. |
 | `VOX_MESH_SERVER_STALE_PRUNE_MS` | Optional server-side filter for **`GET /v1/populi/nodes`**: omit nodes whose `last_seen_unix_ms` is older than this many milliseconds vs server wall clock. `0` / unset = list full registry (backward compatible). |
@@ -122,7 +122,7 @@ There is no in-tree gossip TTL yet: treat **`last_seen_unix_ms`** as a hint only
 
 ### Orchestrator federation (read-only) + experimental routing
 
-When **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** (or TOML `[orchestrator].populi_control_url` / `[mens].control_url`) is set, **`vox-mcp`** polls **`GET /v1/populi/nodes`** on an interval and exposes a cached snapshot on orchestrator status tools. This path is **visibility only** and does **not** execute tasks on remote nodes.
+When **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** (or TOML `[orchestrator].populi_control_url` / `[mens].control_url`) is set, **`vox-orchestrator-mcp`** polls **`GET /v1/populi/nodes`** on an interval and exposes a cached snapshot on orchestrator status tools. This path is **visibility only** and does **not** execute tasks on remote nodes.
 
 **Experimental:** `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL=1` enables extra **in-process** scoring / tracing in `RoutingService` using cached remote labels (still **no remote execute**). Treat as **best-effort**; may be removed or replaced in a breaking release.
 
@@ -161,20 +161,20 @@ For **multi-node** pools, align **`VOX_MESH_LABELS`**, **`[mens].labels`**, and 
 
 ## Codegen (Rust servers)
 
-`vox-codegen-rust` **does not** open mens listeners or set federation URLs; mens remains **worker / operator env** (`VOX_MESH_*`, `Vox.toml` `[mens]`) when processes should register or call the control plane.
+`vox-codegen` **does not** open mens listeners or set federation URLs; mens remains **worker / operator env** (`VOX_MESH_*`, `Vox.toml` `[mens]`) when processes should register or call the control plane.
 
 ## CLI / MCP
 
 - **`vox populi status` / `vox populi serve`** — [`cli.md`](cli.md), feature **`populi`**.
 - **`vox_populi_local_status`** (MCP) — returns env + registry JSON.
-- **`vox-mcp` process** — when **`VOX_MESH_ENABLED`**, publishes to the local registry once at startup (`crates/vox-orchestrator/src/mcp_tools/populi_startup.rs`), mirroring **`vox run`**. With a **client-suitable** control URL (**`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** first, else **`VOX_MESH_CONTROL_ADDR`**; bind-all hosts like `0.0.0.0` are skipped via [`normalize_http_control_base`](../../../crates/vox-populi/src/lib.rs)), it also **`POST /v1/populi/join`** and periodically **`POST /v1/populi/heartbeat`** unless disabled (**`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`**). Optional Codex rows: **`mesh_http_join_ok` / `mesh_http_join_err`** when **`VOX_MESH_CODEX_TELEMETRY`**. Use the same env as workers so the node id matches **`vox run`** / compose peers.
+- **`vox-orchestrator-mcp` process** — when **`VOX_MESH_ENABLED`**, publishes to the local registry once at startup (`crates/vox-orchestrator/src/mcp_tools/populi_startup.rs`), mirroring **`vox run`**. With a **client-suitable** control URL (**`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** first, else **`VOX_MESH_CONTROL_ADDR`**; bind-all hosts like `0.0.0.0` are skipped via [`normalize_http_control_base`](../../../crates/vox-populi/src/lib.rs)), it also **`POST /v1/populi/join`** and periodically **`POST /v1/populi/heartbeat`** unless disabled (**`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`**). Optional Codex rows: **`mesh_http_join_ok` / `mesh_http_join_err`** when **`VOX_MESH_CODEX_TELEMETRY`**. Use the same env as workers so the node id matches **`vox run`** / compose peers.
 - **Docker** — `Dockerfile` + [`infra/containers/entrypoints/vox-entrypoint.vox`](../../../infra/containers/entrypoints/vox-entrypoint.vox): optional **`VOX_MESH_MESH_SIDECAR=1`** starts **`vox populi serve`** in the background before **`vox mcp`**; set **`VOX_MESH_CONTROL_ADDR`** to the sidecar URL from other containers. Compose profiles and env SSOT: [deployment compose SSOT](deployment-compose.md).
 
 ## Observability
 
 - **Tracing target `vox.populi`**: registry publish success logs `path` and `node_id` from **`vox run`** (`crates/vox-cli/src/commands/run.rs`); failures at `debug` only (best-effort).
 - **HTTP**: `tower-http` **`TraceLayer`** and **`SetRequestIdLayer`** (`x-request-id`) wrap the control-plane router for request-scoped logs.
-- **`vox run`**: mens registry is published once at the start of the shared `run` entrypoint so **app** and **script** modes (and **`vox-compilerd`** `run`) behave consistently when **`VOX_MESH_ENABLED`** is set. When a client-suitable control URL is set (**`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** / **`VOX_MESH_CONTROL_ADDR`**) and **`VOX_MESH_HTTP_JOIN`** is not disabled, it also performs the same **`POST /v1/populi/join`** (+ optional heartbeat) path as **`vox-mcp`** via [`vox_populi::http_lifecycle`](../../../crates/vox-populi/src/http_lifecycle.rs).
+- **`vox run`**: mens registry is published once at the start of the shared `run` entrypoint so **app** and **script** modes (and **`vox-compilerd`** `run`) behave consistently when **`VOX_MESH_ENABLED`** is set. When a client-suitable control URL is set (**`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** / **`VOX_MESH_CONTROL_ADDR`**) and **`VOX_MESH_HTTP_JOIN`** is not disabled, it also performs the same **`POST /v1/populi/join`** (+ optional heartbeat) path as **`vox-orchestrator-mcp`** via [`vox_populi::http_lifecycle`](../../../crates/vox-populi/src/http_lifecycle.rs).
 
 ### Metrics
 

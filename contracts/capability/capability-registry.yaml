@@ -4122,6 +4122,24 @@ curated:
   - ci
   - line-endings
   parameters: null
+- id: cli.ci.llms-verified
+  title: Ci Llms-verified
+  description_human: null
+  description_model: CLI operation `vox ci llms-verified`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - llms-verified
+  parameters: null
 - id: cli.ci.manifest
   title: Ci Manifest
   description_human: null
@@ -4813,6 +4831,24 @@ curated:
   cli_path:
   - ci
   - query-all-guard
+  parameters: null
+- id: cli.ci.readme-assets
+  title: Ci Readme-assets
+  description_human: null
+  description_model: CLI operation `vox ci readme-assets`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - readme-assets
   parameters: null
 - id: cli.ci.release-build
   title: Ci Release-build

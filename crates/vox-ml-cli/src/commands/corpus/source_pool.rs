@@ -30,6 +30,8 @@ pub(crate) struct PoolConfig {
     #[serde(default)]
     heldout_bench: Option<PathBuf>,
     #[serde(default)]
+    additional_heldout_benches: Vec<PathBuf>,
+    #[serde(default)]
     roots: Vec<Root>,
     #[serde(default)]
     exclude: Vec<Exclude>,
@@ -62,16 +64,43 @@ impl Selector {
         } else if roots_override.is_some() {
             PoolConfig {
                 heldout_bench: None,
+                additional_heldout_benches: vec![],
                 roots: vec![],
                 exclude: vec![],
             }
         } else {
             anyhow::bail!("source pool config not found: {}", config.display());
         };
-        let bench = match &cfg.heldout_bench {
-            Some(p) if p.is_file() => load_bench_answers(p)?,
+        let resolve_bench_path = |p: &Path| -> Option<PathBuf> {
+            if p.is_file() {
+                return Some(p.to_path_buf());
+            }
+            if p.is_relative() {
+                for ancestor in config.ancestors().skip(1) {
+                    let cand = ancestor.join(p);
+                    if cand.is_file() {
+                        return Some(cand);
+                    }
+                }
+            }
+            None
+        };
+        let mut bench = match &cfg.heldout_bench {
+            Some(p) => match resolve_bench_path(p) {
+                Some(found) => load_bench_answers(&found)?,
+                None => vec![],
+            },
             _ => vec![],
         };
+        for extra in &cfg.additional_heldout_benches {
+            let found = resolve_bench_path(extra).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "additional heldout bench manifest not found: {}",
+                    extra.display()
+                )
+            })?;
+            bench.extend(load_bench_answers(&found)?);
+        }
         Self::from_config(cfg, roots_override, bench)
     }
 
@@ -307,5 +336,59 @@ mod tests {
             glob::Pattern::new(&e.glob).unwrap();
         }
         assert!(root.join(cfg.heldout_bench.unwrap()).is_file());
+        for extra in &cfg.additional_heldout_benches {
+            assert!(
+                root.join(extra).is_file(),
+                "missing additional heldout bench {}",
+                extra.display()
+            );
+        }
+    }
+
+    #[test]
+    fn additional_heldout_benches_overlap_is_skipped_and_missing_bails() {
+        let dir = tempfile::tempdir().unwrap();
+        let extra_bench = dir.path().join("heldout_v2.json");
+        let answer =
+            "fn spiral_check(n: int) to int {\n    let mut s = 0\n    s = n * 2\n    return s\n}";
+        std::fs::write(
+            &extra_bench,
+            serde_json::json!({
+                "benchmarks": [{
+                    "id": "v2_spiral_check",
+                    "answer": answer
+                }]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let cfg_path = dir.path().join("pool.yaml");
+        std::fs::write(
+            &cfg_path,
+            format!(
+                "additional_heldout_benches:\n  - {}\nroots:\n  - path: examples\n",
+                extra_bench.display()
+            ),
+        )
+        .unwrap();
+
+        let sel = Selector::load(&cfg_path, None).unwrap();
+        let src = format!("// helper\n{OK}\n{answer}\n");
+        let reason = sel.skip_reason(Path::new("examples/leak_v2.vox"), &src);
+        assert!(
+            reason
+                .as_deref()
+                .is_some_and(|r| r.starts_with("heldout_bench_overlap:v2_spiral_check:")),
+            "expected v2 heldout overlap, got {reason:?}"
+        );
+        assert_eq!(sel.skip_reason(Path::new("examples/clean.vox"), OK), None);
+
+        let bad_cfg = dir.path().join("missing_pool.yaml");
+        std::fs::write(
+            &bad_cfg,
+            "additional_heldout_benches:\n  - does_not_exist.json\nroots:\n  - path: examples\n",
+        )
+        .unwrap();
+        assert!(Selector::load(&bad_cfg, None).is_err());
     }
 }

@@ -52,7 +52,7 @@ The non-modal (`aria-modal="false"`), docked right-hand documentation and code s
 The ability of a program (specifically a **Workflow**) to persist its state and progress so that it can resume exactly where it left off after an interruption or crash using an interpreted journal.
 
 ### Federated Knowledge Base (`vox kb`)
-Vox's 3-layer knowledge architecture partitioning **Vox Baseline Canon** (`docs/src/`), the personal cross-repo **Global Library** (`~/.vox/library/`), and **Repo-Local Knowledge** (`docs/wiki/` + `.vox/cache/`, or zero-footprint `--read-only` shards under `~/.vox/repos/<id>/`) by `(repository_id, corpus_tier)`. See [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx).
+Vox's 3-layer knowledge architecture partitioning **Vox Baseline Canon** (`docs/src/`), the personal cross-repo **Global Library** (`~/.vox/library/`), and **Repo-Local Knowledge** (the repo's docs root — `docs/src/`, else `docs/wiki/` if present, else `docs/` — plus `.vox/cache/`, or zero-footprint `--read-only` shards under `~/.vox/repos/<id>/`) by `(repository_id, corpus_tier)`. See [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx).
 
 ### Graphify (`vox-graph-reader`)
 Deterministic AST, SQL schema, API route, and `#Lstart-Lend` documentation extractor that builds **Code <-> Doc <-> Decision** cross-edges (`documented_in`, `cites_symbol`, `governed_by_adr`), computes Leiden communities with zero upfront LLM calls, and powers HippoRAG Personalized PageRank retrieval inside `vox-search`.

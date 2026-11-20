@@ -294,9 +294,9 @@
     {
       "crate": "vox-doc-pipeline",
       "compile_s": 1.0,
-      "dependents": 6,
-      "blast_s": 74.0,
-      "fan_in": 3,
+      "dependents": 8,
+      "blast_s": 232.0,
+      "fan_in": 4,
       "touches_90d": 82,
       "churn_compile_pain_score": 82.0
     },
@@ -384,9 +384,9 @@
     {
       "crate": "vox-graph-reader",
       "compile_s": 1.5,
-      "dependents": 9,
-      "blast_s": 232.0,
-      "fan_in": 5,
+      "dependents": 10,
+      "blast_s": 233.0,
+      "fan_in": 6,
       "touches_90d": 42,
       "churn_compile_pain_score": 63.0
     },

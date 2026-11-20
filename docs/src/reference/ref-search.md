@@ -49,7 +49,7 @@ On the public documentation site, **Pagefind** indexes all built HTML routes at 
 Inside the native Tauri 2 desktop workbench (`vox-gui`), three complementary entry points share one federated capability and knowledge index ([GUI Navigation](gui-navigation.md)):
 
 - **Federated Omnibar (`Cmd/Ctrl+K`):** Prefix with `>` for commands, `@` for agents, `/` for docs and skills, or `#` for crate architecture (`#L3` filters layer-3 crates). Selecting any hit opens the target surface or routes directly into the non-modal **Doc Dock**.
-- **Memory View (`memory`):** Filter across the **3-layer Federated KB** (`Vox Baseline`, `Global Library ~/.vox/library/`, and `Repo-Local docs/wiki/`) while tuning `Top-K Depth`, viewing provenance pills (`Memory Shard`, `Code Chunk`, `Codex Canon`), and launching `Expand`, `Research`, or `Open`.
+- **Memory View (`memory`):** Filter across the **3-layer Federated KB** (`Vox Baseline`, `Global Library ~/.vox/library/`, and `Repo-Local` docs root (`docs/src/` on Vox)) while tuning `Top-K Depth`, viewing provenance pills (`Memory Shard`, `Code Chunk`, `Codex Canon`), and launching `Expand`, `Research`, or `Open`.
 - **Search Index / `VoxGraph` (`vox-search`):** Inspect active shard health, `blake3`-incremental graph rebuild state, `TTL` / `LOD` dials, and jump directly into Memory via `Search Shard in Memory`.
 
 ## 3. CLI & MCP Hybrid Search (`vox-search` + `vox kb` + `vox repo`)

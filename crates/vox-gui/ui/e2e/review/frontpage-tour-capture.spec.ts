@@ -587,13 +587,36 @@ async function auditCapture(page: Page, id: string) {
   };
 }
 
+/** Re-capture the current frame in the dark (`void`) theme as `<id>-slate`, then restore the light theme. */
+async function captureDarkVariant(
+  page: Page,
+  id: string,
+  results: Record<string, Awaited<ReturnType<typeof auditCapture>>>,
+) {
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'void');
+    window.localStorage.setItem('vox-theme', 'void');
+  });
+  await page.waitForTimeout(250);
+  await page.mouse.move(0, 0);
+  results[`${id}-slate`] = await auditCapture(page, `${id}-slate`);
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'arcane');
+    window.localStorage.setItem('vox-theme', 'arcane');
+  });
+  await page.waitForTimeout(200);
+}
+
 test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywheel', () => {
   test.skip(!RUN_TOUR, 'set VOX_TOUR_CAPTURE=1 to capture fresh GUI tour screenshots');
+  // v9.3 TOUR-HD: VOX_TOUR_DSF=2 captures 2880x1800 frames from the same 1440x900 layout.
+  test.use({ deviceScaleFactor: Number(process.env.VOX_TOUR_DSF ?? '1') });
+
 
   test('captures glitch-free 1440x900 Vox Axis showcase frames across Light (arcane) and Dark (slate)', async ({
     page,
   }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(900_000);
     mkdirSync(OUT_DIR, { recursive: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     await addRichMockInitScript(page, 'gamify');
@@ -618,6 +641,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     await page.waitForTimeout(600);
     await page.mouse.move(0, 0);
     results['urbs-civilization'] = await auditCapture(page, 'urbs-civilization');
+    await captureDarkVariant(page, 'urbs-civilization', results);
 
     // 2. urbs-imperium-inspector
     const forvmBtn = page.locator('[data-urbs-landmark="FORVM"]').first();
@@ -626,6 +650,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     await page.waitForTimeout(300);
     await page.mouse.move(0, 0);
     results['urbs-imperium-inspector'] = await auditCapture(page, 'urbs-imperium-inspector');
+    await captureDarkVariant(page, 'urbs-imperium-inspector', results);
 
     // 3. chat-multidock
     await page.evaluate(() => {
@@ -648,6 +673,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     }
     await page.mouse.move(0, 0);
     results['chat-multidock'] = await auditCapture(page, 'chat-multidock');
+    await captureDarkVariant(page, 'chat-multidock', results);
 
     // 4. harness
     await page.evaluate(() => {
@@ -657,6 +683,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     await page.waitForTimeout(450);
     await page.mouse.move(0, 0);
     results['harness'] = await auditCapture(page, 'harness');
+    await captureDarkVariant(page, 'harness', results);
 
     // 5. research-arcane (+ research-slate)
     await page.evaluate(() => {
@@ -763,6 +790,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     await dismissAllToasts(page);
     await page.mouse.move(0, 0);
     results['publications-arcane'] = await auditCapture(page, 'publications-arcane');
+    await captureDarkVariant(page, 'publications', results);
 
     // 9. theme-arcane & 10. theme-slate (Settings -> Theme)
     await page.evaluate(() => {
@@ -803,6 +831,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     await dismissAllToasts(page);
     await page.mouse.move(0, 0);
     results['vox-search-arcane'] = await auditCapture(page, 'vox-search-arcane');
+    await captureDarkVariant(page, 'vox-search', results);
 
     // 12. discovery-arcane (Knowledge -> Discovery / Activity)
     await page.evaluate(() => {
@@ -815,6 +844,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     await dismissAllToasts(page);
     await page.mouse.move(0, 0);
     results['discovery-arcane'] = await auditCapture(page, 'discovery-arcane');
+    await captureDarkVariant(page, 'discovery', results);
 
     // 13. scientia-arcane (Knowledge -> Findings / Scientia)
     await page.evaluate(() => {
@@ -827,6 +857,7 @@ test.describe('Phase 533 — Fresh 16:10 Frontpage GUI Tour Captures & CV Flywhe
     await dismissAllToasts(page);
     await page.mouse.move(0, 0);
     results['scientia-arcane'] = await auditCapture(page, 'scientia-arcane');
+    await captureDarkVariant(page, 'scientia', results);
 
     writeFileSync(join(OUT_DIR, 'cv-report.json'), JSON.stringify(results, null, 2));
 

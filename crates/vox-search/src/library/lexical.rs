@@ -39,6 +39,23 @@ pub fn default_index_dir() -> Option<PathBuf> {
     resolve_index_dir(root.expose(), vox_config::paths::data_dir())
 }
 
+/// Resolve the default Tantivy lexical directory scoped to `(repository_id, tier)`.
+pub fn default_scoped_index_dir(repository_id: &str, tier: &str) -> Option<PathBuf> {
+    let root = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTantivyRoot);
+    let override_dir = root
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(Path::new);
+    resolve_scoped_index_dir(
+        override_dir,
+        vox_config::paths::data_dir().as_deref(),
+        repository_id,
+        tier,
+    )
+    .ok()
+}
+
 fn sanitize_path_segment(raw: &str) -> String {
     let cleaned: String = raw
         .trim()

@@ -18,8 +18,8 @@ If you want product or architecture answers, use the main [Vox FAQ](../explanati
 
 ---
 
-### `vox-mcp` connection timeout
-**Cause**: The `vox-mcp` binary is missing or not in the expected path. The AI Agent reads the binary path from `vox-agent.json`.
+### `vox-orchestrator-mcp` connection timeout
+**Cause**: The `vox-orchestrator-mcp` binary is missing or not in the expected path. The AI Agent reads the binary path from `vox-agent.json`.
 
 **Fix**:
 ```bash

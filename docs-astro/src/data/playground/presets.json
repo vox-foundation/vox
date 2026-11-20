@@ -1,0 +1,79 @@
+{
+  "capturedWith": "vox 0.6.0 (workspace), 2026-11-19",
+  "commands": {
+    "runtime": "vox run --interp main.vox",
+    "build": "vox build main.vox -o out"
+  },
+  "presets": [
+    {
+      "id": "tasks",
+      "label": "1. Data + UI + tool",
+      "summary": "One table, one query, one UI component and one agent tool, and what each becomes.",
+      "flow": [
+        { "from": "TaskBoard (UI)", "to": "get_tasks() in vox-client.ts", "note": "typed fetch function the build writes for each query" },
+        { "from": "get_tasks()", "to": "GET /api/query/get_tasks", "note": "route recorded in vox-app-contract.json" },
+        { "from": "query get_tasks", "to": "table task", "note": "SQLite/Turso, created from the table declaration" },
+        { "from": "tool \"Done\"", "to": "MCP tools/call complete_task", "note": "an agent calls the same function over JSON-RPC" }
+      ],
+      "notes": {
+        "client": "The build writes one typed fetch function per query or mutation. This is how a page reaches the server. React caching is optional: the build also writes `useVoxServerQuery(queryKey, queryFn)` in vox-tanstack-query.tsx, and you pass it a function like this one. (An earlier version of this page showed a hook called `useVoxQuery`. No such hook is generated.)",
+        "ui": "A `component` with a `view:` block (the Vox UI vocabulary: column, heading, text and so on) becomes an ordinary React component. This one only renders text. It does not call the query yet.",
+        "mcp": "A `tool` is exposed twice: as a function other code can call, and as an entry in the MCP server's `tools/list`. The description string becomes the tool description an agent reads.",
+        "sql": "The table declaration is the only place the schema is written. This statement runs when the generated server starts.",
+        "rust": "The server route for the query, the row type for the table, and the tool function, as emitted. This is excerpted output; it is not compiled with cargo on this page."
+      }
+    },
+    {
+      "id": "result",
+      "label": "2. Result[T]",
+      "summary": "A query that can fail, and how the failure reaches the caller.",
+      "flow": [
+        { "from": "PortStatus (UI)", "to": "parse_port({ raw }) in vox-client.ts", "note": "arguments are sent as JSON query values" },
+        { "from": "parse_port", "to": "Ok / Err JSON", "note": "the server returns {\"Ok\": …} or {\"Err\": …}" }
+      ],
+      "notes": {
+        "client": "The generated function returns `Promise<unknown>` today: the `Result` wrapper is not carried into the TypeScript type, so the caller has to check for `Ok` and `Err` in the JSON itself.",
+        "ui": "Another plain component. It shows static text.",
+        "mcp": "No `tool` in this file, so the build writes no MCP server.",
+        "sql": "The only table in the file.",
+        "rust": "The handler returns `{\"Ok\": value}` or `{\"Err\": message}`. Excerpted output; not compiled with cargo on this page."
+      }
+    },
+    {
+      "id": "workflow",
+      "label": "3. Durable workflow",
+      "summary": "A workflow whose steps are recorded, so a crashed run can resume.",
+      "flow": [
+        { "from": "tool run_checkout", "to": "checkout_order (workflow)", "note": "the tool calls the workflow" },
+        { "from": "checkout_order", "to": "charge_card (activity)", "note": "each step is journaled by VoxDbTracker" },
+        { "from": "journal", "to": "same run id resumes", "note": "set VOX_WORKFLOW_RUN_ID to resume a parked run" }
+      ],
+      "notes": {
+        "client": "Nothing is emitted: the file declares no query or mutation, so there is no browser client.",
+        "ui": "Nothing is emitted: the file declares no component.",
+        "mcp": "The `run_checkout` tool is the entry point an agent would use.",
+        "sql": "The table in this file. Workflow steps are journaled through the database layer as well.",
+        "rust": "The activity, and the workflow wrapper that opens a run, hands steps to the journal, and parks if the run does not complete. Excerpted output; not compiled with cargo on this page."
+      }
+    },
+    {
+      "id": "vuv",
+      "label": "4. UI views",
+      "summary": "A component written in the Vox UI vocabulary (VUV): layout and text primitives, a typed button, and local state.",
+      "flow": [
+        { "from": "view: column(gap=2, pad=4)", "to": "<div className=\"flex flex-col gap-2 p-4\">", "note": "layout words become class lists" },
+        { "from": "state count: int = 0", "to": "useState(0)", "note": "local state becomes a React hook with the same type" },
+        { "from": "on_click={count = count + 1}", "to": "onClick={() => set_count(count + 1)}", "note": "event names are snake_case in Vox and camelCase in the output" },
+        { "from": "Counter(label=\"First\")", "to": "<Counter label={\"First\"} />", "note": "one component used twice, with a typed argument" }
+      ],
+      "notes": {
+        "runtime": "This file declares components and no `main`, so `vox run` has nothing to execute. The component runs in the browser, as React.",
+        "sql": "No table in this file, so no SQL is emitted.",
+        "rust": "No query, mutation or tool in this file, so no server code is emitted.",
+        "client": "No query or mutation in this file, so no fetch client is emitted.",
+        "ui": "The VUV vocabulary replaces class strings and angle-bracket JSX. Each word (column, heading, text, button) maps to one HTML element and a fixed set of classes.",
+        "mcp": "No `tool` in this file, so there is no MCP server."
+      }
+    }
+  ]
+}

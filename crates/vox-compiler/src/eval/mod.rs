@@ -208,6 +208,9 @@ pub struct Interpreter {
     pub eval_depth: usize,
     /// Closure-application depth ceiling. Defaults to [`MAX_EVAL_DEPTH`].
     pub max_eval_depth: usize,
+    /// Optional byte ceiling on any string produced by `+` concatenation,
+    /// preventing untrusted eval completions from OOMing via `s = s + s` loops.
+    pub max_string_bytes: Option<usize>,
     /// In-process filesystem budget. Both limits are unset for local developer runs.
     pub fs_quota: FsQuota,
     pub activity_names: std::collections::HashSet<String>,
@@ -458,6 +461,7 @@ impl Interpreter {
             rng: None,
             eval_depth: 0,
             max_eval_depth: MAX_EVAL_DEPTH,
+            max_string_bytes: None,
             fs_quota: FsQuota::default(),
             activity_names: std::collections::HashSet::new(),
             workflow_names: std::collections::HashSet::new(),

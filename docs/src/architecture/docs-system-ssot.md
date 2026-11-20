@@ -75,7 +75,7 @@ Never hand-edit a `*.generated.md`. Fix the generator or its input contract.
 | `docs/src/index.mdx` front page text | `vox ci command-sync` | `README.md` |
 | `reference/plugin-catalog.generated.md`, `distribution-bundles.generated.md` | `vox ci generate-plugin-catalog-docs` | plugin catalog |
 | `api/<crate>.generated.md`, `api/index.generated.md` | `vox ci crate-api-sync` | crate sources |
-| `architecture/subsystems/*.generated.md` & polyglot `docs/wiki/*.md` | `vox ci wiki-sync` (`--polyglot`, `--heal`) | `docs/src/architecture/layers.toml` + `Cargo.toml` (or polyglot source/manifests) |
+| `architecture/subsystems/*.generated.md` & polyglot pages in the repo docs root (`docs/src/openwiki/` on Vox) | `vox ci wiki-sync` (`--polyglot`, `--heal`) | `docs/src/architecture/layers.toml` + `Cargo.toml` (or polyglot source/manifests) |
 | `.well-known/llms.txt` generated block | `vox ci capability-index` | capability contracts |
 | `.cursorignore`, `.aiignore`, `.aiexclude` | `vox ci sync-ignore-files` | `.voxignore` |
 

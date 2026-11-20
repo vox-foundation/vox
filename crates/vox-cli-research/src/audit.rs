@@ -65,7 +65,7 @@ pub struct DocsAuditArgs {
     #[arg(long)]
     pub prune_report: bool,
 
-    /// Write machine-generated findings to contracts/reports/docs-reality-audit/findings.v1.json and update metrics.
+    /// Write machine-generated findings to contracts/reports/docs-freshness/findings.v1.json and update metrics.
     #[arg(long)]
     pub write_findings: bool,
 
@@ -96,6 +96,10 @@ pub struct DocsAuditArgs {
     /// Generate or initialize contracts/reports/docs-freshness/baseline.v1.json.
     #[arg(long)]
     pub generate_baseline: bool,
+
+    /// Seed or refresh contracts/reports/docs-freshness/corpus-ratchet.v1.json across all active docs while keeping baseline.v1.json empty.
+    #[arg(long)]
+    pub seed_corpus_ratchet: bool,
 
     /// Re-attest a documentation page against HEAD commit in the Freshness Ledger.
     #[arg(long)]
@@ -133,9 +137,28 @@ pub struct DocsAuditArgs {
     #[arg(long)]
     pub verify_llm: bool,
 
-    /// Evaluate the golden drift benchmark set (`OPENWIKI-VERIFY-04`).
+    /// Plan surgical one-token fixes for prescriptive mentions of retired symbols that have a
+    /// canonical replacement (`LLM-HEAL-03`). Dry-run unless `--apply` is also passed.
+    #[arg(long)]
+    pub heal_retired: bool,
+
+    /// With `--heal-retired`: write the fixes that pass all four gates (default is plan only).
+    #[arg(long)]
+    pub apply: bool,
+
+    /// Evaluate the golden drift benchmark (v2: reviewed real doc fixes scored by the resolver).
     #[arg(long)]
     pub eval_golden_drift: bool,
+
+    /// Mine unlabeled golden-drift candidates from a `git log -p -U0 --format=@@COMMIT%h -- docs/src`
+    /// patch file and write them to `--mine-out` for human review (`LLM-HEAL-02`).
+    #[arg(long, value_name = "PATCH")]
+    pub mine_golden_drift: Option<PathBuf>,
+
+    /// Where `--mine-golden-drift` writes candidates (default: `golden-drift-candidates.v2.json`
+    /// next to the golden set).
+    #[arg(long, value_name = "FILE")]
+    pub mine_out: Option<PathBuf>,
 
     /// Plan duplicate cluster consolidation and Starlight 301 redirects (`OPENWIKI-FRESH-02`).
     #[arg(long)]
@@ -432,6 +455,7 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
             && !args.update_ledger
             && !args.prune_report
             && !args.generate_baseline
+            && !args.seed_corpus_ratchet
             && !args.tighten_baseline
             && args.attest.is_none();
         if only_pr_or_dod {
@@ -445,10 +469,13 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
         && !args.update_ledger
         && !args.prune_report
         && !args.generate_baseline
+        && !args.seed_corpus_ratchet
         && !args.tighten_baseline
         && args.attest.is_none()
         && (args.verify_llm
             || args.eval_golden_drift
+            || args.heal_retired
+            || args.mine_golden_drift.is_some()
             || args.consolidate_duplicates
             || args.self_heal_plan);
     if only_light_openwiki {
@@ -526,8 +553,8 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
     }
 
     if args.write_findings {
-        let findings_path = root.join("contracts/reports/docs-reality-audit/findings.v1.json");
-        let metrics_path = root.join("contracts/reports/docs-reality-audit/metrics.v1.json");
+        let findings_path = root.join("contracts/reports/docs-freshness/findings.v1.json");
+        let metrics_path = root.join("contracts/reports/docs-freshness/metrics.v1.json");
 
         let mut sorted_findings = findings.clone();
         sorted_findings.sort_by(|a, b| {
@@ -691,6 +718,41 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
         );
     }
 
+    if args.seed_corpus_ratchet {
+        let ratchet_path = root.join("contracts/reports/docs-freshness/corpus-ratchet.v1.json");
+        let mut deficits = Vec::new();
+        for f in &findings {
+            if f.doc_paths
+                .iter()
+                .any(|p| vox_doc_pipeline::claims::is_active_corpus_page(p))
+            {
+                deficits.push(vox_doc_pipeline::claims::GrandfatheredDeficit {
+                    fingerprint: f.fingerprint.clone().unwrap_or_else(|| f.id.clone()),
+                    page_path: f.doc_paths.first().cloned().unwrap_or_default(),
+                    raw_text: f.claim_ids.first().cloned().unwrap_or_default(),
+                });
+            }
+        }
+        deficits.sort_by(|a, b| {
+            (&a.page_path, &a.raw_text, &a.fingerprint).cmp(&(
+                &b.page_path,
+                &b.raw_text,
+                &b.fingerprint,
+            ))
+        });
+        let ratchet = vox_doc_pipeline::claims::CorpusRatchetFile {
+            schema_version: 1,
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            deficits,
+        };
+        ratchet.save_to_file(&ratchet_path)?;
+        eprintln!(
+            "Seeded corpus ratchet at {} with {} deficits (baseline.v1.json kept at 0)",
+            ratchet_path.display(),
+            ratchet.deficits.len()
+        );
+    }
+
     if args.tighten_baseline {
         let baseline_path = root.join("contracts/reports/docs-freshness/baseline.v1.json");
         let mut baseline = vox_doc_pipeline::claims::BaselineFile::load_from_file(&baseline_path)
@@ -707,6 +769,21 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
             tightened,
             baseline.deficits.len()
         );
+
+        let ratchet_path = root.join("contracts/reports/docs-freshness/corpus-ratchet.v1.json");
+        if ratchet_path.is_file() {
+            let mut ratchet =
+                vox_doc_pipeline::claims::CorpusRatchetFile::load_from_file(&ratchet_path)
+                    .map_err(|e| anyhow::anyhow!(e))?;
+            let ratchet_tightened = ratchet.tighten(&active_fps);
+            ratchet.save_to_file(&ratchet_path)?;
+            eprintln!(
+                "Tightened corpus ratchet at {}: removed {} resolved deficits (remaining: {})",
+                ratchet_path.display(),
+                ratchet_tightened,
+                ratchet.deficits.len()
+            );
+        }
     }
 
     if let Some(ref attest_path) = args.attest {
@@ -755,21 +832,35 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
 
     if args.check_drift {
         let baseline_path = root.join("contracts/reports/docs-freshness/baseline.v1.json");
+        let ratchet_path = root.join("contracts/reports/docs-freshness/corpus-ratchet.v1.json");
         let suppressions_path = root.join("contracts/reports/docs-freshness/suppressions.v1.json");
 
         let baseline = vox_doc_pipeline::claims::BaselineFile::load_from_file(&baseline_path)
             .map_err(|e| anyhow::anyhow!(e))?;
+        let corpus_ratchet =
+            vox_doc_pipeline::claims::CorpusRatchetFile::load_from_file(&ratchet_path)
+                .map_err(|e| anyhow::anyhow!(e))?;
         let suppressions =
             vox_doc_pipeline::claims::SuppressionsFile::load_from_file(&suppressions_path)
                 .map_err(|e| anyhow::anyhow!(e))?;
 
         let today = chrono::Utc::now().date_naive();
-        let result = vox_doc_pipeline::claims::evaluate_drift_gate(
-            &findings,
-            &baseline,
-            &suppressions,
-            today,
-        );
+        let result = if ratchet_path.is_file() {
+            vox_doc_pipeline::claims::evaluate_corpus_ratchet(
+                &findings,
+                &baseline,
+                &corpus_ratchet,
+                &suppressions,
+                today,
+            )
+        } else {
+            vox_doc_pipeline::claims::evaluate_drift_gate(
+                &findings,
+                &baseline,
+                &suppressions,
+                today,
+            )
+        };
 
         if !result.passed {
             eprintln!("\n❌ Documentation Drift Gate FAILED");
@@ -780,7 +871,7 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
                 }
             }
             if !result.new_deficits.is_empty() {
-                eprintln!("\nNew Unsuppressed Reader-Facing Deficits:");
+                eprintln!("\nNew Unsuppressed Corpus Deficits:");
                 for f in &result.new_deficits {
                     eprintln!(
                         "  • [{}] {} in {} — {}",
@@ -792,7 +883,7 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
                 }
             }
             eprintln!(
-                "\nActive grandfathered deficits: {}, Resolved baselined deficits: {}",
+                "\nActive ratcheted/baselined deficits: {}, Resolved deficits: {}",
                 result.active_baselined_count, result.resolved_baselined_count
             );
             anyhow::bail!(
@@ -803,7 +894,7 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
 
         println!("\n✅ Documentation Drift Gate PASSED");
         println!(
-            "Active grandfathered deficits: {}, Resolved: {}, Expired suppressions: 0",
+            "Active ratcheted/baselined deficits: {}, Resolved: {}, Expired suppressions: 0",
             result.active_baselined_count, result.resolved_baselined_count
         );
     }
@@ -816,12 +907,15 @@ fn run_openwiki_audit_extensions(root: &Path, args: &DocsAuditArgs) -> Result<()
     if args.verify_llm {
         let cache_path = root.join("contracts/reports/docs-freshness/llm-verify-cache.v1.json");
         let budget = vox_doc_pipeline::claims::llm_verifier::DocVerifyBudget::default();
-        let cache = vox_doc_pipeline::claims::self_heal_bot::run_advisory_claim_verification(
-            root,
-            &cache_path,
-            budget,
-            args.paths.as_deref(),
-        )?;
+        let judge = crate::audit_claim_judge::LlmEntailmentJudge::from_default_model();
+        let cache =
+            vox_doc_pipeline::claims::self_heal_bot::run_advisory_claim_verification_with_judge(
+                root,
+                &cache_path,
+                budget,
+                args.paths.as_deref(),
+                Some(&judge),
+            )?;
         println!(
             "LLM Claim Verifier OK: {} cached entries (hits: {}, misses: {}, tokens: {})",
             cache.entries.len(),
@@ -830,16 +924,121 @@ fn run_openwiki_audit_extensions(root: &Path, args: &DocsAuditArgs) -> Result<()
             cache.tokens_spent
         );
     }
-    if args.eval_golden_drift {
-        let eval_path = root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v1.json");
-        let m = vox_doc_pipeline::claims::llm_verifier::evaluate_golden_drift_set(&eval_path)?;
+    if let Some(patch_path) = &args.mine_golden_drift {
+        let patch = std::fs::read_to_string(patch_path)
+            .with_context(|| format!("read patch {}", patch_path.display()))?;
+        let registry = vox_doc_pipeline::claims::GroundTruthRegistry::load(root)?;
+        let cases = vox_doc_pipeline::claims::golden_mine::mine_candidates(&patch, &registry);
+        let out = args.mine_out.clone().unwrap_or_else(|| {
+            root.join("contracts/reports/docs-freshness/golden-drift-candidates.v2.json")
+        });
+        let set = vox_doc_pipeline::claims::golden_mine::GoldenSetV2 {
+            version: 2,
+            title: "DocsFreshnessGoldenDriftCandidatesV2 (unreviewed)".to_string(),
+            cases,
+        };
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&out, serde_json::to_string_pretty(&set)?)?;
         println!(
-            "Golden Drift Eval OK: pairs={}, precision={:.1}%, recall={:.1}%, fp_rate={:.1}%, promotion_eligible={}",
-            m.evaluated_pairs,
+            "Mined {} unlabeled golden-drift candidates -> {} (set `label` + `reviewed_by` to score them)",
+            set.cases.len(),
+            out.display()
+        );
+    }
+    if args.heal_retired {
+        let registry = vox_doc_pipeline::claims::GroundTruthRegistry::load(root)?;
+        let mut targets: Vec<String> = Vec::new();
+        if let Some(paths) = args.paths.as_deref() {
+            for p in paths {
+                let rel = p.strip_prefix(root).unwrap_or(p);
+                targets.push(rel.to_string_lossy().replace('\\', "/"));
+            }
+        } else {
+            for entry in walkdir::WalkDir::new(root.join("docs/src"))
+                .follow_links(false)
+                .into_iter()
+                .flatten()
+            {
+                let p = entry.path();
+                let is_md = p.extension().is_some_and(|e| e == "md" || e == "mdx");
+                let rel = p
+                    .strip_prefix(root)
+                    .unwrap_or(p)
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                if p.is_file()
+                    && is_md
+                    && !rel.contains("/archive/")
+                    && !rel.ends_with(".generated.md")
+                {
+                    targets.push(rel);
+                }
+            }
+        }
+        targets.sort();
+        let (mut planned, mut passing, mut applied_total) = (0usize, 0usize, 0usize);
+        for rel in &targets {
+            if args.apply {
+                let applied = vox_doc_pipeline::pipeline::openwiki::apply_retired_symbol_fixes(
+                    root, &registry, rel,
+                )
+                .map_err(|e| anyhow::anyhow!(e))?;
+                for s in &applied {
+                    println!("applied: {s}");
+                }
+                applied_total += applied.len();
+            } else {
+                let plans = vox_doc_pipeline::pipeline::openwiki::plan_retired_symbol_fixes(
+                    root, &registry, rel,
+                )
+                .map_err(|e| anyhow::anyhow!(e))?;
+                for c in &plans {
+                    planned += 1;
+                    if c.gate_report.passed {
+                        passing += 1;
+                    }
+                    println!(
+                        "{} [{}]",
+                        c.summary,
+                        if c.gate_report.passed {
+                            "gates pass".to_string()
+                        } else {
+                            format!("GATES FAIL: {}", c.gate_report.diagnostics.join("; "))
+                        }
+                    );
+                }
+            }
+        }
+        if args.apply {
+            println!("heal-retired: applied {applied_total} fix(es)");
+        } else {
+            println!(
+                "heal-retired (dry run): {planned} planned, {passing} pass all gates; re-run with --apply to write"
+            );
+        }
+    }
+    if args.eval_golden_drift {
+        let eval_path = root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v2.json");
+        let registry = vox_doc_pipeline::claims::GroundTruthRegistry::load(root)?;
+        let m =
+            vox_doc_pipeline::claims::golden_mine::evaluate_golden_set_v2(&eval_path, &registry)?;
+        println!(
+            "Golden Drift Eval v2: cases={} (human={}, agent={}, pending={}), scored={}, precision={:.1}%, recall={:.1}%, fp_rate={:.1}%, promotion_eligible={}{}",
+            m.total_cases,
+            m.human_reviewed,
+            m.agent_reviewed,
+            m.pending,
+            m.scored,
             m.precision * 100.0,
             m.recall * 100.0,
             m.false_positive_rate * 100.0,
-            m.eligible_for_bot_promotion
+            m.eligible_for_bot_promotion,
+            m.ineligible_reason
+                .as_deref()
+                .map(|r| format!(" ({r})"))
+                .unwrap_or_default()
         );
     }
     if args.consolidate_duplicates {

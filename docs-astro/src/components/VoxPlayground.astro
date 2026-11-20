@@ -1,109 +1,34 @@
 ---
-interface Props {
-  initialCode?: string;
-}
-const { initialCode = `// Edit .vox and click Run to inspect each target
-table Task {
-    title: str
-    done:  bool
-}
+import presetsMeta from '../data/playground/presets.json';
 
-query get_tasks() to int {
-    return len(db.Task.all())
-}
+// Real compiler output, captured with `vox build` / `vox run --interp` (see data/playground/README.md).
+const raw = import.meta.glob('../data/playground/*/*', { query: '?raw', import: 'default', eager: true });
 
-tool "Done" complete_task(id: Id[Task]) to Result[str] {
-    db.Task.delete(id)?
-    return Ok("done")
-}
+const fileFor = (id, name) => {
+  const hit = Object.entries(raw).find(([path]) => path.endsWith(`/${id}/${name}`));
+  return hit ? String(hit[1]) : '';
+};
 
-component TaskBoard() {
-    view: column(raw_class="task-card") {
-        heading(level=3) { "Active Tasks" }
-        text() { "Typed task board with Result[T]" }
-    }
-}
-
-fn main() to Result[str] {
-    let id = db.Task.insert({ title: "Write Vox in browser", done: false })?
-    print("Tasks queued: " + str(get_tasks()))
-    let status = complete_task(id)?
-    print("Tasks remaining: " + str(get_tasks()))
-    return Ok(status)
-}
-` } = Astro.props;
-
-const examples = [
-  {
-    id: 'tasks',
-    label: '1. Full-Stack',
-    summary: 'Declares a Turso table, server query, React UI component, and MCP agent tool.',
-    code: initialCode.trim(),
-    expectedOutput: `import voxlang.vox;\n// Sandbox: Tasks queued: 1 | Tasks remaining: 0 -> Ok("done")\n────────────────────────────────────────────────────────\nexport SQL (Turso) {\n  CREATE TABLE task (id PRIMARY KEY, title TEXT, done INT);\n}`,
-  },
-  {
-    id: 'result',
-    label: '2. Result[T]',
-    summary: 'Result[T] and ? replace null pointers and uncaught exceptions across server & client.',
-    code: `// Functions that can fail return Result[T] — never null or hidden exceptions
-table ServiceEndpoint {
-    host: str
-    port: int
-}
-
-query parse_port(raw: int) to Result[int] {
-    if raw < 1024 {
-        return Error("Port must be >= 1024 (got " + str(raw) + ")")
-    }
-    return Ok(raw)
-}
-
-component PortStatus() {
-    view: text() { "Listening on :8080 (Verified)" }
-}
-
-fn main() to Result[str] {
-    let port = parse_port(8080)?
-    print("Listening on port: " + str(port))
-    return Ok("healthy")
-}`,
-    expectedOutput: `Listening on port: 8080\n→ Ok("healthy")`,
-  },
-  {
-    id: 'workflow',
-    label: '3. Workflow',
-    summary: 'Activities and workflows journal each step to SQLite/Turso so crashes resume cleanly.',
-    code: `// Activities are journaled steps; workflows orchestrate them durably
-table OrderLedger {
-    order_id: str
-    amount_cents: int
-    tx_hash: str
-}
-
-activity charge_card(amount_cents: int) to Result[str] {
-    print("Charged " + str(amount_cents) + " cents")
-    return Ok("tx_9f8a7b")
-}
-
-workflow checkout_order(amount_cents: int) to Result[str] {
-    let receipt = charge_card(amount_cents)?
-    print("Journaled receipt: " + receipt)
-    return Ok(receipt)
-}
-
-tool "Execute a durable checkout order" run_checkout(amount_cents: int) to Result[str] {
-    return checkout_order(amount_cents)
-}
-
-fn main() to Result[str] {
-    return checkout_order(4900)
-}`,
-    expectedOutput: `Charged 4900 cents\nJournaled receipt: tx_9f8a7b\n→ Ok("tx_9f8a7b")`,
-  },
+const TARGETS = [
+  { id: 'runtime', label: 'Run output', file: 'runtime.txt' },
+  { id: 'sql', label: 'SQL', file: 'sql.sql' },
+  { id: 'rust', label: 'Rust server', file: 'rust.rs' },
+  { id: 'client', label: 'TS client', file: 'client.ts' },
+  { id: 'ui', label: 'React UI', file: 'ui.tsx' },
+  { id: 'mcp', label: 'MCP tools', file: 'mcp.rs' },
 ];
+
+const presets = presetsMeta.presets.map((p) => ({
+  ...p,
+  source: fileFor(p.id, 'source.vox').trim(),
+  outputs: Object.fromEntries(TARGETS.map((t) => [t.id, fileFor(p.id, t.file).trimEnd()])),
+}));
+
+const payload = { presets, targets: TARGETS, capturedWith: presetsMeta.capturedWith, commands: presetsMeta.commands };
+const first = presets[0];
 ---
 
-<vox-playground data-initial-code={initialCode} data-examples={JSON.stringify(examples)}>
+<vox-playground data-playground={JSON.stringify(payload)}>
   <div class="vox-playground not-content" data-testid="vox-compiler-playground">
     <div class="playground-header">
       <div class="playground-title-group">
@@ -112,7 +37,7 @@ fn main() to Result[str] {
       </div>
       <div class="playground-header-controls">
         <div class="playground-tabs" role="tablist" aria-label="Vox code examples">
-          {examples.map((ex, idx) => (
+          {presets.map((ex, idx) => (
             <button
               type="button"
               role="tab"
@@ -125,15 +50,14 @@ fn main() to Result[str] {
           ))}
         </div>
         <button type="button" class="copy-btn" aria-label="Copy Vox code">Copy</button>
-        <button type="button" class="run-btn" aria-label="Run and Compile Vox code">▶ Run</button>
+        <button type="button" class="reset-btn" aria-label="Reset the editor to the example" hidden>Reset</button>
       </div>
     </div>
 
     <div class="playground-split-grid">
-      <!-- Left Column: 1 .vox File -> 4 Targets Schematic + Line-Numbered Syntax Editor -->
       <div class="playground-left-pane">
         <div class="schematic-card" aria-label="AST to Compiler Targets Interactive Map">
-          <svg class="schematic-svg" viewBox="0 0 520 172" role="img" aria-label="Vox AST compiles to Runtime, SQL, Rust Axum, and TSX + MCP">
+          <svg class="schematic-svg" viewBox="0 0 520 172" role="img" aria-label="One .vox file produces run output, SQL, a Rust server, a TypeScript client, React UI and MCP tools">
             <defs>
               <radialGradient id="glowCyan" cx="50%" cy="50%" r="60%">
                 <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.28" />
@@ -211,16 +135,16 @@ fn main() to Result[str] {
               <text x="420" y="117" text-anchor="middle" fill="#fed7aa" font-size="12" font-weight="600" font-family="Inter, sans-serif">Rust</text>
             </g>
             <!-- Target 4: TSX & MCP Targets -->
-            <g class="schematic-target-btn" data-target-tab="tsx" role="button" tabindex="0" aria-label="Show Generated TSX and MCP Schema">
+            <g class="schematic-target-btn" data-target-tab="client" role="button" tabindex="0" aria-label="Show the generated TypeScript client, React UI and MCP tools">
               <rect x="372" y="136" width="96" height="30" rx="6" fill="url(#glowEmerald)" stroke="#10b981" stroke-width="1.5" />
-              <text x="420" y="155" text-anchor="middle" fill="#a7f3d0" font-size="12" font-weight="600" font-family="Inter, sans-serif">TSX + MCP</text>
+              <text x="420" y="155" text-anchor="middle" fill="#a7f3d0" font-size="12" font-weight="600" font-family="Inter, sans-serif">Client, UI, MCP</text>
             </g>
           </svg>
         </div>
 
         <div class="editor-container">
           <div class="editor-file-bar">
-            <span class="editor-file-tab">example.vox <span class="editor-close-dot">×</span></span>
+            <span class="editor-file-tab">main.vox <span class="editor-close-dot">×</span></span>
             <div class="editor-window-actions" aria-hidden="true">
               <span class="editor-win-icon">◫</span>
               <span class="editor-win-icon">⋯</span>
@@ -234,72 +158,45 @@ fn main() to Result[str] {
                 class="code-editor"
                 spellcheck="false"
                 aria-label="Vox Code Editor"
-              >{examples[0].code}</textarea>
+              >{first.source}</textarea>
             </div>
           </div>
         </div>
+        <p class="preset-summary" data-testid="playground-summary">{first.summary}</p>
       </div>
 
-      <!-- Right Column: Dual-Deck Compiler Output Panes matching Concept Art B -->
       <div class="playground-right-pane">
-        <div class="target-tabs-bar" role="tablist" aria-label="Compiled target outputs">
-          <button
-            type="button"
-            role="tab"
-            class="target-tab active"
-            aria-selected="true"
-            data-target-id="runtime"
-          >
-            Runtime
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="target-tab"
-            aria-selected="false"
-            data-target-id="sql"
-          >
-            SQL (Turso)
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="target-tab"
-            aria-selected="false"
-            data-target-id="rust"
-          >
-            Rust (Axum)
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="target-tab"
-            aria-selected="false"
-            data-target-id="tsx"
-          >
-            TSX &amp; MCP
-          </button>
+        <div class="target-tabs-bar" role="tablist" aria-label="What the compiler produces from this file">
+          {[
+            { id: 'runtime', label: 'Run output' },
+            { id: 'sql', label: 'SQL' },
+            { id: 'rust', label: 'Rust server' },
+            { id: 'client', label: 'TS client' },
+            { id: 'ui', label: 'React UI' },
+            { id: 'mcp', label: 'MCP tools' },
+          ].map((t, i) => (
+            <button
+              type="button"
+              role="tab"
+              class={`target-tab ${i === 0 ? 'active' : ''}`}
+              aria-selected={i === 0 ? 'true' : 'false'}
+              tabindex={i === 0 ? 0 : -1}
+              data-target-id={t.id}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
+        <p class="output-provenance" data-testid="playground-provenance" role="status"></p>
         <div class="output-container">
-          <pre class="output-display" data-testid="playground-target-output">{examples[0].expectedOutput}</pre>
+          <pre class="output-display" data-testid="playground-target-output" tabindex="0"></pre>
         </div>
+        <p class="output-note" data-testid="playground-note"></p>
 
-        <!-- Lower Deck: Line-Numbered Syntax-Highlighted Rust / TSX & MCP Pane -->
-        <div class="secondary-target-preview">
-          <div class="secondary-tabs-bar" role="tablist" aria-label="Secondary compiled target preview">
-            <button type="button" role="tab" aria-selected="true" class="secondary-tab active" data-sec-target="rust">
-              Rust (Axum)
-            </button>
-            <button type="button" role="tab" aria-selected="false" class="secondary-tab" data-sec-target="tsx">
-              TSX &amp; MCP
-            </button>
-            <span class="secondary-chevron" aria-hidden="true">⌄</span>
-          </div>
-          <div class="secondary-code-shell">
-            <div class="secondary-line-gutter" aria-hidden="true">1&#10;2&#10;3&#10;4&#10;5&#10;6&#10;7&#10;8</div>
-            <pre class="secondary-output-display" data-testid="playground-secondary-output"></pre>
-          </div>
+        <div class="flow-block">
+          <p class="flow-title">How a request travels</p>
+          <ol class="flow-strip" data-testid="playground-flow"></ol>
         </div>
       </div>
     </div>
@@ -543,8 +440,7 @@ fn main() to Result[str] {
     background: #080b13;
   }
 
-  .editor-line-gutter,
-  .secondary-line-gutter {
+  .editor-line-gutter {
     padding: 0.7rem 0.4rem 0.7rem 0;
     text-align: right;
     color: #475569;
@@ -606,13 +502,13 @@ fn main() to Result[str] {
 
   .target-tabs-bar {
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.1rem 0.25rem;
     padding: 0 0.55rem;
-    height: 36px;
+    min-height: 36px;
     background: #0d121d;
     border-bottom: 1px solid rgba(71, 85, 105, 0.35);
-    overflow-x: auto;
   }
 
   .target-tab {
@@ -623,7 +519,7 @@ fn main() to Result[str] {
     color: #94a3b8;
     border: none;
     border-bottom: 2px solid transparent;
-    height: 100%;
+    min-height: 34px;
     padding: 0 0.52rem;
     font-size: 0.72rem;
     font-weight: 600;
@@ -643,8 +539,16 @@ fn main() to Result[str] {
     border-bottom-color: #e2e8f0;
   }
 
+
+  .target-tab:focus-visible,
+  .playground-tab:focus-visible,
+  .output-display:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: -2px;
+  }
+
   .output-container {
-    padding: 0.55rem 0.85rem;
+    padding: 0.4rem 0.85rem;
     background: #080b13;
     border-bottom: 1px solid rgba(71, 85, 105, 0.35);
   }
@@ -652,76 +556,8 @@ fn main() to Result[str] {
   .output-display {
     margin: 0;
     padding: 0.35rem 0.25rem;
-    min-height: 145px;
-    max-height: 155px;
-    overflow: auto;
-    background: transparent;
-    color: #cbd5e1;
-    font-family: var(--font-mono, var(--sl-font-mono, monospace));
-    font-size: 0.76rem;
-    line-height: 1.52;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .secondary-target-preview {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    background: #080b13;
-  }
-
-  .secondary-tabs-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0 0.75rem;
-    height: 34px;
-    background: #0d121d;
-    border-bottom: 1px solid rgba(71, 85, 105, 0.35);
-  }
-
-  .secondary-tab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    color: #94a3b8;
-    border: none;
-    border-bottom: 2px solid transparent;
-    height: 100%;
-    padding: 0 0.65rem;
-    font-size: 0.76rem;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-    margin: 0;
-    cursor: pointer;
-  }
-
-  .secondary-tab.active {
-    color: #f8fafc;
-    border-bottom-color: #10b981;
-  }
-
-  .secondary-chevron {
-    margin-left: auto;
-    color: #64748b;
-    font-size: 0.85rem;
-  }
-
-  .secondary-code-shell {
-    display: grid;
-    grid-template-columns: 34px 1fr;
-    min-height: 210px;
-    max-height: 230px;
-    overflow: hidden;
-    background: #080b13;
-  }
-
-  .secondary-output-display {
-    margin: 0;
-    padding: 0.7rem 0.85rem;
+    min-height: 200px;
+    max-height: 300px;
     overflow: auto;
     background: transparent;
     color: #cbd5e1;
@@ -729,6 +565,102 @@ fn main() to Result[str] {
     font-size: 0.76rem;
     line-height: 1.52;
     white-space: pre;
+  }
+
+  .output-provenance {
+    margin: 0;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: #94a3b8;
+    background: #0d121d;
+    border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+  }
+
+  .output-provenance.is-edited {
+    color: #fde68a;
+    background: rgba(120, 83, 9, 0.28);
+  }
+
+  .output-note {
+    margin: 0;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: #cbd5e1;
+    border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+  }
+
+  .preset-summary {
+    margin: 0;
+    padding: 0.55rem 0.9rem 0.7rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #94a3b8;
+  }
+
+  .flow-block {
+    padding: 0.55rem 0.9rem 0.8rem;
+  }
+
+  .flow-title {
+    margin: 0 0 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .flow-strip {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.3rem;
+  }
+
+  .flow-strip :global(li) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0.45rem;
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: #cbd5e1;
+  }
+
+  .flow-strip :global(code) {
+    font-family: var(--font-mono, var(--sl-font-mono, monospace));
+    font-size: 0.72rem;
+    color: #e2e8f0;
+    overflow-wrap: anywhere;
+  }
+
+  .flow-strip :global(.flow-arrow) {
+    color: #38bdf8;
+  }
+
+  .flow-strip :global(.flow-why) {
+    grid-column: 1 / -1;
+    padding-left: 0.2rem;
+    font-size: 0.7rem;
+    color: #64748b;
+  }
+
+  .reset-btn {
+    background: transparent;
+    color: #fde68a;
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    border-radius: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .reset-btn[hidden] {
+    display: none;
   }
 
   /* Syntax Highlighting Token Palette (Concept Art B IDE Theme) */
@@ -821,289 +753,177 @@ fn main() to Result[str] {
     return nums.join('\n');
   }
 
-  function parseVoxAstSummary(code) {
-    const tables = [];
-    const tableRe = /(?:@table\s+type|table)\s+([A-Za-z_]\w*)\s*\{([\s\S]*?)\}/g;
-    let m;
-    while ((m = tableRe.exec(code)) !== null) {
-      const name = m[1];
-      const body = m[2];
-      const fields = [];
-      for (const rawLine of body.split(/\r?\n/)) {
-        const line = rawLine.split('//')[0].trim();
-        const fm = line.match(/^([A-Za-z_]\w*)\s*:\s*([A-Za-z0-9_[\]]+)/);
-        if (fm) {
-          fields.push({ name: fm[1], voxType: fm[2] });
-        }
-      }
-      tables.push({ name, fields });
-    }
-
-    const fns = [];
-    const fnRe = /(?:@(query|mutation|component|server|mcp\.tool(?:\("([^"]*)"\))?)\s+)?(query|mutation|component|server|activity|workflow|fn|tool\s+"([^"]*)")\s+([A-Za-z_]\w*)\s*\(([^)]*)\)(?:\s*(?:->|to)\s*([A-Za-z0-9_[\]]+))?/g;
-    while ((m = fnRe.exec(code)) !== null) {
-      const rawKeyword = m[3].startsWith('tool') ? 'mcp.tool' : m[3];
-      const rawDec = m[1] || rawKeyword;
-      const decorator = rawDec.startsWith('mcp.tool') ? 'mcp.tool' : rawDec;
-      fns.push({
-        decorator,
-        doc: m[2] || m[4] || `Generated ${m[5]} operation`,
-        name: m[5],
-        params: (m[6] || '').trim(),
-        retType: (m[7] || 'Unit').trim(),
-      });
-    }
-
-    return { tables, fns };
-  }
-
-  function voxTypeToSql(t) {
-    const clean = t.toLowerCase();
-    if (clean === 'int' || clean === 'bool') return 'INTEGER NOT NULL';
-    if (clean === 'float') return 'REAL NOT NULL';
-    return 'TEXT NOT NULL';
-  }
-
-  function voxTypeToRust(t) {
-    if (t === 'int') return 'i64';
-    if (t === 'float') return 'f64';
-    if (t === 'bool') return 'bool';
-    if (t === 'str') return 'String';
-    if (t.startsWith('Id[')) return 'i64';
-    if (t.startsWith('Result[')) {
-      const inner = t.slice(7, -1);
-      return `Result<${voxTypeToRust(inner)}, VoxServerError>`;
-    }
-    return t;
-  }
-
-  function compileVoxTargets(code, runtimeOut) {
-    const ast = parseVoxAstSummary(code);
-
-    // 1. SQL Target (Turso / SQLite)
-    const sqlLines = [
-      '-- Compiled by vox-compiler::codex_sql (Turso / SQLite DDL)',
-    ];
-    if (ast.tables.length === 0) {
-      sqlLines.push('CREATE TABLE IF NOT EXISTS vox_workflow_journal (');
-      sqlLines.push('    run_id TEXT PRIMARY KEY,');
-      sqlLines.push('    step_ordinal INTEGER NOT NULL,');
-      sqlLines.push('    payload_json TEXT NOT NULL');
-      sqlLines.push(');');
-    } else {
-      for (const tbl of ast.tables) {
-        const tableLower = tbl.name.toLowerCase();
-        sqlLines.push(`CREATE TABLE IF NOT EXISTS ${tableLower} (`);
-        sqlLines.push('    _id INTEGER PRIMARY KEY AUTOINCREMENT,');
-        tbl.fields.forEach((f, i) => {
-          const comma = i < tbl.fields.length - 1 ? ',' : '';
-          sqlLines.push(`    ${f.name} ${voxTypeToSql(f.voxType)}${comma}`);
-        });
-        sqlLines.push(');');
-        sqlLines.push(`CREATE INDEX IF NOT EXISTS idx_${tableLower}_id ON ${tableLower}(_id);`);
-      }
-    }
-    const queryFns = ast.fns.filter((f) => f.decorator === 'query' || f.decorator === 'mutation' || f.decorator === 'mcp.tool');
-    for (const qf of queryFns) {
-      const tblName = ast.tables[0]?.name.toLowerCase() || 'vox_records';
-      if (qf.name.includes('delete') || qf.name.includes('complete')) {
-        sqlLines.push(`DELETE FROM ${tblName} WHERE _id = ?1;`);
-      } else {
-        sqlLines.push(`SELECT COUNT(_id) FROM ${tblName};`);
-      }
-    }
-
-    // 2. Rust Target (Axum + Turso)
-    const rustLines = [
-      '// Compiled by vox-compiler::codegen_rust (Axum + Turso)',
-      'use axum::{routing::{get, post}, Json, Router};',
-      'use serde::{Deserialize, Serialize};',
-    ];
-    for (const tbl of ast.tables) {
-      rustLines.push(`pub struct ${tbl.name}Row {`);
-      rustLines.push('    pub id: i64,');
-      for (const f of tbl.fields) {
-        rustLines.push(`    pub ${f.name}: ${voxTypeToRust(f.voxType)},`);
-      }
-      rustLines.push('}');
-    }
-    rustLines.push('pub fn vox_generated_router() -> Router<AppState> {');
-    rustLines.push('    Router::new()');
-    for (const fnItem of ast.fns) {
-      if (fnItem.name === 'main' || fnItem.decorator === 'component') continue;
-      const method = fnItem.decorator === 'query' ? 'get' : 'post';
-      rustLines.push(`        .route("/api/${fnItem.name}", ${method}(handle_${fnItem.name}))`);
-    }
-    rustLines.push('}');
-
-    // 3. TSX + MCP Schema Target
-    const tsxLines = [
-      '// Compiled by vox-compiler::codegen_ts (React UI + MCP JSON Schema)',
-    ];
-    const compFns = ast.fns.filter((f) => f.decorator === 'component');
-    if (compFns.length > 0) {
-      for (const cf of compFns) {
-        tsxLines.push(`export function ${cf.name}(): JSX.Element {`);
-        tsxLines.push(`  const data = useVoxQuery("${ast.fns[0]?.name || 'get_tasks'}");`);
-        tsxLines.push(`  return <div className="vox-component">${cf.name} Ready ({String(data)})</div>;`);
-        tsxLines.push('}');
-      }
-    }
-    const mcpTools = ast.fns.filter((f) => f.decorator === 'mcp.tool' || f.decorator === 'workflow');
-    const mcpSchema = mcpTools.map((t) => ({
-      name: t.name,
-      description: t.doc,
-      inputSchema: {
-        type: 'object',
-        properties: t.params
-          ? Object.fromEntries(
-              t.params.split(',').map((p) => {
-                const [k, v] = p.split(':').map((s) => s.trim());
-                return [k || 'arg', { type: v === 'int' ? 'integer' : 'string' }];
-              })
-            )
-          : {},
-      },
-    }));
-    tsxLines.push(JSON.stringify(mcpSchema, null, 2));
-
-    return {
-      runtime: runtimeOut,
-      sql: sqlLines.join('\n'),
-      rust: rustLines.join('\n'),
-      tsx: tsxLines.join('\n'),
-    };
-  }
-
   class VoxPlayground extends HTMLElement {
     constructor() {
       super();
-      let examples = [];
+      let data = { presets: [], targets: [], capturedWith: '', commands: {} };
       try {
-        examples = JSON.parse(this.dataset.examples || '[]');
+        data = JSON.parse(this.dataset.playground || '{}');
       } catch (e) {}
 
+      const presets = data.presets || [];
       const editor = this.querySelector('.code-editor');
       const highlightLayer = this.querySelector('.code-highlight-layer');
       const editorGutter = this.querySelector('.editor-line-gutter');
-      const runBtn = this.querySelector('.run-btn');
       const copyBtn = this.querySelector('.copy-btn');
+      const resetBtn = this.querySelector('.reset-btn');
       const outputDisplay = this.querySelector('.output-display');
-      const secondaryDisplay = this.querySelector('.secondary-output-display');
-      const secondaryGutter = this.querySelector('.secondary-line-gutter');
+      const provenance = this.querySelector('.output-provenance');
+      const noteEl = this.querySelector('.output-note');
+      const summaryEl = this.querySelector('.preset-summary');
+      const flowEl = this.querySelector('.flow-strip');
       const presetTabs = Array.from(this.querySelectorAll('.playground-tab'));
       const targetTabs = Array.from(this.querySelectorAll('.target-tab'));
-      const secondaryTabs = Array.from(this.querySelectorAll('.secondary-tab'));
       const schematicNodes = Array.from(this.querySelectorAll('.schematic-target-btn'));
 
-      let activeExample = examples[0] || {
-        id: 'default',
-        label: 'Default',
-        code: this.dataset.initialCode || '',
-        expectedOutput: 'Tasks queued: 1\nTasks remaining: 0\n→ Ok("done")',
-        summary: '',
-      };
+      let active = presets[0];
       let activeTarget = 'runtime';
-      let activeSecondaryTarget = 'rust';
-      let lastRuntimeOutput = activeExample.expectedOutput;
 
-      const renderCurrentTargets = () => {
-        if (!editor || !outputDisplay) return;
-        if (highlightLayer) {
-          highlightLayer.innerHTML = highlightCodeBlock(editor.value);
-        }
-        if (editorGutter) {
-          editorGutter.textContent = buildLineGutter(editor.value, 9);
-        }
-        const compiled = compileVoxTargets(editor.value, lastRuntimeOutput);
-        const topCode = compiled[activeTarget] || compiled.runtime;
-        outputDisplay.innerHTML = highlightCodeBlock(topCode);
+      const targetLabel = (id) => (data.targets.find((t) => t.id === id) || {}).label || id;
 
-        if (secondaryDisplay) {
-          const secCode = compiled[activeSecondaryTarget] || compiled.rust;
-          secondaryDisplay.innerHTML = highlightCodeBlock(secCode);
-          if (secondaryGutter) {
-            secondaryGutter.textContent = buildLineGutter(secCode, 8);
-          }
+      const isEdited = () => !!editor && !!active && editor.value.trim() !== active.source;
+
+      const renderEditor = () => {
+        if (!editor) return;
+        if (highlightLayer) highlightLayer.innerHTML = highlightCodeBlock(editor.value);
+        if (editorGutter) editorGutter.textContent = buildLineGutter(editor.value, 9);
+      };
+
+      const renderFlow = () => {
+        if (!flowEl || !active) return;
+        flowEl.textContent = '';
+        for (const step of active.flow || []) {
+          const li = document.createElement('li');
+          const from = document.createElement('code');
+          from.textContent = step.from;
+          const arrow = document.createElement('span');
+          arrow.className = 'flow-arrow';
+          arrow.setAttribute('aria-hidden', 'true');
+          arrow.textContent = '→';
+          const to = document.createElement('code');
+          to.textContent = step.to;
+          const why = document.createElement('span');
+          why.className = 'flow-why';
+          why.textContent = step.note;
+          li.append(from, arrow, to, why);
+          flowEl.appendChild(li);
         }
       };
 
-      const selectTargetTab = (targetId) => {
+      const renderOutput = () => {
+        if (!active || !outputDisplay) return;
+        const text = (active.outputs || {})[activeTarget];
+        const edited = isEdited();
+        if (text) {
+          outputDisplay.innerHTML = highlightCodeBlock(text);
+        } else {
+          outputDisplay.textContent = `Nothing is emitted for ${targetLabel(activeTarget)} from this file.`;
+        }
+        if (noteEl) noteEl.textContent = (active.notes || {})[activeTarget] || '';
+        if (provenance) {
+          provenance.classList.toggle('is-edited', edited);
+          const cmd = activeTarget === 'runtime' ? data.commands.runtime : data.commands.build;
+          provenance.textContent = edited
+            ? `You have edited the code. The browser cannot run the compiler, so this is still the real output for the original example. Run \`${cmd}\` on your file to see yours.`
+            : text
+              ? `Real output of \`${cmd}\` for this example (${data.capturedWith}).`
+              : `\`${cmd}\` produced nothing for this example (${data.capturedWith}).`;
+        }
+        if (resetBtn) resetBtn.hidden = !edited;
+      };
+
+      const selectTarget = (targetId, focus) => {
         activeTarget = targetId;
         targetTabs.forEach((btn) => {
           const isMatch = btn.dataset.targetId === targetId;
           btn.classList.toggle('active', isMatch);
           btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+          btn.tabIndex = isMatch ? 0 : -1;
+          if (isMatch && focus) btn.focus();
         });
+        const schematicId = targetId === 'runtime' || targetId === 'sql' || targetId === 'rust' ? targetId : 'client';
         schematicNodes.forEach((node) => {
-          const isMatch = node.dataset.targetTab === targetId;
-          node.classList.toggle('active', isMatch);
+          node.classList.toggle('active', node.dataset.targetTab === schematicId);
         });
-        renderCurrentTargets();
+        renderOutput();
+      };
+
+      const selectPreset = (id) => {
+        const found = presets.find((p) => p.id === id);
+        if (!found) return;
+        active = found;
+        presetTabs.forEach((t) => {
+          const isMatch = t.dataset.exampleId === id;
+          t.classList.toggle('active', isMatch);
+          t.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+        });
+        if (editor) editor.value = found.source;
+        if (summaryEl) summaryEl.textContent = found.summary;
+        renderEditor();
+        renderFlow();
+        renderOutput();
+      };
+
+      // Roving-tabindex arrow-key navigation for a tablist.
+      const bindArrowKeys = (tabs, onSelect) => {
+        tabs.forEach((btn, i) => {
+          btn.addEventListener('keydown', (ev) => {
+            let next = -1;
+            if (ev.key === 'ArrowRight') next = (i + 1) % tabs.length;
+            else if (ev.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+            else if (ev.key === 'Home') next = 0;
+            else if (ev.key === 'End') next = tabs.length - 1;
+            if (next < 0) return;
+            ev.preventDefault();
+            onSelect(tabs[next]);
+          });
+        });
       };
 
       targetTabs.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const t = btn.dataset.targetId || 'runtime';
-          selectTargetTab(t);
-        });
+        btn.addEventListener('click', () => selectTarget(btn.dataset.targetId || 'runtime', false));
       });
+      bindArrowKeys(targetTabs, (btn) => selectTarget(btn.dataset.targetId || 'runtime', true));
 
-      secondaryTabs.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          activeSecondaryTarget = btn.dataset.secTarget || 'rust';
-          secondaryTabs.forEach((b) => {
-            const isMatch = b === btn;
-            b.classList.toggle('active', isMatch);
-            b.setAttribute('aria-selected', isMatch ? 'true' : 'false');
-          });
-          renderCurrentTargets();
-        });
+      presetTabs.forEach((tab) => {
+        tab.addEventListener('click', () => selectPreset(tab.dataset.exampleId));
+      });
+      bindArrowKeys(presetTabs, (tab) => {
+        selectPreset(tab.dataset.exampleId);
+        tab.focus();
       });
 
       schematicNodes.forEach((node) => {
-        node.addEventListener('click', () => {
+        const go = () => {
           const t = node.dataset.targetTab || 'runtime';
-          selectTargetTab(t);
-        });
+          selectTarget(t, false);
+        };
+        node.addEventListener('click', go);
         node.addEventListener('keydown', (ev) => {
           if (ev.key === 'Enter' || ev.key === ' ') {
             ev.preventDefault();
-            const t = node.dataset.targetTab || 'runtime';
-            selectTargetTab(t);
+            go();
           }
-        });
-      });
-
-      presetTabs.forEach((tab) => {
-        tab.addEventListener('click', () => {
-          const id = tab.dataset.exampleId;
-          const found = examples.find((ex) => ex.id === id);
-          if (!found) return;
-          activeExample = found;
-          lastRuntimeOutput = found.expectedOutput;
-          presetTabs.forEach((t) => {
-            const isMatch = t === tab;
-            t.classList.toggle('active', isMatch);
-            t.setAttribute('aria-selected', isMatch ? 'true' : 'false');
-          });
-          if (editor) editor.value = found.code;
-          renderCurrentTargets();
         });
       });
 
       if (editor) {
         editor.addEventListener('input', () => {
-          renderCurrentTargets();
+          renderEditor();
+          renderOutput();
         });
         editor.addEventListener('scroll', () => {
           if (highlightLayer) {
             highlightLayer.scrollTop = editor.scrollTop;
             highlightLayer.scrollLeft = editor.scrollLeft;
           }
-          if (editorGutter) {
-            editorGutter.scrollTop = editor.scrollTop;
-          }
+          if (editorGutter) editorGutter.scrollTop = editor.scrollTop;
+        });
+      }
+
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          if (active) selectPreset(active.id);
         });
       }
 
@@ -1119,29 +939,9 @@ fn main() to Result[str] {
         });
       }
 
-      if (runBtn && editor) {
-        runBtn.addEventListener('click', () => {
-          const code = editor.value.trim();
-          if (!code) return;
-          const prints = [];
-          const printRe = /print\s*\(\s*"([^"]*)"/g;
-          let pm;
-          while ((pm = printRe.exec(code)) !== null) {
-            prints.push(pm[1]);
-          }
-          const matched = examples.find((ex) => ex.code.trim() === code);
-          if (matched) {
-            lastRuntimeOutput = matched.expectedOutput;
-          } else if (prints.length > 0) {
-            lastRuntimeOutput = `${prints.join('\n')}\n→ Ok("compiled_and_executed")`;
-          } else {
-            lastRuntimeOutput = '→ Ok("compiled_and_executed")';
-          }
-          renderCurrentTargets();
-        });
-      }
-
-      renderCurrentTargets();
+      renderEditor();
+      renderFlow();
+      renderOutput();
     }
   }
 

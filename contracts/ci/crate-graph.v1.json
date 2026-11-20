@@ -329,6 +329,7 @@
       "vox-bounded-fs",
       "vox-compiler",
       "vox-diagram",
+      "vox-graph-reader",
       "vox-kb-facets",
       "workspace-hack"
     ],
@@ -573,6 +574,7 @@
       "vox-crypto",
       "vox-db",
       "vox-diagram",
+      "vox-doc-pipeline",
       "vox-foundation",
       "vox-gamify",
       "vox-grammar-export",

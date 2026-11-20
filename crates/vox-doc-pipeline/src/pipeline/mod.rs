@@ -391,18 +391,31 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
         }
         if let Ok(resolved) = crate::claims::scan_corpus(root, None) {
             let findings = crate::claims::generate_findings(&resolved);
+            let active_fps: std::collections::HashSet<String> = findings
+                .iter()
+                .map(|f| f.fingerprint.clone().unwrap_or_else(|| f.id.clone()))
+                .collect();
             let baseline_path = root.join("contracts/reports/docs-freshness/baseline.v1.json");
             if let Ok(mut baseline) = crate::claims::BaselineFile::load_from_file(&baseline_path) {
-                let active_fps: std::collections::HashSet<String> = findings
-                    .iter()
-                    .map(|f| f.fingerprint.clone().unwrap_or_else(|| f.id.clone()))
-                    .collect();
                 let removed = baseline.tighten(&active_fps);
                 let _ = baseline.save_to_file(&baseline_path);
                 eprintln!(
                     "Tightened baseline.v1.json: removed {} resolved deficits (remaining: {})",
                     removed,
                     baseline.deficits.len()
+                );
+            }
+            let ratchet_path = root.join("contracts/reports/docs-freshness/corpus-ratchet.v1.json");
+            if ratchet_path.is_file()
+                && let Ok(mut ratchet) =
+                    crate::claims::CorpusRatchetFile::load_from_file(&ratchet_path)
+            {
+                let removed = ratchet.tighten(&active_fps);
+                let _ = ratchet.save_to_file(&ratchet_path);
+                eprintln!(
+                    "Tightened corpus-ratchet.v1.json: removed {} resolved deficits (remaining: {})",
+                    removed,
+                    ratchet.deficits.len()
                 );
             }
         }

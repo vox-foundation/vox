@@ -148,56 +148,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             };
             let out_opt = ext_override.as_deref();
 
-            if apply_proposal.is_some() || reject_proposal.is_some() || auto_apply {
-                let db_path = target_root.join(".vox").join("store.db");
-                if let Some(parent) = db_path.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                let db =
-                    vox_db::VoxDb::connect(vox_db::DbConfig::local(db_path.display().to_string()))
-                        .await?;
-                if let Some(id) = apply_proposal.as_deref() {
-                    let applied = vox_search::promotion::apply_staged_heal_proposal(
-                        &db,
-                        &target_root,
-                        id,
-                        "ci-operator",
-                        Some("Applied via `vox ci wiki-sync --apply-proposal`"),
-                    )
-                    .await?;
-                    println!("Applied heal proposal `{id}` -> {}", applied.display());
-                } else if let Some(id) = reject_proposal.as_deref() {
-                    let ok = db
-                        .kb_heal_proposal_update_status(
-                            id,
-                            "rejected",
-                            Some("ci-operator"),
-                            Some("Rejected via `vox ci wiki-sync --reject-proposal`"),
-                        )
-                        .await?;
-                    println!("Rejected heal proposal `{id}` (found={ok})");
-                } else {
-                    let ctx = vox_repository::discover_repository_or_fallback(&target_root);
-                    let pending = db
-                        .kb_heal_proposals_list(Some(&ctx.repository_id), Some("pending"), 50)
-                        .await?;
-                    let mut count = 0usize;
-                    for row in pending {
-                        let _ = vox_search::promotion::apply_staged_heal_proposal(
-                            &db,
-                            &target_root,
-                            &row.id,
-                            "ci-auto-apply",
-                            Some("Auto-applied passing Tier-2 proposal"),
-                        )
-                        .await?;
-                        count += 1;
-                    }
-                    println!("Auto-applied {count} verified Tier-2 heal proposal(s).");
-                }
-                return Ok(());
-            }
-
             if heal {
                 let rep = vox_doc_pipeline::pipeline::openwiki::heal_tier1_deterministic(
                     &target_root,
@@ -216,6 +166,145 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                         rep.updated_pages.len(),
                         rep.repaired_anchors
                     );
+                }
+                if apply_proposal.is_none() && reject_proposal.is_none() && !auto_apply {
+                    return Ok(());
+                }
+            }
+
+            if apply_proposal.is_some() || reject_proposal.is_some() || auto_apply {
+                match vox_db::VoxDb::connect_default().await {
+                    Ok(db) => {
+                        if let Some(id) = apply_proposal.as_deref() {
+                            let applied = vox_search::promotion::apply_staged_heal_proposal(
+                                &db,
+                                &target_root,
+                                id,
+                                "ci-operator",
+                                Some("Applied via `vox ci wiki-sync --apply-proposal`"),
+                            )
+                            .await?;
+                            println!("Applied heal proposal `{id}` -> {}", applied.display());
+                        } else if let Some(id) = reject_proposal.as_deref() {
+                            let ok = db
+                                .kb_heal_proposal_update_status(
+                                    id,
+                                    "rejected",
+                                    Some("ci-operator"),
+                                    Some("Rejected via `vox ci wiki-sync --reject-proposal`"),
+                                )
+                                .await?;
+                            println!("Rejected heal proposal `{id}` (found={ok})");
+                        } else {
+                            let ctx = vox_repository::discover_repository_or_fallback(&target_root);
+                            let pending = db
+                                .kb_heal_proposals_list(
+                                    Some(&ctx.repository_id),
+                                    Some("pending"),
+                                    50,
+                                )
+                                .await?;
+                            let mut count = 0usize;
+                            for row in pending {
+                                let _ = vox_search::promotion::apply_staged_heal_proposal(
+                                    &db,
+                                    &target_root,
+                                    &row.id,
+                                    "ci-auto-apply",
+                                    Some("Auto-applied passing Tier-2 proposal"),
+                                )
+                                .await?;
+                                count += 1;
+                            }
+                            println!("Auto-applied {count} verified Tier-2 heal proposal(s).");
+                        }
+                    }
+                    Err(connect_err) => {
+                        let client = vox_cli_research::daemon_tool::daemon_client()
+                            .await
+                            .map_err(|daemon_err| {
+                                anyhow!(
+                                    "canonical VoxDb connect failed ({connect_err}); daemon IPC fallback failed ({daemon_err})"
+                                )
+                            })?;
+                        let root_str = target_root.display().to_string();
+                        if let Some(id) = apply_proposal.as_deref() {
+                            let res = vox_cli_research::daemon_tool::tool_call(
+                                &client,
+                                "vox_repo_catalog_refresh",
+                                serde_json::json!({
+                                    "action": "wiki_heal_apply",
+                                    "path": root_str,
+                                    "proposal_id": id,
+                                    "reviewed_by": "ci-operator",
+                                    "review_note": "Applied via `vox ci wiki-sync --apply-proposal`",
+                                }),
+                            )
+                            .await?;
+                            let path_str = res.get("path").and_then(|v| v.as_str()).unwrap_or("");
+                            println!("Applied heal proposal `{id}` -> {path_str}");
+                        } else if let Some(id) = reject_proposal.as_deref() {
+                            let res = vox_cli_research::daemon_tool::tool_call(
+                                &client,
+                                "vox_repo_catalog_refresh",
+                                serde_json::json!({
+                                    "action": "wiki_heal_reject",
+                                    "path": root_str,
+                                    "proposal_id": id,
+                                    "reviewed_by": "ci-operator",
+                                    "review_note": "Rejected via `vox ci wiki-sync --reject-proposal`",
+                                }),
+                            )
+                            .await?;
+                            let ok = res
+                                .get("updated")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
+                            println!("Rejected heal proposal `{id}` (found={ok})");
+                        } else {
+                            let ctx = vox_repository::discover_repository_or_fallback(&target_root);
+                            let list_res = vox_cli_research::daemon_tool::tool_call(
+                                &client,
+                                "vox_repo_catalog_refresh",
+                                serde_json::json!({
+                                    "action": "wiki_heal_list",
+                                    "path": root_str,
+                                    "repository_id": ctx.repository_id,
+                                    "status": "pending",
+                                }),
+                            )
+                            .await?;
+                            let mut count = 0usize;
+                            for row in list_res
+                                .get("proposals")
+                                .and_then(|v| v.as_array())
+                                .into_iter()
+                                .flatten()
+                            {
+                                let Some(id) = row
+                                    .get("id")
+                                    .and_then(|v| v.as_str())
+                                    .filter(|s| !s.is_empty())
+                                else {
+                                    continue;
+                                };
+                                let _ = vox_cli_research::daemon_tool::tool_call(
+                                    &client,
+                                    "vox_repo_catalog_refresh",
+                                    serde_json::json!({
+                                        "action": "wiki_heal_apply",
+                                        "path": target_root.display().to_string(),
+                                        "proposal_id": id,
+                                        "reviewed_by": "ci-auto-apply",
+                                        "review_note": "Auto-applied passing Tier-2 proposal",
+                                    }),
+                                )
+                                .await?;
+                                count += 1;
+                            }
+                            println!("Auto-applied {count} verified Tier-2 heal proposal(s).");
+                        }
+                    }
                 }
                 return Ok(());
             }
@@ -911,6 +1000,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             &root,
             vox_cli_ci::evidence_asset_ban::EvidenceAssetBanArgs { allowlist, paths },
         ),
+        CiCmd::LlmsVerified { write } => vox_cli_ci::llms_verified::run(&root, write),
+        CiCmd::ReadmeAssets => vox_cli_ci::readme_assets::run(&root),
         CiCmd::KnipGui { check } => vox_cli_ci::knip_gui::run(&root, check),
         CiCmd::TransferBudgetReport {
             write,

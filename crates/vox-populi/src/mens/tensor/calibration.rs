@@ -94,6 +94,321 @@ pub fn fit_a_lane(records: &[CalibrationRecord]) -> Option<f64> {
     None
 }
 
+/// Multi-term calibration observation distinguishing resident weights, cached BF16 weight
+/// amplification (`cache_dequantized`), `lm_head` LoRA participation, and attention width.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MultiTermCalibrationRecord {
+    pub host_key: String,
+    pub lane: String,
+    pub model: String,
+    pub artifact_bytes: u64,
+    pub resident_weight_bytes: u64,
+    pub layers: u32,
+    pub hidden: u32,
+    pub attn_width: u32,
+    pub vocab_size: u64,
+    pub tie_word_embeddings: bool,
+    pub tokens_per_step: u64,
+    pub cache_dequantized: bool,
+    pub rank: u32,
+    pub lora_exclude_lm_head: bool,
+    pub sequence_packing: bool,
+    #[serde(default = "default_steps_executed")]
+    pub steps_executed: u32,
+    pub outcome: FitOutcome,
+    pub peak_bytes: Option<u64>,
+}
+
+fn default_steps_executed() -> u32 {
+    1
+}
+
+/// Fitted non-negative multi-term memory model coefficients for one training lane.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MultiTermCoeffs {
+    /// Fixed runtime/allocator baseline in bytes.
+    pub fixed_bytes: f64,
+    /// Bytes per `(layers * hidden * tokens_per_step)`.
+    pub act_bytes_per_lht: f64,
+    /// Logits / cross-entropy buffer bytes per `(vocab_size * tokens_per_step)`.
+    pub logits_bytes_per_vt: f64,
+    /// Extra activation/arena retention per `(layers * attn_width * tokens_per_step)` when
+    /// `cache_dequantized == true`.
+    pub cached_attn_bytes_per_lwt: f64,
+    /// Extra bytes per `(vocab_size * tokens_per_step)` when `lora_exclude_lm_head == false`.
+    pub lm_head_lora_bytes_per_vt: f64,
+}
+
+impl MultiTermCoeffs {
+    pub fn predict_bytes(
+        &self,
+        resident_weight_bytes: u64,
+        layers: u32,
+        hidden: u32,
+        attn_width: u32,
+        vocab_size: u64,
+        tokens_per_step: u64,
+        cache_dequantized: bool,
+        lora_exclude_lm_head: bool,
+    ) -> u64 {
+        self.predict_bytes_with_chunk_rows(
+            resident_weight_bytes,
+            layers,
+            hidden,
+            attn_width,
+            vocab_size,
+            tokens_per_step,
+            cache_dequantized,
+            lora_exclude_lm_head,
+            None,
+        )
+    }
+
+    pub fn predict_bytes_with_chunk_rows(
+        &self,
+        resident_weight_bytes: u64,
+        layers: u32,
+        hidden: u32,
+        attn_width: u32,
+        vocab_size: u64,
+        tokens_per_step: u64,
+        cache_dequantized: bool,
+        lora_exclude_lm_head: bool,
+        chunked_lm_head_rows: Option<u64>,
+    ) -> u64 {
+        let lht = (layers as f64) * (hidden as f64) * (tokens_per_step as f64);
+        let head_rows = match chunked_lm_head_rows {
+            Some(c) if c > 0 => tokens_per_step.min(c),
+            _ => tokens_per_step,
+        };
+        let vt = (vocab_size as f64) * (head_rows as f64);
+        let lwt = if cache_dequantized {
+            (layers as f64) * (attn_width as f64) * (tokens_per_step as f64)
+        } else {
+            0.0
+        };
+        let lm_head_vt = if lora_exclude_lm_head { 0.0 } else { vt };
+        let overhead = self.fixed_bytes
+            + self.act_bytes_per_lht * lht
+            + self.logits_bytes_per_vt * vt
+            + self.cached_attn_bytes_per_lwt * lwt
+            + self.lm_head_lora_bytes_per_vt * lm_head_vt;
+        resident_weight_bytes.saturating_add(overhead.max(0.0).round() as u64)
+    }
+}
+
+/// Solve small dense linear system `A * x = b` (`N <= 5`) via partial-pivot Gaussian elimination.
+fn solve_linear_system<const N: usize>(mut a: [[f64; N]; N], mut b: [f64; N]) -> Option<[f64; N]> {
+    for col in 0..N {
+        let mut pivot_row = col;
+        let mut pivot_val = a[col][col].abs();
+        for (r, row) in a.iter().enumerate().skip(col + 1) {
+            if row[col].abs() > pivot_val {
+                pivot_val = row[col].abs();
+                pivot_row = r;
+            }
+        }
+        if pivot_val < 1e-12 {
+            return None;
+        }
+        if pivot_row != col {
+            a.swap(col, pivot_row);
+            b.swap(col, pivot_row);
+        }
+        let diag = a[col][col];
+        for r in (col + 1)..N {
+            let factor = a[r][col] / diag;
+            a[r][col] = 0.0;
+            let pivot = a[col];
+            for (c, p) in pivot.iter().enumerate().skip(col + 1) {
+                a[r][c] -= factor * p;
+            }
+            b[r] -= factor * b[col];
+        }
+    }
+    let mut x = [0.0_f64; N];
+    for r in (0..N).rev() {
+        let mut sum = b[r];
+        for c in (r + 1)..N {
+            sum -= a[r][c] * x[c];
+        }
+        x[r] = sum / a[r][r];
+    }
+    Some(x)
+}
+
+/// Non-negative least squares over 5 columns via subset search (`2^5 = 32` active masks).
+/// Inputs `rows` are `(features [fixed_gib, lht_1e9, vt_1e9, cached_lwt_1e9, lmhead_vt_1e9], excess_gib)`.
+fn solve_nnls_5(rows: &[([f64; 5], f64)]) -> Option<[f64; 5]> {
+    let mut best_beta: Option<[f64; 5]> = None;
+    let mut best_sse = f64::INFINITY;
+
+    for mask in 1u8..32u8 {
+        let active: Vec<usize> = (0..5).filter(|j| (mask & (1 << j)) != 0).collect();
+        let k = active.len();
+        let mut ata = [[0.0_f64; 5]; 5];
+        let mut aty = [0.0_f64; 5];
+        for (x, y) in rows {
+            for (ii, &ci) in active.iter().enumerate() {
+                aty[ii] += x[ci] * *y;
+                for (jj, &cj) in active.iter().enumerate() {
+                    ata[ii][jj] += x[ci] * x[cj];
+                }
+            }
+        }
+        // Embedded identity for inactive columns so solve_linear_system<5> solves the k×k subset.
+        for (i, row) in ata.iter_mut().enumerate() {
+            if i >= k {
+                row[i] = 1.0;
+            } else {
+                row[i] += 1e-9;
+            }
+        }
+        let Some(sol) = solve_linear_system(ata, aty) else {
+            continue;
+        };
+        let mut beta = [0.0_f64; 5];
+        let mut non_neg = true;
+        for (ii, &ci) in active.iter().enumerate() {
+            if sol[ii] < -1e-9 {
+                non_neg = false;
+                break;
+            }
+            beta[ci] = sol[ii].max(0.0);
+        }
+        if !non_neg {
+            continue;
+        }
+        let sse: f64 = rows
+            .iter()
+            .map(|(x, y)| {
+                let pred: f64 = (0..5).map(|j| beta[j] * x[j]).sum();
+                let err = pred - *y;
+                err * err
+            })
+            .sum();
+        if sse < best_sse {
+            best_sse = sse;
+            best_beta = Some(beta);
+        }
+    }
+    best_beta
+}
+
+/// Fit non-negative [`MultiTermCoeffs`] across distinct steady-state `(model, tokens_per_step,
+/// cache_dequantized, lora_exclude_lm_head)` calibration cells (`Fits` rows only).
+///
+/// Requires at least 6 distinct cells covering both `cache_dequantized` modes or both `lm_head`
+/// configurations so every term is identifiable; returns `None` otherwise (fail closed).
+pub fn fit_multi_term_lane(records: &[MultiTermCalibrationRecord]) -> Option<MultiTermCoeffs> {
+    use std::collections::HashMap;
+
+    let mut cells: HashMap<(&str, u64, bool, bool), &MultiTermCalibrationRecord> = HashMap::new();
+    for r in records {
+        if r.outcome != FitOutcome::Fits || r.peak_bytes.is_none() {
+            continue;
+        }
+        let key = (
+            r.model.as_str(),
+            r.tokens_per_step,
+            r.cache_dequantized,
+            r.lora_exclude_lm_head,
+        );
+        cells
+            .entry(key)
+            .and_modify(|cur| {
+                if r.peak_bytes.unwrap_or(0) > cur.peak_bytes.unwrap_or(0) {
+                    *cur = r;
+                }
+            })
+            .or_insert(r);
+    }
+
+    if cells.len() < 6 {
+        return None;
+    }
+
+    const SCALE: f64 = 1_000_000_000.0;
+    let mut rows: Vec<([f64; 5], f64)> = Vec::with_capacity(cells.len());
+    let mut envelope_recs: Vec<&MultiTermCalibrationRecord> = Vec::new();
+    for r in cells.values() {
+        let peak = r.peak_bytes? as f64;
+        let excess_g = (peak - r.resident_weight_bytes as f64) / SCALE;
+        let lht_g = (r.layers as f64 * r.hidden as f64 * r.tokens_per_step as f64) / SCALE;
+        let vt_g = (r.vocab_size as f64 * r.tokens_per_step as f64) / SCALE;
+        let lwt_g = if r.cache_dequantized {
+            (r.layers as f64 * r.attn_width as f64 * r.tokens_per_step as f64) / SCALE
+        } else {
+            0.0
+        };
+        let lm_vt_g = if r.lora_exclude_lm_head { 0.0 } else { vt_g };
+        rows.push(([1.0, lht_g, vt_g, lwt_g, lm_vt_g], excess_g));
+        if r.sequence_packing || !r.lora_exclude_lm_head {
+            envelope_recs.push(*r);
+        }
+    }
+
+    let beta = solve_nnls_5(&rows)?;
+    let mut coeffs = MultiTermCoeffs {
+        fixed_bytes: beta[0] * SCALE,
+        act_bytes_per_lht: beta[1],
+        logits_bytes_per_vt: beta[2],
+        cached_attn_bytes_per_lwt: beta[3],
+        lm_head_lora_bytes_per_vt: beta[4],
+    };
+
+    // Upper-envelope guard across steady-state production cells (`sequence_packing` or
+    // explicit `lm_head` LoRA calibration): absorb any sub-2% under-prediction into `fixed_bytes`
+    // (or `cached_attn_bytes_per_lwt` when the deficit belongs to a `cache_dequantized` cell) so
+    // no measured production configuration under-predicts.
+    let mut max_uncached_deficit = 0.0_f64;
+    for r in &envelope_recs {
+        if !r.cache_dequantized {
+            let pred = coeffs.predict_bytes(
+                r.resident_weight_bytes,
+                r.layers,
+                r.hidden,
+                r.attn_width,
+                r.vocab_size,
+                r.tokens_per_step,
+                r.cache_dequantized,
+                r.lora_exclude_lm_head,
+            ) as f64;
+            let actual = r.peak_bytes.unwrap_or(0) as f64;
+            max_uncached_deficit = max_uncached_deficit.max(actual - pred);
+        }
+    }
+    if max_uncached_deficit > 0.0 {
+        coeffs.fixed_bytes += max_uncached_deficit;
+    }
+
+    let mut max_cached_lwt_delta = 0.0_f64;
+    for r in &envelope_recs {
+        if r.cache_dequantized {
+            let pred = coeffs.predict_bytes(
+                r.resident_weight_bytes,
+                r.layers,
+                r.hidden,
+                r.attn_width,
+                r.vocab_size,
+                r.tokens_per_step,
+                r.cache_dequantized,
+                r.lora_exclude_lm_head,
+            ) as f64;
+            let actual = r.peak_bytes.unwrap_or(0) as f64;
+            let lwt = (r.layers as f64) * (r.attn_width as f64) * (r.tokens_per_step as f64);
+            if actual > pred && lwt > 0.0 {
+                max_cached_lwt_delta = max_cached_lwt_delta.max((actual - pred) / lwt);
+            }
+        }
+    }
+    if max_cached_lwt_delta > 0.0 {
+        coeffs.cached_attn_bytes_per_lwt += max_cached_lwt_delta;
+    }
+
+    Some(coeffs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,6 +599,88 @@ mod tests {
             (fitted - contract_row.act_bytes_per_lht).abs() < 1e-9,
             "fitted {fitted} must match contract act_bytes_per_lht {}",
             contract_row.act_bytes_per_lht
+        );
+    }
+
+    #[test]
+    fn multi_term_metal_calibration_fits_and_bounds_all_full_runs() {
+        let raw = include_str!(
+            "../../../../../docs/src/architecture/measurements/2026-11-19-candle-metal-multi-term-calibration.json"
+        );
+        let doc: serde_json::Value = serde_json::from_str(raw).expect("valid JSON");
+        let records: Vec<MultiTermCalibrationRecord> =
+            serde_json::from_value(doc["records"].clone())
+                .expect("records parse as MultiTermCalibrationRecord");
+        assert_eq!(
+            records.len(),
+            11,
+            "expected all 11 measured Metal Fits runs"
+        );
+
+        let coeffs = fit_multi_term_lane(&records).expect("multi-term calibration succeeds");
+        assert!(coeffs.fixed_bytes >= 0.0);
+        assert!(coeffs.act_bytes_per_lht >= 0.0);
+        assert!(coeffs.logits_bytes_per_vt >= 0.0);
+        assert!(coeffs.cached_attn_bytes_per_lwt >= 0.0);
+        assert!(coeffs.lm_head_lora_bytes_per_vt >= 0.0);
+
+        for r in records
+            .iter()
+            .filter(|r| r.sequence_packing || !r.lora_exclude_lm_head)
+        {
+            let actual = r.peak_bytes.expect("peak_bytes");
+            let pred = coeffs.predict_bytes(
+                r.resident_weight_bytes,
+                r.layers,
+                r.hidden,
+                r.attn_width,
+                r.vocab_size,
+                r.tokens_per_step,
+                r.cache_dequantized,
+                r.lora_exclude_lm_head,
+            );
+            let ratio = pred as f64 / actual as f64;
+            assert!(
+                pred >= actual,
+                "{} ({}) under-predicted: pred={} < actual={}",
+                r.model,
+                if r.lora_exclude_lm_head {
+                    "lean"
+                } else {
+                    "lm_head"
+                },
+                pred,
+                actual
+            );
+            assert!(
+                ratio <= 1.25,
+                "{} overly conservative: pred={} vs actual={} ({ratio:.3}x)",
+                r.model,
+                pred,
+                actual
+            );
+        }
+
+        // Verify 27B lean (r16, --lora-exclude-lm-head) stays within +10% of 43.28 GB measured.
+        let r27_lean = records
+            .iter()
+            .find(|r| r.model.contains("27B") && r.lora_exclude_lm_head)
+            .expect("27B lean record");
+        let pred_27_lean = coeffs.predict_bytes(
+            r27_lean.resident_weight_bytes,
+            r27_lean.layers,
+            r27_lean.hidden,
+            r27_lean.attn_width,
+            r27_lean.vocab_size,
+            r27_lean.tokens_per_step,
+            r27_lean.cache_dequantized,
+            r27_lean.lora_exclude_lm_head,
+        );
+        let actual_27_lean = r27_lean.peak_bytes.unwrap();
+        let ratio_27 = pred_27_lean as f64 / actual_27_lean as f64;
+        assert!(
+            (1.0..=1.10).contains(&ratio_27),
+            "27B lean prediction {pred_27_lean} vs actual {actual_27_lean} ({ratio_27:.3}x); coeffs={coeffs:?}"
         );
     }
 }

@@ -7,22 +7,9 @@ use std::path::{Path, PathBuf};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use walkdir::{DirEntry, WalkDir};
 
 use crate::claims::hasher::hash_normalized_code;
 use crate::pipeline::openwiki::{extract_deep_crate_symbols, parse_layers_toml};
-
-const MAX_SCAN_FILES: usize = 6_000;
-const MAX_ENTRIES_PER_LAYER: usize = 60;
-
-const LAYER_PAGE_ORDER: &[&str] = &[
-    "README.md",
-    "architecture-topology.md",
-    "interfaces-and-apis.md",
-    "data-models-and-schemas.md",
-    "gui-surfaces-and-flows.md",
-    "workflows-and-runbooks.md",
-];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PolyglotModuleRecord {
@@ -273,13 +260,16 @@ fn is_auto_end_marker(trimmed_line: &str) -> bool {
     inner == "openwiki:auto:end" || inner.starts_with("openwiki:auto:end ")
 }
 
-fn is_ignored_dir(entry: &DirEntry) -> bool {
-    if !entry.file_type().is_dir() || entry.depth() == 0 {
+fn is_ignored_dir_name(
+    depth: usize,
+    file_type: Option<std::fs::FileType>,
+    name: &std::ffi::OsStr,
+) -> bool {
+    if depth == 0 || !file_type.is_some_and(|t| t.is_dir()) {
         return false;
     }
-    let name = entry.file_name().to_string_lossy();
     matches!(
-        name.as_ref(),
+        name.to_string_lossy().as_ref(),
         ".git"
             | ".vox"
             | "target"
@@ -290,7 +280,28 @@ fn is_ignored_dir(entry: &DirEntry) -> bool {
             | "__pycache__"
             | ".next"
             | "coverage"
+            | "vendor"
+            | "third_party"
+            | "patches"
     )
+}
+
+/// Group `items` under one `### <top-level module>` heading per first path segment (or the
+/// first two for `crates/` / `packages/` / `apps/` monorepo layouts), sorted by group name.
+fn module_group(rel_path: &str) -> String {
+    let mut segs = rel_path.split('/');
+    let first = segs.next().unwrap_or("");
+    if matches!(first, "crates" | "packages" | "apps" | "services" | "libs")
+        && let Some(second) = segs.next()
+        && rel_path.matches('/').count() >= 2
+    {
+        return format!("{first}/{second}");
+    }
+    if rel_path.contains('/') {
+        first.to_string()
+    } else {
+        "(root)".to_string()
+    }
 }
 
 fn escape_cell(s: &str) -> String {
@@ -301,12 +312,15 @@ fn escape_cell(s: &str) -> String {
         .to_string()
 }
 
-fn anchor_markdown(rel_path: &str, start_line: usize, end_line: usize) -> String {
+/// Markdown link to a repo-relative source span. `up` is how many directories the page sits below
+/// the repo root (`docs/wiki/x.md` → 2, `docs/src/openwiki/x.md` → 3).
+fn anchor_markdown(rel_path: &str, start_line: usize, end_line: usize, up: usize) -> String {
     let norm = rel_path.replace('\\', "/");
+    let prefix = "../".repeat(up);
     if end_line > start_line {
-        format!("[`{norm}#L{start_line}-L{end_line}`](../../{norm}#L{start_line}-L{end_line})")
+        format!("[`{norm}#L{start_line}-L{end_line}`]({prefix}{norm}#L{start_line}-L{end_line})")
     } else {
-        format!("[`{norm}#L{start_line}`](../../{norm}#L{start_line})")
+        format!("[`{norm}#L{start_line}`]({prefix}{norm}#L{start_line})")
     }
 }
 
@@ -351,7 +365,7 @@ pub fn extract_polyglot_wiki_snapshot(repo_root: &Path) -> PolyglotWikiSnapshot 
     if let Ok(raw_layers) = fs::read_to_string(repo_root.join("docs/src/architecture/layers.toml"))
     {
         stacks.insert("Rust/Cargo".to_string());
-        for entry in parse_layers_toml(&raw_layers).into_iter().take(40) {
+        for entry in parse_layers_toml(&raw_layers) {
             if entry.name == "workspace-hack" {
                 continue;
             }
@@ -366,14 +380,19 @@ pub fn extract_polyglot_wiki_snapshot(repo_root: &Path) -> PolyglotWikiSnapshot 
         }
     }
 
+    let pages_rel = format!("{}/", openwiki_pages_rel(repo_root));
     let mut files: Vec<(String, PathBuf)> = Vec::new();
-    for entry in WalkDir::new(repo_root)
+    let walker = ignore::WalkBuilder::new(repo_root)
+        .hidden(false)
+        .git_ignore(true)
+        .git_global(false)
+        .git_exclude(false)
+        .parents(false)
         .follow_links(false)
-        .into_iter()
-        .filter_entry(|e| !is_ignored_dir(e))
-        .flatten()
-    {
-        if !entry.file_type().is_file() {
+        .filter_entry(|e| !is_ignored_dir_name(e.depth(), e.file_type(), e.file_name()))
+        .build();
+    for entry in walker.flatten() {
+        if !entry.file_type().is_some_and(|t| t.is_file()) {
             continue;
         }
         let path = entry.path().to_path_buf();
@@ -382,13 +401,10 @@ pub fn extract_polyglot_wiki_snapshot(repo_root: &Path) -> PolyglotWikiSnapshot 
             .unwrap_or(&path)
             .to_string_lossy()
             .replace('\\', "/");
-        if rel.starts_with("docs/wiki/") || rel.starts_with("docs/src/archive/") {
+        if rel.starts_with(&pages_rel) || rel.starts_with("docs/src/archive/") {
             continue;
         }
         files.push((rel, path));
-        if files.len() >= MAX_SCAN_FILES {
-            break;
-        }
     }
     files.sort_by(|a, b| a.0.cmp(&b.0));
 
@@ -602,7 +618,9 @@ pub fn extract_polyglot_wiki_snapshot(repo_root: &Path) -> PolyglotWikiSnapshot 
             }
             "sql" => {
                 stacks.insert("SQL".to_string());
+                let before = schemas.len();
                 scan_sql_file(&content, &rel, &re_sql, &mut schemas);
+                annotate_sql_references(&content, &rel, &mut schemas[before..]);
             }
             "vox" => {
                 stacks.insert("Vox".to_string());
@@ -621,11 +639,22 @@ pub fn extract_polyglot_wiki_snapshot(repo_root: &Path) -> PolyglotWikiSnapshot 
     }
 
     modules.sort_by(|a, b| a.stack.cmp(&b.stack).then_with(|| a.name.cmp(&b.name)));
-    modules.truncate(MAX_ENTRIES_PER_LAYER);
-    interfaces.truncate(MAX_ENTRIES_PER_LAYER);
-    schemas.truncate(MAX_ENTRIES_PER_LAYER);
-    gui_surfaces.truncate(MAX_ENTRIES_PER_LAYER);
-    workflows.truncate(MAX_ENTRIES_PER_LAYER);
+    for list in [
+        &mut interfaces,
+        &mut schemas,
+        &mut gui_surfaces,
+        &mut workflows,
+    ] {
+        list.sort_by(|a, b| {
+            a.rel_path
+                .cmp(&b.rel_path)
+                .then_with(|| a.start_line.cmp(&b.start_line))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+        list.dedup_by(|a, b| {
+            a.rel_path == b.rel_path && a.name == b.name && a.start_line == b.start_line
+        });
+    }
 
     PolyglotWikiSnapshot {
         repo_name,
@@ -851,6 +880,26 @@ fn scan_go_file(
     scan_http_routes(content, rel, "Go", re_route, interfaces);
 }
 
+/// Add foreign-key (`REFERENCES`) relations, extracted by `vox-graph-reader`, to each table
+/// anchor's rendered signature (`... → references users, orgs`).
+fn annotate_sql_references(content: &str, rel: &str, anchors: &mut [PolyglotSymbolAnchor]) {
+    let graph = vox_graph_reader::polyglot::extract_sql_in_module(content, rel);
+    for anchor in anchors.iter_mut() {
+        let id = format!("sql:{}", anchor.name);
+        let mut refs: Vec<String> = graph
+            .edges
+            .iter()
+            .filter(|e| e.kind == "references_table" && e.source == id)
+            .map(|e| e.target.trim_start_matches("sql:").to_string())
+            .collect();
+        refs.sort();
+        refs.dedup();
+        if !refs.is_empty() {
+            anchor.signature = format!("{} → references {}", anchor.signature, refs.join(", "));
+        }
+    }
+}
+
 fn scan_sql_file(
     content: &str,
     rel: &str,
@@ -956,23 +1005,129 @@ fn render_okf_frontmatter(title: &str, description: &str, topic: &str, domain: &
     )
 }
 
-fn render_symbol_table(items: &[PolyglotSymbolAnchor], empty_note: &str) -> String {
+fn render_symbol_table(items: &[PolyglotSymbolAnchor], empty_note: &str, up: usize) -> String {
     if items.is_empty() {
         return format!("{empty_note}\n");
     }
-    let mut out =
-        String::from("| Stack | Kind | Symbol | Signature | Source |\n|---|---|---|---|---|\n");
-    for item in items.iter().take(35) {
+    let mut groups: BTreeMap<String, Vec<&PolyglotSymbolAnchor>> = BTreeMap::new();
+    for item in items {
+        groups
+            .entry(module_group(&item.rel_path))
+            .or_default()
+            .push(item);
+    }
+    let mut out = String::new();
+    for (group, rows) in groups {
         out.push_str(&format!(
-            "| `{}` | `{}` | `{}` | `{}` | {} |\n",
-            escape_cell(&item.stack),
-            escape_cell(&item.kind),
-            escape_cell(&item.name),
-            escape_cell(&item.signature),
-            anchor_markdown(&item.rel_path, item.start_line, item.end_line)
+            "### `{}` ({})\n\n",
+            escape_cell(&group),
+            rows.len()
         ));
+        out.push_str("| Stack | Kind | Symbol | Signature | Source |\n|---|---|---|---|---|\n");
+        for item in rows {
+            out.push_str(&format!(
+                "| `{}` | `{}` | `{}` | `{}` | {} |\n",
+                escape_cell(&item.stack),
+                escape_cell(&item.kind),
+                escape_cell(&item.name),
+                escape_cell(&item.signature),
+                anchor_markdown(&item.rel_path, item.start_line, item.end_line, up)
+            ));
+        }
+        out.push('\n');
     }
     out
+}
+
+/// Above this many rows a layer's table is split into one sub-page per module group, and the
+/// layer page keeps only a rollup index (hierarchical, deterministic, no silent truncation).
+const INLINE_ROW_LIMIT: usize = 400;
+
+fn group_slug(group: &str) -> String {
+    group
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+/// Static facts about one layer used when splitting its table into sub-pages.
+struct SectionMeta<'a> {
+    stem: &'a str,
+    repo_name: &'a str,
+    topic: &'a str,
+    domain: &'a str,
+    /// Directories between the layer page and the repo root (see [`anchor_markdown`]).
+    up: usize,
+}
+
+/// Render a layer's symbol table; when it exceeds [`INLINE_ROW_LIMIT`] emit per-group
+/// sub-pages `<stem>/<group>.md` into `sub_pages` and return a rollup index with links.
+fn render_symbol_section(
+    items: &[PolyglotSymbolAnchor],
+    empty_note: &str,
+    meta: &SectionMeta<'_>,
+    sub_pages: &mut Vec<OpenWikiPageSpec>,
+) -> String {
+    let SectionMeta {
+        stem,
+        repo_name,
+        topic,
+        domain,
+        up,
+    } = *meta;
+    if items.len() <= INLINE_ROW_LIMIT {
+        return render_symbol_table(items, empty_note, up)
+            .trim_end()
+            .to_string();
+    }
+    let mut groups: BTreeMap<String, Vec<PolyglotSymbolAnchor>> = BTreeMap::new();
+    for item in items {
+        groups
+            .entry(module_group(&item.rel_path))
+            .or_default()
+            .push(item.clone());
+    }
+    let mut index = format!(
+        "{} symbols across {} modules; detail tables live in per-module pages.\n\n| Module | Symbols | Detail |\n|---|---|---|\n",
+        items.len(),
+        groups.len()
+    );
+    for (group, rows) in &groups {
+        let slug = group_slug(group);
+        let rel = format!("{stem}/{slug}.md");
+        index.push_str(&format!(
+            "| `{}` | {} | [{}](./{rel}) |\n",
+            escape_cell(group),
+            rows.len(),
+            escape_cell(&format!("{stem}/{slug}"))
+        ));
+        let table = render_symbol_table(rows, empty_note, up + 1)
+            .trim_end()
+            .to_string();
+        let region_id = format!("{stem}-{slug}")
+            .to_ascii_lowercase()
+            .replace(['.', '_'], "-");
+        let summary = format!(
+            "This detail page lists every extracted symbol that {repo_name} defines under the module group {group}, including its implementation stack, kind, canonical signature, and exact source line anchor. The table sits inside a deterministic auto-fence that rebuilds whenever code changes, so contributors and coding agents can verify behavior against live definitions instead of stale prose, while human notes outside the fence remain untouched."
+        );
+        let spec = build_page(
+            &rel,
+            &format!("{repo_name} — {stem} — {group}"),
+            &format!("Source-anchored symbols for module group {group} in {repo_name}."),
+            topic,
+            domain,
+            &summary,
+            vec![(region_id.as_str(), table)],
+        );
+        sub_pages.push(spec);
+    }
+    index.trim_end().to_string()
 }
 
 fn render_layer_diagram(hub_label: &str, labels: &[String]) -> Result<String, String> {
@@ -990,12 +1145,29 @@ fn render_layer_diagram(hub_label: &str, labels: &[String]) -> Result<String, St
             body.push_str(&format!("    hub -> {id}\n"));
         }
     }
+    if labels.len() > 12 {
+        body.push_str(&format!(
+            "    node more: \"... +{} more (see tables)\"\n    hub -> more\n",
+            labels.len() - 12
+        ));
+    }
     finish_diagram(body)
 }
 
-/// Render all 6 OKF-compliant OpenWiki pages (`README.md` + 5 system layers).
+/// Render all OKF-compliant OpenWiki pages (`README.md` + 5 system layers, plus per-module
+/// detail sub-pages for layers too large to inline), assuming pages live two directories below
+/// the repo root (`docs/wiki/`, `docs/openwiki/`).
 pub fn render_polyglot_openwiki_pages(
     snapshot: &PolyglotWikiSnapshot,
+) -> Result<Vec<OpenWikiPageSpec>, String> {
+    render_polyglot_openwiki_pages_at(snapshot, 2)
+}
+
+/// Like [`render_polyglot_openwiki_pages`], with `up` = directories between the pages and the
+/// repo root so source anchors resolve (`docs/src/openwiki/` → 3).
+pub fn render_polyglot_openwiki_pages_at(
+    snapshot: &PolyglotWikiSnapshot,
+    up: usize,
 ) -> Result<Vec<OpenWikiPageSpec>, String> {
     let stacks_text = if snapshot.detected_stacks.is_empty() {
         "Polyglot".to_string()
@@ -1062,13 +1234,13 @@ pub fn render_polyglot_openwiki_pages(
         "No package manifests detected yet.\n".to_string()
     } else {
         let mut t = String::from("| Module | Stack | Role | Manifest |\n|---|---|---|---|\n");
-        for m in snapshot.modules.iter().take(40) {
+        for m in snapshot.modules.iter() {
             t.push_str(&format!(
                 "| `{}` | `{}` | {} | {} |\n",
                 escape_cell(&m.name),
                 escape_cell(&m.stack),
                 escape_cell(&m.summary),
-                anchor_markdown(&m.manifest_rel, m.start_line, m.end_line)
+                anchor_markdown(&m.manifest_rel, m.start_line, m.end_line, up)
             ));
         }
         t
@@ -1095,12 +1267,19 @@ pub fn render_polyglot_openwiki_pages(
         "```vox-diagram\n{}```",
         render_layer_diagram("Layer 2 Interfaces & Endpoints", &l2_labels)?
     );
-    let l2_tbl = render_symbol_table(
+    let mut sub_pages: Vec<OpenWikiPageSpec> = Vec::new();
+    let l2_tbl = render_symbol_section(
         &snapshot.interfaces,
         "No public API endpoints or exported interface functions extracted.",
-    )
-    .trim_end()
-    .to_string();
+        &SectionMeta {
+            stem: "interfaces-and-apis",
+            repo_name: &snapshot.repo_name,
+            topic: "cli-surface",
+            domain: "platform",
+            up,
+        },
+        &mut sub_pages,
+    );
     pages.push(build_page(
         "interfaces-and-apis.md",
         &format!("{} — Layer 2: CLI, HTTP, MCP & API Interfaces", snapshot.repo_name),
@@ -1122,12 +1301,18 @@ pub fn render_polyglot_openwiki_pages(
         "```vox-diagram\n{}```",
         render_layer_diagram("Layer 3 Data Models & Schemas", &l3_labels)?
     );
-    let l3_tbl = render_symbol_table(
+    let l3_tbl = render_symbol_section(
         &snapshot.schemas,
         "No SQL tables or typed data model definitions extracted.",
-    )
-    .trim_end()
-    .to_string();
+        &SectionMeta {
+            stem: "data-models-and-schemas",
+            repo_name: &snapshot.repo_name,
+            topic: "database",
+            domain: "data",
+            up,
+        },
+        &mut sub_pages,
+    );
     pages.push(build_page(
         "data-models-and-schemas.md",
         &format!("{} — Layer 3: Data Models & SQL/VoxDb Schemas", snapshot.repo_name),
@@ -1153,12 +1338,18 @@ pub fn render_polyglot_openwiki_pages(
         "```vox-diagram\n{}```",
         render_layer_diagram("Layer 4 GUI & Frontend Surfaces", &l4_labels)?
     );
-    let l4_tbl = render_symbol_table(
+    let l4_tbl = render_symbol_section(
         &snapshot.gui_surfaces,
         "No frontend UI components or interactive views detected.",
-    )
-    .trim_end()
-    .to_string();
+        &SectionMeta {
+            stem: "gui-surfaces-and-flows",
+            repo_name: &snapshot.repo_name,
+            topic: "desktop-app",
+            domain: "gui",
+            up,
+        },
+        &mut sub_pages,
+    );
     pages.push(build_page(
         "gui-surfaces-and-flows.md",
         &format!("{} — Layer 4: GUI & Frontend Surfaces", snapshot.repo_name),
@@ -1180,12 +1371,18 @@ pub fn render_polyglot_openwiki_pages(
         "```vox-diagram\n{}```",
         render_layer_diagram("Layer 5 Workflows & Runbooks", &l5_labels)?
     );
-    let l5_tbl = render_symbol_table(
+    let l5_tbl = render_symbol_section(
         &snapshot.workflows,
         "No durable workflows, CI pipelines, or operational runbooks detected.",
-    )
-    .trim_end()
-    .to_string();
+        &SectionMeta {
+            stem: "workflows-and-runbooks",
+            repo_name: &snapshot.repo_name,
+            topic: "durable-workflows",
+            domain: "runtime",
+            up,
+        },
+        &mut sub_pages,
+    );
     pages.push(build_page(
         "workflows-and-runbooks.md",
         &format!("{} — Layer 5: Workflows, Actors & Runbooks", snapshot.repo_name),
@@ -1202,6 +1399,7 @@ pub fn render_polyglot_openwiki_pages(
         ],
     ));
 
+    pages.extend(sub_pages);
     Ok(pages)
 }
 
@@ -1234,11 +1432,41 @@ fn build_page(
     }
 }
 
+/// Repo-relative (`/`-separated) directory that holds the generated OpenWiki layer pages.
+///
+/// Precedence: an existing `docs/wiki/` (back-compat) → `docs/src/openwiki` (Vox / Starlight
+/// `voxlang.org` docs root) → `docs/openwiki`. Never creates a `docs/wiki/` on repos that
+/// do not already have one.
+#[must_use]
+pub fn openwiki_pages_rel(repo_root: &Path) -> String {
+    if repo_root.join("docs/wiki").is_dir() {
+        "docs/wiki".to_string()
+    } else if repo_root.join("docs/src").is_dir() {
+        "docs/src/openwiki".to_string()
+    } else {
+        "docs/openwiki".to_string()
+    }
+}
+
+/// Absolute form of [`openwiki_pages_rel`].
+#[must_use]
+pub fn openwiki_pages_dir(repo_root: &Path) -> PathBuf {
+    repo_root.join(openwiki_pages_rel(repo_root))
+}
+
+/// Directories between the page location and the repo root, for source-anchor links.
+fn pages_up(repo_root: &Path, output_override: Option<&Path>) -> usize {
+    if output_override.is_some() {
+        return 2;
+    }
+    openwiki_pages_rel(repo_root).matches('/').count() + 1
+}
+
 fn resolve_paths(repo_root: &Path, output_override: Option<&Path>) -> (PathBuf, PathBuf) {
     match output_override {
         Some(dir) => (dir.join("wiki"), dir.join("manifest.v1.json")),
         None => (
-            repo_root.join("docs/wiki"),
+            openwiki_pages_dir(repo_root),
             repo_root
                 .join(".vox")
                 .join("cache")
@@ -1248,7 +1476,7 @@ fn resolve_paths(repo_root: &Path, output_override: Option<&Path>) -> (PathBuf, 
     }
 }
 
-/// Initialize OpenWiki (`docs/wiki/` + manifest if writing).
+/// Initialize OpenWiki (pages under [`openwiki_pages_dir`] + manifest if writing).
 pub fn openwiki_init(
     repo_root: &Path,
     output_override: Option<&Path>,
@@ -1264,7 +1492,7 @@ pub fn openwiki_build(
 ) -> Result<OpenWikiBuildReport, String> {
     let (wiki_dir, manifest_path) = resolve_paths(repo_root, output_override);
     let snapshot = extract_polyglot_wiki_snapshot(repo_root);
-    let pages = render_polyglot_openwiki_pages(&snapshot)?;
+    let pages = render_polyglot_openwiki_pages_at(&snapshot, pages_up(repo_root, output_override))?;
 
     if write {
         fs::create_dir_all(&wiki_dir)
@@ -1295,10 +1523,14 @@ pub fn openwiki_build(
         };
 
         if write && is_changed {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("failed to create {}: {e}", parent.display()))?;
+            }
             fs::write(&target, &final_md)
                 .map_err(|e| format!("failed to write {}: {e}", target.display()))?;
         }
-        let rel_display = format!("docs/wiki/{}", spec.rel_path);
+        let rel_display = format!("{}/{}", openwiki_pages_rel(repo_root), spec.rel_path);
         generated_pages.push(rel_display.clone());
         if is_changed {
             updated_pages.push(rel_display.clone());
@@ -1355,7 +1587,7 @@ pub fn openwiki_status(
 ) -> Result<OpenWikiStatusReport, String> {
     let (wiki_dir, manifest_path) = resolve_paths(repo_root, output_override);
     let snapshot = extract_polyglot_wiki_snapshot(repo_root);
-    let specs = render_polyglot_openwiki_pages(&snapshot)?;
+    let specs = render_polyglot_openwiki_pages_at(&snapshot, pages_up(repo_root, output_override))?;
     let mut pages = Vec::new();
     let mut stale_pages = 0usize;
 
@@ -1397,7 +1629,7 @@ pub fn openwiki_status(
         wiki_dir: wiki_dir.display().to_string(),
         manifest_path: manifest_path.display().to_string(),
         detected_stacks: snapshot.detected_stacks,
-        total_pages: LAYER_PAGE_ORDER.len(),
+        total_pages: specs.len(),
         pages,
         stale_pages,
     })
@@ -1410,7 +1642,7 @@ pub fn openwiki_diff(
 ) -> Result<OpenWikiDiffReport, String> {
     let (wiki_dir, _) = resolve_paths(repo_root, output_override);
     let snapshot = extract_polyglot_wiki_snapshot(repo_root);
-    let specs = render_polyglot_openwiki_pages(&snapshot)?;
+    let specs = render_polyglot_openwiki_pages_at(&snapshot, pages_up(repo_root, output_override))?;
     let mut diffs = Vec::new();
     let mut has_changes = false;
 

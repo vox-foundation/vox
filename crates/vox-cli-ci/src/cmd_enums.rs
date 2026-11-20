@@ -104,10 +104,10 @@ pub enum CiCmd {
         /// Write generated subsystem hub or polyglot OpenWiki pages. Without this flag, verify/preview only.
         #[arg(long)]
         write: bool,
-        /// Run the repo-agnostic 5-layer polyglot OpenWiki engine (`docs/wiki/`).
+        /// Run the repo-agnostic 5-layer polyglot OpenWiki engine (pages live in the discovered docs root: `docs/src/openwiki/` on Vox, `docs/openwiki/` elsewhere; an existing `docs/wiki/` is kept).
         #[arg(long)]
         polyglot: bool,
-        /// Initialize `docs/wiki/` and `.vox/cache/openwiki/manifest.v1.json`.
+        /// Initialize the OpenWiki pages in the discovered docs root and `.vox/cache/openwiki/manifest.v1.json`.
         #[arg(long)]
         init: bool,
         /// Report polyglot OpenWiki status (pages, auto-regions, staleness).
@@ -1022,6 +1022,16 @@ pub enum CiCmd {
         #[arg(long)]
         paths: Option<std::path::PathBuf>,
     },
+    /// Every curated llms.txt link must be a `verified` page in the docs-freshness ledger.
+    #[command(name = "llms-verified")]
+    LlmsVerified {
+        /// Move non-verified entries under the Needs-review heading (and back once verified).
+        #[arg(long)]
+        write: bool,
+    },
+    /// README / docs index must embed raster images only (no srcset, source, or .svg images).
+    #[command(name = "readme-assets")]
+    ReadmeAssets,
     /// Run knip unused-export gate for `crates/vox-gui/ui`.
     #[command(name = "knip-gui")]
     KnipGui {

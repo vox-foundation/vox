@@ -129,7 +129,7 @@ Tools `vox_set_active_model` and `vox_get_active_model` pin the model used by `v
 
 ### Route telemetry
 
-Structured logs for route telemetry are emitted from the **daemon / MCP** implementation; use `RUST_LOG` filters documented for the binary you run (`vox-mcp`, `vox-orchestrator-d`, etc.).
+Structured logs for route telemetry are emitted from the **daemon / MCP** implementation; use `RUST_LOG` filters documented for the binary you run (`vox-orchestrator-mcp`, `vox-orchestrator-d`, etc.).
 
 ```text
 # Pseudocode shape (concrete types live in the orchestrator daemon and MCP)

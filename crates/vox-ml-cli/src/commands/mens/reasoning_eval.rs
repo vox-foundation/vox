@@ -34,26 +34,10 @@ pub(crate) struct ReasoningReport {
 /// `(id, completion, correct, opened_think)` for one generated item.
 type Row = (String, String, bool, bool);
 
-/// Score one reasoning bench. `Ok` only for a full, error-free run. This is the
-/// only place a [`ReasoningReport`] is built, and only from `BenchOutcome::Scored`.
-pub(crate) fn score_reasoning_file(
-    bench: &str,
-    items_path: &Path,
-    adapter: &Path,
-    force_restart: bool,
-) -> Result<ReasoningReport> {
-    score_reasoning_file_with(
-        bench,
-        items_path,
-        adapter,
-        max_tokens_env().as_deref(),
-        Path::new(super::item_checkpoint::REASONING_CHECKPOINT_ROOT),
-        force_restart,
-    )
-}
-
-/// [`score_reasoning_file`] with the raw token-cap value passed in, so callers
-/// and tests do not depend on the process environment.
+/// Score one reasoning bench with the raw token-cap value passed in, so tests
+/// do not depend on the process environment. `Ok` only for a full, error-free
+/// run. Production callers use [`score_reasoning_file_with_settings`].
+#[cfg(test)]
 fn score_reasoning_file_with(
     bench: &str,
     items_path: &Path,
@@ -147,19 +131,9 @@ fn report_of(bench: &str, outcome: BenchOutcome, rows: Vec<Row>) -> Result<Reaso
 }
 
 /// Score the base side of a reasoning bench through the same checkpoint, token
-/// cap and grader as [`score_reasoning_file`], writing nothing into `base` (a
-/// Hugging Face snapshot). Fails closed the same way: any per-item failure is `Err`.
-pub(crate) fn score_base_file(
-    bench: &str,
-    items_path: &Path,
-    base: &Path,
-    force_restart: bool,
-) -> Result<ReasoningReport> {
-    let max_tokens = parse_max_tokens(max_tokens_env().as_deref())?;
-    let settings = decode_settings(max_tokens)?;
-    score_base_file_with_settings(bench, items_path, base, &settings, force_restart)
-}
-
+/// cap and grader as [`score_reasoning_file_with_settings`], writing nothing into
+/// `base` (a Hugging Face snapshot). Fails closed the same way: any per-item
+/// failure is `Err`.
 pub(crate) fn score_base_file_with_settings(
     bench: &str,
     items_path: &Path,
@@ -291,10 +265,10 @@ pub(crate) fn with_backend<T>(
         };
         f(&mut infer)
     };
-    if let Some(h) = handle {
-        if let Err(e) = backend.unload_model(&h).into_result() {
-            eprintln!("warning: unload_model({}): {e}", model_dir.display());
-        }
+    if let Some(h) = handle
+        && let Err(e) = backend.unload_model(&h).into_result()
+    {
+        eprintln!("warning: unload_model({}): {e}", model_dir.display());
     }
     Ok(out)
 }
@@ -358,7 +332,9 @@ struct DecodeIdentityFile {
 #[serde(deny_unknown_fields)]
 struct F32Identity {
     verified_batch_width: usize,
-    evidence: String,
+    /// Required by the identity-file schema (`deny_unknown_fields`) but not consumed.
+    #[serde(rename = "evidence")]
+    _evidence: String,
 }
 
 pub fn verified_batch_width(

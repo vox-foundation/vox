@@ -59,6 +59,9 @@ pub struct CiStatus {
     pub generated_at: i64,
     pub branch: String,
     pub head_sha: Option<String>,
+    /// Runs of `head_sha` still queued or in progress.
+    #[serde(default)]
+    pub pending: usize,
     pub problems: Vec<JobProblem>,
     pub nightly: Vec<NightlyIssue>,
 }
@@ -117,6 +120,45 @@ fn classify(conclusion: Option<&str>, annotations: &[String]) -> Option<ProblemK
     }
 }
 
+/// Runs for exactly `head`: completed non-success ones (candidates for a problem
+/// report) and the count still queued or in progress. Runs of any other sha —
+/// commits since replaced by a push — are ignored, so their failures never surface.
+fn runs_for_head<'a>(runs: &'a [RunRow], head: &str) -> (Vec<&'a RunRow>, usize) {
+    let mine = runs.iter().filter(|r| r.head_sha == head);
+    let pending = mine.clone().filter(|r| r.status != "completed").count();
+    let finished = mine
+        .filter(|r| r.status == "completed")
+        .filter(|r| {
+            !matches!(
+                r.conclusion.as_deref(),
+                Some("success" | "skipped" | "neutral")
+            )
+        })
+        .collect();
+    (finished, pending)
+}
+
+/// A cached status describes the head it was fetched for; after a new local
+/// commit it says nothing about the current head, so drop its CI findings.
+fn for_local_head(mut s: CiStatus, head: Option<&str>) -> CiStatus {
+    if head.is_some() && s.head_sha.as_deref() != head {
+        s.problems.clear();
+        s.pending = 0;
+    }
+    s
+}
+
+fn local_head() -> Option<String> {
+    // vox-arch-check: allow git-exec
+    let out = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .stdin(Stdio::null())
+        .output()
+        .ok()?;
+    let sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (out.status.success() && !sha.is_empty()).then_some(sha)
+}
+
 fn job_problem(workflow: &str, job: &Job, kind: ProblemKind) -> JobProblem {
     let step = job
         .steps
@@ -165,6 +207,15 @@ fn render_with_unpushed(s: &CiStatus, unpushed: Option<&str>) -> String {
     let mut out = Vec::new();
     if let Some(u) = unpushed {
         out.push(u.to_string());
+    }
+    if s.pending > 0 {
+        let sha = s.head_sha.as_deref().unwrap_or("HEAD");
+        out.push(format!(
+            "CI pending for {} on {}: {} run(s) in progress",
+            &sha[..sha.len().min(7)],
+            s.branch,
+            s.pending
+        ));
     }
     for p in &s.problems {
         let what = match p.kind {
@@ -313,7 +364,7 @@ fn annotations(job_id: u64) -> Vec<String> {
     .unwrap_or_default()
 }
 
-fn fetch(branch: &str, now: i64) -> Result<CiStatus> {
+fn fetch(branch: &str, head: Option<&str>, now: i64) -> Result<CiStatus> {
     let runs: Vec<RunRow> = serde_json::from_str(&gh(&[
         "run",
         "list",
@@ -326,12 +377,10 @@ fn fetch(branch: &str, now: i64) -> Result<CiStatus> {
         "--json",
         "databaseId,workflowName,status,conclusion,headSha",
     ])?)?;
-    let head_sha = runs.first().map(|r| r.head_sha.clone());
+    let head_sha = head.map(str::to_string);
+    let (finished, pending) = runs_for_head(&runs, head.unwrap_or(""));
     let mut problems = Vec::new();
-    for r in runs
-        .iter()
-        .filter(|r| Some(&r.head_sha) == head_sha.as_ref() && r.status == "completed")
-    {
+    for r in finished {
         if matches!(
             r.conclusion.as_deref(),
             Some("success" | "skipped" | "neutral")
@@ -377,6 +426,7 @@ fn fetch(branch: &str, now: i64) -> Result<CiStatus> {
         generated_at: now,
         branch: branch.into(),
         head_sha,
+        pending,
         problems,
         nightly,
     })
@@ -437,7 +487,8 @@ pub fn run(args: StatusArgs) -> Result<()> {
     let now = chrono::Utc::now().timestamp();
     let unpushed = unpushed_main_from_git();
     if !(args.hook || args.changed_only) {
-        let s = fetch(&branch, now)?;
+        let head = local_head();
+        let s = fetch(&branch, head.as_deref(), now)?;
         write_cache(&s)?;
         let _ = std::fs::remove_file(cache_dir().join(format!("refreshing-{}", sanitize(&branch))));
         let r = render_with_unpushed(&s, unpushed.as_deref());
@@ -449,7 +500,8 @@ pub fn run(args: StatusArgs) -> Result<()> {
         return Ok(());
     }
     // Hook modes: never block, never fail the hook.
-    let cached = read_cache(&branch);
+    let head = local_head();
+    let cached = read_cache(&branch).map(|c| for_local_head(c, head.as_deref()));
     if cached
         .as_ref()
         .is_none_or(|c| now - c.generated_at > CACHE_FRESH_SECS)
@@ -496,8 +548,10 @@ pub fn print_live_for_push() {
     };
     let (tx, rx) = std::sync::mpsc::channel();
     let b = branch.clone();
+    let head = local_head();
+    let h = head.clone();
     std::thread::spawn(move || {
-        let _ = tx.send(fetch(&b, chrono::Utc::now().timestamp()));
+        let _ = tx.send(fetch(&b, h.as_deref(), chrono::Utc::now().timestamp()));
     });
     let s = match rx.recv_timeout(PUSH_FETCH_TIMEOUT) {
         Ok(Ok(s)) => {
@@ -516,6 +570,7 @@ pub fn print_live_for_push() {
             None => return,
         },
     };
+    let s = for_local_head(s, head.as_deref());
     let unpushed = unpushed_main_from_git();
     let r = render_with_unpushed(&s, unpushed.as_deref());
     if !r.is_empty() {
@@ -545,6 +600,79 @@ pub fn unpushed_main_line(ahead: u32) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn run_row(id: u64, sha: &str, status: &str, conclusion: Option<&str>) -> RunRow {
+        RunRow {
+            database_id: id,
+            workflow_name: "CI".into(),
+            status: status.into(),
+            conclusion: conclusion.map(Into::into),
+            head_sha: sha.into(),
+        }
+    }
+
+    #[test]
+    fn runs_for_head_shows_current_failure_and_suppresses_older_head() {
+        let runs = vec![
+            run_row(3, "new", "completed", Some("failure")),
+            run_row(2, "old", "completed", Some("failure")),
+            run_row(1, "new", "completed", Some("success")),
+        ];
+        let (failed, pending) = runs_for_head(&runs, "new");
+        assert_eq!(
+            failed.iter().map(|r| r.database_id).collect::<Vec<_>>(),
+            [3]
+        );
+        assert_eq!(pending, 0);
+        let (failed, _) = runs_for_head(&runs, "newer-unpushed");
+        assert!(failed.is_empty(), "no runs for HEAD -> nothing to report");
+    }
+
+    #[test]
+    fn in_progress_head_is_pending_not_an_older_failure() {
+        let runs = vec![
+            run_row(5, "new", "in_progress", None),
+            run_row(4, "old", "completed", Some("failure")),
+        ];
+        let (failed, pending) = runs_for_head(&runs, "new");
+        assert!(failed.is_empty());
+        assert_eq!(pending, 1);
+        let s = CiStatus {
+            branch: "b".into(),
+            head_sha: Some("newabcdef0".into()),
+            pending,
+            ..Default::default()
+        };
+        let r = render(&s);
+        assert!(
+            r.contains("CI pending for newabcd on b: 1 run(s) in progress"),
+            "{r}"
+        );
+        assert!(!r.contains("FAILED"));
+    }
+
+    #[test]
+    fn cached_status_for_an_older_head_is_dropped() {
+        let s = CiStatus {
+            branch: "b".into(),
+            head_sha: Some("old".into()),
+            pending: 1,
+            problems: vec![JobProblem {
+                workflow: "CI".into(),
+                job: "gate".into(),
+                job_id: 1,
+                kind: ProblemKind::Failed,
+                step: None,
+                slowest: vec![],
+                url: String::new(),
+            }],
+            ..Default::default()
+        };
+        let kept = for_local_head(s.clone(), Some("old"));
+        assert_eq!(kept.problems.len(), 1);
+        let dropped = for_local_head(s, Some("new"));
+        assert!(dropped.problems.is_empty() && dropped.pending == 0);
+    }
 
     #[test]
     fn unpushed_main_line_warns_when_ahead_and_silent_when_in_sync() {

@@ -1,0 +1,653 @@
+{
+  "schema": "vox_mens_bench_manifest_v1",
+  "description": "Stratified 64-task MENS v9.4 canary subset of heldout_bench_v2 (16 humaneval-vox + 8 v1 functions + 40 net-new across all 7 categories).",
+  "benchmarks": [
+    {
+      "id": "humaneval_vox_041_nth_prime",
+      "category": "humaneval-vox",
+      "description": "Return the nth prime number (1-indexed). nth_prime(1) = 2, nth_prime(2) = 3, nth_prime(3) = 5.\n\nRequired signature:\nfn nth_prime(n: int) to int",
+      "semantic_expected_contains": [
+        "fn nth_prime"
+      ],
+      "answer": "// training_eligible: false\nfn is_prime(x: int) to bool {\n    if x < 2 {\n        return false\n    }\n    let mut i: int = 2\n    while i * i <= x {\n        if x % i == 0 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n\nfn nth_prime(n: int) to int {\n    let mut count: int = 0\n    let mut candidate: int = 1\n    while count < n {\n        candidate = candidate + 1\n        if is_prime(candidate) {\n            count = count + 1\n        }\n    }\n    return candidate\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(nth_prime(1) == 2)\n    assert(nth_prime(2) == 3)\n    assert(nth_prime(3) == 5)\n    assert(nth_prime(6) == 13)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_042_reverse_list",
+      "category": "humaneval-vox",
+      "description": "Return a new list with the elements in reverse order.\n\nRequired signature:\nfn reverse_list(xs: list[int]) to list[int]",
+      "semantic_expected_contains": [
+        "fn reverse_list"
+      ],
+      "answer": "// training_eligible: false\nfn reverse_list(xs: list[int]) to list[int] {\n    let mut result: list[int] = []\n    let n: int = xs.len()\n    let mut i: int = n - 1\n    while i >= 0 {\n        match xs[i] {\n            Some(v) => { result.push(v) }\n            None => {}\n        }\n        i = i - 1\n    }\n    return result\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(reverse_list([1, 2, 3]) == [3, 2, 1])\n    assert(reverse_list([]) == [])\n    assert(reverse_list([5]) == [5])\n    assert(reverse_list([1, 2]) == [2, 1])\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_044_digital_root",
+      "category": "humaneval-vox",
+      "description": "Compute the digital root of a non-negative integer: repeatedly sum its digits until a single digit remains. digital_root(0) = 0.\n\nRequired signature:\nfn digital_root(n: int) to int",
+      "semantic_expected_contains": [
+        "fn digital_root"
+      ],
+      "answer": "// training_eligible: false\nfn sum_digits(n: int) to int {\n    let mut total: int = 0\n    let mut x: int = n\n    while x > 0 {\n        total = total + x % 10\n        x = x / 10\n    }\n    return total\n}\n\nfn digital_root(n: int) to int {\n    if n == 0 {\n        return 0\n    }\n    let mut x: int = n\n    while x >= 10 {\n        x = sum_digits(x)\n    }\n    return x\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(digital_root(0) == 0)\n    assert(digital_root(9) == 9)\n    assert(digital_root(942) == 6)\n    assert(digital_root(493) == 7)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_046_count_primes_up_to",
+      "category": "humaneval-vox",
+      "description": "Return the count of prime numbers in the range [2, n] inclusive. Return 0 if n < 2.\n\nRequired signature:\nfn count_primes_up_to(n: int) to int",
+      "semantic_expected_contains": [
+        "fn count_primes_up_to"
+      ],
+      "answer": "// training_eligible: false\nfn is_prime(x: int) to bool {\n    if x < 2 {\n        return false\n    }\n    let mut i: int = 2\n    while i * i <= x {\n        if x % i == 0 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n\nfn count_primes_up_to(n: int) to int {\n    let mut count: int = 0\n    let mut i: int = 2\n    while i <= n {\n        if is_prime(i) {\n            count = count + 1\n        }\n        i = i + 1\n    }\n    return count\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_primes_up_to(10) == 4)\n    assert(count_primes_up_to(1) == 0)\n    assert(count_primes_up_to(2) == 1)\n    assert(count_primes_up_to(20) == 8)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_048_collatz_length",
+      "category": "humaneval-vox",
+      "description": "Return the number of steps in the Collatz sequence starting from n until reaching 1. n is a positive integer. collatz_length(1) = 0.\n\nRequired signature:\nfn collatz_length(n: int) to int",
+      "semantic_expected_contains": [
+        "fn collatz_length"
+      ],
+      "answer": "// training_eligible: false\nfn collatz_length(n: int) to int {\n    let mut steps: int = 0\n    let mut x: int = n\n    while x != 1 {\n        if x % 2 == 0 {\n            x = x / 2\n        } else {\n            x = 3 * x + 1\n        }\n        steps = steps + 1\n    }\n    return steps\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(collatz_length(1) == 0)\n    assert(collatz_length(2) == 1)\n    assert(collatz_length(6) == 8)\n    assert(collatz_length(27) == 111)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_050_selection_sort",
+      "category": "humaneval-vox",
+      "description": "Sort a list of integers in non-decreasing order using selection sort. Return the sorted list (do not modify the input).\n\nRequired signature:\nfn selection_sort(xs: list[int]) to list[int]",
+      "semantic_expected_contains": [
+        "fn selection_sort"
+      ],
+      "answer": "// training_eligible: false\nfn selection_sort(xs: list[int]) to list[int] {\n    let n: int = xs.len()\n    let mut arr: list[int] = []\n    for x in xs {\n        arr.push(x)\n    }\n    let mut i: int = 0\n    while i < n {\n        let mut min_idx: int = i\n        let mut j: int = i + 1\n        while j < n {\n            match arr[j] {\n                Some(vj) => {\n                    match arr[min_idx] {\n                        Some(vm) => {\n                            if vj < vm {\n                                min_idx = j\n                            }\n                        }\n                        None => {}\n                    }\n                }\n                None => {}\n            }\n            j = j + 1\n        }\n        match arr[i] {\n            Some(vi) => {\n                match arr[min_idx] {\n                    Some(vm) => {\n                        arr[i] = vm\n                        arr[min_idx] = vi\n                    }\n                    None => {}\n                }\n            }\n            None => {}\n        }\n        i = i + 1\n    }\n    return arr\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(selection_sort([3, 1, 4, 1, 5]) == [1, 1, 3, 4, 5])\n    assert(selection_sort([]) == [])\n    assert(selection_sort([1]) == [1])\n    assert(selection_sort([5, 4, 3, 2, 1]) == [1, 2, 3, 4, 5])\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_066_max_subarray_sum",
+      "category": "humaneval-vox",
+      "description": "Find the maximum sum of any contiguous subarray of xs using Kadane's algorithm.\nIf the list is empty, return 0.\nThe subarray must contain at least one element.\n\nRequired signature:\nfn max_subarray_sum(xs: list[int]) to int",
+      "semantic_expected_contains": [
+        "fn max_subarray_sum"
+      ],
+      "answer": "// training_eligible: false\nfn max_subarray_sum(xs: list[int]) to int {\n    if xs.len() == 0 {\n        return 0\n    }\n    let mut max_sum: int = 0\n    let mut current_sum: int = 0\n    let mut first: bool = true\n    for x in xs {\n        if first {\n            max_sum = x\n            current_sum = x\n            first = false\n        } else {\n            if current_sum + x > x {\n                current_sum = current_sum + x\n            } else {\n                current_sum = x\n            }\n            if current_sum > max_sum {\n                max_sum = current_sum\n            }\n        }\n    }\n    return max_sum\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(max_subarray_sum([]) == 0)\n    assert(max_subarray_sum([1]) == 1)\n    assert(max_subarray_sum([-1]) == -1)\n    assert(max_subarray_sum([1, 2, 3]) == 6)\n    assert(max_subarray_sum([-2, 1, -3, 4, -1, 2, 1, -5, 4]) == 6)\n    assert(max_subarray_sum([-1, -2, -3]) == -1)\n    assert(max_subarray_sum([5, -3, 5]) == 7)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_068_insertion_sort",
+      "category": "humaneval-vox",
+      "description": "Sort a list of integers in non-decreasing order using insertion sort.\nReturn the sorted list without modifying the original input.\n\nRequired signature:\nfn insertion_sort(xs: list[int]) to list[int]",
+      "semantic_expected_contains": [
+        "fn insertion_sort"
+      ],
+      "answer": "// training_eligible: false\nfn insertion_sort(xs: list[int]) to list[int] {\n    let n: int = xs.len()\n    let mut arr: list[int] = []\n    for x in xs {\n        arr.push(x)\n    }\n    let mut i: int = 1\n    while i < n {\n        match arr[i] {\n            Some(key) => {\n                let mut j: int = i - 1\n                let mut done: bool = false\n                while j >= 0 and not done {\n                    match arr[j] {\n                        Some(vj) => {\n                            if vj > key {\n                                arr[j + 1] = vj\n                                j = j - 1\n                            } else {\n                                done = true\n                            }\n                        }\n                        None => {\n                            done = true\n                        }\n                    }\n                }\n                arr[j + 1] = key\n            }\n            None => {}\n        }\n        i = i + 1\n    }\n    return arr\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(insertion_sort([]) == [])\n    assert(insertion_sort([1]) == [1])\n    assert(insertion_sort([3, 1, 4, 1, 5]) == [1, 1, 3, 4, 5])\n    assert(insertion_sort([5, 4, 3, 2, 1]) == [1, 2, 3, 4, 5])\n    assert(insertion_sort([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5])\n    assert(insertion_sort([-3, 0, 2, -1, 5]) == [-3, -1, 0, 2, 5])\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_070_count_set_bits",
+      "category": "humaneval-vox",
+      "description": "Count the number of 1 bits (set bits) in the binary representation of non-negative integer n.\nFor example: count_set_bits(5) = 2 because 5 = 0b101 has two 1 bits.\ncount_set_bits(0) = 0.\n\nRequired signature:\nfn count_set_bits(n: int) to int",
+      "semantic_expected_contains": [
+        "fn count_set_bits"
+      ],
+      "answer": "// training_eligible: false\nfn count_set_bits(n: int) to int {\n    let mut count: int = 0\n    let mut x: int = n\n    while x > 0 {\n        if x % 2 == 1 {\n            count = count + 1\n        }\n        x = x / 2\n    }\n    return count\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_set_bits(0) == 0)\n    assert(count_set_bits(1) == 1)\n    assert(count_set_bits(2) == 1)\n    assert(count_set_bits(3) == 2)\n    assert(count_set_bits(5) == 2)\n    assert(count_set_bits(7) == 3)\n    assert(count_set_bits(255) == 8)\n    assert(count_set_bits(1024) == 1)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_072_triangular_number",
+      "category": "humaneval-vox",
+      "description": "Return the nth triangular number, defined as n * (n + 1) / 2.\nFor example: triangular_number(1) = 1, triangular_number(4) = 10, triangular_number(10) = 55.\nAssume n >= 0. Return 0 for n = 0.\n\nRequired signature:\nfn triangular_number(n: int) to int",
+      "semantic_expected_contains": [
+        "fn triangular_number"
+      ],
+      "answer": "// training_eligible: false\nfn triangular_number(n: int) to int {\n    return n * (n + 1) / 2\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(triangular_number(0) == 0)\n    assert(triangular_number(1) == 1)\n    assert(triangular_number(2) == 3)\n    assert(triangular_number(3) == 6)\n    assert(triangular_number(4) == 10)\n    assert(triangular_number(5) == 15)\n    assert(triangular_number(10) == 55)\n    assert(triangular_number(100) == 5050)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_074_chunk_list",
+      "category": "humaneval-vox",
+      "description": "Return the first chunk of up to k elements from xs.\nIf xs has fewer than k elements, return all of them.\nIf k <= 0 or xs is empty, return an empty list.\n\nRequired signature:\nfn chunk_list(xs: list[int], k: int) to list[int]",
+      "semantic_expected_contains": [
+        "fn chunk_list"
+      ],
+      "answer": "// training_eligible: false\nfn chunk_list(xs: list[int], k: int) to list[int] {\n    if k <= 0 {\n        return []\n    }\n    let mut result: list[int] = []\n    let mut count: int = 0\n    for x in xs {\n        if count < k {\n            result.push(x)\n            count = count + 1\n        }\n    }\n    return result\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(chunk_list([1, 2, 3, 4, 5], 3) == [1, 2, 3])\n    assert(chunk_list([1, 2, 3], 5) == [1, 2, 3])\n    assert(chunk_list([1, 2, 3], 3) == [1, 2, 3])\n    assert(chunk_list([], 3) == [])\n    assert(chunk_list([1, 2, 3], 0) == [])\n    assert(chunk_list([1, 2, 3], 1) == [1])\n    assert(chunk_list([10, 20, 30, 40, 50], 2) == [10, 20])\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_098_is_power_of_n",
+      "category": "humaneval-vox",
+      "description": "Write a Vox function is_power_of_n(x: int, base: int) to bool that returns true if x is a power of base (base >= 2, x >= 1). For example, is_power_of_n(8, 2) == true because 2^3 = 8.\n\nRequired signature:\nfn is_power_of_n(x: int, base: int) to bool",
+      "semantic_expected_contains": [
+        "fn is_power_of_n"
+      ],
+      "answer": "// training_eligible: false\nfn is_power_of_n(x: int, base: int) to bool {\n    if x < 1 {\n        return false\n    }\n    let mut n: int = x\n    while n > 1 {\n        if n % base != 0 {\n            return false\n        }\n        n = n / base\n    }\n    return true\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(is_power_of_n(8, 2) == true)\n    assert(is_power_of_n(1, 2) == true)\n    assert(is_power_of_n(16, 2) == true)\n    assert(is_power_of_n(6, 2) == false)\n    assert(is_power_of_n(27, 3) == true)\n    assert(is_power_of_n(9, 3) == true)\n    assert(is_power_of_n(10, 3) == false)\n    assert(is_power_of_n(25, 5) == true)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_100_pangram_check",
+      "category": "humaneval-vox",
+      "description": "Write a Vox function is_pangram(s: str) to bool that returns true if the string contains every letter of the alphabet at least once (case-insensitive).\n\nRequired signature:\nfn is_pangram(s: str) to bool",
+      "semantic_expected_contains": [
+        "fn is_pangram"
+      ],
+      "answer": "// training_eligible: false\nfn is_pangram(s: str) to bool {\n    let lower: str = s.to_lower()\n    let letters: list[str] = [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\", \"i\", \"j\", \"k\", \"l\", \"m\", \"n\", \"o\", \"p\", \"q\", \"r\", \"s\", \"t\", \"u\", \"v\", \"w\", \"x\", \"y\", \"z\"]\n    let mut i: int = 0\n    while i < letters.len() {\n        match letters[i] {\n            Some(ch) => {\n                if not lower.contains(ch) {\n                    return false\n                }\n            }\n            None => {}\n        }\n        i = i + 1\n    }\n    return true\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(is_pangram(\"The quick brown fox jumps over the lazy dog\") == true)\n    assert(is_pangram(\"hello world\") == false)\n    assert(is_pangram(\"\") == false)\n    assert(is_pangram(\"Pack my box with five dozen liquor jugs\") == true)\n    assert(is_pangram(\"abcdefghijklmnopqrstuvwxyz\") == true)\n    assert(is_pangram(\"abcdefghijklmnopqrstuvwxy\") == false)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_148_is_sorted_unique",
+      "category": "humaneval-vox",
+      "description": "Check if a list of ints has no duplicate values AND is sorted in strictly ascending order. Return true only if both conditions hold. An empty list or single-element list returns true.\n\nRequired signature:\nfn is_sorted_unique(xs: list[int]) to bool",
+      "semantic_expected_contains": [
+        "fn is_sorted_unique"
+      ],
+      "answer": "// training_eligible: false\nfn is_sorted_unique(xs: list[int]) to bool {\n    let n: int = xs.len()\n    if n <= 1 {\n        return true\n    }\n    let mut i: int = 1\n    while i < n {\n        let prev_ok: bool = false\n        let curr_ok: bool = false\n        let mut prev: int = 0\n        let mut curr: int = 0\n        match xs[i - 1] {\n            Some(v) => { prev = v }\n            None => { return false }\n        }\n        match xs[i] {\n            Some(v) => { curr = v }\n            None => { return false }\n        }\n        if curr <= prev {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(is_sorted_unique([1, 2, 3]) == true)\n    assert(is_sorted_unique([1, 2, 2]) == false)\n    assert(is_sorted_unique([3, 1, 2]) == false)\n    assert(is_sorted_unique([]) == true)\n    assert(is_sorted_unique([5]) == true)\n    assert(is_sorted_unique([1, 3, 5, 7]) == true)\n    assert(is_sorted_unique([2, 2]) == false)\n    assert(is_sorted_unique([5, 4, 3]) == false)\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_161_to_hex",
+      "category": "humaneval-vox",
+      "description": "Convert a non-negative integer to its lowercase hexadecimal string representation (without \"0x\" prefix). For example, 255 -> \"ff\", 0 -> \"0\".\n\nRequired signature:\nfn to_hex(n: int) to str",
+      "semantic_expected_contains": [
+        "fn to_hex"
+      ],
+      "answer": "// training_eligible: false\nfn to_hex(n: int) to str {\n    if n == 0 {\n        return \"0\"\n    }\n    let hex_chars: list[str] = [\"0\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\", \"a\", \"b\", \"c\", \"d\", \"e\", \"f\"]\n    let mut digits: list[str] = []\n    let mut val: int = n\n    while val > 0 {\n        let rem: int = val % 16\n        match hex_chars[rem] {\n            Some(c) => { digits.push(c) }\n            None => {}\n        }\n        val = val / 16\n    }\n    let reversed: list[str] = digits.reversed()\n    return reversed.join(\"\")\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(to_hex(0) == \"0\")\n    assert(to_hex(15) == \"f\")\n    assert(to_hex(16) == \"10\")\n    assert(to_hex(255) == \"ff\")\n    assert(to_hex(256) == \"100\")\n    assert(to_hex(10) == \"a\")\n    assert(to_hex(4096) == \"1000\")\n    assert(to_hex(171) == \"ab\")\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "humaneval_vox_163_str_compress",
+      "category": "humaneval-vox",
+      "description": "Run-length encode a string: replace each run of consecutive identical characters with the character followed by its count. For example, \"aaabbc\" -> \"a3b2c1\". An empty string returns \"\".\n\nRequired signature:\nfn str_compress(s: str) to str",
+      "semantic_expected_contains": [
+        "fn str_compress"
+      ],
+      "answer": "// training_eligible: false\nfn str_compress(s: str) to str {\n    if s.len() == 0 {\n        return \"\"\n    }\n    let chars: list[str] = s.chars()\n    let mut result: list[str] = []\n    let mut current: str = \"\"\n    let mut count: int = 0\n    let mut first: bool = true\n    for c in chars {\n        if first {\n            current = c\n            count = 1\n            first = false\n        } else {\n            if c == current {\n                count = count + 1\n            } else {\n                result.push(current)\n                result.push(str(count))\n                current = c\n                count = 1\n            }\n        }\n    }\n    result.push(current)\n    result.push(str(count))\n    return result.join(\"\")\n}\n",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(str_compress(\"aaabbc\") == \"a3b2c1\")\n    assert(str_compress(\"abc\") == \"a1b1c1\")\n    assert(str_compress(\"\") == \"\")\n    assert(str_compress(\"aaaa\") == \"a4\")\n    assert(str_compress(\"aabb\") == \"a2b2\")\n    assert(str_compress(\"a\") == \"a1\")\n    assert(str_compress(\"aabbcc\") == \"a2b2c2\")\n    assert(str_compress(\"abba\") == \"a1b2a1\")\n    return \"ok\"\n}\n"
+    },
+    {
+      "id": "count_multiples_of_3_or_5",
+      "category": "function",
+      "description": "define a function named `count_multiples_of_3_or_5` that takes an integer `n` and returns the sum of all positive multiples of 3 or 5 strictly below `n`\n\nRequired signature:\nfn count_multiples_of_3_or_5(n: int) to int",
+      "semantic_expected_contains": [
+        "fn count_multiples_of_3_or_5"
+      ],
+      "answer": "fn count_multiples_of_3_or_5(n: int) to int {\n    let mut sum: int = 0\n    let mut i: int = 1\n    while i < n {\n        if i % 3 == 0 or i % 5 == 0 {\n            sum = sum + i\n        }\n        i = i + 1\n    }\n    return sum\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_multiples_of_3_or_5(10) == 23)\n    assert(count_multiples_of_3_or_5(16) == 60)\n    assert(count_multiples_of_3_or_5(1) == 0)\n    assert(count_multiples_of_3_or_5(0) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "matrix_row_sums",
+      "category": "function",
+      "description": "define a function named `matrix_row_sums` that takes a list of lists of integers `matrix` and returns a list of the sum of each row\n\nRequired signature:\nfn matrix_row_sums(matrix: list[list[int]]) to list[int]",
+      "semantic_expected_contains": [
+        "fn matrix_row_sums"
+      ],
+      "answer": "fn matrix_row_sums(matrix: list[list[int]]) to list[int] {\n    let mut sums: list[int] = []\n    let mut i: int = 0\n    while i < matrix.len() {\n        let row: list[int] = matrix[i].unwrap()\n        let mut s: int = 0\n        let mut j: int = 0\n        while j < row.len() {\n            s = s + row[j].unwrap()\n            j = j + 1\n        }\n        sums = sums.push(s)\n        i = i + 1\n    }\n    return sums\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(matrix_row_sums([[1, 2, 3], [4, 5, 6]]) == [6, 15])\n    assert(matrix_row_sums([[-2, 5], [0, 0], [10]]) == [3, 0, 10])\n    assert(matrix_row_sums([]) == [])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "is_symmetric_matrix",
+      "category": "function",
+      "description": "define a function named `is_symmetric_matrix` that takes a square list of lists of integers `matrix` and returns true if matrix[i][j] equals matrix[j][i] for all i, j\n\nRequired signature:\nfn is_symmetric_matrix(matrix: list[list[int]]) to bool",
+      "semantic_expected_contains": [
+        "fn is_symmetric_matrix"
+      ],
+      "answer": "fn is_symmetric_matrix(matrix: list[list[int]]) to bool {\n    let n: int = matrix.len()\n    let mut i: int = 0\n    while i < n {\n        let mut j: int = 0\n        while j < n {\n            if matrix[i].unwrap()[j].unwrap() != matrix[j].unwrap()[i].unwrap() {\n                return false\n            }\n            j = j + 1\n        }\n        i = i + 1\n    }\n    return true\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(is_symmetric_matrix([[1, 2, 3], [2, 5, 6], [3, 6, 9]]) == true)\n    assert(is_symmetric_matrix([[1, 0], [1, 1]]) == false)\n    assert(is_symmetric_matrix([[42]]) == true)\n    assert(is_symmetric_matrix([]) == true)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "longest_increasing_run",
+      "category": "function",
+      "description": "define a function named `longest_increasing_run` that takes a list of integers `nums` and returns the length of the longest run of strictly increasing consecutive elements\n\nRequired signature:\nfn longest_increasing_run(nums: list[int]) to int",
+      "semantic_expected_contains": [
+        "fn longest_increasing_run"
+      ],
+      "answer": "fn longest_increasing_run(nums: list[int]) to int {\n    if nums.len() == 0 {\n        return 0\n    }\n    let mut best: int = 1\n    let mut cur: int = 1\n    let mut i: int = 1\n    while i < nums.len() {\n        if nums[i].unwrap() > nums[i - 1].unwrap() {\n            cur = cur + 1\n        } else {\n            cur = 1\n        }\n        if cur > best {\n            best = cur\n        }\n        i = i + 1\n    }\n    return best\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(longest_increasing_run([1, 2, 3, 2, 3, 4, 5]) == 4)\n    assert(longest_increasing_run([5, 4, 3, 2]) == 1)\n    assert(longest_increasing_run([2, 2, 2]) == 1)\n    assert(longest_increasing_run([]) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "string_is_rotation",
+      "category": "function",
+      "description": "define a function named `string_is_rotation` that takes two strings `a` and `b` of equal length and returns true if `b` is a rotation of `a`\n\nRequired signature:\nfn string_is_rotation(a: str, b: str) to bool",
+      "semantic_expected_contains": [
+        "fn string_is_rotation"
+      ],
+      "answer": "fn string_is_rotation(a: str, b: str) to bool {\n    if a.len() != b.len() {\n        return false\n    }\n    let doubled: str = a + a\n    return doubled.contains(b)\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(string_is_rotation(\"waterbottle\", \"erbottlewat\") == true)\n    assert(string_is_rotation(\"abc\", \"acb\") == false)\n    assert(string_is_rotation(\"ab\", \"abc\") == false)\n    assert(string_is_rotation(\"\", \"\") == true)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "count_words_starting_with",
+      "category": "function",
+      "description": "define a function named `count_words_starting_with` that takes a string `s` and a single-character string `letter`, and returns the count of whitespace-separated words in `s` that start with `letter`\n\nRequired signature:\nfn count_words_starting_with(s: str, letter: str) to int",
+      "semantic_expected_contains": [
+        "fn count_words_starting_with"
+      ],
+      "answer": "fn count_words_starting_with(s: str, letter: str) to int {\n    let words: list[str] = s.split(\" \")\n    let mut count: int = 0\n    let mut i: int = 0\n    while i < words.len() {\n        let w: str = words[i].unwrap()\n        if w.len() > 0 and w.slice(0, 1) == letter {\n            count = count + 1\n        }\n        i = i + 1\n    }\n    return count\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_words_starting_with(\"alpha beta apricot\", \"a\") == 2)\n    assert(count_words_starting_with(\"  one  two  \", \"t\") == 1)\n    assert(count_words_starting_with(\"\", \"a\") == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "dedupe_case_insensitive",
+      "category": "function",
+      "description": "define a function named `dedupe_case_insensitive` that takes a list of strings `items` and returns a new list with case-insensitive duplicates removed, keeping the first occurrence\n\nRequired signature:\nfn dedupe_case_insensitive(items: list[str]) to list[str]",
+      "semantic_expected_contains": [
+        "fn dedupe_case_insensitive"
+      ],
+      "answer": "fn dedupe_case_insensitive(items: list[str]) to list[str] {\n    let mut seen: list[str] = []\n    let mut out: list[str] = []\n    let mut i: int = 0\n    while i < items.len() {\n        let lower: str = items[i].unwrap().to_lower()\n        if not seen.contains(lower) {\n            seen = seen.push(lower)\n            out = out.push(items[i].unwrap())\n        }\n        i = i + 1\n    }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(dedupe_case_insensitive([\"Alpha\", \"alpha\", \"Beta\", \"BETA\", \"Gamma\"]) == [\"Alpha\", \"Beta\", \"Gamma\"])\n    assert(dedupe_case_insensitive([]) == [])\n    assert(dedupe_case_insensitive([\"x\", \"y\"]) == [\"x\", \"y\"])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "max_consecutive_ones",
+      "category": "function",
+      "description": "define a function named `max_consecutive_ones` that takes a list of integers `bits` (each 0 or 1) and returns the length of the longest run of consecutive 1s\n\nRequired signature:\nfn max_consecutive_ones(bits: list[int]) to int",
+      "semantic_expected_contains": [
+        "fn max_consecutive_ones"
+      ],
+      "answer": "fn max_consecutive_ones(bits: list[int]) to int {\n    let mut best: int = 0\n    let mut cur: int = 0\n    let mut i: int = 0\n    while i < bits.len() {\n        if bits[i].unwrap() == 1 {\n            cur = cur + 1\n        } else {\n            cur = 0\n        }\n        if cur > best {\n            best = cur\n        }\n        i = i + 1\n    }\n    return best\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(max_consecutive_ones([1, 1, 0, 1, 1, 1]) == 3)\n    assert(max_consecutive_ones([0, 0, 0]) == 0)\n    assert(max_consecutive_ones([]) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_algo_lower_bound",
+      "category": "algorithm",
+      "description": "Implement `lower_bound(xs, target)` returning the smallest index `i` in a non-decreasing list `xs` where `xs[i] >= target`, or `xs.len()` if every element is strictly less than `target`.\n\nRequired signature:\nfn lower_bound(xs: list[int], target: int) to int",
+      "semantic_expected_contains": [
+        "fn lower_bound"
+      ],
+      "answer": "fn lower_bound(xs: list[int], target: int) to int {\n    let mut lo: int = 0\n    let mut hi: int = xs.len()\n    while lo < hi {\n        let mid: int = lo + (hi - lo) / 2\n        if xs[mid].unwrap() < target {\n            lo = mid + 1\n        } else {\n            hi = mid\n        }\n    }\n    return lo\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(lower_bound([1, 2, 2, 4, 7], 2) == 1)\n    assert(lower_bound([1, 2, 2, 4, 7], 5) == 4)\n    assert(lower_bound([1, 2, 3], 10) == 3)\n    assert(lower_bound([], 3) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_algo_sort_colors_012",
+      "category": "algorithm",
+      "description": "Implement `sort_colors_012(xs)` returning a new list with all `0`s first, then `1`s, then `2`s in linear counting time without modifying the input list.\n\nRequired signature:\nfn sort_colors_012(xs: list[int]) to list[int]",
+      "semantic_expected_contains": [
+        "fn sort_colors_012"
+      ],
+      "answer": "fn sort_colors_012(xs: list[int]) to list[int] {\n    let mut c0: int = 0\n    let mut c1: int = 0\n    let mut c2: int = 0\n    for v in xs {\n        if v == 0 {\n            c0 = c0 + 1\n        } else if v == 1 {\n            c1 = c1 + 1\n        } else {\n            c2 = c2 + 1\n        }\n    }\n    let mut out: list[int] = []\n    let mut i: int = 0\n    while i < c0 { out = out.push(0)\n i = i + 1 }\n    i = 0\n    while i < c1 { out = out.push(1)\n i = i + 1 }\n    i = 0\n    while i < c2 { out = out.push(2)\n i = i + 1 }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(sort_colors_012([2, 0, 2, 1, 1, 0]) == [0, 0, 1, 1, 2, 2])\n    assert(sort_colors_012([2, 1, 0]) == [0, 1, 2])\n    assert(sort_colors_012([]) == [])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_algo_isqrt_floor",
+      "category": "algorithm",
+      "description": "Implement `isqrt_floor(n)` returning the floor integer square root of `n >= 0` using binary search (without overflows or floats), or `-1` if `n < 0`.\n\nRequired signature:\nfn isqrt_floor(n: int) to int",
+      "semantic_expected_contains": [
+        "fn isqrt_floor"
+      ],
+      "answer": "fn isqrt_floor(n: int) to int {\n    if n < 0 {\n        return -1\n    }\n    if n < 2 {\n        return n\n    }\n    let mut lo: int = 1\n    let mut hi: int = n / 2 + 1\n    let mut ans: int = 1\n    while lo <= hi {\n        let mid: int = lo + (hi - lo) / 2\n        if mid <= n / mid {\n            ans = mid\n            lo = mid + 1\n        } else {\n            hi = mid - 1\n        }\n    }\n    return ans\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(isqrt_floor(0) == 0)\n    assert(isqrt_floor(15) == 3)\n    assert(isqrt_floor(16) == 4)\n    assert(isqrt_floor(1000000) == 1000)\n    assert(isqrt_floor(-5) == -1)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_algo_min_cost_climb",
+      "category": "algorithm",
+      "description": "Implement `min_cost_climb(cost)` returning minimum cost to reach past the top step (`n`) when each step `i` has cost `cost[i]` and you can advance 1 or 2 steps starting from step 0 or 1.\n\nRequired signature:\nfn min_cost_climb(cost: list[int]) to int",
+      "semantic_expected_contains": [
+        "fn min_cost_climb"
+      ],
+      "answer": "fn min_cost_climb(cost: list[int]) to int {\n    let n: int = cost.len()\n    if n == 0 {\n        return 0\n    }\n    if n == 1 {\n        return cost[0].unwrap()\n    }\n    let mut prev2: int = 0\n    let mut prev1: int = 0\n    let mut i: int = 2\n    while i <= n {\n        let c1: int = prev1 + cost[i - 1].unwrap()\n        let c2: int = prev2 + cost[i - 2].unwrap()\n        let mut best: int = c1\n        if c2 < best {\n            best = c2\n        }\n        prev2 = prev1\n        prev1 = best\n        i = i + 1\n    }\n    return prev1\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(min_cost_climb([10, 15, 20]) == 15)\n    assert(min_cost_climb([1, 100, 1, 1, 1, 100, 1, 1, 100, 1]) == 6)\n    assert(min_cost_climb([7]) == 7)\n    assert(min_cost_climb([]) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_algo_coin_change_min",
+      "category": "algorithm",
+      "description": "Implement `coin_change_min(coins, amount)` returning the fewest coins needed to make `amount` (`0` for `amount == 0`), or `-1` if impossible via dynamic programming.\n\nRequired signature:\nfn coin_change_min(coins: list[int], amount: int) to int",
+      "semantic_expected_contains": [
+        "fn coin_change_min"
+      ],
+      "answer": "fn coin_change_min(coins: list[int], amount: int) to int {\n    if amount < 0 {\n        return -1\n    }\n    if amount == 0 {\n        return 0\n    }\n    let inf: int = amount + 1\n    let mut dp: list[int] = [0]\n    let mut a: int = 1\n    while a <= amount {\n        dp = dp.push(inf)\n        a = a + 1\n    }\n    a = 1\n    while a <= amount {\n        let mut best: int = inf\n        for c in coins {\n            if c > 0 and c <= a {\n                let cand: int = dp[a - c].unwrap() + 1\n                if cand < best {\n                    best = cand\n                }\n            }\n        }\n        dp[a] = best\n        a = a + 1\n    }\n    let ans: int = dp[amount].unwrap()\n    if ans >= inf {\n        return -1\n    }\n    return ans\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(coin_change_min([1, 3, 4], 6) == 2)\n    assert(coin_change_min([2], 3) == -1)\n    assert(coin_change_min([1, 5, 10], 0) == 0)\n    assert(coin_change_min([1, 2, 5], 11) == 3)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_algo_knapsack_01",
+      "category": "algorithm",
+      "description": "Implement `knapsack_01(weights, values, cap)` returning the maximum total value fitting within capacity `cap` where each item can be taken at most once.\n\nRequired signature:\nfn knapsack_01(weights: list[int], values: list[int], cap: int) to int",
+      "semantic_expected_contains": [
+        "fn knapsack_01"
+      ],
+      "answer": "fn knapsack_01(weights: list[int], values: list[int], cap: int) to int {\n    if cap <= 0 {\n        return 0\n    }\n    let mut dp: list[int] = []\n    let mut w: int = 0\n    while w <= cap { dp = dp.push(0)\n w = w + 1 }\n    let mut i: int = 0\n    while i < weights.len() {\n        let wt: int = weights[i].unwrap()\n        let val: int = values[i].unwrap()\n        let mut c: int = cap\n        while c >= wt {\n            let cand: int = dp[c - wt].unwrap() + val\n            if cand > dp[c].unwrap() {\n                dp[c] = cand\n            }\n            c = c - 1\n        }\n        i = i + 1\n    }\n    return dp[cap].unwrap()\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(knapsack_01([1, 3, 4, 5], [1, 4, 5, 7], 7) == 9)\n    assert(knapsack_01([5, 6], [10, 20], 4) == 0)\n    assert(knapsack_01([], [], 10) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_algo_max_product_pair",
+      "category": "algorithm",
+      "description": "Implement `max_pair_product(xs)` returning the maximum product of two elements at distinct indices (`i != j`) handling negative values; return `0` if `xs.len() < 2`.\n\nRequired signature:\nfn max_pair_product(xs: list[int]) to int",
+      "semantic_expected_contains": [
+        "fn max_pair_product"
+      ],
+      "answer": "fn max_pair_product(xs: list[int]) to int {\n    if xs.len() < 2 {\n        return 0\n    }\n    let mut best: int = xs[0].unwrap() * xs[1].unwrap()\n    let mut i: int = 0\n    while i < xs.len() {\n        let mut j: int = i + 1\n        while j < xs.len() {\n            let p: int = xs[i].unwrap() * xs[j].unwrap()\n            if p > best {\n                best = p\n            }\n            j = j + 1\n        }\n        i = i + 1\n    }\n    return best\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(max_pair_product([-10, -3, 1, 5, 4]) == 30)\n    assert(max_pair_product([-2, 3]) == -6)\n    assert(max_pair_product([7]) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ds_eval_rpn",
+      "category": "data_structures",
+      "description": "Implement `eval_rpn(tokens)` evaluating a Reverse Polish Notation integer expression with operators `+`, `-`, `*`, `/` (truncating toward zero).\n\nRequired signature:\nfn eval_rpn(tokens: list[str]) to int",
+      "semantic_expected_contains": [
+        "fn eval_rpn"
+      ],
+      "answer": "fn eval_rpn(tokens: list[str]) to int {\n    let mut st: list[int] = []\n    for tok in tokens {\n        if tok == \"+\" or tok == \"-\" or tok == \"*\" or tok == \"/\" {\n            let b: int = st[st.len() - 1].unwrap()\n            st = st.remove_at(st.len() - 1)\n            let a: int = st[st.len() - 1].unwrap()\n            st = st.remove_at(st.len() - 1)\n            let mut v: int = 0\n            if tok == \"+\" { v = a + b } else if tok == \"-\" { v = a - b } else if tok == \"*\" { v = a * b } else { v = a / b }\n            st = st.push(v)\n        } else {\n            match tok.to_int() {\n                Some(n) => { st = st.push(n) }\n                None => {}\n            }\n        }\n    }\n    if st.len() == 0 { return 0 }\n    return st[0].unwrap()\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(eval_rpn([\"2\", \"1\", \"+\", \"3\", \"*\"]) == 9)\n    assert(eval_rpn([\"4\", \"13\", \"5\", \"/\", \"+\"]) == 6)\n    assert(eval_rpn([\"10\", \"3\", \"-\", \"2\", \"*\"]) == 14)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ds_sliding_window_max",
+      "category": "data_structures",
+      "description": "Implement `sliding_window_max(nums, k)` returning the maximum of each contiguous window of size `k` (`[]` if `k <= 0` or `k > nums.len()`).\n\nRequired signature:\nfn sliding_window_max(nums: list[int], k: int) to list[int]",
+      "semantic_expected_contains": [
+        "fn sliding_window_max"
+      ],
+      "answer": "fn sliding_window_max(nums: list[int], k: int) to list[int] {\n    let mut out: list[int] = []\n    if k <= 0 or k > nums.len() {\n        return out\n    }\n    let mut i: int = 0\n    while i + k <= nums.len() {\n        let mut best: int = nums[i].unwrap()\n        let mut j: int = i + 1\n        while j < i + k {\n            if nums[j].unwrap() > best {\n                best = nums[j].unwrap()\n            }\n            j = j + 1\n        }\n        out = out.push(best)\n        i = i + 1\n    }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(sliding_window_max([1, 3, -1, -3, 5, 3, 6, 7], 3) == [3, 3, 5, 5, 6, 7])\n    assert(sliding_window_max([4, 2], 3) == [])\n    assert(sliding_window_max([9], 1) == [9])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ds_valid_stack_sequence",
+      "category": "data_structures",
+      "description": "Implement `is_valid_stack_sequence(pushed, popped)` returning true iff `popped` is a valid pop sequence of stack operations on `pushed`.\n\nRequired signature:\nfn is_valid_stack_sequence(pushed: list[int], popped: list[int]) to bool",
+      "semantic_expected_contains": [
+        "fn is_valid_stack_sequence"
+      ],
+      "answer": "fn is_valid_stack_sequence(pushed: list[int], popped: list[int]) to bool {\n    let mut st: list[int] = []\n    let mut j: int = 0\n    for x in pushed {\n        st = st.push(x)\n        while st.len() > 0 and j < popped.len() and st[st.len() - 1].unwrap() == popped[j].unwrap() {\n            st = st.remove_at(st.len() - 1)\n            j = j + 1\n        }\n    }\n    return j == popped.len() and st.len() == 0\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(is_valid_stack_sequence([1, 2, 3, 4, 5], [4, 5, 3, 2, 1]) == true)\n    assert(is_valid_stack_sequence([1, 2, 3, 4, 5], [4, 3, 5, 1, 2]) == false)\n    assert(is_valid_stack_sequence([], []) == true)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ds_count_components",
+      "category": "data_structures",
+      "description": "Implement `count_components(n, edges)` where `edges` is a list of `[u, v]` pairs over `0..n`, returning the number of connected components in the undirected graph.\n\nRequired signature:\nfn count_components(n: int, edges: list[list[int]]) to int",
+      "semantic_expected_contains": [
+        "fn count_components"
+      ],
+      "answer": "fn count_components(n: int, edges: list[list[int]]) to int {\n    let mut parent: list[int] = []\n    let mut i: int = 0\n    while i < n { parent = parent.push(i)\n i = i + 1 }\n    for e in edges {\n        let mut u: int = e[0].unwrap()\n        let mut v: int = e[1].unwrap()\n        while parent[u].unwrap() != u { u = parent[u].unwrap() }\n        while parent[v].unwrap() != v { v = parent[v].unwrap() }\n        if u != v {\n            parent[v] = u\n        }\n    }\n    let mut roots: int = 0\n    i = 0\n    while i < n {\n        if parent[i].unwrap() == i {\n            roots = roots + 1\n        }\n        i = i + 1\n    }\n    return roots\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_components(5, [[0, 1], [1, 2], [3, 4]]) == 2)\n    assert(count_components(4, [[0, 1], [2, 3], [1, 2]]) == 1)\n    assert(count_components(3, []) == 3)\n    assert(count_components(0, []) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ds_prefix_sum_queries",
+      "category": "data_structures",
+      "description": "Implement `range_sum_queries(nums, queries)` where each query is `[l, r]` (inclusive 0-indexed), returning the sum `nums[l] + ... + nums[r]` for each query using prefix sums.\n\nRequired signature:\nfn range_sum_queries(nums: list[int], queries: list[list[int]]) to list[int]",
+      "semantic_expected_contains": [
+        "fn range_sum_queries"
+      ],
+      "answer": "fn range_sum_queries(nums: list[int], queries: list[list[int]]) to list[int] {\n    let mut pref: list[int] = [0]\n    let mut acc: int = 0\n    for x in nums {\n        acc = acc + x\n        pref = pref.push(acc)\n    }\n    let mut out: list[int] = []\n    for q in queries {\n        let l: int = q[0].unwrap()\n        let r: int = q[1].unwrap()\n        out = out.push(pref[r + 1].unwrap() - pref[l].unwrap())\n    }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(range_sum_queries([-2, 0, 3, -5, 2, -1], [[0, 2], [2, 5], [0, 5]]) == [1, -1, -3])\n    assert(range_sum_queries([5], [[0, 0]]) == [5])\n    assert(range_sum_queries([1, 2], []) == [])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ds_dedupe_keep_last",
+      "category": "data_structures",
+      "description": "Implement `dedupe_keep_last(xs)` returning a new list retaining only the last occurrence of each integer while preserving the relative order of those last occurrences.\n\nRequired signature:\nfn dedupe_keep_last(xs: list[int]) to list[int]",
+      "semantic_expected_contains": [
+        "fn dedupe_keep_last"
+      ],
+      "answer": "fn dedupe_keep_last(xs: list[int]) to list[int] {\n    let mut rev: list[int] = []\n    let mut i: int = xs.len() - 1\n    while i >= 0 {\n        let v: int = xs[i].unwrap()\n        if not rev.contains(v) {\n            rev = rev.push(v)\n        }\n        i = i - 1\n    }\n    return rev.reversed()\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(dedupe_keep_last([1, 2, 1, 3, 2]) == [1, 3, 2])\n    assert(dedupe_keep_last([5, 5, 5]) == [5])\n    assert(dedupe_keep_last([]) == [])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ds_merge_k_sorted",
+      "category": "data_structures",
+      "description": "Implement `merge_k_sorted(lists)` merging a list of already-sorted `list[int]`s into a single sorted `list[int]`.\n\nRequired signature:\nfn merge_k_sorted(lists: list[list[int]]) to list[int]",
+      "semantic_expected_contains": [
+        "fn merge_k_sorted"
+      ],
+      "answer": "fn merge_two(a: list[int], b: list[int]) to list[int] {\n    let mut out: list[int] = []\n    let mut i: int = 0\n    let mut j: int = 0\n    while i < a.len() and j < b.len() {\n        if a[i].unwrap() <= b[j].unwrap() {\n            out = out.push(a[i].unwrap())\n            i = i + 1\n        } else {\n            out = out.push(b[j].unwrap())\n            j = j + 1\n        }\n    }\n    while i < a.len() { out = out.push(a[i].unwrap())\n i = i + 1 }\n    while j < b.len() { out = out.push(b[j].unwrap())\n j = j + 1 }\n    return out\n}\n\nfn merge_k_sorted(lists: list[list[int]]) to list[int] {\n    let mut acc: list[int] = []\n    for sub in lists {\n        acc = merge_two(acc, sub)\n    }\n    return acc\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(merge_k_sorted([[1, 4, 5], [1, 3, 4], [2, 6]]) == [1, 1, 2, 3, 4, 4, 5, 6])\n    assert(merge_k_sorted([[], [5], []]) == [5])\n    assert(merge_k_sorted([]) == [])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_grid_transpose",
+      "category": "matrix_grid",
+      "description": "Implement `transpose_matrix(grid)` returning the transpose of a non-empty rectangular matrix `list[list[int]]` (`[]` on empty grid).\n\nRequired signature:\nfn transpose_matrix(grid: list[list[int]]) to list[list[int]]",
+      "semantic_expected_contains": [
+        "fn transpose_matrix"
+      ],
+      "answer": "fn transpose_matrix(grid: list[list[int]]) to list[list[int]] {\n    if grid.len() == 0 {\n        return []\n    }\n    let rows: int = grid.len()\n    let cols: int = grid[0].unwrap().len()\n    let mut out: list[list[int]] = []\n    let mut c: int = 0\n    while c < cols {\n        let mut new_row: list[int] = []\n        let mut r: int = 0\n        while r < rows {\n            new_row = new_row.push(grid[r].unwrap()[c].unwrap())\n            r = r + 1\n        }\n        out = out.push(new_row)\n        c = c + 1\n    }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(transpose_matrix([[1, 2, 3], [4, 5, 6]]) == [[1, 4], [2, 5], [3, 6]])\n    assert(transpose_matrix([[9]]) == [[9]])\n    assert(transpose_matrix([]) == [])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_grid_count_islands",
+      "category": "matrix_grid",
+      "description": "Implement `count_islands(grid)` counting 4-directionally connected components of `1`s in a `0`/`1` integer matrix.\n\nRequired signature:\nfn count_islands(grid: list[list[int]]) to int",
+      "semantic_expected_contains": [
+        "fn count_islands"
+      ],
+      "answer": "fn count_islands(grid: list[list[int]]) to int {\n    let rows: int = grid.len()\n    if rows == 0 { return 0 }\n    let cols: int = grid[0].unwrap().len()\n    let mut vis: list[bool] = []\n    let mut k: int = 0\n    while k < rows * cols { vis = vis.push(false)\n k = k + 1 }\n    let mut islands: int = 0\n    let mut r: int = 0\n    while r < rows {\n        let mut c: int = 0\n        while c < cols {\n            let idx: int = r * cols + c\n            if grid[r].unwrap()[c].unwrap() == 1 and not vis[idx].unwrap() {\n                islands = islands + 1\n                vis[idx] = true\n                let mut qr: list[int] = [r]\n                let mut qc: list[int] = [c]\n                let mut head: int = 0\n                while head < qr.len() {\n                    let cr: int = qr[head].unwrap()\n                    let cc: int = qc[head].unwrap()\n                    head = head + 1\n                    let drs: list[int] = [-1, 1, 0, 0]\n                    let dcs: list[int] = [0, 0, -1, 1]\n                    let mut d: int = 0\n                    while d < 4 {\n                        let nr: int = cr + drs[d].unwrap()\n                        let nc: int = cc + dcs[d].unwrap()\n                        if nr >= 0 and nr < rows and nc >= 0 and nc < cols {\n                            let nidx: int = nr * cols + nc\n                            if grid[nr].unwrap()[nc].unwrap() == 1 and not vis[nidx].unwrap() {\n                                vis[nidx] = true\n                                qr = qr.push(nr)\n                                qc = qc.push(nc)\n                            }\n                        }\n                        d = d + 1\n                    }\n                }\n            }\n            c = c + 1\n        }\n        r = r + 1\n    }\n    return islands\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_islands([[1, 1, 0, 0], [1, 0, 0, 1], [0, 0, 1, 1]]) == 2)\n    assert(count_islands([[0, 0], [0, 0]]) == 0)\n    assert(count_islands([[1, 0, 1], [0, 1, 0]]) == 3)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_grid_set_zeros",
+      "category": "matrix_grid",
+      "description": "Implement `zero_rows_cols(grid)` returning a new matrix where if any cell `(r, c)` was `0`, its entire row `r` and column `c` become `0`.\n\nRequired signature:\nfn zero_rows_cols(grid: list[list[int]]) to list[list[int]]",
+      "semantic_expected_contains": [
+        "fn zero_rows_cols"
+      ],
+      "answer": "fn zero_rows_cols(grid: list[list[int]]) to list[list[int]] {\n    let rows: int = grid.len()\n    if rows == 0 { return [] }\n    let cols: int = grid[0].unwrap().len()\n    let mut zr: list[bool] = []\n    let mut zc: list[bool] = []\n    let mut r: int = 0\n    while r < rows { zr = zr.push(false)\n r = r + 1 }\n    let mut c: int = 0\n    while c < cols { zc = zc.push(false)\n c = c + 1 }\n    r = 0\n    while r < rows {\n        c = 0\n        while c < cols {\n            if grid[r].unwrap()[c].unwrap() == 0 {\n                zr[r] = true\n                zc[c] = true\n            }\n            c = c + 1\n        }\n        r = r + 1\n    }\n    let mut out: list[list[int]] = []\n    r = 0\n    while r < rows {\n        let mut row: list[int] = []\n        c = 0\n        while c < cols {\n            if zr[r].unwrap() or zc[c].unwrap() {\n                row = row.push(0)\n            } else {\n                row = row.push(grid[r].unwrap()[c].unwrap())\n            }\n            c = c + 1\n        }\n        out = out.push(row)\n        r = r + 1\n    }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(zero_rows_cols([[1, 1, 1], [1, 0, 1], [1, 1, 1]]) == [[1, 0, 1], [0, 0, 0], [1, 0, 1]])\n    assert(zero_rows_cols([[0, 2], [3, 4]]) == [[0, 0], [0, 4]])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_grid_life_next_gen",
+      "category": "matrix_grid",
+      "description": "Implement `life_next_gen(board)` computing one Conway's Game of Life generation on a `0`/`1` grid (dead boundaries outside grid).\n\nRequired signature:\nfn life_next_gen(board: list[list[int]]) to list[list[int]]",
+      "semantic_expected_contains": [
+        "fn life_next_gen"
+      ],
+      "answer": "fn life_next_gen(board: list[list[int]]) to list[list[int]] {\n    let rows: int = board.len()\n    if rows == 0 { return [] }\n    let cols: int = board[0].unwrap().len()\n    let mut out: list[list[int]] = []\n    let mut r: int = 0\n    while r < rows {\n        let mut row: list[int] = []\n        let mut c: int = 0\n        while c < cols {\n            let mut live: int = 0\n            let mut dr: int = -1\n            while dr <= 1 {\n                let mut dc: int = -1\n                while dc <= 1 {\n                    if not (dr == 0 and dc == 0) {\n                        let nr: int = r + dr\n                        let nc: int = c + dc\n                        if nr >= 0 and nr < rows and nc >= 0 and nc < cols {\n                            live = live + board[nr].unwrap()[nc].unwrap()\n                        }\n                    }\n                    dc = dc + 1\n                }\n                dr = dr + 1\n            }\n            let cur: int = board[r].unwrap()[c].unwrap()\n            if cur == 1 and (live == 2 or live == 3) {\n                row = row.push(1)\n            } else if cur == 0 and live == 3 {\n                row = row.push(1)\n            } else {\n                row = row.push(0)\n            }\n            c = c + 1\n        }\n        out = out.push(row)\n        r = r + 1\n    }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(life_next_gen([[0, 1, 0], [0, 1, 0], [0, 1, 0]]) == [[0, 0, 0], [1, 1, 1], [0, 0, 0]])\n    assert(life_next_gen([[1, 1], [1, 1]]) == [[1, 1], [1, 1]])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_grid_max_2x2_sum",
+      "category": "matrix_grid",
+      "description": "Implement `max_2x2_sum(grid)` returning the largest sum of any contiguous 2x2 submatrix (`0` if fewer than 2 rows or 2 columns).\n\nRequired signature:\nfn max_2x2_sum(grid: list[list[int]]) to int",
+      "semantic_expected_contains": [
+        "fn max_2x2_sum"
+      ],
+      "answer": "fn max_2x2_sum(grid: list[list[int]]) to int {\n    let rows: int = grid.len()\n    if rows < 2 { return 0 }\n    let cols: int = grid[0].unwrap().len()\n    if cols < 2 { return 0 }\n    let mut best: int = grid[0].unwrap()[0].unwrap() + grid[0].unwrap()[1].unwrap() + grid[1].unwrap()[0].unwrap() + grid[1].unwrap()[1].unwrap()\n    let mut r: int = 0\n    while r + 1 < rows {\n        let mut c: int = 0\n        while c + 1 < cols {\n            let s: int = grid[r].unwrap()[c].unwrap() + grid[r].unwrap()[c + 1].unwrap() + grid[r + 1].unwrap()[c].unwrap() + grid[r + 1].unwrap()[c + 1].unwrap()\n            if s > best { best = s }\n            c = c + 1\n        }\n        r = r + 1\n    }\n    return best\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(max_2x2_sum([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == 28)\n    assert(max_2x2_sum([[-5, -1], [-2, -3]]) == -11)\n    assert(max_2x2_sum([[10]]) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_grid_safe_rooks",
+      "category": "matrix_grid",
+      "description": "Implement `count_safe_rooks(board)` returning the number of `1`s (rooks) in a `0`/`1` grid that are the sole rook in both their row and column.\n\nRequired signature:\nfn count_safe_rooks(board: list[list[int]]) to int",
+      "semantic_expected_contains": [
+        "fn count_safe_rooks"
+      ],
+      "answer": "fn count_safe_rooks(board: list[list[int]]) to int {\n    let rows: int = board.len()\n    if rows == 0 { return 0 }\n    let cols: int = board[0].unwrap().len()\n    let mut row_cnt: list[int] = []\n    let mut col_cnt: list[int] = []\n    let mut r: int = 0\n    while r < rows { row_cnt = row_cnt.push(0)\n r = r + 1 }\n    let mut c: int = 0\n    while c < cols { col_cnt = col_cnt.push(0)\n c = c + 1 }\n    r = 0\n    while r < rows {\n        c = 0\n        while c < cols {\n            if board[r].unwrap()[c].unwrap() == 1 {\n                row_cnt[r] = row_cnt[r].unwrap() + 1\n                col_cnt[c] = col_cnt[c].unwrap() + 1\n            }\n            c = c + 1\n        }\n        r = r + 1\n    }\n    let mut safe: int = 0\n    r = 0\n    while r < rows {\n        c = 0\n        while c < cols {\n            if board[r].unwrap()[c].unwrap() == 1 and row_cnt[r].unwrap() == 1 and col_cnt[c].unwrap() == 1 {\n                safe = safe + 1\n            }\n            c = c + 1\n        }\n        r = r + 1\n    }\n    return safe\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_safe_rooks([[1, 0, 0], [0, 0, 1], [1, 0, 0]]) == 1)\n    assert(count_safe_rooks([[1, 0], [0, 1]]) == 2)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_str_parse_ini_value",
+      "category": "string_parsing",
+      "description": "Implement `parse_ini_value(doc, target_key)` scanning lines of `doc`, ignoring empty lines and `#`/`;` comments, trimming whitespace around `key = value`, and returning the value for `target_key` (or `\"\"` if absent).\n\nRequired signature:\nfn parse_ini_value(doc: str, target_key: str) to str",
+      "semantic_expected_contains": [
+        "fn parse_ini_value"
+      ],
+      "answer": "fn parse_ini_value(doc: str, target_key: str) to str {\n    let lines: list[str] = doc.split(\"\\n\")\n    for raw in lines {\n        let line: str = raw.trim()\n        if line.len() == 0 or line.starts_with(\"#\") or line.starts_with(\";\") {\n            continue\n        }\n        match line.index_of(\"=\") {\n            Some(pos) => {\n                let k: str = line.slice(0, pos).trim()\n                if k == target_key {\n                    return line.slice(pos + 1, line.chars_count()).trim()\n                }\n            }\n            None => {}\n        }\n    }\n    return \"\"\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    let doc: str = \"# cfg\\nhost = 127.0.0.1\\n; port note\\nport = 8080\\nmode=prod\"\n    assert(parse_ini_value(doc, \"host\") == \"127.0.0.1\")\n    assert(parse_ini_value(doc, \"port\") == \"8080\")\n    assert(parse_ini_value(doc, \"missing\") == \"\")\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_str_compare_semver",
+      "category": "string_parsing",
+      "description": "Implement `compare_semver(a, b)` comparing two `major.minor.patch` version strings numerically and returning `-1`, `0`, or `1`.\n\nRequired signature:\nfn compare_semver(a: str, b: str) to int",
+      "semantic_expected_contains": [
+        "fn compare_semver"
+      ],
+      "answer": "fn compare_semver(a: str, b: str) to int {\n    let pa: list[str] = a.split(\".\")\n    let pb: list[str] = b.split(\".\")\n    let mut i: int = 0\n    while i < 3 {\n        let va: int = pa[i].unwrap().to_int().unwrap()\n        let vb: int = pb[i].unwrap().to_int().unwrap()\n        if va < vb { return -1 }\n        if va > vb { return 1 }\n        i = i + 1\n    }\n    return 0\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(compare_semver(\"1.10.0\", \"1.2.9\") == 1)\n    assert(compare_semver(\"0.9.1\", \"1.0.0\") == -1)\n    assert(compare_semver(\"2.3.4\", \"2.3.4\") == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_str_eval_infix",
+      "category": "string_parsing",
+      "description": "Implement `eval_infix_arith(expr)` evaluating non-negative integer expressions containing `+`, `-`, and `*` (with `*` higher precedence than `+`/`-` and optional spaces, no parentheses).\n\nRequired signature:\nfn eval_infix_arith(expr: str) to int",
+      "semantic_expected_contains": [
+        "fn eval_infix_arith"
+      ],
+      "answer": "fn eval_infix_arith(expr: str) to int {\n    let chars: list[str] = expr.chars()\n    let mut st: list[int] = []\n    let mut cur: int = 0\n    let mut op: str = \"+\"\n    let mut i: int = 0\n    while i < chars.len() {\n        let ch: str = chars[i].unwrap()\n        if ch.is_digit() {\n            cur = cur * 10 + (ch.ord() - 48)\n        }\n        let is_end: bool = i == chars.len() - 1\n        if (not ch.is_digit() and ch != \" \") or is_end {\n            if op == \"+\" {\n                st = st.push(cur)\n            } else if op == \"-\" {\n                st = st.push(0 - cur)\n            } else if op == \"*\" {\n                let top: int = st[st.len() - 1].unwrap()\n                st[st.len() - 1] = top * cur\n            }\n            if ch == \"+\" or ch == \"-\" or ch == \"*\" {\n                op = ch\n            }\n            cur = 0\n        }\n        i = i + 1\n    }\n    let mut total: int = 0\n    for v in st { total = total + v }\n    return total\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(eval_infix_arith(\"3 + 2 * 4 - 1\") == 10)\n    assert(eval_infix_arith(\"2*3*4 + 5\") == 29)\n    assert(eval_infix_arith(\"42\") == 42)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_str_roman_to_int",
+      "category": "string_parsing",
+      "description": "Implement `roman_to_int(s)` converting a standard uppercase Roman numeral string into its integer value.\n\nRequired signature:\nfn roman_to_int(s: str) to int",
+      "semantic_expected_contains": [
+        "fn roman_to_int"
+      ],
+      "answer": "fn roman_val(c: str) to int {\n    if c == \"I\" { return 1 }\n    if c == \"V\" { return 5 }\n    if c == \"X\" { return 10 }\n    if c == \"L\" { return 50 }\n    if c == \"C\" { return 100 }\n    if c == \"D\" { return 500 }\n    if c == \"M\" { return 1000 }\n    return 0\n}\n\nfn roman_to_int(s: str) to int {\n    let cs: list[str] = s.chars()\n    let mut total: int = 0\n    let mut i: int = 0\n    while i < cs.len() {\n        let v: int = roman_val(cs[i].unwrap())\n        if i + 1 < cs.len() and v < roman_val(cs[i + 1].unwrap()) {\n            total = total - v\n        } else {\n            total = total + v\n        }\n        i = i + 1\n    }\n    return total\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(roman_to_int(\"MCMXCIV\") == 1994)\n    assert(roman_to_int(\"LVIII\") == 58)\n    assert(roman_to_int(\"IX\") == 9)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_str_int_to_base36",
+      "category": "string_parsing",
+      "description": "Implement `int_to_base36(n)` encoding a non-negative integer `n` in lowercase base-36 (`0`..`9`, `a`..`z`), returning `\"0\"` for `n == 0`.\n\nRequired signature:\nfn int_to_base36(n: int) to str",
+      "semantic_expected_contains": [
+        "fn int_to_base36"
+      ],
+      "answer": "fn int_to_base36(n: int) to str {\n    if n <= 0 { return \"0\" }\n    let alpha: list[str] = \"0123456789abcdefghijklmnopqrstuvwxyz\".chars()\n    let mut digits: list[str] = []\n    let mut x: int = n\n    while x > 0 {\n        digits = digits.push(alpha[x % 36].unwrap())\n        x = x / 36\n    }\n    return digits.reversed().join(\"\")\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(int_to_base36(0) == \"0\")\n    assert(int_to_base36(35) == \"z\")\n    assert(int_to_base36(1295) == \"zz\")\n    assert(int_to_base36(46655) == \"zzz\")\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_str_extract_first_paren",
+      "category": "string_parsing",
+      "description": "Implement `extract_balanced_paren(s)` returning the content strictly inside the first balanced top-level `(...)` group (handling nested parentheses), or `\"\"` if none is balanced.\n\nRequired signature:\nfn extract_balanced_paren(s: str) to str",
+      "semantic_expected_contains": [
+        "fn extract_balanced_paren"
+      ],
+      "answer": "fn extract_balanced_paren(s: str) to str {\n    let cs: list[str] = s.chars()\n    let mut depth: int = 0\n    let mut start: int = -1\n    let mut i: int = 0\n    while i < cs.len() {\n        let ch: str = cs[i].unwrap()\n        if ch == \"(\" {\n            if depth == 0 { start = i + 1 }\n            depth = depth + 1\n        } else if ch == \")\" and depth > 0 {\n            depth = depth - 1\n            if depth == 0 {\n                return s.slice(start, i)\n            }\n        }\n        i = i + 1\n    }\n    return \"\"\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(extract_balanced_paren(\"call(a + (b * c)) + tail\") == \"a + (b * c)\")\n    assert(extract_balanced_paren(\"unclosed(a\") == \"\")\n    assert(extract_balanced_paren(\"none\") == \"\")\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_adt_calc_ops",
+      "category": "adt_match",
+      "description": "Define algebraic type `CalcOp` and implement `eval_calc_ops(ops)` evaluating a sequential accumulator initialized at `0` using `Add(n)`, `Sub(n)`, `Mul(n)`, and `Reset`.\n\nRequired signature:\ntype CalcOp =\n    | Add(n: int)\n    | Sub(n: int)\n    | Mul(n: int)\n    | Reset\n\nfn eval_calc_ops(ops: list[CalcOp]) to int",
+      "semantic_expected_contains": [
+        "type CalcOp",
+        "fn eval_calc_ops"
+      ],
+      "answer": "type CalcOp =\n    | Add(n: int)\n    | Sub(n: int)\n    | Mul(n: int)\n    | Reset\n\nfn eval_calc_ops(ops: list[CalcOp]) to int {\n    let mut acc: int = 0\n    for op in ops {\n        match op {\n            Add(n) => { acc = acc + n }\n            Sub(n) => { acc = acc - n }\n            Mul(n) => { acc = acc * n }\n            Reset => { acc = 0 }\n        }\n    }\n    return acc\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(eval_calc_ops([Add(5), Mul(3), Sub(4), Add(1)]) == 12)\n    assert(eval_calc_ops([Add(9), Reset, Add(2)]) == 2)\n    assert(eval_calc_ops([]) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_adt_log_severity_score",
+      "category": "adt_match",
+      "description": "Define algebraic type `LogEvent` and implement `total_severity_score(events)` scoring `Info` as `0`, `Warn(weight)` as `weight`, and `Critical(code)` as `10 + code`.\n\nRequired signature:\ntype LogEvent =\n    | Info(msg: str)\n    | Warn(weight: int)\n    | Critical(code: int)\n\nfn total_severity_score(events: list[LogEvent]) to int",
+      "semantic_expected_contains": [
+        "type LogEvent",
+        "fn total_severity_score"
+      ],
+      "answer": "type LogEvent =\n    | Info(msg: str)\n    | Warn(weight: int)\n    | Critical(code: int)\n\nfn total_severity_score(events: list[LogEvent]) to int {\n    let mut total: int = 0\n    for ev in events {\n        match ev {\n            Info(_) => {}\n            Warn(w) => { total = total + w }\n            Critical(c) => { total = total + 10 + c }\n        }\n    }\n    return total\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(total_severity_score([Info(\"ok\"), Warn(3), Critical(5)]) == 18)\n    assert(total_severity_score([]) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_adt_firewall_rule",
+      "category": "adt_match",
+      "description": "Define algebraic type `RuleAction` and implement `first_matching_verdict(rules, port)` checking `AnyAllow` -> `\"allow\"`, `DenyPort(p)` -> `\"deny\"` on match, `AllowPort(p)` -> `\"allow\"` on match, returning `\"deny\"` if no rule matches.\n\nRequired signature:\ntype RuleAction =\n    | AllowPort(p: int)\n    | DenyPort(p: int)\n    | AnyAllow\n\nfn first_matching_verdict(rules: list[RuleAction], port: int) to str",
+      "semantic_expected_contains": [
+        "type RuleAction",
+        "fn first_matching_verdict"
+      ],
+      "answer": "type RuleAction =\n    | AllowPort(p: int)\n    | DenyPort(p: int)\n    | AnyAllow\n\nfn first_matching_verdict(rules: list[RuleAction], port: int) to str {\n    for r in rules {\n        match r {\n            AllowPort(p) => { if p == port { return \"allow\" } }\n            DenyPort(p) => { if p == port { return \"deny\" } }\n            AnyAllow => { return \"allow\" }\n        }\n    }\n    return \"deny\"\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(first_matching_verdict([DenyPort(22), AllowPort(443)], 22) == \"deny\")\n    assert(first_matching_verdict([DenyPort(22), AnyAllow], 8080) == \"allow\")\n    assert(first_matching_verdict([AllowPort(80)], 443) == \"deny\")\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_adt_outcome_tally",
+      "category": "adt_match",
+      "description": "Define algebraic type `TaskOutcome` and implement `count_success_and_retries(outcomes)` returning a 2-element list `[passed_count, total_retry_attempts]` (`Ok` adds 1 pass, `Retried(n)` adds `n` retries without passing if `n >= 0`, `Failed` adds neither).\n\nRequired signature:\ntype TaskOutcome =\n    | OkOutcome\n    | Retried(attempts: int)\n    | FailedOutcome\n\nfn count_success_and_retries(outcomes: list[TaskOutcome]) to list[int]",
+      "semantic_expected_contains": [
+        "type TaskOutcome",
+        "fn count_success_and_retries"
+      ],
+      "answer": "type TaskOutcome =\n    | OkOutcome\n    | Retried(attempts: int)\n    | FailedOutcome\n\nfn count_success_and_retries(outcomes: list[TaskOutcome]) to list[int] {\n    let mut ok: int = 0\n    let mut retries: int = 0\n    for o in outcomes {\n        match o {\n            OkOutcome => { ok = ok + 1 }\n            Retried(n) => { retries = retries + n }\n            FailedOutcome => {}\n        }\n    }\n    return [ok, retries]\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_success_and_retries([OkOutcome, Retried(2), FailedOutcome, OkOutcome, Retried(3)]) == [2, 5])\n    assert(count_success_and_retries([]) == [0, 0])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_adt_http_status_band",
+      "category": "adt_match",
+      "description": "Define algebraic type `HttpBand` and functions `to_http_band(code)` (`200..=299` -> `SuccessCode`, `400..=499` -> `ClientErr`, `500..=599` -> `ServerErr`, else `OtherCode`) and `should_retry_band(b)` returning true only for `ServerErr`.\n\nRequired signature:\ntype HttpBand =\n    | SuccessCode\n    | ClientErr\n    | ServerErr\n    | OtherCode\n\nfn to_http_band(code: int) to HttpBand\nfn should_retry_band(b: HttpBand) to bool",
+      "semantic_expected_contains": [
+        "type HttpBand",
+        "fn to_http_band",
+        "fn should_retry_band"
+      ],
+      "answer": "type HttpBand =\n    | SuccessCode\n    | ClientErr\n    | ServerErr\n    | OtherCode\n\nfn to_http_band(code: int) to HttpBand {\n    if code >= 200 and code <= 299 { return SuccessCode }\n    if code >= 400 and code <= 499 { return ClientErr }\n    if code >= 500 and code <= 599 { return ServerErr }\n    return OtherCode\n}\n\nfn should_retry_band(b: HttpBand) to bool {\n    match b {\n        ServerErr => true\n        SuccessCode => false\n        ClientErr => false\n        OtherCode => false\n    }\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(should_retry_band(to_http_band(503)) == true)\n    assert(should_retry_band(to_http_band(404)) == false)\n    assert(should_retry_band(to_http_band(200)) == false)\n    assert(should_retry_band(to_http_band(301)) == false)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_adt_order_lifecycle",
+      "category": "adt_match",
+      "description": "Define algebraic type `OrderAction` (`Submit`, `Pay`, `Ship`, `Cancel`, `Refund`) and implement `reduce_order_state(actions)` starting at `\"draft\"` (`Submit` draft->pending, `Pay` pending->paid, `Ship` paid->shipped, `Cancel` draft/pending->cancelled, `Refund` paid/shipped->refunded; invalid actions are ignored).\n\nRequired signature:\ntype OrderAction =\n    | Submit\n    | Pay\n    | Ship\n    | Cancel\n    | Refund\n\nfn reduce_order_state(actions: list[OrderAction]) to str",
+      "semantic_expected_contains": [
+        "type OrderAction",
+        "fn reduce_order_state"
+      ],
+      "answer": "type OrderAction =\n    | Submit\n    | Pay\n    | Ship\n    | Cancel\n    | Refund\n\nfn reduce_order_state(actions: list[OrderAction]) to str {\n    let mut st: str = \"draft\"\n    for a in actions {\n        match a {\n            Submit => { if st == \"draft\" { st = \"pending\" } }\n            Pay => { if st == \"pending\" { st = \"paid\" } }\n            Ship => { if st == \"paid\" { st = \"shipped\" } }\n            Cancel => { if st == \"draft\" or st == \"pending\" { st = \"cancelled\" } }\n            Refund => { if st == \"paid\" or st == \"shipped\" { st = \"refunded\" } }\n        }\n    }\n    return st\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(reduce_order_state([Submit, Pay, Ship]) == \"shipped\")\n    assert(reduce_order_state([Ship, Pay, Submit, Cancel]) == \"cancelled\")\n    assert(reduce_order_state([Submit, Pay, Refund, Ship]) == \"refunded\")\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_fsm_tcp_lifecycle",
+      "category": "state_machine",
+      "description": "Implement `tcp_fsm(events)` starting in `\"CLOSED\"` and processing `[\"LISTEN\", \"SYN\", \"ACK\", \"FIN\", \"CLOSE\"]`: `CLOSED + LISTEN -> LISTEN`, `LISTEN + SYN -> SYN_RCVD`, `CLOSED + SYN -> SYN_SENT`, `SYN_RCVD + ACK -> ESTABLISHED`, `SYN_SENT + ACK -> ESTABLISHED`, `ESTABLISHED + FIN -> CLOSE_WAIT`, `CLOSE_WAIT + CLOSE -> CLOSED`. Return `\"INVALID\"` immediately on any unmapped event.\n\nRequired signature:\nfn tcp_fsm(events: list[str]) to str",
+      "semantic_expected_contains": [
+        "fn tcp_fsm"
+      ],
+      "answer": "fn tcp_fsm(events: list[str]) to str {\n    let mut st: str = \"CLOSED\"\n    for ev in events {\n        if st == \"CLOSED\" and ev == \"LISTEN\" { st = \"LISTEN\" }\n        else if st == \"LISTEN\" and ev == \"SYN\" { st = \"SYN_RCVD\" }\n        else if st == \"CLOSED\" and ev == \"SYN\" { st = \"SYN_SENT\" }\n        else if (st == \"SYN_RCVD\" or st == \"SYN_SENT\") and ev == \"ACK\" { st = \"ESTABLISHED\" }\n        else if st == \"ESTABLISHED\" and ev == \"FIN\" { st = \"CLOSE_WAIT\" }\n        else if st == \"CLOSE_WAIT\" and ev == \"CLOSE\" { st = \"CLOSED\" }\n        else { return \"INVALID\" }\n    }\n    return st\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(tcp_fsm([\"LISTEN\", \"SYN\", \"ACK\", \"FIN\", \"CLOSE\"]) == \"CLOSED\")\n    assert(tcp_fsm([\"SYN\", \"ACK\"]) == \"ESTABLISHED\")\n    assert(tcp_fsm([\"LISTEN\", \"ACK\"]) == \"INVALID\")\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_fsm_elevator",
+      "category": "state_machine",
+      "description": "Implement `elevator_final_floor(min_f, max_f, cmds)` starting at floor `0` (clamped inside `[min_f, max_f]`) processing `\"up\"`, `\"down\"`, and `\"goto:<n>\"` (ignoring out-of-range goto). Return final floor.\n\nRequired signature:\nfn elevator_final_floor(min_f: int, max_f: int, cmds: list[str]) to int",
+      "semantic_expected_contains": [
+        "fn elevator_final_floor"
+      ],
+      "answer": "fn elevator_final_floor(min_f: int, max_f: int, cmds: list[str]) to int {\n    let mut floor: int = 0\n    if floor < min_f { floor = min_f }\n    if floor > max_f { floor = max_f }\n    for cmd in cmds {\n        if cmd == \"up\" {\n            if floor < max_f { floor = floor + 1 }\n        } else if cmd == \"down\" {\n            if floor > min_f { floor = floor - 1 }\n        } else if cmd.starts_with(\"goto:\") {\n            match cmd.slice(5, cmd.chars_count()).to_int() {\n                Some(target) => {\n                    if target >= min_f and target <= max_f { floor = target }\n                }\n                None => {}\n            }\n        }\n    }\n    return floor\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(elevator_final_floor(-2, 10, [\"down\", \"down\", \"down\", \"goto:7\", \"goto:99\", \"up\"]) == 8)\n    assert(elevator_final_floor(1, 5, [\"down\"]) == 1)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_fsm_vending_machine",
+      "category": "state_machine",
+      "description": "Implement `vending_trace(price, ops)` processing `\"coin:<c>\"`, `\"buy\"` (deducts `price` and emits `1` if balance >= price else `0`), and `\"refund\"` (emits remaining balance and resets balance to 0). Return emitted ints.\n\nRequired signature:\nfn vending_trace(price: int, ops: list[str]) to list[int]",
+      "semantic_expected_contains": [
+        "fn vending_trace"
+      ],
+      "answer": "fn vending_trace(price: int, ops: list[str]) to list[int] {\n    let mut bal: int = 0\n    let mut out: list[int] = []\n    for op in ops {\n        if op.starts_with(\"coin:\") {\n            match op.slice(5, op.chars_count()).to_int() {\n                Some(c) => { if c > 0 { bal = bal + c } }\n                None => {}\n            }\n        } else if op == \"buy\" {\n            if bal >= price {\n                bal = bal - price\n                out = out.push(1)\n            } else {\n                out = out.push(0)\n            }\n        } else if op == \"refund\" {\n            out = out.push(bal)\n            bal = 0\n        }\n    }\n    return out\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(vending_trace(75, [\"coin:50\", \"buy\", \"coin:50\", \"buy\", \"refund\"]) == [0, 1, 25])\n    assert(vending_trace(100, [\"refund\"]) == [0])\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_fsm_token_bucket",
+      "category": "state_machine",
+      "description": "Implement `count_accepted_requests(capacity, refill_rate, req_times)` where tokens start full (`capacity`), refill by `(t - prev_t) * refill_rate` capped at `capacity` before each arrival timestamp `t`, and consume 1 token if >= 1 remains.\n\nRequired signature:\nfn count_accepted_requests(capacity: int, refill_rate: int, req_times: list[int]) to int",
+      "semantic_expected_contains": [
+        "fn count_accepted_requests"
+      ],
+      "answer": "fn count_accepted_requests(capacity: int, refill_rate: int, req_times: list[int]) to int {\n    if req_times.len() == 0 or capacity <= 0 { return 0 }\n    let mut tokens: int = capacity\n    let mut prev_t: int = req_times[0].unwrap()\n    let mut accepted: int = 0\n    for t in req_times {\n        let dt: int = t - prev_t\n        if dt > 0 {\n            tokens = tokens + dt * refill_rate\n            if tokens > capacity { tokens = capacity }\n            prev_t = t\n        }\n        if tokens >= 1 {\n            tokens = tokens - 1\n            accepted = accepted + 1\n        }\n    }\n    return accepted\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(count_accepted_requests(2, 1, [0, 0, 0, 1, 1]) == 3)\n    assert(count_accepted_requests(3, 2, [0, 5, 5, 5, 5]) == 4)\n    assert(count_accepted_requests(1, 0, [0, 10]) == 1)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ep_shipping_query",
+      "category": "endpoint_handler",
+      "description": "Define a Vox `query` named `calculate_shipping(weight_grams: int, express: bool) to int` returning base `500` cents + `2` cents per gram above `1000`g (0 extra <= 1000g), doubled if `express` is true (or `0` if `weight_grams <= 0`).\n\nRequired signature:\nquery calculate_shipping(weight_grams: int, express: bool) to int",
+      "semantic_expected_contains": [
+        "query calculate_shipping"
+      ],
+      "answer": "query calculate_shipping(weight_grams: int, express: bool) to int {\n    if weight_grams <= 0 { return 0 }\n    let mut cost: int = 500\n    if weight_grams > 1000 {\n        cost = cost + (weight_grams - 1000) * 2\n    }\n    if express {\n        cost = cost * 2\n    }\n    return cost\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(calculate_shipping(0, true) == 0)\n    assert(calculate_shipping(800, false) == 500)\n    assert(calculate_shipping(1250, true) == 2000)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ep_health_score_query",
+      "category": "endpoint_handler",
+      "description": "Define a Vox `query` named `health_score(errors: int, total: int) to int` returning integer percent `0..=100` of non-error calls (`(total - errors) * 100 / total`, `100` when `total <= 0`, clamped `>= 0`).\n\nRequired signature:\nquery health_score(errors: int, total: int) to int",
+      "semantic_expected_contains": [
+        "query health_score"
+      ],
+      "answer": "query health_score(errors: int, total: int) to int {\n    if total <= 0 { return 100 }\n    if errors >= total { return 0 }\n    if errors <= 0 { return 100 }\n    return (total - errors) * 100 / total\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(health_score(1, 4) == 75)\n    assert(health_score(0, 0) == 100)\n    assert(health_score(9, 5) == 0)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ep_promo_discount_mutation",
+      "category": "endpoint_handler",
+      "description": "Define a Vox `mutation` named `apply_promo_discount(cents: int, pct: int) to int` applying integer discount `pct` clamped to `[0, 80]` (`cents - (cents * clamped_pct) / 100`, `0` if `cents <= 0`).\n\nRequired signature:\nmutation apply_promo_discount(cents: int, pct: int) to int",
+      "semantic_expected_contains": [
+        "mutation apply_promo_discount"
+      ],
+      "answer": "mutation apply_promo_discount(cents: int, pct: int) to int {\n    if cents <= 0 { return 0 }\n    let mut p: int = pct\n    if p < 0 { p = 0 }\n    if p > 80 { p = 80 }\n    return cents - (cents * p) / 100\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(apply_promo_discount(1000, 15) == 850)\n    assert(apply_promo_discount(1000, 95) == 200)\n    assert(apply_promo_discount(500, -10) == 500)\n    return \"ok\"\n}"
+    },
+    {
+      "id": "v2_ep_audit_tag_mutation",
+      "category": "endpoint_handler",
+      "description": "Define a Vox `mutation` named `append_audit_tag(existing: str, tag: str) to str` splitting `existing` by `\",\"`, trimming tags, appending `tag.trim()` only if non-empty and not already present, and rejoining with `\",\"`.\n\nRequired signature:\nmutation append_audit_tag(existing: str, tag: str) to str",
+      "semantic_expected_contains": [
+        "mutation append_audit_tag"
+      ],
+      "answer": "mutation append_audit_tag(existing: str, tag: str) to str {\n    let mut tags: list[str] = []\n    for t in existing.split(\",\") {\n        let clean: str = t.trim()\n        if clean.len() > 0 and not tags.contains(clean) {\n            tags = tags.push(clean)\n        }\n    }\n    let nt: str = tag.trim()\n    if nt.len() > 0 and not tags.contains(nt) {\n        tags = tags.push(nt)\n    }\n    return tags.join(\",\")\n}",
+      "test_harness": "fn __vox_eval_harness() to str {\n    assert(append_audit_tag(\"v1,prod\", \"canary\") == \"v1,prod,canary\")\n    assert(append_audit_tag(\"v1, prod\", \"prod\") == \"v1,prod\")\n    assert(append_audit_tag(\"\", \"init\") == \"init\")\n    return \"ok\"\n}"
+    }
+  ]
+}

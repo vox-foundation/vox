@@ -138,6 +138,7 @@ ci/k-complexity-budget
 ci/kill-stuck-tests
 ci/knip-gui
 ci/line-endings
+ci/llms-verified
 ci/manifest
 ci/mcp-vox-surface-parity
 ci/mens-scorecard
@@ -176,6 +177,7 @@ ci/profile-parity
 ci/publish-dry-run
 ci/python-bridge-parity
 ci/query-all-guard
+ci/readme-assets
 ci/release-build
 ci/release-draft-guard
 ci/repo-guards

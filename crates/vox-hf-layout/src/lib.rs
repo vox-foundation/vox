@@ -186,6 +186,7 @@ impl HfTransformerLayout {
     }
 
     fn from_value(v: &Value) -> anyhow::Result<Self> {
+        validate_supported_hf_config(v)?;
         let architecture = classify_hf_architecture(v);
         let tc = qwen35_text_config(v, architecture);
         let root_model_type = v.get("model_type").and_then(|x| x.as_str()).unwrap_or("");
@@ -436,6 +437,105 @@ fn json_string_vec(v: &Value, key: &str) -> Option<Vec<String>> {
     })
 }
 
+fn is_unsupported_moe_or_arch_model_type(mt: &str) -> bool {
+    let m = mt.to_ascii_lowercase();
+    if m.is_empty() {
+        return false;
+    }
+    matches!(
+        m.as_str(),
+        "qwen3_5_moe"
+            | "qwen3_5_moe_text"
+            | "qwen3_moe"
+            | "qwen2_moe"
+            | "qwen3_next"
+            | "qwen4_exp"
+            | "qwen4_exp_text"
+            | "glm4_moe"
+            | "deepseek_v2"
+            | "deepseek_v3"
+            | "mixtral"
+            | "gpt_oss"
+            | "gemma3"
+            | "gemma3_text"
+            | "gemma4"
+            | "gemma4_text"
+            | "gemma4_unified"
+            | "mamba"
+            | "rwkv"
+    ) || m.ends_with("_moe")
+        || m.ends_with("_moe_text")
+        || m.contains("moe")
+        || m.starts_with("qwen4")
+}
+
+/// Fail closed at `config.json` parse for sparse MoE and unsupported architectures
+/// (`qwen3_5_moe`, `qwen3_next`, `qwen4_exp*`, `gpt_oss`, `glm4_moe`, `gemma3/4`, etc.)
+/// so they never fall through into dense QLoRA or GPT-2 weight loading.
+pub fn validate_supported_hf_config(v: &Value) -> anyhow::Result<()> {
+    let root_model_type = v.get("model_type").and_then(|x| x.as_str()).unwrap_or("");
+    let tc = v.get("text_config").filter(|x| x.is_object());
+    let tc_model_type = tc
+        .and_then(|c| c.get("model_type"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("");
+    let architectures: Vec<&str> = v
+        .get("architectures")
+        .and_then(|a| a.as_array())
+        .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect())
+        .unwrap_or_default();
+
+    for (source, mt) in [("root", root_model_type), ("text_config", tc_model_type)] {
+        if is_unsupported_moe_or_arch_model_type(mt) {
+            anyhow::bail!(
+                "unsupported model architecture: {source}.model_type={mt:?} \
+                 (architectures={architectures:?}); sparse MoE and non-dense \
+                 architectures cannot load in the dense QLoRA trainer"
+            );
+        }
+    }
+
+    for arch in &architectures {
+        let a = arch.to_ascii_lowercase();
+        if a.contains("moe")
+            || a.contains("qwen3next")
+            || a.contains("qwen4")
+            || a.contains("gptoss")
+            || a.contains("gemma3")
+            || a.contains("gemma4")
+            || a.contains("mamba")
+            || a.contains("rwkv")
+        {
+            anyhow::bail!(
+                "unsupported model architecture: architectures={architectures:?} \
+                 (model_type={root_model_type:?}); sparse MoE and unsupported \
+                 architectures are rejected before weight loading"
+            );
+        }
+    }
+
+    let cfg_source = tc.unwrap_or(v);
+    let moe_experts = json_usize(cfg_source, "num_experts")
+        .or_else(|| json_usize(v, "num_experts"))
+        .or_else(|| json_usize(cfg_source, "num_local_experts"))
+        .or_else(|| json_usize(v, "num_local_experts"))
+        .or_else(|| json_usize(cfg_source, "n_routed_experts"))
+        .or_else(|| json_usize(v, "n_routed_experts"))
+        .unwrap_or(0);
+    let moe_inter = json_usize(cfg_source, "moe_intermediate_size")
+        .or_else(|| json_usize(v, "moe_intermediate_size"))
+        .unwrap_or(0);
+    if moe_experts > 1 || moe_inter > 0 {
+        anyhow::bail!(
+            "unsupported sparse MoE config (num_experts={moe_experts}, \
+             moe_intermediate_size={moe_inter}, model_type={root_model_type:?}, \
+             text_config.model_type={tc_model_type:?}); dense QLoRA trainer rejects MoE checkpoints early"
+        );
+    }
+
+    Ok(())
+}
+
 fn classify_hf_architecture(v: &Value) -> HfArchitecture {
     let arch = v
         .get("architectures")
@@ -454,18 +554,30 @@ fn classify_hf_architecture(v: &Value) -> HfArchitecture {
         .unwrap_or("");
     let arch_l = arch.to_lowercase();
     let model_l = model_type.to_lowercase();
+    if is_unsupported_moe_or_arch_model_type(&model_l)
+        || arch_l.contains("moe")
+        || arch_l.contains("qwen3next")
+        || arch_l.contains("qwen4")
+    {
+        return HfArchitecture::Gpt2;
+    }
     if model_l == "qwen3_5"
+        || model_l == "qwen3_5_text"
         || model_l == "qwen35"
         || model_l == "qwen3_8"
-        || model_l == "qwen3_next"
-        || model_l.contains("qwen3")
+        || model_l == "qwen3_8_text"
+        || model_l == "qwen3"
+        || (model_l.contains("qwen3") && !model_l.contains("moe") && !model_l.contains("next"))
     {
         return HfArchitecture::Qwen35;
     }
-    if arch_l.contains("qwen3") {
+    if arch_l.contains("qwen3") && !arch_l.contains("moe") && !arch_l.contains("next") {
         return HfArchitecture::Qwen35;
     }
-    if arch_l.contains("qwen") || model_l.contains("qwen") || model_l == "qwen2" {
+    if (arch_l.contains("qwen") && !arch_l.contains("moe"))
+        || (model_l.contains("qwen") && !model_l.contains("moe"))
+        || model_l == "qwen2"
+    {
         return HfArchitecture::Qwen35;
     }
     if arch_l.contains("llama") || model_l.contains("llama") || model_l == "llama" {
@@ -533,6 +645,7 @@ pub fn detect_hf_architecture(config_path: &Path) -> anyhow::Result<HfArchitectu
     let raw = read_utf8_path_capped(config_path)
         .with_context(|| format!("read {}", config_path.display()))?;
     let v: Value = serde_json::from_str(&raw)?;
+    validate_supported_hf_config(&v)?;
     Ok(classify_hf_architecture(&v))
 }
 
@@ -1195,5 +1308,96 @@ mod semcov_wave5_tests {
         assert!(!is_vision_or_mtp_key(
             "model.language_model.layers.0.linear_attn.in_proj_a.weight"
         ));
+    }
+
+    #[test]
+    fn qwen3_5_moe_and_qwen3_6_35b_a3b_rejected_early_with_clear_error() {
+        let raw = r#"{
+            "model_type":"qwen3_5_moe",
+            "architectures":["Qwen3_5MoeForConditionalGeneration"],
+            "text_config":{
+                "model_type":"qwen3_5_moe_text",
+                "hidden_size":2048,
+                "num_attention_heads":16,
+                "num_hidden_layers":40,
+                "vocab_size":248320,
+                "num_experts":256,
+                "moe_intermediate_size":512
+            }
+        }"#;
+        let err = HfTransformerLayout::from_config_json_str(raw)
+            .expect_err("qwen3_5_moe must be rejected early");
+        assert!(
+            err.to_string().contains("qwen3_5_moe"),
+            "diagnostic should name model_type, got: {err}"
+        );
+
+        let cfg = std::env::temp_dir().join(format!(
+            "vox_hf_layout_moe_reject_{}.json",
+            std::process::id()
+        ));
+        std::fs::write(&cfg, raw).unwrap();
+        let detect_err = detect_hf_architecture(&cfg)
+            .expect_err("detect_hf_architecture must also fail closed on qwen3_5_moe");
+        let _ = std::fs::remove_file(&cfg);
+        assert!(
+            detect_err.to_string().contains("qwen3_5_moe"),
+            "detect_hf_architecture error should name model_type, got: {detect_err}"
+        );
+    }
+
+    #[test]
+    fn qwen3_next_80b_and_coder_next_rejected_early() {
+        let raw = r#"{
+            "model_type":"qwen3_next",
+            "architectures":["Qwen3NextForCausalLM"],
+            "hidden_size":2048,
+            "num_attention_heads":16,
+            "num_hidden_layers":48,
+            "vocab_size":151936,
+            "num_experts":512,
+            "moe_intermediate_size":512
+        }"#;
+        let err = HfTransformerLayout::from_config_json_str(raw)
+            .expect_err("qwen3_next must be rejected early");
+        assert!(
+            err.to_string().contains("qwen3_next"),
+            "diagnostic should name qwen3_next, got: {err}"
+        );
+
+        let v: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_ne!(
+            classify_hf_architecture(&v),
+            HfArchitecture::Qwen35,
+            "qwen3_next must never classify as dense Qwen35"
+        );
+    }
+
+    #[test]
+    fn unsupported_gpt_oss_glm4_moe_qwen4_exp_and_gemma_rejected_early() {
+        for (model_type, arch) in [
+            ("gpt_oss", "GptOssForCausalLM"),
+            ("glm4_moe", "Glm4MoeForCausalLM"),
+            ("qwen4_exp_text", "Qwen4ExpForCausalLM"),
+            ("gemma3", "Gemma3ForConditionalGeneration"),
+            ("gemma4_text", "Gemma4ForCausalLM"),
+        ] {
+            let raw = format!(
+                r#"{{
+                    "model_type":"{model_type}",
+                    "architectures":["{arch}"],
+                    "hidden_size":2048,
+                    "num_attention_heads":16,
+                    "num_hidden_layers":24,
+                    "vocab_size":151936
+                }}"#
+            );
+            let err = HfTransformerLayout::from_config_json_str(&raw)
+                .expect_err(&format!("{model_type} must be rejected early"));
+            assert!(
+                err.to_string().contains(model_type),
+                "error for {model_type} must name model_type, got: {err}"
+            );
+        }
     }
 }

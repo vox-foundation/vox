@@ -1,0 +1,15 @@
+component Counter(label: str) {
+    state count: int = 0
+    view: column(gap=2, pad=4) {
+        heading(level=3) { label }
+        text(size="lg", weight="bold") { count }
+        button(variant="outline", on_click={count = count + 1}) { "Add one" }
+    }
+}
+
+component Page() {
+    view: row(gap=4) {
+        Counter(label="First")
+        Counter(label="Second")
+    }
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-19T13:23:06.723334+00:00",
+  "inventory_claim_count": 987,
+  "findings_total": 987,
+  "findings_open": 987,
+  "findings_closed": 0,
+  "counts_by_classification": {
+    "DocDeficit": 987
+  },
+  "counts_by_status": {
+    "new": 987
+  },
+  "counts_by_priority_band": {
+    "P1": 987
+  },
+  "open_p0": 0,
+  "open_p1": 987,
+  "corpus_pages_scanned": 1102,
+  "total_mentions_extracted": 39708,
+  "resolved_mentions_count": 25766,
+  "dead_mentions_count": 987,
+  "health_status": "deficits_found"
+}

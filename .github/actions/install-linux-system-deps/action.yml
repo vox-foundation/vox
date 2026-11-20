@@ -75,16 +75,26 @@ runs:
           shopt -u nullglob
         }
 
+        # A stalled mirror used to hold this step for 15-20 min (two hosted jobs hit the
+        # 30-min cap that way on 2026-11-20). Bound every network wait: short per-connection
+        # timeouts + retries, and a hard cap per apt command so a hang fails fast and the
+        # retry below can run instead of the whole job being cancelled.
+        apt_opts=(-y -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Dpkg::Lock::Timeout=120)
+        apt() { sudo timeout 480 apt-get "${apt_opts[@]}" "$@"; }
+
         disable_flaky_apt_lists
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
 
-        if ! sudo apt-get update -y; then
+        if ! apt update; then
           echo "::warning::apt-get update failed after disabling known flaky lists; retrying once"
           disable_flaky_apt_lists
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
-          sudo apt-get update -y
+          apt update
         fi
 
-        sudo apt-get install -y "${pkgs[@]}"
+        if ! apt install "${pkgs[@]}"; then
+          echo "::warning::apt-get install failed or timed out; retrying once"
+          apt install "${pkgs[@]}"
+        fi

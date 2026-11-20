@@ -6,6 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use anyhow::{Context, Result};
 
 pub(crate) const ADAPTER_FILENAME: &str = "candle_qlora_adapter.safetensors";
+#[cfg(test)]
 pub(crate) const MANIFEST_FILENAME: &str = "training_manifest.json";
 
 /// Canonical run directory for local `vox mens serve --model`.

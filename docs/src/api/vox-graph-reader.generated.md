@@ -117,6 +117,8 @@ graph {
     vox_cli_research -> vox_graph_reader
     node vox_cli_review: "vox-cli-review"
     vox_cli_review -> vox_graph_reader
+    node vox_doc_pipeline: "vox-doc-pipeline"
+    vox_doc_pipeline -> vox_graph_reader
     node vox_orchestrator_mcp: "vox-orchestrator-mcp"
     vox_orchestrator_mcp -> vox_graph_reader
 }
@@ -130,6 +132,7 @@ graph {
 | [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
 | [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
 | [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
 
 ### Deep Public Symbols (Source-Anchored)

@@ -30,7 +30,7 @@ Single source of truth for **repository identity**, **layout-derived affinity**,
    - Go root (`go.mod`),
    - `crates/` directory scan,
    - single catch-all `**/*`.
-5. **Orchestrator memory** — `vox-mcp` shards file-backed memory under `repo_root/.vox/cache/repos/<repository_id>/memory/` (and `MEMORY.md` beside it) so concurrent opens of different repos do not share the same relative `./memory` tree.
+5. **Orchestrator memory** — `vox-orchestrator-mcp` shards file-backed memory under `repo_root/.vox/cache/repos/<repository_id>/memory/` (and `MEMORY.md` beside it) so concurrent opens of different repos do not share the same relative `./memory` tree.
 6. **CLI benchmark telemetry vs MCP** — Opt-in Codex rows use `bench:<repository_id>` (see `VoxDb::record_benchmark_event`). Subprocesses spawned with a different CWD than the IDE/MCP server should set **`VOX_REPOSITORY_ROOT`** to the same logical repo root MCP discovered so `repository_id` (and thus session keys) stay aligned.
 7. **Sessions** — JSONL sessions default to `.sessions/<repository_id>/` when using MCP `ServerState::new`; `SessionConfig.repository_id` is set so dual-written Codex `agent_sessions.task_snapshot` JSON includes the same tenant id.
 8. **Codex / Turso rows** — Repo-scoped *filesystem* paths use `repository_id`; optional future migrations may add a `repository_id` column (or composite keys) on Codex tables per ADR 004 — not required for MCP memory/session sharding above.
@@ -59,7 +59,7 @@ Single source of truth for **repository identity**, **layout-derived affinity**,
 | :--- | :--- |
 | `vox-repository` | `discover_repository`, `RepositoryContext` (`has_vox_agents_dir`, `vox_toml`), `RepoCapabilities`, layout helpers (`cargo_workspace_member_dirs`, `node_workspace_packages`, `python_roots`, `go_roots`), `load_agent_scopes`, `normalize_task_path`. |
 | `vox-orchestrator` | `load_from_config` / `AffinityGroupRegistry::detect_from_repository_layout`, sessions, memory config consumed by MCP. |
-| `vox-mcp` | `ServerState::repository`, git/compiler/task/repo_index wiring. Included in the root workspace (`cargo check --workspace` / CI). |
+| `vox-orchestrator-mcp` | `ServerState::repository`, git/compiler/task/repo_index wiring. Included in the root workspace (`cargo check --workspace` / CI). |
 
 ## Cross-repo catalog
 

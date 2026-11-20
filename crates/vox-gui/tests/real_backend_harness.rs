@@ -18,7 +18,9 @@ use vox_orchestrator_mcp::gui_ops::prefs::{
 };
 use vox_orchestrator_mcp::server::tool_json_envelope_is_error;
 use vox_orchestrator_mcp::{ServerState, handle_tool_call, load_config};
-use vox_terminal_core::{BlockOrigin, LocalHost, OpenSpec, TermControlMode, TermSecurityLevel};
+use vox_terminal_core::{
+    BlockOrigin, BlockStatus, LocalHost, OpenSpec, TermControlMode, TermSecurityLevel,
+};
 
 async fn boot_hermetic_backend() -> (ServerState, Arc<VoxDb>) {
     let db = Arc::new(
@@ -190,6 +192,25 @@ async fn real_backend_terminal_session_host_and_command_catalog_roundtrip() {
         .submit(&sid, "!echo real-terminal-ok")
         .expect("submit echo");
     assert_eq!(host.control_mode(&sid).unwrap(), TermControlMode::Manual);
+
+    // An agent block is refused while another block is still running (it would
+    // inject stdin into it). The echo finishes at a shell-dependent pace (slow on
+    // Windows), so wait for it to complete rather than racing the guard.
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test poll interval/deadline, not an HTTP request timeout
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while host
+        .attach(&sid)
+        .expect("attach while waiting")
+        .blocks
+        .iter()
+        .any(|b| b.status == BlockStatus::Running)
+    {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "first echo block never finished"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
 
     // Submit command containing a secret bearer token and verify context redaction
     let _b2 = host

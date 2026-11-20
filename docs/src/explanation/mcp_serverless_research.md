@@ -36,15 +36,15 @@ MCP typically pushes context proactively. Serverless patterns prefer pulling onl
 The following tasks are broken down with roughly equal difficulty to advance our infrastructure and optimizations natively.
 
 - [ ] **Task 1: Complete the SchemaCache Implementation**
-  - Ensure the `vox-mcp` crate caches all tool JSON schemas with LRU eviction.
+  - Ensure the `vox-orchestrator-mcp` crate caches all tool JSON schemas with LRU eviction.
   - Implement and verify the `prompt_caching` formatting for Anthropic / OpenAI.
 
 - [ ] **Task 2: Native Tool Short-Circuit**
-  - In `vox-mcp`, handle file tools (`read_file`, `write_file`) in-process for orchestrator agents without initiating a subprocess.
+  - In `vox-orchestrator-mcp`, handle file tools (`read_file`, `write_file`) in-process for orchestrator agents without initiating a subprocess.
   - Enable and pass integration tests for `test_native_read_file_short_circuit`.
 
 - [ ] **Task 3: Implement A2A (Agent-To-Agent) Connectionless Handoff**
-  - Implement lightweight context handoff in the `vox-mcp` crate instead of routing through full prompt evaluation.
+  - Implement lightweight context handoff in the `vox-orchestrator-mcp` crate instead of routing through full prompt evaluation.
   - Minimize JSON payload size by transmitting diffs or delta states between agents.
 
 - [ ] **Task 4: Setup Compiler-Driven Data Extraction (CI/CD)**

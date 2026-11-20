@@ -104,29 +104,44 @@ jobs:
 
       - uses: ./.github/actions/install-linux-system-deps
       - name: Build docs tooling
+        id: build_tools
         run: cargo build -p vox-cli -p vox-doc-pipeline
+
+      # Every check below runs even if an earlier one failed, so one CI run reports all
+      # failures. Checks needing the vox binaries gate on build_tools; checks needing the
+      # site gate on starlight_build, so a failed build is reported once, not as a cascade.
+      # The final "Check summary" step turns any failure into a red job.
 
       # Hard gate: invalid frontmatter (bad category/status/missing training_eligible)
       # blocks the PR.  Previously only in CI; now also in pre-push (see pre_push.rs).
       - name: Doc lint (frontmatter, code fences, training rationale)
+        id: doc_lint
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: ./target/debug/vox-doc-pipeline --lint-only
 
       # Hard gate: ```vox blocks in docs must compile via vox-compiler.
       - name: Doctest extraction and check (SSG-agnostic)
+        id: doctest
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: ./target/debug/vox ci doctest-md --strict
 
       # Hard gate: tutorials are executable docs-as-tests (TUT-02).
       - name: Tutorial test harness
+        id: tutorial_tests
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: ./target/debug/vox run --mode interp scripts/docs/tutorial-test-runner.vox -- --all
 
       # Hard gate: deterministic drift gate blocks merges that introduce new broken mentions
       # on reader-facing status: current pages. Existing drift is grandfathered in baseline.
       - name: Documentation Drift Gate
+        id: drift_gate
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: ./target/debug/vox audit docs --check-drift
 
       # Informative & Definition-of-Done: analyze PR impact on reader-facing docs and check contract DoD
       - name: Docs PR Impact and Definition-of-Done
-        if: github.event_name == 'pull_request'
+        id: docs_impact
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -150,25 +165,55 @@ jobs:
 
       # Hard gate: repo and contract link validation.
       - name: Internal Markdown link check
+        id: md_links
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: ./target/debug/vox ci check-links
 
       - name: Canonical documentation map verify
+        id: canonical_map
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: ./target/debug/vox ci canonical-map-verify
 
+      # Hard gate: graduated from continue-on-error after baseline stabilised.
+      # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.
+      - name: TypeScript lint (biome)
+        id: biome
+        if: ${{ !cancelled() }}   # needs no cargo-built binary
+        run: npx @biomejs/biome@1.9.4 lint --reporter=github
+
+      # Hard gate: was continue-on-error.  Markdownlint rules are explicitly
+      # configured in .markdownlint.jsonc; no surprise failures from rule changes.
+      - name: Markdown lint
+        id: markdownlint
+        if: ${{ !cancelled() }}   # needs no cargo-built binary
+        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md"
+
       - name: Install docs-astro deps
+        id: docs_deps
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         working-directory: docs-astro
         run: pnpm install --frozen-lockfile
 
+      - name: Docs unit tests
+        id: docs_unit_tests
+        if: ${{ !cancelled() && steps.docs_deps.outcome == 'success' }}
+        working-directory: docs-astro
+        run: node --test "tests/unit/*.test.mjs"
+
       - name: Pre-render VoxDiagram fences
+        id: prerender_diagrams
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: ./target/debug/vox-doc-pipeline --render-diagrams
 
       - name: Build Starlight
         id: starlight_build
+        if: ${{ !cancelled() && steps.docs_deps.outcome == 'success' && steps.prerender_diagrams.outcome == 'success' }}
         working-directory: docs-astro
         run: pnpm build
 
       - name: Link checker self-test
         id: lychee_selftest
+        if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
         uses: lycheeverse/lychee-action@v2
         with:
           lycheeVersion: v0.24.2
@@ -177,6 +222,8 @@ jobs:
           args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html docs-astro/tests/fixtures/broken-link/index.html
 
       - name: Verify link checker self-test
+        id: lychee_selftest_verify
+        if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
         env:
           SELFTEST_EXIT: ${{ steps.lychee_selftest.outputs.exit_code }}
         run: |
@@ -191,33 +238,37 @@ jobs:
           fi
 
       - name: Offline link check
+        id: offline_links
+        if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
         uses: lycheeverse/lychee-action@v2
         with:
           lycheeVersion: v0.24.2
           fail: true
           args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html 'docs-astro/dist/**/*.html'
 
-      - name: Docs unit tests
-        working-directory: docs-astro
-        run: node --test "tests/unit/*.test.mjs"
-
       - name: Build-output checks
+        id: build_output
+        if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
         working-directory: docs-astro
         run: npx playwright test tests/build-output/ --reporter=line
 
       # 89: the wide-font stack needs DejaVu; the browser comes from Playwright's CDN
       - name: Install Playwright Chromium and test fonts
+        id: playwright_install
         working-directory: docs-astro
         if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
         run: sudo apt-get install -y fonts-dejavu-core fonts-liberation && npx playwright install chromium --with-deps
 
       - name: Reader layout visual-stepper checks
+        id: reader_layout
         working-directory: docs-astro
+        if: ${{ !cancelled() && steps.playwright_install.outcome == 'success' }}
         run: npx playwright test tests/reader-layout.spec.ts --reporter=line
 
       - name: VoxDiagram browser checks
+        id: vox_diagram_browser
         working-directory: docs-astro
-        if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.playwright_install.outcome == 'success' }}
         run: npx playwright test tests/vox-diagram.spec.ts --reporter=line --output=test-results/vd-run
 
       - name: Upload reader layout review bundle
@@ -227,15 +278,19 @@ jobs:
           name: reader-layout-review-bundle
           path: docs-astro/test-results/review-bundle/
 
-      # Hard gate: graduated from continue-on-error after baseline stabilised.
-      # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.
-      - name: TypeScript lint (biome)
-        run: npx @biomejs/biome@1.9.4 lint --reporter=github
-
-      # Hard gate: was continue-on-error.  Markdownlint rules are explicitly
-      # configured in .markdownlint.jsonc; no surprise failures from rule changes.
-      - name: Markdown lint
-        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md"
+      # Last: lists failing checks first and fails the job if any check failed.
+      - name: Check summary
+        if: ${{ always() }}
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: |
+          rows=$(printf '%s' "$STEPS_JSON" | jq -r 'to_entries | map(select(.value.outcome != null)) | sort_by(.value.outcome != "failure") | .[] | "| \(.key) | \(.value.outcome) |"')
+          { echo "| check | outcome |"; echo "|---|---|"; echo "$rows"; } >> "$GITHUB_STEP_SUMMARY"
+          failed=$(printf '%s' "$STEPS_JSON" | jq -r '[to_entries[] | select(.value.outcome == "failure") | .key] | join(", ")')
+          if [ -n "$failed" ]; then
+            echo "::error::failed checks: $failed"
+            exit 1
+          fi
 
   generator-drift:
     runs-on: ubuntu-latest

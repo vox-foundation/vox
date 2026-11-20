@@ -125,6 +125,8 @@ pub fn run_test_assertions(hir: &vox_compiler::hir::HirModule) -> Option<bool> {
     }
 
     let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.max_eval_depth = 96;
+    interp.max_string_bytes = Some(1_048_576);
     if interp.run_module(hir).is_err() {
         return Some(false);
     }
@@ -136,6 +138,138 @@ pub fn run_test_assertions(hir: &vox_compiler::hir::HirModule) -> Option<bool> {
     }
 
     Some(true)
+}
+
+/// Rejects candidate code that rebinds oracle/harness identifiers (`assert`,
+/// `__vox_eval_harness`, `print`, and optionally `main`).
+fn rejects_harness_rebinding(candidate: &str, allow_candidate_main: bool) -> Option<String> {
+    if let Some(reason) = vox_corpus::humaneval_runner::canary::rejects_at_ingest(candidate)
+        && (!allow_candidate_main || !reason.contains("`main`"))
+    {
+        return Some(reason);
+    }
+    for line in candidate.lines() {
+        for segment in line.split([';', '{']) {
+            let trimmed = segment.trim_start();
+            for kw in ["let ", "fn "] {
+                if let Some(rest) = trimmed.strip_prefix(kw) {
+                    let rest = rest.trim_start().trim_start_matches("mut ");
+                    let name: String = rest
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || *c == '_')
+                        .collect();
+                    let forbidden =
+                        matches!(name.as_str(), "assert" | "__vox_eval_harness" | "print")
+                            || (!allow_candidate_main && name == "main");
+                    if forbidden {
+                        return Some(format!("candidate rebinds reserved name `{name}`"));
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Runs compiler/interpreter work on a dedicated 16 MiB stack so deeply nested
+/// or pathological LLM-generated ASTs/recursion never blow small test/CLI stacks.
+fn with_eval_stack<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+    std::thread::scope(|s| {
+        std::thread::Builder::new()
+            .name("vox-eval-oracle".to_string())
+            .stack_size(16 * 1024 * 1024)
+            .spawn_scoped(s, f)
+            .expect("spawn 16 MiB eval oracle thread")
+            .join()
+            .unwrap_or_else(|e| std::panic::resume_unwind(e))
+    })
+}
+
+/// Composes `candidate_code` with `test_harness`, compiles, and runs the
+/// harness assertions inside the bounded Vox interpreter (`250_000` steps).
+pub fn run_harness_assertions(
+    candidate_code: &str,
+    test_harness: &str,
+    candidate_path: &Path,
+) -> Result<bool, String> {
+    with_eval_stack(|| run_harness_assertions_inner(candidate_code, test_harness, candidate_path))
+}
+
+fn run_harness_assertions_inner(
+    candidate_code: &str,
+    test_harness: &str,
+    candidate_path: &Path,
+) -> Result<bool, String> {
+    let harness_trimmed = test_harness.trim();
+    if harness_trimmed.is_empty() {
+        return Ok(true);
+    }
+
+    let uses_eval_harness = harness_trimmed.contains("fn __vox_eval_harness");
+    let harness_uses_main = !uses_eval_harness
+        && (harness_trimmed.starts_with("fn main(") || harness_trimmed.contains("\nfn main("));
+
+    let candidate_body = if harness_uses_main {
+        vox_corpus::humaneval_runner::compose::strip_candidate_main(candidate_code)
+    } else {
+        candidate_code.to_string()
+    };
+
+    if let Some(reason) = rejects_harness_rebinding(&candidate_body, !harness_uses_main) {
+        return Err(reason);
+    }
+
+    let combined = format!("{}\n\n{}\n", candidate_body.trim_end(), harness_trimmed);
+    let res = crate::pipeline::run_frontend_str(&combined, candidate_path, false)
+        .map_err(|e| format!("harness frontend error: {e}"))?;
+    if res.has_errors() {
+        return Err(format!(
+            "harness typecheck failed ({} errors)",
+            res.error_count()
+        ));
+    }
+
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.max_eval_depth = 96;
+    interp.max_string_bytes = Some(1_048_576);
+    interp.set_source_path(candidate_path.to_path_buf());
+    if interp.run_module(&res.hir).is_err() {
+        return Ok(false);
+    }
+
+    let mut executed = false;
+    if res
+        .hir
+        .functions
+        .iter()
+        .any(|f| f.name == "__vox_eval_harness")
+    {
+        executed = true;
+        if interp.call("__vox_eval_harness", vec![]).is_err() {
+            return Ok(false);
+        }
+    } else if harness_uses_main && res.hir.functions.iter().any(|f| f.name == "main") {
+        executed = true;
+        if interp.call("main", vec![]).is_err() {
+            return Ok(false);
+        }
+    }
+
+    for test_fn in &res.hir.tests {
+        executed = true;
+        if interp.call(&test_fn.name, vec![]).is_err() {
+            return Ok(false);
+        }
+    }
+
+    if !executed {
+        return Err(
+            "test_harness defined no runnable entrypoint (__vox_eval_harness, main, or @test)"
+                .to_string(),
+        );
+    }
+
+    Ok(true)
 }
 
 /// Strips reasoning tags and markdown code fences to isolate the raw generated Vox code.
@@ -410,6 +544,50 @@ pub fn verify_completion(
     manifest_index: usize,
     semantic_expected_contains: &[String],
 ) -> CompletionVerification {
+    verify_completion_with_harness(
+        completion,
+        bench_root,
+        file_hint,
+        sample_id,
+        manifest_index,
+        semantic_expected_contains,
+        None,
+    )
+}
+
+/// Evaluates a completion against 3-tier oracle metrics plus an optional
+/// oracle-supplied execution `test_harness`.
+pub fn verify_completion_with_harness(
+    completion: &str,
+    bench_root: &Path,
+    file_hint: &str,
+    sample_id: &str,
+    manifest_index: usize,
+    semantic_expected_contains: &[String],
+    test_harness: Option<&str>,
+) -> CompletionVerification {
+    with_eval_stack(|| {
+        verify_completion_with_harness_inner(
+            completion,
+            bench_root,
+            file_hint,
+            sample_id,
+            manifest_index,
+            semantic_expected_contains,
+            test_harness,
+        )
+    })
+}
+
+fn verify_completion_with_harness_inner(
+    completion: &str,
+    bench_root: &Path,
+    file_hint: &str,
+    sample_id: &str,
+    manifest_index: usize,
+    semantic_expected_contains: &[String],
+    test_harness: Option<&str>,
+) -> CompletionVerification {
     let extracted = extract_code(completion);
     let normalized = vox_compiler::generated_vox::normalize_generated_vox(
         &extracted,
@@ -461,15 +639,35 @@ pub fn verify_completion(
     let anti_stub_pass = anti_stub_pass_from_flags(placeholder_hits, trivial_placeholder);
 
     let pass_ast = pass_compile && anti_stub_pass;
-    let pass = pass_ast && exec_pass.unwrap_or(true);
+    let normalized_harness = test_harness.map(str::trim).filter(|s| !s.is_empty());
+    let mut harness_error: Option<String> = None;
+    if let Some(harness_src) = normalized_harness {
+        if pass_compile {
+            match run_harness_assertions_inner(code, harness_src, &candidate_path) {
+                Ok(passed) => exec_pass = Some(passed),
+                Err(err) => {
+                    exec_pass = Some(false);
+                    harness_error = Some(err);
+                }
+            }
+        } else {
+            exec_pass = Some(false);
+        }
+    }
+
+    let semantic_match = semantic_expected_contains
+        .iter()
+        .all(|needle| code.contains(needle));
+    let pass = if normalized_harness.is_some() {
+        pass_ast && semantic_match && exec_pass == Some(true)
+    } else {
+        pass_ast && exec_pass.unwrap_or(true)
+    };
 
     let distinct_4 = calculate_distinct_4(code);
     let constraint_adherence = check_negative_constraints(completion);
 
-    let semantic_pass = pass
-        && semantic_expected_contains
-            .iter()
-            .all(|needle| code.contains(needle));
+    let semantic_pass = pass && semantic_match;
 
     CompletionVerification {
         pass,
@@ -487,6 +685,7 @@ pub fn verify_completion(
             "typecheck_ok": typecheck_ok,
             "diag_errors": diag_errors,
             "parse_error": parse_error,
+            "harness_error": harness_error,
             "placeholder_marker_hits": placeholder_hits,
             "trivial_placeholder_output": trivial_placeholder,
             "construct_richness_score": construct_richness,
@@ -679,5 +878,119 @@ mod tests {
         let code_fail = "fn add(a: int, b: int) to int { return a + b; }\n@test fn check_fail() to Unit { assert(1 == 2); }";
         let res_fail = crate::pipeline::run_frontend_str(code_fail, &path, false).unwrap();
         assert_eq!(run_test_assertions(&res_fail.hir), Some(false));
+    }
+
+    #[test]
+    fn test_harness_rejects_wrong_body_passes_correct_and_blocks_cheat() {
+        let dir = tempfile::tempdir().unwrap();
+        let harness =
+            "fn __vox_eval_harness() to str {\n    assert(add(2, 3) == 5)\n    return \"ok\"\n}";
+        let expected = vec!["fn add".to_string()];
+
+        let wrong = "fn add(a: int, b: int) to int {\n    return 0\n}";
+        let v_wrong = verify_completion_with_harness(
+            wrong,
+            dir.path(),
+            "",
+            "add_wrong",
+            0,
+            &expected,
+            Some(harness),
+        );
+        assert!(
+            v_wrong.pass_compile,
+            "wrong body compiles: {:?}",
+            v_wrong.checks
+        );
+        assert_eq!(v_wrong.pass_exec, Some(false));
+        assert!(!v_wrong.pass);
+
+        let right = "fn add(a: int, b: int) to int {\n    return a + b\n}";
+        let v_right = verify_completion_with_harness(
+            right,
+            dir.path(),
+            "",
+            "add_right",
+            0,
+            &expected,
+            Some(harness),
+        );
+        assert!(v_right.pass_compile);
+        assert_eq!(v_right.pass_exec, Some(true));
+        assert!(v_right.pass);
+        assert!(v_right.semantic_pass);
+
+        let cheat = "let assert = fn(c: bool) to bool { return true }\nfn add(a: int, b: int) to int {\n    return 0\n}";
+        let v_cheat = verify_completion_with_harness(
+            cheat,
+            dir.path(),
+            "",
+            "add_cheat",
+            0,
+            &expected,
+            Some(harness),
+        );
+        assert_eq!(v_cheat.pass_exec, Some(false));
+        assert!(!v_cheat.pass);
+
+        let wrong_name = "fn sum_two(a: int, b: int) to int {\n    return a + b\n}";
+        let v_name = verify_completion_with_harness(
+            wrong_name,
+            dir.path(),
+            "",
+            "add_name",
+            0,
+            &expected,
+            Some(harness),
+        );
+        assert_eq!(v_name.pass_exec, Some(false));
+        assert!(!v_name.pass);
+
+        let extra_decl = "fn helper(a: int, b: int) to int { return a + b }\nfn sum_alias(a: int, b: int) to int { return helper(a, b) }";
+        let v_sem = verify_completion_with_harness(
+            "fn helper(a: int, b: int) to int { return a + b }",
+            dir.path(),
+            "",
+            "add_sem",
+            0,
+            &expected,
+            Some("fn __vox_eval_harness() to str { assert(helper(2, 3) == 5)\n return \"ok\" }"),
+        );
+        let _ = extra_decl;
+        assert_eq!(v_sem.pass_exec, Some(true));
+        assert!(
+            !v_sem.pass,
+            "missing semantic signature with harness must fail pass"
+        );
+    }
+
+    #[test]
+    fn inf_recursion_terminates_cleanly_without_stack_overflow() {
+        let dir = tempfile::tempdir().unwrap();
+        let inf = "fn inf(n: int) to int {\n    return inf(n + 1)\n}";
+        let harness =
+            "fn __vox_eval_harness() to str {\n    assert(inf(0) == 0)\n    return \"ok\"\n}";
+        let v = verify_completion_with_harness(
+            inf,
+            dir.path(),
+            "",
+            "inf_rec",
+            0,
+            &["fn inf".to_string()],
+            Some(harness),
+        );
+        assert!(v.pass_compile);
+        assert_eq!(v.pass_exec, Some(false));
+        assert!(!v.pass);
+    }
+
+    #[test]
+    fn harness_aborts_exponential_string_doubling_without_oom() {
+        let dir = tempfile::tempdir().unwrap();
+        let bomb = "fn explode_str(n: int) to str {\n    let mut bits: int = n\n    let mut result: str = \"a\"\n    while bits > 0 {\n        result = result + result + \"1\"\n    }\n    return result\n}";
+        let harness = "fn __vox_eval_harness() to str {\n    assert(explode_str(5) == \"a\")\n    return \"ok\"\n}";
+        let path = dir.path().join("bomb.vox");
+        let res = run_harness_assertions(bomb, harness, &path);
+        assert_eq!(res, Ok(false));
     }
 }

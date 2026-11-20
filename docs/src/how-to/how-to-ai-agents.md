@@ -99,7 +99,7 @@ If the precondition fails, the MCP tool returns a "Tool execution failed" error 
 
 ## 6. Grounding Agents in Vox's Federated Knowledge Base & OpenWiki
 
-Connected MCP clients automatically gain access to Vox's built-in retrieval and repository-intelligence tools (`vox_kb_search`, `vox_kb_cite`, `vox_kb_get`, `vox_repo_query_text`, and `vox_repo_status`), allowing agents to pull line-anchored `#Lstart-Lend` citations across repo-local `docs/wiki/` and `~/.vox/library/` before writing code.
+Connected MCP clients automatically gain access to Vox's built-in retrieval and repository-intelligence tools (`vox_kb_search`, `vox_kb_cite`, `vox_kb_get`, `vox_repo_query_text`, and `vox_repo_status`), allowing agents to pull line-anchored `#Lstart-Lend` citations across the repo's docs root (`docs/src/` on Vox) and `~/.vox/library/` before writing code.
 
 See the hands-on walkthroughs:
 - [Tutorial: Managing Knowledgebases, Self-Healing OpenWiki & the Doc Studio](../tutorials/tut-knowledgebase-and-openwiki.mdx)

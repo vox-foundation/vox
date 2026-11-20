@@ -83,6 +83,7 @@ pub(crate) fn check_corpus_threshold_with_root(
 }
 
 /// Hard-fails if `train.jsonl` is missing or below [`MIN_CORPUS_PAIRS`] lines.
+#[cfg(test)]
 pub(crate) fn check_corpus_threshold(data_dir: &Path) -> Result<()> {
     check_corpus_threshold_with_root(data_dir, None)
 }

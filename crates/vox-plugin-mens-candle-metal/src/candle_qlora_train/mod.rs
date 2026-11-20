@@ -161,18 +161,6 @@ impl TrainGraphModel {
         }
     }
 
-    /// Checkpointed forward (activation/gradient checkpointing). See
-    /// [`crate::model::Qwen35Model::forward_checkpointed`].
-    pub fn forward_checkpointed(
-        &self,
-        input_ids: &Tensor,
-        n_segments: usize,
-    ) -> anyhow::Result<crate::model::CheckpointedForward> {
-        match self {
-            Self::Qwen35(m) => Ok(m.forward_checkpointed(input_ids, n_segments)?),
-        }
-    }
-
     /// Recompute one checkpoint segment. See
     /// [`crate::model::Qwen35Model::recompute_segment`].
     pub fn recompute_segment(
@@ -181,25 +169,6 @@ impl TrainGraphModel {
     ) -> anyhow::Result<(candle_core::Var, Tensor)> {
         match self {
             Self::Qwen35(m) => Ok(m.recompute_segment(seg)?),
-        }
-    }
-
-    /// Packed sequence forward with block-diagonal causal mask and per-document RoPE reset.
-    pub fn forward_packed(&self, input_ids: &Tensor, doc_ids: &[u32]) -> anyhow::Result<Tensor> {
-        match self {
-            Self::Qwen35(m) => Ok(m.forward_packed(input_ids, doc_ids)?),
-        }
-    }
-
-    /// Checkpointed packed sequence forward with per-document RoPE reset and causal mask.
-    pub fn forward_checkpointed_packed(
-        &self,
-        input_ids: &Tensor,
-        doc_ids: &[u32],
-        n_segments: usize,
-    ) -> anyhow::Result<crate::model::CheckpointedForward> {
-        match self {
-            Self::Qwen35(m) => Ok(m.forward_checkpointed_packed(input_ids, doc_ids, n_segments)?),
         }
     }
 
@@ -217,31 +186,55 @@ impl vox_plugin_mens_candle_core::candle_qlora_train::training_loop::forward::Fo
 {
     type Segment = crate::model::CheckpointSegment;
 
-    fn forward_eager(&self, input_ids: &Tensor) -> anyhow::Result<Tensor> {
-        self.forward(input_ids)
+    fn forward_hidden_eager(&self, input_ids: &Tensor) -> anyhow::Result<Tensor> {
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_hidden(input_ids)?),
+        }
     }
 
-    fn forward_packed_eager(&self, input_ids: &Tensor, doc_ids: &[u32]) -> anyhow::Result<Tensor> {
-        self.forward_packed(input_ids, doc_ids)
+    fn forward_packed_hidden_eager(
+        &self,
+        input_ids: &Tensor,
+        doc_ids: &[u32],
+    ) -> anyhow::Result<Tensor> {
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_packed_hidden(input_ids, doc_ids)?),
+        }
     }
 
-    fn forward_checkpointed_segments(
+    fn forward_checkpointed_hidden_segments(
         &self,
         input_ids: &Tensor,
         n_segments: usize,
     ) -> anyhow::Result<(Tensor, Vec<Self::Segment>)> {
-        let ckpt = self.forward_checkpointed(input_ids, n_segments)?;
-        Ok((ckpt.logits, ckpt.segments))
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_checkpointed_hidden(input_ids, n_segments)?),
+        }
     }
 
-    fn forward_checkpointed_packed_segments(
+    fn forward_checkpointed_packed_hidden_segments(
         &self,
         input_ids: &Tensor,
         doc_ids: &[u32],
         n_segments: usize,
     ) -> anyhow::Result<(Tensor, Vec<Self::Segment>)> {
-        let ckpt = self.forward_checkpointed_packed(input_ids, doc_ids, n_segments)?;
-        Ok((ckpt.logits, ckpt.segments))
+        match self {
+            Self::Qwen35(m) => {
+                Ok(m.forward_checkpointed_packed_hidden(input_ids, doc_ids, n_segments)?)
+            }
+        }
+    }
+
+    fn head_forward_rows(&self, hidden_2d: &Tensor) -> anyhow::Result<Tensor> {
+        match self {
+            Self::Qwen35(m) => Ok(m.head_forward_rows(hidden_2d)?),
+        }
+    }
+
+    fn sync_device(&self) -> anyhow::Result<()> {
+        match self {
+            Self::Qwen35(m) => Ok(m.device().synchronize()?),
+        }
     }
 
     fn num_layers(&self) -> usize {

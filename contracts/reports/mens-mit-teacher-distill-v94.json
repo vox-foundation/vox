@@ -1,0 +1,38 @@
+{
+  "schema": "mens_mit_teacher_distill_v94",
+  "model_used": "deepseek/deepseek-chat",
+  "license_class": "MIT",
+  "total_seeds": 180,
+  "attempted": 180,
+  "passed_first_try": 91,
+  "passed_after_repair": 7,
+  "emitted": 98,
+  "rejected_compile_or_exec": 82,
+  "rejected_leakage": 0,
+  "errors": 0,
+  "emitted_by_category": {
+    "adt_match": 17,
+    "algorithm": 9,
+    "data_structures": 10,
+    "endpoint_handler": 25,
+    "matrix_grid": 8,
+    "multi_fn_module": 20,
+    "string_parsing": 9
+  },
+  "total_cost_usd": 0.10009071689999996,
+  "budget_cap_usd": 3.0,
+  "stopped_on_budget": false,
+  "output_jsonl": "mens/data/mix_sources/mit_teacher_rft_v94.jsonl",
+  "sample_diagnostics": [
+    "td_freq_mode_3: parse_or_typecheck_error: Parsing failed with 3 error(s); missing required declaration name from prompt signature",
+    "td_deque_sliding_0: parse_or_typecheck_error: Parsing failed with 1 error(s); missing required declaration name from prompt signature",
+    "td_deque_sliding_5: compiler_diag_errors=4; missing required declaration name from prompt signature",
+    "td_span_stack_4: execution assertion failed inside __vox_eval_harness; missing required declaration name from prompt signature",
+    "td_deque_sliding_10: compiler_diag_errors=3; missing required declaration name from prompt signature",
+    "td_span_stack_9: execution assertion failed inside __vox_eval_harness; missing required declaration name from prompt signature",
+    "td_freq_mode_8: compiler_diag_errors=10; missing required declaration name from prompt signature",
+    "td_priority_bag_11: compiler_diag_errors=6; missing required declaration name from prompt signature",
+    "td_freq_mode_13: parse_or_typecheck_error: Parsing failed with 3 error(s); missing required declaration name from prompt signature",
+    "td_span_stack_14: execution assertion failed inside __vox_eval_harness; missing required declaration name from prompt signature"
+  ]
+}

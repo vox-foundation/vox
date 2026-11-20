@@ -12,7 +12,7 @@ schema_type: "TechArticle"
 ## Principle
 
 - **Edge / client:** microphone, file drops, browser `MediaRecorder`, mobile native capture.
-- **Backend:** STT, refinement, routing, codegen, and HIR validation run where **`vox-oratio`**, **`vox-mcp`**, and **`vox-lsp`** validation can execute (developer machine, CI agent host, or container **without** requiring a container-attached mic).
+- **Backend:** STT, refinement, routing, codegen, and HIR validation run where **`vox-speech`**, **`vox-orchestrator-mcp`**, and **`vox-lsp`** validation can execute (developer machine, CI agent host, or container **without** requiring a container-attached mic).
 
 Containers **should not** assume direct microphone device access; bind-mount a workspace directory or use HTTP upload instead.
 
@@ -20,7 +20,7 @@ Containers **should not** assume direct microphone device access; bind-mount a w
 
 | Surface | Role | Notes |
 |--------|------|--------|
-| **`vox-audio-ingress`** binary | HTTP `/api/audio/status`, `/api/audio/transcribe`, `/api/audio/transcribe/upload` | Bind via `VOX_DASH_HOST` / `VOX_DASH_PORT`; workspace root from `VOX_ORATIO_WORKSPACE` or CWD. |
+| **`vox-speech`** binary | HTTP `/api/audio/status`, `/api/audio/transcribe`, `/api/audio/transcribe/upload` | Bind via `VOX_DASH_HOST` / `VOX_DASH_PORT`; workspace root from `VOX_ORATIO_WORKSPACE` or CWD. |
 | **MCP** `vox_oratio_transcribe`, `vox_oratio_listen` | File-path STT inside MCP workspace | Compatibility path for agents; same Oratio pipeline as CLI. |
 | **MCP** `vox_speech_to_code` | **Orchestration:** path or text → `vox_generate_code` (+ optional `emit_trace_path` JSONL) | Shares `session_id` / repair KPI metadata with codegen. |
 | **CLI** `vox oratio transcribe` / `listen` | File + UX gates | Feature **`oratio`**. |
@@ -30,7 +30,7 @@ OpenAPI mirror (Codex HTTP catalog): `contracts/codex-api.openapi.yaml` under `/
 
 ## Platform clients (same contracts)
 
-- **VS Code / Cursor (`vox-vscode`):** Command Palette **Vox: Oratio —** … (`vox.oratio.transcribeFile`, `vox.oratio.speechToCodeFile`, `vox.oratio.voiceCaptureTranscribe`, `vox.oratio.voiceCaptureSpeechToCode`), **Explorer** context menu on audio files (case-insensitive extension match), plus **`onView:vox-sidebar.chat`** and **`onCommand`** entries for contributed **`vox.*`** commands (including Oratio and inline-edit keybindings) so MCP + speech work without **`*.vox`** in the workspace. Files already under the workspace use a **relative** MCP `path`; outside picks copy to **`.vox/tmp/`**. Voice capture encodes **mono 16-bit PCM WAV** in the webview before the same MCP calls. Alternatively POST audio to **`vox-audio-ingress`** when a shared HTTP endpoint is configured.
+- **VS Code / Cursor (`vox-vscode`):** Command Palette **Vox: Oratio —** … (`vox.oratio.transcribeFile`, `vox.oratio.speechToCodeFile`, `vox.oratio.voiceCaptureTranscribe`, `vox.oratio.voiceCaptureSpeechToCode`), **Explorer** context menu on audio files (case-insensitive extension match), plus **`onView:vox-sidebar.chat`** and **`onCommand`** entries for contributed **`vox.*`** commands (including Oratio and inline-edit keybindings) so MCP + speech work without **`*.vox`** in the workspace. Files already under the workspace use a **relative** MCP `path`; outside picks copy to **`.vox/tmp/`**. Voice capture encodes **mono 16-bit PCM WAV** in the webview before the same MCP calls. Alternatively POST audio to **`vox-speech`** when a shared HTTP endpoint is configured.
 - **Browser / web:** `MediaRecorder` (or file upload) → **`POST /api/audio/transcribe/upload`** (or finalize to disk and JSON transcribe in trusted environments).
 - **Mobile:** native capture → same upload contract; do not require the monorepo Docker image on-device (see [`mobile-edge-ai.md`](mobile-edge-ai.md) for inference ownership).
 

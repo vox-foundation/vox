@@ -12,7 +12,7 @@ Machine-readable contract for the optional MCP HTTP/WebSocket gateway lives at:
 
 **[`contracts/mcp/http-gateway.openapi.yaml`](../../../contracts/mcp/http-gateway.openapi.yaml)** (from repo root)
 
-This surface is emitted by `vox-mcp` only when `VOX_MCP_HTTP_ENABLED=1` and is intentionally bounded for remote/mobile operations.
+This surface is emitted by `vox-orchestrator-mcp` only when `VOX_MCP_HTTP_ENABLED=1` and is intentionally bounded for remote/mobile operations.
 
 ## Guardrails
 

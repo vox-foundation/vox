@@ -1,0 +1,3 @@
+Charged 4900 cents
+Journaled receipt: tx_9f8a7b
+Ok(tx_9f8a7b)

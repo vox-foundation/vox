@@ -61,6 +61,7 @@ jobs:
         run: cargo build --release -p vox-cli --bin vox
 
       - name: Run live harness eval
+        id: live_eval
         env:
           VOX_HARNESS_EVAL_TRIGGERED_BY: ci-nightly
           # Confirm the real secret name(s) in Step 1 — this assumes an OPENROUTER_API_KEY
@@ -68,7 +69,12 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: ./target/release/vox harness eval --live --samples 3
 
+      # A failed gate still paid for its samples and is exactly the run the history
+      # needs: `eval --live` records the run before it exits non-zero, so publish
+      # (and the results PR below) must not be skipped by that failure.
       - name: Publish results to git-tracked history
+        # Not when the eval step never ran (e.g. the build failed): there is no run to publish.
+        if: ${{ !cancelled() && steps.live_eval.conclusion != 'skipped' }}
         run: ./target/release/vox harness publish
 
       # Keep the already-paid-for results even if the PR path below fails.
@@ -86,6 +92,7 @@ jobs:
       # run (docs/harness-eval-history/runs/<run_id>.jsonl): concurrent results PRs never
       # conflict, which a shared append-only file did (GitHub's merge ignores merge=union).
       - name: Open a results PR and enqueue it
+        if: ${{ !cancelled() && steps.live_eval.conclusion != 'skipped' }}
         env:
           # A PR opened with GITHUB_TOKEN does not trigger other workflows, so the required
           # check would never run on it; the PAT does. Passed via env, never inline.
