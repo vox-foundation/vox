@@ -70,6 +70,28 @@ GPU work is one job at a time and never starts while `PID 34157` is alive.
 - [ ] **PROOF-06**: One generated before/after report per hub rung and per trained spoke states the verdict (Improved / Neutral / Regressed), the paired counts, the interval and the cost in GPU-hours, and never compares a step-capped run with a full one.
 - [ ] **PROOF-07**: `heldout_bench_v2` gate floors are calibrated per model size from measured data in their own reviewed change.
 
+### Ladder retrain order (LADR)
+
+Added 2026-11-20 on owner feedback: improved releases of every size need retraining with the new recipe and
+corpus, so the ladder goes smallest first and the 27B last.
+
+- [ ] **LADR-01**: Every existing published adapter (0.8B, 2B, 4B, 9B) and its base are scored on `heldout_bench_v2` under the frozen proof manifest, eval-only, giving each size a "before" that is comparable with its "after".
+- [ ] **LADR-02**: The ladder is retrained with the new recipe and canonical mix in ascending size order (0.8B, 2B, 4B, 9B, then 27B); a size starts only after the size below it is classified non-regressed, and the 27B run is last.
+- [ ] **LADR-03**: Measured train and eval wall time per size is recorded as each rung completes, and the remaining-queue estimate is updated from those measurements rather than from guesses.
+- [ ] **LADR-04**: A recipe failure on a small rung (collapse, regression, memory spill) stops the queue and is recorded with its funnel and training-health evidence before any larger rung is attempted.
+
+### Discriminating, affordable evals (DISC)
+
+Added 2026-11-20 on owner feedback: metrics must tell the models apart, at a cost that keeps the loop fast, and
+each kind of model needs the kind of eval that fits it.
+
+- [ ] **DISC-01**: An item-discrimination report over the existing ladder completions identifies which `heldout_bench_v2` items separate adjacent sizes and which carry no signal (all pass or all fail), and states for each adjacent pair whether the benchmark can distinguish them at the declared power.
+- [ ] **DISC-02**: Where an adjacent pair cannot be distinguished, the benchmark is extended with verified tasks at that difficulty band (never by reusing blind-slice or training items) until the pair separates or the report says plainly that it does not.
+- [ ] **DISC-03**: A fixed anchor subset chosen for discrimination gives a fast ladder check whose ranking agrees with the full benchmark, and its agreement is measured on runs not used to choose it.
+- [ ] **DISC-04**: An eval matrix names, for each hub size and each spoke or auxiliary model, the eval type that fits it, its dataset, its n and its detectable difference: execution-verified codegen for vox-lang; live episodes with selection, argument and recovery scores for harness tools; skill-trigger precision/recall for harness skills; compile-and-test for rust-authoring; classification precision/recall for the guard/judge model; retrieval recall and rank quality for the embedder.
+- [ ] **DISC-05**: Each eval in the matrix has a wall-time budget per model size, met through caching, sequential early-stop and the anchor subset, and the report flags any eval that exceeds its budget.
+- [ ] **DISC-06**: Ladder reports show all sizes on one table with paired intervals, so a visitor or a card can see the measured difference between sizes and where it is not significant.
+
 ### Training data (DATA)
 
 - [ ] **DATA-01**: A code-level firewall rejects any training row that overlaps the v1, v2 or blind v3 benchmarks (exact, n-gram and near-duplicate), and the generation prompts cannot read benchmark items.
@@ -132,16 +154,84 @@ Deferred; tracked but not in this roadmap.
 
 ## Traceability
 
-Filled by the roadmapper.
+Filled by the roadmapper on 2026-11-20 and revised the same day after owner feedback on ladder order and eval
+discrimination (see `ROADMAP.md`).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| BASE-01 | Phase 553 | Pending |
+| BASE-02 | Phase 553 | Pending |
+| BASE-03 | Phase 553 | Pending |
+| BASE-04 | Phase 553 | Pending |
+| TIME-01 | Phase 554 | Pending |
+| TIME-02 | Phase 554 | Pending |
+| TIME-03 | Phase 554 | Pending |
+| TIME-04 | Phase 559 | Pending |
+| TIME-05 | Phase 554 | Pending |
+| TIME-06 | Phase 554 | Pending |
+| FUNL-01 | Phase 554 | Pending |
+| FUNL-02 | Phase 554 | Pending |
+| FUNL-03 | Phase 554 | Pending |
+| FUNL-04 | Phase 555 | Pending |
+| FUNL-05 | Phase 554 | Pending |
+| LANE-01 | Phase 555 | Pending |
+| LANE-02 | Phase 555 | Pending |
+| LANE-03 | Phase 555 | Pending |
+| LANE-04 | Phase 555 | Pending |
+| LANE-05 | Phase 555 | Pending |
+| LANE-06 | Phase 561 | Pending |
+| LANE-07 | Phase 555 | Pending |
+| SPOK-01 | Phase 560 | Pending |
+| SPOK-02 | Phase 560 | Pending |
+| SPOK-03 | Phase 560 | Pending |
+| SPOK-04 | Phase 560 | Pending |
+| SPOK-05 | Phase 560 | Pending |
+| PROOF-01 | Phase 557 | Pending |
+| PROOF-02 | Phase 557 | Pending |
+| PROOF-03 | Phase 562 | Pending |
+| PROOF-04 | Phase 563 | Pending |
+| PROOF-05 | Phase 563 | Pending |
+| PROOF-06 | Phase 564 | Pending |
+| PROOF-07 | Phase 564 | Pending |
+| LADR-01 | Phase 559 | Pending |
+| LADR-02 | Phase 562 | Pending |
+| LADR-03 | Phase 562 | Pending |
+| LADR-04 | Phase 562 | Pending |
+| DISC-01 | Phase 559 | Pending |
+| DISC-02 | Phase 559 | Pending |
+| DISC-03 | Phase 559 | Pending |
+| DISC-04 | Phase 559 | Pending |
+| DISC-05 | Phase 559 | Pending |
+| DISC-06 | Phase 564 | Pending |
+| DATA-01 | Phase 557 | Pending |
+| DATA-02 | Phase 558 | Pending |
+| DATA-03 | Phase 558 | Pending |
+| DATA-04 | Phase 558 | Pending |
+| HUB-01 | Phase 564 | Pending |
+| HUB-02 | Phase 564 | Pending |
+| HUB-03 | Phase 564 | Pending |
+| HUB-04 | Phase 556 | Pending |
+| HUB-05 | Phase 564 | Pending |
+| HUB-06 | Phase 556 | Pending |
+| HUB-07 | Phase 556 | Pending |
+| CARD-01 | Phase 561 | Pending |
+| CARD-02 | Phase 561 | Pending |
+| CARD-03 | Phase 561 | Pending |
+| CARD-04 | Phase 561 | Pending |
+| CARD-05 | Phase 561 | Pending |
+| CARD-06 | Phase 556 | Pending |
+| SPACE-01 | Phase 556 | Pending |
+| SPACE-02 | Phase 556 | Pending |
+| SPACE-03 | Phase 561 | Pending |
+| SPACE-04 | Phase 561 | Pending |
+| SPACE-05 | Phase 556 | Pending |
+| SPACE-06 | Phase 561 | Pending |
 
 **Coverage:**
-- v1 requirements: 57 total
-- Mapped to phases: 0
-- Unmapped: 57 ⚠️
+- v1 requirements: 67 total
+- Mapped to phases: 67
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-20*
-*Last updated: 2026-11-20 after initial definition*
+*Last updated: 2026-11-20 after roadmap revision (LADR and DISC mapped, phases 553–564)*
