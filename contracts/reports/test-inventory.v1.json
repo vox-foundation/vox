@@ -6,7 +6,7 @@
     "cargo_unit_test_functions": 14467,
     "cargo_integration_test_functions": 3889,
     "cargo_bench_functions": 0,
-    "cargo_ignored_test_functions": 102,
+    "cargo_ignored_test_functions": 103,
     "cargo_test_functions_total": 18356,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
@@ -504,7 +504,7 @@
       "unit_tests": 580,
       "integration_tests": 3,
       "bench_tests": 0,
-      "ignored_tests": 3,
+      "ignored_tests": 4,
       "has_integration_dir": true,
       "integration_rs_files": 3
     },
