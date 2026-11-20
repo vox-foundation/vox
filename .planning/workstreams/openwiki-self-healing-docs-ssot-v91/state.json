@@ -1,0 +1,50 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v9.1",
+  "milestone_name": "Honest Docs Reality Audit, Auto-Indexed Multi-Repo KB, Uncapped Polyglot OpenWiki & 4-Gate LLM Self-Healing",
+  "status": "in_progress",
+  "phases": [
+    {
+      "number": 534,
+      "name": "Honest Ground-Truth Resolver, Unmasked Reality Audit & Expanded Drift Gate",
+      "status": "completed"
+    },
+    {
+      "number": 535,
+      "name": "Incremental Multi-Repo KB Auto-Indexing & Unified Daemon VoxDb",
+      "status": "completed"
+    },
+    {
+      "number": 536,
+      "name": "Uncapped In-Place Living Code-to-Docs Sync & Unified CLI/MCP/GUI Engine",
+      "status": "in_progress"
+    },
+    {
+      "number": 537,
+      "name": "Model-Agnostic LLM Claim NLI Verifier & Section-Scoped Tier-2 Self-Heal",
+      "status": "pending"
+    },
+    {
+      "number": 538,
+      "name": "Autonomous CI Drift Refresh, PR Blast-Radius & Self-Heal Verification Loop",
+      "status": "pending"
+    },
+    {
+      "number": 539,
+      "name": "Vox docs/src/ (voxlang.org) Truth Sweep, Living Docs Enrichment & Superseded Doc Remediation",
+      "status": "pending"
+    },
+    {
+      "number": 540,
+      "name": "Polyglot External-Repo E2E Proof, Axis Studio Verification & Full-Stack Closure",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-execute-phase 536 --ws openwiki-self-healing-docs-ssot-v91",
+    "label": "Plan & Execute Phase 536",
+    "reason": "Phase 535 verified complete; ready for Wave 2 (Phases 536-538)"
+  },
+  "updated_at": "2026-11-19T11:21:36Z"
+}

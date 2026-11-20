@@ -48,11 +48,61 @@ impl LineIndex {
     }
 }
 
+/// Check whether the document itself is historical, archived, research, or roadmap
+/// (whose code/command references are illustrative rather than normative claims).
+fn is_non_prescriptive_document(source_file: &Path, content: &str) -> bool {
+    let norm_path = source_file.to_string_lossy().replace('\\', "/");
+    if norm_path.contains("/archive/") || norm_path.starts_with("archive/") {
+        return true;
+    }
+
+    let trimmed = content.trim_start_matches('\u{feff}');
+    let Some(after_open) = trimmed
+        .strip_prefix("---\r\n")
+        .or_else(|| trimmed.strip_prefix("---\n"))
+    else {
+        return false;
+    };
+    let Some(end_idx) = after_open.find("\n---") else {
+        return false;
+    };
+    let Ok(yaml) = serde_yaml::from_str::<serde_yaml::Value>(&after_open[..end_idx]) else {
+        return false;
+    };
+    let Some(map) = yaml.as_mapping() else {
+        return false;
+    };
+
+    if let Some(status) = map
+        .get(serde_yaml::Value::String("status".to_string()))
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_ascii_lowercase())
+        && matches!(
+            status.as_str(),
+            "legacy" | "deprecated" | "archived" | "research" | "roadmap" | "superseded"
+        )
+    {
+        return true;
+    }
+
+    if let Some(category) = map
+        .get(serde_yaml::Value::String("category".to_string()))
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_ascii_lowercase())
+        && category == "archive"
+    {
+        return true;
+    }
+
+    false
+}
+
 /// Extract all concrete code/repo mentions from a Markdown document.
 pub fn extract_mentions(source_file: &Path, content: &str) -> Vec<ExtractedMention> {
     let mut mentions = Vec::new();
     let line_index = LineIndex::new(content);
     let source_path_str = source_file.to_string_lossy().to_string();
+    let doc_is_non_prescriptive = is_non_prescriptive_document(source_file, content);
 
     let mut current_fence: Option<String> = None;
     let mut fence_is_skip = false;
@@ -83,11 +133,12 @@ pub fn extract_mentions(source_file: &Path, content: &str) -> Vec<ExtractedMenti
                 let byte_offset = range.start;
                 let line_number = line_index.line_number(byte_offset);
 
-                let role = if is_descriptive_context(content, byte_offset) {
-                    MentionRole::Mentions
-                } else {
-                    MentionRole::Prescribes
-                };
+                let role =
+                    if doc_is_non_prescriptive || is_descriptive_context(content, byte_offset) {
+                        MentionRole::Mentions
+                    } else {
+                        MentionRole::Prescribes
+                    };
 
                 if let Some(mention) =
                     classify_inline_code(raw, role, &source_path_str, line_number, byte_offset)
@@ -102,7 +153,7 @@ pub fn extract_mentions(source_file: &Path, content: &str) -> Vec<ExtractedMenti
                         fence_is_skip = true;
                     }
 
-                    let role = if fence_is_skip || fence_is_text {
+                    let role = if doc_is_non_prescriptive || fence_is_skip || fence_is_text {
                         MentionRole::Mentions
                     } else {
                         MentionRole::Prescribes
@@ -170,8 +221,11 @@ fn is_placeholder_target(raw: &str) -> bool {
         || raw.contains('>')
         || raw.contains("/foo")
         || raw.contains("/bar")
-        || raw.contains("nonexistent")
-        || raw.contains("fake")
+        // Whole path segments only: a substring match let any real-looking path containing
+        // "fake"/"nonexistent" escape the reality audit.
+        || raw
+            .split(['/', '\\'])
+            .any(|seg| matches!(seg, "nonexistent" | "fake"))
 }
 
 fn classify_inline_code(
@@ -418,5 +472,50 @@ vox audit docs
             .find(|m| m.raw_text == "vox audit docs")
             .unwrap();
         assert_eq!(text_mention.role, MentionRole::Mentions);
+    }
+
+    #[test]
+    fn frontmatter_status_and_archive_downgrade_mentions_role() {
+        for fm_status in [
+            "\"legacy\"",
+            "deprecated",
+            "archived",
+            "research",
+            "roadmap",
+        ] {
+            let doc = format!(
+                "---\ntitle: \"Old\"\nstatus: {fm_status}\n---\nRun `vox audit docs`.\nSee `crates/vox-cli/src/main.rs`.\n```bash\nvox audit docs\n```\n"
+            );
+            let mentions = extract_mentions(Path::new("docs/src/architecture/old.md"), &doc);
+            assert!(
+                !mentions.is_empty(),
+                "expected mentions for status={fm_status}"
+            );
+            for m in &mentions {
+                assert_eq!(
+                    m.role,
+                    MentionRole::Mentions,
+                    "expected MentionRole::Mentions for status={fm_status}, got {:?} on {}",
+                    m.role,
+                    m.raw_text
+                );
+            }
+        }
+
+        let archive_doc = "Run `vox audit docs` and inspect `crates/vox-cli/src/main.rs`.\n";
+        let archive_mentions =
+            extract_mentions(Path::new("docs/src/archive/legacy-note.md"), archive_doc);
+        assert!(!archive_mentions.is_empty());
+        for m in &archive_mentions {
+            assert_eq!(m.role, MentionRole::Mentions);
+        }
+
+        let live_doc = "---\ntitle: \"Live\"\nstatus: \"current\"\n---\nRun `vox audit docs`.\n";
+        let live_mentions = extract_mentions(Path::new("docs/src/reference/live.md"), live_doc);
+        let cmd = live_mentions
+            .iter()
+            .find(|m| m.raw_text == "vox audit docs")
+            .expect("live mention");
+        assert_eq!(cmd.role, MentionRole::Prescribes);
     }
 }

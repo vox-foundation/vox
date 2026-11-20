@@ -11,12 +11,10 @@
 //!   `contracts/reports/docs-freshness/golden-drift-eval-set.v1.json` enforcing
 //!   `false_positive_rate <= 0.10` and `precision >= 0.80` before bot promotion.
 
-use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::Path;
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -111,18 +109,60 @@ pub fn is_valid_line_range_citation(citation: &str) -> bool {
     start >= 1 && end >= start
 }
 
+/// A slice of real code/contract text offered to an entailment judge as evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EvidenceSpan {
+    /// `[path:Lstart-Lend]` citation of this span (never the document being verified).
+    pub citation: String,
+    /// The text at that span.
+    pub text: String,
+}
+
+/// What an entailment judge decided about one claim.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JudgeOutput {
+    pub verdict: ClaimVerdictKind,
+    pub rationale: String,
+    pub estimated_tokens: u64,
+}
+
+/// Model-agnostic entailment judge. `vox-doc-pipeline` defines the seam; the CLI layer implements
+/// it over `vox_actor_runtime::llm`, so this crate takes no LLM dependency and hosts no vendor
+/// code. Returning `None` means "no judgement" (offline, error, unparsable), and the deterministic
+/// verdict stands.
+pub trait ClaimEntailmentJudge {
+    fn judge(&self, claim: &DocClaimCandidate, evidence: &[EvidenceSpan]) -> Option<JudgeOutput>;
+}
+
+/// Path part of a `[path:Lstart-Lend]` citation.
+fn citation_path(citation: &str) -> Option<&str> {
+    let trimmed = citation
+        .trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    trimmed.rsplit_once(":L").map(|(p, _)| p.trim())
+}
+
+/// True when `citation` points into the very document being verified. A document can never be
+/// its own evidence (`LLM-HEAL-01`).
+pub fn is_doc_self_citation(doc_path: &str, citation: &str) -> bool {
+    citation_path(citation).is_some_and(|p| {
+        p.replace('\\', "/").trim_start_matches("./") == doc_path.trim_start_matches("./")
+    })
+}
+
 /// Enforces `VERIFY-02`: any `Verified` or `Drifted` verdict lacking at least one valid
-/// `[path:Lstart-Lend]` evidence citation is downgraded to `Uncertain` and never surfaces as an error.
+/// `[path:Lstart-Lend]` evidence citation, or citing the document itself, is downgraded to
+/// `Uncertain` and never surfaces as an error.
 pub fn enforce_citation_requirement(mut verdict: DocClaimVerdict) -> DocClaimVerdict {
     let has_valid_citation = !verdict.evidence_citations.is_empty()
-        && verdict
-            .evidence_citations
-            .iter()
-            .all(|c| is_valid_line_range_citation(c));
+        && verdict.evidence_citations.iter().all(|c| {
+            is_valid_line_range_citation(c) && !is_doc_self_citation(&verdict.doc_path, c)
+        });
     if !has_valid_citation && verdict.verdict != ClaimVerdictKind::Uncertain {
         verdict.verdict = ClaimVerdictKind::Uncertain;
         verdict.rationale = format!(
-            "Downgraded to Uncertain (missing valid [path:Lstart-Lend] citation): {}",
+            "Downgraded to Uncertain (missing valid non-self [path:Lstart-Lend] citation): {}",
             verdict.rationale
         );
     }
@@ -255,163 +295,6 @@ pub fn is_valid_line_range_citation_on_disk(repo_root: &Path, citation: &str) ->
     }
 }
 
-/// Golden drift case from `contracts/reports/docs-freshness/golden-drift-eval-set.v1.json` (`VERIFY-04`).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GoldenDriftCase {
-    pub id: String,
-    pub title: String,
-    pub fix_commit: String,
-    pub doc_path: String,
-    pub category: String,
-    pub drift_description: String,
-    pub code_anchor: String,
-    pub snippet_stale: String,
-    pub snippet_fixed: String,
-    pub detection_strategy: String,
-}
-
-/// Golden drift evaluation set (`VERIFY-04`).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GoldenDriftEvalSet {
-    #[serde(rename = "x-vox-version", default = "default_version")]
-    pub version: u32,
-    pub title: String,
-    pub cases: Vec<GoldenDriftCase>,
-}
-
-fn default_version() -> u32 {
-    1
-}
-
-/// Benchmark metrics on the golden drift evaluation set (`VERIFY-04`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GoldenDriftEvalMetrics {
-    pub evaluated_pairs: usize,
-    pub true_positives: usize,
-    pub false_positives: usize,
-    pub true_negatives: usize,
-    pub false_negatives: usize,
-    pub precision: f64,
-    pub recall: f64,
-    pub false_positive_rate: f64,
-    pub eligible_for_bot_promotion: bool,
-}
-
-/// Evaluates a claim against a ground-truth snippet and code anchor, returning an evidence-cited
-/// verdict (`VERIFY-02`, `VERIFY-04`).
-pub fn verify_claim_against_anchor(
-    doc_path: &str,
-    line: usize,
-    claim_snippet: &str,
-    expected_fixed_snippet: &str,
-    code_anchor: &str,
-) -> DocClaimVerdict {
-    let anchor_file = code_anchor.split("::").next().unwrap_or(code_anchor);
-    let citation = format!("[{anchor_file}:L1-L25]");
-    let is_drifted = claim_snippet.trim() != expected_fixed_snippet.trim();
-    let verdict = if is_drifted {
-        ClaimVerdictKind::Drifted
-    } else {
-        ClaimVerdictKind::Verified
-    };
-    enforce_citation_requirement(DocClaimVerdict {
-        doc_path: doc_path.to_string(),
-        line,
-        verdict,
-        evidence_citations: vec![citation],
-        rationale: if is_drifted {
-            format!("Claim diverges from ground-truth anchor `{code_anchor}`")
-        } else {
-            format!("Claim matches ground-truth anchor `{code_anchor}`")
-        },
-        estimated_tokens: 120,
-    })
-}
-
-/// Evaluates the golden drift evaluation set (`VERIFY-04`), expanding the base forensic cases
-/// across 5 perturbation/anchor contexts so `>= 50` `(stale, fixed)` pairs are scored, and gates
-/// promotion on `false_positive_rate <= 0.10` and `precision >= 0.80`.
-pub fn evaluate_golden_drift_set(eval_set_path: &Path) -> Result<GoldenDriftEvalMetrics> {
-    let raw = fs::read_to_string(eval_set_path).with_context(|| {
-        format!(
-            "Failed to read golden drift eval set at {}",
-            eval_set_path.display()
-        )
-    })?;
-    let eval_set: GoldenDriftEvalSet =
-        serde_json::from_str(&raw).context("Failed to parse golden-drift-eval-set.v1.json")?;
-
-    let mut tp = 0usize;
-    let mut fp = 0usize;
-    let mut tn = 0usize;
-    let mut fn_count = 0usize;
-
-    // Evaluate 5 contextual variants per forensic case (10 base cases * 5 = 50 pairs = 100 verdicts).
-    let multipliers = 5usize.max((50 + eval_set.cases.len() - 1) / eval_set.cases.len().max(1));
-    let mut evaluated_pairs = 0usize;
-
-    for round in 0..multipliers {
-        for case in &eval_set.cases {
-            evaluated_pairs += 1;
-            let stale_verdict = verify_claim_against_anchor(
-                &case.doc_path,
-                round + 1,
-                &case.snippet_stale,
-                &case.snippet_fixed,
-                &case.code_anchor,
-            );
-            if stale_verdict.verdict == ClaimVerdictKind::Drifted {
-                tp += 1;
-            } else {
-                fn_count += 1;
-            }
-
-            let fixed_verdict = verify_claim_against_anchor(
-                &case.doc_path,
-                round + 1,
-                &case.snippet_fixed,
-                &case.snippet_fixed,
-                &case.code_anchor,
-            );
-            if fixed_verdict.verdict == ClaimVerdictKind::Drifted {
-                fp += 1;
-            } else {
-                tn += 1;
-            }
-        }
-    }
-
-    let precision = if tp + fp > 0 {
-        tp as f64 / (tp + fp) as f64
-    } else {
-        1.0
-    };
-    let recall = if tp + fn_count > 0 {
-        tp as f64 / (tp + fn_count) as f64
-    } else {
-        1.0
-    };
-    let false_positive_rate = if fp + tn > 0 {
-        fp as f64 / (fp + tn) as f64
-    } else {
-        0.0
-    };
-    let eligible_for_bot_promotion =
-        evaluated_pairs >= 50 && false_positive_rate <= 0.10 && precision >= 0.80;
-
-    Ok(GoldenDriftEvalMetrics {
-        evaluated_pairs,
-        true_positives: tp,
-        false_positives: fp,
-        true_negatives: tn,
-        false_negatives: fn_count,
-        precision,
-        recall,
-        false_positive_rate,
-        eligible_for_bot_promotion,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -436,6 +319,26 @@ mod tests {
         };
         let downgraded = enforce_citation_requirement(unanchored);
         assert_eq!(downgraded.verdict, ClaimVerdictKind::Uncertain);
+    }
+
+    #[test]
+    fn doc_to_self_citation_is_downgraded() {
+        let verdict = DocClaimVerdict {
+            doc_path: "docs/src/api/db.md".to_string(),
+            line: 3,
+            verdict: ClaimVerdictKind::Verified,
+            evidence_citations: vec!["[docs/src/api/db.md:L1-L3]".to_string()],
+            rationale: "cites itself".to_string(),
+            estimated_tokens: 1,
+        };
+        assert!(is_doc_self_citation(
+            "docs/src/api/db.md",
+            "[docs/src/api/db.md:L1-L3]"
+        ));
+        assert_eq!(
+            enforce_citation_requirement(verdict).verdict,
+            ClaimVerdictKind::Uncertain
+        );
     }
 
     #[test]
@@ -468,21 +371,5 @@ mod tests {
         assert!(cache.get(&claims[0]).is_some());
         assert_eq!(cache.cache_hits, 1);
         assert_eq!(cache.tokens_spent, 95);
-    }
-
-    #[test]
-    fn golden_drift_eval_set_meets_promotion_thresholds() {
-        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap();
-        let eval_path =
-            repo_root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v1.json");
-        let metrics = evaluate_golden_drift_set(&eval_path).expect("evaluate golden drift set");
-        assert!(metrics.evaluated_pairs >= 50);
-        assert!(metrics.false_positive_rate <= 0.10);
-        assert!(metrics.precision >= 0.80);
-        assert!(metrics.eligible_for_bot_promotion);
     }
 }

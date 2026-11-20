@@ -6,6 +6,7 @@ pub mod eval;
 pub mod extractor;
 pub mod findings;
 pub mod gate;
+pub mod golden_mine;
 pub mod hasher;
 pub mod ledger;
 pub mod llm_verifier;
@@ -28,7 +29,8 @@ pub use findings::{
     generate_findings,
 };
 pub use gate::{
-    BaselineFile, DriftGateResult, GrandfatheredDeficit, evaluate_drift_gate, is_reader_facing_page,
+    BaselineFile, CorpusRatchetFile, DriftGateResult, GrandfatheredDeficit,
+    evaluate_corpus_ratchet, evaluate_drift_gate, is_active_corpus_page, is_reader_facing_page,
 };
 pub use hasher::{
     extract_symbol_span, hash_anchor, hash_normalized_code, hash_normalized_contract,
@@ -100,6 +102,14 @@ pub fn scan_corpus(
             {
                 let rel_path = path.strip_prefix(repo_root).unwrap_or(path);
                 resolved.extend(scan_file(rel_path, &content, &registry));
+            }
+        }
+        for root_doc in ["README.md", "AGENTS.md"] {
+            let full_path = repo_root.join(root_doc);
+            if full_path.is_file()
+                && let Ok(content) = fs::read_to_string(&full_path)
+            {
+                resolved.extend(scan_file(Path::new(root_doc), &content, &registry));
             }
         }
     }

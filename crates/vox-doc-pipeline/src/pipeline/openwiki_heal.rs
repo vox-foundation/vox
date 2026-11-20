@@ -18,7 +18,8 @@ use crate::pipeline::doctest::check_doctests;
 use crate::pipeline::facets::{FacetCtx, facet_issues, facet_lint_rel_path};
 use crate::pipeline::lint::lint_file;
 use crate::pipeline::openwiki_polyglot::{
-    extract_polyglot_wiki_snapshot, openwiki_build, openwiki_diff,
+    extract_polyglot_wiki_snapshot, openwiki_build, openwiki_diff, openwiki_pages_dir,
+    openwiki_pages_rel,
 };
 use crate::pipeline::{fence_issues, is_hard_lint_error};
 
@@ -86,6 +87,8 @@ pub fn resolve_blast_radius(
         .map(|s| s.trim().replace('\\', "/"))
         .filter(|s| !s.is_empty())
         .collect();
+    let pages_rel = openwiki_pages_rel(repo_root);
+    let pages_prefix = format!("{pages_rel}/");
 
     if changed_inputs.is_empty() {
         // Read-only diff lookup isolated from inherited GIT_* hook variables; `vox-doc-pipeline`
@@ -114,7 +117,7 @@ pub fn resolve_blast_radius(
         if let Ok(diff) = openwiki_diff(repo_root, None) {
             for d in diff.diffs {
                 if d.changed {
-                    changed_inputs.push(format!("docs/wiki/{}", d.rel_path));
+                    changed_inputs.push(format!("{pages_rel}/{}", d.rel_path));
                 }
             }
         }
@@ -145,7 +148,7 @@ pub fn resolve_blast_radius(
     }
 
     let mut doc_files = Vec::new();
-    for dir_rel in ["docs/wiki", "docs/src", "docs/adr"] {
+    for dir_rel in [pages_rel.as_str(), "docs/src", "docs", "docs/adr"] {
         let dir = repo_root.join(dir_rel);
         if dir.is_dir() {
             gather_doc_candidates(&dir, repo_root, &mut doc_files);
@@ -173,7 +176,7 @@ pub fn resolve_blast_radius(
             } else if md.contains(inp.as_str()) || (!basename.is_empty() && md.contains(basename)) {
                 reasons.insert(format!("documented_in:{inp}"));
             } else if (inp.contains("/adr/") || inp.ends_with(".adr.md"))
-                && (doc_rel.starts_with("docs/wiki/") || md.contains("adr"))
+                && (doc_rel.starts_with(&pages_prefix) || md.contains("adr"))
             {
                 reasons.insert(format!("governed_by_adr:{inp}"));
             }
@@ -186,10 +189,12 @@ pub fn resolve_blast_radius(
         }
 
         // Fallback layer affinity for newly introduced files before any doc link existed.
-        if reasons.is_empty() && doc_rel.starts_with("docs/wiki/") {
+        if reasons.is_empty() && doc_rel.starts_with(&pages_prefix) {
             for inp in &changed_inputs {
                 let layer_file = classify_source_to_wiki_layer(inp);
-                if doc_rel.ends_with(layer_file) || doc_rel.ends_with("docs/wiki/README.md") {
+                if doc_rel.ends_with(layer_file)
+                    || doc_rel.ends_with(&format!("{pages_prefix}README.md"))
+                {
                     reasons.insert(format!("layer_affinity:{inp}"));
                 }
             }
@@ -375,7 +380,7 @@ pub fn heal_tier1_deterministic(
 
     let wiki_dir = match output_override {
         Some(dir) => dir.join("wiki"),
-        None => repo_root.join("docs/wiki"),
+        None => openwiki_pages_dir(repo_root),
     };
     let mut candidate_docs: Vec<(String, std::path::PathBuf)> = Vec::new();
     for page in &build.generated_pages {
@@ -386,8 +391,9 @@ pub fn heal_tier1_deterministic(
         candidate_docs.push((page.clone(), wiki_dir.join(fname)));
     }
     if output_override.is_none() {
+        let pages_prefix = format!("{}/", openwiki_pages_rel(repo_root));
         for imp in &blast_radius.impacted_docs {
-            if !imp.doc_path.starts_with("docs/wiki/") {
+            if !imp.doc_path.starts_with(&pages_prefix) {
                 candidate_docs.push((imp.doc_path.clone(), repo_root.join(&imp.doc_path)));
             }
         }
@@ -634,6 +640,185 @@ fn extract_negations(s: &str) -> BTreeSet<String> {
 
 /// Synthesize a minimal grounded prose patch outside `openwiki:auto` fences, verify all 4
 /// gates, render unified diff, and optionally prepare a guarded `BotDraftPrSpec` (`WIKI-04`).
+/// Surgical, line-scoped Tier-2 fix (`LLM-HEAL-03`): replace one backticked token on one line
+/// with `new_token`, leaving every other byte of the document alone. The result is gated by
+/// [`verify_tier2_candidate_four_gates`] against `evidence_citation`.
+pub fn synthesize_line_scoped_fix(
+    repo_root: &Path,
+    doc_rel_path: &str,
+    line_no: usize,
+    old_token: &str,
+    new_token: &str,
+    evidence_citation: &str,
+) -> Result<Tier2ProseHealCandidate, String> {
+    let full = repo_root.join(doc_rel_path);
+    let original_md =
+        fs::read_to_string(&full).map_err(|e| format!("failed to read {}: {e}", full.display()))?;
+    let mut lines: Vec<String> = original_md.split('\n').map(str::to_string).collect();
+    let idx = line_no
+        .checked_sub(1)
+        .filter(|i| *i < lines.len())
+        .ok_or_else(|| format!("line {line_no} is out of range in {doc_rel_path}"))?;
+    let from = format!("`{old_token}`");
+    let to = format!("`{new_token}`");
+    if !lines[idx].contains(&from) {
+        return Err(format!(
+            "line {line_no} of {doc_rel_path} does not contain {from}; refusing to guess"
+        ));
+    }
+    lines[idx] = lines[idx].replace(&from, &to);
+    let patched_markdown = lines.join("\n");
+
+    let evidence_citations = vec![evidence_citation.to_string()];
+    let gate_report = verify_tier2_candidate_four_gates(
+        repo_root,
+        doc_rel_path,
+        &original_md,
+        &patched_markdown,
+        &evidence_citations,
+    );
+    Ok(Tier2ProseHealCandidate {
+        doc_path: doc_rel_path.to_string(),
+        summary: format!(
+            "{doc_rel_path}:{line_no}: replace {from} with {to} ({evidence_citation})"
+        ),
+        unified_diff: render_unified_diff(&original_md, &patched_markdown, doc_rel_path),
+        original_hash: hash_normalized_code(&original_md),
+        patched_markdown,
+        evidence_citations,
+        gate_report,
+        draft_pr: None,
+    })
+}
+
+fn is_plain_replacement_token(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 120
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.' | '/'))
+}
+
+/// Pages the automatic fixer may rewrite. Decision records (`adr/`), history, the changelog and
+/// any page whose file name carries an ISO date are *point-in-time records*: renaming a crate in
+/// them rewrites history rather than correcting a stale claim. Those are for a human (or a
+/// `status: legacy` demotion), never for `--apply`.
+#[must_use]
+pub fn is_autofix_eligible_path(doc_rel_path: &str) -> bool {
+    let rel = doc_rel_path.replace('\\', "/");
+    if rel.starts_with("docs/src/adr/")
+        || rel.contains("/history/")
+        || rel.contains("/archive/")
+        || rel.ends_with("/changelog.md")
+    {
+        return false;
+    }
+    let name = rel.rsplit('/').next().unwrap_or(&rel);
+    let bytes = name.as_bytes();
+    // `YYYY-MM-DD` anywhere in the file name.
+    !(0..bytes.len().saturating_sub(9)).any(|i| {
+        let w = &bytes[i..i + 10];
+        w[..4].iter().all(u8::is_ascii_digit)
+            && w[4] == b'-'
+            && w[5..7].iter().all(u8::is_ascii_digit)
+            && w[7] == b'-'
+            && w[8..10].iter().all(u8::is_ascii_digit)
+    })
+}
+
+/// Plan one surgical fix per prescriptive retired-symbol mention in `doc_rel_path` that has a
+/// plain canonical replacement. Evidence is the retired-symbols contract line, or the replacement
+/// crate's manifest when the retirement is only known to the resolver. Nothing is written.
+pub fn plan_retired_symbol_fixes(
+    repo_root: &Path,
+    registry: &crate::claims::GroundTruthRegistry,
+    doc_rel_path: &str,
+) -> Result<Vec<Tier2ProseHealCandidate>, String> {
+    use crate::claims::{MentionRole, ResolutionStatus, extract_mentions};
+    if !is_autofix_eligible_path(doc_rel_path) {
+        return Ok(Vec::new());
+    }
+    let full = repo_root.join(doc_rel_path);
+    let content =
+        fs::read_to_string(&full).map_err(|e| format!("failed to read {}: {e}", full.display()))?;
+    let mut out: Vec<Tier2ProseHealCandidate> = Vec::new();
+    let mut seen: BTreeSet<(usize, String)> = BTreeSet::new();
+    for m in extract_mentions(Path::new(doc_rel_path), &content) {
+        let rm = registry.resolve_mention(&m);
+        if rm.status != ResolutionStatus::Retired || rm.extracted.role != MentionRole::Prescribes {
+            continue;
+        }
+        // Only a crate-name mention whose exact name is in the rename table is rewritten. Regex
+        // retirements also match prefixes (`vox-dei-d`) and commands containing the name, and
+        // some are ambiguous (`vox-dei`), so they are reported but never auto-fixed.
+        if rm.extracted.kind != crate::claims::MentionKind::CrateName {
+            continue;
+        }
+        let Some(replacement) = registry
+            .exact_retired_crate_replacement(&rm.extracted.raw_text)
+            .filter(|r| is_plain_replacement_token(r) && *r != rm.extracted.raw_text)
+        else {
+            continue;
+        };
+        if !seen.insert((rm.extracted.line_number, rm.extracted.raw_text.clone())) {
+            continue;
+        }
+        let citation = crate::claims::self_heal_bot::contract_line_citation(
+            repo_root,
+            "contracts/documentation/retired-symbols.v1.yaml",
+            &rm.extracted.normalized_target,
+        )
+        .or_else(|| {
+            let manifest = format!("crates/{replacement}/Cargo.toml");
+            repo_root
+                .join(&manifest)
+                .is_file()
+                .then(|| format!("[{manifest}:L1-L1]"))
+        });
+        let Some(citation) = citation else { continue };
+        if let Ok(c) = synthesize_line_scoped_fix(
+            repo_root,
+            doc_rel_path,
+            rm.extracted.line_number,
+            &rm.extracted.raw_text,
+            replacement,
+            &citation,
+        ) {
+            out.push(c);
+        }
+    }
+    Ok(out)
+}
+
+/// Apply every gate-passing retired-symbol fix to `doc_rel_path`, one at a time, re-planning
+/// after each write so overlapping fixes cannot clobber each other. Returns the applied
+/// summaries. Fixes that fail any of the four gates are skipped, never forced.
+pub fn apply_retired_symbol_fixes(
+    repo_root: &Path,
+    registry: &crate::claims::GroundTruthRegistry,
+    doc_rel_path: &str,
+) -> Result<Vec<String>, String> {
+    let full = repo_root.join(doc_rel_path);
+    let mut applied = Vec::new();
+    let mut skipped_at: BTreeSet<String> = BTreeSet::new();
+    for _ in 0..64 {
+        let plans = plan_retired_symbol_fixes(repo_root, registry, doc_rel_path)?;
+        let Some(next) = plans
+            .into_iter()
+            .find(|c| c.gate_report.passed && !skipped_at.contains(&c.summary))
+        else {
+            break;
+        };
+        if next.patched_markdown.is_empty() {
+            skipped_at.insert(next.summary);
+            continue;
+        }
+        fs::write(&full, &next.patched_markdown)
+            .map_err(|e| format!("failed to write {}: {e}", full.display()))?;
+        applied.push(next.summary);
+    }
+    Ok(applied)
+}
+
 pub fn synthesize_grounded_prose_patch(
     repo_root: &Path,
     doc_rel_path: &str,

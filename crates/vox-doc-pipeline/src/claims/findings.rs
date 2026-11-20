@@ -217,7 +217,7 @@ pub fn compute_metrics(
 
     MetricsFile {
         schema_version: 1,
-        generated_at: "2026-10-13T00:00:00Z".to_string(),
+        generated_at: chrono::Utc::now().to_rfc3339(),
         inventory_claim_count: findings.len(),
         findings_total: findings.len(),
         findings_open: findings.iter().filter(|f| f.status != "closed").count(),

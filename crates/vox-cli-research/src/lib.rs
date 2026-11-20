@@ -19,6 +19,7 @@ pub mod add_component;
 mod answer_overlap;
 pub mod attention;
 pub mod audit;
+pub mod audit_claim_judge;
 pub mod audit_effort;
 pub mod audit_research_parity;
 pub mod audit_route;

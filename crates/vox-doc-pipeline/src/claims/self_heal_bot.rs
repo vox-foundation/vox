@@ -16,10 +16,14 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::extractor::extract_mentions;
 use super::llm_verifier::{
-    ClaimVerdictKind, DocClaimVerdict, DocVerifyBudget, LlmVerifyCache, evaluate_golden_drift_set,
-    extract_claim_candidates, is_valid_line_range_citation,
+    ClaimEntailmentJudge, ClaimVerdictKind, DocClaimVerdict, DocVerifyBudget, EvidenceSpan,
+    LlmVerifyCache, enforce_citation_requirement, extract_claim_candidates,
+    is_valid_line_range_citation,
 };
+use super::resolver::GroundTruthRegistry;
+use super::types::{MentionKind, MentionRole, ResolutionStatus};
 use crate::pipeline::fence_issues;
 use crate::pipeline::mermaid::validate_and_repair_markdown_mermaid;
 use crate::pipeline::types::DiagramIssue;
@@ -253,6 +257,167 @@ impl BotMetricsLedger {
     }
 }
 
+/// Inline-code tokens (`` `like/this` ``) of a Markdown document, deduplicated.
+fn inline_code_tokens(markdown: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = markdown;
+    while let Some(open) = rest.find('`') {
+        let after = &rest[open + 1..];
+        let Some(close) = after.find('`') else { break };
+        let tok = &after[..close];
+        if !tok.is_empty() && !tok.contains('\n') && tok.len() < 200 {
+            out.push(tok.to_string());
+        }
+        rest = &after[close + 1..];
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Head of a real file as an evidence span (`[path:L1-Lk]`, at most 25 lines).
+fn file_head(repo_root: &Path, rel: &str) -> Option<EvidenceSpan> {
+    let full = repo_root.join(rel);
+    if !full.is_file() {
+        return None;
+    }
+    let text = fs::read_to_string(&full).ok()?;
+    let head: Vec<&str> = text.lines().take(25).collect();
+    let end = head.len().max(1);
+    Some(EvidenceSpan {
+        citation: format!("[{rel}:L1-L{end}]"),
+        text: head.join("\n"),
+    })
+}
+
+/// Line of `needle` (case-insensitive) in a repo file, as a one-line citation.
+pub(crate) fn contract_line_citation(repo_root: &Path, rel: &str, needle: &str) -> Option<String> {
+    let text = fs::read_to_string(repo_root.join(rel)).ok()?;
+    let needle = needle.to_ascii_lowercase();
+    let idx = text
+        .lines()
+        .position(|l| l.to_ascii_lowercase().contains(&needle))?;
+    Some(format!("[{rel}:L{0}-L{0}]", idx + 1))
+}
+
+/// Deterministic, offline claim verification grounded in repository ground truth
+/// (`LLM-HEAL-01`). Evidence always points into code or contracts, never into the document
+/// being checked.
+///
+/// - A prescriptive mention of a retired symbol is `Drifted`, cited to the retired-symbols
+///   contract line that retires it.
+/// - Mentions that all resolve to real files/crates are `Uncertain`: the anchors exist, but
+///   whether the prose is *entailed* by the code needs an NLI judge, which this offline path
+///   does not run, so it never claims `Verified`.
+/// - Anything missing or ambiguous is `Uncertain` and left to the reality audit.
+pub fn verify_claim_grounded(
+    repo_root: &Path,
+    registry: &GroundTruthRegistry,
+    claim: &super::llm_verifier::DocClaimCandidate,
+) -> DocClaimVerdict {
+    verify_claim_grounded_with(repo_root, registry, claim, None)
+}
+
+/// [`verify_claim_grounded`] with an optional entailment judge. The judge only runs when every
+/// anchor resolved and there is real evidence; its `Verified`/`Drifted` verdicts still pass
+/// through [`enforce_citation_requirement`], so they cannot stand without a non-self citation.
+pub fn verify_claim_grounded_with(
+    repo_root: &Path,
+    registry: &GroundTruthRegistry,
+    claim: &super::llm_verifier::DocClaimCandidate,
+    judge: Option<&dyn ClaimEntailmentJudge>,
+) -> DocClaimVerdict {
+    let mentions: Vec<_> = extract_mentions(Path::new(&claim.doc_path), &claim.claim_text)
+        .into_iter()
+        .map(|m| registry.resolve_mention(&m))
+        .collect();
+
+    let mut spans: Vec<EvidenceSpan> = Vec::new();
+    let mut evidence: Vec<String> = Vec::new();
+    let mut unresolved: Vec<String> = Vec::new();
+    for rm in &mentions {
+        match rm.status {
+            ResolutionStatus::Retired if rm.extracted.role == MentionRole::Prescribes => {
+                if let Some(c) = contract_line_citation(
+                    repo_root,
+                    "contracts/documentation/retired-symbols.v1.yaml",
+                    &rm.extracted.normalized_target,
+                ) {
+                    return enforce_citation_requirement(DocClaimVerdict {
+                        doc_path: claim.doc_path.clone(),
+                        line: claim.line,
+                        verdict: ClaimVerdictKind::Drifted,
+                        evidence_citations: vec![c],
+                        rationale: format!(
+                            "`{}` is retired{}",
+                            rm.extracted.normalized_target,
+                            rm.replacement
+                                .as_ref()
+                                .map(|r| format!("; use `{r}`"))
+                                .unwrap_or_default()
+                        ),
+                        estimated_tokens: 0,
+                    });
+                }
+                unresolved.push(rm.extracted.raw_text.clone());
+            }
+            ResolutionStatus::Resolved => {
+                let span = match rm.extracted.kind {
+                    MentionKind::FilePath => file_head(repo_root, &rm.extracted.normalized_target),
+                    MentionKind::CrateName => file_head(
+                        repo_root,
+                        &format!("crates/{}/Cargo.toml", rm.extracted.normalized_target),
+                    ),
+                    _ => None,
+                };
+                if let Some(s) = span {
+                    evidence.push(s.citation.clone());
+                    spans.push(s);
+                }
+            }
+            _ => unresolved.push(rm.extracted.raw_text.clone()),
+        }
+    }
+    evidence.sort();
+    evidence.dedup();
+    spans.sort_by(|a, b| a.citation.cmp(&b.citation));
+    spans.dedup_by(|a, b| a.citation == b.citation);
+
+    if unresolved.is_empty()
+        && !spans.is_empty()
+        && let Some(j) = judge
+        && let Some(out) = j.judge(claim, &spans)
+    {
+        return enforce_citation_requirement(DocClaimVerdict {
+            doc_path: claim.doc_path.clone(),
+            line: claim.line,
+            verdict: out.verdict,
+            evidence_citations: evidence,
+            rationale: out.rationale,
+            estimated_tokens: out.estimated_tokens,
+        });
+    }
+
+    let rationale = if !unresolved.is_empty() {
+        format!("anchors not resolvable to evidence: {unresolved:?}; see reality audit")
+    } else if evidence.is_empty() {
+        "no file/crate anchors to ground; semantic entailment not evaluated".to_string()
+    } else if judge.is_some() {
+        "anchors resolve to real files/crates; entailment judge gave no usable verdict".to_string()
+    } else {
+        "anchors resolve to real files/crates; semantic entailment not evaluated (no NLI judge)"
+            .to_string()
+    };
+    DocClaimVerdict {
+        doc_path: claim.doc_path.clone(),
+        line: claim.line,
+        verdict: ClaimVerdictKind::Uncertain,
+        evidence_citations: evidence,
+        rationale,
+        estimated_tokens: 0,
+    }
+}
+
 /// Run an advisory, budget-capped LLM/anchor claim verification pass over `docs/src/` (`OPENWIKI-VERIFY-01..03`).
 pub fn run_advisory_claim_verification(
     repo_root: &Path,
@@ -260,12 +425,23 @@ pub fn run_advisory_claim_verification(
     budget: DocVerifyBudget,
     filter_paths: Option<&[PathBuf]>,
 ) -> Result<LlmVerifyCache> {
+    run_advisory_claim_verification_with_judge(repo_root, cache_path, budget, filter_paths, None)
+}
+
+/// [`run_advisory_claim_verification`] with an optional entailment judge (`LLM-HEAL-01`).
+pub fn run_advisory_claim_verification_with_judge(
+    repo_root: &Path,
+    cache_path: &Path,
+    budget: DocVerifyBudget,
+    filter_paths: Option<&[PathBuf]>,
+    judge: Option<&dyn ClaimEntailmentJudge>,
+) -> Result<LlmVerifyCache> {
     let mut cache = if let Ok(raw) = fs::read_to_string(cache_path) {
         serde_json::from_str::<LlmVerifyCache>(&raw).unwrap_or_default()
     } else {
         LlmVerifyCache::default()
     };
-    let symbol_hashes = BTreeMap::new();
+    let registry = GroundTruthRegistry::load(repo_root)?;
     let docs_dir = repo_root.join("docs/src");
     let mut md_paths = Vec::new();
     if let Some(paths) = filter_paths {
@@ -306,6 +482,12 @@ pub fn run_advisory_claim_verification(
             .unwrap_or(&full_path)
             .to_string_lossy()
             .replace('\\', "/");
+        let mut symbol_hashes: BTreeMap<String, String> = BTreeMap::new();
+        for sym in inline_code_tokens(&content) {
+            if let Ok(h) = super::hasher::hash_anchor(repo_root, &sym) {
+                symbol_hashes.insert(sym, h);
+            }
+        }
         for claim in extract_claim_candidates(&rel, &content, &symbol_hashes) {
             if evaluated >= budget.max_claims_per_run
                 || cache.tokens_spent >= budget.max_tokens_per_run
@@ -316,21 +498,8 @@ pub fn run_advisory_claim_verification(
             if cache.get(&claim).is_some() {
                 continue;
             }
-            let citation = format!("[{}:L1-L{}]", rel, claim.line.max(1));
-            cache.insert(
-                &claim,
-                DocClaimVerdict {
-                    doc_path: rel.clone(),
-                    line: claim.line,
-                    verdict: ClaimVerdictKind::Verified,
-                    evidence_citations: vec![citation],
-                    rationale: format!(
-                        "Verified prose claim anchored to {:?}",
-                        claim.symbol_anchors
-                    ),
-                    estimated_tokens: 80,
-                },
-            );
+            let verdict = verify_claim_grounded_with(repo_root, &registry, &claim, judge);
+            cache.insert(&claim, verdict);
         }
     }
     if let Some(parent) = cache_path.parent() {
@@ -340,14 +509,22 @@ pub fn run_advisory_claim_verification(
     Ok(cache)
 }
 
-/// Evaluate golden drift set and print/persist advisory bot metrics (`OPENWIKI-VERIFY-04`, `OPENWIKI-BOT-01..04`).
+/// Gate the bot on the v2 golden drift benchmark and persist advisory bot metrics
+/// (`LLM-HEAL-02`, `OPENWIKI-BOT-01..04`). The bot stays off until the benchmark holds at least
+/// [`super::golden_mine::MIN_HUMAN_REVIEWED_CASES`] human-reviewed real cases that clear the
+/// precision and false-positive thresholds.
 pub fn run_self_heal_bot_check(repo_root: &Path, write_metrics: bool) -> Result<BotMetricsLedger> {
     let eval_path =
-        repo_root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v1.json");
-    let metrics = evaluate_golden_drift_set(&eval_path)?;
+        repo_root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v2.json");
+    let registry = GroundTruthRegistry::load(repo_root)?;
+    let metrics = super::golden_mine::evaluate_golden_set_v2(&eval_path, &registry)?;
     if !metrics.eligible_for_bot_promotion {
         anyhow::bail!(
-            "Golden drift benchmark did not meet promotion thresholds: precision={:.2}%, fp_rate={:.2}%",
+            "Golden drift benchmark does not license the bot: {} (human-reviewed={}, agent-reviewed={}, pending={}, precision={:.2}%, fp_rate={:.2}%)",
+            metrics.ineligible_reason.as_deref().unwrap_or("unknown"),
+            metrics.human_reviewed,
+            metrics.agent_reviewed,
+            metrics.pending,
             metrics.precision * 100.0,
             metrics.false_positive_rate * 100.0
         );
@@ -372,6 +549,111 @@ mod tests {
             evidence_citations: vec!["[crates/vox-db/src/schema.rs:L10-L25]".to_string()],
             summary: "Synchronize table primary key documentation with schema.rs.".to_string(),
         }
+    }
+
+    fn repo_root_for_tests() -> &'static Path {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+    }
+
+    fn claim_for(doc: &str, text: &str) -> super::super::llm_verifier::DocClaimCandidate {
+        extract_claim_candidates(doc, text, &BTreeMap::new())
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| panic!("no claim extracted from {text:?}"))
+    }
+
+    #[test]
+    fn grounded_verifier_cites_code_never_the_doc_and_never_claims_verified_offline() {
+        let root = repo_root_for_tests();
+        let registry = GroundTruthRegistry::load(root).expect("registry");
+        let doc = "docs/src/architecture/example.md";
+        let claim = claim_for(
+            doc,
+            "The entry point lives in `crates/vox-doc-pipeline/src/lib.rs` today.\n",
+        );
+        let v = verify_claim_grounded(root, &registry, &claim);
+        assert_eq!(v.verdict, ClaimVerdictKind::Uncertain, "{v:?}");
+        assert!(
+            v.evidence_citations
+                .iter()
+                .any(|c| c.starts_with("[crates/vox-doc-pipeline/src/lib.rs:L1-L")),
+            "{v:?}"
+        );
+        assert!(
+            v.evidence_citations
+                .iter()
+                .all(|c| !super::super::llm_verifier::is_doc_self_citation(doc, c)),
+            "{v:?}"
+        );
+        assert_eq!(v.estimated_tokens, 0);
+    }
+
+    #[test]
+    fn grounded_verifier_gives_no_evidence_for_a_missing_anchor() {
+        let root = repo_root_for_tests();
+        let registry = GroundTruthRegistry::load(root).expect("registry");
+        let claim = claim_for(
+            "docs/src/architecture/example.md",
+            "Configured by `crates/vox-nonexistent-zzz/src/lib.rs` always.\n",
+        );
+        let v = verify_claim_grounded(root, &registry, &claim);
+        assert_eq!(v.verdict, ClaimVerdictKind::Uncertain, "{v:?}");
+        assert!(v.evidence_citations.is_empty(), "{v:?}");
+    }
+
+    struct FixedJudge(ClaimVerdictKind);
+    impl ClaimEntailmentJudge for FixedJudge {
+        fn judge(
+            &self,
+            _claim: &super::super::llm_verifier::DocClaimCandidate,
+            evidence: &[EvidenceSpan],
+        ) -> Option<super::super::llm_verifier::JudgeOutput> {
+            assert!(!evidence.is_empty(), "judge must only see real evidence");
+            Some(super::super::llm_verifier::JudgeOutput {
+                verdict: self.0,
+                rationale: "fake".to_string(),
+                estimated_tokens: 7,
+            })
+        }
+    }
+
+    #[test]
+    fn judge_verdict_is_accepted_only_with_real_non_self_evidence() {
+        let root = repo_root_for_tests();
+        let registry = GroundTruthRegistry::load(root).expect("registry");
+        let doc = "docs/src/architecture/example.md";
+
+        let grounded = claim_for(
+            doc,
+            "The entry point lives in `crates/vox-doc-pipeline/src/lib.rs` today.\n",
+        );
+        let judge = FixedJudge(ClaimVerdictKind::Verified);
+        let v = verify_claim_grounded_with(root, &registry, &grounded, Some(&judge));
+        assert_eq!(v.verdict, ClaimVerdictKind::Verified, "{v:?}");
+        assert_eq!(v.estimated_tokens, 7);
+        assert!(
+            v.evidence_citations
+                .iter()
+                .all(|c| !super::super::llm_verifier::is_doc_self_citation(doc, c))
+        );
+
+        // Missing anchor: the judge must never be consulted (FixedJudge asserts non-empty evidence).
+        let missing = claim_for(
+            doc,
+            "Configured by `crates/vox-nonexistent-zzz/src/lib.rs` always.\n",
+        );
+        let v = verify_claim_grounded_with(root, &registry, &missing, Some(&judge));
+        assert_eq!(v.verdict, ClaimVerdictKind::Uncertain, "{v:?}");
+    }
+
+    #[test]
+    fn inline_code_tokens_are_deduplicated_and_skip_unclosed_ticks() {
+        let toks = inline_code_tokens("a `x/y` b `x/y` c `z` d `open");
+        assert_eq!(toks, vec!["x/y".to_string(), "z".to_string()]);
     }
 
     #[test]

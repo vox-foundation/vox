@@ -8,7 +8,7 @@ use vox_doc_pipeline::claims::consolidation::{
 };
 use vox_doc_pipeline::claims::gate::{BaselineFile, evaluate_drift_gate, is_reader_facing_page};
 use vox_doc_pipeline::claims::llm_verifier::{
-    DocVerifyBudget, evaluate_golden_drift_set, is_valid_line_range_citation_on_disk,
+    DocVerifyBudget, is_valid_line_range_citation_on_disk,
 };
 use vox_doc_pipeline::claims::self_heal_bot::{
     BotPatchRejection, CandidateDocPatch, run_advisory_claim_verification, run_self_heal_bot_check,
@@ -158,12 +158,22 @@ fn phase_191_llm_claim_verifier_and_golden_drift_benchmark() {
         "[crates/vox-doc-pipeline/src/nonexistent_file.rs:L1-L4]"
     ));
 
-    let eval_path = root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v1.json");
-    let metrics = evaluate_golden_drift_set(&eval_path).expect("evaluate golden drift set");
-    assert!(metrics.evaluated_pairs >= 50);
-    assert!(metrics.precision >= 0.80);
-    assert!(metrics.false_positive_rate <= 0.10);
-    assert!(metrics.eligible_for_bot_promotion);
+    // v2 benchmark: only human-reviewed real doc fixes can license the bot. Until a reviewer has
+    // labelled >= 50 mined cases, the benchmark must say so instead of reporting a synthetic 100%.
+    let eval_path = root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v2.json");
+    let registry = vox_doc_pipeline::claims::GroundTruthRegistry::load(root).expect("registry");
+    let metrics =
+        vox_doc_pipeline::claims::golden_mine::evaluate_golden_set_v2(&eval_path, &registry)
+            .expect("evaluate golden drift set v2");
+    assert_eq!(
+        metrics.eligible_for_bot_promotion,
+        metrics.human_reviewed >= vox_doc_pipeline::claims::golden_mine::MIN_HUMAN_REVIEWED_CASES
+            && metrics.ineligible_reason.is_none()
+    );
+    if metrics.human_reviewed < vox_doc_pipeline::claims::golden_mine::MIN_HUMAN_REVIEWED_CASES {
+        assert!(!metrics.eligible_for_bot_promotion);
+        assert!(metrics.ineligible_reason.is_some());
+    }
 
     let cache_path = root.join("contracts/reports/docs-freshness/llm-verify-cache.v1.json");
     let sample_doc =
@@ -181,9 +191,21 @@ fn phase_191_llm_claim_verifier_and_golden_drift_benchmark() {
 #[test]
 fn phase_192_self_heal_bot_gates_and_metrics_ledger() {
     let root = repo_root();
-    let ledger = run_self_heal_bot_check(root, false).expect("self heal bot check");
-    assert!(!ledger.is_auto_paused());
-    assert!(ledger.acceptance_precision() >= 0.80);
+    // The bot is licensed only by the v2 benchmark; when it is not (not enough human-reviewed
+    // cases), the check must refuse rather than hand back a ledger.
+    match run_self_heal_bot_check(root, false) {
+        Ok(ledger) => {
+            assert!(!ledger.is_auto_paused());
+            assert!(ledger.acceptance_precision() >= 0.80);
+        }
+        Err(e) => {
+            let msg = format!("{e:#}");
+            assert!(
+                msg.contains("does not license the bot") || msg.contains("golden drift set"),
+                "{msg}"
+            );
+        }
+    }
 
     let bad_code_patch = CandidateDocPatch {
         subsystem: "compiler".to_string(),

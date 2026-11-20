@@ -84,7 +84,7 @@ fn polyglot_openwiki_synthesizes_five_layers_and_passes_doc_lint() {
     assert!(Path::new(&report.manifest_path).is_file());
 
     // Add custom human prose to Layer 2 and ensure rebuild leaves it intact
-    let api_doc_path = root.join("docs/wiki/interfaces-and-apis.md");
+    let api_doc_path = openwiki_pages_dir(&root).join("interfaces-and-apis.md");
     let custom_api = fs::read_to_string(&api_doc_path)
         .unwrap()
         .replace(
@@ -111,6 +111,148 @@ fn polyglot_openwiki_synthesizes_five_layers_and_passes_doc_lint() {
 
     let diff = openwiki_diff(&root, None).expect("diff");
     assert!(!diff.has_changes);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn pages_dir_precedence_docs_wiki_then_docs_src_then_docs() {
+    let base = std::env::temp_dir().join(format!("vox-owpd-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&base);
+
+    let bare = base.join("bare");
+    fs::create_dir_all(&bare).unwrap();
+    assert_eq!(openwiki_pages_rel(&bare), "docs/openwiki");
+
+    let docs_only = base.join("docs_only");
+    fs::create_dir_all(docs_only.join("docs")).unwrap();
+    assert_eq!(openwiki_pages_rel(&docs_only), "docs/openwiki");
+
+    let docs_src = base.join("docs_src");
+    fs::create_dir_all(docs_src.join("docs/src")).unwrap();
+    assert_eq!(openwiki_pages_rel(&docs_src), "docs/src/openwiki");
+
+    let legacy = base.join("legacy");
+    fs::create_dir_all(legacy.join("docs/src")).unwrap();
+    fs::create_dir_all(legacy.join("docs/wiki")).unwrap();
+    assert_eq!(openwiki_pages_rel(&legacy), "docs/wiki");
+
+    let _ = fs::remove_dir_all(&base);
+}
+
+#[test]
+fn uncapped_snapshot_covers_every_symbol_in_large_synthetic_repo() {
+    let root = std::env::temp_dir().join(format!("vox-owuncap-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname = \"big\"\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+    for f in 0..150 {
+        let mut body = String::new();
+        for s in 0..3 {
+            body.push_str(&format!("pub fn sym_{f}_{s}() -> bool {{ true }}\n"));
+        }
+        fs::write(root.join(format!("src/m{f}.rs")), body).unwrap();
+    }
+
+    let snap = extract_polyglot_wiki_snapshot(&root);
+    assert_eq!(snap.interfaces.len(), 450, "no silent entry cap");
+
+    let pages = render_polyglot_openwiki_pages(&snap).expect("render");
+    let l2 = pages
+        .iter()
+        .find(|p| p.rel_path == "interfaces-and-apis.md")
+        .expect("layer 2 page");
+    assert!(
+        l2.full_markdown.contains("450 symbols across 1 modules"),
+        "layer page keeps a rollup index"
+    );
+    assert!(l2.full_markdown.contains("./interfaces-and-apis/src.md"));
+    let detail = pages
+        .iter()
+        .find(|p| p.rel_path == "interfaces-and-apis/src.md")
+        .expect("per-module detail sub-page");
+    assert!(
+        detail.full_markdown.contains("sym_149_2"),
+        "last symbol rendered"
+    );
+    assert!(detail.full_markdown.contains("### `src` (450)"));
+    assert!(
+        detail.full_markdown.contains("](../../../src/m0.rs#L1)"),
+        "sub-page anchors are one directory deeper"
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn docs_src_repo_builds_under_docs_src_openwiki_and_never_creates_docs_wiki() {
+    let root = std::env::temp_dir().join(format!("vox-owsrc-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("docs/src")).unwrap();
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname = \"ds\"\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+    fs::write(root.join("src/lib.rs"), "pub fn alpha() -> bool { true }\n").unwrap();
+
+    let report = openwiki_build(&root, true, None).expect("build");
+    assert!(
+        report
+            .generated_pages
+            .iter()
+            .all(|p| p.starts_with("docs/src/openwiki/")),
+        "{:?}",
+        report.generated_pages
+    );
+    assert!(root.join("docs/src/openwiki/README.md").is_file());
+    assert!(!root.join("docs/wiki").exists());
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn sql_foreign_keys_are_annotated_via_graph_reader() {
+    let root = std::env::temp_dir().join(format!("vox-owsqlfk-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("migrations")).unwrap();
+    fs::write(
+        root.join("migrations/001.sql"),
+        concat!(
+            "CREATE ",
+            "TABLE users (id INTEGER PRIMARY KEY);\n",
+            "CREATE ",
+            "TABLE posts (id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES users(id));\n"
+        ),
+    )
+    .unwrap();
+
+    let snap = extract_polyglot_wiki_snapshot(&root);
+    let posts = snap
+        .schemas
+        .iter()
+        .find(|s| s.name == "posts")
+        .expect("posts table");
+    assert!(
+        posts.signature.contains("references users"),
+        "{}",
+        posts.signature
+    );
+    let users = snap
+        .schemas
+        .iter()
+        .find(|s| s.name == "users")
+        .expect("users table");
+    assert!(
+        !users.signature.contains("references"),
+        "{}",
+        users.signature
+    );
 
     let _ = fs::remove_dir_all(&root);
 }
