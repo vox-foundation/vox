@@ -302,6 +302,40 @@ fn parse_cargo_package_and_bins(cargo_toml: &str) -> (Option<String>, Vec<String
     (pkg_name, bin_names)
 }
 
+/// True when the repo's own `.gitignore` files (root and every ancestor dir of
+/// `rel`, each rooted at its own dir) ignore `rel`. In-process via the `ignore`
+/// crate already in this crate's deps — no git subprocess, no new edge. The
+/// target may not exist, so it is tested as both a file and a directory.
+fn is_gitignored(repo_root: &Path, rel: &str) -> bool {
+    use ignore::gitignore::GitignoreBuilder;
+    let rel_path = Path::new(rel);
+    let mut dir = repo_root.to_path_buf();
+    let mut comps = rel_path.components().peekable();
+    loop {
+        let gi = dir.join(".gitignore");
+        if gi.is_file() {
+            let mut b = GitignoreBuilder::new(&dir);
+            if b.add(&gi).is_none()
+                && let Ok(m) = b.build()
+            {
+                let sub = rel_path
+                    .strip_prefix(dir.strip_prefix(repo_root).unwrap_or(Path::new("")))
+                    .unwrap_or(rel_path);
+                if [true, false]
+                    .iter()
+                    .any(|&d| m.matched_path_or_any_parents(sub, d).is_ignore())
+                {
+                    return true;
+                }
+            }
+        }
+        match comps.next() {
+            Some(c) if comps.peek().is_some() => dir.push(c),
+            _ => return false,
+        }
+    }
+}
+
 fn load_catalog_bundle_ids(repo_root: &Path, ids: &mut HashSet<String>) {
     let catalog_path = repo_root.join("crates/vox-plugin-catalog/catalog.toml");
     if catalog_path.is_file()
@@ -771,6 +805,17 @@ impl GroundTruthRegistry {
                     .unwrap_or(Path::new(""));
                 let rel = self.repo_root.join(source_parent).join(target);
                 if rel.exists() {
+                    return ResolvedMention {
+                        extracted: mention.clone(),
+                        status: ResolutionStatus::Resolved,
+                        replacement: None,
+                        rationale: None,
+                    };
+                }
+
+                // Build/cache outputs (`dist`, `target`, ...) exist per-environment,
+                // not per-docs; their absence is not a docs deficit.
+                if is_gitignored(&self.repo_root, target) {
                     return ResolvedMention {
                         extracted: mention.clone(),
                         status: ResolutionStatus::Resolved,
@@ -1511,5 +1556,58 @@ mod tests {
                 "expected Rust symbol `{valid_sym}` to resolve"
             );
         }
+    }
+
+    /// Scratch repo with a `.gitignore` of `dist/`; `with_dist` also creates the dir.
+    fn ignore_repo(tag: &str, with_dist: bool) -> (PathBuf, GroundTruthRegistry) {
+        let root = std::env::temp_dir().join(format!(
+            "vox-doc-pipeline-ignore-{tag}-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("crates/x/ui")).unwrap();
+        fs::write(root.join(".gitignore"), "dist/\n").unwrap();
+        if with_dist {
+            fs::create_dir_all(root.join("crates/x/ui/dist")).unwrap();
+        }
+        let reg = GroundTruthRegistry::load(&root).expect("load ground truth");
+        (root, reg)
+    }
+
+    #[test]
+    fn gitignored_missing_path_is_not_a_missing_deficit() {
+        let (root, reg) = ignore_repo("missing", false);
+        let r = reg.resolve_mention(&mk_prescribes_mention(
+            MentionKind::FilePath,
+            "crates/x/ui/dist",
+        ));
+        assert_ne!(
+            r.status,
+            ResolutionStatus::Missing,
+            "build output is environment-dependent"
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn gitignored_existing_path_is_not_missing() {
+        let (root, reg) = ignore_repo("existing", true);
+        let r = reg.resolve_mention(&mk_prescribes_mention(
+            MentionKind::FilePath,
+            "crates/x/ui/dist",
+        ));
+        assert_eq!(r.status, ResolutionStatus::Resolved);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn non_ignored_missing_path_is_still_missing() {
+        let (root, reg) = ignore_repo("control", false);
+        let r = reg.resolve_mention(&mk_prescribes_mention(
+            MentionKind::FilePath,
+            "crates/x/ui/src/gone.rs",
+        ));
+        assert_eq!(r.status, ResolutionStatus::Missing);
+        let _ = fs::remove_dir_all(root);
     }
 }
