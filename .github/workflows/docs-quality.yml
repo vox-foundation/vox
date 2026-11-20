@@ -140,6 +140,7 @@ jobs:
 
       # Informative & Definition-of-Done: analyze PR impact on reader-facing docs and check contract DoD
       - name: Docs PR Impact and Definition-of-Done
+        id: docs_impact
         if: ${{ !cancelled() && steps.build_tools.outcome == 'success' && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -177,14 +178,14 @@ jobs:
       # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.
       - name: TypeScript lint (biome)
         id: biome
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ !cancelled() }}   # needs no cargo-built binary
         run: npx @biomejs/biome@1.9.4 lint --reporter=github
 
       # Hard gate: was continue-on-error.  Markdownlint rules are explicitly
       # configured in .markdownlint.jsonc; no surprise failures from rule changes.
       - name: Markdown lint
         id: markdownlint
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ !cancelled() }}   # needs no cargo-built binary
         run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md"
 
       - name: Install docs-astro deps

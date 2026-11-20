@@ -6741,7 +6741,11 @@
         "ci",
         "llms-verified"
       ],
-      "implicit": true
+      "implicit": false,
+      "title": "Ci Llms-verified",
+      "description_model": "CLI operation `vox ci llms-verified`",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "cli.ci.manifest",
@@ -7216,7 +7220,11 @@
         "ci",
         "readme-assets"
       ],
-      "implicit": true
+      "implicit": false,
+      "title": "Ci Readme-assets",
+      "description_model": "CLI operation `vox ci readme-assets`",
+      "side_effect_class": "read_only",
+      "curated": true
     },
     {
       "capability_id": "cli.ci.release-build",

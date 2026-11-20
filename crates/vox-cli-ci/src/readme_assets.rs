@@ -38,9 +38,10 @@ pub fn violations(name: &str, text: &str) -> Vec<String> {
 pub fn run(root: &Path) -> Result<()> {
     let mut bad = Vec::new();
     for f in FILES {
-        if let Ok(t) = std::fs::read_to_string(root.join(f)) {
-            bad.extend(violations(f, &t));
-        }
+        // A missing or unreadable file must fail the guard, not pass it silently.
+        let t = std::fs::read_to_string(root.join(f))
+            .map_err(|e| anyhow::anyhow!("readme-assets: cannot read {f}: {e}"))?;
+        bad.extend(violations(f, &t));
     }
     if bad.is_empty() {
         println!("readme-assets: ok");
@@ -77,9 +78,20 @@ mod tests {
     #[test]
     fn run_checks_files_in_root() {
         let d = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(d.path().join("docs/src")).unwrap();
+        std::fs::write(d.path().join("docs/src/index.mdx"), "plain").unwrap();
         std::fs::write(d.path().join("README.md"), "<img src=\"x.webp\">").unwrap();
         run(d.path()).unwrap();
         std::fs::write(d.path().join("README.md"), "<img src=\"x.svg\">").unwrap();
         assert!(run(d.path()).is_err());
+    }
+
+    #[test]
+    fn run_fails_when_a_checked_file_is_missing() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("README.md"), "<img src=\"x.webp\">").unwrap();
+        // docs/src/index.mdx is absent: must not report ok.
+        let err = run(d.path()).expect_err("missing index.mdx must fail the guard");
+        assert!(err.to_string().contains("docs/src/index.mdx"), "{err}");
     }
 }

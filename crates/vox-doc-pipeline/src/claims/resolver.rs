@@ -497,9 +497,9 @@ impl GroundTruthRegistry {
                 let full_cmd = op.path.join(" ");
                 let status = op.status.as_deref().unwrap_or("active");
                 if matches!(status, "retired" | "deprecated") {
-                    retired_cli_commands
-                        .entry(full_cmd)
-                        .or_insert_with(|| "vox mens train --backend qlora".to_string());
+                    // The registry records no replacement; an empty string means "retired,
+                    // replacement unknown" (explicit entries above keep theirs via `or_default`).
+                    retired_cli_commands.entry(full_cmd).or_default();
                     continue;
                 }
                 cli_commands.insert(full_cmd);
@@ -930,7 +930,7 @@ impl GroundTruthRegistry {
                     return ResolvedMention {
                         extracted: mention.clone(),
                         status: ResolutionStatus::Retired,
-                        replacement: Some(repl.clone()),
+                        replacement: (!repl.is_empty()).then(|| repl.clone()),
                         rationale: Some(format!("CLI command '{}' is retired/deprecated", cmd_str)),
                     };
                 }
@@ -1040,7 +1040,12 @@ impl GroundTruthRegistry {
                     ResolvedMention {
                         extracted: mention.clone(),
                         status: ResolutionStatus::Retired,
-                        replacement: Some(replacement.replace('-', "_")),
+                        // Keep the symbol path: `vox_mcp::a::B` -> `vox_orchestrator_mcp::a::B`.
+                        replacement: Some(if subpath.is_empty() {
+                            replacement.replace('-', "_")
+                        } else {
+                            format!("{}::{subpath}", replacement.replace('-', "_"))
+                        }),
                         rationale: Some(rationale.to_string()),
                     }
                 } else if matches!(
@@ -1409,6 +1414,54 @@ mod tests {
             "vox-totally-unknown-crate",
         ));
         assert_eq!(unknown.status, ResolutionStatus::Missing);
+    }
+
+    /// A registry-derived retired command has no known replacement: it must not borrow the
+    /// `mens train-uv` one. (The 3 retired ops today are all training commands, so the
+    /// hardcoded text happened to fit; the next retired non-training command would not.)
+    #[test]
+    fn registry_retired_cli_command_has_no_invented_replacement() {
+        let root = std::env::temp_dir().join(format!(
+            "vox-resolver-retired-cli-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        fs::create_dir_all(root.join("contracts/cli")).unwrap();
+        fs::write(
+            root.join("contracts/cli/command-registry.yaml"),
+            "operations:\n- surface: vox-cli\n  path: [oldthing, run]\n  status: deprecated\n- surface: vox-cli\n  path: [newthing]\n  status: active\n",
+        )
+        .unwrap();
+        let registry = GroundTruthRegistry::load(&root).expect("load");
+        let res = registry.resolve_mention(&mk_prescribes_mention(
+            MentionKind::CliCommand,
+            "vox oldthing run",
+        ));
+        fs::remove_dir_all(&root).ok();
+        assert_eq!(res.status, ResolutionStatus::Retired);
+        assert_eq!(
+            res.replacement, None,
+            "no replacement is known for oldthing"
+        );
+    }
+
+    #[test]
+    fn retired_crate_symbol_replacement_keeps_the_symbol_path() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap();
+        let registry = GroundTruthRegistry::load(repo_root).expect("load ground truth");
+        let res = registry.resolve_mention(&mk_prescribes_mention(
+            MentionKind::RustSymbol,
+            "vox_arca::store::Foo",
+        ));
+        assert_eq!(res.status, ResolutionStatus::Retired);
+        assert_eq!(res.replacement.as_deref(), Some("vox_db::store::Foo"));
     }
 
     #[test]
