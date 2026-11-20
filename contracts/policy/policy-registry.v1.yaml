@@ -2240,6 +2240,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.llms-verified
+  domain: ci-gate
+  title: Ci Llms-verified
+  group: CI Gates / llms
+  description: CLI operation `vox ci llms-verified`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.llms-verified
+    detail: vox ci llms-verified
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.manifest
   domain: ci-gate
   title: Ci Manifest
@@ -2845,6 +2861,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.query-all-guard
     detail: vox ci query-all-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.readme-assets
+  domain: ci-gate
+  title: Ci Readme-assets
+  group: CI Gates / readme
+  description: CLI operation `vox ci readme-assets`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.readme-assets
+    detail: vox ci readme-assets
   default_enabled: true
   protected: false
   origin: builtin
