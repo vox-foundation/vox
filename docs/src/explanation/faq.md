@@ -71,7 +71,7 @@ Vox is opinionated about generated outputs, durable workflows, and keeping more 
 ## AI & ML Integration
 
 ### How does Vox support AI agents?
-The repo has native [Model Context Protocol (MCP)](https://modelcontextprotocol.io) integration and a growing set of tool-registry contracts. In the current documentation set, the canonical sources are the MCP registry contract pages and the `vox-mcp` workspace surfaces, not older duplicate reference tables.
+The repo has native [Model Context Protocol (MCP)](https://modelcontextprotocol.io) integration and a growing set of tool-registry contracts. In the current documentation set, the canonical sources are the MCP registry contract pages and the `vox-orchestrator-mcp` workspace surfaces, not older duplicate reference tables.
 
 ### What is Mens, and how do I fine-tune a model?
 Mens is the repo's native model-training lane. The current default production mix is still code-oriented; documentation prose extraction exists, but architecture Q&A is not the default training objective today.
@@ -88,7 +88,7 @@ See [Mens native training SSOT](../reference/mens-training.md), [Mens training d
 An orchestration-layer reasoning protocol (SOP). Before generating or approving code or indexing research findings, Vox uses structured evidence checks and confidence scoring via the MCP and Scientia control plane (`Save to KB` quarantine vs. direct scoped indexing).
 
 ### How do the Federated Knowledge Base & Self-Healing OpenWiki work?
-Vox maintains three isolated knowledge layers (`Vox Baseline` canon, cross-repo `Global Library ~/.vox/library/`, and repo-local `docs/wiki/` or `--read-only` `~/.vox/repos/<id>/`), indexed via Tantivy BM25, HNSW vectors, polyglot Graphify AST cross-edges, and HippoRAG Personalized PageRank. Running `vox ci wiki-sync --polyglot --heal` updates machine-generated tables and diagrams inside `<!-- openwiki:auto:start -->` fences with zero LLM calls while preserving surrounding human prose and staging 4-gate verified semantic prose diffs in `kb_heal_proposals`. See [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx).
+Vox maintains three isolated knowledge layers (`Vox Baseline` canon, cross-repo `Global Library ~/.vox/library/`, and repo-local docs root (`docs/src/` on Vox, else `docs/wiki/` or `docs/`) or `--read-only` `~/.vox/repos/<id>/`), indexed via Tantivy BM25, HNSW vectors, polyglot Graphify AST cross-edges, and HippoRAG Personalized PageRank. Running `vox ci wiki-sync --polyglot --heal` updates machine-generated tables and diagrams inside `<!-- openwiki:auto:start -->` fences with zero LLM calls while preserving surrounding human prose and staging 4-gate verified semantic prose diffs in `kb_heal_proposals`. See [Managing Knowledgebases & OpenWiki](../tutorials/tut-knowledgebase-and-openwiki.mdx).
 
 ### How do Deep Research & Scientia `arXiv.org` publication connect?
 Starting from statistical archetypes and Live KB Prior-Art Preflight, `vox research run` / `ResearchView` runs `Off | Auto | Fast | Deep` synthesis with `+1 Wave Refinement` steering, scoped storage routing (`Index Now` vs. `Save to KB` quarantine), 1-click `Edit in Doc Dock`, and 7-stage scholarly bundle staging (`main.tex`, `references.bib`, `.tar.gz`, digest-bound dual approvals). See [Deep Research & Scientia Publication](../tutorials/tut-deep-research-and-scientia.mdx) and [Publish Scientia Findings](../how-to/how-to-scientia-publication.md).

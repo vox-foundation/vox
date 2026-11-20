@@ -6,7 +6,7 @@ category: "Language Reference"
 schema_type: "TechArticle"
 ---
 
-# VS Code extension ↔ `vox-mcp` compatibility
+# VS Code extension ↔ `vox-orchestrator-mcp` compatibility
 
 ## Single sources of truth
 
@@ -30,7 +30,7 @@ The extension is **not** `onStartupFinished`. It activates when:
 
 **`vox.inlineEdit.reject`** / **`vox.inlineEdit.regenerate`** are primarily CodeLens-driven; they also have **`onCommand`** activation so a bound key or replay does not depend on a prior command.
 
-## Wire aliases (match `vox-mcp` `TOOL_WIRE_ALIASES`)
+## Wire aliases (match `vox-orchestrator-mcp` `TOOL_WIRE_ALIASES`)
 
 - `vox_budget_history` → `vox_cost_history`
 - `vox_model_list` → `vox_list_models`
@@ -69,7 +69,7 @@ MCP currently probes TCP peers only (stdio transport is valid for the daemon pro
 |-------------------|--------|
 | 0.2.x | Expects `ToolResult` JSON envelope unwrapping, `vox_compiler::ast_inspect`, runtime capability strip |
 
-Document the **pinned** `vox` / `vox-mcp` crate version per release in your rollout notes when cutting editor builds.
+Document the **pinned** `vox` / `vox-orchestrator-mcp` crate version per release in your rollout notes when cutting editor builds.
 
 ## Visual / webview regression
 

@@ -25,7 +25,7 @@ and by the `vox ci profile-parity` gate:
 
 | Crate | Reason |
 |-------|--------|
-| `vox-gamify` | Game mechanics (quests/battles/XP) — future: loads dynamically via `vox-plugin-gamify` |
+| `vox-gamify` | Game mechanics (quests/battles/XP) — future: loads dynamically via `vox-gamify` |
 | `vox-gui` | Tauri desktop frontend — separate process, not a CLI dep |
 
 ## Enforcement

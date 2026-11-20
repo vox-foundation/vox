@@ -13,7 +13,7 @@ This document captures **compatibility rules** and **opt-in migration toggles** 
 
 ## Workspace journey store (Codex)
 
-Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`](../../../crates/vox-db/src/lib.rs) via [`connect_workspace_journey_optional`](../../../crates/vox-db/src/workspace_journey_store.rs) (default **`.vox/store.db`**). Env: **`VOX_WORKSPACE_JOURNEY_STORE`**, **`VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL`** ([env SSOT](env-vars.md)). Daemon diagnostics: JSON-RPC method **`orch.workspace_journey`** (bind `repository_id` vs discovered repo).
+Repo-backed **`vox-orchestrator-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`](../../../crates/vox-db/src/lib.rs) via [`connect_workspace_journey_optional`](../../../crates/vox-db/src/workspace_journey_store.rs) (default **`.vox/store.db`**). Env: **`VOX_WORKSPACE_JOURNEY_STORE`**, **`VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL`** ([env SSOT](env-vars.md)). Daemon diagnostics: JSON-RPC method **`orch.workspace_journey`** (bind `repository_id` vs discovered repo).
 
 **Bridge / routing policy:** Vox-first codegen remains the default MCP path (`vox_generate_code`, local inference server for `vox generate`); non-Vox edits stay bounded behind explicit tools and repository policy — see [completion policy SSOT](../archive/research-2026-q1/completion-policy-ssot.md).
 
@@ -35,7 +35,7 @@ Codex is not attached and dependent loops still start. See
 
 ## Ownership: who writes what
 
-| Concern | Embedded MCP (`vox-mcp`) | `vox-orchestrator-d` (daemon) | VoxDb / Turso |
+| Concern | Embedded MCP (`vox-orchestrator-mcp`) | `vox-orchestrator-d` (daemon) | VoxDb / Turso |
 | --- | --- | --- | --- |
 | Session chat transcript (RAM) | Orchestrator [`ContextStore`](../../../crates/vox-orchestrator/src/context/mod.rs) in-process | Same process model per ADR 022 until RPC parity | — |
 | Structured chat turns | `chat_append_workspace_message` + journey envelope v1 | Future `orch.*` parity for remote clients | `conversation_messages`, `conversations` |
@@ -74,7 +74,7 @@ See also [mens SSOT](populi.md) for `VOX_MESH_*` and local registry.
 
 ## Mesh distribution vs single-process embedding
 
-- **Embedding:** Each `vox-mcp` (or `vox dei` CLI) process constructs an in-memory [`Orchestrator`](../../../crates/vox-orchestrator/src/orchestrator.rs). That is “single-process gravity” for **RAM-local** queues and locks.
+- **Embedding:** Each `vox-orchestrator-mcp` (or `vox dei` CLI) process constructs an in-memory [`Orchestrator`](../../../crates/vox-orchestrator/src/orchestrator.rs). That is “single-process gravity” for **RAM-local** queues and locks.
 - **Distribution:** With **`VOX_MESH_ENABLED`**, durable coordination (locks, oplog mirror, A2A inboxes, heartbeats) is backed by **Turso** so **another** MCP or laptop can participate in the same logical mesh. Two nodes = two orchestrator **instances** sharing **one** cross-node SSOT via the DB and HTTP A2A relay — not one magic cluster master in RAM.
 - **Bootstrap SSOT:** [`build_repo_scoped_orchestrator`](../../../crates/vox-orchestrator/src/bootstrap.rs) and [`build_repo_scoped_orchestrator_for_repository`](../../../crates/vox-orchestrator/src/bootstrap.rs) are the shared factory for MCP, CLI, and other embedders so repository id, affinity groups, and memory shard paths stay aligned.
 
@@ -174,7 +174,7 @@ Canonical descriptions for **`VOX_BENCHMARK_TELEMETRY`** / **`VOX_SYNTAX_K_TELEM
 | `VOX_SYNTAX_K_TELEMETRY` | When `1` / `true`, syntax-K benchmark classes append `syntax_k_event` rows via `VoxDb::record_syntax_k_event` (session `syntaxk:<repository_id>`). If unset, falls back to `VOX_BENCHMARK_TELEMETRY`. |
 | `VOX_WORKFLOW_JOURNAL_CODEX_OFF` | When `1` / `true`, skip Codex append for interpreted workflow journal rows. By default, when DB config resolves after `vox workflow run` / `vox mens workflow run` ( **`workflow-runtime`** ), Vox appends versioned workflow journal rows via `VoxDb::record_workflow_journal_entry` (session `workflow:<repository_id>`, metric `workflow_journal_entry`). Rows can include lifecycle events, retry events (`ActivityAttemptRecovered`, `ActivityAttemptFailed`, `ActivityRetryScheduled`), replay events, and per-step payloads (for example `MeshActivity` / `MeshActivitySkipped`) keyed by durable **`run_id`** + **`activity_id`** semantics described in [durable execution](../explanation/expl-durable-execution.md). |
 | `VOX_MESH_MAX_STALE_MS` | Client-side filter for mens node lists in MCP snapshots (see [mens SSOT](populi.md)). |
-| `VOX_MESH_CODEX_TELEMETRY` | When `1` / `true`, append `populi_control_event` rows via `VoxDb::record_populi_control_event` (session `mens:<repository_id>`): after **`vox run`** local registry publish when the CLI was built with **`populi`** (includes `vox-populi`), after **`vox-mcp`** startup publish when mens is enabled, and after MCP **`vox_orchestrator_status`** mens HTTP snapshot when Codex is connected. Implementation: [`vox_db::populi_registry_telemetry`](../../../crates/vox-db/src/populi_registry_telemetry.rs). **Never** stores `VOX_MESH_TOKEN`. |
+| `VOX_MESH_CODEX_TELEMETRY` | When `1` / `true`, append `populi_control_event` rows via `VoxDb::record_populi_control_event` (session `mens:<repository_id>`): after **`vox run`** local registry publish when the CLI was built with **`populi`** (includes `vox-populi`), after **`vox-orchestrator-mcp`** startup publish when mens is enabled, and after MCP **`vox_orchestrator_status`** mens HTTP snapshot when Codex is connected. Implementation: [`vox_db::populi_registry_telemetry`](../../../crates/vox-db/src/populi_registry_telemetry.rs). **Never** stores `VOX_MESH_TOKEN`. |
 | `VOX_MCP_LLM_COST_EVENTS` | Optional override for MCP LLM [`CostIncurred`](../../../crates/vox-orchestrator/src/events.rs) bus events vs Codex-only accounting; see [Model Routing](../how-to/how-to-model-routing.md). |
 | `VOX_REPOSITORY_ROOT` | Optional directory for `repository_id` discovery in benchmark telemetry (and other CLI paths that adopt the same pattern); align with MCP’s discovered repo root when subprocess CWD differs. |
 
@@ -182,7 +182,7 @@ Canonical descriptions for **`VOX_BENCHMARK_TELEMETRY`** / **`VOX_SYNTAX_K_TELEM
 
 Optional **`[mens]`** in `Vox.toml` merges mens scope/URL/labels for CLI and MCP (see [mens SSOT](populi.md)); **env wins** per field when set.
 
-Effective Socrates thresholds still merge from `vox-socrates-policy` with optional overrides in `OrchestratorConfig::socrates_policy` — no literal drift outside the policy crate + merge logic.
+Effective Socrates thresholds still merge from `vox-eval` with optional overrides in `OrchestratorConfig::socrates_policy` — no literal drift outside the policy crate + merge logic.
 
 ## Deprecation / compatibility matrix (current)
 

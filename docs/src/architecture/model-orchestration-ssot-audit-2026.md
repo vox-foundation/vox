@@ -370,7 +370,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 
 ### E. Secrets & decentralized secret distribution
 
-**FIX-41. Fix `OPENAI_API_KEY` violation in `vox-schola`.**
+**FIX-41. Fix `OPENAI_API_KEY` violation in `vox-ml-cli`.**
 - *Problem.* `crates/vox-schola/src/curator.rs` reads `OPENAI_API_KEY` directly via `std::env::var`. Violates `AGENTS.md:58`.
 - *Operation.* Replace with `vox_secrets::resolve_secret(SecretId::OpenaiApiKey)?`. Delete the `env::var` line. Add a unit test verifying the call fails open in `Profile::Dev` when the secret is missing.
 - *Success.* `vox ci secret-env-guard` passes.

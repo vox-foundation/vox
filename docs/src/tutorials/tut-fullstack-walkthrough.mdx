@@ -194,7 +194,7 @@ fn main() to Result[str] {
 
 ## Keep Code &amp; Documentation Synchronized with OpenWiki
 
-Once your full-stack `.vox` app grows beyond a single module, run `vox ci wiki-sync --polyglot --write` to project your `table Ticket` schemas, `server` handlers, React `component` surfaces, and `tool` MCP endpoints into a 5-layer OpenWiki inside `docs/wiki/`. Machine-generated interface tables stay inside `<!-- openwiki:auto:start -->` fences so your narrative design docs are preserved across refactors, while Tier-1 self-healing (`--heal`) keeps every `#Lstart-Lend` line anchor accurate.
+Once your full-stack `.vox` app grows beyond a single module, run `vox ci wiki-sync --polyglot --write` to project your `table Ticket` schemas, `server` handlers, React `component` surfaces, and `tool` MCP endpoints into a 5-layer OpenWiki inside your repo's docs root (`docs/openwiki/`, or `docs/src/openwiki/` when `docs/src/` exists). Machine-generated interface tables stay inside `<!-- openwiki:auto:start -->` fences so your narrative design docs are preserved across refactors, while Tier-1 self-healing (`--heal`) keeps every `#Lstart-Lend` line anchor accurate.
 
 ---
 

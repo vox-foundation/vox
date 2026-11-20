@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # Codex HTTP API
 
-Rust implementation surfaces live in **`vox-db`** (Codex schema, readiness, store ops). There is **no** separate `vox-codex-api` workspace crate; operators integrate HTTP routers built on **`vox_db`** types (see OpenAPI below).
+Rust implementation surfaces live in **`vox-db`** (Codex schema, readiness, store ops). There is **no** separate `vox-db` workspace crate; operators integrate HTTP routers built on **`vox_db`** types (see OpenAPI below).
 
 ## SSOT
 

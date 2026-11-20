@@ -271,7 +271,7 @@ are excluded from the autonomous-completion loop.*
 ### 3.3 Performance & Efficiency
 - **[CR-E1] Cold Start**: `vox run --interp` initializes + executes Hello World < 50ms. `verify_cmd`: `vox audit --gate cr-e1` · `artifact_path`: `contracts/reports/perf/cr-e1/<UTC>.json` · `if_failing`: profile interp init (currently p99 = 0.25ms = met).
 - **[CR-E2] Bundle Size**: Marquee bundle (React + TanStack) ≤ 800KB gzip. `verify_cmd`: `vox audit --gate cr-e2` · `artifact_path`: `contracts/reports/perf/cr-e2/<UTC>.json` · `if_failing`: add the build-time bundle gate in `vox build`.
-- **[CR-E3] Training Parity**: `vox-populi` training reaches loss parity with reference PyTorch/LoRA on the `vox-lang` corpus. `verify_cmd`: `vox audit --gate cr-e3` · `artifact_path`: `contracts/reports/perf/cr-e3/<UTC>.json` · `if_failing`: tune the native training loop · **`external_infra: true`** (GPU).
+- **[CR-E3] Training Parity**: `vox-populi` training reaches loss parity with reference PyTorch/LoRA on the `vox-compiler` corpus. `verify_cmd`: `vox audit --gate cr-e3` · `artifact_path`: `contracts/reports/perf/cr-e3/<UTC>.json` · `if_failing`: tune the native training loop · **`external_infra: true`** (GPU).
 
 ### 3.4 Agentic DX
 - **[CR-D1] Planning Mode Fidelity**: ≥ 85% multi-step "Wave 2" plan success without intervention (harness = [CR-L4]). `verify_cmd`: `vox audit --gate plan-fidelity` · `artifact_path`: `contracts/reports/plan-fidelity/<UTC>.json` · `if_failing`: port the refinement loop; corpus §4.3 (currently 0.40 vs 0.85).

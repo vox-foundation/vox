@@ -22,7 +22,7 @@ schema_type: "TechArticle"
 
 **Do not** assume root `docker-compose.yml` and `infra/coolify/docker-compose.yml` are interchangeable: they target **different workloads** (MCP vs Codex API template). See [Codex BaaS](../archive/research-2026-q1/codex-baas.md) and [infra/coolify/README.md](../adr/index.md).
 
-Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` and set `VOX_ORCHESTRATOR_DAEMON_SOCKET` on MCP to the daemon TCP endpoint. Use `VOX_MCP_ORCHESTRATOR_RPC_READS=1` (status-tool read pilot) only when both services share the same repo/db context and startup probe confirms matching `repository_id`.
+Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-orchestrator-mcp` and set `VOX_ORCHESTRATOR_DAEMON_SOCKET` on MCP to the daemon TCP endpoint. Use `VOX_MCP_ORCHESTRATOR_RPC_READS=1` (status-tool read pilot) only when both services share the same repo/db context and startup probe confirms matching `repository_id`.
 
 ## OCI image (repo `Dockerfile`)
 
@@ -34,7 +34,7 @@ Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` a
 ## Environment SSOT (Compose-friendly)
 
 - **Codex / Turso:** `VOX_DB_URL`, `VOX_DB_TOKEN`, `VOX_DB_PATH` — [env-vars SSOT](env-vars.md), [ADR 004](../adr/004-codex-arca-turso-ssot.md).
-- **Mens:** full `VOX_MESH_*` table — [mens SSOT](populi.md). Optional **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** for MCP to read mens nodes (see [`examples/mens-compose.yml`](../../../docker-compose.yml)). With a client-suitable URL, **`vox-mcp`** also **HTTP join/heartbeat** to the control plane (see mens SSOT **`VOX_MESH_HTTP_*`**). **Overlay / WAN personal clusters:** [Populi overlay runbook](../operations/populi-overlay-personal-cluster-runbook.md).
+- **Mens:** full `VOX_MESH_*` table — [mens SSOT](populi.md). Optional **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** for MCP to read mens nodes (see [`examples/mens-compose.yml`](../../../docker-compose.yml)). With a client-suitable URL, **`vox-orchestrator-mcp`** also **HTTP join/heartbeat** to the control plane (see mens SSOT **`VOX_MESH_HTTP_*`**). **Overlay / WAN personal clusters:** [Populi overlay runbook](../operations/populi-overlay-personal-cluster-runbook.md).
 - **Optional mens env block (one text SSOT):** [`infra/containers/vox-compose-populi-environment.block.yaml`](../../../infra/containers/vox-compose-populi-environment.block.yaml) — embedded into generated Compose in `vox-container`; keep [`examples/mens-compose.yml`](../../../docker-compose.yml) semantically aligned (comments in that file point here).
 - **Inference / mobile:** `VOX_INFERENCE_PROFILE` and LAN/cloud patterns — [mobile / edge AI SSOT](mobile-edge-ai.md) (phones do **not** run this `Dockerfile`).
 
@@ -76,7 +76,7 @@ When teams need phone-based project management:
 
 - Run Vox services on a remote host (Docker/Compose, VM, or bare-metal).
 - Expose a hardened network control plane for bounded operations from mobile clients.
-- Front the optional MCP HTTP gateway with a trusted reverse proxy and TLS termination; keep `vox-mcp` itself private-bind where possible.
+- Front the optional MCP HTTP gateway with a trusted reverse proxy and TLS termination; keep `vox-orchestrator-mcp` itself private-bind where possible.
 - For strict proxy signaling, pair `VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS=1` with a proxy-set `X-Forwarded-Proto: https`; only trust forwarded client IPs when ingress is fully controlled.
 - Keep repository/toolchain state on the host; mobile clients should not be expected to run Cargo/git/`vox` locally.
 

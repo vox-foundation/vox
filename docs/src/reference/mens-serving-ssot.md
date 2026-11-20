@@ -11,7 +11,7 @@ schema_type: "TechArticle"
 
 ## What this page is for
 
-After **`vox mens train`** (Candle QLoRA, default), the **supported local inference server** is **`vox mens serve --model <run_dir>`**. This runs an in-process Axum server built into `vox-ml-cli`, gated behind the **`execution-api`** cargo feature — there is no standalone `vox-schola` binary in this workspace, so a build without `execution-api` cannot serve locally at all (rebuild with `cargo build -p vox-ml-cli --release --features gpu,execution-api,mens-candle-cuda`, swapping the backend plugin feature for the one matching your host). It loads the run directory (`candle_qlora_adapter.safetensors`, `tokenizer.json`, shards) and exposes:
+After **`vox mens train`** (Candle QLoRA, default), the **supported local inference server** is **`vox mens serve --model <run_dir>`**. This runs an in-process Axum server built into `vox-ml-cli`, gated behind the **`execution-api`** cargo feature — there is no standalone `vox-ml-cli` binary in this workspace, so a build without `execution-api` cannot serve locally at all (rebuild with `cargo build -p vox-ml-cli --release --features gpu,execution-api,mens-candle-cuda`, swapping the backend plugin feature for the one matching your host). It loads the run directory (`candle_qlora_adapter.safetensors`, `tokenizer.json`, shards) and exposes:
 
 - **`GET /health`** — liveness
 - **`GET /ready`** — readiness

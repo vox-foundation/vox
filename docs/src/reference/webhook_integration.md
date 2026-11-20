@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 
 # Vox Webhook Integration
 
-The `vox-webhook` crate provides a lightweight HTTP gateway for receiving events from external services and routing them into the orchestrator.
+The `vox-orchestrator-mcp` crate provides a lightweight HTTP gateway for receiving events from external services and routing them into the orchestrator.
 
 ## Architecture
 

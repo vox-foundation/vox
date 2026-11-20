@@ -33,7 +33,7 @@ Generated defaults snapshot: [Mens train defaults (generated)](mens-train-defaul
 | Path | Train (CLI) | Merge | Serve in-tree |
 |------|-------------|-------|----------------|
 | **Candle QLoRA** | `vox mens train --backend qlora --tokenizer hf …` | **`vox mens merge-qlora`** / **`vox schola merge-qlora`** (alias `merge-adapter`) → f32 subset shards (optional external vLLM/Ollama/HF) | **Yes (local)** — **`vox-schola serve --model <run_dir>`** or **`vox mens serve --model <run_dir>`** (OpenAI + Ollama-shaped HTTP, including `/api/generate` for Ludus/orchestrator). Merged safetensors subset is **not** loaded by Schola. |
-| **Burn LoRA** | **Not** via `schola train` dispatch (use historical/legacy flows if you still maintain Burn checkpoints) | `vox mens merge-weights` → `model_merged.bin` | **Yes** — **`vox mens serve`** with **`execution-api`** + **`gpu`**: Burn checkpoints (`*.bin` / merged). This is **not** the QLoRA `vox-schola` path above. |
+| **Burn LoRA** | **Not** via `schola train` dispatch (use historical/legacy flows if you still maintain Burn checkpoints) | `vox mens merge-weights` → `model_merged.bin` | **Yes** — **`vox mens serve`** with **`execution-api`** + **`gpu`**: Burn checkpoints (`*.bin` / merged). This is **not** the QLoRA `vox-ml-cli` path above. |
 
 ## External serving is a supported lane
 
@@ -98,7 +98,7 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 | **`vox-populi`** `LoraTrainingConfig` | `tensor/training_config.rs` (`MensTokenizerMode`, provenance/trajectory knobs). |
 | **`vox train`** | Legacy: **`--provider local`** **spawns** **`vox mens train`** with **`--data-mode strict`** (stale fingerprint → blocking refresh, then train) and a default 4080-class QLoRA recipe (see `crates/vox-cli/src/commands/ai/train.rs`). **`--native`** uses the old Burn scratch trainer when built with **`mens-dei`**. Together remote unchanged. |
 | **`vox mens train-uv`** | **Retired** — bails; use **`vox mens train --backend qlora`**. |
-| **`vox-schola train`** | When `vox` is discoverable (`VOX_EXE`, sibling of `vox-schola`, or `PATH`), **`train` forwards to `vox mens train`** with the same QLoRA flags (set **`VOX_SCHOLA_FORWARD=never`** to run the standalone schola trainer; **`VOX_SCHOLA_FORWARD=always`** requires `vox`). |
+| **`vox-schola train`** | When `vox` is discoverable (`VOX_EXE`, sibling of `vox-ml-cli`, or `PATH`), **`train` forwards to `vox mens train`** with the same QLoRA flags (set **`VOX_SCHOLA_FORWARD=never`** to run the standalone schola trainer; **`VOX_SCHOLA_FORWARD=always`** requires `vox`). |
 
 ## Training data mode (`--data-mode`)
 
@@ -112,7 +112,7 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 - **Mix + train input**: `vox_corpus::training::mix_prepare` — refresh `mens/config/mix.yaml`, optional sync of `data_dir/train.jsonl` into the mix **primary** source path (workspace-relative), resolve mixed output relative to **workspace root** (not mutable CWD). Used by `vox mens train` (`schola/train/gpu.rs`), `vox-schola train` (or forwarded `vox mens train`), and the **Mix** stage of `vox mens pipeline`.
 - **Pipeline / stale-regen**: after a stale fingerprint is detected (both modes, unless `VOX_TRAIN_SKIP_CORPUS_MIX` / skip env applies), `train_arm` runs pipeline + `copy_mix_output_to_train_jsonl` and may set `VOX_TRAIN_SKIP_CORPUS_MIX=1`. **`strict`** requires the refresh path to succeed; **`auto-refresh`** tolerates some failures with stderr warnings.
 - **Hugging Face base weights**: `vox_populi::mens::hub::download_model_blocking` — shared blocking download used by CLI GPU train and `vox-schola train` (same behavior as the previous per-call-site `Runtime::block_on` threads).
-- **Normative CLI for operators**: **`vox mens train`**; **`vox-schola`** defaults to forwarding into `vox` when present (see table above).
+- **Normative CLI for operators**: **`vox mens train`**; **`vox-ml-cli`** defaults to forwarding into `vox` when present (see table above).
 
 ## Documentation corpus lane
 
@@ -128,7 +128,7 @@ Documentation extraction exists, but keep the current boundaries explicit:
 
 ## Who / when
 
-- **Implementers**: `vox-populi` (`mens::tensor`, `mens::hub`), `vox-cli` (`commands/schola/train/*`, `commands/mens/populi/*`, `commands/mens/pipeline.rs`), `vox-schola` (`src/train.rs`), corpus preflight + mix (`vox-corpus::training`, `vox-corpus::training::mix_prepare`).
+- **Implementers**: `vox-populi` (`mens::tensor`, `mens::hub`), `vox-cli` (`commands/schola/train/*`, `commands/mens/populi/*`, `commands/mens/pipeline.rs`), `vox-ml-cli` (`src/train.rs`), corpus preflight + mix (`vox-corpus::training`, `vox-corpus::training::mix_prepare`).
 - **When to touch**: training knobs, telemetry keys, CLI flags, qlora-rs / Candle versions, merge/export behavior, or corpus/mix/train-input resolution.
 
 ## Where (files)
@@ -236,7 +236,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 1. **Compile**: `cargo check -p vox-cli --features gpu` (Burn + CPU QLoRA baseline). For **CUDA QLoRA on 4080**: `cargo check -p vox-cli --features gpu,mens-candle-cuda` (release build: ensure **`vox.exe`** is not locked by another process on Windows).
 2. **CLI/registry drift**: `vox ci command-compliance` (or `cargo run -p vox-cli --features gpu -- ci command-compliance`).
 3. **Training acceptance profile**: `cargo run -p vox-cli -- ci mesh-gate --profile training` (alias: `mens-gate`; see [mens-finetune-acceptance-runbook.md](../archive/research-2026-q1/mens-finetune-acceptance-runbook.md)).
-4. **Language/tooling confidence** (orthogonal to trainer): `cargo check --workspace`, `cargo test` for areas you touched; MCP **`vox-mcp`** and orchestrator paths assume a healthy **`vox`** binary and repo root — see [AGENTS.md](../../../AGENTS.md) § orchestration / capability registry.
+4. **Language/tooling confidence** (orthogonal to trainer): `cargo check --workspace`, `cargo test` for areas you touched; MCP **`vox-orchestrator-mcp`** and orchestrator paths assume a healthy **`vox`** binary and repo root — see [AGENTS.md](../../../AGENTS.md) § orchestration / capability registry.
 5. **Data**: canonical **`train.jsonl`** under **`--data-dir`** (often **`target/dogfood`** after corpus mix). Operator mix (**`vox mens corpus mix --config mens/config/mix.yaml`**) is **strict by default**: every non-optional `mens/config/mix.yaml` source must exist and emit at least one row. Use **`--allow-missing-sources`** for the old warn-only behavior (automation / first-time trees). A JSON report is written next to the mix output (**`*.mix_report.json`**, same stem as the mixed JSONL) with per-source weights, line counts, and output share. Optional: **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the JSONL is already final.
 6. **Choose artifact + inference**: **Burn** → **`merge-weights`** → **`vox mens serve`** (**`execution-api`**); **QLoRA** → **`vox-schola serve`** / **`vox mens serve --model <run_dir>`** (local), or **`merge-qlora`** → external **vLLM / Ollama / HF** for merged shards.
 7. **Long runs (detached)**: **`--log-dir`** always re-invokes the current binary with logs redirected and the parent exiting immediately. **`--background`** alone does the same using the default log directory (**`<repo>/mens/runs/logs`** when the workspace root is known, else **`mens/runs/logs`** relative to the process cwd). On Windows, spawns use **`CREATE_BREAKAWAY_FROM_JOB`** so IDE/agent job objects are less likely to tear down the trainer when the parent exits. **`vox mens train`** behaves the same (**`--background`** defaults logs to **`mens/runs/logs`**). Monitor with **`Get-Content …\train_*.log -Wait -Tail 25`** or **`tail -f`**. Gate wrappers: **`scripts/populi/release_training_gate.ps1`** (training profile), **`scripts/mens_release_gate.ps1`** (m1m4) — isolated `target` + temp **`vox.exe`** copy to avoid Windows file locks during nested **`cargo`**.
@@ -267,7 +267,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 
     | Variable | Default | Effect |
     |---|---|---|
-    | `VOX_MENS_DOMAIN` | `vox-lang` | Adapter domain (`rust-expert`, `agents`, …) |
+    | `VOX_MENS_DOMAIN` | `vox-compiler` | Adapter domain (`rust-expert`, `agents`, …) |
     | `VOX_MENS_EPOCHS` | `3` | Training epoch count |
     | `VOX_MENS_SKIP_MIX` | unset | `1`/`true` → skip Step 1 corpus mix |
     | `VOX_MENS_SKIP_EVAL` | unset | `1`/`true` → skip Step 2 pre-flight gate |

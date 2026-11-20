@@ -147,7 +147,7 @@ Vox runs technical investigation as a stateful verification loop: queries check 
 
    | Action | Target Scope | Searchable Immediately? | When to Use |
    |---|---|---|---|
-   | **`Index Now` (`Repo-Local KB`)** | `docs/wiki/` in the active repo | Yes — instant BM25 + HNSW + Graphify recall | Verified architecture notes, benchmark takeaways, repo decisions |
+   | **`Index Now` (`Repo-Local KB`)** | the active repo's docs root (`docs/src/` on Vox) | Yes — instant BM25 + HNSW + Graphify recall | Verified architecture notes, benchmark takeaways, repo decisions |
    | **`Index Now` (`Global Library`)** | `~/.vox/library/` across all repos | Yes — available in every onboarded repo | Cross-project design patterns, security checklists, tooling notes |
    | **`Save to KB`** | Socrates Findings Quarantine Inbox | No — awaits human review &amp; promotion | Unverified external web summaries requiring manual citation audit |
 

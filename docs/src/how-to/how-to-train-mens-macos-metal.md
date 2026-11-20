@@ -33,7 +33,7 @@ vox plugin doctor
 ```
 
 `execution-api` is required for in-process `vox mens serve` (there is no
-`vox-schola` binary in this workspace). `vox mens train --model …` downloads
+`vox-ml-cli` binary in this workspace). `vox mens train --model …` downloads
 the hub checkpoint via hf-hub before training (there is no separate
 `vox mens download` subcommand).
 

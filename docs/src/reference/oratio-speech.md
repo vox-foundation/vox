@@ -17,11 +17,11 @@ schema_type: "TechArticle"
 
 | Piece | Role |
 |--------|------|
-| **`vox-oratio`** | Candle Whisper, symphonia decode, `transcribe_path`, `eval` (WER/CER), env `VOX_ORATIO_*`. |
+| **`vox-speech`** | Candle Whisper, symphonia decode, `transcribe_path`, `eval` (WER/CER), env `VOX_ORATIO_*`. |
 | **`vox-cli`** `vox oratio` | CLI transcription + status + sessionized `listen` flow (Enter-or-timeout, correction profile, route mode). |
-| **`vox-mcp`** | `vox_oratio_transcribe` (thin STT + refine), `vox_oratio_listen` (session + route + optional LLM polish), `vox_oratio_status` (+ JSON schemas in tool registry). |
+| **`vox-orchestrator-mcp`** | `vox_oratio_transcribe` (thin STT + refine), `vox_oratio_listen` (session + route + optional LLM polish), `vox_oratio_status` (+ JSON schemas in tool registry). |
 | **`vox-vscode`** | **onCommand** for contributed **`vox.*`** commands + **onView** sidebar + **`*.vox`**; Oratio palette + Explorer (audio, case-insensitive ext); relative MCP `path` or `.vox/tmp/` copy; voice → WAV. See [speech capture architecture](speech-capture-architecture.md). |
-| **`vox-db` + HTTP/OpenAPI** | Codex/audio routes per [`codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) — no `vox-codex-api` package (see [Codex HTTP API](codex-http-api.md)). |
+| **`vox-db` + HTTP/OpenAPI** | Codex/audio routes per [`codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) — no `vox-db` package (see [Codex HTTP API](codex-http-api.md)). |
 | **Typeck / codegen** | Builtin **`Speech`**, **`Speech.transcribe(path) → Result[str]`** → `vox_oratio::transcribe_path` + refined text. |
 | **Corpus mix** | `record_format: asr_refine` + schema **`mens/schemas/asr_refine_pairs.schema.json`**. |
 | **LSP** | Hover for **`Speech`**; **`transcribe`** only when the line looks like **`Speech.transcribe`** (`builtin_hover_markdown_in_line`). |
@@ -30,7 +30,7 @@ schema_type: "TechArticle"
 
 ## Who / when
 
-- **Implementers**: **`vox-compiler`** (typeck, codegen), `vox-lsp`, `vox-cli`, `vox-mcp`, `vox-vscode`, `vox-db`, `vox-corpus`.
+- **Implementers**: **`vox-compiler`** (typeck, codegen), `vox-lsp`, `vox-cli`, `vox-orchestrator-mcp`, `vox-vscode`, `vox-db`, `vox-corpus`.
 - **When to touch**: any change to Oratio env vars, transcript shape, HTTP contract, or builtin `Speech` API.
 
 ## Where (files)
@@ -57,7 +57,7 @@ schema_type: "TechArticle"
 - **Session payloads** (CLI `listen`, MCP `vox_oratio_transcribe` / `vox_oratio_listen`, `vox-tools` direct executor) support: `timeout_ms` (UX / capture contract), `max_duration_ms` (session wall cap), optional `inference_deadline_ms` (transcribe+refine post-hoc cap), `heartbeat_ms`, `language_hint`, `profile` (`conservative|balanced|aggressive`), `route_mode` (`none|tool|chat|orchestrator`), `debug_parser_payload`. Responses may include **`language_diagnostics`**, **`deadline_diagnostics`**, and MCP **`runtime_config`** when debugging.
 - **n-best transcripts**: MCP `vox_oratio_transcribe` and `vox_oratio_listen` expose optional **`n_best`** (best-first `string[]`) when contextual reranking yields multiple candidates; the listen response also includes the same list on the nested **`session`** object. Omitted when only one hypothesis survives rerank.
 - **Routing session memory** (tool/chat/orchestrator classifier state): bounded with TTL + max session keys — override with **`VOX_ORATIO_ROUTING_SESSION_CAP`** (default 4096, floor 64) and **`VOX_ORATIO_ROUTING_SESSION_TTL_SECS`** (default 86400s, floor 60s).
-- **HTTP transcribe body**: `{"path":"relative-or-absolute","language_hint":null}`; multipart upload: `POST /api/audio/transcribe/upload` with field **`audio`** or **`file`** (see `vox-audio-ingress`, `contracts/codex-api.openapi.yaml`).
+- **HTTP transcribe body**: `{"path":"relative-or-absolute","language_hint":null}`; multipart upload: `POST /api/audio/transcribe/upload` with field **`audio`** or **`file`** (see `vox-speech`, `contracts/codex-api.openapi.yaml`).
 - **HTTP streaming WS**: `GET /api/audio/transcribe/stream` (WebSocket). Binary messages are PCM `s16le` mono @ 16 kHz chunks; text control messages are JSON (`{"op":"set_language","language_hint":"en"}`, `{"op":"commit"}`, `{"op":"cancel"}`). Server emits JSON text events `ready`, `partial`, `final`, `error`.
 - **Mix YAML**: optional per-source `record_format: asr_refine`.
 
@@ -65,7 +65,7 @@ schema_type: "TechArticle"
 
 - **Speech-to-code pipeline** (MCP validation parity, corpus `speech_to_code`, KPI contracts): [`speech-to-code-pipeline.md`](speech-to-code-pipeline.md).
 - **Native fine-tuning** (Burn LoRA / `vox mens train`): [`mens-training.md`](mens-training.md).
-- **Mens chat tool allowlist**: `vox-tools` module **`mens_chat`** (`chat_tool_definitions` / `execute_tool_calls`), intersecting `vox-capability-registry` with `DirectToolExecutor` — **same MCP names** as `vox-mcp`. Callers (CLI, daemons, tests) import `vox_tools::mens_chat` when they need OpenAI-style tool JSON or in-process execution.
+- **Mens chat tool allowlist**: `vox-tools` module **`mens_chat`** (`chat_tool_definitions` / `execute_tool_calls`), intersecting `vox-capability-registry` with `DirectToolExecutor` — **same MCP names** as `vox-orchestrator-mcp`. Callers (CLI, daemons, tests) import `vox_tools::mens_chat` when they need OpenAI-style tool JSON or in-process execution.
 
 ## Out of scope / deprecated
 

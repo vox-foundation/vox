@@ -13,7 +13,7 @@ schema_type: "HowTo"
 
 Vox uses a **dynamic OpenRouter catalog** as the primary cloud model source, with **provider policy** enforced in shipped surfaces via in-tree helpers (for example `vox doctor` under `--features codex`) and **MCP / `vox-orchestrator-d`** for full multi-agent routing. The **`vox-orchestrator`** crate is the routing SSOT and ships both the library used by MCP and the **`vox-orchestrator-d`** daemon binary (see [`crates/vox-orchestrator/Cargo.toml`](../../../crates/vox-orchestrator/Cargo.toml)).
 
-Usage statistics and BYOK-style limits are persisted to **Codex** (Turso via `vox-package` / `vox-db`) where wired; legacy docs may say `vox-arca` for the same storage plane.
+Usage statistics and BYOK-style limits are persisted to **Codex** (Turso via `vox-package` / `vox-db`) where wired; legacy docs may say `vox-db` for the same storage plane.
 
 For full runtime architecture and operational rollout details, also read:
 
@@ -129,7 +129,7 @@ Tools `vox_set_active_model` and `vox_get_active_model` pin the model used by `v
 
 ### Route telemetry
 
-Structured logs for route telemetry are emitted from the **daemon / MCP** implementation; use `RUST_LOG` filters documented for the binary you run (`vox-mcp`, `vox-orchestrator-d`, etc.).
+Structured logs for route telemetry are emitted from the **daemon / MCP** implementation; use `RUST_LOG` filters documented for the binary you run (`vox-orchestrator-mcp`, `vox-orchestrator-d`, etc.).
 
 ```text
 # Pseudocode shape (concrete types live in the orchestrator daemon and MCP)
