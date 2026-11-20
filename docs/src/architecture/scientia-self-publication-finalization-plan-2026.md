@@ -95,14 +95,14 @@ implementation plan.**
 
 | Stage | Technique | Primary source | Vox crate |
 |---|---|---|---|
-| Verifiability gate | VeriScore | [arXiv 2406.19276](https://arxiv.org/abs/2406.19276) | new `vox-doc-pipeline` |
-| Atomic decomposition | FActScore + SciClaim tuple `(var, rel, var, qual)` | [arXiv 2305.14251](https://arxiv.org/abs/2305.14251); [arXiv 2109.10453](https://arxiv.org/abs/2109.10453) | `vox-doc-pipeline` |
+| Verifiability gate | VeriScore | [arXiv 2406.19276](https://arxiv.org/abs/2406.19276) | new `vox-claim-extractor` |
+| Atomic decomposition | FActScore + SciClaim tuple `(var, rel, var, qual)` | [arXiv 2305.14251](https://arxiv.org/abs/2305.14251); [arXiv 2109.10453](https://arxiv.org/abs/2109.10453) | `vox-claim-extractor` |
 | Constrained emission | XGrammar pushdown automaton | [mlc-ai/xgrammar](https://github.com/mlc-ai/xgrammar) | existing [vox-constrained-gen](../../../crates/vox-constrained-gen/) (production-grade) |
-| Span integrity | SciClaim span supervision | [arXiv 2109.10453](https://arxiv.org/abs/2109.10453) | `vox-doc-pipeline` |
+| Span integrity | SciClaim span supervision | [arXiv 2109.10453](https://arxiv.org/abs/2109.10453) | `vox-claim-extractor` |
 | Single-model end-to-end | SciClaims architecture | [arXiv 2503.18526](https://arxiv.org/abs/2503.18526) | reuse [vox-actor-runtime/mens.rs](../../../crates/vox-actor-runtime/src/mens.rs) |
 | Grounded verification | MiniCheck-FT5 (770M; GPT-4-quality at 400× cost) | [arXiv 2404.10774](https://arxiv.org/abs/2404.10774); [Liyan06/MiniCheck](https://github.com/Liyan06/MiniCheck) | new dependency; ship as plugin |
-| Calibrated abstention | Temperature-scale logits; ABSTAIN below τ | [PMC10919922](https://pmc.ncbi.nlm.nih.gov/articles/PMC10919922/) | `vox-doc-pipeline` |
-| Word-level hallucination tagging | RAGTruth taxonomy | [arXiv 2401.00396](https://arxiv.org/abs/2401.00396) | `vox-doc-pipeline` |
+| Calibrated abstention | Temperature-scale logits; ABSTAIN below τ | [PMC10919922](https://pmc.ncbi.nlm.nih.gov/articles/PMC10919922/) | `vox-claim-extractor` |
+| Word-level hallucination tagging | RAGTruth taxonomy | [arXiv 2401.00396](https://arxiv.org/abs/2401.00396) | `vox-claim-extractor` |
 
 Hard rule: no T1 → T2 promotion without VeriScore + atomic + span-bounded +
 MiniCheck-verified + calibrated. SciFact-Open ([arXiv 2210.13777](https://arxiv.org/abs/2210.13777))
@@ -260,7 +260,7 @@ prereg signature + analysis-code commit hash; any deviation surfaces as
 | New crate | Layer | Purpose |
 |---|---|---|
 | `vox-research-events` | L1 | Typed event bus types + `PreregistrationV1` + `ResearchEventEmitter` trait. ≥3 consumers (orchestrator, publisher, gamify, ingest). |
-| `vox-doc-pipeline` | L2 | VeriScore + atomic + span-bounded + MiniCheck pipeline. No async DB; isolated unit-test surface. |
+| `vox-claim-extractor` | L2 | VeriScore + atomic + span-bounded + MiniCheck pipeline. No async DB; isolated unit-test surface. |
 | `vox-nanopub` | L2 | TriG emit + ed25519 sign + Nanopub Network publish. Reuses vox-crypto. |
 | `vox-prereg` | L2 | Pre-registration object, signing, deviation detection. |
 | `vox-ro-crate` | L2 | RO-Crate 1.2 builder. |
@@ -288,9 +288,9 @@ end-to-end with stub claim extractor.
 
 ### Phase 1 — The extractor (T1 → T2 promotion) (3 wk) — **Complete**
 
-> Status: **Complete** 2026-05-09. `vox-doc-pipeline` shipped; SciFact-Open mini-split F1=1.000 (gate ≥0.65 ✓).
+> Status: **Complete** 2026-05-09. `vox-claim-extractor` shipped; SciFact-Open mini-split F1=1.000 (gate ≥0.65 ✓).
 
-- `vox-doc-pipeline` crate: SciClaims architecture, VeriScore atomicity,
+- `vox-claim-extractor` crate: SciClaims architecture, VeriScore atomicity,
   XGrammar JSON envelope, span integrity check, MiniCheck verifier.
 - Vendor MiniCheck-FT5 (770M, T5) as a Vox plugin.
 - Calibrated abstention (temperature-scaled logits; ABSTAIN below τ).

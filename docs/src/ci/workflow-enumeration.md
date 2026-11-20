@@ -29,7 +29,7 @@ schema_type: "TechArticle"
 > **GitLab mirror retired (2026-06-03).** The `.gitlab-ci.yml` mirror that
 > once tracked these Rust guards, tests, docs, and ML jobs has been **deleted**;
 > GitHub Actions (`.github/workflows/`) is the sole CI surface and GitLab CI is
-> no longer a supported target. The GitLab `vox-cli-ci` job listing and the
+> no longer a supported target. The GitLab `vox-ci-guards` job listing and the
 > GitLab↔GitHub job-parity table that previously lived here are gone with it.
 
 `vox-workflow-runtime` tests also validate representative interpreted journal event rows against `contracts/workflow/workflow-journal.v1.schema.json` (including retry and mesh event families across feature modes), so CI catches v1 contract drift in both event shape and replay paths. The compose smoke lanes (`mens-compose-config`, `docker-vox-image-smoke`) live in `ci.yml`; see [deployment compose SSOT](../reference/deployment-compose.md).

@@ -21,7 +21,7 @@ schema_type: "TechArticle"
 | **`vox-cli`** `vox oratio` | CLI transcription + status + sessionized `listen` flow (Enter-or-timeout, correction profile, route mode). |
 | **`vox-orchestrator-mcp`** | `vox_oratio_transcribe` (thin STT + refine), `vox_oratio_listen` (session + route + optional LLM polish), `vox_oratio_status` (+ JSON schemas in tool registry). |
 | **`vox-vscode`** | **onCommand** for contributed **`vox.*`** commands + **onView** sidebar + **`*.vox`**; Oratio palette + Explorer (audio, case-insensitive ext); relative MCP `path` or `.vox/tmp/` copy; voice → WAV. See [speech capture architecture](speech-capture-architecture.md). |
-| **`vox-db` + HTTP/OpenAPI** | Codex/audio routes per [`codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) — no `vox-db` package (see [Codex HTTP API](codex-http-api.md)). |
+| **`vox-db` + HTTP/OpenAPI** | Codex/audio routes per [`codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) — no `vox-codex-api` package (see [Codex HTTP API](codex-http-api.md)). |
 | **Typeck / codegen** | Builtin **`Speech`**, **`Speech.transcribe(path) → Result[str]`** → `vox_oratio::transcribe_path` + refined text. |
 | **Corpus mix** | `record_format: asr_refine` + schema **`mens/schemas/asr_refine_pairs.schema.json`**. |
 | **LSP** | Hover for **`Speech`**; **`transcribe`** only when the line looks like **`Speech.transcribe`** (`builtin_hover_markdown_in_line`). |

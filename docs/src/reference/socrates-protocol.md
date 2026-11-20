@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # Socrates protocol — single source of truth
 
-The **Socrates** protocol is Vox’s unified anti-hallucination pipeline: retrieve evidence, verify claims, calibrate confidence, gate outputs, and persist telemetry. Implementation spans `vox-eval`, `vox-orchestrator`, `vox-code-audit` (review), `vox-orchestrator-mcp`, and Codex schema extensions.
+The **Socrates** protocol is Vox’s unified anti-hallucination pipeline: retrieve evidence, verify claims, calibrate confidence, gate outputs, and persist telemetry. Implementation spans `vox-socrates-policy`, `vox-orchestrator`, `vox-code-audit` (review), `vox-orchestrator-mcp`, and Codex schema extensions.
 
 Questioning strategy (when to ask, what question type to ask, and when to stop) is specified in the companion SSOT:
 
@@ -20,12 +20,12 @@ Questioning strategy (when to ask, what question type to ask, and when to stop) 
 1. **Retrieve** — Hybrid lexical + vector retrieval; every factual claim should bind to `EvidenceItem` records. Pure fusion helpers in `crates/vox-db/src/retrieval.rs` (`RetrievalResult`, `fuse_hybrid_results`) preserve **`evidence_source`**, timestamps, optional **`query_id`**, **`supporting_claim_ids`**, and **`contradiction_hints`** across modality merge. In-process memory search uses `HybridSearchHit` (`potential_contradiction`) in `vox-orchestrator`.
 2. **Verify** — Claims checked against evidence; contradictions increase `contradiction_ratio`.
 3. **Calibrate** — Produce `ConfidenceSignal` (score, coverage, contradiction ratio).
-4. **Gate** — `RiskDecision`: `Answer`, `Ask`, or `Abstain` via `ConfidencePolicy::evaluate_risk_decision` in crate `vox-eval`.
+4. **Gate** — `RiskDecision`: `Answer`, `Ask`, or `Abstain` via `ConfidencePolicy::evaluate_risk_decision` in crate `vox-socrates-policy`.
 5. **Persist** — Log outcomes to `research_metrics` / `eval_runs` / reliability tables; update routing weights.
 
 ## Telemetry and hallucination-risk proxies
 
-- **MCP tools** (`vox_chat_message`, `vox_plan`, `vox_replan`, `vox_plan_status`, `vox_inline_edit`, `vox_ghost_text`): when Codex is attached, each successful turn appends `research_metrics` with `metric_type = socrates_surface`, `session_id = mcp:<repository_id>`, `metric_value = hallucination_risk_proxy(...)`, and JSON metadata `SocratesSurfaceTelemetry` in `crates/vox-db/src/socrates_telemetry.rs` (re-exported from `vox_db`). Logs also emit target `vox_socrates_telemetry`. Effective thresholds follow `OrchestratorConfig::effective_socrates_policy()` (merges `vox-eval` with optional config overrides).
+- **MCP tools** (`vox_chat_message`, `vox_plan`, `vox_replan`, `vox_plan_status`, `vox_inline_edit`, `vox_ghost_text`): when Codex is attached, each successful turn appends `research_metrics` with `metric_type = socrates_surface`, `session_id = mcp:<repository_id>`, `metric_value = hallucination_risk_proxy(...)`, and JSON metadata `SocratesSurfaceTelemetry` in `crates/vox-db/src/socrates_telemetry.rs` (re-exported from `vox_db`). Logs also emit target `vox_socrates_telemetry`. Effective thresholds follow `OrchestratorConfig::effective_socrates_policy()` (merges `vox-socrates-policy` with optional config overrides).
   - **`vox_plan` adequacy (Codex)**: when `plan_telemetry_session_id` is set, `plan_sessions.iterative_loop_metadata_json` may include `adequacy_before`, `adequacy_after` (and/or legacy `adequacy`), `adequacy_improved_heuristic`, `task_count_before_refine` / `task_count_after_refine`, `aggregate_unresolved_risk`, `plan_depth`, and `initial_plan_max_output_tokens`. The tool response adds `plan_adequacy_score`, `plan_too_thin`, `adequacy_reason_codes`, and `plan_depth_effective`. See [plan adequacy](../archive/research-2026-q1/plan-adequacy.md).
 - **Hybrid memory retrieval** (`vox_search::MemorySearchEngine::hybrid_search`): used by MCP unified retrieval triggers (`vox_chat_message` autonomous preamble and `vox_memory_search`) via [`vox_search`](../../../crates/vox-search/src/lib.rs), appends `memory_hybrid_fusion` under session `socrates:retrieval` with contradiction-rate metadata.
 - **Rollups** — `VoxDb::aggregate_socrates_surface_metrics`, `VoxDb::record_socrates_eval_summary` (writes `eval_runs` with answer/abstain rates and a quality proxy derived from mean risk proxy).
@@ -68,7 +68,7 @@ Questioning strategy (when to ask, what question type to ask, and when to stop) 
 
 ## Shared policy crate
 
-Numeric defaults and risk classification live in **`vox-eval`** — do not duplicate magic thresholds in prompts or filters; import or configure via `ConfidencePolicy` and `ConfidencePolicyOverride` merge in the orchestrator. **Reputation routing:** blend weight for Socrates reputation signals is configurable via `OrchestratorConfig::socrates_reputation_weight` and env **`VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT`** (see `vox-orchestrator` `config.rs`).
+Numeric defaults and risk classification live in **`vox-socrates-policy`** — do not duplicate magic thresholds in prompts or filters; import or configure via `ConfidencePolicy` and `ConfidencePolicyOverride` merge in the orchestrator. **Reputation routing:** blend weight for Socrates reputation signals is configurable via `OrchestratorConfig::socrates_reputation_weight` and env **`VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT`** (see `vox-orchestrator` `config.rs`).
 
 ## Rollout
 

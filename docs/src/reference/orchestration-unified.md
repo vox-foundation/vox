@@ -182,7 +182,7 @@ Canonical descriptions for **`VOX_BENCHMARK_TELEMETRY`** / **`VOX_SYNTAX_K_TELEM
 
 Optional **`[mens]`** in `Vox.toml` merges mens scope/URL/labels for CLI and MCP (see [mens SSOT](populi.md)); **env wins** per field when set.
 
-Effective Socrates thresholds still merge from `vox-eval` with optional overrides in `OrchestratorConfig::socrates_policy` — no literal drift outside the policy crate + merge logic.
+Effective Socrates thresholds still merge from `vox-socrates-policy` with optional overrides in `OrchestratorConfig::socrates_policy` — no literal drift outside the policy crate + merge logic.
 
 ## Deprecation / compatibility matrix (current)
 
