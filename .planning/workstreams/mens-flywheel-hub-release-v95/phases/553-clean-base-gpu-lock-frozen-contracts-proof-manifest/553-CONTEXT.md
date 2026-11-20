@@ -75,5 +75,10 @@ and proof inputs that parallel agents share are frozen, and the failed v4 27B ad
 ## Deferred Ideas
 
 - Uploading the v4 adapter to a private HF repo (declined; local durable copy only).
+- Orphan `crates/vox-ml-cli/src/commands/mens/harness_before_after.rs` (Phase 321, never compiled since #706; stale 3-argument
+  `run_collateral_damage_with` call, hardcoded Qwen3 0.6B–32B size order). Decided 2026-11-20 to leave it untouched: it has no
+  consumers and its size ladder is replaced by the 0.8B/2B/4B/9B rungs of phases 559 and 562. Its target-resolution and
+  scorer-driven report behaviour is not duplicated elsewhere (`ladder_serve.rs` and `vox-eval::ladder_before_after` cover only
+  parts), so revisit after 559/562 land, fold in anything still needed, then delete the file.
 
 </deferred>
