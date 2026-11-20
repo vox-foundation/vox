@@ -356,6 +356,26 @@ fn is_valid_git_sha(s: &str) -> bool {
             .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
 }
 
+/// One line per failed task (id, passing samples, first failure) so a CI log says
+/// *which* task broke the live gate and why; results are otherwise only persisted
+/// to a DB that dies with the runner. Empty when nothing failed.
+fn failed_task_summary(results: &[vox_db::HarnessEvalTaskResultRecord]) -> String {
+    results
+        .iter()
+        .filter(|r| r.status == "fail")
+        .map(|r| {
+            format!(
+                "  - {} ({}/{} samples): {}",
+                r.task_id,
+                r.pass_samples,
+                r.total_samples,
+                r.failure_detail.as_deref().unwrap_or("no failure detail")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
     if args.live {
         let (mut run, task_results, selection_events) =
@@ -401,9 +421,10 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
 
         if run.fail_count > 0 {
             anyhow::bail!(
-                "harness eval --live gate failed: {}/{} tasks did not pass",
+                "harness eval --live gate failed: {}/{} tasks did not pass\n{}",
                 run.fail_count,
-                run.task_count
+                run.task_count,
+                failed_task_summary(&task_results)
             );
         }
         return Ok(());
@@ -560,6 +581,60 @@ mod tests {
     /// (a process-global) so they cannot race each other under cargo's
     /// default parallel test execution.
     static LIVE_ENV_VAR_LOCK: Mutex<()> = Mutex::const_new(());
+
+    fn task_record(
+        task_id: &str,
+        status: &str,
+        pass: i64,
+        detail: Option<&str>,
+    ) -> vox_db::HarnessEvalTaskResultRecord {
+        vox_db::HarnessEvalTaskResultRecord {
+            run_id: "r".to_string(),
+            task_id: task_id.to_string(),
+            category: "tool_calling".to_string(),
+            checker_kind: "deterministic".to_string(),
+            status: status.to_string(),
+            pass_samples: pass,
+            total_samples: 3,
+            latency_p50_ms: None,
+            cost_usd: None,
+            failure_detail: detail.map(str::to_string),
+            recorded_at_ms: 0,
+        }
+    }
+
+    #[test]
+    fn failed_task_summary_names_each_failed_task_and_its_first_failure() {
+        let results = vec![
+            task_record("chat-arithmetic-basic", "pass", 3, None),
+            task_record(
+                "tool-calling-directory-listing-check",
+                "fail",
+                1,
+                Some("reply never mentioned Cargo.toml"),
+            ),
+            task_record(
+                "privacy-local-only-never-picks-cloud-boolean",
+                "skip",
+                0,
+                None,
+            ),
+        ];
+        let summary = failed_task_summary(&results);
+        assert!(
+            summary.contains("tool-calling-directory-listing-check (1/3 samples)")
+                && summary.contains("reply never mentioned Cargo.toml"),
+            "{summary}"
+        );
+        assert!(!summary.contains("chat-arithmetic-basic"), "{summary}");
+        assert!(!summary.contains("privacy-local-only"), "{summary}");
+    }
+
+    #[test]
+    fn failed_task_summary_is_empty_when_nothing_failed() {
+        let results = vec![task_record("chat-arithmetic-basic", "pass", 3, None)];
+        assert_eq!(failed_task_summary(&results), "");
+    }
 
     #[test]
     fn model_eval_score_fold_exact_is_deterministic() {
