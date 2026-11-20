@@ -57,5 +57,6 @@ Query it: `vox explain <thing>`, `vox features --domain <d>`, MCP `vox_capabilit
 - [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Contributor entry point and documentation guide
 - [Lesson 1 — Ownership in Practice](https://voxlang.org/learning/rust-via-vox/lesson-01-ownership-pattern-drill/): Ownership pattern drill for Vox and Rust
 - [Clinical Export](https://voxlang.org/how-to/clinical-export-from-vox-apps/): Application-owned export and validation
+- [Documentation Governance](https://voxlang.org/contributors/documentation-governance/): Doc authority map
 - [Agent Instruction Architecture](https://voxlang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo
 - [How-to: wire AI assistants to vox_validate_source MCP](https://voxlang.org/how-to/how-to-mcp-vox-validate/): Configure Claude Desktop / Cursor to validate AI-generated Vox source against the real compiler with structured autofix suggestions; documents the diagnostic shape (`code` + `fixes`), the iterate-against-the-compiler loop, and the most useful diagnostic-code namespaces.

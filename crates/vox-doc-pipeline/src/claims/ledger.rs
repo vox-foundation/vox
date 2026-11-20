@@ -153,6 +153,13 @@ pub fn write_ledger_if_changed(path: &Path, ledger: &FreshnessLedger) -> std::io
 }
 
 /// Parse optional frontmatter code_anchors, owner, review_cadence, mounted_from.
+/// Reports this pipeline itself writes (ledger, findings, metrics, corpus ratchet).
+/// They change on every run, so anchoring a page to one re-drifts it right after it
+/// is attested (the governance page names the ledger path and could never verify).
+fn is_pipeline_output(target: &str) -> bool {
+    target.starts_with("contracts/reports/docs-freshness/")
+}
+
 fn parse_frontmatter_anchors(
     content: &str,
 ) -> (
@@ -310,6 +317,9 @@ pub fn generate_freshness_ledger(
                 }
                 ResolutionStatus::Resolved => {
                     let target_file = mention.normalized_target.clone();
+                    if is_pipeline_output(&target_file) {
+                        continue;
+                    }
                     if !anchors.iter().any(|a| a.target == target_file) {
                         let Ok(hash) = hash_anchor(repo_root, &target_file) else {
                             continue;
@@ -427,6 +437,24 @@ pub fn generate_freshness_ledger(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pipeline_outputs_are_never_anchors() {
+        // The ledger and its sibling reports are rewritten by every audit run, so a
+        // page anchored to one would drift again right after being attested.
+        assert!(is_pipeline_output(
+            "contracts/reports/docs-freshness/ledger.v1.json"
+        ));
+        assert!(is_pipeline_output(
+            "contracts/reports/docs-freshness/corpus-ratchet.v1.json"
+        ));
+        assert!(!is_pipeline_output(
+            "contracts/reports/gui-surface-registry.v1.json"
+        ));
+        assert!(!is_pipeline_output(
+            "crates/vox-doc-pipeline/src/claims/ledger.rs"
+        ));
+    }
 
     #[test]
     fn test_parse_frontmatter_anchors() {

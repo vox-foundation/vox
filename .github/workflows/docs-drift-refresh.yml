@@ -44,6 +44,11 @@ jobs:
       - name: Refresh docs reality findings
         run: ./target/debug/vox audit docs-reality
 
+      # A regenerated ledger can demote a page the curated llms.txt links to; without
+      # this the refresh PR would fail the TRUST-02 check in docs-quality.
+      - name: Keep curated llms.txt to verified pages
+        run: ./target/debug/vox ci llms-verified --write
+
       - name: Run external link checker (non-blocking)
         uses: lycheeverse/lychee-action@v2
         with:
@@ -85,6 +90,7 @@ jobs:
             "contracts/reports/docs-freshness/findings.v1.json"
             "contracts/reports/docs-freshness/metrics.v1.json"
             "contracts/reports/docs-freshness/external-links.v1.json"
+            "docs/src/.well-known/llms.txt"
             ".lycheeignore"
           )
           for p in "${allowed_paths[@]}"; do
@@ -92,7 +98,7 @@ jobs:
               git add "$p"
             fi
           done
-          unexpected=$(git diff --cached --name-only | grep -vE '^(contracts/reports/docs-freshness/(ledger|findings|metrics|external-links)\.v1\.json|\.lycheeignore)$' || true)
+          unexpected=$(git diff --cached --name-only | grep -vE '^(contracts/reports/docs-freshness/(ledger|findings|metrics|external-links)\.v1\.json|docs/src/\.well-known/llms\.txt|\.lycheeignore)$' || true)
           if [ -n "$unexpected" ]; then
             echo "::error::unexpected staged paths in docs-drift-refresh: $unexpected"
             exit 1

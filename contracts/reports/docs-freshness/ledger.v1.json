@@ -114951,15 +114951,15 @@
       "title": "Documentation governance",
       "category": "Contributors",
       "status": "current",
-      "state": "drifting",
-      "last_verified_commit": "c2edb14aee6bba41c4bee98005be01cf1f968290",
+      "state": "verified",
+      "last_verified_commit": "3d2f4fde10488243bb4dd713bec2985aed9594e1",
       "anchors": [
         {
           "id": "claim:README.md",
           "kind": "path",
           "target": "README.md",
           "content_hash": "2e7849da6baeceb900ab863b065a1510d8bc4c36fe25f36c649650052e26597d",
-          "verified_hash": "612fb1605cb1f3a4634f76c9ba7c423f87c6b1db60c82f84658e230848f3d2d0",
+          "verified_hash": "2e7849da6baeceb900ab863b065a1510d8bc4c36fe25f36c649650052e26597d",
           "source": "extracted_claim"
         },
         {
@@ -114975,7 +114975,7 @@
           "kind": "path",
           "target": "docs/src/how-to/troubleshooting-faq.md",
           "content_hash": "973b9f8d054351f04aabb7b9005fbc806df2d72d71476fba15a5fa5d6dd784da",
-          "verified_hash": "f388c643fe3d67ef7bd789c1ecc52fc3c83179514a2d162c1c8abfff266128d8",
+          "verified_hash": "973b9f8d054351f04aabb7b9005fbc806df2d72d71476fba15a5fa5d6dd784da",
           "source": "extracted_claim"
         },
         {
@@ -115031,7 +115031,7 @@
           "kind": "path",
           "target": "contracts/reports/docs-freshness/ledger.v1.json",
           "content_hash": "e11eff8c5d09881b6dac3f6713b9404d7fa51a167f80c1416744cb1f152543c2",
-          "verified_hash": "729cd546d9a3325503c234ed0d602805158bbdd5b523ed5a455898913be18e44",
+          "verified_hash": "e11eff8c5d09881b6dac3f6713b9404d7fa51a167f80c1416744cb1f152543c2",
           "source": "extracted_claim"
         },
         {
@@ -115183,7 +115183,7 @@
           "kind": "crate",
           "target": "vox-doc-pipeline",
           "content_hash": "f727667299136d3c6f9c57f57551e02728901c3ec1df99eb83a02d35c143129d",
-          "verified_hash": "e188d9903a54b6ded9c3646122c49ca7833ac9bfc91afa80135667386ffd0aca",
+          "verified_hash": "f727667299136d3c6f9c57f57551e02728901c3ec1df99eb83a02d35c143129d",
           "source": "extracted_claim"
         }
       ],
@@ -153249,8 +153249,8 @@
   },
   "metrics": {
     "total_pages": 1210,
-    "verified_count": 181,
-    "drifting_count": 268,
+    "verified_count": 182,
+    "drifting_count": 267,
     "broken_count": 193,
     "unanchored_count": 0,
     "historical_count": 568

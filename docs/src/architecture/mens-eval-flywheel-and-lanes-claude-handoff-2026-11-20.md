@@ -105,7 +105,7 @@ Replace overloaded `"lane"` uses cleanly while preserving `serde(alias = "lane")
 | :--- | :--- | :--- | :--- |
 | **1. Hardware Execution Backend** | `backend: ComputeBackend` | `candle-metal`, `candle-cuda`, `candle-cpu` | `contracts/mens/memory-model.v1.yaml` (rename `lane:` -> `backend:` with alias), `vox-plugin-mens-candle-*` |
 | **2. Adapter Target (`spoke`)** | `spoke_id: String` | Fine-tuned QLoRA spokes: `vox-lang`, `harness-tools` *(mono until `tool-selection` + `argument-generation` beat it on `agent_episodes`)*, `harness-skills`, `rust-authoring` | `mens/config/domain-profiles.yaml` + `crates/vox-populi/src/mens/tensor/domain_profiles.rs` (`validate_all_profiles`) & `domain_router.rs` + `training_manifest.json` (`spoke_id`, derived automatically for Hub cards!) |
-| **3. Corpus Supervision Slice** | `data_slice: String` + `verification_tier: enum` | `<domain>.<kind>`: `vox.exec_verified`, `vox.compile_verified`, `vox.repair_trace`, `vox.docs_grounded_qa`, `harness.tool_select`, `harness.tool_args`, `harness.skill_dispatch`, `rust.authoring_verified`, `replay.reasoning` | `mens/config/mix-<spoke>.yaml`, `vox_corpus::mix`, stamped per row + aggregated into `training_manifest.json` (`data_slice_histogram`, `verification_histogram`) |
+| **3. Corpus Supervision Slice** | `data_slice: String` + `verification_tier: enum` | `<domain>.<kind>`: `vox.exec_verified`, `vox.compile_verified`, `vox.repair_trace`, `vox.docs_grounded_qa`, `harness.tool_select`, `harness.tool_args`, `harness.skill_dispatch`, `rust.authoring_verified`, `replay.reasoning` | `mens/config/mix-<spoke>.yaml`, `vox_corpus::corpus::mix`, stamped per row + aggregated into `training_manifest.json` (`data_slice_histogram`, `verification_histogram`) |
 
 ### Concrete Cleanup Plan
 

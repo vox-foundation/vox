@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-20T14:59:29.097482+00:00",
+  "generated_at": "2026-11-20T17:18:27.128129+00:00",
   "deficits": [
     {
       "fingerprint": "75cebf1c1455d83f6865c67c20a7f368620177ec1aef994d0ef27051a2283d9e",
@@ -41,21 +41,6 @@
       "fingerprint": "4ea9fd41c1088795805a09a9c014761bb045ac7d0e28c83d8a8cfba320e46ebd",
       "page_path": "AGENTS.md",
       "raw_text": "crates/vox-gui/ui/src/lib/surfaceRegistry.ts"
-    },
-    {
-      "fingerprint": "917239d7afd1c950f7d437fff3c99578679dcc32ba117e90111c8414e121d501",
-      "page_path": "AGENTS.md",
-      "raw_text": "docs/src/SUMMARY.md"
-    },
-    {
-      "fingerprint": "a3102727a8b3d972cdc7aa53dc708a8f726a9fa31ffc1a785b60bcb216345291",
-      "page_path": "AGENTS.md",
-      "raw_text": "docs/src/architecture/architecture-index.md"
-    },
-    {
-      "fingerprint": "4eb7b1e9546c7edbbf86b0a859ed4fa3279ba86d38b48dea2013f1c29dce84e1",
-      "page_path": "AGENTS.md",
-      "raw_text": "docs/src/feed.xml"
     },
     {
       "fingerprint": "4a982b77a6ebe08f12d1dc4c38a50efad77e01c08a50f240279769c65a066b2a",
@@ -1858,11 +1843,6 @@
       "raw_text": "vox-lang"
     },
     {
-      "fingerprint": "34ddea6a8fb106fe80f35f602540bf1b4b48cf42f8f94924af193c8e847db6d9",
-      "page_path": "docs/src/architecture/mens-eval-flywheel-and-lanes-claude-handoff-2026-11-20.md",
-      "raw_text": "vox_corpus::mix"
-    },
-    {
       "fingerprint": "e3a31d4d6f5392cdf4161c63bd06e919fa38f1ab15f4e12110eb1ae9f293d59f",
       "page_path": "docs/src/architecture/mens-m4-live-demo-2026-09-12.md",
       "raw_text": "VOX_LOCAL_ENDPOINT_DEFAULT"
@@ -2343,11 +2323,6 @@
       "raw_text": "docs/src/architecture/research-diagnostic-questioning-2026.md"
     },
     {
-      "fingerprint": "3c4e64f80287b9fffdebb89fff6a571ce5b4de21f72a16c16af26586902e490e",
-      "page_path": "docs/src/architecture/planning-meta/maintenance-log.md",
-      "raw_text": "docs/src/SUMMARY.md"
-    },
-    {
       "fingerprint": "9e58282e57ad2c9538e73805deb14b647ce44d2e63291540c03b3c6be52269c6",
       "page_path": "docs/src/architecture/planning-meta/maintenance-log.md",
       "raw_text": "docs/src/architecture/doc-to-code-acceptance-checklist.md"
@@ -2531,16 +2506,6 @@
       "fingerprint": "267017fe32c21b657aad23dd2e5664b0ed6bb7a8a7e61811eb881e2bd95af70c",
       "page_path": "docs/src/architecture/populi-mesh-probe-correctness-spec-2026.md",
       "raw_text": "vox config check"
-    },
-    {
-      "fingerprint": "8db15e83ce6e82c35fffe5e4842693e35e10a01ca62d5dab0b5bb9871449b94d",
-      "page_path": "docs/src/architecture/repo-layout-sprawl-audit-2026.md",
-      "raw_text": "docs/src/SUMMARY.md"
-    },
-    {
-      "fingerprint": "51aa3833930c4cd7259f505f5f2c1c3e7a21160990d96ac6eda90857b992140d",
-      "page_path": "docs/src/architecture/repo-layout-sprawl-audit-2026.md",
-      "raw_text": "docs/src/feed.xml"
     },
     {
       "fingerprint": "47a3f3b6c9d7765bcb78c751c233988b7fd0306f417f0bd715d29ae0a09fcf58",
@@ -2816,11 +2781,6 @@
       "fingerprint": "aa95df274e71c0172c65ae77a048e5b7e05033a68cb7536cef65d2ed57cfbc83",
       "page_path": "docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md",
       "raw_text": "vox_secrets::SecretId::OpenRouterApiKey"
-    },
-    {
-      "fingerprint": "56646b6c0245050853c70d483f67824a21f488d6c8fde2fe23840f5e0bb5e99c",
-      "page_path": "docs/src/architecture/starlight-site-strategy-2026.md",
-      "raw_text": "docs/src/SUMMARY.md"
     },
     {
       "fingerprint": "109d31af6a964cea03d74a3c84eaf69e90615534a3482b43092a22b86a8503c0",
@@ -3346,11 +3306,6 @@
       "fingerprint": "72ee7578cfec6234318e96ef950d0b628ea5dd017f7fc6e6c19efc984c1c4716",
       "page_path": "docs/src/architecture/voxdiagram-layout-go-no-go-2026.md",
       "raw_text": ".planning/workstreams/voxdiagram/phases/85-graph-layout-deterministic-svg/85-CONTACT-SHEET.html"
-    },
-    {
-      "fingerprint": "96476f7dba50e1890215eedccb3a8577baa6b0f3c52032ea18186240b1e851c3",
-      "page_path": "docs/src/architecture/warp-roman-terminal-v75-research-2026.md",
-      "raw_text": "crates/vox-gui/ui/test-results/cv-flywheel-terminal/ledger-after.json"
     },
     {
       "fingerprint": "aaa66147a396401a80e81e60bdc3ae0f93bf364cbbb716e5304b93f248077178",
