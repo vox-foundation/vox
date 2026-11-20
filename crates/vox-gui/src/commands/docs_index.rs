@@ -4,7 +4,7 @@
 //! for the Omnibar — architecture/SSOT docs are excluded unless opened by path.
 
 use std::path::{Component, Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Arc, RwLock};
 
 use serde::Serialize;
 
@@ -217,21 +217,33 @@ fn resolve_doc_path(path: &str) -> Result<PathBuf, String> {
     resolve_workspace_doc_path(&repo_root, lib_root.as_deref(), path)
 }
 
-static DOCS_CACHE: OnceLock<Vec<DocEntry>> = OnceLock::new();
+static DOCS_CACHE: RwLock<Option<Vec<DocEntry>>> = RwLock::new(None);
 
 #[tauri::command]
 pub async fn vox_docs_index() -> Result<Vec<DocEntry>, String> {
-    Ok(DOCS_CACHE
-        .get_or_init(|| {
-            let mut out = Vec::new();
-            let (repo_root, _) = repo_root_and_lib();
-            walk_docs(&repo_root.join("docs").join("src"), &mut out);
-            walk_docs(&repo_root.join("docs").join("wiki"), &mut out);
-            out.sort_by(|a, b| a.title.cmp(&b.title).then_with(|| a.path.cmp(&b.path)));
-            out.dedup_by(|a, b| a.path == b.path);
-            out
-        })
-        .clone())
+    if let Some(cached) = DOCS_CACHE
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+    {
+        return Ok(cached.clone());
+    }
+    let mut out = Vec::new();
+    let (repo_root, _) = repo_root_and_lib();
+    let docs_src = repo_root.join("docs").join("src");
+    let docs_wiki = repo_root.join("docs").join("wiki");
+    let docs_root = repo_root.join("docs");
+    if docs_src.is_dir() {
+        walk_docs(&docs_src, &mut out);
+    } else if docs_wiki.is_dir() {
+        walk_docs(&docs_wiki, &mut out);
+    } else if docs_root.is_dir() {
+        walk_docs(&docs_root, &mut out);
+    }
+    out.sort_by(|a, b| a.title.cmp(&b.title).then_with(|| a.path.cmp(&b.path)));
+    out.dedup_by(|a, b| a.path == b.path);
+    *DOCS_CACHE.write().unwrap_or_else(|e| e.into_inner()) = Some(out.clone());
+    Ok(out)
 }
 
 #[tauri::command]
@@ -241,12 +253,27 @@ pub async fn read_doc_markdown(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn write_doc_markdown(path: String, content: String) -> Result<(), String> {
+pub async fn write_doc_markdown(
+    backend: tauri::State<'_, Arc<crate::remote::backend::BackendState>>,
+    path: String,
+    content: String,
+) -> Result<(), String> {
     let resolved = resolve_doc_path(&path)?;
     if let Some(parent) = resolved.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&resolved, content).map_err(|e| e.to_string())
+    std::fs::write(&resolved, content).map_err(|e| e.to_string())?;
+    *DOCS_CACHE.write().unwrap_or_else(|e| e.into_inner()) = None;
+    let backend = backend.inner().clone();
+    tokio::spawn(async move {
+        use crate::remote::calls::BackendCalls as _;
+        let _ = backend
+            .current()
+            .await
+            .call_tool("vox_kb_reindex", serde_json::json!({}))
+            .await;
+    });
+    Ok(())
 }
 
 #[cfg(test)]

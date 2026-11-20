@@ -182,7 +182,24 @@ pub(super) fn step_server_state(ctx: &mut DaemonBootCtx) -> StepFuture<'_> {
         );
         state.active_profile = Arc::new(ctx.profile.clone());
         if let Some(db) = ctx.db.clone() {
-            state = state.with_db_initialized(db).await;
+            state = state.with_db_initialized(db.clone()).await;
+            if std::env::var_os("VOX_DISABLE_AUTO_KB_REINDEX").is_none() {
+                let bg_root = state.repository.root.clone();
+                tokio::spawn(async move {
+                    let _ = vox_orchestrator_mcp::kb_tools::library::ensure_kb_indexed_for_repo(
+                        &db, &bg_root,
+                    )
+                    .await;
+                    let global_lib = vox_config::paths::user_home_dir()
+                        .join(".vox")
+                        .join("library");
+                    let _ = vox_orchestrator_mcp::kb_tools::library::ensure_global_library_indexed(
+                        &db,
+                        &global_lib,
+                    )
+                    .await;
+                });
+            }
         }
         ctx.state = Some(state);
         Ok(())

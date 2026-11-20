@@ -17222,6 +17222,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "ignore",
  "pulldown-cmark",
  "rayon",
  "regex",
@@ -17232,6 +17233,7 @@ dependencies = [
  "vox-bounded-fs",
  "vox-compiler",
  "vox-diagram",
+ "vox-graph-reader",
  "vox-kb-facets",
  "walkdir",
  "workspace-hack",
@@ -18066,6 +18068,7 @@ dependencies = [
  "vox-crypto",
  "vox-db",
  "vox-diagram",
+ "vox-doc-pipeline",
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",

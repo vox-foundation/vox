@@ -265,7 +265,17 @@ pub async fn repo_catalog_refresh(state: &ServerState, args: serde_json::Value) 
                 .to_json();
             };
             return match vox_repository::switch_active_repository(&state.repository.root, target) {
-                Ok(ctx) => ToolResult::ok(ctx).to_json(),
+                Ok(ctx) => {
+                    if let Some(db) = state.db.as_ref().cloned() {
+                        let switched_root = std::path::PathBuf::from(&ctx.root_path);
+                        let _ = crate::kb_tools::library::ensure_kb_indexed_for_repo(
+                            &db,
+                            &switched_root,
+                        )
+                        .await;
+                    }
+                    ToolResult::ok(ctx).to_json()
+                }
                 Err(e) => {
                     ToolResult::<String>::err_with_remediation(format!("{e}"), REM_REPO_CATALOG)
                         .to_json()
@@ -423,265 +433,140 @@ pub async fn repo_query_history(
     }
 }
 
-const CANONICAL_OPENWIKI_PAGES: &[(&str, &str, &str, &str)] = &[
-    ("README.md", "OpenWiki Hub", "doc-pipeline", "documentation"),
-    (
-        "architecture-topology.md",
-        "Layer 1: Architecture & Module Topology",
-        "search-retrieval",
-        "knowledge",
-    ),
-    (
-        "interfaces-and-apis.md",
-        "Layer 2: CLI, HTTP, MCP & API Interfaces",
-        "cli-surface",
-        "platform",
-    ),
-    (
-        "data-models-and-schemas.md",
-        "Layer 3: Data Models & SQL/VoxDb Schemas",
-        "database",
-        "data",
-    ),
-    (
-        "gui-surfaces-and-flows.md",
-        "Layer 4: GUI & Frontend Surfaces",
-        "desktop-app",
-        "gui",
-    ),
-    (
-        "workflows-and-runbooks.md",
-        "Layer 5: Workflows, Actors & Runbooks",
-        "durable-workflows",
-        "runtime",
-    ),
-];
-
-fn resolve_openwiki_paths(
-    target_root: &std::path::Path,
-    read_only: bool,
-) -> (std::path::PathBuf, std::path::PathBuf) {
-    if read_only && let Ok(home) = vox_repository::vox_user_home_dir() {
-        let repo = vox_repository::discover_repository_or_fallback(target_root);
-        let base = vox_repository::external_repo_cache_root_under(&home, &repo.repository_id)
-            .join("cache")
-            .join("openwiki");
-        return (base.join("wiki"), base.join("manifest.v1.json"));
+/// Zero-footprint cache override for `read_only` external repos (`~/.vox/repos/<id>/cache/openwiki`).
+fn openwiki_override(target_root: &std::path::Path, read_only: bool) -> Option<std::path::PathBuf> {
+    if !read_only {
+        return None;
     }
-    (
-        target_root.join("docs").join("wiki"),
-        target_root
-            .join(".vox")
+    let home = vox_repository::vox_user_home_dir().ok()?;
+    let repo = vox_repository::discover_repository_or_fallback(target_root);
+    Some(
+        vox_repository::external_repo_cache_root_under(&home, &repo.repository_id)
             .join("cache")
-            .join("openwiki")
-            .join("manifest.v1.json"),
+            .join("openwiki"),
     )
 }
 
-fn parse_openwiki_region_ids(markdown: &str) -> Vec<String> {
-    let mut ids = Vec::new();
-    for line in markdown.lines() {
-        let t = line.trim();
-        if let Some(rest) = t
-            .strip_prefix("<!--")
-            .and_then(|s| s.strip_suffix("-->"))
-            .map(str::trim)
-            .and_then(|s| s.strip_prefix("openwiki:auto:start"))
-            .map(str::trim)
-            .and_then(|s| s.strip_prefix("id="))
-            .map(str::trim)
-            && let Some(q) = rest.chars().next().filter(|c| *c == '"' || *c == '\'')
-            && let Some(end) = rest[1..].find(q)
-        {
-            let id = rest[1..1 + end].trim();
-            if !id.is_empty() {
-                ids.push(id.to_string());
-            }
-        }
-    }
-    ids
-}
-
+/// Status payload backed by the shared `vox-doc-pipeline` engine (same pages, same regions as
+/// `vox ci wiki-sync`). Keeps the legacy keys the Axis `OpenWikiHealStudio` reads.
 fn inspect_openwiki_summary(target_root: &std::path::Path, read_only: bool) -> serde_json::Value {
-    let (wiki_dir, manifest_path) = resolve_openwiki_paths(target_root, read_only);
-    let manifest_raw = std::fs::read_to_string(&manifest_path)
-        .ok()
-        .and_then(|txt| serde_json::from_str::<serde_json::Value>(&txt).ok());
-    let mut existing_pages = 0usize;
+    let ov = openwiki_override(target_root, read_only);
+    let pages_rel = vox_doc_pipeline::pipeline::openwiki::openwiki_pages_rel(target_root);
+    let rep =
+        match vox_doc_pipeline::pipeline::openwiki::openwiki_status(target_root, ov.as_deref()) {
+            Ok(rep) => rep,
+            Err(e) => {
+                return serde_json::json!({
+                    "initialized": false,
+                    "page_count": 0,
+                    "total_pages": 0,
+                    "auto_region_count": 0,
+                    "legacy_mermaid_blocks": 0,
+                    "stale_pages": [],
+                    "pages": [],
+                    "error": e,
+                });
+            }
+        };
+    let wiki_dir = std::path::PathBuf::from(&rep.wiki_dir);
+    let mut page_count = 0usize;
     let mut auto_region_count = 0usize;
     let mut legacy_mermaid_blocks = 0usize;
-    let mut stale_pages = Vec::new();
-    let mut page_reports = Vec::new();
-
-    for (rel, _, _, _) in CANONICAL_OPENWIKI_PAGES {
-        let p = wiki_dir.join(rel);
-        let exists = p.is_file();
-        let (regions, mermaid_count, content_hash) =
-            if exists && let Ok(text) = std::fs::read_to_string(&p) {
-                existing_pages += 1;
-                let regs = parse_openwiki_region_ids(&text);
-                auto_region_count += regs.len();
-                let legacy = vox_diagram::fence::extract(&text, "mermaid").len();
-                legacy_mermaid_blocks += legacy;
-                (
-                    regs,
-                    legacy,
-                    Some(vox_crypto::hash_fast_hex(text.as_bytes())),
-                )
-            } else {
-                stale_pages.push((*rel).to_string());
-                (Vec::new(), 0, None)
-            };
-        if exists
-            && let Some(ref m) = manifest_raw
-            && let Some(pages) = m.get("pages").and_then(|v| v.as_array())
-            && let Some(recorded) = pages
-                .iter()
-                .find(|entry| entry.get("rel_path").and_then(|v| v.as_str()) == Some(*rel))
-            && let (Some(rec_h), Some(cur_h)) = (
-                recorded.get("content_hash").and_then(|v| v.as_str()),
-                content_hash.as_deref(),
-            )
-            && rec_h != cur_h
-            && !stale_pages.iter().any(|s| s == rel)
-        {
-            stale_pages.push((*rel).to_string());
+    let mut stale_pages: Vec<String> = Vec::new();
+    let mut pages = Vec::new();
+    for p in &rep.pages {
+        let mut legacy = 0usize;
+        if p.exists {
+            page_count += 1;
+            if let Ok(text) = std::fs::read_to_string(wiki_dir.join(&p.rel_path)) {
+                legacy = vox_diagram::fence::extract(&text, "mermaid").len();
+            }
         }
-        page_reports.push(serde_json::json!({
-            "rel_path": rel,
-            "exists": exists,
-            "region_ids": regions,
-            "legacy_mermaid_blocks": mermaid_count,
+        auto_region_count += p.region_ids.len();
+        legacy_mermaid_blocks += legacy;
+        if p.stale {
+            stale_pages.push(p.rel_path.clone());
+        }
+        pages.push(serde_json::json!({
+            "rel_path": p.rel_path,
+            "doc_path": format!("{pages_rel}/{}", p.rel_path),
+            "exists": p.exists,
+            "region_ids": p.region_ids,
+            "stale_regions": p.stale_regions,
+            "legacy_mermaid_blocks": legacy,
         }));
     }
-
     serde_json::json!({
-        "wiki_dir": wiki_dir.display().to_string(),
-        "manifest_path": manifest_path.display().to_string(),
-        "manifest_present": manifest_path.is_file(),
-        "initialized": existing_pages == CANONICAL_OPENWIKI_PAGES.len(),
-        "page_count": existing_pages,
-        "total_pages": CANONICAL_OPENWIKI_PAGES.len(),
+        "wiki_dir": rep.wiki_dir,
+        "manifest_path": rep.manifest_path,
+        "manifest_present": rep.manifest_present,
+        "detected_stacks": rep.detected_stacks,
+        "initialized": rep.initialized,
+        "page_count": page_count,
+        "total_pages": rep.total_pages,
         "auto_region_count": auto_region_count,
         "legacy_mermaid_blocks": legacy_mermaid_blocks,
         "stale_pages": stale_pages,
-        "pages": page_reports,
+        "pages": pages,
     })
 }
 
+/// Run an OpenWiki action through the shared engine (no placeholder generator).
 fn execute_openwiki_mcp_action(
     action: &str,
     target_root: &std::path::Path,
     read_only: bool,
 ) -> Result<serde_json::Value, String> {
-    let (wiki_dir, manifest_path) = resolve_openwiki_paths(target_root, read_only);
-    if matches!(action, "wiki_status" | "wiki_diff") {
-        let mut summary = inspect_openwiki_summary(target_root, read_only);
-        if let Some(obj) = summary.as_object_mut() {
-            obj.insert("action".to_string(), serde_json::json!(action));
+    use vox_doc_pipeline::pipeline::openwiki as ow;
+    let ov = openwiki_override(target_root, read_only);
+    let mut extra = serde_json::Map::new();
+    match action {
+        "wiki_init" => {
+            let rep = ow::openwiki_init(target_root, ov.as_deref())?;
+            extra.insert(
+                "report".into(),
+                serde_json::to_value(rep).unwrap_or_default(),
+            );
+        }
+        "wiki_build" => {
+            let rep = ow::openwiki_build(target_root, true, ov.as_deref())?;
+            extra.insert(
+                "report".into(),
+                serde_json::to_value(rep).unwrap_or_default(),
+            );
+        }
+        "wiki_sync" | "wiki_heal_tier1" => {
+            let rep = ow::heal_tier1_deterministic(target_root, &[], true, ov.as_deref())?;
+            extra.insert("llm_calls".into(), serde_json::json!(rep.llm_calls));
+            extra.insert(
+                "report".into(),
+                serde_json::to_value(rep).unwrap_or_default(),
+            );
+        }
+        "wiki_diff" => {
+            let rep = ow::openwiki_diff(target_root, ov.as_deref())?;
+            extra.insert("has_changes".into(), serde_json::json!(rep.has_changes));
+            extra.insert(
+                "report".into(),
+                serde_json::to_value(rep).unwrap_or_default(),
+            );
+        }
+        "wiki_status" => {}
+        other => return Err(format!("Unsupported OpenWiki action `{other}`")),
+    }
+    let mut summary = inspect_openwiki_summary(target_root, read_only);
+    if let Some(obj) = summary.as_object_mut() {
+        obj.insert("action".to_string(), serde_json::json!(action));
+        for (k, v) in extra {
+            obj.insert(k, v);
+        }
+        if action == "wiki_status" {
             let has_changes = obj
                 .get("stale_pages")
                 .and_then(|v| v.as_array())
                 .is_some_and(|a| !a.is_empty());
             obj.insert("has_changes".to_string(), serde_json::json!(has_changes));
         }
-        return Ok(summary);
-    }
-
-    if !read_only
-        && !target_root
-            .join("docs")
-            .join("wiki")
-            .join("README.md")
-            .is_file()
-    {
-        let _ = vox_repository::onboard_repository_harness(target_root, false);
-    }
-    std::fs::create_dir_all(&wiki_dir)
-        .map_err(|e| format!("failed to create {}: {e}", wiki_dir.display()))?;
-    if let Some(parent) = manifest_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("failed to create {}: {e}", parent.display()))?;
-    }
-
-    let repo_ctx = vox_repository::discover_repository_or_fallback(target_root);
-    let repo_name = target_root
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "repository".to_string());
-
-    let mut manifest_pages = Vec::new();
-    for (rel, layer_title, topic, domain) in CANONICAL_OPENWIKI_PAGES {
-        let page_path = wiki_dir.join(rel);
-        let region_id = rel
-            .trim_end_matches(".md")
-            .replace('.', "-")
-            .to_ascii_lowercase();
-        let region_key = if *rel == "README.md" {
-            "repo-overview".to_string()
-        } else {
-            region_id
-        };
-        if !page_path.is_file() {
-            let diagram = format!(
-                "graph {{\n    direction: down\n    node hub: \"{repo_name} — {layer_title}\"\n}}\n"
-            );
-            let md = format!(
-                "---\n\
-                 title: \"{repo_name} — {layer_title}\"\n\
-                 description: \"OpenWiki {layer_title} documentation surface for {repo_name}.\"\n\
-                 category: \"Architecture SSOTs\"\n\
-                 status: \"current\"\n\
-                 topic: \"{topic}\"\n\
-                 domain: \"{domain}\"\n\
-                 authorship: \"llm-generated\"\n\
-                 authorship_model: \"vox-openwiki-v7.9\"\n\
-                 training_eligible: false\n\
-                 ---\n\n\
-                 # {repo_name} — {layer_title}\n\n\
-                 <!-- kb:summary -->\n\
-                 This OpenWiki layer page catalogs {layer_title} across {repo_name} including deterministic structural facts, source coordinates, and validated diagram representations inside auto-fences so human architecture rationale remains completely untouched while automated rebuilds refresh structural metadata and contract inventory cleanly across updates.\n\
-                 <!-- /kb:summary -->\n\n\
-                 <!-- openwiki:auto:start id=\"{region_key}\" -->\n\
-                 - **Repository ID:** `{}`\n\n\
-                 ```vox-diagram\n\
-                 {diagram}\
-                 ```\n\
-                 <!-- openwiki:auto:end id=\"{region_key}\" -->\n\n\
-                 ## Human Architecture Notes\n\n\
-                 Document human rationale and caveats outside `openwiki:auto` fences.\n",
-                repo_ctx.repository_id
-            );
-            std::fs::write(&page_path, &md)
-                .map_err(|e| format!("failed to write {}: {e}", page_path.display()))?;
-        }
-        let content = std::fs::read_to_string(&page_path)
-            .map_err(|e| format!("failed to read {}: {e}", page_path.display()))?;
-        manifest_pages.push(serde_json::json!({
-            "rel_path": rel,
-            "content_hash": vox_crypto::hash_fast_hex(content.as_bytes()),
-            "region_ids": parse_openwiki_region_ids(&content),
-        }));
-    }
-
-    let manifest = serde_json::json!({
-        "schema_version": 1,
-        "repo_name": repo_name,
-        "manifest_hash": vox_crypto::hash_fast_hex(
-            serde_json::to_string(&manifest_pages).unwrap_or_default().as_bytes()
-        ),
-        "pages": manifest_pages,
-    });
-    std::fs::write(
-        &manifest_path,
-        serde_json::to_string_pretty(&manifest).unwrap_or_default(),
-    )
-    .map_err(|e| format!("failed to write {}: {e}", manifest_path.display()))?;
-
-    let mut summary = inspect_openwiki_summary(target_root, read_only);
-    if let Some(obj) = summary.as_object_mut() {
-        obj.insert("action".to_string(), serde_json::json!(action));
     }
     Ok(summary)
 }
@@ -732,17 +617,8 @@ async fn execute_openwiki_heal_mcp_action(
     read_only: bool,
 ) -> Result<serde_json::Value, String> {
     match action {
-        "wiki_init" | "wiki_build" | "wiki_status" | "wiki_diff" => {
-            execute_openwiki_mcp_action(action, target_root, read_only)
-        }
-        "wiki_sync" | "wiki_heal_tier1" => {
-            let mut res = execute_openwiki_mcp_action("wiki_build", target_root, read_only)?;
-            if let Some(obj) = res.as_object_mut() {
-                obj.insert("action".to_string(), serde_json::json!(action));
-                obj.insert("llm_calls".to_string(), serde_json::json!(0));
-            }
-            Ok(res)
-        }
+        "wiki_init" | "wiki_build" | "wiki_status" | "wiki_diff" | "wiki_sync"
+        | "wiki_heal_tier1" => execute_openwiki_mcp_action(action, target_root, read_only),
         "wiki_heal_list" => {
             let db = state
                 .db
@@ -858,6 +734,7 @@ async fn execute_openwiki_heal_mcp_action(
             )
             .await
             .map_err(|e| format!("{e:#}"))?;
+            let _ = crate::kb_tools::library::ensure_kb_indexed_for_repo(db, target_root).await;
             Ok(serde_json::json!({
                 "action": action,
                 "proposal_id": id,
@@ -1003,7 +880,7 @@ mod tests {
                 "action": "wiki_heal_propose",
                 "path": dir.display().to_string(),
                 "proposal_id": "heal-p1",
-                "doc_path": "docs/wiki/interfaces-and-apis.md",
+                "doc_path": "docs/openwiki/interfaces-and-apis.md",
                 "prose_note": "Verified `check` entry point.",
                 "evidence_citations": ["[src/auth.rs:L1-L1]"],
             }),
@@ -1038,7 +915,7 @@ mod tests {
             "applied"
         );
         assert!(
-            std::fs::read_to_string(dir.join("docs/wiki/interfaces-and-apis.md"))
+            std::fs::read_to_string(dir.join("docs/openwiki/interfaces-and-apis.md"))
                 .unwrap()
                 .contains("Verified `check` entry point.")
         );
@@ -1057,9 +934,47 @@ mod tests {
             "demoted_to_legacy"
         );
         assert!(
-            std::fs::read_to_string(dir.join("docs/wiki/interfaces-and-apis.md"))
+            std::fs::read_to_string(dir.join("docs/openwiki/interfaces-and-apis.md"))
                 .unwrap()
                 .contains("status: \"legacy\"")
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn mcp_wiki_build_on_docs_src_repo_targets_docs_src_and_creates_no_docs_wiki() {
+        let dir = std::env::temp_dir().join(format!("vox-mcp-docsrc-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("docs/src")).unwrap();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"mcp-docsrc\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("src/lib.rs"),
+            "pub fn alpha_entry() -> bool { true }\n",
+        )
+        .unwrap();
+
+        let state = ServerState::new_test().await;
+        let res_str = repo_catalog_refresh(
+            &state,
+            serde_json::json!({"action": "wiki_build", "path": dir.display().to_string()}),
+        )
+        .await;
+        let res: serde_json::Value = serde_json::from_str(&res_str).unwrap();
+        assert_eq!(res["success"], true, "{res}");
+        assert_eq!(res["data"]["initialized"], true, "{res}");
+        assert!(dir.join("docs/src/openwiki/README.md").is_file());
+        assert!(!dir.join("docs/wiki").exists(), "must not create docs/wiki");
+        let l2 =
+            std::fs::read_to_string(dir.join("docs/src/openwiki/interfaces-and-apis.md")).unwrap();
+        assert!(
+            l2.contains("alpha_entry"),
+            "real extraction, not a 1-node stub"
         );
 
         let _ = std::fs::remove_dir_all(&dir);
