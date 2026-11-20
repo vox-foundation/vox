@@ -126,6 +126,31 @@ To support deterministic drift detection without LLM dependencies (DRIFT-02, DRI
 - `last_updated`: derived automatically from Git history. Hand-authoring is a hard lint error (`hand-authored-last-updated`).
 - `last_verified` / `last_verified_commit`: managed exclusively by the Freshness Ledger (`contracts/reports/docs-freshness/ledger.v1.json`). Hand-authoring is a hard lint error (`hand-authored-last-verified`).
 
+### Freshness states, the corpus ratchet and attestation
+
+The Freshness Ledger records one state per page, derived from the sources the page cites (frontmatter `code_anchors` plus the paths, crates, commands and env vars its text mentions):
+
+| State | Meaning |
+| --- | --- |
+| `verified` | Every cited source still matches the hash recorded when the page was last checked. |
+| `drifting` | A cited source changed since the page was last checked. The page may still be right; nobody has confirmed it. |
+| `broken` | The page cites something that no longer exists or is retired. |
+| `historical` | The page is marked as a record of the past and is not held to current code. |
+| `unanchored` | The page cites nothing checkable. |
+
+`vox audit docs --check-drift` is the CI gate. It compares the current findings with the corpus ratchet in `contracts/reports/docs-freshness/corpus-ratchet.v1.json` (one fingerprint per page and mention) and fails only on findings that are not already in it. The baseline file stays empty. The ratchet only protects against new debt:
+
+- Fix a finding at its source when it is a real stale claim. Do not substitute a "canonical replacement" blindly: a detector can flag text that is correct (for example a spoke id that shares a name with a retired crate).
+- `vox audit docs --seed-corpus-ratchet` accepts the current findings as known. Use it to shrink the ratchet after fixes, or when the detector's own behavior changed. Do not use it to admit a finding your change introduced.
+- Findings about paths that git ignores (build output such as a frontend `dist` folder) are not reported, because whether they exist depends on the machine.
+
+To move a `drifting` page back to `verified`, read the page against what changed under its anchors, fix what is wrong, then run `vox audit docs --attest <page>`. Attesting records the current hashes and is a claim that you checked; do not attest a page you did not read. The pipeline never anchors a page to its own output files (the ledger, findings, metrics and ratchet under `contracts/reports/docs-freshness/`), because they change on every run.
+
+Two rules protect the front door from the ledger changing underneath it:
+
+- The curated `docs/src/.well-known/llms.txt` lists only `verified` pages in its main sections. Pages that stop being verified go under a `## Needs review (not yet verified)` heading. `vox ci llms-verified` checks this in the fast pre-push tier, and `vox ci llms-verified --write` moves entries in and out. The site build applies the same rule.
+- Repository README diagrams are raster images (`.webp` or `.png`) in a plain `<img>`. `vox ci readme-assets` rejects `srcset` and SVG images, because the docs site rewrites `src` but not `srcset`.
+
 ### Capability claims
 
 A page may declare which capabilities it explains with an optional `capabilities: [<capability id>, …]` frontmatter key (flow or block list). Ids come from [`contracts/capabilities/capability-index.v1.json`](../../../contracts/capabilities/capability-index.v1.json), for example `cli.secrets.get`, `mcp.vox_check`, `surface.mesh` or `crate.vox-secrets`.
