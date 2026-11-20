@@ -65,6 +65,9 @@ mod watch_telemetry;
 
 mod populi;
 
+#[cfg(test)]
+mod v94_eval_corpus;
+
 #[cfg(feature = "gpu")]
 pub use populi::{MensTokenizerCli, PopuliTrainBackendCli, TrainingDeploymentTargetCli};
 pub use populi::{PipelineProgress, PipelineStage, PopuliAction, run};

@@ -564,6 +564,22 @@ pub fn run_training_loop(
 
                 let mut lr_applied_this_step = 0.0_f64;
                 let mut completed_opt_step_this_micro = false;
+                let trainable_vars_for_head = if config.gradient_checkpointing {
+                    Some(trainer.trainable_vars())
+                } else {
+                    None
+                };
+                let head_mode = match trainable_vars_for_head.as_deref() {
+                    Some(vars) => forward::HeadCeMode::Checkpointed {
+                        trainable_vars: vars,
+                        grad_accum_steps: trainer
+                            .config
+                            .adapter_config
+                            .gradient_accumulation_steps
+                            .max(1),
+                    },
+                    None => forward::HeadCeMode::EagerTape,
+                };
                 let forward_res = if bin.len() == 1 {
                     forward::forward_masked_ce(
                         &model,
@@ -573,6 +589,7 @@ pub fn run_training_loop(
                         last_item.enc.sample_weight * norm_scale,
                         last_item.enc.token_weights.as_deref(),
                         config,
+                        head_mode,
                         device,
                     )
                 } else {
@@ -591,6 +608,7 @@ pub fn run_training_loop(
                         &packed_refs,
                         norm_scale,
                         config,
+                        head_mode,
                         device,
                     )
                 };
@@ -635,15 +653,19 @@ pub fn run_training_loop(
                         theoretical_tokens,
                         syntax_weight_sum,
                         segments,
+                        detached_head,
                     } => {
-                        let backward_result = match segments {
-                            Some(segs) => {
-                                logic::checkpointed_backward_step(trainer, &model, loss, segs)
+                        let backward_result = match (segments, detached_head, loss) {
+                            (Some(segs), Some(dh), _) => {
+                                logic::checkpointed_backward_step(trainer, &model, dh, segs)
                                     .map_err(|e| anyhow::anyhow!("{e}"))
                             }
-                            None => trainer
-                                .backward_step(&loss)
+                            (None, None, Some(loss_t)) => trainer
+                                .backward_step(&loss_t)
                                 .map_err(|e| anyhow::anyhow!("{e}")),
+                            _ => Err(anyhow::anyhow!(
+                                "inconsistent MaskedCeForward::Finite head/segment state"
+                            )),
                         };
                         if let Err(e) = backward_result {
                             return Err(checkpoint_and_bail_on_oom(
@@ -800,6 +822,7 @@ pub fn run_training_loop(
                         total_theoretical_tokens,
                         config.batch_size.max(1) as u64,
                         config.seq_len as u64,
+                        grad_accum as u64,
                         total_syntax_weight,
                     );
                     telemetry::append(out, telemetry_schema::events::TRAIN_STEP, step_payload)?;

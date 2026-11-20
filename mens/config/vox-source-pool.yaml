@@ -12,6 +12,8 @@
 #   tests/*.vox, test_syntax.vox  scratch snippets / vox:skip placeholders
 
 heldout_bench: mens/data/heldout_bench/manifest.json
+additional_heldout_benches:
+  - mens/data/heldout_bench_v2/manifest.json
 
 roots:
   - path: examples

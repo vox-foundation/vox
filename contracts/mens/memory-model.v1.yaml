@@ -42,3 +42,9 @@ lanes:
     gradient_checkpointing: true
     act_bytes_per_lht: 162.48240311940512
     source: measured
+    multi_term:
+      fixed_bytes: 4597696186.117241
+      act_bytes_per_lht: 57.81120192875121
+      logits_bytes_per_vt: 0.0
+      cached_attn_bytes_per_lwt: 216.79753895538192
+      lm_head_lora_bytes_per_vt: 136.51760661896978

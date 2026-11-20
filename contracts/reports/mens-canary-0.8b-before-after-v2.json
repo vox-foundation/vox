@@ -1,0 +1,59 @@
+{
+  "schema": "mens_canary_before_after_v2",
+  "bench": "mens/data/heldout_bench_v2_canary",
+  "total_tasks": 64,
+  "max_tokens": 512,
+  "temperature": 0.0,
+  "seed_base": 1337,
+  "scorer": "eval_local verify_completion_with_harness (execution-verified)",
+  "before": {
+    "model": "/Users/brbrainerd/.cache/huggingface/hub/models--Qwen--Qwen3.5-0.8B/snapshots/2fc06364715b967f1860aea9cf38778875588b17",
+    "base_only": true,
+    "report_path": "target/canary_eval_v2/base_0_8b_v2_canary.json",
+    "wall_secs_approx": 436,
+    "passed_at_1": 3.0,
+    "pass_rate_at_1": 0.046875,
+    "semantic_task_success": 0.046875,
+    "anti_stub_task_success": 1.0,
+    "construct_richness_mean": 0.1875,
+    "category_passed": {
+      "adt_match": { "passed": 2, "total": 6, "rate": 0.3333333333333333 },
+      "algorithm": { "passed": 0, "total": 7, "rate": 0.0 },
+      "data_structures": { "passed": 0, "total": 7, "rate": 0.0 },
+      "endpoint_handler": { "passed": 0, "total": 4, "rate": 0.0 },
+      "function": { "passed": 0, "total": 8, "rate": 0.0 },
+      "humaneval-vox": { "passed": 1, "total": 16, "rate": 0.0625 },
+      "matrix_grid": { "passed": 0, "total": 6, "rate": 0.0 },
+      "state_machine": { "passed": 0, "total": 4, "rate": 0.0 },
+      "string_parsing": { "passed": 0, "total": 6, "rate": 0.0 }
+    }
+  },
+  "after": {
+    "model": "mens/runs/qwen3.5-0.8b",
+    "base_only": false,
+    "report_path": "target/canary_eval_v2/adapter_0_8b_v2_canary.json",
+    "wall_secs_approx": 205,
+    "passed_at_1": 9.0,
+    "pass_rate_at_1": 0.140625,
+    "semantic_task_success": 0.140625,
+    "anti_stub_task_success": 1.0,
+    "construct_richness_mean": 0.1391509433962264,
+    "category_passed": {
+      "adt_match": { "passed": 5, "total": 6, "rate": 0.8333333333333334 },
+      "algorithm": { "passed": 1, "total": 7, "rate": 0.14285714285714285 },
+      "data_structures": { "passed": 0, "total": 7, "rate": 0.0 },
+      "endpoint_handler": { "passed": 0, "total": 4, "rate": 0.0 },
+      "function": { "passed": 1, "total": 8, "rate": 0.125 },
+      "humaneval-vox": { "passed": 1, "total": 16, "rate": 0.0625 },
+      "matrix_grid": { "passed": 0, "total": 6, "rate": 0.0 },
+      "state_machine": { "passed": 1, "total": 4, "rate": 0.25 },
+      "string_parsing": { "passed": 0, "total": 6, "rate": 0.0 }
+    }
+  },
+  "delta": {
+    "passed_at_1": 6.0,
+    "pass_rate_at_1": 0.09375,
+    "relative_gain_multiplier": 3.0,
+    "adt_match_delta": 3
+  }
+}

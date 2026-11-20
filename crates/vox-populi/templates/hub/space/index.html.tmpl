@@ -300,7 +300,7 @@
 
       <div class="panel">
         <h2>
-          <span>Held-Out Vox Benchmark (52 Prompts — Base vs. LoRA Adapter)</span>
+          <span>Held-Out Vox Benchmark v1 (52 prompts, compile check only; superseded by the 166-task execution-verified v2, not yet published)</span>
           <div style="display:flex; gap:8px; align-items:center;">
             <select id="filter-verdict" style="width:auto;">
               <option value="ALL">All Verdicts</option>
@@ -344,8 +344,8 @@
         </h2>
         <p style="margin:0 0 14px; font-size:0.85rem; color:var(--muted);">
           Pick any model size from <strong>0.8B</strong> (instant browser checks) up to <strong>27B</strong> (multi-file reasoning):
-          <strong>In-Browser WebGPU</strong> downloads weights directly in your browser (recommended for <code>0.8B</code>–<code>4B</code>) and merges the Vox coding add-on live (supporting both Candle and HF PEFT formats);
-          <strong>HF Inference Provider Router</strong> calls Hugging Face's OpenAI-compatible router (<code>https://router.huggingface.co/v1/chat/completions</code>, ideal for <code>9B</code> &amp; <code>27B</code> or Python/CLI integrations);
+          <strong>In-Browser WebGPU</strong> runs the <em>base</em> model live in your browser (<code>0.8B</code>–<code>4B</code>); the Vox Mens column shows the adapter's recorded held-out output, labelled as recorded, because a browser-ready merged export of the adapter is not published yet;
+          <strong>HF Inference Provider Router</strong> calls Hugging Face's router (<code>https://router.huggingface.co/v1/chat/completions</code>) with your own <code>hf_</code> token; it serves the base models (2B and up), not the Vox Mens adapters, which no provider hosts;
           <strong>Local `vox mens serve`</strong> connects to your own machine (<code>http://127.0.0.1:11435/v1/chat/completions</code>).
         </p>
         <div class="grid-2" style="margin-bottom:12px;">
@@ -353,8 +353,8 @@
             <label for="inference-provider-select">Inference Provider Backend:</label>
             <select id="inference-provider-select">
               <option value="auto" selected>Auto (In-Browser WebGPU 0.8B–4B · HF Router / Local Serve 9B–27B)</option>
-              <option value="webgpu">In-Browser WebGPU + Live SafeTensors LoRA Merger (0.8B / 2B / 4B)</option>
-              <option value="hf-router">Hugging Face Inference Provider Router (All Sizes 0.8B–27B · router.huggingface.co)</option>
+              <option value="webgpu">In-Browser WebGPU: live base model (0.8B / 2B / 4B)</option>
+              <option value="hf-router">Hugging Face Inference Provider Router (base models 2B–27B, your token)</option>
               <option value="local-serve">Local `vox mens serve` OpenAI Endpoint (All Sizes 0.8B–27B · 127.0.0.1:11435)</option>
             </select>
           </div>
@@ -398,7 +398,7 @@
             <input type="number" id="max-tokens-input" value="192" min="16" max="512" step="16" />
           </div>
           <div style="padding-top:18px; display:flex; gap:10px;">
-            <button class="primary" id="run-webgpu-btn" type="button">⚡ Decode Base vs. LoRA Adapter</button>
+            <button class="primary" id="run-webgpu-btn" type="button">⚡ Run base live + show Vox Mens output</button>
             <button class="secondary" id="inspect-safetensors-btn" type="button">Inspect Live Adapter SafeTensors Header</button>
           </div>
         </div>
@@ -997,7 +997,7 @@
       if (!item) return;
       const info = rungInfo(state.activeSize);
       el("sample-prompt-box").textContent = `Prompt (${item.sample_id}): ${item.promptText}`;
-      el("base-sample-label").textContent = `Pinned Base ${info.label} — ${formatDiag(item.base)}`;
+      el("base-sample-label").textContent = `Pinned Base ${state.activeSize} — ${formatDiag(item.base)}`;
       el("adapter-sample-label").textContent = `Vox MENS LoRA Adapter — ${formatDiag(item.adapter)}`;
       el("base-sample-code").textContent = item.baseOutput ?? "(no recorded checkpoint output)";
       el("adapter-sample-code").textContent = item.adapterOutput ?? "(no recorded checkpoint output)";
@@ -1065,7 +1065,7 @@
     }
 
     // =========================================================================
-    // SafeTensors Parser & In-Memory ONNX MatMulNBits LoRA Merger (`ΔW = B @ A * α/r`)
+    // SafeTensors header parser (adapter metadata for the rank/alpha badge)
     // =========================================================================
 
     function fp16ToFp32(u16) {
@@ -1083,17 +1083,6 @@
 
     const _f32Buf = new Float32Array(1);
     const _u32Buf = new Uint32Array(_f32Buf.buffer);
-    function fp32ToFp16(val) {
-      _f32Buf[0] = val;
-      const x = _u32Buf[0];
-      const sign = (x >> 16) & 0x8000;
-      let exp = ((x >> 23) & 0xff) - 127 + 15;
-      let mant = (x >> 13) & 0x03ff;
-      if (exp <= 0) return sign;
-      if (exp >= 31) return sign | 0x7c00;
-      return sign | (exp << 10) | mant;
-    }
-
     function bf16ToFp32(u16) {
       _u32Buf[0] = (u16 & 0xffff) << 16;
       return _f32Buf[0];
@@ -1132,291 +1121,6 @@
         };
       }
       return tensors;
-    }
-
-    function readVarint(u8, posObj) {
-      let result = 0;
-      let shift = 0;
-      while (posObj.pos < u8.length) {
-        if (shift > 63) {
-          throw new Error("Protobuf varint overflow");
-        }
-        const b = u8[posObj.pos++];
-        result += (b & 0x7f) * Math.pow(2, shift);
-        if ((b & 0x80) === 0) return result;
-        shift += 7;
-      }
-      return result;
-    }
-
-    function skipWireValue(u8, posObj, wireType) {
-      if (wireType === 0) {
-        let shift = 0;
-        while (posObj.pos < u8.length) {
-          if (shift > 63) throw new Error("Protobuf varint overflow");
-          if ((u8[posObj.pos++] & 0x80) === 0) break;
-          shift += 7;
-        }
-      } else if (wireType === 1) {
-        posObj.pos += 8;
-      } else if (wireType === 2) {
-        const len = readVarint(u8, posObj);
-        posObj.pos += len;
-      } else if (wireType === 5) {
-        posObj.pos += 4;
-      } else {
-        throw new Error(`Unsupported protobuf wireType ${wireType}`);
-      }
-    }
-
-    function indexOnnxInitializers(onnxU8) {
-      const initializers = {};
-      const p = { pos: 0 };
-      const dec = new TextDecoder();
-      while (p.pos < onnxU8.length) {
-        const tag = readVarint(onnxU8, p);
-        const fieldNum = Math.floor(tag / 8);
-        const wireType = tag % 8;
-        if (fieldNum === 7 && wireType === 2) {
-          const graphLen = readVarint(onnxU8, p);
-          const graphEnd = Math.min(onnxU8.length, p.pos + graphLen);
-          while (p.pos < graphEnd) {
-            const gTag = readVarint(onnxU8, p);
-            const gField = Math.floor(gTag / 8);
-            const gWire = gTag % 8;
-            if (gField === 5 && gWire === 2) {
-              const tLen = readVarint(onnxU8, p);
-              if (p.pos + tLen > graphEnd) {
-                p.pos = graphEnd;
-                break;
-              }
-              const tEnd = p.pos + tLen;
-              let name = "";
-              let dataOffset = -1;
-              let dataLength = 0;
-              const dims = [];
-              while (p.pos < tEnd) {
-                const tTag = readVarint(onnxU8, p);
-                const tField = Math.floor(tTag / 8);
-                const tWire = tTag % 8;
-                if (tField === 1 && tWire === 0) {
-                  dims.push(readVarint(onnxU8, p));
-                } else if (tField === 1 && tWire === 2) {
-                  const dLen = readVarint(onnxU8, p);
-                  const dEnd = Math.min(tEnd, p.pos + dLen);
-                  while (p.pos < dEnd) dims.push(readVarint(onnxU8, p));
-                } else if (tField === 8 && tWire === 2) {
-                  const sLen = readVarint(onnxU8, p);
-                  const sEnd = Math.min(tEnd, p.pos + sLen);
-                  name = dec.decode(onnxU8.subarray(p.pos, sEnd));
-                  p.pos = sEnd;
-                } else if (tField === 9 && tWire === 2) {
-                  dataLength = readVarint(onnxU8, p);
-                  dataOffset = p.pos;
-                  p.pos += dataLength;
-                } else {
-                  skipWireValue(onnxU8, p, tWire);
-                }
-              }
-              if (
-                name &&
-                dataOffset >= 0 &&
-                dataOffset + dataLength <= tEnd &&
-                dataOffset + dataLength <= onnxU8.length
-              ) {
-                initializers[name] = { dims, dataOffset, dataLength };
-              }
-            } else {
-              skipWireValue(onnxU8, p, gWire);
-            }
-          }
-        } else {
-          skipWireValue(onnxU8, p, wireType);
-        }
-      }
-      return initializers;
-    }
-
-    function candidateOnnxPrefixes(logical, baseKey) {
-      if (logical === "lm_head" || baseKey === "lm_head.weight" || baseKey === "model.lm_head.weight") {
-        return ["lm_head.MatMul.weight", "model.lm_head.MatMul.weight"];
-      }
-      const raw = String(baseKey).replace(/^base_model\.model\./, "");
-      const variants = [raw];
-      if (raw.startsWith("model.language_model.")) {
-        variants.push("model." + raw.slice("model.language_model.".length));
-      } else if (raw.startsWith("model.")) {
-        variants.push("model.language_model." + raw.slice("model.".length));
-      }
-      return variants.map((v) =>
-        v.replace(".self_attn.", ".attn.").replace(/\.weight$/, ".MatMul.weight")
-      );
-    }
-
-    function collectLoraPairs(adapterManifest, loraTensors) {
-      const pairs = [];
-      const seen = new Set();
-      const baseKeyMap = (adapterManifest && adapterManifest.base_key_map) || {};
-      for (const [logical, baseKey] of Object.entries(baseKeyMap)) {
-        const aEntry =
-          loraTensors[`${logical}.lora_a.weight`] ||
-          loraTensors[`${logical}.lora_A.weight`] ||
-          loraTensors[`${logical}.lora_A.default.weight`];
-        const bEntry =
-          loraTensors[`${logical}.lora_b.weight`] ||
-          loraTensors[`${logical}.lora_B.weight`] ||
-          loraTensors[`${logical}.lora_B.default.weight`];
-        if (aEntry && bEntry) {
-          pairs.push([logical, String(baseKey), aEntry, bEntry]);
-          seen.add(String(baseKey));
-        }
-      }
-      for (const key of Object.keys(loraTensors || {})) {
-        const m = key.match(/^(.*)\.lora_([aA])(?:\.default)?\.weight$/);
-        if (!m) continue;
-        const prefix = m[1];
-        const bLetter = m[2] === "A" ? "B" : "b";
-        const bEntry =
-          loraTensors[`${prefix}.lora_${bLetter}.weight`] ||
-          loraTensors[`${prefix}.lora_${bLetter}.default.weight`];
-        if (!bEntry) continue;
-        const stem = prefix.replace(/^base_model\.model\./, "");
-        const baseKey = stem === "lm_head" ? "lm_head.weight" : `${stem}.weight`;
-        if (seen.has(baseKey)) continue;
-        seen.add(baseKey);
-        pairs.push([stem === "lm_head" ? "lm_head" : stem, baseKey, loraTensors[key], bEntry]);
-      }
-      return pairs;
-    }
-
-    function applyLoraToOnnxQ4F16(baseOnnxBuffer, metaCtx, loraTensors, onProgress) {
-      const cloned = baseOnnxBuffer.slice(0);
-      const u8 = new Uint8Array(cloned);
-      const dv = new DataView(cloned);
-      const inits = indexOnnxInitializers(u8);
-
-      const adapterManifest = metaCtx && metaCtx.adapterManifest !== undefined ? metaCtx.adapterManifest : metaCtx;
-      const trainingManifest = metaCtx ? metaCtx.trainingManifest : null;
-      const adapterMetaV2 = metaCtx ? metaCtx.adapterMetaV2 : null;
-      const peftConfig = metaCtx ? metaCtx.peftConfig : null;
-
-      const rank = Math.max(Number(peftConfig?.r ?? adapterManifest?.rank ?? 8), 1);
-      const alpha = Number(peftConfig?.lora_alpha ?? adapterManifest?.alpha ?? 16);
-      const useRslora = resolveUseRslora(adapterManifest, trainingManifest, adapterMetaV2, peftConfig);
-      const scaleFactor = useRslora ? (alpha / Math.sqrt(rank)) : (alpha / rank);
-      const pairs = collectLoraPairs(adapterManifest, loraTensors);
-      let patchedCount = 0;
-
-      for (let idx = 0; idx < pairs.length; idx++) {
-        const [logical, baseKey, aEntry, bEntry] = pairs[idx];
-        const onnxPrefix = candidateOnnxPrefixes(logical, baseKey).find(
-          (cand) => inits[`${cand}_Q4`] && inits[`${cand}_scales`]
-        );
-        if (!onnxPrefix) continue;
-        const q4Info = inits[`${onnxPrefix}_Q4`];
-        const scalesInfo = inits[`${onnxPrefix}_scales`];
-
-        const outDim = bEntry.shape[0];
-        const inDim = aEntry.shape[1];
-        const rEff = aEntry.shape[0] || rank;
-        if (!outDim || !inDim || inDim % 32 !== 0) continue;
-        const numBlocksPerRow = inDim >>> 5; // block_size = 32
-        const expectedBlocks = outDim * numBlocksPerRow;
-        const q4Base = q4Info.dataOffset;
-        const scBase = scalesInfo.dataOffset;
-        if (
-          q4Info.dataLength !== expectedBlocks * 16 ||
-          scalesInfo.dataLength !== expectedBlocks * 2 ||
-          q4Base + q4Info.dataLength > u8.length ||
-          scBase + scalesInfo.dataLength > u8.length
-        ) {
-          continue;
-        }
-
-        const zpInfo = inits[`${onnxPrefix}_zero_points`];
-        const hasZp = Boolean(
-          zpInfo &&
-            zpInfo.dataOffset >= 0 &&
-            zpInfo.dataOffset + zpInfo.dataLength <= u8.length &&
-            zpInfo.dataLength >= Math.ceil(expectedBlocks / 2)
-        );
-
-        const A = aEntry.f32;
-        const B = bEntry.f32;
-
-        for (let row = 0; row < outDim; row++) {
-          const bRowOff = row * rEff;
-          for (let blk = 0; blk < numBlocksPerRow; blk++) {
-            const blockIdx = row * numBlocksPerRow + blk;
-            const scByteOff = scBase + blockIdx * 2;
-            const oldScale = fp16ToFp32(dv.getUint16(scByteOff, true));
-            const q4BlockOff = q4Base + blockIdx * 16;
-            const colStart = blk * 32;
-
-            let zp = 8;
-            if (hasZp) {
-              const zpByte = u8[zpInfo.dataOffset + (blockIdx >>> 1)];
-              zp = (blockIdx & 1) === 0 ? (zpByte & 0x0f) : (zpByte >>> 4);
-            }
-
-            const vals = new Float32Array(32);
-            let maxAbs = 0;
-
-            for (let byteIdx = 0; byteIdx < 16; byteIdx++) {
-              const packed = u8[q4BlockOff + byteIdx];
-              const q0 = packed & 0x0f;
-              const q1 = packed >>> 4;
-
-              const c0 = colStart + byteIdx * 2;
-              const c1 = c0 + 1;
-
-              let delta0 = 0;
-              let delta1 = 0;
-              for (let r = 0; r < rEff; r++) {
-                const bVal = B[bRowOff + r];
-                const aRowOff = r * inDim;
-                delta0 += bVal * A[aRowOff + c0];
-                delta1 += bVal * A[aRowOff + c1];
-              }
-
-              const w0 = (q0 - zp) * oldScale + delta0 * scaleFactor;
-              const w1 = (q1 - zp) * oldScale + delta1 * scaleFactor;
-              vals[byteIdx * 2] = w0;
-              vals[byteIdx * 2 + 1] = w1;
-              const a0 = Math.abs(w0);
-              const a1 = Math.abs(w1);
-              if (a0 > maxAbs) maxAbs = a0;
-              if (a1 > maxAbs) maxAbs = a1;
-            }
-
-            const newScale = maxAbs > 1e-8 ? maxAbs / 7.0 : 1e-8;
-            dv.setUint16(scByteOff, fp32ToFp16(newScale), true);
-            const invScale = 1.0 / newScale;
-
-            for (let byteIdx = 0; byteIdx < 16; byteIdx++) {
-              let n0 = Math.round(vals[byteIdx * 2] * invScale) + 8;
-              let n1 = Math.round(vals[byteIdx * 2 + 1] * invScale) + 8;
-              if (n0 < 0) n0 = 0; else if (n0 > 15) n0 = 15;
-              if (n1 < 0) n1 = 0; else if (n1 > 15) n1 = 15;
-              u8[q4BlockOff + byteIdx] = (n0 & 0x0f) | ((n1 & 0x0f) << 4);
-            }
-
-            if (hasZp) {
-              const zpByteOff = zpInfo.dataOffset + (blockIdx >>> 1);
-              if ((blockIdx & 1) === 0) {
-                u8[zpByteOff] = (u8[zpByteOff] & 0xf0) | 0x08;
-              } else {
-                u8[zpByteOff] = (u8[zpByteOff] & 0x0f) | 0x80;
-              }
-            }
-          }
-        }
-        patchedCount++;
-        if (onProgress && patchedCount % 28 === 0) {
-          onProgress(patchedCount, pairs.length);
-        }
-      }
-      return { buffer: cloned, patchedCount };
     }
 
     async function fetchAdapterArtifacts(repoId, existingBundle) {
@@ -1550,6 +1254,10 @@
       const matchedSample = (bundle.joined || []).find(
         (item) => item.promptText && item.promptText.replace(/\s*\/no_think\b/g, "").trim() === cleanedTarget
       );
+      // Recorded eval output is only ever shown with this marker, never as a live result.
+      const recordedBase = matchedSample?.baseOutput
+        ? `[RECORDED, not live: base output from the published held-out eval]\n${matchedSample.baseOutput}`
+        : null;
 
       const endpointUrl =
         mode === "local-serve"
@@ -1565,12 +1273,12 @@
 
       el("webgpu-base-label").textContent =
         mode === "local-serve"
-          ? `Base ${info.label} (${endpointUrl})`
+          ? `Base ${size} (${endpointUrl})`
           : `Base ${baseModelId} via HF Inference Provider Router`;
       el("webgpu-adapter-label").textContent =
         mode === "local-serve"
-          ? `Vox MENS ${info.label} Adapter via Local vox mens serve`
-          : `Vox MENS ${info.label} Adapter (${repoId})`;
+          ? `${info.label} adapter via Local vox mens serve`
+          : `${info.label} adapter (${repoId})`;
 
       const routerPayload = {
         messages: [
@@ -1592,7 +1300,7 @@
         if (baseProbe.ok) {
           if (mode === "local-serve") {
             el("webgpu-base-output").textContent =
-              matchedSample?.baseOutput || "(Pinned base checkpoint reference available in Tab 1)";
+              recordedBase || "(Pinned base checkpoint reference available in Tab 1)";
             el("webgpu-adapter-output").textContent = extractShownCode(baseProbe.content) || baseProbe.content;
             statusEl.textContent = `Completed live local-serve decode on ${repoId} via ${endpointUrl}.`;
             return;
@@ -1601,12 +1309,12 @@
           baseDone = true;
         } else {
           el("webgpu-base-output").textContent =
-            matchedSample?.baseOutput ||
+            recordedBase ||
             `[HF Router HTTP ${baseProbe.status}] Enter an hf_... token above for live cloud routing on ${baseModelId}, or use local vox mens serve.\n${baseProbe.errorText.slice(0, 240)}`;
         }
       } catch (err) {
         el("webgpu-base-output").textContent =
-          matchedSample?.baseOutput ||
+          recordedBase ||
           `[Endpoint unreachable: ${err.message || err}]\nTo serve ${repoId} locally with native Metal/CUDA NF4+LoRA:\n  vox mens serve --model ${info.localDir} --port 11435`;
       }
 
@@ -1628,8 +1336,9 @@
 
       const vramNote = vramGuidanceNote(info);
       if (matchedSample && matchedSample.adapterOutput) {
+        el("webgpu-adapter-label").textContent = `RECORDED, not live: ${info.label} output from the published held-out eval (${repoId})`;
         el("webgpu-adapter-output").textContent = matchedSample.adapterOutput;
-        statusEl.textContent = `Loaded verified ${repoId} SafeTensors and recorded checkpoint output for ${info.label}. ${vramNote}`.trim();
+        statusEl.textContent = `No live provider serves ${repoId}; showing its recorded held-out output. ${vramNote}`.trim();
       } else if (artifacts || bundle.adapterManifest || bundle.peftConfig) {
         const rank = artifacts?.rank ?? bundle.peftConfig?.r ?? bundle.adapterManifest?.rank ?? "?";
         const alpha = artifacts?.alpha ?? bundle.peftConfig?.lora_alpha ?? bundle.adapterManifest?.alpha ?? "?";
@@ -1676,32 +1385,26 @@
         }
         const hasGpu = await checkWebGPU();
         const runtimeDevice = hasGpu ? "webgpu" : "wasm";
-        el("webgpu-base-label").textContent = `Base ${info.label} Live ${runtimeDevice.toUpperCase()} Output`;
-        el("webgpu-adapter-label").textContent = `Vox MENS ${info.label} LoRA Adapter Live ${runtimeDevice.toUpperCase()} Output`;
+        el("webgpu-base-label").textContent = `Base ${size} (${runtimeDevice.toUpperCase()}, loading…)`;
+        el("webgpu-adapter-label").textContent = `${info.label}`;
 
+        // Live in-browser inference runs the BASE model only. Why: transformers.js cannot apply a
+        // LoRA at runtime, and the onnx-community Qwen3.5 exports keep weights in external
+        // `.onnx_data` files, so the old in-page q4f16 merge could not work (it fetched a file that
+        // does not exist). The adapter column shows the published held-out output, labelled as
+        // recorded, until a merged-ONNX export of the adapter is published (milestone v9.5).
+        // Verified 2026-11-20: transformers.js 4.3.2 + Qwen3_5ForConditionalGeneration, q4,
+        // Apple Metal WebGPU, load ~18 s, nonce prompt answered correctly.
         const repoId = info.repoId;
-        statusEl.textContent = `[1/4] Loading @huggingface/transformers v3 and fetching ${repoId} adapter weights…`;
-        const { AutoTokenizer, AutoModelForCausalLM, TextStreamer, env } = await import(
-          "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.0"
-        );
-
-        const bundle = await loadRungEvidence(size).catch(() => null);
-        const artifacts = await fetchAdapterArtifacts(repoId, bundle);
-        if (!artifacts) {
-          throw new Error(`Published Candle or PEFT adapter weights not found in ${repoId}`);
-        }
-        const loraTensors = artifacts.loraTensors;
-        const scaleMode = artifacts.useRslora ? "rsLoRA α/√r" : "α/r";
-        el("lora-manifest-badge").textContent = `${size}: ${Object.keys(loraTensors).length} tensors (r=${artifacts.rank}, α=${artifacts.alpha}, ${scaleMode})`;
-        el("lora-manifest-badge").className = "badge badge-pass";
-        el("webgpu-adapter-label").textContent = `Vox MENS ${info.label} LoRA Adapter Live ${runtimeDevice.toUpperCase()} (${scaleMode} = ${artifacts.scaleFactor.toFixed(3)})`;
+        statusEl.textContent = `[1/3] Loading transformers.js 4.3.2 and the base ${size} tokenizer (${onnxRepo})…`;
+        const tj = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2");
 
         const sysPrompt = el("system-prompt-input").value.trim();
-        const userPrompt = formatUserPromptForModel(el("user-prompt-input").value.trim(), info);
+        const rawUserPrompt = el("user-prompt-input").value.trim();
+        const userPrompt = formatUserPromptForModel(rawUserPrompt, info);
         const maxNewTokens = Math.max(16, Math.min(512, Number(el("max-tokens-input").value || 192)));
 
-        statusEl.textContent = `[2/4] Loading ${info.label} Tokenizer and Base ONNX q4f16 weights (${onnxRepo})…`;
-        const tokenizer = await AutoTokenizer.from_pretrained(onnxRepo);
+        const tokenizer = await tj.AutoTokenizer.from_pretrained(onnxRepo);
         const messages = [
           { role: "system", content: sysPrompt },
           { role: "user", content: userPrompt },
@@ -1715,68 +1418,21 @@
 
         let cached = state.cachedSessions[size];
         if (!cached) {
-          const onnxUrl = hfUrl(onnxRepo, "onnx/model_q4f16.onnx");
-          const onnxRes = await fetch(onnxUrl);
-          if (!onnxRes.ok) throw new Error(`Failed to fetch ${onnxUrl} (HTTP ${onnxRes.status})`);
-          const baseOnnxBuf = await onnxRes.arrayBuffer();
-
-          statusEl.textContent = `[3/4] Merging ${Object.keys(loraTensors).length} SafeTensors LoRA factors (${scaleMode}) into ${info.label} ONNX q4f16 matrices…`;
-          await new Promise((r) => setTimeout(r, 20));
-          const { buffer: adaptedOnnxBuf, patchedCount } = applyLoraToOnnxQ4F16(
-            baseOnnxBuf,
-            artifacts,
-            loraTensors
-          );
-
-          const nativeFetch = globalThis.fetch.bind(globalThis);
-          const prevFetch = env.fetch;
-          const prevUseBrowserCache = env.useBrowserCache;
-          let serveAdapted = false;
-          env.useBrowserCache = false;
-          env.fetch = async (input, init) => {
-            const urlStr =
-              typeof input === "string"
-                ? input
-                : input instanceof URL
-                  ? input.href
-                  : (input && input.url) || "";
-            if (urlStr.endsWith("onnx/model_q4f16.onnx")) {
-              const buf = serveAdapted ? adaptedOnnxBuf.slice(0) : baseOnnxBuf.slice(0);
-              return new Response(buf, {
-                status: 200,
-                headers: { "Content-Type": "application/octet-stream" },
-              });
-            }
-            if (urlStr.includes("__vox_lora_adapter__/")) {
-              const rewritten = urlStr.replace("__vox_lora_adapter__", onnxRepo);
-              return nativeFetch(rewritten, init);
-            }
-            return nativeFetch(input, init);
-          };
-
-          try {
-            serveAdapted = false;
-            const baseModel = await AutoModelForCausalLM.from_pretrained(onnxRepo, {
-              dtype: "q4f16",
-              device: runtimeDevice,
-            });
-
-            serveAdapted = true;
-            const adapterModel = await AutoModelForCausalLM.from_pretrained("__vox_lora_adapter__", {
-              dtype: "q4f16",
-              device: runtimeDevice,
-            });
-
-            cached = { baseModel, adapterModel, patchedCount, runtimeDevice };
-            state.cachedSessions[size] = cached;
-          } finally {
-            env.fetch = prevFetch;
-            env.useBrowserCache = prevUseBrowserCache;
-          }
+          statusEl.textContent = `[2/3] Downloading base ${size} weights (${onnxRepo}, q4; several hundred MB, cached by the browser after the first run)…`;
+          const model =
+            String(info.family).startsWith("qwen3.5")
+              ? await tj.Qwen3_5ForConditionalGeneration.from_pretrained(onnxRepo, {
+                  dtype: { embed_tokens: "q4", vision_encoder: "q4", decoder_model_merged: "q4" },
+                  device: runtimeDevice,
+                })
+              : await tj.AutoModelForCausalLM.from_pretrained(onnxRepo, { dtype: "q4", device: runtimeDevice });
+          cached = { model, runtimeDevice };
+          state.cachedSessions[size] = cached;
         }
 
-        statusEl.textContent = `[4/4] Decoding Base ${info.label} on WebGPU…`;
-        const baseStreamer = new TextStreamer(tokenizer, {
+        el("webgpu-base-label").textContent = `LIVE in your browser (${cached.runtimeDevice.toUpperCase()}): base ${info.baseModel}`;
+        statusEl.textContent = `[3/3] Generating with base ${size} in your browser…`;
+        const baseStreamer = new tj.TextStreamer(tokenizer, {
           skip_prompt: true,
           skip_special_tokens: true,
           callback_function: (txt) => {
@@ -1784,7 +1440,7 @@
           },
         });
         const t0 = performance.now();
-        await cached.baseModel.generate({
+        await cached.model.generate({
           ...inputs,
           max_new_tokens: maxNewTokens,
           do_sample: false,
@@ -1792,24 +1448,23 @@
         });
         const baseSec = ((performance.now() - t0) / 1000).toFixed(2);
 
-        statusEl.textContent = `[4/4] Decoding Vox MENS ${info.label} LoRA Adapter (${cached.patchedCount} projections merged) on WebGPU…`;
-        const adapterStreamer = new TextStreamer(tokenizer, {
-          skip_prompt: true,
-          skip_special_tokens: true,
-          callback_function: (txt) => {
-            el("webgpu-adapter-output").textContent += txt;
-          },
-        });
-        const t1 = performance.now();
-        await cached.adapterModel.generate({
-          ...inputs,
-          max_new_tokens: maxNewTokens,
-          do_sample: false,
-          streamer: adapterStreamer,
-        });
-        const adaptSec = ((performance.now() - t1) / 1000).toFixed(2);
-
-        statusEl.textContent = `Completed ${cached.runtimeDevice.toUpperCase()} side-by-side decode on ${info.label} (Base: ${baseSec}s · LoRA Adapter [${cached.patchedCount} matrices]: ${adaptSec}s).`;
+        const cleanedTarget = rawUserPrompt.replace(/\s*\/no_think\b/g, "").trim();
+        const bundle = await loadRungEvidence(size).catch(() => null);
+        const matchedSample = (bundle?.joined || []).find(
+          (item) => item.promptText && item.promptText.replace(/\s*\/no_think\b/g, "").trim() === cleanedTarget
+        );
+        if (matchedSample?.adapterOutput) {
+          el("webgpu-adapter-label").textContent = `RECORDED, not live: ${info.label} output from the published held-out eval (${repoId})`;
+          el("webgpu-adapter-output").textContent = matchedSample.adapterOutput;
+        } else {
+          el("webgpu-adapter-label").textContent = `${info.label} (${repoId}): not available live in the browser yet`;
+          el("webgpu-adapter-output").textContent =
+            `The fine-tuned adapter cannot run in the browser yet: a merged ONNX export is not published.\n` +
+            `To run ${info.label} on your own prompt, serve it locally and pick "Local vox mens serve" above:\n` +
+            `  vox mens serve --model ${info.localDir} --port 11435\n` +
+            `Or pick a held-out prompt in Tab 1 to compare against its recorded adapter output.`;
+        }
+        statusEl.textContent = `Base ${size} generated live in your browser on ${cached.runtimeDevice.toUpperCase()} in ${baseSec}s.`;
       } catch (err) {
         statusEl.textContent = `WebGPU Inference Error on ${info.label}: ${err.message || err}. For large weights or browser VRAM limits, switch to HF Inference Provider Router, run \`vox mens serve --model ${info.localDir}\`, or view Tab 1 recorded eval evidence.`;
       } finally {

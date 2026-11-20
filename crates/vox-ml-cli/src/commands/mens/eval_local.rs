@@ -3,7 +3,9 @@
 use super::eval_local_prompt::{
     PreparedBench, prepare_bench_item_for_model, sort_prepared_benches_lexicographic,
 };
+#[cfg(test)]
 use super::metrics::verify_completion;
+use super::metrics::verify_completion_with_harness;
 use anyhow::Result;
 use std::path::PathBuf;
 
@@ -463,6 +465,7 @@ fn eval_local_report(
         let description = w.description;
         let context_files = w.context_files;
         let semantic_expected_contains = w.semantic_expected_contains;
+        let test_harness = w.test_harness;
         let manifest_index = w.manifest_index;
 
         let (passes, samples_json): (Vec<bool>, Vec<serde_json::Value>) = if prompt.is_empty()
@@ -496,13 +499,14 @@ fn eval_local_report(
                             // Score only the final answer: text after the last
                             // `</think>`, nothing for a think block left open.
                             let completion = vox_eval::qwen_reasoning::answer_region(&raw);
-                            let v = verify_completion(
+                            let v = verify_completion_with_harness(
                                 completion,
                                 &bench,
                                 &file,
                                 &id,
                                 manifest_index,
                                 &semantic_expected_contains,
+                                test_harness.as_deref(),
                             );
                             passes.push(v.pass);
                             samples_json.push(serde_json::json!({

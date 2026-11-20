@@ -4,7 +4,7 @@
 //! generic `MaskedCeForward` enum live in `vox-plugin-mens-candle-core`; this
 //! alias specializes it with CUDA's `CheckpointSegment` type.
 pub use vox_plugin_mens_candle_core::candle_qlora_train::training_loop::types::{
-    QloraTrainingResume, TryEncodeOutcome,
+    DetachedHeadBackward, QloraTrainingResume, TryEncodeOutcome,
 };
 
 pub type MaskedCeForward =

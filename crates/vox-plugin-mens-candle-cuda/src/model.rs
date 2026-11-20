@@ -1136,7 +1136,12 @@ pub struct CheckpointedForward {
 }
 
 impl Qwen35Model {
-    pub fn forward(&self, input_ids: &Tensor) -> Result<Tensor> {
+    pub fn device(&self) -> &Device {
+        self.embed_tokens.device()
+    }
+
+    /// Transformer backbone forward without final `norm` + `lm_head` (`[b, seq, d_model]`).
+    pub fn forward_hidden(&self, input_ids: &Tensor) -> Result<Tensor> {
         let (b, seq_len) = input_ids.dims2()?;
         let d_model = self.embed_tokens.dim(1)?;
         let ids = input_ids.flatten_all()?;
@@ -1148,6 +1153,11 @@ impl Qwen35Model {
         for layer in &self.layers {
             x = layer.forward(&x, 0, None)?;
         }
+        Ok(x)
+    }
+
+    pub fn forward(&self, input_ids: &Tensor) -> Result<Tensor> {
+        let x = self.forward_hidden(input_ids)?;
         self.head_forward(&x)
     }
 
@@ -1157,11 +1167,8 @@ impl Qwen35Model {
             .any(|l| matches!(l.attention, Qwen35AttentionBlock::Linear(_)))
     }
 
-    /// Packed multi-document forward pass (`b == 1`, `doc_ids.len() == seq_len`).
-    ///
-    /// Resets RoPE positions and linear-attention recurrent/conv state per document
-    /// and prevents cross-document full-attention leakage via block-diagonal causal masking.
-    pub fn forward_packed(&self, input_ids: &Tensor, doc_ids: &[u32]) -> Result<Tensor> {
+    /// Packed multi-document backbone forward without `norm` + `lm_head`.
+    pub fn forward_packed_hidden(&self, input_ids: &Tensor, doc_ids: &[u32]) -> Result<Tensor> {
         let (b, seq_len) = input_ids.dims2()?;
         if b != 1 || doc_ids.len() != seq_len {
             return Err(candle_core::Error::Msg(format!(
@@ -1179,6 +1186,15 @@ impl Qwen35Model {
         for layer in &self.layers {
             x = layer.forward_packed_ctx(&x, &ctx)?;
         }
+        Ok(x)
+    }
+
+    /// Packed multi-document forward pass (`b == 1`, `doc_ids.len() == seq_len`).
+    ///
+    /// Resets RoPE positions and linear-attention recurrent/conv state per document
+    /// and prevents cross-document full-attention leakage via block-diagonal causal masking.
+    pub fn forward_packed(&self, input_ids: &Tensor, doc_ids: &[u32]) -> Result<Tensor> {
+        let x = self.forward_packed_hidden(input_ids, doc_ids)?;
         self.head_forward(&x)
     }
 
@@ -1257,6 +1273,11 @@ impl Qwen35Model {
         // cross-entropy (log_softmax + masked gather in `forward_masked_ce`) runs
         // entirely in F32 regardless of the activation dtype. No-op on the F32 path.
         logits.to_dtype(DType::F32)
+    }
+
+    /// Final norm + `lm_head` + F32 cast over `[rows, d_model]` for chunked CE.
+    pub fn head_forward_rows(&self, hidden_2d: &Tensor) -> Result<Tensor> {
+        self.head_forward(&hidden_2d.unsqueeze(0)?)?.squeeze(0)
     }
 
     /// Run the transformer layers in `[start, end)` over `x`. Identical op
@@ -1369,6 +1390,80 @@ impl Qwen35Model {
         let packed_ctx =
             std::sync::Arc::new(PackedAttnContext::new(doc_ids, self.embed_tokens.device())?);
         self.forward_checkpointed_inner(input_ids, n_segments, Some(packed_ctx))
+    }
+
+    fn forward_checkpointed_hidden_inner(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+        packed_ctx: Option<std::sync::Arc<PackedAttnContext>>,
+    ) -> Result<(Tensor, Vec<CheckpointSegment>)> {
+        let num_layers = self.layers.len();
+        let n_segments = n_segments.clamp(1, num_layers.max(1));
+
+        let (b, seq_len) = input_ids.dims2()?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let embed = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+
+        let base = num_layers / n_segments;
+        let rem = num_layers % n_segments;
+        let mut bounds = Vec::with_capacity(n_segments + 1);
+        bounds.push(0usize);
+        let mut acc = 0usize;
+        for s in 0..n_segments {
+            acc += base + usize::from(s < rem);
+            bounds.push(acc);
+        }
+
+        let mut segments = Vec::with_capacity(n_segments);
+        let mut seg_input = embed.detach();
+        for s in 0..n_segments {
+            let start = bounds[s];
+            let end = bounds[s + 1];
+            segments.push(CheckpointSegment {
+                input: seg_input.clone(),
+                start_layer: start,
+                end_layer: end,
+                packed_ctx: packed_ctx.clone(),
+            });
+            let seg_out = candle_core::with_no_grad(|| {
+                self.run_layers_with(&seg_input, start, end, packed_ctx.as_deref())
+            })?;
+            seg_input = seg_out.detach();
+        }
+        Ok((seg_input, segments))
+    }
+
+    /// Checkpointed backbone forward for detached-boundary chunked `lm_head` backward on CUDA.
+    pub fn forward_checkpointed_hidden(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> Result<(Tensor, Vec<CheckpointSegment>)> {
+        self.forward_checkpointed_hidden_inner(input_ids, n_segments, None)
+    }
+
+    /// Packed variant of [`Self::forward_checkpointed_hidden`] (`b == 1`, `doc_ids.len() == seq_len`).
+    pub fn forward_checkpointed_packed_hidden(
+        &self,
+        input_ids: &Tensor,
+        doc_ids: &[u32],
+        n_segments: usize,
+    ) -> Result<(Tensor, Vec<CheckpointSegment>)> {
+        let (b, seq_len) = input_ids.dims2()?;
+        if b != 1 || doc_ids.len() != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "forward_checkpointed_packed_hidden expects batch=1 and doc_ids.len()==seq_len (got b={b}, seq_len={seq_len}, doc_ids={})",
+                doc_ids.len()
+            )));
+        }
+        let packed_ctx =
+            std::sync::Arc::new(PackedAttnContext::new(doc_ids, self.embed_tokens.device())?);
+        self.forward_checkpointed_hidden_inner(input_ids, n_segments, Some(packed_ctx))
     }
 
     /// Recompute one checkpoint segment's forward from its detached boundary

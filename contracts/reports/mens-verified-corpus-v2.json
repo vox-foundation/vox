@@ -1,0 +1,57 @@
+{
+  "schema": "mens_verified_corpus_v2",
+  "output_jsonl": "mens/data/verified_vox_codegen_v2.jsonl",
+  "canary_train_jsonl": "target/v94_canary_data/train.jsonl",
+  "output_blake3": "765a8f83604e5eec776dda928629456abb5b927935dd764ce654a7a86324d1b0",
+  "total_emitted": 3338,
+  "execution_verified_total": 2340,
+  "humaneval_training_eligible_total": 133,
+  "humaneval_execution_verified": 133,
+  "repo_source_pool_compiled": 270,
+  "dogfood_v4_total_codegen": 1902,
+  "dogfood_v4_compiler_verified": 1007,
+  "train_full_backup_total": 1731,
+  "train_full_backup_verified": 789,
+  "validated_clean_total": 229,
+  "validated_clean_verified": 211,
+  "synth_exec_stats": {
+    "generated": 2120,
+    "verified": 2109,
+    "failed": 11,
+    "by_category": {
+      "adt_match": 220,
+      "data_structures": 200,
+      "endpoint_handler": 200,
+      "list_window": 220,
+      "math_modular": 220,
+      "matrix_grid": 200,
+      "multi_fn_module": 200,
+      "sorting_intervals": 220,
+      "state_machine": 220,
+      "string_parsing": 209
+    }
+  },
+  "mit_teacher_rft_total": 98,
+  "mit_teacher_rft_verified": 98,
+  "emitted_by_origin": {
+    "dogfood_v4_verified": 675,
+    "humaneval_vox_training_eligible": 133,
+    "mit_teacher_rft_v94": 98,
+    "repo_source_pool": 204,
+    "train_full_backup_verified": 105,
+    "v94_synth_exec_verified": 2109,
+    "validated_clean_verified": 14
+  },
+  "skipped_by_reason": {
+    "backup_compile_or_stub_fail": 942,
+    "dogfood_compile_or_stub_fail": 895,
+    "duplicate": 1279,
+    "source_pool_compile_fail": 68,
+    "source_pool_policy": 519,
+    "validated_clean_compile_or_stub_fail": 18
+  },
+  "leakage_checks": {
+    "heldout_bench_v1_passed": true,
+    "heldout_bench_v2_passed": true
+  }
+}

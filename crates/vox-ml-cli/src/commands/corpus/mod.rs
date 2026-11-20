@@ -12,7 +12,7 @@ pub(crate) mod generate;
 mod rft;
 pub(crate) mod source_pool;
 mod stats;
-mod synth;
+pub(crate) mod synth;
 mod validate;
 
 pub use synth::SynthLlmArgs;
