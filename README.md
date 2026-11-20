@@ -24,8 +24,8 @@
   <img src="docs/src/assets/vox_hero_banner.webp" alt="Vox — Single-file full-stack programming language, capability-sandboxed interpreter, and AI-native verification suite" width="100%" />
 
   <p>
-    <strong>An experimental full-stack programming language, compiler, agent harness, and verification suite</strong><br />
-    <em>Declare schemas, server queries, reactive UI, durable workflows, and MCP agent tools in one <code>.vox</code> module — projected without drift across SQLite/Turso, Rust/Axum, React/TypeScript, and paired with a 3-layer Federated Knowledge Base, Self-Healing OpenWiki, Deep Research/Scientia pipeline, and <strong>Vox Axis</strong> workbench.</em>
+    <strong>An experimental programming language, compiler and agent toolchain for web applications</strong><br />
+    <em>Vox describes a database table, a server query, a UI component, a durable workflow and an agent tool in one <code>.vox</code> file, and the compiler checks them together. Around the language sit a searchable knowledge base, documentation that is checked against the code, a research and publishing pipeline, and <strong>Vox Axis</strong>, a desktop app.</em>
   </p>
 
   <p>
@@ -66,13 +66,14 @@
 
 ---
 
-## Animated Language, Compiler & Verification Suite Tour
+## Where to look first
+
+This README is for people working on the repository: status, how to build, layout, contributing. The interactive material lives on the website: a [playground](https://voxlang.org/#try-it) showing what the compiler produces, a [tour of Vox Axis](https://voxlang.org/#vox-axis-workbench), and a [tour of the core subsystems](https://voxlang.org/#vox-core-subsystems). Each tour slide says what a part is for, why it works that way, and what it means for AI-written code and for people.
 
 <div align="center">
-  <img src="docs/src/assets/vox_language_suite_tour.webp" alt="Animated WebP tour of the Vox Language & Verification Suite: Single-file .vox grammar projection, Dual execution lanes (Interpreter vs Rust/React Codegen), Durable workflows & cryptographic MCP receipts, Empirical benchmark (82% Pass@1 vs 68% TypeScript) + MENS QLoRA, and 6-layer crate architecture" width="94%" />
+  <img src="docs/src/assets/vox_language_suite_tour.webp" alt="Animated overview of the Vox language and verification suite: one .vox declaration and its generated targets, the two execution modes, durable workflows with signed tool receipts, the benchmark against TypeScript, and the layered crate architecture" width="94%" />
   <p>
-    <strong>The Vox Language, Compiler &amp; Verification Flywheel (<code>vox-foundation/vox</code>)</strong><br />
-    <em>Five architectural plates cycling through: (I) Single-file <code>.vox</code> declaration projected across SQL, Rust/Axum, React/TSX, and MCP; (II) Instant capability-sandboxed interpreter (<code>vox run --caps</code>) vs. native full-stack compilation (<code>vox build</code>); (III) Event-sourced durable workflows (<code>VoxDbTracker</code>), actor file locks (<code>ADR-025</code>), and <code>BLAKE3</code>/<code>HMAC</code> tool receipts (<code>ADR-029</code>); (IV) Multi-turn compiler-feedback evaluation (<a href="#the-central-claim">The central claim</a>) &amp; pure-Rust Candle QLoRA; and (V) 6-layer zero-cycle workspace architecture (<code>L0</code>–<code>L5</code>) with 33 <code>crates.io</code> packages.</em>
+    <em>Overview animation: the language, the two execution modes (<code>vox run</code> and <code>vox build</code>), durable workflows with signed tool receipts (<code>ADR-029</code>), the TypeScript benchmark (<a href="#the-central-claim">the central claim</a>), and the layered crate graph (<code>L0</code>–<code>L5</code>).</em>
   </p>
 </div>
 
@@ -109,7 +110,7 @@ A typical web app restates one domain model in four places:
 Names and types can drift at each boundary. People and coding agents both spend time keeping the copies aligned.
 
 <div align="center">
-  <img src="docs/src/assets/schema-fragmentation.webp" alt="One field written four times: SQL completed_at, Rust Option DateTime, JSON completedAt null, and TypeScript isDone, beside one Vox table that emits done: bool to every layer" width="760" height="424" loading="lazy" decoding="async" />
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/schema-fragmentation-dark.svg" /><img src="docs/src/assets/schema-fragmentation-light.svg" alt="One field written four times: SQL completed_at, Rust Option DateTime, JSON completedAt null, and TypeScript isDone, beside one Vox table that emits done: bool to every layer" width="760" height="424" loading="lazy" decoding="async" /></picture>
   <p>
     <strong>One field, written four times</strong><br />
     <em>completed_at, completedAt, and isDone are the same fact. Each boundary renames it or changes its type. A Vox table states it once, and every layer keeps that name and type.</em>
@@ -388,7 +389,7 @@ Newest first.
 - **2026-11-13** (`v5.6–v5.7`, `v6.9`): Shipped calibrated lane `<think>` prefixes + `.mdx` KB ingest parity (`v5.6`), the `uv`-locked `vox-python-bridge` (`vox py`, `std.array`, `std.frame`, `std.plot`, `std.tensor`) + `<1.5 ms` tolerant CLI recovery (`v5.7`), and `vox-repository::core` decoupling + `forward_packed` / `--use-rslora` MENS QLoRA upgrades (`v6.9`).
 
 - **2026-11-10**: Re-verified all **48 rows** of the Status tables on `main` (`b2ce949b4`, tag `v6.8`, `16,491 / 16,491` tests passing across 3 CI shards); generated bespoke `v6.6` Sunlit Imperial Roman Carrara White & Gold artwork and animated `.webp` tours for each of the 4 repositories (`vox`, `vox-axis`, `voxlang.org`, `vox-ops`) so zero animations or hero banners are duplicated across repos; eliminated all machine-local `/Users/...` paths from satellite READMEs/scripts; and updated GitHub repository descriptions, homepages, and topics across `vox-foundation`.
-- **2026-11-10**: Completed Milestones `v6.7` & `v6.8` (`Phases 387–401`, [Flywheel & Multi-Repo SSOT](docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md)): federated the workspace across `vox-foundation/vox`, `vox-foundation/vox-axis`, `vox-foundation/voxlang.org`, and private `vox-ops`; extracted `vox-cli-core`, `vox-mcp-dispatch`, `vox-repository-core`, `vox-search-core`, and `vox-scientia-core` (cutting warm incremental leaf check/test times by 28%–89%); expanded `crates.io` dry-run verified crates from 2 to 33 (`vox ci publish-dry-run`); adversarially audited all 46 repository and sub-crate `README.md` files with `README-SYNC-MAP` domain ownership and footnoted prior-art attribution; and updated **Vox Axis** ([`crates/vox-gui/README.md`](crates/vox-gui/README.md)) with 50 `v6.6` Roman White & Gold Playwright captures and the **`VRBS ROMA` 3D/2.5D Simulator**.
+- **2026-11-10**: Completed Milestones `v6.7` & `v6.8` (`Phases 387–401`, [Flywheel & Multi-Repo SSOT](docs/src/architecture/monorepo-to-multirepo-flywheel-ssot-2026.md)): federated the workspace across `vox-foundation/vox`, `vox-foundation/vox-axis`, `vox-foundation/voxlang.org`, and private `vox-ops`; extracted `vox-cli-core` and other leaf crates (some of these were later folded back into their parents; cutting warm incremental leaf check/test times by 28%–89% at the time); expanded `crates.io` dry-run verified crates from 2 to 33 (`vox ci publish-dry-run`); adversarially audited all 46 repository and sub-crate `README.md` files with `README-SYNC-MAP` domain ownership and footnoted prior-art attribution; and updated **Vox Axis** ([`crates/vox-gui/README.md`](crates/vox-gui/README.md)) with 50 `v6.6` Roman White & Gold Playwright captures and the **`VRBS ROMA` 3D/2.5D Simulator**.
 - **2026-11-02**: Why Vox states the reason and the benefit for each language choice (one declaration, `Option`/`Result`, `Id[T]`, keywords versus decorators, `vox run` versus `vox build`, and `tool` as a function). The same text is synced to the `voxlang.org` homepage.
 - **2026-11-02**: Verified published Qwen3 adapters on Hugging Face ([0.6B](https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b), [1.7B](https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b), [4B](https://huggingface.co/brbrainerd/vox-mens-qwen3-4b), [index](https://huggingface.co/brbrainerd/vox-mens-index)), `VoxDb` schema baseline `97`, relevance-ranked chat tool offering (`#686`), and dual-chevron docs sidebars (`#687`).
 - **2026-10-31**: Re-verified tutorials and docs CI on the mounted roadmap (`#683`). Model defaults moved from pinned versions to live `~family-latest` aliases (`#682`).

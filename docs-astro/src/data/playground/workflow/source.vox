@@ -1,0 +1,24 @@
+table OrderLedger {
+    order_id: str
+    amount_cents: int
+    tx_hash: str
+}
+
+activity charge_card(amount_cents: int) to Result[str] {
+    print("Charged " + str(amount_cents) + " cents")
+    return Ok("tx_9f8a7b")
+}
+
+workflow checkout_order(amount_cents: int) to Result[str] {
+    let receipt = charge_card(amount_cents)?
+    print("Journaled receipt: " + receipt)
+    return Ok(receipt)
+}
+
+tool "Execute a durable checkout order" run_checkout(amount_cents: int) to Result[str] {
+    return checkout_order(amount_cents)
+}
+
+fn main() to Result[str] {
+    return checkout_order(4900)
+}

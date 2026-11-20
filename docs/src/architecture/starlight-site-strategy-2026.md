@@ -166,7 +166,7 @@ exists; there is no `src/content/config.ts`.
 
 ### How Documentation Feeds the Training Pipeline
 
-The Vox documentation corpus is a **primary training lane** for the MENS model (`vox-lang` domain). The connection is:
+The Vox documentation corpus is a **primary training lane** for the MENS model (`vox-compiler` domain). The connection is:
 
 1. `vox-doc-pipeline` → generates `docs/src/SUMMARY.md` (metadata index)
 2. CI builds → `docs-astro/dist/` (rendered HTML)

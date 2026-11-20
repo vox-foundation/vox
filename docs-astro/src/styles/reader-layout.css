@@ -907,6 +907,71 @@ main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
   color: #334155;
 }
 
+.vox-home-epigraph {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  max-width: 44rem;
+  margin: 0.4rem auto 1.3rem;
+  text-align: left;
+}
+
+.vox-home-epigraph img {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+}
+
+.vox-home-epigraph blockquote {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  border-left: 2px solid rgba(212, 175, 55, 0.6);
+}
+
+.vox-home-epigraph blockquote p {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+
+.vox-home-epigraph footer {
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  color: #cbd5e1;
+}
+
+.vox-home-epigraph cite {
+  font-family: var(--font-serif);
+  font-style: italic;
+  letter-spacing: 0;
+}
+
+:root[data-theme='light'] .vox-home-epigraph blockquote p {
+  color: #1e293b;
+}
+
+:root[data-theme='light'] .vox-home-epigraph footer {
+  color: #475569;
+}
+
+@media (max-width: 560px) {
+  .vox-home-epigraph {
+    flex-direction: column;
+    text-align: center;
+  }
+  .vox-home-epigraph blockquote {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
 .vox-home-actions {
   display: flex;
   align-items: center;

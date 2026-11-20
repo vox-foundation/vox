@@ -1,0 +1,711 @@
+---
+import type { CarouselSlide } from '../data/carousels';
+
+interface Props {
+  slides: CarouselSlide[];
+  /** Unique per instance; used for the section id and ARIA ids. */
+  carouselId: string;
+  brand: string;
+  ariaLabel: string;
+  /** Optional line shown under the stage, e.g. a note about sample data. */
+  footnote?: string;
+  /** Overrides the default data-testid, which is the carousel id plus "-carousel". */
+  testId?: string;
+}
+
+const { slides, carouselId, brand, ariaLabel, footnote, testId } = Astro.props;
+const first = slides[0];
+const imgBase = '/assets/axis/hd';
+const srcsetFor = (base: string, theme: 'light' | 'dark') =>
+  `${imgBase}/${base}-${theme}-1280.webp 1280w, ${imgBase}/${base}-${theme}-2560.webp 2560w`;
+
+// Everything the client script needs, with image paths resolved on the server.
+const clientSlides = slides.map((s) => ({
+  ...s,
+  srcsetLight: s.image ? srcsetFor(s.image.base, 'light') : null,
+  srcsetDark: s.image ? srcsetFor(s.image.base, 'dark') : null,
+  srcLight: s.image ? `${imgBase}/${s.image.base}-light-1280.webp` : null,
+  srcDark: s.image ? `${imgBase}/${s.image.base}-dark-1280.webp` : null,
+}));
+const panelId = `${carouselId}-panel`;
+
+// Build-time guard (TOUR-HD): every captured slide must ship light and dark variants at both widths.
+const hdFiles = Object.keys(import.meta.glob('../../../docs/src/assets/axis/hd/*.webp')).map((p) => p.split('/').pop());
+for (const s of slides) {
+  if (!s.image) continue;
+  for (const theme of ['light', 'dark']) {
+    for (const w of [1280, 2560]) {
+      const name = `${s.image.base}-${theme}-${w}.webp`;
+      if (!hdFiles.includes(name)) {
+        throw new Error(`VoxCarousel(${carouselId}): slide "${s.id}" is missing docs/src/assets/axis/hd/${name}`);
+      }
+    }
+  }
+}
+---
+
+<vox-carousel data-slides={JSON.stringify(clientSlides)}>
+  <section
+    id={carouselId}
+    class="vox-gui-carousel not-content"
+    data-testid={testId ?? `${carouselId}-carousel`}
+    aria-label={ariaLabel}
+    tabindex="0"
+  >
+    <div class="carousel-header">
+      <div class="carousel-topbar">
+        <div class="carousel-brand">
+          <span class="carousel-brand-label">{brand}</span>
+          <span class="carousel-counter" data-carousel-counter>1 / {slides.length}</span>
+        </div>
+
+        <div class="carousel-controls">
+          <button type="button" class="carousel-theme-btn" data-carousel-theme-toggle aria-pressed="false">
+            Captures: Light
+          </button>
+          <button type="button" class="carousel-nav-btn" data-carousel-prev aria-label="Previous slide">← Prev</button>
+          <button type="button" class="carousel-nav-btn" data-carousel-next aria-label="Next slide">Next →</button>
+        </div>
+      </div>
+
+      <div class="carousel-tabs" role="tablist" aria-label={ariaLabel}>
+        {slides.map((s, idx) => (
+          <button
+            type="button"
+            role="tab"
+            id={`${carouselId}-tab-${idx}`}
+            aria-controls={panelId}
+            class={`carousel-tab ${idx === 0 ? 'active' : ''}`}
+            aria-selected={idx === 0 ? 'true' : 'false'}
+            tabindex={idx === 0 ? 0 : -1}
+            data-slide-idx={idx}
+          >
+            {s.tab}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div id={panelId} role="tabpanel" aria-labelledby={`${carouselId}-tab-0`}>
+      <div class="carousel-stage">
+        <img
+          data-carousel-img
+          src={first.image ? `${imgBase}/${first.image.base}-light-1280.webp` : ''}
+          srcset={first.image ? srcsetFor(first.image.base, 'light') : undefined}
+          sizes="(min-width: 1100px) 900px, 100vw"
+          alt={first.image?.alt ?? ''}
+          width="1280"
+          height="800"
+          loading="lazy"
+          decoding="async"
+          hidden={!first.image}
+        />
+        <div class="carousel-code" data-carousel-codewrap hidden={!first.code}>
+          <pre class="carousel-code-pre" data-carousel-code tabindex="0">{first.code?.text}</pre>
+          <p class="carousel-code-note" data-carousel-codenote>{first.code?.note}</p>
+        </div>
+      </div>
+
+      <div class="carousel-footer">
+        <div class="carousel-meta">
+          <span class="carousel-badge" data-carousel-badge>{first.badge}</span>
+          <h3 class="carousel-title" data-carousel-title>{first.title}</h3>
+          <p class="carousel-desc" data-carousel-what>{first.what}</p>
+          <dl class="carousel-facts">
+            <div><dt>Why it is built this way</dt><dd data-carousel-why>{first.why}</dd></div>
+            <div><dt>For AI-written code</dt><dd data-carousel-ai>{first.ai}</dd></div>
+            <div><dt>For the person using it</dt><dd data-carousel-users>{first.users}</dd></div>
+          </dl>
+        </div>
+        <div class="carousel-actions">
+          <code class="carousel-cli" data-carousel-cli>{first.cli}</code>
+          <a class="carousel-link" data-carousel-link href={first.linkHref}>{first.linkLabel} →</a>
+        </div>
+      </div>
+      {footnote && <p class="carousel-footnote">{footnote}</p>}
+    </div>
+  </section>
+</vox-carousel>
+
+<style>
+  .vox-gui-carousel {
+    border: 1px solid rgba(71, 85, 105, 0.48);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    margin: 1.15rem 0;
+    scroll-margin-top: 4.5rem;
+    background: #0b0f19;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42);
+    outline: none;
+  }
+
+  .vox-gui-carousel:focus-visible {
+    box-shadow: 0 0 0 2px #38bdf8, 0 16px 38px rgba(0, 0, 0, 0.42);
+  }
+
+  :root[data-theme='light'] .vox-gui-carousel {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .vox-gui-carousel button {
+    margin: 0;
+    font-family: inherit;
+    line-height: 1;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .carousel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.65rem 0.85rem;
+    background: linear-gradient(180deg, #111726 0%, #0c111d 100%);
+    border-bottom: 1px solid rgba(71, 85, 105, 0.38);
+  }
+
+  :root[data-theme='light'] .carousel-header {
+    background: #f8fafc;
+    border-bottom-color: #cbd5e1;
+  }
+
+  .carousel-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .carousel-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .carousel-brand-label {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.01em;
+  }
+
+  :root[data-theme='light'] .carousel-brand-label {
+    color: #0f172a;
+  }
+
+  .carousel-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.28rem;
+    flex-wrap: wrap;
+  }
+
+  .carousel-tab {
+    height: 27px;
+    padding: 0 0.52rem;
+    font-size: 0.71rem;
+    font-weight: 600;
+    border-radius: 0.36rem;
+    border: 1px solid rgba(71, 85, 105, 0.45);
+    background: rgba(15, 23, 42, 0.72);
+    color: #cbd5e1;
+    transition: border-color 0.12s ease;
+  }
+
+  .carousel-tab:hover {
+    color: #f8fafc;
+    border-color: rgba(56, 189, 248, 0.55);
+  }
+
+  .carousel-tab.active {
+    background: rgba(34, 211, 238, 0.16);
+    border-color: #22d3ee;
+    color: #bae6fd;
+  }
+
+  :root[data-theme='light'] .carousel-tab {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #1e293b;
+  }
+
+  :root[data-theme='light'] .carousel-tab:hover {
+    border-color: #0369a1;
+    color: #0f172a;
+  }
+
+  :root[data-theme='light'] .carousel-tab.active {
+    background: #0369a1;
+    border-color: #0369a1;
+    color: #ffffff;
+  }
+
+  .carousel-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .carousel-theme-btn {
+    height: 28px;
+    padding: 0 0.6rem;
+    font-size: 0.71rem;
+    font-weight: 600;
+    border-radius: 0.36rem;
+    border: 1px solid rgba(245, 158, 11, 0.48);
+    background: rgba(245, 158, 11, 0.14);
+    color: #fde68a;
+  }
+
+  .carousel-theme-btn[aria-pressed='true'] {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: #38bdf8;
+    color: #bae6fd;
+  }
+
+  :root[data-theme='light'] .carousel-theme-btn {
+    background: #fef3c7;
+    border-color: #b45309;
+    color: #78350f;
+  }
+
+  :root[data-theme='light'] .carousel-theme-btn[aria-pressed='true'] {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: #f8fafc;
+  }
+
+  .carousel-nav-btn {
+    height: 28px;
+    padding: 0 0.58rem;
+    font-size: 0.71rem;
+    font-weight: 600;
+    border-radius: 0.36rem;
+    border: 1px solid rgba(71, 85, 105, 0.48);
+    background: rgba(15, 23, 42, 0.72);
+    color: #e2e8f0;
+  }
+
+  .carousel-nav-btn:hover {
+    border-color: #38bdf8;
+    color: #ffffff;
+  }
+
+  :root[data-theme='light'] .carousel-nav-btn {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  :root[data-theme='light'] .carousel-nav-btn:hover {
+    border-color: #0369a1;
+  }
+
+  .carousel-counter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 0 0.5rem;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.71rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(71, 85, 105, 0.35);
+    border-radius: 0.36rem;
+    box-sizing: border-box;
+    white-space: nowrap;
+  }
+
+  :root[data-theme='light'] .carousel-counter {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .carousel-stage {
+    background: #080b13;
+    border-bottom: 1px solid rgba(71, 85, 105, 0.35);
+  }
+
+  :root[data-theme='light'] .carousel-stage {
+    background: #f1f5f9;
+    border-bottom-color: #cbd5e1;
+  }
+
+  .carousel-stage img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 10;
+    object-fit: contain;
+  }
+
+  .carousel-footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1.05rem;
+    background: #0d131f;
+    flex-wrap: wrap;
+  }
+
+  :root[data-theme='light'] .carousel-footer {
+    background: #ffffff;
+  }
+
+  .carousel-meta {
+    flex: 1 1 360px;
+    min-width: 0;
+  }
+
+  .carousel-badge {
+    display: inline-block;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.16rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.14);
+    color: #bae6fd;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    margin-bottom: 0.35rem;
+  }
+
+  :root[data-theme='light'] .carousel-badge {
+    background: #e0f2fe;
+    color: #0c4a6e;
+    border-color: #7dd3fc;
+  }
+
+  .carousel-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #f8fafc;
+  }
+
+  :root[data-theme='light'] .carousel-title {
+    color: #0f172a;
+  }
+
+  .carousel-desc {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.48;
+    color: #cbd5e1;
+  }
+
+  :root[data-theme='light'] .carousel-desc {
+    color: #334155;
+  }
+
+  .carousel-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+  }
+
+  .carousel-cli {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 0.65rem;
+    border-radius: 0.42rem;
+    background: #0f172a;
+    border: 1px solid rgba(71, 85, 105, 0.48);
+    color: #e2e8f0;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+
+  :root[data-theme='light'] .carousel-cli {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .carousel-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 0.85rem;
+    border-radius: 0.42rem;
+    background: var(--sl-color-accent, #38bdf8);
+    color: #041019 !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+
+  :root[data-theme='light'] .carousel-link {
+    background: #0369a1;
+    color: #ffffff !important;
+  }
+
+  .carousel-stage img[hidden],
+  .carousel-code[hidden] {
+    display: none;
+  }
+
+  .carousel-code {
+    padding: 1rem 1.1rem 0.8rem;
+    aspect-ratio: 16 / 10;
+    max-height: 520px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.6rem;
+    background: #080b13;
+  }
+
+  :root[data-theme='light'] .carousel-code {
+    background: #f1f5f9;
+  }
+
+  .carousel-code-pre {
+    margin: 0;
+    padding: 1rem 1.1rem;
+    overflow: auto;
+    max-height: 100%;
+    font-family: var(--font-mono, var(--sl-font-mono, monospace));
+    font-size: 0.86rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #e2e8f0;
+    background: #0d121d;
+    border: 1px solid rgba(71, 85, 105, 0.45);
+    border-radius: 0.5rem;
+  }
+
+  :root[data-theme='light'] .carousel-code-pre {
+    color: #0f172a;
+    background: #ffffff;
+    border-color: #cbd5e1;
+  }
+
+  .carousel-code-note,
+  .carousel-footnote {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: #94a3b8;
+  }
+
+  :root[data-theme='light'] .carousel-code-note,
+  :root[data-theme='light'] .carousel-footnote {
+    color: #475569;
+  }
+
+  .carousel-footnote {
+    padding: 0.5rem 1.05rem 0.8rem;
+    background: #0d131f;
+  }
+
+  :root[data-theme='light'] .carousel-footnote {
+    background: #ffffff;
+  }
+
+  .carousel-facts {
+    margin: 0.7rem 0 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .carousel-facts div {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .carousel-facts dt {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #7dd3fc;
+  }
+
+  :root[data-theme='light'] .carousel-facts dt {
+    color: #0369a1;
+  }
+
+  .carousel-facts dd {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: #cbd5e1;
+  }
+
+  :root[data-theme='light'] .carousel-facts dd {
+    color: #334155;
+  }
+
+  .carousel-tab:focus-visible,
+  .carousel-code-pre:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+  }
+</style>
+
+<script>
+  class VoxCarouselElement extends HTMLElement {
+    constructor() {
+      super();
+      const raw = this.dataset.slides;
+      if (!raw) return;
+      let slides = [];
+      try {
+        slides = JSON.parse(raw);
+      } catch (e) {
+        return;
+      }
+      if (!Array.isArray(slides) || slides.length === 0) return;
+
+      const root = document.documentElement;
+      let activeIdx = 0;
+      // The resolved site theme is 'light' or 'dark'. Fall back to the OS preference
+      // if Starlight has not set the attribute yet.
+      const siteIsDark = () => {
+        const t = root.getAttribute('data-theme');
+        if (t === 'light') return false;
+        if (t === 'dark') return true;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      };
+      let preferDark = siteIsDark();
+
+      const section = this.querySelector('section');
+      const tabs = Array.from(this.querySelectorAll('[data-slide-idx]'));
+      const panel = this.querySelector('[role="tabpanel"]');
+      const q = (sel) => this.querySelector(sel);
+      const prevBtn = q('[data-carousel-prev]');
+      const nextBtn = q('[data-carousel-next]');
+      const themeBtn = q('[data-carousel-theme-toggle]');
+      const counter = q('[data-carousel-counter]');
+      const img = q('[data-carousel-img]');
+      const codeWrap = q('[data-carousel-codewrap]');
+      const codePre = q('[data-carousel-code]');
+      const codeNote = q('[data-carousel-codenote]');
+      const set = (sel, text) => {
+        const el = q(sel);
+        if (el) el.textContent = text;
+      };
+      const tabIdPrefix = tabs[0] ? tabs[0].id.replace(/-tab-0$/, '') : '';
+
+      const render = (nextIdx, focusTab) => {
+        activeIdx = ((nextIdx % slides.length) + slides.length) % slides.length;
+        const s = slides[activeIdx];
+
+        if (img) {
+          if (s.srcLight) {
+            const dark = preferDark;
+            img.src = dark ? s.srcDark : s.srcLight;
+            img.srcset = dark ? s.srcsetDark : s.srcsetLight;
+            img.alt = s.image.alt;
+            img.hidden = false;
+          } else {
+            img.hidden = true;
+          }
+        }
+        if (codeWrap) {
+          codeWrap.hidden = !s.code;
+          if (s.code) {
+            if (codePre) codePre.textContent = s.code.text;
+            if (codeNote) codeNote.textContent = s.code.note;
+          }
+        }
+        set('[data-carousel-badge]', s.badge);
+        set('[data-carousel-title]', s.title);
+        set('[data-carousel-what]', s.what);
+        set('[data-carousel-why]', s.why);
+        set('[data-carousel-ai]', s.ai);
+        set('[data-carousel-users]', s.users);
+        set('[data-carousel-cli]', s.cli);
+        const link = q('[data-carousel-link]');
+        if (link) {
+          link.href = s.linkHref;
+          link.textContent = `${s.linkLabel} →`;
+        }
+        if (panel) panel.setAttribute('aria-labelledby', `${tabIdPrefix}-tab-${activeIdx}`);
+        if (counter) counter.textContent = `${activeIdx + 1} / ${slides.length}`;
+        if (themeBtn) {
+          themeBtn.setAttribute('aria-pressed', preferDark ? 'true' : 'false');
+          themeBtn.textContent = preferDark ? 'Captures: Dark' : 'Captures: Light';
+        }
+        tabs.forEach((t, i) => {
+          const active = i === activeIdx;
+          t.classList.toggle('active', active);
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
+          t.tabIndex = active ? 0 : -1;
+          if (active && focusTab) t.focus();
+        });
+      };
+
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => render(Number(tab.dataset.slideIdx || 0), false));
+      });
+      prevBtn?.addEventListener('click', () => render(activeIdx - 1, false));
+      nextBtn?.addEventListener('click', () => render(activeIdx + 1, false));
+      themeBtn?.addEventListener('click', () => {
+        preferDark = !preferDark;
+        render(activeIdx, false);
+      });
+
+      // Follow the site theme when it changes.
+      new MutationObserver(() => {
+        preferDark = siteIsDark();
+        render(activeIdx, false);
+      }).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+      // Re-sync once the page has finished loading, in case the theme attribute was set late.
+      window.addEventListener('load', () => {
+        const next = siteIsDark();
+        if (next !== preferDark) {
+          preferDark = next;
+          render(activeIdx, false);
+        }
+      });
+
+      section?.addEventListener('keydown', (e) => {
+        const target = e.target;
+        if (target instanceof HTMLElement && target.closest('pre')) return;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          render(activeIdx - 1, target instanceof HTMLElement && target.getAttribute('role') === 'tab');
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          render(activeIdx + 1, target instanceof HTMLElement && target.getAttribute('role') === 'tab');
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          render(0, target instanceof HTMLElement && target.getAttribute('role') === 'tab');
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          render(slides.length - 1, target instanceof HTMLElement && target.getAttribute('role') === 'tab');
+        }
+      });
+
+      render(0, false);
+    }
+  }
+
+  if (!customElements.get('vox-carousel')) {
+    customElements.define('vox-carousel', VoxCarouselElement);
+  }
+</script>

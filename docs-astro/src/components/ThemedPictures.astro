@@ -1,0 +1,25 @@
+---
+// Makes `<picture>` light/dark sources follow the site theme toggle instead of the OS preference.
+// Images keep working without it (they fall back to the OS preference).
+---
+
+<script>
+  const SELECTOR = 'main picture source[media*="prefers-color-scheme: dark"], main picture source[data-dark-source]';
+
+  const apply = () => {
+    const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+    document.querySelectorAll(SELECTOR).forEach((el) => {
+      // Tag once: after the first pass the media attribute no longer contains the original query.
+      el.setAttribute('data-dark-source', '');
+      el.setAttribute('media', dark ? 'all' : 'not all');
+      // Re-assigning src makes the browser pick a source again.
+      const img = el.parentElement?.querySelector('img');
+      if (img) img.src = img.src;
+    });
+  };
+  apply();
+  new MutationObserver(apply).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
+</script>

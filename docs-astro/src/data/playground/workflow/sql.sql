@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS order_ledger (
+_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    tx_hash TEXT NOT NULL
+);

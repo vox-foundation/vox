@@ -113,34 +113,77 @@ test.describe('Phase 533.1 — voxlang.org Carousel, Row Alignments & Dual-Theme
       expect(whyBox, '#why-vox bounding box missing').not.toBeNull();
       expect(carouselBox!.y).toBeLessThan(whyBox!.y);
 
-      // 2. Test Interactive Carousel Navigation (Next, Tab Jump, Theme Toggle, Prev)
+      // 2. Test Interactive Carousel Navigation (Next, Tab Jump, Theme Toggle, Prev).
+      // The carousel follows the site theme, so the expected capture variant is `theme`.
+      const other = theme === 'dark' ? 'light' : 'dark';
       const counter = carousel.locator('[data-carousel-counter]');
       const carouselImg = carousel.locator('[data-carousel-img]');
       await expect(counter).toHaveText('1 / 9');
-      await expect(carouselImg).toHaveAttribute('src', /urbs-civilization\.webp$/);
+      await expect(carouselImg).toHaveAttribute('src', new RegExp(`urbs-civilization-${theme}-1280\\.webp$`));
 
       await carousel.locator('[data-carousel-next]').click();
       await expect(counter).toHaveText('2 / 9');
-      await expect(carouselImg).toHaveAttribute('src', /urbs-imperium-inspector\.webp$/);
+      await expect(carouselImg).toHaveAttribute('src', new RegExp(`urbs-imperium-inspector-${theme}-1280\\.webp$`));
 
       await carousel.locator('[data-slide-idx="4"]').click();
       await expect(counter).toHaveText('5 / 9');
-      await expect(carouselImg).toHaveAttribute('src', /research-arcane\.webp$/);
+      await expect(carouselImg).toHaveAttribute('src', new RegExp(`research-${theme}-1280\\.webp$`));
 
       await carousel.locator('[data-carousel-theme-toggle]').click();
-      await expect(carouselImg).toHaveAttribute('src', /research-slate\.webp$/);
+      await expect(carouselImg).toHaveAttribute('src', new RegExp(`research-${other}-1280\\.webp$`));
       await carouselImg.scrollIntoViewIfNeeded();
       await expect.poll(() => carouselImg.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
 
       await carousel.locator('[data-carousel-theme-toggle]').click();
-      await expect(carouselImg).toHaveAttribute('src', /research-arcane\.webp$/);
+      await expect(carouselImg).toHaveAttribute('src', new RegExp(`research-${theme}-1280\\.webp$`));
 
       await carousel.locator('[data-carousel-prev]').click();
       await expect(counter).toHaveText('4 / 9');
-      await expect(carouselImg).toHaveAttribute('src', /harness\.webp$/);
+      await expect(carouselImg).toHaveAttribute('src', new RegExp(`harness-${theme}-1280\\.webp$`));
 
       await carousel.locator('[data-slide-idx="0"]').click();
       await expect(counter).toHaveText('1 / 9');
+
+      // 2b. Every slide states what / why / AI benefit / user benefit.
+      for (let i = 0; i < 9; i++) {
+        await carousel.locator(`[data-slide-idx="${i}"]`).click();
+        for (const sel of ['what', 'why', 'ai', 'users']) {
+          const txt = await carousel.locator(`[data-carousel-${sel}]`).innerText();
+          expect(txt.trim().length, `slide ${i + 1} is missing "${sel}" text`).toBeGreaterThan(20);
+        }
+      }
+      await carousel.locator('[data-slide-idx="0"]').click();
+
+      // 2c. Core-subsystems carousel: 12 slides, each with a capture or a code block, no clipped code.
+      const subs = page.getByTestId('vox-core-subsystems-carousel');
+      await subs.scrollIntoViewIfNeeded();
+      await expect(subs.locator('[data-carousel-counter]')).toHaveText('1 / 12');
+      for (let i = 0; i < 12; i++) {
+        await subs.locator(`[data-slide-idx="${i}"]`).click();
+        const imgVisible = await subs.locator('[data-carousel-img]').isVisible();
+        const codeVisible = await subs.locator('[data-carousel-codewrap]').isVisible();
+        expect(imgVisible || codeVisible, `subsystem slide ${i + 1} shows neither capture nor code`).toBe(true);
+        if (codeVisible) {
+          const clipped = await subs
+            .locator('[data-carousel-code]')
+            .evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 2);
+          expect(clipped, `subsystem slide ${i + 1} code is clipped horizontally`).toBe(false);
+        }
+      }
+      await subs.locator('[data-slide-idx="0"]').click();
+
+      // 2d. Playground: a single output tablist with six tabs and four examples.
+      await expect(playground.locator('.target-tabs-bar')).toHaveCount(1);
+      await expect(playground.locator('.target-tab')).toHaveCount(6);
+      await expect(playground.locator('.playground-tab')).toHaveCount(4);
+      await expect(playground.locator('.secondary-tabs-bar')).toHaveCount(0);
+
+      // 2e. The "Why Vox" diagram follows the page theme, not the OS preference.
+      const diagram = page.locator('#why-vox ~ div picture img, main picture img').first();
+      await diagram.scrollIntoViewIfNeeded();
+      await expect
+        .poll(() => diagram.evaluate((el: HTMLImageElement) => el.currentSrc))
+        .toMatch(new RegExp(`schema-fragmentation-${theme}\\.svg$`));
 
       // 3. Scroll through all images to trigger lazy loading and verify 100% decode
       const brokenImages = await page.evaluate(async () => {
@@ -315,6 +358,15 @@ test.describe('Phase 533.1 — voxlang.org Carousel, Row Alignments & Dual-Theme
         sloganRepeatCount,
         `Too many repetitions of single-file slogan on / (${sloganRepeatCount})`,
       ).toBeLessThanOrEqual(2);
+
+      // Editorial gate (docs/src/contributors/frontpage-editorial-style-2026.md): no promotional wording.
+      const bannedHits = await page.evaluate(() => {
+        const text = document.querySelector('main')?.innerText ?? '';
+        const banned =
+          /\b(revolutionary|seamless(?:ly)?|blazing(?:ly)?|cutting-edge|game-changing|supercharge[sd]?|unlock(?:s|ed)?|effortless(?:ly)?|next-generation|world-class|best-in-class|magical|turnkey|zero drift)\b|\b10x\b/gi;
+        return Array.from(new Set(text.match(banned) ?? []));
+      });
+      expect(bannedHits, `Promotional wording on / : ${bannedHits.join(', ')}`).toEqual([]);
 
       const outDir = join(process.cwd(), 'test-results/review-bundle');
       mkdirSync(outDir, { recursive: true });
