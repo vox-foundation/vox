@@ -29,7 +29,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "jsdom": "30.0.1",
-    "mermaid": "11.17.2",
+    "mermaid": "12.3.0",
     "wrangler": "4.146.0"
   }
 }
